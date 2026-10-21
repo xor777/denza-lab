@@ -517,8 +517,35 @@
       "limits": [
         "Relevant coordinator switch is retained as JADX instruction dump; dispatchPlatformStatus is not fully decompiled, so this is not a fully replayed runtime chain.",
         "A successful lockSync is coordination success, not package eligibility or a package offer.",
-        "Earlier exported ordinary strategy paths were missing after the run; current productline path is inaccessible. Neither proves an available old plan at request time."
-      ]
+        "The retained ordinary strategy export reports missing paths but has no embedded read timestamp. Observed host mtimes place that export at18Oct14:19MSK, before the normal14:38 check; its needCheck cache timestamp is12:18:08.625MSK and does not date ECUVersion.json. Do not describe the missing strategies as a post111 observation from the14:43 request. ProductLine path access is denied; neither source proves an available or deleted old plan at request time."
+      ],
+      "exportTimingCorrection": {
+        "date": "2026-10-21",
+        "artifactBeforeCorrectionSha256": "e0438b95789c40f629633e65f7e43467dd1f38c3db86fd3b9d5c488713b7c444",
+        "replacedClaim": "Earlier exported ordinary strategy paths were missing after the run; current productline path is inaccessible. Neither proves an available old plan at request time.",
+        "reason": "An unqualified after-run relation was not supported by the exporter report. Local filesystem observations point to an earlier export; they are not signed source dates or the age of ECU rows.",
+        "sourceEvidence": [
+          {
+            "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/report.json",
+            "sha256": "1833ab9f75d1b3220e1ccde39c41e52d254458783255aa86500a8848610ae8b9",
+            "meaning": "Retained report/cache used to qualify the earlier after-run claim."
+          },
+          {
+            "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/03-needCheckEcuList.json",
+            "sha256": "24f1d5ea2812faba54f46f377b3f8d55660047cdf71fa61c3cae8e25d8d87b68",
+            "meaning": "Retained report/cache used to qualify the earlier after-run claim."
+          }
+        ],
+        "needCheckResponseLocalTimestamp": 1792315088625,
+        "needCheckTimestampUtc": "2026-10-18T09:18:08.625000+00:00",
+        "hostSnapshotObservation": {
+          "cacheHostMtimeUtc": "2026-10-18T11:19:22.875511+00:00",
+          "checkStateHostMtimeUtc": "2026-10-18T11:34:51.277734+00:00",
+          "interpretation": "Host mtimes place export14:19 before observed check14:38MSK; these are filesystem observations, not embedded/signed source timestamps. Do not use them to date ECU source rows."
+        },
+        "ecuVersionSourceTimestamp": null,
+        "runtimeDeletionObserved": false
+      }
     },
     "sourceAnchors": [
       {

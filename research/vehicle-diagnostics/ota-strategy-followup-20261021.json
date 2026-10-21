@@ -1,0 +1,551 @@
+{
+  "schema": "denza-lab.ota-strategy-followup.v1",
+  "date": "2026-10-21",
+  "scope": "Offline-only retained local files. No adb, car, cloud API, TLS signing, OTA activation or edits; no firmware download.",
+  "answer": {
+    "offendingEcuProved": false,
+    "serverExpectedTupleAvailable": false,
+    "newApplicableUpdateObtained": false,
+    "newFindings": [
+      "111 has an intentional client cache purge before failure UI callback; ordinary checks are not passive reads of old strategy.",
+      "Media software code and Android/MCU composite are consistent with retained IVI firmware and shipped mapping.",
+      "One concrete config sentinel candidate can be named: F_ZCU allFF configuration; no server-causality claim.",
+      "GHY empty need-check cache is CDN-validation metadata; allEcuVersionSync100 acknowledges telemetry, not strategy eligibility."
+    ]
+  },
+  "cacheSources": {
+    "ecuVersions": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "needCheck": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/03-needCheckEcuList.json",
+      "sha256": "24f1d5ea2812faba54f46f377b3f8d55660047cdf71fa61c3cae8e25d8d87b68"
+    },
+    "exportReport": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/report.json",
+      "sha256": "1833ab9f75d1b3220e1ccde39c41e52d254458783255aa86500a8848610ae8b9"
+    },
+    "liveFinal": {
+      "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+      "sha256": "7d8e932c623e74370ec33b7673111f51ed68d00dd9db1b58f2a33d37c5cfed23"
+    },
+    "liveInitial": {
+      "path": "captures/ota-status-20261018/phase1-live-check-sanitized.txt",
+      "sha256": "762e6dba1a707220e8474bc959d8ad24849ffc4817285f9205e37f61d8b8318e"
+    }
+  },
+  "failureCacheLifecycle": {
+    "statuses": [
+      "102",
+      "111"
+    ],
+    "beforeOnFail": [
+      "download preferences clear",
+      "async disk cleanup scheduled",
+      "stock update availability hidden"
+    ],
+    "deletedWorkingTrees": {
+      "gcy": "/data/ota_package/ota/",
+      "ghy": "/data/ota_package/ota_ghy/"
+    },
+    "gcyStrategyPath": "/data/ota_package/ota/result/strategy.json",
+    "retainedOutsideGcyWorkingTree": [
+      "/data/ota_package/ECUVersion.json",
+      "/data/ota_package/needCheckEcuList.json"
+    ],
+    "runtimeDeletionObserved": false,
+    "qualification": "Code path is direct, but disk deletion success and actual18Oct directory state before/after were not logged. This is not proof that any old plan existed or that this run removed one. No source in this method writes VehicleVersion2=V1.0."
+  },
+  "cacheTimeQualification": {
+    "needCheckResponseLocalTimestamp": 1792315088625,
+    "needCheckTimestampUtc": "2026-10-18T09:18:08.625000+00:00",
+    "needCheckEcuCount": 0,
+    "needCheckCdnCount": 8,
+    "hostSnapshotObservation": {
+      "cacheHostMtimeUtc": "2026-10-18T11:19:22.875511+00:00",
+      "checkStateHostMtimeUtc": "2026-10-18T11:34:51.277734+00:00",
+      "interpretation": "Host mtimes place export14:19 before observed check14:38MSK; these are filesystem observations, not embedded/signed source timestamps. Do not use them to date ECU source rows."
+    },
+    "ecuVersionSourceTimestamp": null,
+    "exact14h43RequestAssociationProved": false,
+    "ordinaryMissingStrategyAssociation": "Export report says missing but does not embed read time; cannot label it as a post111 observation from the14:43 request."
+  },
+  "firmwareComparison": {
+    "archives": [
+      {
+        "archiveFileName": "Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip",
+        "member": "metadata",
+        "memberSha256": "36f4df466aed5de52f4ffdac346b85ff28bb44a98b489ee216445999fa78befd",
+        "postOutswver": "34.1.33.2605218.1",
+        "postBuild": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+        "postCarseries": "denza",
+        "purpose": "IVI and FSE are different devices in one retained May-version release family, not an old/new whole-car version pair."
+      },
+      {
+        "archiveFileName": "Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip",
+        "member": "metadata",
+        "memberSha256": "2f0debd8de413cf4b0c8217921e63ce1485637017d146342fac655088cd2dc39",
+        "postOutswver": "42.1.8.2605219.1",
+        "postBuild": "BYD-AUTO/FSE/FSE:12/SQ3A.220605.009.B1/eng.build.20260708.175801:user/release-keys",
+        "postCarseries": "denza",
+        "purpose": "IVI and FSE are different devices in one retained May-version release family, not an old/new whole-car version pair."
+      }
+    ],
+    "buildProperties": {
+      "path": "captures/split-firmware-20260923/system/system/build.prop",
+      "sha256": "a82c7fa41708942bd40c50c78b013d490a3acf58cb6a25e5577282e958931ca8"
+    },
+    "iviMcuXml": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/payload.xcd",
+      "sha256": "a73457b1de3e8d8c86e60718092a62fb9af81445ffd8109bc803eb08827b45d2"
+    },
+    "fseMcuXml": {
+      "path": "captures/fse-hud-route-20260924/ota-extra/decrypted-mcu_42_2_3.xcd",
+      "sha256": "1178904a0bccb8a0340e7c6863aeac21ab9bde3d09348603a65d2c517a0e6cfd"
+    },
+    "fseMcuDecryptionManifest": {
+      "path": "captures/fse-hud-route-20260924/ota-extra/decryption-manifest.json",
+      "sha256": "941351e86e1983085966e3a9a5ab872c312e5fe0b6bfe6424459362da7c258ba"
+    },
+    "fseMetadata": {
+      "path": "captures/fse-hud-route-20260924/ota-extra/metadata",
+      "sha256": "2f0debd8de413cf4b0c8217921e63ce1485637017d146342fac655088cd2dc39"
+    },
+    "mediaMappingSources": [
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/resources/res/raw/media_softcode_mapping.json",
+        "sha256": "0099acf1425c3bffd86ac769082b56bdca3c2a8cb807a23777bfa41d0e020dc9"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/resources/res/raw/media_softcode_mapping.json",
+        "sha256": "0099acf1425c3bffd86ac769082b56bdca3c2a8cb807a23777bfa41d0e020dc9"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/resources/res/raw/media_softcode_mapping.json",
+        "sha256": "0099acf1425c3bffd86ac769082b56bdca3c2a8cb807a23777bfa41d0e020dc9"
+      }
+    ],
+    "multimediaRows": [
+      {
+        "ecuSoftCode": "4B450011E093003401",
+        "ecuConfigCode": "000000000000000000",
+        "ecuHardVer": "V20.E40.00-0.0.1",
+        "ecuId": "HTH-2021_Media_BYD_00200001",
+        "ecuConfigVer": "0.00.00",
+        "ecuSoftVer": "34.1.33.2605218.1.34.2.3.2605202.2"
+      },
+      {
+        "ecuSoftCode": "4B450011DF99004201",
+        "ecuConfigCode": "7F22",
+        "ecuHardVer": "7F22",
+        "ecuId": "HTH-2021_ASSY_BYD_00100001",
+        "ecuConfigVer": "7F22",
+        "ecuSoftVer": "42.1.8.2605219.1.42.2.3.2605250.2"
+      }
+    ],
+    "iviMcuCode": "4B450011E0930034E2",
+    "iviMappedCode": "4B450011E093003401",
+    "fseMcuCode": "4B450011DF990042E2",
+    "matchingMediaLayoutFlags": [
+      {
+        "series": "denza",
+        "fission": 0,
+        "displayUser": 0
+      },
+      {
+        "series": "denza",
+        "fission": 0,
+        "displayUser": 1
+      }
+    ],
+    "limits": [
+      "Both retained archive filenames exactly match the respective cached composite versions; no older/newer vehicle baseline exists in this pair.",
+      "Android post-outswver independently matches each composite prefix. IVI MCU revision also matches archive Config target filename.",
+      "FSE XCD MCU code endingE2 differs from combined cached ASSY code ending01; FSE combined-code formation is not traced, so only version-family consistency is established for ASSY.",
+      "Matching local package versions does not prove matching server strategy or that non-multimedia ECUs are up to date.",
+      "EcuVersion1.00.01 in XCD Configure is not claimed to be the installed34.2.3/42.2.3 MCU revision."
+    ],
+    "iviConfigXml": {
+      "path": "captures/telematics-20260923/readable-firmware/Config-readable.xml",
+      "sha256": "f6f7cfc212bbf5b60f4a3159e1e132c85b587267fdfa25e97c22c319a1111179"
+    }
+  },
+  "finiteTupleCandidate": {
+    "record": {
+      "ecuSoftCode": "4B310011E001540100",
+      "ecuConfigCode": "FFFFFFFFFFFFFFFFFF",
+      "ecuHardVer": "0.4.1",
+      "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+      "ecuConfigVer": "6.55.35",
+      "ecuSoftVer": "4.00.36"
+    },
+    "count": 1,
+    "versionAsUnsigned16": 65535,
+    "versionBytesHex": "FFFF",
+    "meaning": "NineFF code plus config versionFFFF formatted6.55.35 is a sentinel-shaped configuration; regular parser permits it and main-software repair override does not inspect config fields.",
+    "isFailureCauseProved": false,
+    "priorityRationale": "A precise single record/field pair to compare with expected strategy, beyond unspecific225-row/default counts. Missing expected table prevents calling it wrong or replacing it.",
+    "minimalReadOnlyQuestion": "For HTH-2021_F_ZCU_BYD_00100001, does the assigned strategy expect a real configCode/configVersion rather than FFFFFFFFFFFFFFFFFF/6.55.35 while main4.00.36, code4B310011E001540100 and HW0.4.1 are reported?"
+  },
+  "responseAndGhyQualification": {
+    "causePreservedInTypedFailure": false,
+    "finalUpgradeDetails": null,
+    "versionSyncUpgradeDetailsFieldsAllEmpty": true,
+    "needCheckPurpose": "Optional CDN allowlist enforcement for supplied strategy package records selected by ecuId and/or ecuSoftCode; not a list of ECU versions eligible for update.",
+    "emptyNeedCheckMeaning": "Skip local CDN check; no conclusion about backend update offer.",
+    "allEcuVersionSyncEnvelope": [
+      "version",
+      "timestamp",
+      "ecuInfo"
+    ],
+    "allEcuVersionSyncResponseModel": "CommonStatusCodeInfo",
+    "allEcuVersionSync100Means": "Version report accepted; no strategy sequence or package availability verdict."
+  },
+  "nextMinimalStep": {
+    "offlineCompleted": "Use full retained tuple and assigned batch identifier to request expected-versus-received comparison; no new local artifact contains expected version table.",
+    "beforeAnyAuthorizedRetry": "Preserve currently existing ordinary strategy/upgradeInfo/repair history and exactECUVersion plus source timestamps by an approved bounded read-only method first; repeat111 can purge normal plan cache. ProductLine is separate and not assumed applicable.",
+    "officialServiceQuestion": "For SALE-BYDHTH-2021-BATCH-00004 and vehicle sourceV1.7.0, identify failed ECU and exact expected/received six-field tuple, verify backend ECU baseline and rollout assignment, then offer an official compatible campaign or service rebaseline if required.",
+    "needsOwnerOrMachine": [
+      "Any new cache access under inaccessible data directories",
+      "Any new normal check (active ECU diagnosis and backend traffic)",
+      "Any private/backend identity use",
+      "Any state or strategy correction, download or installation"
+    ],
+    "newActionsExecuted": []
+  },
+  "sourceAnchors": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/HttpApiService.java",
+      "sha256": "cddfc6653f4f21896cd8d3da52d0d4188a755f37289e186ac2bcb1b75c73bf2a",
+      "lineStart": 45,
+      "lineEnd": 52,
+      "requiredTokens": [
+        "sendPostRequest",
+        "map(new HttpApiService$$ExternalSyntheticLambda0())"
+      ],
+      "meaning": "Post request uses status-checking map before observer."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/HttpApiService.java",
+      "sha256": "cddfc6653f4f21896cd8d3da52d0d4188a755f37289e186ac2bcb1b75c73bf2a",
+      "lineStart": 129,
+      "lineEnd": 144,
+      "requiredTokens": [
+        "responseBody.string()",
+        "JSONUtil.parseNote(responseStr, \"status\")",
+        "throw new ApiException(status, ApiResponseUtil.getResponseStatusDescription(status))"
+      ],
+      "meaning": "Raw response is logged; only status and localized generic message survive non100 exception. Server cause is not passed into typed observer."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenDealFunction.java",
+      "sha256": "3c95b2f25f8007cec19804b7e96e51cea43bf9b1a423f04f79988391b4a3fc2b",
+      "lineStart": 80,
+      "lineEnd": 84,
+      "requiredTokens": [
+        "!(throwable instanceof ApiException)"
+      ],
+      "meaning": "Non100 ApiException is excluded from ordinary network retry."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenDealFunction.java",
+      "sha256": "3c95b2f25f8007cec19804b7e96e51cea43bf9b1a423f04f79988391b4a3fc2b",
+      "lineStart": 133,
+      "lineEnd": 137,
+      "requiredTokens": [
+        "return Observable.error(throwable)"
+      ],
+      "meaning": "No registration/login branch applies to plain111; exception propagates."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/BaseEntityObserver.java",
+      "sha256": "1b2296e803a045f1e080ac98260e2a9ff676f5903d062bd37ece96fe8de8a27c",
+      "lineStart": 139,
+      "lineEnd": 168,
+      "requiredTokens": [
+        "onApiExceptionError((ApiException) e)",
+        "RESPONSE_CAN_NOT_UPDATE",
+        "RESPONSE_NO_AVAILABLE_VERSION",
+        "VehicleOTAUtil.restoreFactorySettingsOfOTA()",
+        "onFail(String.format"
+      ],
+      "meaning": "111 triggers OTA cleanup before calling request failure callback."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/constant/ApiConfigConsts.java",
+      "sha256": "be8d72873ddad58035970161b411299030b98be677649b454006bd9cc94f6951",
+      "lineStart": 11,
+      "lineEnd": 15,
+      "requiredTokens": [
+        "RESPONSE_CAN_NOT_UPDATE = \"102\"",
+        "RESPONSE_NO_AVAILABLE_VERSION = \"111\""
+      ],
+      "meaning": "Cleanup status values are102 and111, not104."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 542,
+      "lineEnd": 558,
+      "requiredTokens": [
+        "useDownloadInfoSPInstance().clearAllSPValues()",
+        "executeOnDiskIO",
+        "FileUtil.delete(FilePathManager.OTA_UPDATE_DIR)",
+        "deleteSmmPackage()"
+      ],
+      "meaning": "Cleanup clears download preferences and schedules deletion of working OTA tree and local module packages."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/util/FileUtil.java",
+      "sha256": "2fb505cf11ea3899018597fab59bdf4d103a6300e9aff29874c33ad1235a2061",
+      "lineStart": 379,
+      "lineEnd": 389,
+      "requiredTokens": [
+        "deleteDirectory(fileFullName)"
+      ],
+      "meaning": "Directory deletion is recursive via deleteDirectory."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/util/FileUtil.java",
+      "sha256": "2fb505cf11ea3899018597fab59bdf4d103a6300e9aff29874c33ad1235a2061",
+      "lineStart": 403,
+      "lineEnd": 440,
+      "requiredTokens": [
+        "for (File file : files)",
+        "deleteDirectory(file.getAbsolutePath())"
+      ],
+      "meaning": "Recursive deletion consumes files below OTA working directory."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/FilePathManager.java",
+      "sha256": "1a03017010ce3d4f008537b748953baf8627c2400d5bcff1cc2934326871be2a",
+      "lineStart": 56,
+      "lineEnd": 70,
+      "requiredTokens": [
+        "\"ota_package\"",
+        "\"ota\"",
+        "OTA_UPDATE_DIR = str2",
+        "\"result\""
+      ],
+      "meaning": "GCY working directory includes its strategy result cache."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 1996,
+      "lineEnd": 2002,
+      "requiredTokens": [
+        "FilePathManager.OTA_ROOT_DIR",
+        "ECU_VERSION_FILE_NAME"
+      ],
+      "meaning": "Request-shaped cache is at root, outside the tree deleted on111."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/api/base/BaseEntityObserver.java",
+      "sha256": "84b77fe0dab598d92f0e16f4aeb5c35f7d52fbfaeb18cc2d78951efacc0682e2",
+      "lineStart": 159,
+      "lineEnd": 169,
+      "requiredTokens": [
+        "RESPONSE_NO_AVAILABLE_VERSION",
+        "restoreFactorySettingsOfOTA()"
+      ],
+      "meaning": "GHY has equivalent failure cleanup; its execution in retained run is not claimed."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "8f757e43c8da34c1f0357db881072c69117b8b1a99578997f4b6f46e5a10506b",
+      "lineStart": 487,
+      "lineEnd": 504,
+      "requiredTokens": [
+        "executeOnDiskIO",
+        "FileUtil.delete(FilePathManager.OTA_UPDATE_DIR)"
+      ],
+      "meaning": "GHY cleanup likewise deletes its own update tree."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 401,
+      "lineEnd": 420,
+      "requiredTokens": [
+        "jsonSyncGhy",
+        "\"version\", \"timestamp\"",
+        "sendCommandSyncVersionToGhy(jsonSyncGhy)"
+      ],
+      "meaning": "GCY sends six-field tuples to GHY all-version report in a version/timestamp envelope, parallel to GCY versionSync."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/UpdateOTAPresenter.java",
+      "sha256": "b0d0c043b8c7f0fe1093cf2eebe7e31b89dcbeb89838b3a776a1b0f4e106162a",
+      "lineStart": 1234,
+      "lineEnd": 1254,
+      "requiredTokens": [
+        "loadSyncAllEcuVersion(resultJsonToSync",
+        "CommonStatusCodeInfo.class",
+        "Report all ecu version success"
+      ],
+      "meaning": "GHY allEcuVersionSync success is a report acknowledgment, no eligible strategy/package model."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/UpdateOTAPresenter.java",
+      "sha256": "b0d0c043b8c7f0fe1093cf2eebe7e31b89dcbeb89838b3a776a1b0f4e106162a",
+      "lineStart": 1815,
+      "lineEnd": 1827,
+      "requiredTokens": [
+        "loadNeedCheckEcuList(\"{}\"",
+        "getNeedCheckListSuccess"
+      ],
+      "meaning": "getNeedCheckEcuList is a separate empty-body metadata request."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/platformcommand/PlatformCommandBroadcastPresenter.java",
+      "sha256": "7e7de5f894384b84d85bbfe318fec45a0e3b0f7deae06000b4bb2c31423a58b6",
+      "lineStart": 327,
+      "lineEnd": 331,
+      "requiredTokens": [
+        "needCheckEcuList.timestamp = timestamp",
+        "writeNeedCheckEcuListToFile"
+      ],
+      "meaning": "Saved needCheck timestamp is set locally when response arrives, not ECU-cache source time."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/CheckVersionInfoIsLegalUtil.java",
+      "sha256": "f9a3f5f59fca4f114b89e2d2a6aafb4626521ba7ba57cf5e1949f5a761708c76",
+      "lineStart": 244,
+      "lineEnd": 259,
+      "requiredTokens": [
+        "600000",
+        "listTimestamp"
+      ],
+      "meaning": "Freshness check allows10minutes; it applies to local CDN validation metadata."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/CheckVersionInfoIsLegalUtil.java",
+      "sha256": "f9a3f5f59fca4f114b89e2d2a6aafb4626521ba7ba57cf5e1949f5a761708c76",
+      "lineStart": 272,
+      "lineEnd": 286,
+      "requiredTokens": [
+        "iDriveEcuList.size() == 0",
+        "listener.onCheckLegal()"
+      ],
+      "meaning": "Empty GHY need-check list skips optional CDN validation rather than proving no update."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/MediaDiagnostic.java",
+      "sha256": "9c5a9ed89cbad73aba0c5f1d1338ad4d0ddd8dcae81a60e8792cbed89e2d5da7",
+      "lineStart": 26,
+      "lineEnd": 29,
+      "requiredTokens": [
+        "getMultimediaCurrentSoftVersion()"
+      ],
+      "meaning": "Media version is assembled by special diagnostic class."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/MediaDiagnostic.java",
+      "sha256": "9c5a9ed89cbad73aba0c5f1d1338ad4d0ddd8dcae81a60e8792cbed89e2d5da7",
+      "lineStart": 61,
+      "lineEnd": 77,
+      "requiredTokens": [
+        "UpdateOTAHelper.create",
+        "iviFission",
+        "iviDisplayUser"
+      ],
+      "meaning": "Media code uses Android family plus MCU code plus layout flags, not raw MCU code alone."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646",
+      "lineStart": 55,
+      "lineEnd": 58,
+      "requiredTokens": [
+        "ro.build.multi_display_user",
+        "ro.build.system.fission_single_os",
+        "ro.build.car.series",
+        "apps.setting.product.outswver"
+      ],
+      "meaning": "Exact properties used in Media mapping and version."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646",
+      "lineStart": 242,
+      "lineEnd": 247,
+      "requiredTokens": [
+        "qcVersion + \".\" + mcuVersion"
+      ],
+      "meaning": "Cached Media composite is Android version followed by MCU version."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646",
+      "lineStart": 308,
+      "lineEnd": 325,
+      "requiredTokens": [
+        "iviFission == module.fission",
+        "iviDisplayUser == module.displayUser",
+        "mcuSoftCode.equals(module.softCode)",
+        "return item"
+      ],
+      "meaning": "Exact Media lookup semantics."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 129,
+      "lineEnd": 145,
+      "requiredTokens": [
+        "ecuConfigVer = configVer",
+        "ecuConfigCode = configCode"
+      ],
+      "meaning": "Config fields share parsers but only empty outputs are rejected here."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 343,
+      "lineEnd": 375,
+      "requiredTokens": [
+        "(high * 256) + low",
+        "getCurrentEcuSoftVersion",
+        "DEFAULT_ECU_SOFT_CODE_VALUE"
+      ],
+      "meaning": "FFFF version becomes65535 before format; allFF code is not the allzero reject value."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 254,
+      "lineEnd": 286,
+      "requiredTokens": [
+        "ver.substring(0, 1)",
+        "ver.substring(1, 3)",
+        "ver.substring(3)"
+      ],
+      "meaning": "65535 formats as6.55.35, not a date or6.x release number."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+      "lineStart": 293,
+      "lineEnd": 310,
+      "requiredTokens": [
+        "DEFAULT_BAD_ECU_SOFT_VERSION_V.equals(e.ecuSoftVer)",
+        "e.ecuSoftCode = repairEcuInfo.ecuSoftCode",
+        "e.ecuSoftVer = repairEcuInfo.ecuOriginSVer"
+      ],
+      "meaning": "Repair override condition only uses main software version; F_ZCU config sentinel does not trigger it."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/HttpApiService$$ExternalSyntheticLambda0.java",
+      "sha256": "1adb21ca23962c2ab97b07513dd2f0691f6f011b604f9850a54e1e16f14fcf3b",
+      "lineStart": 9,
+      "lineEnd": 13,
+      "requiredTokens": [
+        "HttpApiService.dealResponseBodyException"
+      ],
+      "meaning": "Rx map calls the status-checking response method before subscribe."
+    }
+  ],
+  "eligibleForProductAllowlist": false
+}
