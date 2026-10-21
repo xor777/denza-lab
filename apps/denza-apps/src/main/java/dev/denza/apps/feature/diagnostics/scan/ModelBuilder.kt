@@ -282,11 +282,19 @@ internal class ModelBuilder(
             }
         } else {
             field("Протоколы", "OBD-II (SAE J1979)")
-            val name = id?.ecuName?.takeIf { it !is Polled.NotPolled } ?: r?.identity ?: Polled.NotPolled
-            field("Имя ЭБУ · 09 0A", identText(name))
-            field("Калибровка · 09 04", identText(id?.calibration ?: Polled.NotPolled))
         }
-        if (ecu.obd) field("Стандарт OBD · PID 1C", identText(id?.obdStandard ?: Polled.NotPolled))
+        if (ecu.obd) {
+            // The brake interface's gate is its name: the autoscan's read stands in until the screen's own.
+            val gate = r?.identity?.takeIf { ScanRequests.gate(ecu) == ScanRequests.ECU_NAME }
+            val name = listOfNotNull(id?.ecuName, gate).firstOrNull { it is Polled.Got }
+                ?: id?.ecuName?.takeIf { it !is Polled.NotPolled } ?: gate ?: Polled.NotPolled
+            field("Имя блока · 09 0A", identText(name))
+            field("Калибровка · 09 04", identText(id?.calibration ?: Polled.NotPolled))
+            field("Стандарт OBD · PID 1C", identText(id?.obdStandard ?: Polled.NotPolled))
+            if (IdentProcedure.ODOMETER in id?.offered.orEmpty()) {
+                field("Пробег (${ecu.abbreviation}) · PID A6", identText(id?.odometer ?: Polled.NotPolled))
+            }
+        }
         (r?.memory as? Polled.Got)?.value?.let {
             field("Формат DTC · 19 01", if (it.format == DtcFormat.OTHER) "не сообщён: 19 01 не отвечает" else "%02X · %s".format(it.format.id, formatName(it.format)))
         }

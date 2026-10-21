@@ -84,10 +84,14 @@ class ScannerWordsTest {
     }
 
     @Test
-    fun bitmapPidsAreTheServiceOnesAndTheAskedListStopsBeforeTheLast() {
+    fun bitmapPidsAreTheServiceOnesAndTheAskedListIsEveryMapTheIdentificationReads() {
         val pids = "01 03 1F 20 21 40 41 60 67 80".split(' ')
         assertEquals(listOf("20", "40", "60", "80"), pids.filter(ScannerWords::bitmapPid))
-        assertEquals("01 00, 01 20, 01 40, 01 60", ScannerWords.pidsAsked(pids))
+        assertEquals("01 00, 01 20, 01 40, 01 60, 01 80", ScannerWords.pidsAsked(pids))
+        // ECM 2026-10-21: 80 lists A0, A0 lists A6 alone.
+        assertEquals("01 00, 01 20, 01 40, 01 60, 01 80, 01 A0", ScannerWords.pidsAsked(pids + listOf("A0", "A6")))
+        // A map beyond the last one read is listed, not asked.
+        assertEquals("01 00, 01 20, 01 40, 01 60, 01 80, 01 A0", ScannerWords.pidsAsked(pids + listOf("A0", "A6", "C0")))
     }
 
     @Test

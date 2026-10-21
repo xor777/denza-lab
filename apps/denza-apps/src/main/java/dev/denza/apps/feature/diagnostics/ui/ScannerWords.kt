@@ -4,6 +4,7 @@ import dev.denza.apps.feature.diagnostics.scan.CompareColumn
 import dev.denza.apps.feature.diagnostics.scan.CompareView
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.DtcRow
+import dev.denza.apps.feature.diagnostics.scan.IdentProcedure
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.LinkState
 import dev.denza.apps.feature.diagnostics.scan.MilState
@@ -209,10 +210,13 @@ internal object ScannerWords {
     /** A Mode 01 PID that is itself a bitmap of the next 32: 20, 40, 60, … */
     fun bitmapPid(pid: String): Boolean = pid.toIntOrNull(16)?.let { it % 0x20 == 0 } ?: false
 
-    /** The bitmaps that were asked: 00, then every bitmap PID the ECU listed but the last. */
+    /**
+     * The bitmaps that were asked: 00, then every bitmap PID the ECU listed that the identification
+     * reads ([IdentProcedure.MAPS]); a map pointed to beyond those is listed and not asked.
+     */
     fun pidsAsked(pids: List<String>): String {
-        val maps = pids.filter(::bitmapPid)
-        return (listOf("00") + maps.dropLast(1)).joinToString(", ") { "01 $it" }
+        val maps = pids.filter(::bitmapPid).filter { it.toInt(16) in IdentProcedure.MAPS }
+        return (listOf("00") + maps).joinToString(", ") { "01 $it" }
     }
 
     /** «побайтно, 9 байт»: the F194 the catalog was matched against, by its length. */

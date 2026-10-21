@@ -221,6 +221,10 @@ internal object ObdPids {
                 if (b[0] and 4 != 0) ObdQuantity("на выходе", word(b, 5) / 100.0, "кПа", 2) else null,
             ))
         },
+        // Four bytes of tenths of a kilometre: the ECM's 00 02 03 9D is 13 199,7 km (2026-10-21).
+        ObdPid(0xA6, "Одометр", 4) { b ->
+            one((b[0].toLong() shl 24 or (b[1].toLong() shl 16) or (b[2].toLong() shl 8) or b[3].toLong()) / 10.0, "км", 1)
+        },
     )
 
     private val BY_PID = DEFINITIONS.associateBy { it.pid }

@@ -271,7 +271,8 @@ class EcuCatalogContractTest {
                 assertTrue(ecu.address, allowed(request, 0x19, 0x02, ecu.dtcMask))
             }
             if (ecu.obd) {
-                listOf(intArrayOf(0x01, 0x01), intArrayOf(0x03), intArrayOf(0x07), intArrayOf(0x0A), intArrayOf(0x09, 0x0A))
+                listOf(intArrayOf(0x01, 0x01), intArrayOf(0x03), intArrayOf(0x07), intArrayOf(0x0A), intArrayOf(0x09, 0x0A),
+                    intArrayOf(0x09, 0x00), intArrayOf(0x09, 0x04), intArrayOf(0x01, 0x80), intArrayOf(0x01, 0xA0), intArrayOf(0x01, 0xA6))
                     .forEach { assertTrue(ecu.address, allowed(request, *it)) }
             }
             assertEquals(request + 8, ecu.reply)

@@ -26,12 +26,12 @@ import org.junit.Test
 /** The live stream of architecture §6.1: one frame per answer, the car's times, gaps, measured rate. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LiveStreamTest {
-    /** Every Mode 01 PID the ECM offers, by its own maps (ObdCodecTest). */
+    /** Every Mode 01 PID the ECM offers, by its own maps (ObdCodecTest), A0 and A6 included. */
     private val ecmOffered = listOf(
         0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x11, 0x13, 0x15, 0x1C, 0x1F, 0x20,
         0x21, 0x23, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x3C, 0x40,
         0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x49, 0x4A, 0x4C, 0x54, 0x56, 0x60,
-        0x67, 0x6B, 0x7A, 0x80,
+        0x67, 0x6B, 0x7A, 0x80, 0xA0, 0xA6,
     )
 
     private fun ecm() = LiveStream(0x7E0, ecmOffered, carRows = true)
@@ -47,7 +47,8 @@ class LiveStreamTest {
         // The board's table first, then the rest by number; no maps, monitors, standard or O2 list,
         // and not 7A, whose seven bytes cannot share a frame with anything or even fit one.
         assertEquals(listOf(0x05, 0x0F, 0x0B, 0x0C, 0x04, 0x11, 0x0E, 0x06, 0x07, 0x03, 0x15, 0x3C, 0x42), s.pids.take(13))
-        listOf(0x00, 0x01, 0x13, 0x1C, 0x20, 0x40, 0x41, 0x60, 0x7A, 0x80).forEach { assertFalse("%02X".format(it), it in s.pids) }
+        // Nor the odometer, read once with the identification.
+        listOf(0x00, 0x01, 0x13, 0x1C, 0x20, 0x40, 0x41, 0x60, 0x7A, 0x80, 0xA0, 0xA6).forEach { assertFalse("%02X".format(it), it in s.pids) }
         assertEquals(37, s.pids.size)
         assertEquals(s.pids.sorted(), s.packs.flatten().sorted())
         s.packs.forEach { pack ->
@@ -242,9 +243,12 @@ class LiveStreamTest {
         val r = bus.requests
         // ECM's scan step ends, its identification runs, then only the stream: no other module is asked.
         assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), r.take(6))
+        // The maps as far as they point (80 lists A0, A0 lists the odometer), the static PIDs, then Mode 09
+        // as 09 00 lists it: calibration and name.
         assertEquals(listOf("7E0 22F194", "7E0 22F195", "7E0 22F18A", "7E0 22F197", "7E0 0100", "7E0 0120", "7E0 0140",
-            "7E0 0160", "7E0 011C", "7E0 0101", "7E0 0141"), r.subList(6, 17))
-        assertEquals("7E0 010C0D", r[17])
+            "7E0 0160", "7E0 0180", "7E0 01A0", "7E0 011C", "7E0 0101", "7E0 0141", "7E0 01A6",
+            "7E0 0900", "7E0 0904", "7E0 090A"), r.subList(6, 23))
+        assertEquals("7E0 010C0D", r[23])
         assertTrue(r.all { it.startsWith("7E0 ") })
         val live = s.model.value.modules.getValue(0x7E0).obd!!.live
         assertTrue(live.running)
@@ -252,11 +256,27 @@ class LiveStreamTest {
         assertEquals(listOf(0x0C, 0x0D), live.focus)
         assertEquals("3,8 Гц · 30 мс", live.rate)
         assertEquals("9", live.rows.first { it.pid == 0x05 }.value)
+        // The odometer is read once, never streamed.
+        assertTrue(live.rows.none { it.pid == 0xA6 })
+        assertTrue(r.none { it.startsWith("7E0 01") && it.length > 9 && "A6" in it.drop(6).chunked(2) })
         val ident = s.model.value.modules.getValue(0x7E0).ident
         assertEquals("0C", ident.pids[7])
-        assertEquals(listOf("20", "40", "60", "80"), ident.pids.takeLast(4))
-        assertTrue(ident.own.any { it.key == "Стандарт OBD · PID 1C" && it.value == "0x29" })
-        assertTrue(ident.own.any { it.key == "Имя системы · 22 F197" && it.value == "не отдаёт · NRC 31" && it.muted })
+        assertEquals(listOf("20", "40", "60", "80", "A0"), ident.pids.takeLast(5))
+        assertEquals(48, ident.pids.size)
+        assertTrue("A6" in ident.pids)
+        fun own(key: String) = ident.own.first { it.key == key }
+        assertEquals("0x29", own("Стандарт OBD · PID 1C").value)
+        assertEquals("не отдаёт · NRC 31", own("Имя системы · 22 F197").value)
+        assertTrue(own("Имя системы · 22 F197").muted)
+        assertEquals("ECM-EngineControl", own("Имя блока · 09 0A").value)
+        assertEquals("Z31L07AB01", own("Калибровка · 09 04").value)
+        assertEquals("13 199,7 км", own("Пробег (ECM) · PID A6").value)
+        assertEquals(
+            listOf("Запрос → ответ", "Протоколы", "Поставщик · 22 F18A", "Номер ПО поставщика · 22 F194", "Версия ПО · 22 F195",
+                "Имя системы · 22 F197", "Имя блока · 09 0A", "Калибровка · 09 04", "Стандарт OBD · PID 1C",
+                "Пробег (ECM) · PID A6", "Формат DTC · 19 01"),
+            ident.own.map { it.key },
+        )
 
         // The tab closes: the stream stops, the recording closes, the autoscan goes on.
         s.setRecording(0x7E0, false)

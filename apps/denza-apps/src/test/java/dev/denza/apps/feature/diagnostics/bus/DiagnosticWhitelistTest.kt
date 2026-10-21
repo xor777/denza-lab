@@ -18,6 +18,7 @@ class DiagnosticWhitelistTest {
             0x7E0 to "0100", 0x7E0 to "0101", 0x7E0 to "010C0D050B110F",
             0x7E5 to "03", 0x7E5 to "07", 0x7E5 to "0A",
             0x7E5 to "0900", 0x7E5 to "0904", 0x7E5 to "090A",
+            0x7E0 to "0900", 0x7E0 to "0904", 0x7E0 to "090A", 0x7E0 to "0180", 0x7E0 to "01A0", 0x7E0 to "01A6",
             0x700 to "22F194", 0x7F7 to "22F194",
         ).forEach { (address, uds) -> assertNull("%03X %s".format(address, uds), allowed(address, uds)) }
     }

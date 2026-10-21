@@ -200,6 +200,20 @@ class ObdCodecTest {
         .flatMap { it.getJSONArray("responses").objects() }.first { it.getString("requestHex") == uds }.getString("responseHex")
 
     @Test
+    fun theOdometerIsTenthsOfAKilometreBehindTheMapsBeyondSixty() {
+        // 80 lists A0, and A0 lists A6 alone; nothing points further.
+        assertEquals(listOf(0xA0), (pid(0x7E0, 0x80, telemetryReply("0180")).value as ObdValue.Supported).pids)
+        assertEquals(listOf(0xA6), (pid(0x7E0, 0xA0, telemetryReply("01A0")).value as ObdValue.Supported).pids)
+        // 41 A6 00 02 03 9D: 131 997 tenths, the 13 199,7 km the research decoded.
+        val odometer = pid(0x7E0, 0xA6, telemetryReply("01A6"))
+        assertEquals("0002039D", odometer.rawHex)
+        assertEquals(telemetry.getJSONObject("decodedChecks").getDouble("odometerKm"), number(odometer).value, 1e-9)
+        assertEquals("км", number(odometer).unit)
+        assertEquals(1, number(odometer).decimals)
+        assertEquals(131997, telemetry.getJSONObject("odometerComparison").getInt("rawDeciKm"))
+    }
+
+    @Test
     fun commandedLambdaFfffIsNoValue() {
         // 41 44 FF FF from the stopped engine: the boundary value, not λ 2,000.
         assertEquals("4144FFFF", telemetryReply("0144"))

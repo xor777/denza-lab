@@ -111,7 +111,16 @@ internal object CarNow {
         }
     }
 
-    /** The ECM's PID maps and single-PID values of run 2, as `ObdCodecTest` has them from the trace. */
+    /** The ECM's replies of 2026-10-21: the maps beyond 60, the odometer, Mode 09 (as the car sent them). */
+    val ecm1021: Map<String, String> by lazy {
+        val telemetry = research("ecm-obd-telemetry-20261021.json").getJSONArray("runs").objects()
+            .flatMap { it.getJSONArray("responses").objects() }
+        val completion = research("ecm-completion-20261021.json").getJSONArray("runs").objects()
+            .flatMap { it.getJSONArray("wireResponses").objects() }
+        (telemetry + completion).associate { it.getString("requestHex") to it.getString("responseHex") }
+    }
+
+    /** The ECM's PID maps and single-PID values of run 2, as `ObdCodecTest` has them from the trace, and of 2026-10-21. */
     fun scriptEcmIdent(bus: FakeDiagnosticBus) {
         bus.on(0x7E0, "0100").answer("4100BE3EA813")
         bus.on(0x7E0, "0120").answer("4120A01FB011")
@@ -121,5 +130,6 @@ internal object CarNow {
         bus.on(0x7E0, "22F18A").answer("62F18A55414553202020202020")
         bus.on(0x7E0, "22F195").answer("62F1959C4A19031900")
         bus.on(0x7E0, "22F197").answer("7F2231")
+        listOf("0180", "01A0", "01A6", "0900", "0904", "090A").forEach { bus.on(0x7E0, it).answer(ecm1021.getValue(it)) }
     }
 }

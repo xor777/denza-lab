@@ -445,8 +445,8 @@ class SystemPagesTest {
         ), engine.points)
         assertEquals("1 250", page.counters.first { it.label == "ОБОРОТЫ" }.value)
         assertTrue(page.line, Regex("^7E0 → 7E8 · OBD-II \\(SAE J1979\\) \\+ UDS · Mode 01 · опрос \\d+ Гц$").matches(page.line))
-        // The stream is ECM's: no other module asked while it runs.
-        assertTrue(bus.requests.drop(17).all { it.startsWith("7E0 01") })
+        // The stream is ECM's: no other module asked while it runs (after ECM's scan step, 6, and its identification, 17).
+        assertTrue(bus.requests.drop(23).all { it.startsWith("7E0 01") })
 
         // Hidden, it stops, and the scheme keeps the last values it had.
         s.setLiveVisible(0x7E0, false)
