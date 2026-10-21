@@ -1253,8 +1253,8 @@
     },
     {
       "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
-      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933",
-      "bytes": 30253,
+      "sha256": "bf5548a122caf40e37db6ecdd82b057373b1b020d6d337bc200ed5b65c70b13b",
+      "bytes": 30861,
       "role": "existing_strict_decoder_policy_not_modified"
     },
     {

@@ -1,0 +1,247 @@
+{
+  "schema": "denza-lab.ecm-mask-feasibility.v1",
+  "date": "2026-10-21",
+  "vehicleOperations": 0,
+  "firmwareExecutions": 0,
+  "runnableProbeAdded": false,
+  "state": "stock_mask_route_confirmed_not_a_general_registry_pagination",
+  "identity": {
+    "route": "7E0",
+    "softwareCode": "32440011E004000000",
+    "calibrationId": "Z31L07AB01"
+  },
+  "native": {
+    "librarySha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+    "functions": [
+      {
+        "name": "constructor",
+        "sourceVA": "0x9f0e0",
+        "fileOffset": "0x9f0e0",
+        "size": 628,
+        "sha256": "67c3c670249d7bf5ae7dd27c2da6e0f7484fef4a78352e9200813081fd9bbaf4",
+        "instructions": "captures/ecm-mask-feasibility-20261021/constructor-instructions.json"
+      },
+      {
+        "name": "count-wrapper",
+        "sourceVA": "0x9eecc",
+        "fileOffset": "0x9eecc",
+        "size": 532,
+        "sha256": "481efa0b71e3dc3b0d421921e165ab64c5a75711ee937ada9bc51a5f09cc17a3",
+        "instructions": "captures/ecm-mask-feasibility-20261021/count-wrapper-instructions.json"
+      },
+      {
+        "name": "list-wrapper",
+        "sourceVA": "0x9f354",
+        "fileOffset": "0x9f354",
+        "size": 532,
+        "sha256": "0de3982547b3ab58a79ba940caa2df6bfb4ec522ec3a427b93d4f54241f17787",
+        "instructions": "captures/ecm-mask-feasibility-20261021/list-wrapper-instructions.json"
+      },
+      {
+        "name": "list-client",
+        "sourceVA": "0xadee8",
+        "fileOffset": "0xadee8",
+        "size": 2980,
+        "sha256": "d96dfbe9634c4fe43d451738512070b26137eb4cc1a887661d6d0a95553a94c4",
+        "instructions": "captures/ecm-mask-feasibility-20261021/list-client-instructions.json"
+      },
+      {
+        "name": "count-client",
+        "sourceVA": "0xad49c",
+        "fileOffset": "0xad49c",
+        "size": 2636,
+        "sha256": "9736708223983ce18e1734453e443bebe6e91a49d1c3eaa872f071da7cdede0b",
+        "instructions": "captures/ecm-mask-feasibility-20261021/count-client-instructions.json"
+      }
+    ],
+    "rea": [
+      {
+        "path": "captures/ecm-mask-feasibility-20261021/rea-mask-constructor.json",
+        "sourceVA": "0x9f0e0",
+        "analysisVA": "0x19f0e0",
+        "limitations": [
+          "The session serves operations only after Ghidra reports default auto-analysis complete; incomplete analysis does not expose partial results.",
+          "The imported Program and temporary project are ephemeral and deleted on close. Annotation operations edit session database metadata; original executable bytes are never written.",
+          "Cancelling an active Ghidra request terminates its ephemeral database and discards session annotations. The selected target remains open; the next provider query imports the original artifact again.",
+          "Default-space addresses use lowercase 0x-prefixed hexadecimal; other address spaces use <percent-encoded-space>:0x<hex>.",
+          "Pseudocode is Ghidra decompiler output, not original source and not text-equivalent to Hopper output.",
+          "External functions and functions without an analyzable body return null; other decompiler failures remain explicit.",
+          "Ghidra Listing reports a terminal call at 0x19f324 to 0x1f7540 <EXTERNAL>::__stack_chk_fail (external=false, thunk=true, hasNoReturn=true); fallthrough is excluded by Ghidra's flow model. This records Ghidra's FunctionManager flag, not an independent verification that the callee cannot return.",
+          "macOS sessions require a matching executable Ghidra native decompiler; REA checks for it but does not build native components or change Gatekeeper quarantine state."
+        ]
+      },
+      {
+        "path": "captures/ecm-mask-feasibility-20261021/rea-status-client.json",
+        "sourceVA": "0xadee8",
+        "analysisVA": "0x1adee8",
+        "limitations": [
+          "The session serves operations only after Ghidra reports default auto-analysis complete; incomplete analysis does not expose partial results.",
+          "The imported Program and temporary project are ephemeral and deleted on close. Annotation operations edit session database metadata; original executable bytes are never written.",
+          "Cancelling an active Ghidra request terminates its ephemeral database and discards session annotations. The selected target remains open; the next provider query imports the original artifact again.",
+          "Default-space addresses use lowercase 0x-prefixed hexadecimal; other address spaces use <percent-encoded-space>:0x<hex>.",
+          "Pseudocode is Ghidra decompiler output, not original source and not text-equivalent to Hopper output.",
+          "External functions and functions without an analyzable body return null; other decompiler failures remain explicit.",
+          "Ghidra Listing reports a terminal call at 0x1ae778 to 0x1f7aa0 <EXTERNAL>::__cxa_throw (external=false, thunk=true, hasNoReturn=true); fallthrough is excluded by Ghidra's flow model. This records Ghidra's FunctionManager flag, not an independent verification that the callee cannot return.",
+          "Ghidra Listing reports a terminal call at 0x1ae7b0 to 0x1f7aa0 <EXTERNAL>::__cxa_throw (external=false, thunk=true, hasNoReturn=true); fallthrough is excluded by Ghidra's flow model. This records Ghidra's FunctionManager flag, not an independent verification that the callee cannot return.",
+          "Ghidra Listing reports a terminal call at 0x1ae7b4 to 0x1f7540 <EXTERNAL>::__stack_chk_fail (external=false, thunk=true, hasNoReturn=true); fallthrough is excluded by Ghidra's flow model. This records Ghidra's FunctionManager flag, not an independent verification that the callee cannot return.",
+          "macOS sessions require a matching executable Ghidra native decompiler; REA checks for it but does not build native components or change Gatekeeper quarantine state."
+        ]
+      },
+      {
+        "path": "captures/ecm-mask-feasibility-20261021/rea-list-wrapper.json",
+        "sourceVA": "0x9f354",
+        "analysisVA": "0x19f354",
+        "limitations": [
+          "The session serves operations only after Ghidra reports default auto-analysis complete; incomplete analysis does not expose partial results.",
+          "The imported Program and temporary project are ephemeral and deleted on close. Annotation operations edit session database metadata; original executable bytes are never written.",
+          "Cancelling an active Ghidra request terminates its ephemeral database and discards session annotations. The selected target remains open; the next provider query imports the original artifact again.",
+          "Default-space addresses use lowercase 0x-prefixed hexadecimal; other address spaces use <percent-encoded-space>:0x<hex>.",
+          "Pseudocode is Ghidra decompiler output, not original source and not text-equivalent to Hopper output.",
+          "External functions and functions without an analyzable body return null; other decompiler failures remain explicit.",
+          "Ghidra Listing reports a terminal call at 0x19f54c to 0x1f7540 <EXTERNAL>::__stack_chk_fail (external=false, thunk=true, hasNoReturn=true); fallthrough is excluded by Ghidra's flow model. This records Ghidra's FunctionManager flag, not an independent verification that the callee cannot return.",
+          "macOS sessions require a matching executable Ghidra native decompiler; REA checks for it but does not build native components or change Gatekeeper quarantine state."
+        ]
+      }
+    ],
+    "addressMapping": "Original ELF .text VA equals file offset for these ranges; REA maps each at +0x100000. Byte slices verified independently.",
+    "construction": "Count wrapper fixes subfunction01; list wrapper fixes02. Both pass the caller byte mask to the generic helper, which appends19,subfunction,mask. There is no offset or page argument in this path.",
+    "scope": "Stock library construction; neither ECM firmware filtering behavior nor another controller-specific pagination service is established."
+  },
+  "retainedObservations": {
+    "maskFFCount": 258,
+    "mask08Count": 0,
+    "mask08ListHex": "5902FF",
+    "mask04CountOutcome": "no Android response within4s",
+    "mask04ListOutcome": "no Android response within4s",
+    "boundary": "Different retained requests/times; timeout does not establish unsupported service or no CAN response."
+  },
+  "sizeModel": {
+    "udsBytesFormula": "3 + 4 * record_count",
+    "qualifiedSourceMcuMaxUdsBytes": 920,
+    "maxFourByteRecords": 229,
+    "bytesAt229": 919,
+    "bytesAt230": 923,
+    "bytesAt258": 1035,
+    "boundary": "Original OTA MCU size gate; installed MCU hash and first ECM CAN frame still missing. Not proof of NRC13 origin."
+  },
+  "counterexample": {
+    "synthetic": true,
+    "statusByteHex": "50",
+    "recordCount": 258,
+    "singleBitQueries": [
+      {
+        "maskHex": "01",
+        "count": 0
+      },
+      {
+        "maskHex": "02",
+        "count": 0
+      },
+      {
+        "maskHex": "04",
+        "count": 0
+      },
+      {
+        "maskHex": "08",
+        "count": 0
+      },
+      {
+        "maskHex": "10",
+        "count": 258
+      },
+      {
+        "maskHex": "20",
+        "count": 0
+      },
+      {
+        "maskHex": "40",
+        "count": 258
+      },
+      {
+        "maskHex": "80",
+        "count": 0
+      }
+    ],
+    "result": "Two nonempty slices each still contain258 records. No collection of status masks makes them smaller.",
+    "zeroStatusBoundary": "Under status-mask intersection semantics a supported code with status00 appears in no mask slice. A union of memory slices cannot prove the complete19 0A registry."
+  },
+  "nextEvidence": {
+    "conditionalOnly": true,
+    "memoryReading": "A future exact-identity count-first investigation could read an individually supported mask only if the fresh count fits and response validation succeeds; retain each time/status separately. No such pass is implemented or run here.",
+    "doNotRepeat": "Do not repeat mask04 timeouts or large FF/0A requests without a new hypothesis. A count before a list is not an atomic size guarantee.",
+    "registry": "Need source-qualified controller-specific registry selection or first7E8 CAN reply with matching installed MCU identity; owner03/readback dead ends remain closed."
+  },
+  "qualifiedFactoryDefinitions": [],
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "bytes": 1091824,
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_ecm_mask_feasibility.py",
+      "bytes": 8924,
+      "sha256": "799812f351f7c76611bedaa38d0b7c827a4a528e900a6ceb7c0a8ec2751d908e"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_ecm_request_analysis.py",
+      "bytes": 11975,
+      "sha256": "2a4f9f607e997f4b0271b13851804bb66a0a946c56d7aa8a345b47641a8daab5"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecm-request-analysis-20261021.json",
+      "bytes": 25553,
+      "sha256": "2aac12d9cee0c280e84b67a6649d85bbde5f266cc529083052be76a5cc5dfa21"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/constructor-instructions.json",
+      "bytes": 16480,
+      "sha256": "4805215ca976eeb1c2d0c2a6b76ece6a71dde9bfa8c0d431dd5fe0e15fc058fc"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/count-wrapper-instructions.json",
+      "bytes": 13928,
+      "sha256": "24be98b02a27fc0d0089251ccc0cd9a9ee0fd41122958af3fc4b8f2f79ecbcc8"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/list-wrapper-instructions.json",
+      "bytes": 13928,
+      "sha256": "e00e8c4c23fe8e1f1ae47e051c7f5f7d5c6df1aef05259c77b9a3c53a115c4b7"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/list-client-instructions.json",
+      "bytes": 78424,
+      "sha256": "723719268a5b52ce98ea7824ff6cf8b353072ae1b027c382928cf48c3b46d806"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/count-client-instructions.json",
+      "bytes": 69374,
+      "sha256": "cd45008d20f46a5ce325199889cc262c1e8066220b4a8ef120fd3cdc47f6452a"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/rea-mask-constructor.json",
+      "bytes": 12569,
+      "sha256": "b4d3092bfba17068129ce958a9318556f977976f32d5d59f66b78b23e1028eda"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/rea-status-client.json",
+      "bytes": 45161,
+      "sha256": "18d8919a446cb90a5d5151519ccc481a46fb3eae80dec1dfc28c35f8f89187d4"
+    },
+    {
+      "path": "captures/ecm-mask-feasibility-20261021/rea-list-wrapper.json",
+      "bytes": 11087,
+      "sha256": "7dc837bb4c3ad01130b0a0470437dfb4b2866c1d1bde7517f816765d933ef439"
+    },
+    {
+      "path": "captures/diagnostics-obd-20261020/probe.txt",
+      "bytes": 4747,
+      "sha256": "0f118e4bd419db888d6526812a0a9cc40a09db8fac6b163fcee2622a965d0165"
+    },
+    {
+      "path": "captures/diagnostics-obd-20261020/run2/probe.txt",
+      "bytes": 12030,
+      "sha256": "40e2511fce5be774667f95ccc1ac07119b429ba4695d3047a3f94a2a9428b40e"
+    }
+  ]
+}

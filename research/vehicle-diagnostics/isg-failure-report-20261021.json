@@ -797,6 +797,26 @@
       "sha256": "653ac334b4458267b70af59157e43aabd356cc3cfaf97371776a8e0e7442de8c"
     },
     {
+      "path": "captures/diagnostics-reader-policy-20261021/historical-sources/research/vehicle-diagnostics/decode_isg_gateway_trace.py",
+      "bytes": 14061,
+      "sha256": "aa602c3d2303246545f541dbb3eee09d4eee457b840eaff53800a1fc13181fe8"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/historical-sources/research/vehicle-diagnostics/decode_supported_dtc.py",
+      "bytes": 30253,
+      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/historical-sources/research/vehicle-diagnostics/fixtures/isg-failure-report-20261021.txt",
+      "bytes": 3317,
+      "sha256": "5ac065485f2d898752d0e2593f27f36fa9aa0d3c72a1971587e91e583280306a"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/historical-sources/research/vehicle-diagnostics/test_decode_isg_gateway_trace.py",
+      "bytes": 5547,
+      "sha256": "1ac1c7eb2c4017650d70d7a0985c416384f8bb7fe4b94d44946cb755019ac78a"
+    },
+    {
       "path": "captures/diagnostics-supported-20261021/isg-trace/native-new-ranges.asm",
       "bytes": 18007,
       "sha256": "376ea2b6cba22c86c719e01eff08cd8a41a7efea9a850f54f4a090cf3f8cff7c"
@@ -813,8 +833,8 @@
     },
     {
       "path": "research/vehicle-diagnostics/check_isg_failure_report.py",
-      "bytes": 8955,
-      "sha256": "1aed666d62b1bed9ad9b23f6ad28a9b8ec6396561729850708b0698ae332b399"
+      "bytes": 9252,
+      "sha256": "66016408522392ff78b05249b82e308c568d25e8986da9e791f73e48781c4e7a"
     },
     {
       "path": "research/vehicle-diagnostics/decode_isg_gateway_trace.py",
@@ -823,8 +843,8 @@
     },
     {
       "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
-      "bytes": 30253,
-      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933"
+      "bytes": 30861,
+      "sha256": "bf5548a122caf40e37db6ecdd82b057373b1b020d6d337bc200ed5b65c70b13b"
     },
     {
       "path": "research/vehicle-diagnostics/fixtures/isg-failure-report-20261021.txt",

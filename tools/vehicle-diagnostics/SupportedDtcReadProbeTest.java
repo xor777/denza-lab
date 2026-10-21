@@ -145,7 +145,7 @@ public final class SupportedDtcReadProbeTest {
         check("FRAME_SHAPE".equals(f.finish),"seventeen frames stop without partial success");
         for(int k=0;k<6;k++) {
             f=ready();atList(f,0,9);byte[] b=supported(9,2);
-            if(k==0)b[2]=8;if(k==1)b[6]=2;if(k==2){b[7]=b[3];b[8]=b[4];b[9]=b[5];}
+            if(k==0)b[2]=8;if(k==1)b[6]=2;if(k==2){b[7]=b[3];b[8]=b[4];b[9]=b[5];b[10]=2;}
             if(k==3)b=Arrays.copyOf(b,b.length-1);if(k==4)b[1]=2;if(k==5)b=new byte[]{0x59,10};
             answer(f,b);check(f.finish!=null,"strict list invalid "+k);
         }
@@ -374,8 +374,36 @@ public final class SupportedDtcReadProbeTest {
         check(ledger.accept(0,other,1,true)&&!ledger.failed,"ordinary raw traffic allowed during quiet window");
         check(!ledger.accept(0,target,2,true)&&ledger.failed&&ledger.matched[0]==1,"preexisting target raw traffic fails before any request");
     }
-    public static void main(String[] args) {
-        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();isgTraceCapture();canVisibility();
+    static void duplicateSupportedRecords() {
+        for(int secondStatus:new int[]{0,9}) {
+            Fake f=new Fake("isg-observe");f.ready();atList(f,1,9);
+            byte[] uds=unhex("590A09C1D487002B1E0100C1D48700");uds[14]=(byte)secondStatus;
+            answer(f,uds);f.advance(500);
+            check("PLAN_DONE".equals(f.finish)&&f.e.completed==3,"duplicate registry completes, even with differing statuses");
+            check(f.line("supported_count=3 active_fault_count=not_measured unique_code_count=2 duplicate_record_count=1"),"record and unique counts separate");
+            check(f.line("uds="+SupportedDtcReadProbe.hex(uds)),"wire order and both statuses retained");
+            check(!f.line("REJECTED_FRAME"),"repeated code is not a transport rejection");
+        }
+    }
+    static void replayIsg(String path) throws Exception {
+        Fake f=new Fake("isg-observe");f.ready();
+        List<String> capture=java.nio.file.Files.readAllLines(java.nio.file.Paths.get(path),java.nio.charset.StandardCharsets.UTF_8);
+        for(int seq=4;seq<=6;seq++) {
+            String prefix=seq==6?"REJECTED_FRAME seq=6 ":"FRAME seq="+seq+" ";
+            String match=null;
+            for(String line:capture)if(line.startsWith(prefix)) {check(match==null,"single retained frame");match=line;}
+            check(match!=null,"retained frame present");
+            f.receive(unhex(match.substring(match.indexOf(" raw=")+5)));f.advance(500);
+        }
+        check("PLAN_DONE".equals(f.finish)&&f.e.completed==3,"retained ISG bytes accepted offline");
+        check(f.line("supported_count=57 active_fault_count=not_measured unique_code_count=56 duplicate_record_count=1"),"retained ISG counts");
+        check(!f.line("REJECTED_FRAME"),"old rejection not repeated offline");
+        for(String line:f.lines)System.out.println(line);
+        System.out.println("PASS retained_wire_replay=true vehicle_operations=0 historical_live_outcome=failed");
+    }
+    public static void main(String[] args) throws Exception {
+        if(args.length==1) {replayIsg(args[0]);return;}
+        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();duplicateSupportedRecords();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();isgTraceCapture();canVisibility();
         System.out.println("PASS assertions="+assertions+" synthetic_only=true");
     }
 }

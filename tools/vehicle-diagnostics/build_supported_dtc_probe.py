@@ -125,6 +125,7 @@ def build(output):
                             'maxCallbacksPerExchange': 64, 'maxCallbacksPerPlan': 1024,
                             'meaning': 'Conservative policy limits, not physical channel maxima; oversize aborts without partial success.'},
              'semantics': {'supportedListIsNotActiveFaults': True, 'formatSource': 'previous exact190109 response',
+                           'duplicateSupportedRecords': 'Preserve RESPONSE in wire order; supported_count counts records, unique_code_count counts raw codes. No status merging; duplicate_record_count is not a transport failure.',
                            'isgTracePlan': 'Only ISG exact identity/format01 then190A; result03 multipart failure transcript is separate from accepted UDS. No retries or extended deadlines.',
                            'canVisibilityPlan': 'Six fixed ECM/ISG reads while observing six existing raw callbacks. No table writes. Retained target candidates are bounded; SecretOBD stays opaque. Absence does not establish CAN-wire absence.',
                            'snapshotIndexHasNoStatusMaskOrFormatByte': True,

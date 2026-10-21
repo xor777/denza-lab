@@ -111,7 +111,11 @@ def derive():
     assert reviews[1]['runArtifactSha256'] == sha(probe_path)
     assert reviews[2]['independentMutations']['allInvalidCasesRejected']
     for row in reviews[2]['sources']:
-        assert sha(ROOT/row['path']) == row['sha256'], 'reviewed source drift'
+        # The audit describes the earlier decoder, not every future revision.
+        # Preserve its exact source hashes without editing the original audit.
+        historical = ROOT/'captures/diagnostics-reader-policy-20261021/historical-sources'/row['path']
+        assert sha(historical) == row['sha256'], 'historical reviewed source drift'
+        sources.add(historical)
     sources.update(review_paths)
     return dict(schema='denza-lab.isg-failure-report-evidence.v1', date='2026-10-21',
         status='complete_published_failure_report_incomplete_uds_registry',

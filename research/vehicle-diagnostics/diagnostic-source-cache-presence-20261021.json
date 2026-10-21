@@ -69,7 +69,7 @@
     {
       "path": "research/vehicle-diagnostics/isg-format-source-applicability-20261021.json",
       "bytes": 28831,
-      "sha256": "78a7fc825c9d30c080ab05cec26e8477ec81904ffbc0ff62a11a289d27927c8a"
+      "sha256": "02757bc15cd2b0f0579fb0436585ff75775479dcd0c276069ad3938f62210ef8"
     },
     {
       "path": "research/vehicle-diagnostics/check_diagnostic_source_cache_presence.py",

@@ -2,6 +2,17 @@
 
 Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-data-findings.md#diagnostics-and-dtc-2026-10-18).
 
+- `supported-reader-revision-20261021.json`: 57 ordered ISG records /56 unique accepted offline; old live failure retained.
+  `python3 research/vehicle-diagnostics/check_supported_reader_revision.py`.
+- `ecm-mask-feasibility-20261021.json`: stock mask constructor and size counterexample; no general paging.
+  `python3 research/vehicle-diagnostics/check_ecm_mask_feasibility.py`.
+- `dtc-packed-source-followup-20261021.json`: 4,014 APK members and extensionless manual-cache source; no definitions.
+  `python3 research/vehicle-diagnostics/check_dtc_packed_source_followup.py`.
+- `ecu-role-binding-followup-20261021.json`: seven-entry SMM registry, FSE positive control, nine roles still unbound.
+  `python3 research/vehicle-diagnostics/check_ecu_role_binding_followup.py`.
+- `telemetry-qualification-followup-20261021.json`: rear torque and null-service caller-buffer carryover; conditional model.
+  `python3 research/vehicle-diagnostics/check_telemetry_qualification_followup.py`.
+
 - `supported-dtc-20261021.json` retains the exact-software supported-code
   registries: BMS 115, FMCU 32 and each rear drive 32. The ECM NRC13 and the
   initial ISG transport-shape abort remain explicit; the completed FMCU prefix

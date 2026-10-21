@@ -771,7 +771,7 @@
     },
     {
       "path": "research/vehicle-diagnostics/isg-supported-dictionary-candidates-20261021.json",
-      "sha256": "22a6bb8176ab88598d1b7845607c894cf519d1e600d04cdd38e8eacd41ad1569",
+      "sha256": "61b699effd0e6a8868dce6e5943b66eefaeb752711f8cded477c80c1cff09b73",
       "bytes": 46549,
       "id": "prior_full_isg_dictionary_candidates"
     },

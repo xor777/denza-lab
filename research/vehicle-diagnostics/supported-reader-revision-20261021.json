@@ -1,0 +1,420 @@
+{
+  "schema": "denza-lab.supported-reader-revision.v1",
+  "date": "2026-10-21",
+  "vehicleOperations": 0,
+  "productEdits": false,
+  "state": "offline_replay_passed_not_run_on_car",
+  "historicalLiveOutcome": {
+    "reason": "DUPLICATE_DTC_CODE",
+    "requests": "6",
+    "completed": "5",
+    "targets": "1",
+    "cleanup": "false",
+    "callbacks": "12",
+    "queued": "1"
+  },
+  "readerRevision": {
+    "build": "captures/diagnostics-reader-policy-20261021/build-01",
+    "jarSha256": "5b4c2f31130d344a16137130da9db28a6bf8c5e6c9de8816628f455beaba5690",
+    "syntheticTests": "PASS assertions=274 synthetic_only=true",
+    "replay": "Actual retained envelopes supplied to a fake clock and transport; Java Engine accepts all three exchanges. No real cleanup or vehicle lifecycle is simulated."
+  },
+  "identity": {
+    "requestIdHex": "7E6",
+    "softwareCode": "48370011E0EA000000",
+    "formatIdHex": "01"
+  },
+  "retainedResponse": {
+    "udsBytes": 231,
+    "sha256": "da06b9abccf4658e3f0df0647199401d32059dd9c0d31e5ded9c9e052af6aafe",
+    "recordCount": 57,
+    "uniqueRawCodes": 56,
+    "duplicateRawCode": "C1D487",
+    "duplicateOrdinals": [
+      28,
+      40
+    ],
+    "orderedRecords": [
+      {
+        "ordinal": 1,
+        "raw24Hex": "180219",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 2,
+        "raw24Hex": "183500",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 3,
+        "raw24Hex": "183600",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 4,
+        "raw24Hex": "183700",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 5,
+        "raw24Hex": "183800",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 6,
+        "raw24Hex": "180617",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 7,
+        "raw24Hex": "180616",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 8,
+        "raw24Hex": "183900",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 9,
+        "raw24Hex": "183A00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 10,
+        "raw24Hex": "181A00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 11,
+        "raw24Hex": "191001",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 12,
+        "raw24Hex": "191101",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 13,
+        "raw24Hex": "191201",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 14,
+        "raw24Hex": "180396",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 15,
+        "raw24Hex": "180496",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 16,
+        "raw24Hex": "180596",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 17,
+        "raw24Hex": "180896",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 18,
+        "raw24Hex": "180996",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 19,
+        "raw24Hex": "183C00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 20,
+        "raw24Hex": "180F19",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 21,
+        "raw24Hex": "181017",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 22,
+        "raw24Hex": "181700",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 23,
+        "raw24Hex": "181100",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 24,
+        "raw24Hex": "181200",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 25,
+        "raw24Hex": "180E00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 26,
+        "raw24Hex": "181600",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 27,
+        "raw24Hex": "C14787",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 28,
+        "raw24Hex": "C1D487",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 29,
+        "raw24Hex": "183D00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 30,
+        "raw24Hex": "183E00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 31,
+        "raw24Hex": "183F00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 32,
+        "raw24Hex": "184000",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 33,
+        "raw24Hex": "2B1317",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 34,
+        "raw24Hex": "2B1316",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 35,
+        "raw24Hex": "2B1417",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 36,
+        "raw24Hex": "2B1416",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 37,
+        "raw24Hex": "2B1500",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 38,
+        "raw24Hex": "2B1600",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 39,
+        "raw24Hex": "2B1700",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 40,
+        "raw24Hex": "C1D487",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 41,
+        "raw24Hex": "2B1817",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 42,
+        "raw24Hex": "2B1820",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 43,
+        "raw24Hex": "2B1821",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 44,
+        "raw24Hex": "2B1901",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 45,
+        "raw24Hex": "2B1902",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 46,
+        "raw24Hex": "2B1A00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 47,
+        "raw24Hex": "2B1B00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 48,
+        "raw24Hex": "2B1C00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 49,
+        "raw24Hex": "2B1D00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 50,
+        "raw24Hex": "2B1E00",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 51,
+        "raw24Hex": "2B1200",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 52,
+        "raw24Hex": "2B1201",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 53,
+        "raw24Hex": "2B1202",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 54,
+        "raw24Hex": "2B1203",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 55,
+        "raw24Hex": "2B1204",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 56,
+        "raw24Hex": "184100",
+        "statusHex": "00"
+      },
+      {
+        "ordinal": 57,
+        "raw24Hex": "2B1E01",
+        "statusHex": "00"
+      }
+    ]
+  },
+  "policy": {
+    "preserveOrder": true,
+    "preserveEveryStatus": true,
+    "mergeDuplicateStatuses": false,
+    "statusBitsOutsideAvailability": "reject",
+    "malformedOrIncompleteTransport": "reject",
+    "duplicateRawCode": "report separately, accept structurally valid ordered records",
+    "missingOrWrongDuplicateCountsInNewTranscript": "reject",
+    "format01": "raw only; this fix does not qualify a P/C/B/U display mapping"
+  },
+  "qualifiedFactoryDefinitions": [],
+  "qualifiedWarningDtcLinks": [],
+  "limitations": [
+    "The original failed pass and its cleanup=false remain unchanged.",
+    "Supported records are not current or historical faults.",
+    "An offline replay does not qualify new live-car lifecycle behavior.",
+    "Only the research supported-registry reader changes; product fault-memory uniqueness rules are untouched."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/probe.txt",
+      "bytes": 5992,
+      "sha256": "cc3627edbae0ac1b382d6b9bc102addda26ba2b385485a366cf7f17d65aa262d"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/isg-replay.txt",
+      "bytes": 2240,
+      "sha256": "54d5815838195417a492790c5b6a7925c0c606a2aabd080474d9c31067f20559"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/manifest.json",
+      "bytes": 10855,
+      "sha256": "a5aed6f67d6c6cb76f92a1f5e98938523c394fe6bc37a5cda6c8fac745e76ba8"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/plan.json",
+      "bytes": 7284,
+      "sha256": "3e51764a79cdc1455416a69cfbb0b9493e8bd6b7ef3999297a7b66ef89df2b7e"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/tests.txt",
+      "bytes": 40,
+      "sha256": "62d30e4ee314442de0a7597aa67b9e75e0e669e1a66a3a3beef6408e740f0874"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
+      "bytes": 30861,
+      "sha256": "bf5548a122caf40e37db6ecdd82b057373b1b020d6d337bc200ed5b65c70b13b"
+    },
+    {
+      "path": "research/vehicle-diagnostics/test_decode_supported_dtc.py",
+      "bytes": 23269,
+      "sha256": "d2b25af0b696e0fdf65a174007af3c365ef8a2c473021acbbea3be6a145937ff"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_supported_reader_revision.py",
+      "bytes": 5814,
+      "sha256": "988db4be902184becfd7f69aecc7082539801c40230432c217c6633560c8f059"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "bytes": 30892,
+      "sha256": "d25d323fddb1e2bc64b75d308c34e57a1ffa8d57227ae72b90a771e2eeeecd88"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "bytes": 35926,
+      "sha256": "557aea95f25bf8f4b7d28aae422d8bf725641f561b4b143e5a2c2aca54dfb2fa"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/tools/vehicle-diagnostics/DiagnosticCanObserver.java",
+      "bytes": 7337,
+      "sha256": "0dae4c9da02b7508a72b502e9e7e26aa3d9693fb99ef8fc37172cd3c0823f4bc"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "bytes": 2662,
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "bytes": 9477,
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "bytes": 9860,
+      "sha256": "a6d1b147416015f6ca555be5a7e750303ab4ae0d7d0236c3d085f2bee9c63c4d"
+    },
+    {
+      "path": "captures/diagnostics-reader-policy-20261021/build-01/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "bytes": 28395,
+      "sha256": "5337736853ce014a765fd6a405dfaeb2541abe42caf7473458b7c79f5292e12e"
+    }
+  ]
+}

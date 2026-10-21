@@ -1,0 +1,256 @@
+{
+  "schema": "denza-lab.dtc-packed-source-followup.v1",
+  "date": "2026-10-21",
+  "status": "bounded_retained_APK_container_gap_closed_no_applicable_dictionary_or_tuple_recovered",
+  "scope": "Offline retained owner corpus only. Five previously selected APKs; recognized top-level container signatures and exact opaque-resource structure; source-only manual-package cache/selection followup.",
+  "captureBase": "captures/dtc-packed-source-followup-20261021",
+  "selectedApplicableTuple": null,
+  "newQualifiedOemDefinitions": 0,
+  "newQualifiedFormat01Mappings": 0,
+  "newQualifiedWarningDtcLinks": 0,
+  "actions": {
+    "vehicleOperations": 0,
+    "adbOperations": 0,
+    "networkRequests": 0,
+    "factoryServerRequests": 0,
+    "BydLogOperations": 0,
+    "credentialAcquisitions": 0,
+    "encryptedWrapperDecodes": 0,
+    "firmwareExecutions": 0,
+    "newOtaExtractions": 0,
+    "newNativeSessions": 0,
+    "broadFilenameCensuses": 0
+  },
+  "targets": [
+    {
+      "ecu": "ECM",
+      "f194": "32440011E004000000",
+      "calid": "Z31L07AB01"
+    },
+    {
+      "ecu": "BMS033",
+      "f194": "4A520011E00D00047B"
+    },
+    {
+      "ecu": "FMCU",
+      "f194": "48370011E075000000",
+      "formatId": 1
+    },
+    {
+      "ecu": "ISG",
+      "f194": "48370011E0EA000000",
+      "formatId": 1
+    },
+    {
+      "ecu": "SMCU",
+      "f194": "48370011E086001100",
+      "formatId": 0
+    },
+    {
+      "ecu": "SMCU3",
+      "f194": "48370011E088001100",
+      "formatId": 0
+    }
+  ],
+  "newCoverage": {
+    "priorGap": "Prior exact-token/JSON/SQLite pass did not decompress nested/packed resources. Filename-only census explicitly made no claim about opaque or innocuously named containers.",
+    "method": "Read all non-directory members of exactly the prior five candidate APKs, verify each hash against the retained prior per-member manifest, inspect initial512 bytes regardless of filename, classify listed magic signatures, decode identified gzip members under32MiB cap.",
+    "packageCount": 5,
+    "memberCount": 4014,
+    "verifiedUncompressedMemberBytes": 59728492,
+    "headerBytes": 1825753,
+    "recognizedContainerMemberCount": 2,
+    "decodedContainerBytes": 209693,
+    "skippedMemberCount": 0,
+    "magicTypes": [
+      "zip_local",
+      "zip_empty",
+      "gzip",
+      "xz",
+      "bzip2",
+      "7z",
+      "rar4",
+      "rar5",
+      "zstd",
+      "lz4_frame",
+      "sqlite",
+      "RFC1950_zlib_header_candidate",
+      "tar_ustar_at257"
+    ],
+    "conclusion": "Only two recognized top-level containers appear. Both are OkHttp domain-suffix gzip lists, source-bound by real readTheList loaders. No target identity, missing BMS token or EOL script-selection key appears in either decoded payload. No hidden DTC archive was found by this method.",
+    "classificationSummary": [
+      {
+        "component": "SpotInspection",
+        "member": "okhttp3/internal/publicsuffix/publicsuffixes.gz",
+        "classification": "OkHttp_public_domain_suffix_rules_not_DTC",
+        "decodedBytes": 94651,
+        "decodedSha256": "d818c29ce5a385b13fa5909ce988c521442f9636ce9c96867f093aa0c7a5d6aa",
+        "listCounts": [
+          8099,
+          8
+        ]
+      },
+      {
+        "component": "ClientConfigurationService",
+        "member": "okhttp3/internal/publicsuffix/publicsuffixes.gz",
+        "classification": "OkHttp_public_domain_suffix_rules_not_DTC",
+        "decodedBytes": 115042,
+        "decodedSha256": "5beda335cfa1a9a9f84c4d17f2267ad7304c3c23d14d41256032d78db274431f",
+        "listCounts": [
+          9499,
+          8
+        ]
+      }
+    ]
+  },
+  "opaqueResourceExclusions": [
+    {
+      "components": [
+        "SpotInspection",
+        "BydAutoManual"
+      ],
+      "member": "DebugProbesKt.bin",
+      "proof": "Both equal1719 bytes; CAFEBABE and Java class version52, literal kotlin/coroutines/jvm/internal/DebugProbesKt. These are JVM class files, not an encrypted DTC dictionary. Exact member hashes/headers are retained in projection.",
+      "qualifiedMeaning": false
+    },
+    {
+      "component": "EngineerMode",
+      "member": "res/raw/point1.data",
+      "proof": "Exactly800 bytes decode as200 little-endian uint16 pairs (100,y), y=50..249. Structural exclusion only; its actual runtime consumer was not established. No diagnostic dictionary or software tuple is present in this exact numeric sequence.",
+      "qualifiedMeaning": false
+    }
+  ],
+  "manualPackageFollowup": {
+    "newFact": "ManualFragment downloads the selected ZipInfo.zipUrl and unzips it. LocalPathUtil.getNameFromPath removes every non-word character from the final URL path component, so a .zip filename becomes extensionless. A filename suffix census therefore cannot rule out this distinct runtime package cache.",
+    "manifestSurvival": "ManualRunnable.insertToDb stores ZipInfo zipUploadTime, zipUrl, zipSize, targetFile and serverFilepath. transformData reconstructs ZipInfo from response JSON. These provide a concrete existing-package locator if such an original sanitized manifest is already retained.",
+    "sourceAnchors": [
+      "manual_zip_loader",
+      "manual_cache_name",
+      "manual_manifest",
+      "manual_manifest_schema"
+    ],
+    "notRecovered": "No actual ZipInfo selection record, downloaded package, applicability tuple or per-code definition was recovered. This pass did not inspect runtime storage, request a download or scan for innocuous filenames.",
+    "boundary": "The driver manual package is a different data source from the SpotInspection EOL script. Its loader/schema does not bind the target ECU F194, CALID or supplier variant. It cannot substitute for the original applicable OEM dictionary."
+  },
+  "unchangedGaps": {
+    "BMSMissingHeadingRaw24": [
+      "1A8E73",
+      "2BF900",
+      "2BFF0B",
+      "2BAA00",
+      "2BF600",
+      "2BFF07"
+    ],
+    "BMSConflictingPublicHeadingCodes": [
+      "P2BAE00"
+    ],
+    "ISGUnmatchedRaw24UnderUnqualifiedHypothesis": [
+      "184100",
+      "2B1200",
+      "2B1201",
+      "2B1202",
+      "2B1203",
+      "2B1204",
+      "2B1316",
+      "2B1317",
+      "2B1416",
+      "2B1417",
+      "2B1500",
+      "2B1600",
+      "2B1700",
+      "2B1817",
+      "2B1820",
+      "2B1821",
+      "2B1901",
+      "2B1902",
+      "2B1A00",
+      "2B1B00",
+      "2B1C00",
+      "2B1D00",
+      "2B1E00",
+      "2B1E01"
+    ],
+    "ISGUnmatchedUniqueRaw24Count": 24,
+    "ISGFormat01Qualified": false,
+    "FMCUFormat01Qualified": false,
+    "note": "Context is retained from pinned upstream evidence; no generic code description, public heading or domain-list token is promoted."
+  },
+  "evidence": {
+    "packedProjection": {
+      "path": "captures/dtc-packed-source-followup-20261021/packed-projection.json",
+      "sha256": "c7caea6d5647f39a127369a6ab747fe7d489739a31b4a0fda273d5135899e9d5",
+      "bytes": 1653347,
+      "role": "new full member-header/decoded-container projection"
+    },
+    "sourceAnchors": {
+      "path": "captures/dtc-packed-source-followup-20261021/source-anchors.json",
+      "sha256": "bd17f8f5d323f49c5ce33cca61e6be494466b66930b1070ec657b55920c5f8c0",
+      "bytes": 15106,
+      "role": "primary Java sources with exact line-range text and hashes"
+    },
+    "builder": {
+      "path": "captures/dtc-packed-source-followup-20261021/build_evidence.py",
+      "sha256": "4d1be86fe2d477d2eac6651f797878f3ed57718c9f73e54cf5622feb0a71f2ea",
+      "bytes": 8075,
+      "role": "offline reproducibility builder"
+    }
+  },
+  "priorEvidence": [
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/targeted-apk-scan.json",
+      "sha256": "08b5e0bee6df61b2223d593fef04a7099cd6499b13e83e9f24ad933a25f22af0",
+      "bytes": 750537,
+      "role": "prior exact five-APK selection and per-member hashes; not a new broad search"
+    },
+    {
+      "path": "research/vehicle-diagnostics/supported-dtc-20261021.json",
+      "sha256": "bf0a92bd2ee156d685638b22f6f7773366460f62942dceb33c99ef5d75858a5e",
+      "bytes": 187540,
+      "role": "upstream exact-software registries and BMS gap context; no live outcome relabelled"
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-supported-dictionary-candidates-20261021.json",
+      "sha256": "61b699effd0e6a8868dce6e5943b66eefaeb752711f8cded477c80c1cff09b73",
+      "bytes": 46549,
+      "role": "upstream full ISG multiset, unqualified notation and24 misses"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-dtc-script-route-20261021.json",
+      "sha256": "94a8eccc9421c52160b960fab83e734a41423c521d543992c74f2dfa92d23d61",
+      "bytes": 7712,
+      "role": "upstream EOL script ingress/cache lifecycle and already-completed filename census"
+    }
+  ],
+  "limits": [
+    "Container signatures are recognized at member start except ustar at257; this is not carving at arbitrary offsets.",
+    "No raw-deflate/Brotli/custom codec, protobuf/arbitrary binary table, encrypted payload, executable/native section or steganographic data was decoded. JVM .bin recognition is structure/type evidence only.",
+    "No claim extends to other APKs, OTA partitions not retained, runtime caches, factory-held packages, concurrent later additions or external sources.",
+    "Absence of an applicable dictionary in this bounded pass is not proof that a dictionary does not exist.",
+    "The manual cache locator is source-only and separate from EOL script selection. No original manual manifest was observed.",
+    "No firmware format01-to-display conversion or OEM definition was inferred from numeric overlap."
+  ],
+  "nextDecisiveArtifact": {
+    "primary": "An already legitimate original plaintext EOL script with data.attach[].dtcList code:int/desc plus metadata sibling and explicit applicability provenance for the exact target F194/CALID/supplier.",
+    "requiredTuple": [
+      "scriptCode",
+      "scriptVersion",
+      "forStation",
+      "scriptFormatVer",
+      "systemIds",
+      "sourceHash",
+      "sourceDate",
+      "exactModelSoftwareApplicability",
+      "supplierVariantForISG"
+    ],
+    "tupleOnlyLead": "An existing original redacted factory report/status or selection manifest may supply scriptInfo/scriptList code/version/station. It still cannot supply the dictionary content by itself.",
+    "excluded": [
+      "authorization material",
+      "headers",
+      "private vehicle identifiers",
+      "encrypted wrappers",
+      "new task starts"
+    ],
+    "newVehicleActionJustified": false
+  },
+  "replay": "PYTHONDONTWRITEBYTECODE=1 python3 research/vehicle-diagnostics/check_dtc_packed_source_followup.py"
+}

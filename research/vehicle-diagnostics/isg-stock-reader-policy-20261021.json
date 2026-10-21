@@ -293,7 +293,7 @@
     "conclusion": "The Java collector uniqueness gate is an additional local acceptance rule, not proof that the wire payload is truncated or that the ECU produced an active fault. The stock IP client is implementation evidence only; do not infer UDS standards compliance from it."
   },
   "originalReaderOutcome": {
-    "source": "tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+    "source": "captures/diagnostics-can-visibility-20261021/build-04/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
     "reason": "DUPLICATE_DTC_CODE",
     "remainsFailed": true,
     "endExact": "END reason=DUPLICATE_DTC_CODE requests=6 completed=5 targets=1 cleanup=false callbacks=12 queued=1",
@@ -320,7 +320,7 @@
       "sha256": "cc3627edbae0ac1b382d6b9bc102addda26ba2b385485a366cf7f17d65aa262d"
     },
     {
-      "path": "tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "path": "captures/diagnostics-can-visibility-20261021/build-04/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
       "bytes": 30666,
       "sha256": "88df12e4ce643a5c55a344f9833e68d794fbda775da4eced470711a78257e783"
     },
@@ -364,5 +364,6 @@
       "bytes": 3459,
       "sha256": "ebe19b6367ecddb07cec376861103a294ffdeeb01538630f9fd34fa72d577037"
     }
-  ]
+  ],
+  "laterReaderRevision": "research/vehicle-diagnostics/supported-reader-revision-20261021.json; historical outcomes above remain unchanged"
 }

@@ -1,0 +1,406 @@
+{
+  "schema": "denza-lab.telemetry-qualification-followup.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "ADBOperations": 0,
+  "networkOperations": 0,
+  "firmwareExecutions": 0,
+  "productChanges": false,
+  "newEngineeringUnitsProved": 0,
+  "scope": "Rear torque/speed producer domains and GB narrowing; complete caller-output lifetime through native manager, Binder proxy and stock sampler. A field-acceptance matrix reconciles reused earlier contracts without promoting units, ECU ownership or freshness.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "sha256": "1730ca60779d7d45f2976a947172f6c0b4b5145d763d07bc257d809275537362",
+      "bytes": 189096
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "bytes": 3126323
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/gb-fid-initializer-values.json",
+      "sha256": "296dff0d2fba8a2b43d4ac00e15ea8ec1b62e4f62fbf39d0a31e163159b8afc6",
+      "bytes": 29286
+    },
+    {
+      "path": "research/vehicle-diagnostics/powertrain-signal-origins-20261021.json",
+      "sha256": "17962cf658f8ad5fae74230781d6da2379c7fa8d589b1a78f36c04acfe3e4b96",
+      "bytes": 447474
+    },
+    {
+      "path": "research/vehicle-diagnostics/engine-drive-consumers-20261021.json",
+      "sha256": "558996ec969904ab0e07d547a41369b7d88f39bf3c2600efd43551dcd2b8f1c2",
+      "bytes": 35470
+    },
+    {
+      "path": "research/vehicle-diagnostics/powertrain-scalar-quality-20261021.json",
+      "sha256": "73c67cefc29ff41348f432442a0fb41f9465030e6ec204a304daa356fcb0c598",
+      "bytes": 42197
+    },
+    {
+      "path": "research/vehicle-diagnostics/battery-drive-telemetry-20261021.json",
+      "sha256": "cec9fd17bb6c643725dbb6c149c703ce9c397375d7dd9d970fadc967bd0b4186",
+      "bytes": 16140
+    },
+    {
+      "path": "research/vehicle-diagnostics/battery-validity-followup-20261021.json",
+      "sha256": "7f3c9cf3b65e9b66951386473a1e4b56ef8533b3929396da5b97a03cacd09833",
+      "bytes": 45947
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-source-boundary-20261021.json",
+      "sha256": "e4a974423b0c7b800cfa88ac832e0c2345064b8018fd8c8b9cfbf02962b3f1e4",
+      "bytes": 14706
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/native-evidence.json",
+      "sha256": "866b3e2b16e5857575007eb31005959abbab3d2a5ed88315d5ef5f87b2aca6b6",
+      "bytes": 94690
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/mcu-selected-fields.json",
+      "sha256": "a3063e794018718396b5b001e778cadeb14fd297011e45c3cfd423f359460965",
+      "bytes": 2805
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/proxy-vtable-evidence.json",
+      "sha256": "d74d02ebbdf441ffb8c888f40c732d050096f26e5afef8d46dac2498d7eb7cfb",
+      "bytes": 1433
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/retained-observations.json",
+      "sha256": "9c6a314f250db67ee1d6a78e17c21ea7d55338ff5df60333885f423c14330637",
+      "bytes": 3095
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/rea-doctor.json",
+      "sha256": "151123509ad1dbe6ac54d4f0b9eeb02d3ef872f0216d4e0487bf2a48403692e8",
+      "bytes": 16210
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/rea-rear-converter.json",
+      "sha256": "5110625ac39e906b89f496b46dfab889ad8412922544a0bd2cd87971134743bd",
+      "bytes": 17651
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/rea-client-getInt.json",
+      "sha256": "0c9e2956d2b8826a220618a07f8eab127b81afad3d04cdfca137386e2272e0ad",
+      "bytes": 6920
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/rea-client-getDouble.json",
+      "sha256": "473cf689f7f253b348e12fb6d300ef2d63ef3594f1e55e94cf1074ea822260e5",
+      "bytes": 7002
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/build_evidence.py",
+      "sha256": "3542e309c60532729b7533549581bfe989027935d4959e4c00b66978c9d1d41b",
+      "bytes": 8249
+    },
+    {
+      "path": "captures/telemetry-qualification-followup-20261021/rea-proxy-getDouble.json",
+      "sha256": "20271574b82a1a671cbf9c21b378cefb61f8f1d3749739b27b19c5c273e0e75f",
+      "bytes": 9119
+    }
+  ],
+  "captureBase": "captures/telemetry-qualification-followup-20261021",
+  "nativeEvidence": "captures/telemetry-qualification-followup-20261021/native-evidence.json",
+  "MCUEvidence": "captures/telemetry-qualification-followup-20261021/mcu-selected-fields.json",
+  "proxyVtableEvidence": "captures/telemetry-qualification-followup-20261021/proxy-vtable-evidence.json",
+  "retainedObservations": "captures/telemetry-qualification-followup-20261021/retained-observations.json",
+  "newFindings": [
+    {
+      "id": "rear-torque-domain-and-wrap",
+      "identities": [
+        "1039/2850002C",
+        "1039/2850003C"
+      ],
+      "producer": "MCU CAN285/channel0 generic handler18A09C: descriptorsE0160/E01A8 cover byte5.bit4..byte7.bit3 and byte7.bit4..byte9.bit3. Each extracts unsigned16 and serializes2bytes. The earlier generic extraction proof is reused; this pass pins these exact descriptor/property bytes.",
+      "HALBinding": "HAL12E05C..12E130 constructs FIDs2850002C/3C as2850001C+10/+20, storage4, device1039, converterE0EC0.",
+      "conversion": "E0EC0 reads int32 source, converts signed32 to float32, multiplies by float32(0x3DCCCCCD), writes float32, and returns0. With the unsigned16 producer the API numeric domain is0..6553.5. There is no bounds, FFFE/FFFF or offset branch.",
+      "getter": "The reused FeatureMapper float getter returns a matching cache value without age or last-conversion status; this is distinct from the manager/proxy status API below.",
+      "GBConsumer": "In the three-drive config7 branch, calls141E8/14228/14258 read front/left/right torque through getDouble. Instructions141FC..14284 encode u16(trunc(float32(float32(API*10)+20000))). For all65536 producer inputs this equals u16(raw+20000).",
+      "boundaries": [
+        {
+          "raw": 0,
+          "API": 0.0,
+          "GBu16": 20000
+        },
+        {
+          "raw": 45535,
+          "API": 4553.5,
+          "GBu16": 65535
+        },
+        {
+          "raw": 45536,
+          "API": 4553.60009765625,
+          "GBu16": 0
+        },
+        {
+          "raw": 65534,
+          "API": 6553.39990234375,
+          "GBu16": 19998
+        },
+        {
+          "raw": 65535,
+          "API": 6553.5,
+          "GBu16": 19999
+        }
+      ],
+      "consequence": "A small GB word, including0 or19999, can be a narrowing artifact of a large admitted source. Neither the HAL numeric domain nor GB offset supplies a physical torque unit/sign or assigns FFFF an unavailable meaning. The GB encoding must not be applied to an API scalar as another conversion.",
+      "observedLive": false
+    },
+    {
+      "id": "rear-speed-full-u16-narrowing",
+      "identities": [
+        "1039/0FC000D0",
+        "1039/0FC000E0"
+      ],
+      "producer": "MCU CAN0FC/channel0 bytes26..27 and28..29 respectively are unsigned16. The recorded properties use2 serialized bytes.",
+      "HALAndGetter": "The reused registration binds identity converterE0BE0 and integer storage1. Its exact bytes contain only return0. This path does not apply the front speed bounds or mode46D00428.",
+      "GBProjection": "14180..141C0 uses the low16 API bits, adds20000 and stores low16 bits. All65536 raw inputs produce u16(raw+20000). Raw45536 projects0; raw65535 projects19999.",
+      "retainedContext": "Both retained20Oct passes report left65535 and right0. These are API/cache observations at separate timestamps, not emitted GB words or evidence of fresh physical speed. The initial integer-cache marker65535 is a separate possible origin; this report cannot select it for the retained left65535.",
+      "noNewPhysicalUnitOrInvalidMeaning": true
+    },
+    {
+      "id": "native-getters-preserve-caller-output-on-error",
+      "client": "libbydauto.so sha2561730ca60779d7d45f2976a947172f6c0b4b5145d763d07bc257d809275537362",
+      "manager": {
+        "getIntELFVA": "0x1D3C0",
+        "getDoubleELFVA": "0x1D530",
+        "servicePointerOffset": "0x158",
+        "nullServiceStatusHex": "0x800003E8",
+        "nullServiceStatusSigned": -2147482648,
+        "outputWriteOnNullService": false,
+        "nonNullCall": "The caller output pointer is forwarded to virtual slot48(getInt) or50(getDouble). Each call locks/unlocks its own manager mutex; the sampler has no surrounding transaction across fields."
+      },
+      "proxy": {
+        "vtableSymbol": "_ZTVN7android15BpBYDAutoServerE",
+        "addressPointELFVA": "0x28CD8",
+        "getIntSlotLocation": "0x28D20",
+        "getIntTargetELFVA": "0x16A30",
+        "transaction": 5,
+        "getDoubleSlotLocation": "0x28D28",
+        "getDoubleTargetELFVA": "0x16B60",
+        "floatTransaction": 7,
+        "writeGates": "16AFC/16C2C exit if Binder transact returns nonzero;16B0C/16C3C exit if reply status is nonzero. The sole caller-output stores16B18/16C48 are reached only after both successes. Failure leaves the caller buffer unchanged. RELR entries plus vtable bytes bind the virtual slots; strings alone are not proof.",
+        "transportFailureReturn": "The proxy initializes status800003E8 and returns it on a nonzero transact result; a nonzero remote reply status is returned directly. Neither failure writes an unavailable number to output."
+      },
+      "stockCaller": {
+        "integerScratch": "sp+8 for drive integers;sp+10 for engine state and speed",
+        "floatScratch": "sp+4 is shared by all3 torque and all3 DC-current reads. It is zeroed once at1391C before the configuration branch, not before each read.",
+        "noStatusBranch": "The six getDouble calls141E8/14228/14258/14300/1433C/1436C are followed by unconditional float loads from sp+4. Only the selected140DC..14400 range is claimed.",
+        "engineScratchReuse": "143A8 zeroes sp+10; state GET143B0 writes it. If state==3, speed GET143EC uses the same pointer without clearing it.143F0 reads it and143FC stores its low16 bits regardless of getter status."
+      },
+      "counterexamples": [
+        {
+          "kind": "side_to_side_then_cross_field_carry",
+          "schedule": [
+            "Left rear torque GET succeeds and writes12.5 to sp+4.",
+            "Right rear torque GET fails without an output write.",
+            "Front DC-current GET later fails without an output write."
+          ],
+          "rightRearTorqueGBword": 20125,
+          "frontCurrentGBword": 10125,
+          "meaning": "Both words derive from the left torque buffer. They are not right torque or front current measurements."
+        },
+        {
+          "kind": "engine_state_becomes_serialized_speed",
+          "schedule": [
+            "State GET succeeds and writes3 to sp+10.",
+            "Speed GET fails without an output write."
+          ],
+          "engineState": 3,
+          "serializedSpeedGBword": 3,
+          "meaning": "Serialized speed3 comes from the state value, without any acquired speed3."
+        }
+      ],
+      "proofLimit": "These are finite conditional source compositions, never injected or observed on the car. They require the later getter to take a no-write failure path. The saved good/error-free API rows do not prove that schedule occurred. The model proves caller-output lifetime and absence of an acceptance check, not the frequency or runtime reachability of a particular service failure. Scratch is explicitly initialized; this is defined stale/other-field reuse, not a claim of uninitialized memory."
+    }
+  ],
+  "fieldAcceptanceMatrix": [
+    {
+      "identity": [
+        "1039/2850002C",
+        "1039/2850003C"
+      ],
+      "numericContract": "New: unsigned16 -> float32(raw*0.1); GB u16(raw+20000).",
+      "invalidAndFreshness": "No FFFE/FFFF rejection or acquisition age; manager/proxy failure can reuse another field.",
+      "acceptance": "Accept only as raw/numeric research data with field identity and quality metadata. No Nm, sign or fresh-measurement claim.",
+      "basis": "New exact chain."
+    },
+    {
+      "identity": [
+        "1039/0FC000D0",
+        "1039/0FC000E0"
+      ],
+      "numericContract": "New domain closure: unsigned16 identity; GB u16(raw+20000).",
+      "invalidAndFreshness": "FFFF can be a producer word or initial cache. No age contract. Front speed bounds do not apply.",
+      "acceptance": "Raw diagnostics only until unit, invalid domain and freshness are supplied.",
+      "basis": "New exact domain plus prior registration."
+    },
+    {
+      "identity": [
+        "1012/44100018"
+      ],
+      "numericContract": "Reused: front torque accepts raw0..10000; API raw*0.1-500.",
+      "invalidAndFreshness": "Rejection preserves old cache. Legitimate API-1 collides with the float fallback.",
+      "acceptance": "Keep numeric conversion and transport status separate. New Nm/freshness claim blocked.",
+      "basis": "battery-drive-telemetry-20261021.json"
+    },
+    {
+      "identity": [
+        "1009/46C00008"
+      ],
+      "numericContract": "Reused: raw<=20000 -> raw*0.1-1000.",
+      "invalidAndFreshness": "Producer layout unbound. Rejection preserves old cache.",
+      "acceptance": "Full producer-to-measurement qualification blocked.",
+      "basis": "powertrain-scalar-quality-20261021.json"
+    },
+    {
+      "identity": [
+        "1039/28500178",
+        "1039/28500188"
+      ],
+      "numericContract": "Reused: unsigned16 -> raw*0.1.",
+      "invalidAndFreshness": "No all-ones filter; no A/sign/age qualification.",
+      "acceptance": "Numeric research data only.",
+      "basis": "powertrain-scalar-quality-20261021.json"
+    },
+    {
+      "identity": [
+        "Six drive-temperature fields"
+      ],
+      "numericContract": "Reused: unsigned byte minus40; GB restores the byte.",
+      "invalidAndFreshness": "FE/FF propagate. Their meaning and age are unproved.",
+      "acceptance": "No automatic fault label or new physical temperature unit from the formula alone.",
+      "basis": "powertrain-scalar-quality-20261021.json"
+    },
+    {
+      "identity": [
+        "1012/44100008",
+        "1012/25100008",
+        "1012/46D00408",
+        "1012/46D00418"
+      ],
+      "numericContract": "Reused: exact mode2 changes input/destination aliases and raw bounds.",
+      "invalidAndFreshness": "Mode read and numeric update are not atomic. No ISG ownership.",
+      "acceptance": "Require applicable source/mode/output timestamps before fresh numeric acceptance.",
+      "basis": "battery-drive-telemetry-20261021.json"
+    },
+    {
+      "identity": [
+        "1012/14400012",
+        "1012/10D00008",
+        "1012/20D00008"
+      ],
+      "numericContract": "Reused: primary13-bit identity;10D/20D raw<=40000 quarter-scale. RPM has prior historical qualification.",
+      "invalidAndFreshness": "Primary8191 is known invalid in the prior live contract. GB substitutes zero when state!=3. New error carry can produce3 as serialized speed.",
+      "acceptance": "Use the existing product RPM contract where already qualified. A GB serialized zero does not prove a fresh stopped engine.",
+      "basis": "engine-drive-consumers-20261021.json plus new caller-error chain."
+    },
+    {
+      "identity": [
+        "1014/44A00020",
+        "1014/34500008",
+        "1014/34500018",
+        "1014/34500028"
+      ],
+      "numericContract": "Reused: unsigned producer and identity HAL conversion.",
+      "invalidAndFreshness": "No applicable labelled-consumer unit/offset/sign or complete invalid domain.",
+      "acceptance": "Retain raw. A/kW interpretation remains blocked.",
+      "basis": "powertrain-scalar-quality-20261021.json"
+    },
+    {
+      "identity": [
+        "166 cells",
+        "14 probes"
+      ],
+      "numericContract": "Reused: exact paged-coverage/decoder contracts.",
+      "invalidAndFreshness": "No atomic sweep. Duplicates can achieve the completion latch. Per-element invalid meaning remains open.",
+      "acceptance": "Require reader-owned slot coverage and arrival times. Do not claim a simultaneous fresh physical pack map.",
+      "basis": "battery-validity-followup-20261021.json"
+    },
+    {
+      "identity": [
+        "1006/34F0000A"
+      ],
+      "numericContract": "Reused:0 INVALID,1 GENERATING,2 END,3 ERROR.",
+      "invalidAndFreshness": "State0 does not mean off or healthy. No ISG ECU ownership.",
+      "acceptance": "Accept only the stock enum label with the same field identity and known reading quality.",
+      "basis": "isg-source-boundary-20261021.json"
+    },
+    {
+      "identity": [
+        "Dedicated ISG7E6 numeric telemetry"
+      ],
+      "numericContract": "No applicable numeric DID/type/scale/unit definition bound.",
+      "invalidAndFreshness": "Factory identity does not bind broadcast motor fields.",
+      "acceptance": "Excluded from qualified numerical telemetry.",
+      "basis": "isg-source-boundary-20261021.json"
+    }
+  ],
+  "REA": {
+    "successfulClientFunctions": [
+      {
+        "ELFVA": "0x1D3C0",
+        "fileOffset": "0x1D3C0",
+        "mappedProcedure": "0x11D3C0",
+        "result": "captures/telemetry-qualification-followup-20261021/rea-client-getInt.json"
+      },
+      {
+        "ELFVA": "0x1D530",
+        "fileOffset": "0x1D530",
+        "mappedProcedure": "0x11D530",
+        "result": "captures/telemetry-qualification-followup-20261021/rea-client-getDouble.json"
+      },
+      {
+        "ELFVA": "0x16B60",
+        "fileOffset": "0x16B60",
+        "mappedProcedure": "0x116B60",
+        "result": "captures/telemetry-qualification-followup-20261021/rea-proxy-getDouble.json"
+      }
+    ],
+    "HALAttempt": {
+      "selectedFileOffset": "0xE0EC0",
+      "maxHeap": "3G",
+      "startupDeadlineMs": 180000,
+      "result": "provider_timeout before analysis completed; no HAL pseudocode or address mapping claimed.",
+      "reply": "captures/telemetry-qualification-followup-20261021/rea-rear-converter.json",
+      "retry": "No further large HAL import. Byte-corroborated narrow ranges are the authority."
+    },
+    "mappingLimit": "Successful client mapped addresses are+100000 from ELF VA. File-offset selection proves these mappings only; it does not attest the failed HAL import.",
+    "cleanup": "CLI closed ephemeral sessions. The checker verifies owned runtime roots absent or empty. Only owned capture evidence is retained."
+  },
+  "remainingUnknowns": [
+    "No new engineering unit, torque sign convention, physical drive-to-UDS ECU binding or complete invalid domain was established.",
+    "No per-field acquisition clock, age guarantee or atomic multi-field snapshot was found; callback arrival time can support reader freshness but does not timestamp ECU sensor acquisition.",
+    "No saved raw/source/update/getter trace demonstrates an actual stale/cross-field sampler failure. No faulty packets or emitted hypothetical GB words were supplied to the vehicle.",
+    "Installed MCU bytes remain unmatched to the owner OTA image; the report qualifies the hashed corpus, not installed MCU equivalence.",
+    "Physical BMS field units and dedicated ISG numerical data remain blocked by applicable data-list/packet definitions; repeated identity/healthy parked values do not close them."
+  ],
+  "checker": "PYTHONDONTWRITEBYTECODE=1 python3 research/vehicle-diagnostics/check_telemetry_qualification_followup.py"
+}

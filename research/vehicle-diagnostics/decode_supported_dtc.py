@@ -84,7 +84,9 @@ def parse_supported(uds):
     return dict(statusAvailabilityHex=f'{availability:02X}', records=records,
                 recordCount=len(records), duplicateRawCodes=duplicates,
                 recordsWithUnsupportedStatusBits=outside,
-                integrityPass=not duplicates and not outside,
+                # Duplicates are a reported property of the ordered registry,
+                # not a malformed transport response. Never merge their statuses.
+                integrityPass=not outside,
                 meaning='supported DTC registry; not an active/history fault list')
 
 
@@ -347,6 +349,11 @@ def parse_probe(text, plan_document, *, allow_partial=False):
                 fmt = parse_count(hex_bytes(previous_count['response']['uds']))
                 require(parsed['integrityPass'] and fields['format'] == f"{fmt['formatId']:02X}" and fields['status_available'] == parsed['statusAvailabilityHex'] == fmt['statusAvailabilityHex'] and int(fields['supported_count']) == parsed['recordCount'], 'SUPPORTED differs from wire')
                 require(fields['active_fault_count'] == 'not_measured', 'supported registry is not active fault count')
+                unique_count = len({r['raw24Hex'] for r in parsed['records']})
+                if parsed['duplicateRawCodes'] or 'unique_code_count' in fields or 'duplicate_record_count' in fields:
+                    require(fields.get('unique_code_count') == str(unique_count)
+                            and fields.get('duplicate_record_count') == str(parsed['recordCount']-unique_count),
+                            'SUPPORTED duplicate counts differ from wire')
             active['projections'][kind] = dict(fields, line=number)
         elif kind == 'STEP_END':
             require(active is not None and int(fields['seq']) == active['seq'], 'STEP_END context')

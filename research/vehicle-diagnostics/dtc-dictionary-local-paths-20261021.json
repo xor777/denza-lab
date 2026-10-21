@@ -543,7 +543,7 @@
     {
       "path": "research/vehicle-diagnostics/supported-dtc-20261021.json",
       "bytes": 187540,
-      "sha256": "e83aeba5e7773ebf1b708a49f904256599e5649637e922f43d569ea1ec5ceba5",
+      "sha256": "bf0a92bd2ee156d685638b22f6f7773366460f62942dceb33c99ef5d75858a5e",
       "role": "retained_local_context_and_comparison"
     },
     {

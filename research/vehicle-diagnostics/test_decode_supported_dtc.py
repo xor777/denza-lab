@@ -134,13 +134,33 @@ class SupportedPayloadTests(unittest.TestCase):
         self.assertEqual(record['statusBitStates']['testFailed'],'clear')
         self.assertEqual(record['statusBitStates']['pendingDTC'],'unsupported')
 
-    def test_anomalous_records_retained_but_comparison_blocked(self):
-        for data in ['590A091A3922001A392200','590A091A392220']:
+    def test_unavailable_status_bits_retained_but_comparison_blocked(self):
+        for data in ['590A091A392220','590A091A3922001A392220']:
             registry=parse_supported(bytes.fromhex(data))
             self.assertFalse(registry['integrityPass'])
             self.assertGreater(len(registry['records']),0)
             result=crosswalk(registry,identity_matches=True,format_id=0,sections=['battery_management'],index=INDEX)
             self.assertEqual(result['state'],'supported_list_integrity_failed')
+
+    def test_duplicate_records_preserve_order_and_conflicting_statuses(self):
+        payload=bytes.fromhex('590A091A3922002BAE00081A392209')
+        registry=parse_supported(payload)
+        self.assertTrue(registry['integrityPass'])
+        self.assertEqual(registry['duplicateRawCodes'],['1A3922'])
+        self.assertEqual([(r['raw24Hex'],r['statusHex']) for r in registry['records']],
+                         [('1A3922','00'),('2BAE00','08'),('1A3922','09')])
+        text,plan=fixture(supported=payload)
+        with self.assertRaisesRegex(ValueError,'duplicate counts'):
+            decode(text,plan,INDEX)
+        text=text.replace('active_fault_count=not_measured',
+                          'active_fault_count=not_measured unique_code_count=2 duplicate_record_count=1')
+        result=decode(text,plan,INDEX)
+        self.assertTrue(result['completion']['complete'])
+        self.assertEqual(result['modules'][0]['supportedRegistry'],registry)
+        for bad in ['unique_code_count=3 duplicate_record_count=0','unique_code_count=2',
+                    'duplicate_record_count=1','unique_code_count=2 duplicate_record_count=2']:
+            with self.subTest(bad=bad),self.assertRaisesRegex(ValueError,'duplicate counts'):
+                decode(text.replace('unique_code_count=2 duplicate_record_count=1',bad),plan,INDEX)
 
     def test_malformed_lengths_do_not_become_zero(self):
         for value in ['','590A','590A091A','590A091A3922','590B09']:

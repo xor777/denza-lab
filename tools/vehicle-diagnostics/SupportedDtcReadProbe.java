@@ -301,11 +301,14 @@ public final class SupportedDtcReadProbe {
             Set<Integer> codes=new HashSet<>();
             for(int i=3;i<uds.length;i+=4) {
                 int code=((uds[i]&255)<<16)|((uds[i+1]&255)<<8)|(uds[i+2]&255);
-                if(!codes.add(code)) { reject(lastSource,lastSourceAt,"DUPLICATE_DTC_CODE");return; }
+                // A repeated supported code is retained in RESPONSE, in wire order.
+                // Count unique codes separately; do not turn this into a transport failure.
+                codes.add(code);
                 if(((uds[i+3]&255)&~availability)!=0) { reject(lastSource,lastSourceAt,"STATUS_OUTSIDE_AVAILABILITY");return; }
             }
             host.out("SUPPORTED seq="+seq+" target="+id(target().address)+" format="+String.format("%02X",format)
-                +" status_available="+String.format("%02X",availability)+" supported_count="+codes.size()+" active_fault_count=not_measured");
+                +" status_available="+String.format("%02X",availability)+" supported_count="+((uds.length-3)/4)+" active_fault_count=not_measured"
+                +" unique_code_count="+codes.size()+" duplicate_record_count="+((uds.length-3)/4-codes.size()));
             end("SUPPORTED_READ",true);
         }
     }

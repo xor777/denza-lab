@@ -50,13 +50,13 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Stock native DTC count/list tasks preserve the format byte and raw24-bit records; they contain no format01-to-display conversion in the traced positive-response path. One public overseas TIS workshop page and BYD's environmental-document channel are acquisition leads, without a matching Z9GT dictionary. CALID search found no binding; 63/64 rear-drive catalog codes also occur in U8 | firmware + public-source boundary | 2026-10-21 | [OEM DTC candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | OEM warning dictionary:628 Chinese UI messages;8 priority mappings traced from CAN261/channel0 through1007/26100008. Further audit separates warning IDs, native DataItems and14 GB alarm predicates; the inspected type07 serializer writes four fault-code counts as literal zero. BMS cell-overtemperature headings are acquisition candidates, not a proven warning-to-DTC relation. No applicable dictionary or warning-to-ECU/DTC join | firmware; dictionary and causal links open | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21); [Warning/DTC linkage](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) |
 | Supported-code registries: BMS 115, FMCU 32 and each rear drive 32; 109 BMS codes match candidate headings, six are absent. Both rear sets match 32 own-side headings. ECM `190A` returns NRC13, whose origin is not established. ISG later returned a full positive 231-byte list with 57 entries/56 distinct raw codes; the reader rejected its duplicate C1D487 and that pass remains failed. Snapshot index: ECM empty; BMS 41 pairs; front/ISG NRC12, rears NRC31. BMS `1904` for `P1A3A22/01` returns code/status00 without a snapshot record; the original reader aborted on that short response | live registries and snapshot observations; meanings remain open | 2026-10-21 | [Supported DTC registries](#supported-dtc-registries-2026-10-21) |
-| ISG: the complete positive reply contains231 bytes,57 entries/56 distinct raw codes,status00. Duplicate C1D487 at positions28/40 triggers our reader policy; the pass remains failed. The separately inspected stock IP-client190A parser appends raw records without deduplication, but its use for this CAN capture is not established. ECM NRC13 origin remains open without its first CAN reply | complete ISG wire response; native implementation evidence; ECM cause open | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21); [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
+| ISG: the complete positive reply contains231 bytes,57 entries/56 distinct raw codes,status00. Duplicate C1D487 at positions28/40 triggered the old reader policy. The revised reader accepts57 ordered records/56 unique codes offline; the historical live pass remains failed. The separately inspected stock IP-client190A parser appends raw records without deduplication, but its use for this CAN capture is not established. ECM NRC13 origin remains open without its first CAN reply; status masks are not general registry pagination | complete ISG wire response; native implementation evidence; ECM cause open | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21); [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Reader followup](#diagnostic-reader-and-applicability-followup-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
-| Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; no new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
+| Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; the packed-resource audit found only domain-list containers, while manual caches can use extensionless names. No new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Factory script lifecycle: production EOL ingress is traced, and normal completion/startup cleanup can remove Scripts and the saved task. This does not prove the cause of this car's empty cache; original applicable ECM/BMS/drive dictionaries remain missing | offline Java source | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21) |
-| The MCU transmit path preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. F394 and F494 each occur on different factory routes, so a DID alone cannot assign a child role | offline original-byte and catalog proof | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
-| Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
+| The MCU transmit path preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. F394 and F494 each occur on different factory routes, so a DID alone cannot assign a child role. The actual seven-entry SMM registry resolves none of the nine missing roles; the saved factory map is a ten-field projection | offline original-byte and catalog proof | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
+| Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; rear torque can wrap in GB packing, and null-service getter failure can leave a reused caller buffer untouched. Units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
 | VHDS process/service and client-library hash confirmed live. First approved cache export stopped at startup; revised user0 readiness reached the reader but returned missing. Both cleaned up. VHDS uid0/umask0077 versus BydLog uid1000 supports a private-cache access limitation; actual file modes/existence remain unknown. No configuration or OEM DTC meaning recovered | live acquisition negative; access-boundary evidence | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | REA continuation closes the VHDS Binder ABI: transaction5 dispatches through the constructor-installed IVHDS vptr and the minus8 thunk to remoteOrder. publishService names the service vhds. The sending client, actual configuration and runtime applicability remain unknown; no new ECU address or DTC meaning | offline constructor and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
@@ -112,6 +112,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) — conditional raw path, six owner listeners and complete positive ISG reply rejected for a repeated code
 - [Table readback boundary](#collection-table-readback-boundary-2026-10-21) — MCU mutations, HAL replay and the still-unknown runtime table
 - [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) — native ordered records, local uniqueness policy and the exact source of factory descriptions
+- [Diagnostic reader and applicability followup](#diagnostic-reader-and-applicability-followup-2026-10-21) — ISG duplicate replay, ECM mask limits, dictionaries, role binding and getter validity
 - [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) — configurable CAN conditions and ECU requests, source applicability, sibling owner03 framing and size limit
 - [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21) — Denza acquisition leads, six unknown BMS codes and unresolved conflicting headings
 - [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21) — obfuscated JSON audit, HU/modem exclusions and BYDTIS manual-selection context
@@ -4820,8 +4821,10 @@ the earlier table-search index remains pinned as an immutable snapshot.
 
 ### Stock ISG reader and factory script source (2026-10-21)
 
+> **Superseded 2026-10-21 (reader policy only):** the revised research reader preserves repeated supported records. The old live pass remains failed; see [offline replay](#diagnostic-reader-and-applicability-followup-2026-10-21).
+
 **The repeated ISG code is present in the retained wire response; rejection
-for that repetition is our collector's additional policy.** Stock `libuds.so`
+for that repetition was our collector's additional policy.** Stock `libuds.so`
 `CUdsClient::readSupportedDTC` at `AFFCC` selects a task at `C565C`. That task
 calls `CUdsOnIpProtocol::indicationMessage`, copies the availability byte and
 appends successive three-byte-code/status records. The comparison at `C57F0`
@@ -4917,6 +4920,71 @@ identifies that tuple. The source and replay are
 and `python3 research/vehicle-diagnostics/check_factory_dtc_script_route.py`
 (27 source files, 49 exact excerpts, 227 checks). No task was started and no
 credentials or encrypted wrappers were acquired or decoded.
+
+### Diagnostic reader and applicability followup (2026-10-21)
+
+**ISG reader corrected and replayed offline.** The research reader preserves
+every supported-code record in wire order, including differing statuses for a
+repeated code. `supported_count` counts records; `unique_code_count` and
+`duplicate_record_count` report the distinction. Malformed transport, unavailable
+status bits, wrong identity and incomplete lifecycle still reject the read.
+The offline decoder verifies these counts against assembled bytes. Product
+fault-memory uniqueness rules are unchanged. Replaying the retained envelopes
+through the revised Java engine accepts57 records/56 unique codes, including
+C1D487 at ordinals28/40. The historical live pass remains failed, completed5/6,
+cleanup=false. Fake-clock replay is not vehicle acceptance; format01 stays raw.
+Validation:274 Java assertions and154 shared offline decoder tests. Historical
+audit hashes remain tied to frozen sources. Evidence and replay:
+[`supported-reader-revision-20261021.json`](../research/vehicle-diagnostics/supported-reader-revision-20261021.json),
+`python3 research/vehicle-diagnostics/check_supported_reader_revision.py`.
+
+**ECM status masks are not a paging API.** REA and original bytes bind the
+stock wrappers to `19 01 <mask>` / `19 02 <mask>`, without offset/page arguments.
+The traced MCU limit allows229 four-byte records (919 bytes);230 need923.
+A synthetic set of258 records with status50 still returns258 for each nonempty
+single-bit slice. Status00 codes appear in no status-mask intersection. This is
+a counterexample, not the measured ECM distribution. Retained mask08 count/list
+were empty; mask04 timed out within4s at Android. Neither was retried. A future
+count-first qualification might recover smaller memory slices, but not prove a
+full registry or an atomic size guarantee. The first ECM CAN reply and installed
+MCU identity remain missing. Three REA mappings use checked source bytes and
+the +0x100000 analysis base;65,536 size cases are covered:
+[`ecm-mask-feasibility-20261021.json`](../research/vehicle-diagnostics/ecm-mask-feasibility-20261021.json),
+`python3 research/vehicle-diagnostics/check_ecm_mask_feasibility.py`.
+
+**Packed resources and extensionless manual caches.** All4,014 members of the
+prior five candidate APKs were hash-checked and inspected for recognized
+containers. Both gzip entries are OkHttp domain lists; opaque `.bin` entries
+are JVM DebugProbes. BydAutoManual strips punctuation from the final URL
+component, so a cached `.zip` can be extensionless. Its `ZipInfo` fields can
+locate a package, but no actual manifest/package/applicability tuple was found.
+Six BMS misses, P2BAE00 conflict and24 ISG misses remain unresolved:
+[`dtc-packed-source-followup-20261021.json`](../research/vehicle-diagnostics/dtc-packed-source-followup-20261021.json),
+`python3 research/vehicle-diagnostics/check_dtc_packed_source_followup.py`.
+
+**A real name registry, with no new target binding.** The OTA app loads seven
+entries from `R.raw.smm_module_config`, using explicit `ecuIdSuffix` rules.
+FSE matches ASSY5E7/F294 as a positive control; none of the nine target namespaces
+matches. Generic `CanDiagnostic` writes software/version fields without adding
+a subrole name. The saved factory map is a ten-field privacy projection;
+missing descriptions there cannot prove their absence from the original HTTP
+response. A target-package description would need exact installed-software
+applicability before assigning a role. No new address, physical child,
+independent DTC memory or7E5/782 physical join is inferred:
+[`ecu-role-binding-followup-20261021.json`](../research/vehicle-diagnostics/ecu-role-binding-followup-20261021.json),
+`python3 research/vehicle-diagnostics/check_ecu_role_binding_followup.py`.
+
+**Read status and caller-buffer lifetime.** Rear torque passes through an
+unsigned16 conversion without range rejection, then can wrap in GB packing.
+The traced `libbydauto` null-service branches return failure without writing
+output; a stock sampler ignores return status and reuses buffers for successive
+fields. Adjacent-field carryover is a conditional source-derived counterexample,
+not a new live fault. Source identity, raw value, success/validity and freshness
+must accompany each displayed number. A reused buffer is not a fresh reading;
+physical units and dedicated ISG ownership are not established by this trace:
+[`telemetry-qualification-followup-20261021.json`](../research/vehicle-diagnostics/telemetry-qualification-followup-20261021.json),
+`python3 research/vehicle-diagnostics/check_telemetry_qualification_followup.py`.
+
 
 ### VHDS diagnostic tasks and owner03 boundary (2026-10-21)
 
