@@ -177,19 +177,13 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 
     private fun csv(at: Long, pid: Int, raw: String, value: String) = csvLine(at, request, pid, raw, value)
 
-    /** One row's history, value and extremes. */
-    private class Series(val pid: Int) {
-        val samples = ArrayDeque<Sample>()
+    /** One PID's or fast car signal's row: the shared [LiveSeries], its unit, its CSV words and its rate. */
+    private class Series(val pid: Int) : LiveSeries(signed = pid in SIGNED) {
         private val answered = ArrayDeque<Long>()
-        var value = "—"
         var unit = ""
-        var current: Double? = null
         var plain = ""
         /** A text PID's few words beside its code, in the norm's column. */
         var note: String? = null
-        private var decimals = 0
-        private var min: Double? = null
-        private var max: Double? = null
 
         fun put(at: Long, r: PidReading) {
             when (val v = r.value) {
@@ -212,8 +206,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                 }
                 // An answer, but no number: «н/д» in the table, a gap in the trace.
                 ObdValue.NoValue -> {
-                    gap(at)
-                    value = ObdValue.NoValue.TEXT
+                    gap(at, ObdValue.NoValue.TEXT)
                     mark(at)
                 }
                 else -> gap(at)
@@ -231,21 +224,15 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
             row.text?.let { value = it(v) }
         }
 
-        private fun number(at: Long, v: Double) {
-            current = v
-            value = Figures.number(v, decimals, signed = pid in SIGNED)
+        override fun number(at: Long, v: Double) {
+            super.number(at, v)
             plain = plainNumber(v)
-            min = min?.coerceAtMost(v) ?: v
-            max = max?.coerceAtLeast(v) ?: v
-            add(Sample(at, v.toFloat()))
             mark(at)
         }
 
-        fun gap(at: Long) {
-            value = "—"
-            current = null
+        override fun gap(at: Long, text: String) {
+            super.gap(at, text)
             plain = ""
-            add(Sample(at, null))
         }
 
         private fun mark(at: Long) {
@@ -253,23 +240,11 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
             while (answered.isNotEmpty() && answered.first() < at - RATE_WINDOW_NS) answered.removeFirst()
         }
 
-        private fun add(sample: Sample) {
-            samples.addLast(sample)
-            while (samples.isNotEmpty() && samples.first().atNanos < sample.atNanos - WINDOW_NS) samples.removeFirst()
-        }
-
-        fun resetMinMax() {
-            min = current
-            max = current
-        }
-
         fun rate(): Double? {
             if (answered.size < 2) return null
             val span = answered.last() - answered.first()
             return if (span <= 0) null else (answered.size - 1) * 1e9 / span
         }
-
-        private fun extreme(v: Double?) = v?.let { Figures.number(it, decimals, signed = pid in SIGNED) } ?: "—"
 
         fun row(engineRunning: Boolean?, key: ParamKey): LiveRow {
             val def = ObdPids.of(pid)
@@ -280,8 +255,8 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                 abbreviation = ABBREVIATIONS[pid] ?: "",
                 value = value,
                 unit = unit,
-                min = extreme(min),
-                max = extreme(max),
+                min = minText,
+                max = maxText,
                 norm = note ?: norm?.text ?: "—",
                 outOfNorm = norm?.outside(current, engineRunning) ?: false,
                 source = "PID",
@@ -296,8 +271,8 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
             abbreviation = row.abbreviation,
             value = value,
             unit = unit,
-            min = if (row.text == null) extreme(min) else "—",
-            max = if (row.text == null) extreme(max) else "—",
+            min = if (row.text == null) minText else "—",
+            max = if (row.text == null) maxText else "—",
             norm = "—",
             outOfNorm = false,
             source = CAR_SOURCE,
@@ -354,7 +329,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         const val FRAME_DATA = 6
         const val MAX_PIDS = 6
         const val MAX_FOCUS = 4
-        const val WINDOW_NS = 60_000_000_000L
+        const val WINDOW_NS = LiveSeries.WINDOW_NS
         private const val RATE_WINDOW_NS = 10_000_000_000L
         private const val LATENCY_WINDOW = 20
         const val CAR_SOURCE = "autoservice · 100 мс"
@@ -407,5 +382,59 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
             0x45 to "TP R", 0x46 to "AAT", 0x47 to "TP B", 0x49 to "APP D", 0x4A to "APP E", 0x4C to "TAC",
             0x54 to "EVAP VP", 0x56 to "LTFT O2", 0x67 to "ECT 1/2", 0x6B to "EGRT",
         )
+    }
+}
+
+/**
+ * One row of a live table (architecture 6.1, 6.3): its last 60 s on the car's clock, its value as
+ * the table words it and its extremes since the table was shown or since «Сбросить мин/макс». The
+ * engine's PIDs and fast car signals and the pack's readings keep their rows in it alike; a null
+ * value in [samples] is a gap the chart leaves open, nothing is interpolated.
+ */
+internal open class LiveSeries(private val signed: Boolean = false) {
+    val samples = ArrayDeque<Sample>()
+    var value = "—"
+    var current: Double? = null
+        protected set
+    var decimals = 0
+    private var min: Double? = null
+    private var max: Double? = null
+
+    /** A number at [at] on the car's clock: the value, the extremes and a point of the trace. */
+    open fun number(at: Long, v: Double) {
+        current = v
+        value = Figures.number(v, decimals, signed)
+        min = min?.coerceAtMost(v) ?: v
+        max = max?.coerceAtLeast(v) ?: v
+        add(Sample(at, v.toFloat()))
+    }
+
+    /** No reading at [at]: [text] in the table, a gap in the trace; the extremes stay. */
+    open fun gap(at: Long, text: String = "—") {
+        value = text
+        current = null
+        add(Sample(at, null))
+    }
+
+    /** «Сбросить мин/макс», and what showing the table does: the extremes start at the value now. */
+    fun resetMinMax() {
+        min = current
+        max = current
+    }
+
+    /** «1 180»; «—» before a number. */
+    val minText: String get() = extreme(min)
+    val maxText: String get() = extreme(max)
+
+    private fun extreme(v: Double?) = v?.let { Figures.number(it, decimals, signed) } ?: "—"
+
+    private fun add(sample: Sample) {
+        samples.addLast(sample)
+        while (samples.isNotEmpty() && samples.first().atNanos < sample.atNanos - WINDOW_NS) samples.removeFirst()
+    }
+
+    companion object {
+        /** A row keeps the last minute. */
+        const val WINDOW_NS = 60_000_000_000L
     }
 }
