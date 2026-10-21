@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,8 +59,10 @@ import kotlinx.coroutines.launch
  *
  * **The pack's cells** (6.3, [setCellsVisible]): while «Ячейки» shows, the bus's [DiagnosticBus.batteryPages]
  * is collected beside the work - listening only, so the autoscan, the button and the streams go on -
- * and [PackCells] assembles the pages. One subscription a showing: a refused or lost one ends with
- * «поток BMS прерван» on the age line until the tab is shown again.
+ * and [PackCells] assembles the pages a sweep at a time. One subscription a showing: a refused or
+ * lost one ends with «поток BMS прерван» on the age line until the tab is shown again or
+ * «Продолжить». [setCellsPaused] leaves the subscription and keeps the drawn sweep; resuming
+ * subscribes again; leaving the tab ends the pause.
  *
  * Only [ScanStore] and [StreamSinks] touch files and only [CarFeed] touches the hub; the rest is
  * plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
@@ -109,7 +112,7 @@ internal class DiagnosticsSession(
     private var recording: Pair<Int, StreamSink>? = null
     private var readings = CarReadings()
     private var param: ParamState? = null
-    /** «Ячейки»: the assembled pages while the tab shows, its subscription, and whether that ended. */
+    /** «Ячейки»: the assembled pages while the tab shows, its subscription (none while paused), and whether that ended. */
     private var cells: PackCells? = null
     private var cellsJob: Job? = null
     private var cellsStopped = false
@@ -280,7 +283,7 @@ internal class DiagnosticsSession(
         if (visible) {
             if (cells != null) return@act
             val s = scope ?: return@act
-            cells = PackCells()
+            cells = PackCells(clock)
             cellsStopped = false
             cellsJob = s.launch { listenCells() }
         } else {
@@ -290,17 +293,32 @@ internal class DiagnosticsSession(
         }
     }
 
+    override fun setCellsPaused(paused: Boolean) = act {
+        val c = cells ?: return@act
+        if (c.paused == paused) return@act
+        if (paused) {
+            c.pause(carNanos(), wallClock())
+            cellsJob?.cancel()
+            cellsJob = null
+        } else {
+            val s = scope ?: return@act
+            c.resume()
+            cellsStopped = false
+            cellsJob = s.launch { listenCells() }
+        }
+    }
+
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {
         val b = synchronized(lock) { bus } ?: return
+        val me = currentCoroutineContext()[Job]
         try {
             b.batteryPages().collect { page ->
                 synchronized(lock) {
-                    val c = cells ?: return@synchronized
+                    val c = cells?.takeIf { cellsJob === me } ?: return@synchronized
                     val first = c.cells.newestNanos == null && c.probes.newestNanos == null
-                    c.accept(page)
-                    // The tick republishes four times a second; the first page need not wait for it.
-                    if (first) publish()
+                    // The tick republishes four times a second; the first page and a new sweep need not wait for it.
+                    if (c.accept(page) || first) publish()
                 }
             }
         } catch (cancelled: CancellationException) {
@@ -309,7 +327,7 @@ internal class DiagnosticsSession(
             log("diagnostics: the BMS pages ended: $error")
         }
         synchronized(lock) {
-            if (cells != null) {
+            if (cells != null && cellsJob === me) {
                 cellsStopped = true
                 publish()
             }

@@ -103,7 +103,7 @@ internal object ScannerFixtures {
             "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
             "scanner-sys-pack-live" -> sys(CarSystem.PACK, SystemTab.LIVE)
             "scanner-sys-pack-flags" -> sys(CarSystem.PACK, SystemTab.GB_FLAGS)
-            "scanner-sys-pack-cells", "scanner-sys-pack-cells-partial" -> sys(CarSystem.PACK, SystemTab.CELLS)
+            in CELLS_BOARDS -> sys(CarSystem.PACK, SystemTab.CELLS)
             "scanner-sys-climate" -> sys(CarSystem.CLIMATE, SystemTab.STATE)
             "scanner-sys-lv" -> sys(CarSystem.LV, SystemTab.STATE)
             "scanner-body-dtc" -> listOf(scan, ScannerRoute.Module(R_ZCU, 0))
@@ -149,33 +149,35 @@ internal object ScannerFixtures {
 
     /* ------------------------------------------------------ the pack's cells */
 
-    private val CELLS_BOARDS = setOf("scanner-sys-pack-cells", "scanner-sys-pack-cells-partial")
+    private val CELLS_BOARDS = setOf("scanner-sys-pack-cells", "scanner-sys-pack-cells-partial", "scanner-sys-pack-cells-paused")
 
     /**
      * «Ячейки» from its board (`sysPackCells()`): `cells` and `probes` are the BMS's values in its
-     * order, `staleCells` / `staleProbes` the positions from the sweep before; the heads, the scale,
-     * the grid and the age are the board's words.
+     * order, `staleCells` / `staleProbes` the positions the drawn sweep did not refresh; the heads,
+     * the reference, the grid, the sweep under way and the age are the board's; «Продолжить» in the
+     * footer is the paused view.
      */
     private fun cells(f: JSONObject): PackCellsView {
         fun values(key: String) = f.getJSONArray(key).let { a -> (0 until a.length()).map { if (a.isNull(it)) null else a.getDouble(it).toFloat() } }
-        fun ints(key: String) = f.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet()
-        val staleCells = ints("staleCells")
-        val staleProbes = ints("staleProbes")
-        val grid = values("cellGrid").filterNotNull()
-        val scale = values("cellScale").filterNotNull()
+        fun ints(key: String) = f.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getInt(it) } } ?: emptyList()
+        val staleCells = ints("staleCells").toSet()
+        val staleProbes = ints("staleProbes").toSet()
+        val gridText = f.getJSONArray("cellGridText").let { a -> (0 until a.length()).map(a::getString) }
+        val buttons = arrays(f.getJSONObject("footer").getJSONArray("buttons")).map { it.getString(0) }
         return PackCellsView(
             cells = values("cells").mapIndexed { i, v -> CellReading(v, v?.let { grouped(it) } ?: "—", i !in staleCells) },
             probes = values("probes").mapIndexed { i, v -> CellReading(v, v?.let { Math.round(it).toString() } ?: "—", i !in staleProbes) },
             cellStats = arrays(f.getJSONArray("cellsStats")).map { HeadCounter(it.getString(0), it.getString(1)) },
             probeStats = arrays(f.getJSONArray("probesStats")).map { HeadCounter(it.getString(0), it.getString(1)) },
-            cellScale = scale[0]..scale[1],
-            cellGrid = grid,
-            cellGridText = grid.map(::grouped),
-            cellMean = f.getDouble("cellMean").toFloat(),
+            cellRef = f.getInt("cellRef"),
+            cellGrid = ints("cellGrid"),
+            cellGridText = gridText,
             cellMin = f.getInt("minIndex"),
             cellMax = f.getInt("maxIndex"),
             probeMin = f.getInt("probeMin"),
             probeMax = f.getInt("probeMax"),
+            sweep = if (f.isNull("sweep")) null else f.getDouble("sweep").toFloat(),
+            paused = "Продолжить" in buttons,
             age = f.getString("cellsAge"),
             cellsHead = f.getString("cellsHead"),
             probesHead = f.getString("probesHead"),
@@ -251,6 +253,7 @@ internal object ScannerFixtures {
         override fun setParamPaused(paused: Boolean) {}
         override fun resetParam() {}
         override fun setCellsVisible(visible: Boolean) {}
+        override fun setCellsPaused(paused: Boolean) {}
     }
 
     /* ----------------------------------------------------------- autoscan */

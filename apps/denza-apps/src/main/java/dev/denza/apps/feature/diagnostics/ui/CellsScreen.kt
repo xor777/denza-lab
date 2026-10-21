@@ -1,11 +1,17 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -14,12 +20,15 @@ import dev.denza.apps.feature.diagnostics.scan.HeadCounter
 import dev.denza.apps.feature.diagnostics.scan.PackCellsView
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
+import kotlin.math.abs
 
 /*
  * «Тяговая батарея · Ячейки» (architecture, 6.3; `scanner.js` `sysPackCells()`, boards
- * `scanner-sys-pack-cells`, `-partial`): every cell's voltage up or down from the pack's mean, the
- * extremes named at their bars' ends, every probe's temperature as a tile. A cell or probe whose
- * page is older than two sweeps is drawn faint; one not come yet is not drawn.
+ * `scanner-sys-pack-cells`, `-partial`, `-paused`): every cell's voltage up or down from a reference
+ * held to a whole millivolt, on a grid symmetric about it, the sweep under way along the chart's
+ * foot, the extremes named at their bars' ends, every probe's temperature as a tile. A cell or probe
+ * the sweep drawn did not refresh is drawn faint; one not come yet is not drawn. The engine changes
+ * what is drawn once a sweep; between two the bars move to their new offsets in one animation.
  */
 
 /** The tab's body under the system's head and tabs. */
@@ -31,53 +40,60 @@ internal fun BoxScope.PackCells(view: PackCellsView) {
     val x1 = w - 24f
     val y0 = p.CHART_TOP
     val y1 = p.CHART_BOTTOM
-    val lo = view.cellScale.start
-    val hi = view.cellScale.endInclusive
-    val yv = { v: Float -> if (hi > lo) y1 - (v - lo) / (hi - lo) * (y1 - y0) else (y0 + y1) / 2f }
+    val ref = view.cellRef
+    // millivolts from the reference, the grid's last line at the chart's top
+    val span = view.cellGrid.lastOrNull()?.takeIf { it > 0 }?.toFloat()
+    val yv = { d: Float -> (y0 + y1) / 2f - (if (span != null) d.coerceIn(-span, span) / span else 0f) * (y1 - y0) / 2f }
     val n = view.cells.size
     val pitch = if (n > 0) (x1 - x0) / n else 0f
     val bw = pitch - p.BAR_GAP
-    val mean = view.cellMean
+    val offsets = barOffsets(view)
 
     // the cells' head: what is drawn, and its extremes at the right
     StatsHead(view.cellsHead, view.cellStats, p.CELLS_HEAD_Y, w)
     Canvas(Modifier.fillMaxSize()) {
         val d = density
         fun rect(x: Float, y: Float, rw: Float, rh: Float, color: Int) = drawRect(ink(color), Offset(x * d, y * d), Size(rw * d, rh * d))
-        // the scale: the grid
-        view.cellGrid.forEach { v -> rect(x0, yv(v), x1 - x0, 1f, Ink.HAIR) }
-        // the bars, one a cell, up or down from the pack's mean: a cell that lags or leads stands out
-        if (mean != null) {
-            val ym = yv(mean)
+        // the scale: millivolts from the reference, its own line brighter
+        view.cellGrid.forEach { g -> rect(x0, yv(g.toFloat()), x1 - x0, 1f, if (g == 0) Ink.WIRE4 else Ink.HAIR) }
+        // the bars, one a cell, up or down from the reference: a cell that lags or leads stands out
+        if (ref != null) {
+            val ym = yv(0f)
             view.cells.forEachIndexed { i, c ->
                 val v = c.value ?: return@forEachIndexed
+                val off = offsets.getOrNull(i) ?: return@forEachIndexed
                 val x = x0 + i * pitch
-                val y = yv(v)
+                val y = yv(off)
                 val ext = i == view.cellMin || i == view.cellMax
                 val top = minOf(y, ym)
-                val h = maxOf(p.BAR_MIN, kotlin.math.abs(ym - y))
-                rect(x, top, bw, h, if (!c.fresh) Ink.SEP else if (ext) Ink.BLUE_INK else if (v >= mean) Ink.BLUE else Ink.BLUE_SOFT)
+                val h = maxOf(p.BAR_MIN, abs(ym - y))
+                rect(x, top, bw, h, if (!c.fresh) Ink.SEP else if (ext) Ink.BLUE_INK else if (v >= ref) Ink.BLUE else Ink.BLUE_SOFT)
             }
-            rect(x0, ym - 0.5f, x1 - x0, 1f, Ink.WIRE4)
+        }
+        // the sweep under way: a line along the chart's foot up to the page that came last
+        view.sweep?.let { s ->
+            val sx = x0 + s * (x1 - x0)
+            rect(x0, y1 + 1f, sx - x0, p.SWEEP, Ink.BLUE_SOFT)
+            drawCircle(ink(Ink.BLUE), p.SWEEP_DOT * d, Offset(sx * d, (y1 + 1f + p.SWEEP / 2f) * d))
         }
         // the extremes' leaders: the lowest below its bar, the highest above
         extremes(view).forEach { (i, dir) ->
-            val v = view.cells[i].value ?: return@forEach
+            val off = offsets.getOrNull(i) ?: return@forEach
             val x = x0 + i * pitch + bw / 2f
-            val y = yv(v)
+            val y = yv(off)
             drawLine(ink(Ink.WIRE5), Offset(x * d, (y + dir * p.LEADER_FROM) * d), Offset(x * d, (y + dir * p.LEADER_TO) * d), d)
         }
     }
-    // the grid's labels
-    view.cellGrid.forEachIndexed { i, v ->
+    // the grid's labels: offsets, the reference by its value
+    view.cellGrid.forEachIndexed { i, g ->
         val t = view.cellGridText.getOrNull(i) ?: return@forEachIndexed
-        ScanText(t, Type.SIG, Ink.FAINT, Modifier.endAt(x0 - p.GRID_LABEL_GAP, yv(v) - Type.SIG.lh / 2f))
+        ScanText(t, Type.SIG, if (g == 0) Ink.DIM2 else Ink.FAINT, Modifier.endAt(x0 - p.GRID_LABEL_GAP, yv(g.toFloat()) - Type.SIG.lh / 2f))
     }
     // the extremes named at their bars' ends
     extremes(view).forEach { (i, dir) ->
-        val v = view.cells[i].value ?: return@forEach
+        val off = offsets.getOrNull(i) ?: return@forEach
         val x = x0 + i * pitch + bw / 2f
-        val y = yv(v)
+        val y = yv(off)
         val word = ScannerWords.cellExtreme(dir < 0, i)
         ScanText(word, Type.SIG, Ink.WHITE, Modifier.centreAt(x, if (dir > 0) y + p.LEADER_WORD else y - p.LEADER_WORD - Type.SIG.lh))
     }
@@ -104,6 +120,34 @@ internal fun BoxScope.PackCells(view: PackCellsView) {
         }
     }
 }
+
+/**
+ * Every bar's offset from the reference, mV, as drawn now: a new snapshot moves each bar from where
+ * it stood to its new offset over [ScannerSpec.PackCells.MOVE_MS], one animation for all of them;
+ * a bar that stood nowhere stands at its new offset at once. The first view is drawn as it is.
+ */
+@Composable
+private fun barOffsets(view: PackCellsView): List<Float?> {
+    val target = remember(view.cells, view.cellRef) {
+        val ref = view.cellRef
+        view.cells.map { c -> c.value?.let { v -> ref?.let { v - it } } }
+    }
+    val from = remember { mutableStateOf(target) }
+    val to = remember { mutableStateOf(target) }
+    val t = remember { Animatable(1f) }
+    LaunchedEffect(target) {
+        if (target == to.value) return@LaunchedEffect
+        from.value = between(from.value, to.value, t.value)
+        to.value = target
+        t.snapTo(0f)
+        t.animateTo(1f, tween(ScannerSpec.PackCells.MOVE_MS, easing = FastOutSlowInEasing))
+    }
+    return between(from.value, to.value, t.value)
+}
+
+/** [b] with each bar [t] of the way from where it stood in [a]; a bar new in [b] at its own. */
+private fun between(a: List<Float?>, b: List<Float?>, t: Float): List<Float?> =
+    if (t >= 1f) b else b.mapIndexed { i, end -> end?.let { e -> a.getOrNull(i)?.let { s -> s + (e - s) * t } ?: e } }
 
 /** The lowest cell named below its bar (+1), the highest above (−1). */
 private fun extremes(view: PackCellsView): List<Pair<Int, Int>> =

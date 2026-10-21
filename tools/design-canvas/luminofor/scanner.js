@@ -950,26 +950,33 @@
         r -= text(c, v, r, A.headY - 3, 'valueBms', 'white', { align: 'right' }) + 6;
         r -= text(c, k, r, A.headY, 'counterLabel', 'mute', { align: 'right' }) + 22;
       });
-      // the scale: grid with labels, the mean dashed
-      const [lo, hi] = f.cellScale, yv = v => cy1 - (v - lo) / (hi - lo) * (cy1 - cy0);
-      f.cellGrid.forEach(v => {
-        fill(c, cx0, yv(v), cx1 - cx0, 1, 'hair');
-        text(c, String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), cx0 - 8, yv(v) - style('sig').lh / 2, 'sig', 'faint', { align: 'right' });
+      // the scale: millivolts from the reference, symmetric; the reference labelled with its value.
+      // A sweep's cells move together under load, so the chart shows how they stand against each
+      // other, not the pack's level; that is in the head.
+      const span = f.cellGrid[f.cellGrid.length - 1], yv = d => (cy0 + cy1) / 2 - d / span * (cy1 - cy0) / 2;
+      f.cellGrid.forEach((d, k) => {
+        fill(c, cx0, yv(d), cx1 - cx0, 1, d === 0 ? 'wire4' : 'hair');
+        text(c, f.cellGridText[k], cx0 - 8, yv(d) - style('sig').lh / 2, 'sig', d === 0 ? 'dim2' : 'faint', { align: 'right' });
       });
-      // the bars, one a cell, up or down from the pack's mean: a cell that lags or leads stands out
-      const n = f.cells.length, pitch = (cx1 - cx0) / n, bw = pitch - A.gap, ym = yv(f.cellMean);
-      // a cell whose page is older than two sweeps is drawn faint; one not come yet, not at all
+      // the bars, one a cell, up or down from the reference: a cell that lags or leads stands out
+      const n = f.cells.length, pitch = (cx1 - cx0) / n, bw = pitch - A.gap, ym = yv(0);
+      // a cell whose page did not come in the last sweep is drawn faint; one not come yet, not at all
       const staleCells = new Set(f.staleCells || []), staleProbes = new Set(f.staleProbes || []);
       f.cells.forEach((v, i) => {
         if (v == null) return;
-        const x = cx0 + i * pitch, y = yv(v), ext = i === f.minIndex || i === f.maxIndex;
+        const d = v - f.cellRef, x = cx0 + i * pitch, y = yv(d), ext = i === f.minIndex || i === f.maxIndex;
         const top = Math.min(y, ym), h = Math.max(1.5, Math.abs(ym - y));
-        fill(c, x, top, bw, h, staleCells.has(i) ? 'sep' : ext ? 'blueInk' : v >= f.cellMean ? 'blue' : 'blueSoft');
+        fill(c, x, top, bw, h, staleCells.has(i) ? 'sep' : ext ? 'blueInk' : d >= 0 ? 'blue' : 'blueSoft');
       });
-      fill(c, cx0, ym - 0.5, cx1 - cx0, 1, 'wire4');
+      // the sweep under way: a line along the chart's foot up to the page that came last
+      if (f.sweep != null) {
+        const sx = cx0 + f.sweep * (cx1 - cx0);
+        fill(c, cx0, cy1 + 1, sx - cx0, A.sweep, 'blueSoft');
+        dot(c, sx, cy1 + 1 + A.sweep / 2, A.sweepDot, 'blue');
+      }
       // the extremes named at their bars' ends: the highest above, the lowest below
       [[f.minIndex, 'мин №' + (f.minIndex + 1), 1], [f.maxIndex, 'макс №' + (f.maxIndex + 1), -1]].forEach(([i, t, dir]) => {
-        const x = cx0 + i * pitch + bw / 2, y = yv(f.cells[i]);
+        const x = cx0 + i * pitch + bw / 2, y = yv(f.cells[i] - f.cellRef);
         stroke(c, `M${x} ${y + dir * 4}V${y + dir * 12}`, 'wire5', 1);
         text(c, t, x, dir > 0 ? y + 14 : y - 14 - style('sig').lh, 'sig', 'white', { align: 'center' });
       });

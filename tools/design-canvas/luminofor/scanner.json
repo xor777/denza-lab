@@ -184,7 +184,7 @@
   "climateScheme": {"leftX": 60, "zoneW": 240, "zoneH": 200, "zoneY": 300, "stem": 40},
   "lvScheme": {"x0": 60, "x1": 1030, "busY": 300, "dcdcX": 190, "battX": 360, "battDrop": 90, "loadX": 520, "loadStep": 130, "loadDrop": 90},
   "param": { "chart": { "x": 380, "top": 196, "bottom": 584 }, "hero": { "labelY": 196, "valueY": 220, "statsY": 368, "statsW": 300, "statsStep": 38 } },
-  "packCells": { "cells": { "x": 76, "top": 222, "bottom": 430, "headY": 182, "gap": 1.2 },
+  "packCells": { "cells": { "x": 76, "top": 222, "bottom": 430, "headY": 182, "gap": 1.2, "sweep": 2, "sweepDot": 3 },
     "probes": { "headY": 474, "top": 500, "h": 74, "gap": 8, "padX": 10, "padY": 10, "valueY": 18, "unitY": 24 } },
   "rail": { "w": 216, "padX": 20, "padTop": 10, "item": 40, "sepGap": 8, "bar": 3,
     "scanCols": [290, 120, 150, 100, 80, 80, 150, "1fr"],

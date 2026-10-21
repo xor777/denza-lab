@@ -566,6 +566,9 @@ internal object ScannerSpec {
         const val CHART_BOTTOM = 430f
         const val CELLS_HEAD_Y = 182f
         const val BAR_GAP = 1.2f
+        /** The sweep under way: a line this thick under the chart's foot, and its dot's radius. */
+        const val SWEEP = 2f
+        const val SWEEP_DOT = 3f
         const val PROBES_HEAD_Y = 474f
         const val PROBES_TOP = 500f
         const val PROBE_H = 74f
@@ -580,7 +583,7 @@ internal object ScannerSpec {
         const val STAT_GAP = 6f
         const val STAT_STEP = 22f
         const val GRID_LABEL_GAP = 8f
-        /** A bar is at least this tall, so a cell at the mean still shows. */
+        /** A bar is at least this tall, so a cell at the reference still shows. */
         const val BAR_MIN = 1.5f
         /** The extremes' leaders: from this far off the bar's end to this far, the word 2 dp further. */
         const val LEADER_FROM = 4f
@@ -590,6 +593,8 @@ internal object ScannerSpec {
         /** Numbers on the axis: the first cell, then every [TICK_STEP]. */
         const val TICK_STEP = 20
         const val PROBE_R = 6f
+        /** How long the bars take to move from one sweep's offsets to the next's, ms; not on a board. */
+        const val MOVE_MS = 300
     }
 
     /** Where a scheme may stand: under the tabs, over the footer. */

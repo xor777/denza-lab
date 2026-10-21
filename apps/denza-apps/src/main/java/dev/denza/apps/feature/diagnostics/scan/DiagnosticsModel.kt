@@ -28,37 +28,42 @@ internal data class DiagnosticsModel(
 
 /**
  * Every cell's voltage and every probe's temperature as the BMS sends them in pages of its own
- * stream (1039 / 9900001F, pages 43D and 43C; board `scanner-sys-pack-cells`). A position is the
- * BMS's own numbering: its min/max indices point at the same places.
+ * stream (1039 / 9900001F, pages 43D and 43C; boards `scanner-sys-pack-cells`, `-partial`,
+ * `-paused`), a sweep at a time: what is drawn changes when a sweep ends. A position is the BMS's
+ * own numbering: its min/max indices point at the same places.
  */
 internal data class PackCellsView(
     /** 166 on this car, in the BMS's order; a value is null until its page has come. */
     val cells: List<CellReading>,
     /** 14 on this car, °C. */
     val probes: List<CellReading>,
-    /** «МИН» → «3 280», «МАКС», «СРЕДН.», «РАЗБРОС» over the cells now held. */
+    /** «МИН» → «3 280», «МАКС», «СРЕДН.», «РАЗБРОС» over the cells drawn. */
     val cellStats: List<HeadCounter>,
     /** «МИН» → «10 °C», «МАКС», «СРЕДН.». */
     val probeStats: List<HeadCounter>,
-    /** The chart's range, rounded outward to its grid, and the grid with its labels. */
-    val cellScale: ClosedFloatingPointRange<Float>,
-    val cellGrid: List<Float>,
+    /** The bars stand up or down from it, mV: the drawn cells' mean held to a whole millivolt; null before any cell. */
+    val cellRef: Int?,
+    /** The grid as offsets from [cellRef], mV, ascending: −2s, −s, 0, +s, +2s; empty before any cell. */
+    val cellGrid: List<Int>,
+    /** «−4», «−2», «3 282», «+2», «+4»: the reference by its value. */
     val cellGridText: List<String>,
-    /** The bars stand up or down from it; null before any cell. */
-    val cellMean: Float?,
     /** 0-based; the first lowest and highest, as the BMS names them. */
     val cellMin: Int?,
     val cellMax: Int?,
     val probeMin: Int?,
     val probeMax: Int?,
-    /** «обход 5,5 с · 0,4 с назад»: the last complete sweep's length and the newest page's age. */
+    /** The sweep under way since the one drawn: its pages that came over the array's pages; null paused, stopped or before the count. */
+    val sweep: Float?,
+    /** «Пауза» pressed: nothing is read and the drawn sweep stays. */
+    val paused: Boolean,
+    /** «обход 5,5 с · 0,4 с назад»: the last complete sweep's length and the newest page's age; «пауза · снимок 07:36:12». */
     val age: String,
     /** «НАПРЯЖЕНИЕ ЯЧЕЕК, мВ · 166», «ТЕМПЕРАТУРА ДАТЧИКОВ · 14». */
     val cellsHead: String,
     val probesHead: String,
 )
 
-/** One cell or probe: its value, its words, and whether its page is from the last sweep. */
+/** One cell or probe: its value, its words, and whether the sweep drawn refreshed it. */
 internal data class CellReading(val value: Float?, val text: String, val fresh: Boolean)
 
 /** What a parameter page reads alone (architecture, 6.2). */
@@ -739,4 +744,6 @@ internal interface DiagnosticsActions {
     fun resetParam()
     /** «Ячейки» shown or left: the pages are listened to only while it is (architecture, 6.3). */
     fun setCellsVisible(visible: Boolean)
+    /** «Пауза» / «Продолжить» on «Ячейки»: paused, nothing is listened to and the drawn sweep stays; leaving the tab ends it. */
+    fun setCellsPaused(paused: Boolean)
 }

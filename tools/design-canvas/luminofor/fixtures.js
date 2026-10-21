@@ -1141,7 +1141,10 @@
     // the pack's head as on its other tabs, its counters at the sweep's moment
     block: Object.assign({}, scannerSysPack.block, { counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] }),
     tabs: Object.assign({}, scannerSysPack.tabs, { active: 1 }),
-    cells: packCells, cellScale: [3278, 3286], cellGrid: [3278, 3280, 3282, 3284, 3286],
+    // the chart: mV from the reference 3 282 (the mean held to a whole millivolt), ±2 steps of 2 mV
+    cells: packCells, cellRef: 3282, cellGrid: [-4, -2, 0, 2, 4], cellGridText: ['−4', '−2', '3 282', '+2', '+4'],
+    // the sweep under way: 34 pages of 56 came since the one drawn
+    sweep: 34 / 56,
     cellMean: packCells.reduce((a, v) => a + v, 0) / packCells.length, cellMeanText: '3 282,5',
     minIndex: packCells.indexOf(Math.min(...packCells)), maxIndex: packCells.indexOf(Math.max(...packCells)),
     cellsHead: 'НАПРЯЖЕНИЕ ЯЧЕЕК, мВ · 166',
@@ -1151,14 +1154,19 @@
     probes: packProbes, probeMin: packProbes.indexOf(Math.min(...packProbes)), probeMax: packProbes.indexOf(Math.max(...packProbes)),
     probesHead: 'ТЕМПЕРАТУРА ДАТЧИКОВ · 14',
     probesStats: [['МИН', '10 °C'], ['МАКС', '16 °C'], ['СРЕДН.', '13,2 °C']],
-    footer: { buttons: [], notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
+    footer: { buttons: [['Пауза', 'primary']], notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   };
-  // the same sweep with its last pages missed for two sweeps: the cells' last six pages (16 cells,
-  // the last page holds one) and the probes' last page (two) are older than two sweeps, drawn faint
+  // the sweep drawn missed its last pages: the cells' last six (16 cells, the last page holds one)
+  // and the probes' last (two) keep the sweep before's values, drawn faint; the next sweep 50 pages in
   const scannerSysPackCellsPartial = Object.assign({}, scannerSysPackCells, {
     staleCells: Array.from({ length: 16 }, (_, k) => 150 + k), staleProbes: [12, 13],
-    cellsAge: 'обход 5,5 с · 2,6 с назад',
-    footer: { buttons: [], notes: [['обход 5,5 с · 2,6 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
+    cellsAge: 'обход 5,5 с · 2,6 с назад', sweep: 50 / 56,
+    footer: { buttons: [['Пауза', 'primary']], notes: [['обход 5,5 с · 2,6 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
+  });
+  // paused: the drawn sweep stays, nothing is read, the button resumes
+  const scannerSysPackCellsPaused = Object.assign({}, scannerSysPackCells, {
+    sweep: null, cellsAge: 'пауза · снимок 07:36:12',
+    footer: { buttons: [['Продолжить', 'primary']], notes: [['пауза · снимок 07:36:12', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   });
 
   root.LUMINOFOR_BOARDS = {
@@ -1245,6 +1253,7 @@
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-pack-cells': [scanner('sysPackCells'), scannerSysPackCells],
     'scanner-sys-pack-cells-partial': [scanner('sysPackCells'), scannerSysPackCellsPartial],
+    'scanner-sys-pack-cells-paused': [scanner('sysPackCells'), scannerSysPackCellsPaused],
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
     'scanner-sys-engine-rpm': [scanner('sysParam'), scannerSysEngineRpm],
     'scanner-sys-engine-ect': [scanner('sysParam'), scannerSysEngineEct],

@@ -335,13 +335,15 @@ class ScannerSpecContractTest {
         val c = arrayOf("packCells", "cells")
         val t = arrayOf("packCells", "probes")
         n(p.CHART_X, *c, "x"); n(p.CHART_TOP, *c, "top"); n(p.CHART_BOTTOM, *c, "bottom"); n(p.CELLS_HEAD_Y, *c, "headY")
-        n(p.BAR_GAP, *c, "gap")
+        n(p.BAR_GAP, *c, "gap"); n(p.SWEEP, *c, "sweep"); n(p.SWEEP_DOT, *c, "sweepDot")
         n(p.PROBES_HEAD_Y, *t, "headY"); n(p.PROBES_TOP, *t, "top"); n(p.PROBE_H, *t, "h"); n(p.PROBE_GAP, *t, "gap")
         n(p.PROBE_PAD_X, *t, "padX"); n(p.PROBE_PAD_Y, *t, "padY"); n(p.PROBE_VALUE_Y, *t, "valueY"); n(p.PROBE_UNIT_Y, *t, "unitY")
         // the chart under the tabs, its axis over the probes' head, the tiles over the footer
         val type = ScannerSpec.Type
         assertTrue(p.CELLS_HEAD_Y >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT)
         assertTrue(p.CHART_BOTTOM + p.TICK_GAP + type.SIG.lh <= p.PROBES_HEAD_Y)
+        // the sweep's dot under the chart's foot clears the axis numbers
+        assertTrue(p.CHART_BOTTOM + 1f + p.SWEEP / 2f + p.SWEEP_DOT <= p.CHART_BOTTOM + p.TICK_GAP)
         assertTrue(p.PROBES_TOP + p.PROBE_H <= ScannerSpec.Footer.TOP)
     }
 
