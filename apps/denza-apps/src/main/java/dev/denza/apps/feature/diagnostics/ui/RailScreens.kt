@@ -183,6 +183,8 @@ internal fun SystemPageScreen(
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
             SystemTab.GB_FLAGS -> Pending("Нет данных")
+            // the cells' screen comes with its change (architecture, 6.3; board `scanner-sys-pack-cells`)
+            SystemTab.CELLS -> Unit
             SystemTab.DTC -> SystemDtcTable(page.dtc, onOpen)
             SystemTab.DTC_READINESS -> if (ecm != null) DtcContent(ecm, Halves.RAIL)
             SystemTab.BLOCKS -> BlockRows(page.blocks, onOpen)

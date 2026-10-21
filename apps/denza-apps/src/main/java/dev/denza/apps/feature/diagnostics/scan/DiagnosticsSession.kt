@@ -263,6 +263,9 @@ internal class DiagnosticsSession(
 
     override fun resetParam() = act { param?.trace?.reset() }
 
+    // The pack's cells (architecture, 6.3): the contract; the listening is the next change.
+    override fun setCellsVisible(visible: Boolean) = act {}
+
     /** The helper's gap from the next exchange on; asked only when it changes. Under [lock]. */
     private fun gap(ms: Int) {
         if (ms == gapAsked) return

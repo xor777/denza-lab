@@ -22,7 +22,44 @@ internal data class DiagnosticsModel(
     val systemPages: Map<CarSystem, SystemPage> = emptyMap(),
     /** The parameter page the screens asked for with [DiagnosticsActions.setParam]; null when none (architecture, 6.2). */
     val param: ParamView? = null,
+    /** «Тяговая батарея · Ячейки» while [DiagnosticsActions.setCellsVisible] holds it; null otherwise (architecture, 6.3). */
+    val packCells: PackCellsView? = null,
 )
+
+/**
+ * Every cell's voltage and every probe's temperature as the BMS sends them in pages of its own
+ * stream (1039 / 9900001F, pages 43D and 43C; board `scanner-sys-pack-cells`). A position is the
+ * BMS's own numbering: its min/max indices point at the same places.
+ */
+internal data class PackCellsView(
+    /** 166 on this car, in the BMS's order; a value is null until its page has come. */
+    val cells: List<CellReading>,
+    /** 14 on this car, °C. */
+    val probes: List<CellReading>,
+    /** «МИН» → «3 280», «МАКС», «СРЕДН.», «РАЗБРОС» over the cells now held. */
+    val cellStats: List<HeadCounter>,
+    /** «МИН» → «10 °C», «МАКС», «СРЕДН.». */
+    val probeStats: List<HeadCounter>,
+    /** The chart's range, rounded outward to its grid, and the grid with its labels. */
+    val cellScale: ClosedFloatingPointRange<Float>,
+    val cellGrid: List<Float>,
+    val cellGridText: List<String>,
+    /** The bars stand up or down from it; null before any cell. */
+    val cellMean: Float?,
+    /** 0-based; the first lowest and highest, as the BMS names them. */
+    val cellMin: Int?,
+    val cellMax: Int?,
+    val probeMin: Int?,
+    val probeMax: Int?,
+    /** «обход 5,5 с · 0,4 с назад»: the last complete sweep's length and the newest page's age. */
+    val age: String,
+    /** «НАПРЯЖЕНИЕ ЯЧЕЕК, мВ · 166», «ТЕМПЕРАТУРА ДАТЧИКОВ · 14». */
+    val cellsHead: String,
+    val probesHead: String,
+)
+
+/** One cell or probe: its value, its words, and whether its page is from the last sweep. */
+internal data class CellReading(val value: Float?, val text: String, val fresh: Boolean)
 
 /** What a parameter page reads alone (architecture, 6.2). */
 internal sealed interface ParamKey {
@@ -120,6 +157,8 @@ internal enum class SystemTab(val label: String) {
     LIVE("Потоковые данные"),
     /** The drives' or the driver-assistance blocks side by side ([SystemsView.drives], [SystemsView.adas]). */
     COMPARE("Сравнение"),
+    /** The pack's cells and probes, [DiagnosticsModel.packCells]. */
+    CELLS("Ячейки"),
     GB_FLAGS("Флаги GB/T 32960"),
     /** Every record of the system's blocks, [SystemPage.dtc]. */
     DTC("DTC"),
@@ -683,4 +722,6 @@ internal interface DiagnosticsActions {
     fun setParamPaused(paused: Boolean)
     /** «Сбросить мин/макс» on the parameter page: its windows start over. */
     fun resetParam()
+    /** «Ячейки» shown or left: the pages are listened to only while it is (architecture, 6.3). */
+    fun setCellsVisible(visible: Boolean)
 }

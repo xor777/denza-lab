@@ -211,6 +211,7 @@ internal object ScannerFixtures {
         override fun setParam(key: ParamKey?) {}
         override fun setParamPaused(paused: Boolean) {}
         override fun resetParam() {}
+        override fun setCellsVisible(visible: Boolean) {}
     }
 
     /* ----------------------------------------------------------- autoscan */
