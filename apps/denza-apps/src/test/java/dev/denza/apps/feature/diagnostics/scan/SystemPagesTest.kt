@@ -80,13 +80,13 @@ class SystemPagesTest {
         assertEquals(listOf("7F1", "5E0"), addresses(CarSystem.SAFETY, model))
         assertEquals(listOf("712", "7F2", "760", "761", "7C2", "7D4", "701"), addresses(CarSystem.ADAS, model))
         assertEquals(EcuCatalog.inGroup(EcuGroup.BODY).map { it.request }, model.page(CarSystem.BODY).blocks.map { it.request })
-        assertEquals(11, model.page(CarSystem.BODY).blocks.size)
+        assertEquals(19, model.page(CarSystem.BODY).blocks.size)
         // The cabin without the child-presence radar, which stands in SAFETY.
         assertEquals(EcuCatalog.inGroup(EcuGroup.CABIN).map { it.request } - 0x5E0, model.page(CarSystem.CABIN).blocks.map { it.request })
-        assertEquals(8, model.page(CarSystem.CABIN).blocks.size)
+        assertEquals(18, model.page(CarSystem.CABIN).blocks.size)
         assertEquals(listOf("7B3", "7B4", "766"), addresses(CarSystem.CLIMATE, model))
         assertEquals(listOf("762"), addresses(CarSystem.LV, model))
-        assertEquals(25, model.page(CarSystem.OTHER).blocks.size)
+        assertEquals(0, model.page(CarSystem.OTHER).blocks.size)
         assertTrue(model.page(CarSystem.OTHER).blocks.all { r -> EcuCatalog.byRequest(r.request!!)!!.group == EcuGroup.UNKNOWN })
         // The rows are the autoscan's own.
         val scanRows = model.groups.flatMap { it.rows }.associateBy { it.request }
@@ -137,10 +137,10 @@ class SystemPagesTest {
     @Test
     fun theBodysCodesAreItsBlocksRecordsBlockByBlock() = runTest {
         val body = scanned().page(CarSystem.BODY)
-        assertEquals("· 11 блоков", body.aside)
+        assertEquals("· 19 блоков", body.aside)
         assertEquals("LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны", body.line)
         // «Машина сейчас» read four of the body's memories; the board's own run read all eleven.
-        assertEquals(listOf(HeadCounter("DTC АКТ.", "0"), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/11")), body.counters)
+        assertEquals(listOf(HeadCounter("DTC АКТ.", "0"), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/19")), body.counters)
 
         assertEquals(listOf("C1160-06", "U029D-87", "U0121-87", "B2148-02", "B2250-00", "B225B-00", "U0229-87", "U022A-87", "C1170-09", "B130E-01"),
             body.dtc.map { it.code })
@@ -228,10 +228,8 @@ class SystemPagesTest {
         assertEquals("SRS 7F1 · CPD 5E0", safety.line)
         assertEquals(listOf("DTC АКТ." to "0", "DTC ИСТ." to "0", "ПРОЧИТАНО" to "1/2"), counters(CarSystem.SAFETY))
         val other = model.page(CarSystem.OTHER)
-        assertEquals("· 25 блоков", other.aside)
-        assertTrue(other.line, other.line.startsWith("PDC-VCU 743 · PDCMB 724 · CS 725"))
-        assertEquals(listOf("DTC АКТ." to "—", "DTC ИСТ." to "—", "ПРОЧИТАНО" to "0/25"), counters(CarSystem.OTHER))
-        assertEquals("· 8 блоков", model.page(CarSystem.CABIN).aside)
+        assertEquals("· 0 блоков", other.aside)
+        assertEquals("· 18 блоков", model.page(CarSystem.CABIN).aside)
     }
 
     @Test

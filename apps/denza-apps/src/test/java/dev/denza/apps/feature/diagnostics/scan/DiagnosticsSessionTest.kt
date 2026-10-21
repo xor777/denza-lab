@@ -92,9 +92,9 @@ class DiagnosticsSessionTest {
         assertEquals("OBD-II", m.row(0x7E5).protocol)
         assertEquals("7E0 → 7E8", m.row(0x7E0).route)
         assertEquals("ECM · UAES", m.row(0x7E0).unit)
-        assertEquals("Блок 743", m.row(0x743).name)
-        assertEquals("8 бл. · прочитано 8", m.groups.first { it.id == "power" }.summary)
-        assertEquals("11 бл. · прочитано 4 · история 2 · DTC не читали 7", m.groups.first { it.id == "body" }.summary)
+        assertEquals("Контроллер силового домена", m.row(0x743).name)
+        assertEquals("9 бл. · прочитано 8 · DTC не читали 1", m.groups.first { it.id == "power" }.summary)
+        assertEquals("19 бл. · прочитано 4 · история 2 · DTC не читали 15", m.groups.first { it.id == "body" }.summary)
         assertEquals(Target.Module(0x744), m.rows().first { it.abbreviation == "SMCU" }.target)
         // DCOBC: the list alone, codes without a format stay raw, and the screen says why.
         val dcobc = m.modules.getValue(0x7E4)
@@ -465,7 +465,7 @@ class DiagnosticsSessionTest {
         EcuCatalog.routed.forEach { e ->
             val gate = ScanRequests.gate(e)
             when (e.identity) {
-                IdentityBasis.F194 -> assertEquals(e.abbreviation, "22F194", gate)
+                IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> assertEquals(e.abbreviation, "22F194", gate)
                 IdentityBasis.OBD_ECU_NAME -> assertEquals("090A", gate)
                 else -> assertNull(e.abbreviation, gate)
             }

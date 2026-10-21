@@ -40,7 +40,7 @@ internal object ScanRequests {
 
     /** The identity gate of [ecu] (architecture, 5.1), or null where the name rests on a stock route. */
     fun gate(ecu: Ecu): String? = when (ecu.identity) {
-        IdentityBasis.F194 -> F194.takeIf { ecu.expectedF194 != null && ecu.uds }
+        IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> F194.takeIf { ecu.expectedF194 != null && ecu.uds }
         IdentityBasis.OBD_ECU_NAME -> ECU_NAME.takeIf { ecu.expectedObdName != null && ecu.obd }
         IdentityBasis.STOCK_ROUTE, IdentityBasis.NONE -> null
     }
@@ -167,7 +167,7 @@ internal class ModuleResult(val ecu: Ecu, val read: ModuleRead) {
 
     companion object {
         fun expected(ecu: Ecu): String? = when (ecu.identity) {
-            IdentityBasis.F194 -> ecu.expectedF194
+            IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> ecu.expectedF194
             IdentityBasis.OBD_ECU_NAME -> ecu.expectedObdName
             else -> null
         }

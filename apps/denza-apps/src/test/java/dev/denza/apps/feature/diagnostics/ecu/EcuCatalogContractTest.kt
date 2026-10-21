@@ -22,6 +22,9 @@ class EcuCatalogContractTest {
     private fun JSONArray.strings() = (0 until length()).map { getString(it) }
     private fun address(s: String) = s.toInt(16)
 
+    /** The bases whose gate is `22 F194`. */
+    private val F194_GATED = setOf(IdentityBasis.F194, IdentityBasis.MODEL_CATALOG)
+
     /** Every address whose F194 came back, with the code. */
     private val f194: Map<Int, String> by lazy {
         val fromRemaining = remaining.getJSONArray("identities").objects()
@@ -61,13 +64,14 @@ class EcuCatalogContractTest {
         assertEquals(68, EcuCatalog.routed.size)
         assertEquals(19, EcuCatalog.all.count { it.dtcQualified })
         assertEquals(68, EcuCatalog.all.map { it.request ?: it.abbreviation }.toSet().size)
-        assertEquals(62, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
+        assertEquals(35, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
+        assertEquals(27, EcuCatalog.all.count { it.identity == IdentityBasis.MODEL_CATALOG })
         assertEquals(5, EcuCatalog.all.count { it.identity == IdentityBasis.STOCK_ROUTE })
         assertEquals(1, EcuCatalog.all.count { it.identity == IdentityBasis.OBD_ECU_NAME })
         assertEquals(0, EcuCatalog.all.count { it.identity == IdentityBasis.NONE })
         assertEquals(
-            mapOf(EcuGroup.POWERTRAIN to 8, EcuGroup.CHASSIS to 4, EcuGroup.ADAS to 7, EcuGroup.BODY to 11,
-                EcuGroup.CABIN to 9, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 25),
+            mapOf(EcuGroup.POWERTRAIN to 9, EcuGroup.CHASSIS to 9, EcuGroup.ADAS to 7, EcuGroup.BODY to 19,
+                EcuGroup.CABIN to 19, EcuGroup.CLIMATE to 4, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 0),
             EcuGroup.entries.associateWith { EcuCatalog.inGroup(it).size },
         )
         assertEquals("ECM", EcuCatalog.routed.first().abbreviation)
@@ -80,9 +84,9 @@ class EcuCatalogContractTest {
             val ecu = EcuCatalog.byRequest(request)
             assertNotNull("%03X answered F194 but is not in the catalog".format(request), ecu)
             assertEquals("%03X".format(request), code, ecu!!.expectedF194)
-            assertEquals(IdentityBasis.F194, ecu.identity)
+            assertTrue(ecu.address, ecu.identity in F194_GATED)
         }
-        EcuCatalog.all.filter { it.identity == IdentityBasis.F194 }.forEach {
+        EcuCatalog.all.filter { it.identity in F194_GATED }.forEach {
             assertEquals(it.address, (f194 + factoryF194 + candidateF194)[it.request], it.expectedF194)
         }
         // 741 is the one code ECUVersion.json does not hold: it is the head unit's MCU, named by the
@@ -116,19 +120,15 @@ class EcuCatalogContractTest {
                 .map { CachedIdentity(it.getString("ecuId"), it.getString("ecuSoftVer"), it.getString("ecuHardVer")) }
             assertEquals(ecu.address, expected, ecu.aliases)
         }
-        // Powertrain codes the 2026-10-18 cache projection holds: VCU, FMCU, ISG, BMS, SMCU, SMCU3.
+        // Powertrain codes the 2026-10-18 cache projection holds: VCU, FMCU, ISG, BMS, SMCU, SMCU3. PDC-VCU
+        // answered in the 2026-10-20 run above; DCOBC is in the full cache only.
         val records = cache.getJSONArray("focusedRecords").objects()
-        EcuCatalog.inGroup(EcuGroup.POWERTRAIN).filter { it.abbreviation != "DCOBC" }.forEach { ecu ->
+        EcuCatalog.inGroup(EcuGroup.POWERTRAIN).filter { it.abbreviation !in setOf("PDC-VCU", "DCOBC") }.forEach { ecu ->
             val code = ecu.expectedF194 ?: ecu.cachedSoftwareCode
             val expected = records.filter { it.getString("ecuSoftCode") == code }
                 .map { CachedIdentity(it.getString("ecuId"), it.getString("ecuSoftVer"), it.getString("ecuHardVer")) }
             assertTrue(ecu.abbreviation, expected.isNotEmpty())
             assertEquals(ecu.abbreviation, expected, ecu.aliases)
-        }
-        // Role-unknown ECUs show their cached software version as the short name.
-        EcuCatalog.inGroup(EcuGroup.UNKNOWN).filter { it.aliases.isNotEmpty() }.forEach {
-            assertEquals("ПО ${it.aliases.first().softwareVersion}", it.shortName)
-            assertTrue(it.aliases.all { a -> a.softwareVersion == it.aliases.first().softwareVersion })
         }
     }
 
@@ -140,7 +140,7 @@ class EcuCatalogContractTest {
             val ecu = EcuCatalog.all.single { it.abbreviation == abbreviation }
             assertEquals(abbreviation, code, ecu.expectedF194)
             assertEquals(abbreviation, code, factoryF194[ecu.request])
-            assertEquals(IdentityBasis.F194, ecu.identity)
+            assertTrue(abbreviation, ecu.identity in F194_GATED)
             assertTrue(abbreviation, ecu.uds && !ecu.obd && ecu.dtcQualified)
             assertNull(abbreviation, ecu.cachedSoftwareCode)
         }
@@ -156,7 +156,7 @@ class EcuCatalogContractTest {
             val ecu = EcuCatalog.byRequest(request)
             assertNotNull("%03X answered F194 but is not in the catalog".format(request), ecu)
             assertEquals("%03X".format(request), code, ecu!!.expectedF194)
-            assertEquals(IdentityBasis.F194, ecu.identity)
+            assertTrue(ecu.address, ecu.identity in F194_GATED)
             // Identity only: their DTC memory is the first read (acceptance, step 4).
             assertTrue(ecu.address, ecu.uds && !ecu.obd && !ecu.dtcQualified && ecu.dtcFormat == null)
         }
@@ -276,6 +276,46 @@ class EcuCatalogContractTest {
             }
             assertEquals(request + 8, ecu.reply)
         }
+    }
+
+    /** Where each block the model's scanner catalog named stands (architecture, 7.2). */
+    private val ROLE_GROUPS: Map<String, EcuGroup> = mapOf(
+        "SMCU" to EcuGroup.POWERTRAIN, "SMCU3" to EcuGroup.POWERTRAIN, "PDC-VCU" to EcuGroup.POWERTRAIN,
+        "RWS-L" to EcuGroup.CHASSIS, "RWS-R" to EcuGroup.CHASSIS, "IDC" to EcuGroup.CHASSIS,
+        "MSRF" to EcuGroup.CHASSIS, "MSRZ" to EcuGroup.CHASSIS,
+        "PDCMB" to EcuGroup.BODY, "HFRM" to EcuGroup.BODY, "SEC" to EcuGroup.BODY, "R-NCM" to EcuGroup.BODY,
+        "RR_SDR" to EcuGroup.BODY, "RL_SDR" to EcuGroup.BODY, "FR_SDR" to EcuGroup.BODY, "FL_SDR" to EcuGroup.BODY,
+        "CS" to EcuGroup.CABIN, "DUCU" to EcuGroup.CABIN, "PUCU" to EcuGroup.CABIN, "MLUCU" to EcuGroup.CABIN,
+        "CCS/SCPA" to EcuGroup.CABIN, "RRCP" to EcuGroup.CABIN, "RCP" to EcuGroup.CABIN, "VR" to EcuGroup.CABIN,
+        "MCPA" to EcuGroup.CABIN, "FRL" to EcuGroup.CABIN,
+        "AQDM" to EcuGroup.CLIMATE,
+    )
+
+    @Test
+    fun everyRoleTheModelCatalogNamedIsCataloguedInItsGroup() {
+        val evidence = research("ecu-role-evidence-20261021.json").getJSONArray("entries").objects()
+        assertEquals(27, evidence.size)
+        assertEquals(ROLE_GROUPS.keys, evidence.map { it.getString("abbreviation") }.toSet())
+        evidence.forEach { e ->
+            val abbreviation = e.getString("abbreviation")
+            val ecu = EcuCatalog.byRequest(e.getInt("requestId"))
+            assertNotNull("$abbreviation ${e.getString("requestHex")} is not in the catalog", ecu)
+            assertEquals(address(e.getString("requestHex")), e.getInt("requestId"))
+            assertEquals(e.getInt("requestId") + 8, e.getInt("responseId"))
+            assertEquals(abbreviation, abbreviation, ecu!!.abbreviation)
+            assertEquals(abbreviation, e.getString("expectedF194"), ecu.expectedF194)
+            assertEquals(abbreviation, IdentityBasis.MODEL_CATALOG, ecu.identity)
+            assertEquals(abbreviation, ROLE_GROUPS.getValue(abbreviation), ecu.group)
+            assertTrue(abbreviation, ecu.name != "Назначение не установлено" && !ecu.shortName.startsWith("ПО "))
+            assertTrue(abbreviation, !ecu.inferred)
+            // The factory records the role was joined through are the block's cached names.
+            val factory = e.getJSONArray("factoryEcuIds").strings().toSet()
+            assertTrue(abbreviation, ecu.aliases.map { it.ecuId }.toSet().containsAll(factory))
+        }
+        // Nothing is left without a role, and the rear drives carry their sides.
+        assertTrue(EcuCatalog.inGroup(EcuGroup.UNKNOWN).isEmpty())
+        assertEquals("Контроллер заднего левого мотора", EcuCatalog.byRequest(0x744)!!.name)
+        assertEquals("Контроллер заднего правого мотора", EcuCatalog.byRequest(0x745)!!.name)
     }
 
     @Test

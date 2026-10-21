@@ -18,6 +18,11 @@ internal enum class IdentityBasis(val label: String) {
     F194("22 F194"),
     /** A stock route or script names the address; F194 was not read. */
     STOCK_ROUTE("маршрут стока"),
+    /**
+     * The role from the model's own scanner catalog (Z9GT DM), joined by its abbreviation to the factory
+     * map's record and the `22 F194` that record's code came back as; the gate reads F194 as for [F194].
+     */
+    MODEL_CATALOG("каталог модели · 22 F194"),
     /** OBD `09 0A`: the ECU's own name. */
     OBD_ECU_NAME("OBD 09 0A"),
     /** No route known: the name exists only in the OTA cache. */
@@ -110,11 +115,13 @@ internal object EcuCatalog {
         expectedF194 = UWB_ANCHOR_CODE, aliases = UWB_ANCHOR_ALIASES,
     )
 
-    /** An ECU whose role is not established: its short name is the cached software version. */
-    private fun unknown(abbreviation: String, request: Int, f194: String, vararg aliases: CachedIdentity) = Ecu(
-        EcuGroup.UNKNOWN, abbreviation, "Назначение не установлено",
-        aliases.firstOrNull()?.softwareVersion?.let { "ПО $it" } ?: "нет в кэше",
-        inferred = false, request = request, identity = IdentityBasis.F194, expectedF194 = f194, aliases = aliases.toList(),
+    /** A role named by the model's scanner catalog (vehicle-data-findings, «ECU roles», 2026-10-21). */
+    private fun role(
+        group: EcuGroup, abbreviation: String, request: Int, name: String, short: String, f194: String,
+        vararg aliases: CachedIdentity,
+    ) = Ecu(
+        group, abbreviation, name, short, inferred = false, request = request, identity = IdentityBasis.MODEL_CATALOG,
+        expectedF194 = f194, aliases = aliases.toList(),
     )
 
     val all: List<Ecu> = listOf(
@@ -127,6 +134,8 @@ internal object EcuCatalog {
             expectedF194 = "32440011E07E007841",
             aliases = listOf(cache("VCU_BYD_00100001", "4.08.22", "0.0.2"), cache("VCU_UAES_00100001", "4.08.22", "0.0.2")),
             obd = true, dtcQualified = true, dtcFormat = 0x00),
+        role(EcuGroup.POWERTRAIN, "PDC-VCU", 0x743, "Контроллер силового домена", "Силовой домен", "48370011E002066441",
+            cache("PDC-VCU_FDP_00100001", "4.17.18", "0.0.0"), cache("PDC-VCU_BYD_00100001", "4.17.18", "0.0.0")),
         Ecu(EcuGroup.POWERTRAIN, "FMCU", "Контроллер переднего мотора", "Перед. мотор", false, 0x7E3, IdentityBasis.F194,
             expectedF194 = "48370011E075000000", aliases = listOf(cache("FMCU_BYD_00100001", "4.03.12", "0.0.5")),
             dtcQualified = true, dtcFormat = 0x01),
@@ -137,11 +146,11 @@ internal object EcuCatalog {
             expectedF194 = "4A520011E00D00047B", aliases = listOf(cache("BMS_BYD_03300001", "3.48.07", "0.0.3")),
             dtcQualified = true, dtcFormat = 0x00),
         // Routes from the complete factory map, F194 and an empty mask-09 list read live on 2026-10-20
-        // (vehicle-data-findings, «Complete factory map»). Which rear motor each SMCU drives is not established.
-        Ecu(EcuGroup.POWERTRAIN, "SMCU", "Контроллер заднего мотора", "Задн. мотор", false, 0x744, IdentityBasis.F194,
+        // (vehicle-data-findings, «Complete factory map»); the sides from the model's scanner catalog (2026-10-21).
+        Ecu(EcuGroup.POWERTRAIN, "SMCU", "Контроллер заднего левого мотора", "Задн. левый", false, 0x744, IdentityBasis.MODEL_CATALOG,
             expectedF194 = "48370011E086001100", aliases = listOf(cache("SMCU_BYD_00200001", "4.00.06", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
-        Ecu(EcuGroup.POWERTRAIN, "SMCU3", "Контроллер заднего мотора", "Задн. мотор", false, 0x745, IdentityBasis.F194,
+        Ecu(EcuGroup.POWERTRAIN, "SMCU3", "Контроллер заднего правого мотора", "Задн. правый", false, 0x745, IdentityBasis.MODEL_CATALOG,
             expectedF194 = "48370011E088001100", aliases = listOf(cache("SMCU3_BYD_00100001", "4.00.06", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.POWERTRAIN, "DCOBC", "Бортовое зарядное и DC-DC", "OBC + DC-DC", true, 0x7E4, IdentityBasis.F194,
@@ -160,10 +169,20 @@ internal object EcuCatalog {
             expectedF194 = "43430011DE6F000000",
             aliases = listOf(cache("REPS_BYD_00100001", "4.00.05", "0.0.1"), cache("DPEPS_TRW_00100001", "4.00.05", "0.0.1")),
             dtcQualified = true, dtcFormat = 0x00),
+        role(EcuGroup.CHASSIS, "RWS-L", 0x582, "Подруливание задних колёс, левое", "Задн. руль Л", "484B0011DF02030100",
+            cache("RWS-L_BYD_00100001", "4.00.08", "0.0.5")),
+        role(EcuGroup.CHASSIS, "RWS-R", 0x796, "Подруливание задних колёс, правое", "Задн. руль П", "484B0011DF02020100",
+            cache("RWS-R_BYD_00100001", "4.00.08", "0.0.5")),
+        role(EcuGroup.CHASSIS, "IDC", 0x597, "Контроллер движения кузова", "Подвеска", "4B4D0011DE01140600",
+            cache("IDC_BYD_00100001", "3.01.18", "1.5.0"), cache("IDC_BYD_00200001", "3.01.18", "1.5.0")),
         Ecu(EcuGroup.CHASSIS, "SRS", "Подушки безопасности", "Подушки", false, 0x7F1, IdentityBasis.F194,
             expectedF194 = "54500011E011000012", supplier = "Veoneer",
             aliases = listOf(cache("SRS_VEONEER_00100001", "4.00.04", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
+        role(EcuGroup.CHASSIS, "MSRZ", 0x742, "Натяжитель ремня водителя", "Ремень вод.", "48430011AD1A000201",
+            cache("MSRZ_BYD_00100001", "4.00.08", "0.0.1")),
+        role(EcuGroup.CHASSIS, "MSRF", 0x713, "Натяжитель ремня пассажира", "Ремень пасс.", "48430011AD30000202",
+            cache("MSRF_BYD_00100001", "4.00.08", "0.0.1")),
 
         // Driver assistance
         Ecu(EcuGroup.ADAS, "ADC", "Контроллер ассистентов", "Ассистенты", false, 0x712, IdentityBasis.F194,
@@ -204,6 +223,22 @@ internal object EcuCatalog {
         uwbAnchor("UWBRFA", 0x7F5, "Антенна UWB передняя правая", "UWB ПП"),
         uwbAnchor("UWBLRA", 0x7F6, "Антенна UWB задняя левая", "UWB ЗЛ"),
         uwbAnchor("UWBRRA", 0x7F7, "Антенна UWB задняя правая", "UWB ЗП"),
+        role(EcuGroup.BODY, "PDCMB", 0x724, "Проекция у двери багажника", "Проекция багажн.", "4A440011DF01510001",
+            cache("PDCMB_BYD_00100001", "4.02.03", "0.0.2")),
+        role(EcuGroup.BODY, "HFRM", 0x754, "Приёмник радиоключа", "Радиоключ", "48490011AD0C000004",
+            cache("HFRM_BYD_00100001", "4.00.01", "0.0.2")),
+        role(EcuGroup.BODY, "SEC", 0x7D6, "Бесключевой доступ", "Бескл. доступ", "484900118C0A001000",
+            cache("SEC_BYD_00100001", "1.11.36", "0.0.1")),
+        role(EcuGroup.BODY, "R-NCM", 0x595, "NFC правый", "NFC правый", "48490011A401162104",
+            cache("R-NCM_BYD_00100001", "1.00.09", "0.0.1")),
+        role(EcuGroup.BODY, "FL_SDR", 0x5B2, "Радар двери передней левой", "Радар ПЛ", "48490011DF01020000",
+            cache("FL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        role(EcuGroup.BODY, "FR_SDR", 0x5B1, "Радар двери передней правой", "Радар ПП", "48490011DF01030000",
+            cache("FR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        role(EcuGroup.BODY, "RL_SDR", 0x5B0, "Радар двери задней левой", "Радар ЗЛ", "48490011DF01040000",
+            cache("RL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        role(EcuGroup.BODY, "RR_SDR", 0x5A7, "Радар двери задней правой", "Радар ЗП", "48490011DF01050000",
+            cache("RR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
 
         // Cabin
         Ecu(EcuGroup.CABIN, "INS", "Комбинация приборов", "Приборы", true, 0x723, IdentityBasis.F194,
@@ -238,6 +273,26 @@ internal object EcuCatalog {
             expectedF194 = "52420011DF9E000000",
             aliases = listOf(cache("rear CPD radar_Valeo_00100001", "4.00.12", "0.0.3"),
                 cache("rear CPD radar_Mindcruise_00100001", "4.00.12", "0.0.3"))),
+        role(EcuGroup.CABIN, "CS", 0x725, "Подрулевые переключатели", "Подрулевые", "48490011DF1D000000",
+            cache("CS_BYD_00100001", "4.00.04", "0.1.0")),
+        role(EcuGroup.CABIN, "DUCU", 0x750, "Блок водителя", "Блок вод.", "4B310011DF016A0001",
+            cache("DUCU_BYD_00100001", "4.00.11", "0.0.3")),
+        role(EcuGroup.CABIN, "PUCU", 0x7B5, "Блок пассажира", "Блок пасс.", "4B310011DF016B0001",
+            cache("PUCU_BYD_00100001", "4.00.10", "0.0.3")),
+        role(EcuGroup.CABIN, "MLUCU", 0x7D2, "Блок среднего ряда слева", "Ср. ряд Л", "4B310011DF016C0001",
+            cache("MLUCU_BYD_00100001", "4.00.08", "0.0.4")),
+        role(EcuGroup.CABIN, "CCS/SCPA", 0x7A7, "Панель селектора передач", "Селектор", "48490011DF55000100",
+            cache("CCS_BYD_00100001", "4.00.06", "0.0.5"), cache("SCPA_BYD_00100001", "4.00.06", "0.0.5")),
+        role(EcuGroup.CABIN, "RRCP", 0x7C6, "Панель заднего холодильника", "Холод. зад.", "48580011DF02220000",
+            cache("RRCP_BYD_00100001", "4.00.04", "0.0.3")),
+        role(EcuGroup.CABIN, "RCP", 0x5F4, "Панель холодильника", "Холод. панель", "48580011DF01750000",
+            cache("RCP_BYD_00100001", "4.00.04", "0.0.3")),
+        role(EcuGroup.CABIN, "VR", 0x5A0, "Холодильник", "Холодильник", "4A500011DE01130000",
+            cache("VR_BYD_00100001", "2.00.05", "0.0.1")),
+        role(EcuGroup.CABIN, "MCPA", 0x5E4, "Пульт среднего ряда", "Пульт ср. ряда", "514A0011DE7B000000",
+            cache("MCPA_KOSTAL_00100001", "3.00.10", "0.0.4")),
+        role(EcuGroup.CABIN, "FRL", 0x772, "Передний плафон", "Плафон пер.", "48330011DEE3000000",
+            cache("FRL_BYD_00100001", "4.00.01", "0.1.2")),
 
         // Climate and thermal management
         Ecu(EcuGroup.CLIMATE, "ACC", "Климат-контроль", "Климат", true, 0x7B3, IdentityBasis.F194,
@@ -248,46 +303,12 @@ internal object EcuCatalog {
         Ecu(EcuGroup.CLIMATE, "PTC", "Высоковольтный нагреватель", "Нагреватель", true, 0x766, IdentityBasis.F194,
             expectedF194 = "59340011E015000000", supplier = "HGTECH",
             aliases = listOf(cache("PTC_HGTECH_00300001", "1.00.07", "1.0.2"))),
+        role(EcuGroup.CLIMATE, "AQDM", 0x590, "Датчик качества воздуха", "Кач. воздуха", "4A440011DE014A0101",
+            cache("AQDM_BYD_00100001", "3.00.08", "0.0.5")),
 
         // 12 V
         Ecu(EcuGroup.LOW_VOLTAGE, "LBMS", "АКБ 12 В", "АКБ 12 В", false, 0x762, IdentityBasis.STOCK_ROUTE,
             dtcQualified = true, dtcFormat = 0x00),
-
-        // Role not established
-        unknown("PDC-VCU", 0x743, "48370011E002066441",
-            cache("PDC-VCU_FDP_00100001", "4.17.18", "0.0.0"), cache("PDC-VCU_BYD_00100001", "4.17.18", "0.0.0")),
-        unknown("PDCMB", 0x724, "4A440011DF01510001", cache("PDCMB_BYD_00100001", "4.02.03", "0.0.2")),
-        unknown("CS", 0x725, "48490011DF1D000000", cache("CS_BYD_00100001", "4.00.04", "0.1.0")),
-        unknown("MSRF", 0x713, "48430011AD30000202", cache("MSRF_BYD_00100001", "4.00.08", "0.0.1")),
-        unknown("MSRZ", 0x742, "48430011AD1A000201", cache("MSRZ_BYD_00100001", "4.00.08", "0.0.1")),
-        unknown("DUCU", 0x750, "4B310011DF016A0001", cache("DUCU_BYD_00100001", "4.00.11", "0.0.3")),
-        unknown("PUCU", 0x7B5, "4B310011DF016B0001", cache("PUCU_BYD_00100001", "4.00.10", "0.0.3")),
-        unknown("MLUCU", 0x7D2, "4B310011DF016C0001", cache("MLUCU_BYD_00100001", "4.00.08", "0.0.4")),
-        unknown("HFRM", 0x754, "48490011AD0C000004", cache("HFRM_BYD_00100001", "4.00.01", "0.0.2")),
-        unknown("CCS/SCPA", 0x7A7, "48490011DF55000100",
-            cache("CCS_BYD_00100001", "4.00.06", "0.0.5"), cache("SCPA_BYD_00100001", "4.00.06", "0.0.5")),
-        unknown("RRCP", 0x7C6, "48580011DF02220000", cache("RRCP_BYD_00100001", "4.00.04", "0.0.3")),
-        unknown("SEC", 0x7D6, "484900118C0A001000", cache("SEC_BYD_00100001", "1.11.36", "0.0.1")),
-        // From the complete factory map, F194 read live on 2026-10-20. Which wheel or seat each SDR serves,
-        // and what RWS, AQDM, R-NCM, IDC, VR, MCPA, RCP and FRL do, the replies do not say.
-        unknown("RWS-L", 0x582, "484B0011DF02030100", cache("RWS-L_BYD_00100001", "4.00.08", "0.0.5")),
-        unknown("RWS-R", 0x796, "484B0011DF02020100", cache("RWS-R_BYD_00100001", "4.00.08", "0.0.5")),
-        unknown("AQDM", 0x590, "4A440011DE014A0101", cache("AQDM_BYD_00100001", "3.00.08", "0.0.5")),
-        unknown("R-NCM", 0x595, "48490011A401162104", cache("R-NCM_BYD_00100001", "1.00.09", "0.0.1")),
-        unknown("IDC", 0x597, "4B4D0011DE01140600",
-            cache("IDC_BYD_00100001", "3.01.18", "1.5.0"), cache("IDC_BYD_00200001", "3.01.18", "1.5.0")),
-        unknown("VR", 0x5A0, "4A500011DE01130000", cache("VR_BYD_00100001", "2.00.05", "0.0.1")),
-        unknown("RR_SDR", 0x5A7, "48490011DF01050000",
-            cache("RR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
-        unknown("RL_SDR", 0x5B0, "48490011DF01040000",
-            cache("RL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
-        unknown("FR_SDR", 0x5B1, "48490011DF01030000",
-            cache("FR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
-        unknown("FL_SDR", 0x5B2, "48490011DF01020000",
-            cache("FL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
-        unknown("MCPA", 0x5E4, "514A0011DE7B000000", cache("MCPA_KOSTAL_00100001", "3.00.10", "0.0.4")),
-        unknown("RCP", 0x5F4, "48580011DF01750000", cache("RCP_BYD_00100001", "4.00.04", "0.0.3")),
-        unknown("FRL", 0x772, "48330011DEE3000000", cache("FRL_BYD_00100001", "4.00.01", "0.1.2")),
     )
 
     private val byRequest: Map<Int, Ecu> = all.mapNotNull { e -> e.request?.let { it to e } }.toMap()
