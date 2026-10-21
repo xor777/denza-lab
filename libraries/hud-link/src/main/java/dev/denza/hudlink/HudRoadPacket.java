@@ -6,7 +6,8 @@ import java.util.List;
 /**
  * The road packet {@code 0x8001} from the fields that won. Fields go out in one fixed order, the
  * order both senders wrote before the compositor - Denza Apps' with the module's lanes first - so
- * moving them onto it changed no byte (`HudWireGoldenTest`, the module's `ArTest`).
+ * moving them onto it changed no byte (`HudWireGoldenTest`, the module's `ArTest`). One value is
+ * rewritten on the way: field 9 never says less than {@link Road#MANEUVER_METERS_MIN}.
  */
 public final class HudRoadPacket {
     static final int[] ORDER = {
@@ -33,7 +34,13 @@ public final class HudRoadPacket {
         for (int field : ORDER) {
             for (HudFields fields : winners) {
                 if (fields.has(field)) {
-                    fields.writeTo(message, field);
+                    Object value = fields.value(field);
+                    if (field == Road.MANEUVER_METERS && value instanceof Long && (Long) value < Road.MANEUVER_METERS_MIN) {
+                        // At the manoeuvre itself the block keeps a distance rather than turn Chinese.
+                        message.number(field, Road.MANEUVER_METERS_MIN);
+                    } else {
+                        fields.writeTo(message, field);
+                    }
                     break;
                 }
             }

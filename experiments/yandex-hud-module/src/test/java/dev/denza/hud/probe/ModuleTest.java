@@ -158,6 +158,10 @@ public final class ModuleTest {
         check(road.get(2).equals(2L)&&road.get(16).equals(2L)&&road.get(3).equals(4200L)&&road.get(4).equals(660L),"route totals");
         check(Arrays.equals((byte[])road.get(8),new byte[]{7,7})&&road.get(9).equals(250L)&&road.get(28).equals(2L),"manoeuvre picture, metres and id");
         check(text(road,10).equals("Тверская")&&road.get(11).equals(60L)&&text(road,26).equals("4,2 км")&&text(road,27).equals("11 мин"),"street, limit and summary texts");
+        for(int metres:new int[]{-1,0,4,10}){
+            NavigatorSource.Hint near=withManoeuvre();near.distance=metres;
+            check(fields(HudWire.road(true,near,new byte[]{7,7})).get(9).equals(11L),"the last ten metres go out as 11, not the HUD's Chinese «now»: "+metres);
+        }
         NavigatorSource.Hint bare=new NavigatorSource.Hint();
         check(Arrays.equals(HudWire.road(true,bare,null),HudWire.road(true)),"nothing known sends only 'navigating'");
         check(Arrays.equals(HudWire.road(false,withManoeuvre(),new byte[]{7}),HudWire.road(false)),"the clear never carries a hint");
@@ -287,6 +291,7 @@ public final class ModuleTest {
         check(Arrays.equals(StockHudSymbols.assets("tram:1"),new String[]{"landfront_hud_15"})&&StockHudSymbols.assets("taxi:0").length==0
                 &&Arrays.equals(StockHudSymbols.assets("shift:R:0"),new String[]{"landfront_hud_d"}),"cells name the stock pictures they need");
         placement();
+        hold();
         check(StockHudSymbols.lanes(java.util.Collections.nCopies(7,sign.get(0))).length==0,"never truncate an oversized sign");
         byte[] png={1,2,3};
         Map<Integer,Object> road=fields(HudWire.road(true,null,null,3,png));
@@ -310,6 +315,27 @@ public final class ModuleTest {
         check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou59"),"stock tenth roundabout exit");
         hint.exit=11;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou11"),"unknown exit must not display a wrong number");
         hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
+    }
+    /** The manoeuvre block through a gap: a rebuilt route up to 30 s, no manoeuvre ahead up to 3 s, never past the route. */
+    private static void hold() {
+        ManeuverHold hold=new ManeuverHold();
+        NavigatorSource.Frame frame=new NavigatorSource.Frame();frame.mode="guidance";frame.hint=withManoeuvre();
+        check(hold.apply(frame,0)==frame.hint&&hold.holding==null,"a manoeuvre ahead goes out as it is");
+        NavigatorSource.Frame rebuild=new NavigatorSource.Frame();rebuild.mode="rerouting";
+        NavigatorSource.Hint held=hold.apply(rebuild,29000);
+        check(held!=null&&"right".equals(held.icon)&&held.distance==250&&held.speedLimit==60&&"rerouting".equals(hold.holding),"rerouting repeats the last manoeuvre");
+        Map<Integer,Object> road=fields(HudWire.road(true,held,new byte[]{7,7}));
+        check(road.get(9).equals(250L)&&road.get(28).equals(2L)&&text(road,10).equals("Тверская"),"so the block keeps its arrow, metres and street, not the HUD's Chinese");
+        check(hold.apply(rebuild,31000)==null&&hold.holding==null,"not past the lost-position hold");
+        NavigatorSource.Hint none=new NavigatorSource.Hint();none.remainingMeters=900;none.remainingSeconds=120;none.speedLimit=40;
+        NavigatorSource.Frame empty=new NavigatorSource.Frame();empty.mode="guidance";empty.hint=none;
+        hold.apply(frame,40000);
+        held=hold.apply(empty,42000);
+        check("right".equals(held.icon)&&held.remainingMeters==900&&held.remainingSeconds==120&&held.speedLimit==40&&"no-manoeuvre".equals(hold.holding),"a blink keeps the manoeuvre with the frame's totals and limit");
+        check(hold.apply(empty,43500)==none,"a turn already taken is not carried down a straight");
+        NavigatorSource.Frame lost=new NavigatorSource.Frame();lost.mode="lost";lost.hint=frame.hint;
+        check(hold.apply(lost,44000)==frame.hint,"a held position keeps its own hint");
+        check(hold.apply(new NavigatorSource.Frame(),45000)==null&&hold.apply(rebuild,45100)==null,"a new route starts from nothing");
     }
     /** One icon a place, the nearest two places, each beside the route and off the cursor. */
     private static void placement() {

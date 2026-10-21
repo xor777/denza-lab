@@ -126,7 +126,7 @@ exact handle/topic/instance/length/byte-array layout. Topic `1127042368241665`
 is the road packet: 2 = 2, 16 = 2 (navigating) and, while a moving map is
 drawn, the hint in Denza Apps' field order — 3/4 remaining metres/seconds,
 5 the lane count and 7 its raw PNG (independent of the hint),
-8 the original cyan 80×80 manoeuvre PNG (including roundabout exits 1–10), 9 metres to the manoeuvre, 10 its street, 11 the posted limit
+8 the original cyan 80×80 manoeuvre PNG (including roundabout exits 1–10), 9 metres to the manoeuvre (never below 11: from 0 to 10 the HUD writes the Chinese «now»), 10 its street, 11 the posted limit
 in km/h, 26/27 «3,4 км» / «10 мин», 28 the stock manoeuvre id. Everything comes
 from guidance itself: windshield manoeuvres (`Action`, toponym, the roundabout
 exit on the manoeuvre that leaves it), the route's `RoutePosition`
@@ -134,9 +134,12 @@ exit on the manoeuvre that leaves it), the route's `RoutePosition`
 Field 28 follows the stock BYD navigator: 13 enters and 24 leaves a roundabout
 (Denza Apps sends 25), 48 finish, 45 waypoint. Without these fields the HUD
 filled the manoeuvre window with its own Chinese captions. A changed hint goes
-out at once, at most four times a second, else every 500 ms. Rerouting sends
-2/16 and explicit 5 = 0, without a hint or lane image; a held position keeps
-both. Before the first fix only 2/16 goes out. A missing
+out at once, at most four times a second, else every 500 ms. A frame without a
+manoeuvre repeats the last one shown (`ManeuverHold`), so the HUD never fills
+an empty block in Chinese: up to 30 s while Navigator rebuilds the route or the
+hint cannot be read, up to 3 s when guidance simply has none ahead. Rerouting
+still sends explicit 5 = 0, without a lane image; a held position keeps both.
+Before the first fix only 2/16 goes out. A missing
 lane sign also sends 5 = 0 while the route remains active. Field 6 (road class)
 is unchanged; no road is falsely labelled main road. Field 29 is unnecessary
 for the recovered image slot. Topic `1127042368241667` carries field 1 =

@@ -32,6 +32,15 @@ class HudRoadPacketTest {
     }
 
     @Test
+    fun theLastTenMetresStayElevenSoTheHudDoesNotWriteNowInChinese() {
+        for (metres in listOf(0, 1, 4, 10)) {
+            assertEquals(11L, varints(HudCaptureSource.roadPacketForTest(guidance(distance = metres), null)).getValue(9))
+        }
+        assertEquals(11L, varints(HudCaptureSource.roadPacketForTest(guidance(distance = 11), null)).getValue(9))
+        assertEquals(12L, varints(HudCaptureSource.roadPacketForTest(guidance(distance = 12), null)).getValue(9))
+    }
+
+    @Test
     fun aSpeedSignGoesToFieldElevenInKilometresPerHour() {
         val fields = varints(HudCaptureSource.roadPacketForTest(guidance(speedLimit = 60), null))
 

@@ -47,6 +47,12 @@ public final class HudProtocol {
         public static final int LANES_PNG = 7;
         public static final int MANEUVER_PNG = 8;
         public static final int MANEUVER_METERS = 9;
+        /**
+         * The fewest metres field 9 may say. From 0 to 10 the HUD writes the Chinese «now» over the
+         * manoeuvre block instead of a distance: other senders found it on other BYD models and clamp
+         * to 11. Drivers of this car see hieroglyphs at manoeuvres (2026-10-21).
+         */
+        public static final long MANEUVER_METERS_MIN = 11;
         public static final int ROAD_NAME = 10;
         /** currentMaxSpeedLimit, km/h. */
         public static final int SPEED_LIMIT = 11;
