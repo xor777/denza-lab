@@ -1127,6 +1127,28 @@
       notes: [['10,0 Гц', true]] },
   };
 
+  // «Ячейки»: one complete sweep the BMS sent on the owner's car (2026-10-21, 1039/9900001F pages
+  // 43D and 43C; research/vehicle-diagnostics/battery-page-telemetry-20261021.json), 5.5 s a sweep
+  const packCells = [3284, 3283, 3284, 3283, 3282, 3282, 3282, 3282, 3280, 3281, 3280, 3281, 3281, 3282, 3282, 3281, 3282, 3282, 3282, 3283, 3283, 3282, 3282, 3282, 3282, 3282, 3282, 3283, 3283, 3282, 3283, 3283, 3283, 3283, 3284, 3283, 3283, 3283, 3284, 3283, 3284, 3284, 3283, 3283, 3283, 3284, 3283, 3283, 3283, 3284, 3282, 3283, 3283, 3284, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3282, 3282, 3282, 3282, 3282, 3281, 3282, 3282, 3283, 3283, 3284, 3282, 3284, 3285, 3282, 3284, 3283, 3284, 3283, 3284, 3283, 3282, 3280, 3281, 3282, 3283, 3281, 3282, 3281, 3283, 3283, 3283, 3282, 3282, 3283, 3283, 3283, 3283, 3281, 3282, 3282, 3284, 3283, 3282, 3282, 3282, 3281, 3281, 3283, 3282, 3283, 3282, 3282, 3282, 3283, 3282, 3282, 3282, 3282, 3283, 3282, 3282, 3282, 3283, 3283, 3283, 3283, 3283, 3283, 3283, 3282, 3283, 3282, 3283, 3282, 3282, 3283, 3282, 3282, 3282, 3282, 3283, 3280, 3283, 3280, 3281, 3281, 3281, 3282, 3281, 3281, 3282, 3282, 3283, 3283, 3284, 3284, 3282];
+  const packProbes = [10, 13, 13, 11, 14, 13, 16, 10, 14, 14, 15, 14, 13, 15];
+  const scannerSysPackCells = {
+    top: sysTop('Тяговая батарея', '07:36:12'), rail: sysRail('Тяговая батарея'),
+    block: { title: 'Тяговая батарея', aside: '· BMS 7E7', line: 'ячейки и датчики — поток BMS 1039 · 9900001F, страницы 43D и 43C · обход 5,5 с',
+      counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] },
+    tabs: { items: ['Состояние', 'Ячейки', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 1 },
+    cells: packCells, cellScale: [3279, 3286], cellGrid: [3280, 3282, 3284, 3286],
+    cellMean: packCells.reduce((a, v) => a + v, 0) / packCells.length, cellMeanText: '3 282,5',
+    minIndex: packCells.indexOf(Math.min(...packCells)), maxIndex: packCells.indexOf(Math.max(...packCells)),
+    cellsHead: 'НАПРЯЖЕНИЕ ЯЧЕЕК, мВ · 166',
+    cellsStats: [['МИН', '3 280'], ['МАКС', '3 285'], ['СРЕДН.', '3 282,5'], ['РАЗБРОС', '5']],
+    cellTicks: [1, 20, 40, 60, 80, 100, 120, 140, 160],
+    cellsAge: 'обход 5,5 с · 0,4 с назад',
+    probes: packProbes, probeMin: packProbes.indexOf(Math.min(...packProbes)), probeMax: packProbes.indexOf(Math.max(...packProbes)),
+    probesHead: 'ТЕМПЕРАТУРА ДАТЧИКОВ · 14',
+    probesStats: [['МИН', '10 °C'], ['МАКС', '16 °C'], ['СРЕДН.', '13,2 °C']],
+    footer: { buttons: [], notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
+  };
+
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
     'cluster-launch': [{ kind: 'cluster' }, scenes.launch],
@@ -1209,6 +1231,7 @@
     'scanner-sys-safety': [scanner('sysSafety'), scannerSysSafety],
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
+    'scanner-sys-pack-cells': [scanner('sysPackCells'), scannerSysPackCells],
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
     'scanner-sys-engine-rpm': [scanner('sysParam'), scannerSysEngineRpm],
     'scanner-sys-engine-ect': [scanner('sysParam'), scannerSysEngineEct],

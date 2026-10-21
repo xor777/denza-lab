@@ -937,6 +937,60 @@
     });
   }
 
+  // «Тяговая батарея · Ячейки»: every cell's voltage and every probe's temperature, as the BMS
+  // sends them in pages of its own stream; numbers are the BMS's (its min/max indices agree).
+  function sysPackCells(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const P = L.packCells, A = P.cells, cx0 = A.x, cx1 = W - 24, cy0 = A.top, cy1 = A.bottom;
+      // the cells' head: what is drawn, and its extremes at the right
+      text(c, f.cellsHead, 24, A.headY, 'counterLabel', 'mute');
+      let r = W - 24;
+      [...f.cellsStats].reverse().forEach(([k, v]) => {
+        r -= text(c, v, r, A.headY - 3, 'valueBms', 'white', { align: 'right' }) + 6;
+        r -= text(c, k, r, A.headY, 'counterLabel', 'mute', { align: 'right' }) + 22;
+      });
+      // the scale: grid with labels, the mean dashed
+      const [lo, hi] = f.cellScale, yv = v => cy1 - (v - lo) / (hi - lo) * (cy1 - cy0);
+      f.cellGrid.forEach(v => {
+        fill(c, cx0, yv(v), cx1 - cx0, 1, 'hair');
+        text(c, String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' '), cx0 - 8, yv(v) - style('sig').lh / 2, 'sig', 'faint', { align: 'right' });
+      });
+      // the bars, one a cell, up or down from the pack's mean: a cell that lags or leads stands out
+      const n = f.cells.length, pitch = (cx1 - cx0) / n, bw = pitch - A.gap, ym = yv(f.cellMean);
+      f.cells.forEach((v, i) => {
+        const x = cx0 + i * pitch, y = yv(v), ext = i === f.minIndex || i === f.maxIndex;
+        const top = Math.min(y, ym), h = Math.max(1.5, Math.abs(ym - y));
+        fill(c, x, top, bw, h, ext ? 'blueInk' : v >= f.cellMean ? 'blue' : 'blueSoft');
+      });
+      fill(c, cx0, ym - 0.5, cx1 - cx0, 1, 'wire4');
+      // the extremes named over their bars
+      // the extremes named at their bars' ends: the highest above, the lowest below
+      [[f.minIndex, 'мин №' + (f.minIndex + 1), 1], [f.maxIndex, 'макс №' + (f.maxIndex + 1), -1]].forEach(([i, t, dir]) => {
+        const x = cx0 + i * pitch + bw / 2, y = yv(f.cells[i]);
+        stroke(c, `M${x} ${y + dir * 4}V${y + dir * 12}`, 'wire5', 1);
+        text(c, t, x, dir > 0 ? y + 14 : y - 14 - style('sig').lh, 'sig', 'white', { align: 'center' });
+      });
+      // the axis: numbers every twenty cells
+      f.cellTicks.forEach(k => text(c, String(k), cx0 + (k - 1) * pitch + bw / 2, cy1 + 6, 'sig', 'faint', { align: 'center' }));
+      // the probes: a tile each, the extremes outlined
+      const T = P.probes, n2 = f.probes.length, tw = (W - 48 - (n2 - 1) * T.gap) / n2;
+      text(c, f.probesHead, 24, T.headY, 'counterLabel', 'mute');
+      let r2 = W - 24;
+      [...f.probesStats].reverse().forEach(([k, v]) => {
+        r2 -= text(c, v, r2, T.headY - 3, 'valueBms', 'white', { align: 'right' }) + 6;
+        r2 -= text(c, k, r2, T.headY, 'counterLabel', 'mute', { align: 'right' }) + 22;
+      });
+      f.probes.forEach((v, i) => {
+        const x = 24 + i * (tw + T.gap), ext = i === f.probeMin || i === f.probeMax;
+        fill(c, x, T.top, tw, T.h, 'tileOk', 6); edge(c, x, T.top, tw, T.h, ext ? 'white' : 'blueEdge', 6);
+        text(c, 'Д' + (i + 1), x + T.padX, T.top + T.padY, 'counterLabel', 'mute');
+        text(c, String(v), x + T.padX, T.top + T.padY + 18, 'counter', 'white');
+        text(c, '°C', x + tw - T.padX, T.top + T.padY + 24, 'unit', 'dim2', { align: 'right' });
+      });
+    });
+  }
+
   const TILE = {
     ok:     { fill: 'tileOk', line: 'blueEdge', ink: 'white', sub: 'dim', state: 'blueSoft', addr: 'faint' },
     hist:   { fill: 'tileHist', line: 'sep', ink: 'white', sub: 'dim', state: 'ink4', addr: 'faint' },
@@ -1399,7 +1453,7 @@
     });
   }
 
-  const SCREENS = { sysParam, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
