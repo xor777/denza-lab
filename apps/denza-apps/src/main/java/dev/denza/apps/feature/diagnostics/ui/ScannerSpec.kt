@@ -425,6 +425,11 @@ internal object ScannerSpec {
     }
 
     object EcuIdent {
+        /** The block's own side, wider than the DTC screen's: an update's «был <версия> · <код>» fits whole. */
+        const val LEFT_X = 24f
+        const val LEFT_W = 624f
+        const val RIGHT_X = 680f
+        const val RIGHT_W = 576f
         val OWN_COLS = listOf(240f, FR)
         val CACHE_COLS = listOf(200f, FR)
         const val ROW = 32f

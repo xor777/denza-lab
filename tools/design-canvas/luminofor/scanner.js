@@ -1373,7 +1373,8 @@
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const D = L.ecuDtc, I = L.ecuIdent, Lf = D.left, R = D.right;
+    // the block's own side is wider than the DTC screen's: «был <версия> · <код>» of an update fits whole
+    const D = L.ecuDtc, I = L.ecuIdent, Lf = I.left, R = I.right;
     let cols = columns(I.ownCols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['ОТВЕЧАЕТ БЛОК'], D.top, D.head);
     y = keyRows(c, f.own, cols, y, I.row, Lf.x, Lf.w);

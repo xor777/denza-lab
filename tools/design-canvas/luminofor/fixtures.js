@@ -695,7 +695,8 @@
   const ecmCounters = [['MIL', 'ВЫКЛ'], ['DTC', '0'], ['ГОТОВН.', '4/9']];
   const ecmTabs = active => ({ items: ['DTC и готовность', 'Потоковые данные', 'Идентификация'], active });
   const ecmBlock = (line, counters) => ({ title: 'ЭБУ двигателя', aside: '· ECM · UAES', line, counters: counters || ecmCounters });
-  const ecmLine = '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 9C4A19031900 · стандарт OBD (PID 1C) 0x29';
+  // F195 as the car's updater reads it: bytes 0-1 as D.DD.DD, the other four as they came (architecture 5.5)
+  const ecmLine = '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 4.00.10 · 19031900 · стандарт OBD (PID 1C) 0x29';
   // [name, abbr, type, ready | waiting | absent]
   const monitor = (state, rows) => rows.map(([name, abbr, type], i) => [name, abbr, type, state[i]]);
   const MONITORS = [['Пропуски воспламенения', 'MIS', 'непрерывный'], ['Топливная система', 'FUEL', 'непрерывный'], ['Контроль компонентов', 'CCM', 'непрерывный'],
@@ -738,7 +739,7 @@
   // An illustrative fault, not a reading of this car.
   const scannerEcuFault = {
     top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:52:44', 'Z9 GT DM · P · ДВС работает'),
-    block: ecmBlock('7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 9C4A19031900', [['MIL', 'ВКЛ', 'on'], ['DTC', '1'], ['ГОТОВН.', '7/9']]),
+    block: ecmBlock('7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 4.00.10 · 19031900', [['MIL', 'ВКЛ', 'on'], ['DTC', '1'], ['ГОТОВН.', '7/9']]),
     tabs: Object.assign(ecmTabs(0), { alert: 0 }),
     // title: the catalog's heading of P042000 (engine_ecm), as the screen draws a description
     fault: { code: 'P0420', title: 'Старение трёхкомпонентного катализатора: снижена кислородная ёмкость', mil: 'ВКЛ',
@@ -790,7 +791,7 @@
     // [key, value, tone: '' white | 'dim']
     // 09 00, 09 04, 09 0A and 01 A6 as ECM answered them on 2026-10-21 (ecm-completion, ecm-obd-telemetry)
     own: [['Запрос → ответ', '7E0 → 7E8', ''], ['Протоколы', 'OBD-II · UDS (ISO 14229)', ''], ['Поставщик · 22 F18A', 'UAES', ''],
-      ['Номер ПО поставщика · F194', '32440011E004000000', ''], ['Версия ПО · 22 F195', '9C4A19031900', ''],
+      ['Номер ПО поставщика · F194', '32440011E004000000', ''], ['Версия ПО · 22 F195', '4.00.10 · 19031900', ''],
       ['Имя блока · 09 0A', 'ECM-EngineControl', ''], ['Калибровка · 09 04', 'Z31L07AB01', ''],
       ['Стандарт OBD · PID 1C', '0x29', ''], ['Пробег (ECM) · PID A6', '13 199,7 км', ''],
       ['Формат DTC · 19 01', '00 · SAE J2012', '']],
@@ -810,12 +811,12 @@
   const scannerEcuIdentUpdated = {
     top: scanTop(['Автоскан', 'Система управления ВВБ'], '10:14:05'),
     block: { title: 'Система управления ВВБ', aside: '· BMS', badge: ['ok', 'OK'], dtc: ['DTC', '0'],
-      line: '7E7 → 7EF · UDS · маска доступности 09 · формат DTC 00 (SAE J2012) · ПО (F195) 87F71A0B0C03' },
+      line: '7E7 → 7EF · UDS · маска доступности 09 · формат DTC 00 (SAE J2012) · ПО (F195) 3.48.07 · 1A0B0C03' },
     tabs: { items: ['Ошибки DTC', 'Идентификация'], active: 1 },
     // [key, value, tone: '' white | 'dim']
     own: [['Запрос → ответ', '7E7 → 7EF', ''], ['Протоколы', 'UDS (ISO 14229)', ''], ['Поставщик · 22 F18A', 'нет ответа', 'dim'],
-      ['Номер ПО поставщика · 22 F194', '4A520011E00D00048C', ''], ['Версия ПО · 22 F195', '87F71A0B0C03', ''],
-      ['ПО обновлено · 12.11.2026', 'был 87F71A011402 · 4A520011E00D00047B', ''],
+      ['Номер ПО поставщика · 22 F194', '4A520011E00D00048C', ''], ['Версия ПО · 22 F195', '3.48.07 · 1A0B0C03', ''],
+      ['ПО обновлено · 12.11.2026', 'был 3.48.07 · 1A011402 · 4A520011E00D00047B', ''],
       ['Имя системы · 22 F197', 'не отдаёт · NRC 31', 'dim'], ['Формат DTC · 19 01', '00 · SAE J2012', '']],
     cache: [['Основание имени', '22 F194', ''], ['Идентификатор', 'HTH-2021_BMS_BYD_03300001', ''], ['Версия железа', '0.0.3', '']],
     pids: [],
@@ -860,7 +861,7 @@
       ['Ток DC', '1009·46C00008 · 1039 Л 28500178 · П 28500188', 'А', ['0,0', '0,0', '0,0', '—']],
       ['Коды неисправностей', 'UDS 19 01 09 · 19 02 09', 'DTC', ['0', '0', '0', '0']],
       ['Номер ПО поставщика', 'UDS 22 F194', '', ['48370011E075000000', '48370011E086001100', '48370011E088001100', '48370011E0EA000000']],
-      ['Версия ПО', 'UDS 22 F195', '', ['9D78190A190C', '—', '—', '9D79190A1E0D']],
+      ['Версия ПО', 'UDS 22 F195', '', ['4.03.12 · 190A190C', '—', '—', '4.03.13 · 190A1E0D']],
     ],
   };
 
@@ -1102,7 +1103,7 @@
     units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     // the energy system's generation state 1006·34F0000A, not ISG's own: parked it reads 0, the stock INVALID
-    isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 9D79190A1E0D', 'ДВС не работает', 'энергосистема: н/д'] },
+    isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 4.03.13 · 190A1E0D', 'ДВС не работает', 'энергосистема: н/д'] },
     rearLeft: { label: 'ЗАДНИЙ ЛЕВЫЙ · SMCU 744', rows: ['статор 7 °C · IGBT 5 °C', 'н/д об/мин · 0,0 Н·м · 0,0 А'] },
     rearRight: { label: 'ЗАДНИЙ ПРАВЫЙ · SMCU3 745', rows: ['статор 7 °C · IGBT 5 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },

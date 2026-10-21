@@ -18,7 +18,14 @@ internal enum class IdentDid(val did: Int, val ascii: Boolean, val label: String
  * One `62 <did> <data>` answer. [text] is upper-case hex for F194/F195 and trimmed ASCII for
  * F18A/F197; ASCII that does not print falls back to hex with [ascii] false.
  */
-internal data class Identification(val did: IdentDid, val text: String, val ascii: Boolean, val raw: String)
+internal data class Identification(val did: IdentDid, val text: String, val ascii: Boolean, val raw: String) {
+    /** What a screen shows: F195 as the version the car uses ([IdentCodec.softwareVersion]), the rest as [text]. */
+    val shown: String
+        get() = when (did) {
+            IdentDid.F195 -> IdentCodec.softwareVersion(raw)
+            else -> text
+        }
+}
 
 internal object IdentCodec {
     fun decode(uds: ByteArray): Decoded<Identification> {
@@ -50,6 +57,27 @@ internal object IdentCodec {
 
     /** Every F194 this car returned, and every child code, is nine bytes (research/vehicle-diagnostics/). */
     const val SOFTWARE_CODE_BYTES = 9
+
+    /**
+     * `F195` as the car's own updater reads it (stock GCY `CanDiagnostic.parseEcuVersionInfo` and
+     * `VehicleOTAUtil.getCurrentEcuSoftVersion`): data bytes 0-1 big-endian, padded to five decimal digits,
+     * `D.DD.DD` - BMS `87F7…` is 3.48.07, ECM `9C4A…` 4.00.10 - then the other bytes as they came, their
+     * meaning not established and never read as a date: «3.48.07 · 1A011402». [hex] is the data, upper-case
+     * hex. Fresh F195 of 64 addresses read so matched the updater's `ECUVersion.json` on 2026-10-21, every
+     * one six bytes. Another length, or `FFFF` in bytes 0-1 - the stock parser's «6.55.35», an unwritten
+     * field - is [hex] as it came.
+     */
+    fun softwareVersion(hex: String): String {
+        val b = runCatching { hexBytes(hex) }.getOrNull()?.unsigned() ?: return hex
+        if (b.size != SOFTWARE_VERSION_BYTES) return hex
+        val version = b[0] shl 8 or b[1]
+        if (version == 0xFFFF) return hex
+        val d = version.toString().padStart(5, '0')
+        return "${d[0]}.${d.substring(1, 3)}.${d.substring(3)} · ${hex.substring(4).uppercase()}"
+    }
+
+    /** Every F195 this car returned on 2026-10-21 is six bytes: the version, then four of unknown meaning. */
+    const val SOFTWARE_VERSION_BYTES = 6
 }
 
 internal object Ascii {

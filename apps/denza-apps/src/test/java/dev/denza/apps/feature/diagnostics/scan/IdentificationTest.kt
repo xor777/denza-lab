@@ -173,7 +173,8 @@ class IdentificationTest {
         // The four DIDs as their text: the supplier in ASCII, the codes in hex, a refusal in words.
         assertEquals("UAES", rows.at("Поставщик · 22 F18A").value)
         assertEquals("32440011E004000000", rows.at("Номер ПО поставщика · 22 F194").value)
-        assertEquals("9C4A19031900", rows.at("Версия ПО · 22 F195").value)
+        // F195 as the car's updater reads it: 9C4A is 4.00.10, the other four bytes as they came.
+        assertEquals("4.00.10 · 19031900", rows.at("Версия ПО · 22 F195").value)
         assertEquals("не отдаёт · NRC 31", rows.at("Имя системы · 22 F197").value)
         assertEquals("ECM-EngineControl", rows.at("Имя блока · 09 0A").value)
         assertEquals("Z31L07AB01", rows.at("Калибровка · 09 04").value)

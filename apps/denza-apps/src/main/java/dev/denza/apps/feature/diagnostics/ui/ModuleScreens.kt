@@ -578,26 +578,26 @@ internal fun KeyRows(rows: List<Field>, cols: List<Pair<Float, Float>>, top: Flo
 internal fun IdentContent(ident: IdentView) {
     val d = ScannerSpec.EcuDtc
     val i = ScannerSpec.EcuIdent
-    var cols = ScannerSpec.columns(i.OWN_COLS, d.LEFT_X, d.LEFT_W)
+    var cols = ScannerSpec.columns(i.OWN_COLS, i.LEFT_X, i.LEFT_W)
     HeadRow(cols, listOf(HeadLabel("ОТВЕЧАЕТ БЛОК")), d.TOP, d.HEAD)
-    KeyRows(ident.own, cols, d.TOP + d.HEAD + 1f, i.ROW, d.LEFT_X, d.LEFT_W)
+    KeyRows(ident.own, cols, d.TOP + d.HEAD + 1f, i.ROW, i.LEFT_X, i.LEFT_W)
 
-    cols = ScannerSpec.columns(i.CACHE_COLS, d.RIGHT_X, d.RIGHT_W)
+    cols = ScannerSpec.columns(i.CACHE_COLS, i.RIGHT_X, i.RIGHT_W)
     HeadRow(cols, listOf(HeadLabel("КАК ОПОЗНАН")), d.TOP, d.HEAD)
-    var y = KeyRows(ident.cache, cols, d.TOP + d.HEAD + 1f, i.ROW, d.RIGHT_X, d.RIGHT_W)
+    var y = KeyRows(ident.cache, cols, d.TOP + d.HEAD + 1f, i.ROW, i.RIGHT_X, i.RIGHT_W)
     if (ident.pids.isEmpty()) return
     y += i.PID_GAP
     // the caption and the count on one baseline, the lower of the two styles' baselines
     val by = maxOf(Type.COUNTER_LABEL.baseline, Type.PID_HEAD.baseline) + (i.PID_HEAD_H - Type.COUNTER_LABEL.lh) / 2f
-    ScanText("ПОДДЕРЖИВАЕМЫЕ PID · MODE 01", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(d.RIGHT_X, y), baseline = by)
+    ScanText("ПОДДЕРЖИВАЕМЫЕ PID · MODE 01", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(i.RIGHT_X, y), baseline = by)
     ScanText(
         "${ident.pids.size} шт · ${ScannerWords.pidsAsked(ident.pids)}", Type.PID_HEAD, Ink.FAINT,
-        Modifier.endAt(d.RIGHT_X + d.RIGHT_W, y), baseline = by,
+        Modifier.endAt(i.RIGHT_X + i.RIGHT_W, y), baseline = by,
     )
     y += i.PID_HEAD_H + i.PID_GRID_GAP
-    val cw = (d.RIGHT_W - (i.PID_COLS - 1) * i.PID_CELL_GAP) / i.PID_COLS
+    val cw = (i.RIGHT_W - (i.PID_COLS - 1) * i.PID_CELL_GAP) / i.PID_COLS
     ident.pids.forEachIndexed { k, id ->
-        val px = d.RIGHT_X + (k % i.PID_COLS) * (cw + i.PID_CELL_GAP)
+        val px = i.RIGHT_X + (k % i.PID_COLS) * (cw + i.PID_CELL_GAP)
         val py = y + (k / i.PID_COLS) * (i.PID_H + i.PID_CELL_GAP)
         val service = ScannerWords.bitmapPid(id)
         Box(Modifier.at(px, py).size(cw.dp, i.PID_H.dp).plate(if (service) null else Ink.PID_FILL, null, i.PID_R)) {

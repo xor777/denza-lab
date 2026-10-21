@@ -409,7 +409,7 @@ internal object SystemPagesBuilder {
         val isg = EcuCatalog.byRequest(0x7E6)!!
         val isgResult = s.results[0x7E6]
         val isgDtc = isgResult?.takeIf { it.memoryRead }?.let { ((it.active ?: 0) + (it.history ?: 0)).toString() } ?: "не читали"
-        val software = (s.idents[0x7E6]?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.text
+        val software = (s.idents[0x7E6]?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.shown
             ?: (isgResult?.identity as? Polled.Got)?.value
             ?: NA
         val running = car.engineRunning

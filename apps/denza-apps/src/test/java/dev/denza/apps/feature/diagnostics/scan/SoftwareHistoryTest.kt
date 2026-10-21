@@ -127,9 +127,12 @@ class SoftwareHistoryTest {
 
     @Test
     fun theRowSaysTheDayAndWhatWasThereVersionFirst() {
+        // The version is kept as the bytes came and shown as the car's updater reads it.
         val withVersion = ModelBuilder.updateField(SoftwareChange(snapshot, "87F71A011402", newer, null, day))
         assertEquals("ПО обновлено · 12.11.2026", withVersion.key)
-        assertEquals("был 87F71A011402 · 4A520011E00D00047B", withVersion.value)
+        assertEquals("был 3.48.07 · 1A011402 · 4A520011E00D00047B", withVersion.value)
+        // A version not of that shape stays as it came.
+        assertEquals("был AB12 · 4A520011E00D00047B", ModelBuilder.updateField(SoftwareChange(snapshot, "AB12", newer, null, day)).value)
         assertEquals(false, withVersion.muted)
         assertEquals("был 4A520011E00D00047B", ModelBuilder.updateField(SoftwareChange(snapshot, null, newer, null, day)).value)
     }
@@ -178,7 +181,7 @@ class SoftwareHistoryTest {
         assertEquals(2, software.saves)
         assertEquals(1, software.history.records.getValue(bms).changes.size)
         val rows = s.model.value.modules.getValue(0x7E7).rows()
-        val f195 = rows.indexOf("Версия ПО · 22 F195" to "87F71A0B0C03")
+        val f195 = rows.indexOf("Версия ПО · 22 F195" to "3.48.07 · 1A0B0C03")
         assertTrue(rows.toString(), f195 > 0)
         assertEquals("ПО обновлено · 20.10.2026" to "был 4A520011E00D00047B", rows[f195 + 1])
         assertEquals("Номер ПО поставщика · 22 F194" to newer, rows[f195 - 1])
@@ -206,7 +209,7 @@ class SoftwareHistoryTest {
         assertEquals(3, software.saves)
         assertEquals(2, software.history.records.getValue(bms).changes.size)
         val row = third.model.value.modules.getValue(0x7E7).rows().single { it.first.startsWith("ПО обновлено") }
-        assertEquals("ПО обновлено · 23.10.2026" to "был 87F71A0B0C03 · $newer", row)
+        assertEquals("ПО обновлено · 23.10.2026" to "был 3.48.07 · 1A0B0C03 · $newer", row)
         third.stop()
     }
 

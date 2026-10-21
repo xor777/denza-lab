@@ -232,6 +232,8 @@ class ScannerSpecContractTest {
         n(l.SPARK_STROKE, "ecuLive", "spark", "stroke"); n(l.SPARK_GLOW, "ecuLive", "spark", "glow")
 
         val i = ScannerSpec.EcuIdent
+        n(i.LEFT_X, "ecuIdent", "left", "x"); n(i.LEFT_W, "ecuIdent", "left", "w")
+        n(i.RIGHT_X, "ecuIdent", "right", "x"); n(i.RIGHT_W, "ecuIdent", "right", "w")
         assertEquals(cols("ecuIdent", "ownCols"), i.OWN_COLS)
         assertEquals(cols("ecuIdent", "cacheCols"), i.CACHE_COLS)
         n(i.ROW, "ecuIdent", "row"); n(i.NOTE_GAP, "ecuIdent", "noteGap"); n(i.PID_GAP, "ecuIdent", "pidGap")

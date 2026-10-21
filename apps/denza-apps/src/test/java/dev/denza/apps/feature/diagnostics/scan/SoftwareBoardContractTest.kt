@@ -31,7 +31,9 @@ class SoftwareBoardContractTest {
         val board = SpecJson.fixture("scanner-ecu-ident-updated")
         val own = rows(board, "own")
         val code = own.single { it.key == "Номер ПО поставщика · 22 F194" }.value
-        val version = own.single { it.key == "Версия ПО · 22 F195" }.value
+        // The board shows F195 as the car reads it, «3.48.07 · 1A0B0C03»: back to the bytes the block sends.
+        val (number, rest) = own.single { it.key == "Версия ПО · 22 F195" }.value.split(" · ")
+        val version = "%04X".format(number.replace(".", "").toInt()) + rest
         // Before the update the history knew the snapshot's code with the version an opening read.
         val software = MemorySoftwareStore(
             SoftwareHistory().seen(SoftwareRead(SoftwareKey(0x7E7), "4A520011E00D00047B", "87F71A011402"), LocalDate.of(2026, 10, 20)),

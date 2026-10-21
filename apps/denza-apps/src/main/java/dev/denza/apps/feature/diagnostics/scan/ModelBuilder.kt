@@ -11,6 +11,7 @@ import dev.denza.apps.feature.diagnostics.protocol.DtcCandidate
 import dev.denza.apps.feature.diagnostics.protocol.DtcCode
 import dev.denza.apps.feature.diagnostics.protocol.DtcFormat
 import dev.denza.apps.feature.diagnostics.protocol.DtcMemory
+import dev.denza.apps.feature.diagnostics.protocol.IdentCodec
 import dev.denza.apps.feature.diagnostics.protocol.IdentDid
 import dev.denza.apps.feature.diagnostics.protocol.Identification
 import dev.denza.apps.feature.diagnostics.protocol.Ignition
@@ -186,7 +187,7 @@ internal class ModelBuilder(
             parts += "маска доступности ${m.availability.hex}"
             parts += formatLine(m)
         }
-        val f195 = (id?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.text
+        val f195 = (id?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.shown
         val f194 = (r?.identity as? Polled.Got)?.value?.takeIf { ecu.uds }
         when {
             f195 != null -> parts += "ПО (F195) $f195"
@@ -480,19 +481,20 @@ internal class ModelBuilder(
         }
 
         /**
-         * «ПО обновлено · 12.11.2026» - «был 87F71A011402 · 4A520011E00D00047B»: the last change the code
-         * history saw (5.5), the version first where it was known, kept until the next change.
+         * «ПО обновлено · 12.11.2026» - «был 3.48.07 · 1A011402 · 4A520011E00D00047B»: the last change the
+         * code history saw (5.5), the version first where it was known - kept as the bytes came, shown as
+         * the car reads it ([IdentCodec.softwareVersion]) - kept until the next change.
          */
         fun updateField(change: SoftwareChange): Field = Field(
             "ПО обновлено · ${DATE.format(change.detected)}",
-            "был " + listOfNotNull(change.oldVersion, change.oldCode).joinToString(" · "),
+            "был " + listOfNotNull(change.oldVersion?.let(IdentCodec::softwareVersion), change.oldCode).joinToString(" · "),
         )
 
         private val DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
         fun identText(p: Polled<*>): String = when (p) {
-            // A DID's reading is its decoded record; the row is its text, not the record.
-            is Polled.Got -> when (val v = p.value) { is Identification -> v.text; else -> v.toString() }.ifEmpty { "пусто" }
+            // A DID's reading is its decoded record; the row is what it shows, not the record.
+            is Polled.Got -> when (val v = p.value) { is Identification -> v.shown; else -> v.toString() }.ifEmpty { "пусто" }
             is Polled.Denied -> "не отдаёт · NRC ${p.nrc.hex}"
             is Polled.Unsupported -> "не отдаёт" + (p.nrc?.let { " · NRC ${it.hex}" } ?: "")
             else -> word(p)
