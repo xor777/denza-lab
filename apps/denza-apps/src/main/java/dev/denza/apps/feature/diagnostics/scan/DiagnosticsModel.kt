@@ -165,6 +165,7 @@ internal enum class SystemTab(val label: String) {
     COMPARE("Сравнение"),
     /** The pack's cells and probes, [DiagnosticsModel.packCells]. */
     CELLS("Ячейки"),
+    /** The pack's GB/T 32960 general alarm flags, [SystemsView.gbFlags]; their GETs are read only while it is in front. */
     GB_FLAGS("Флаги GB/T 32960"),
     /** Every record of the system's blocks, [SystemPage.dtc]. */
     DTC("DTC"),

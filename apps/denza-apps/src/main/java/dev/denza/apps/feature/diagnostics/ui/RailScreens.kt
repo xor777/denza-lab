@@ -40,8 +40,8 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  * The section built around the car's systems (architecture, 7.2): the rail down the left
  * (`scanner.js` `rail()`), the chosen screen at the width it leaves (`shell()`), and a system's page
  * - its head, its tabs and what each tab shows (`sysDtc()`, `sysBlocks()`, `sysLive()`,
- * `sysPackLive()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, `sysPending()`, the
- * schemes of `SchemeScreens.kt` and the pack's cells of `CellsScreen.kt`).
+ * `sysPackLive()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, the schemes of
+ * `SchemeScreens.kt`, the pack's cells of `CellsScreen.kt` and its GB/T 32960 flags of `GbFlagsScreen.kt`).
  */
 
 /** What the rail needs from the section: its lines, the one lit, the header over it and where a tap goes. */
@@ -194,6 +194,11 @@ internal fun SystemPageScreen(
                 ),
             )
             tab == SystemTab.DTC_READINESS -> ScanFooter(listOf(codes), listOfNotNull(ecm?.dtc?.source?.let { FooterNote.Words(it) }))
+            // the flags: readings, and where they come from before when
+            tab == SystemTab.GB_FLAGS -> ScanFooter(
+                refresh,
+                listOf(FooterNote.Words(ScannerWords.GB_FLAGS_SOURCE, mono = true)) + snapshot.flatMap { listOf(FooterNote.Divider, it) },
+            )
             // what is read from the blocks' memories, and a scheme that is only the blocks
             tab == SystemTab.DTC || tab == SystemTab.BLOCKS || (tab == SystemTab.COMPARE && page.system == CarSystem.ADAS) ||
                 (tab == SystemTab.STATE && (page.scheme is Scheme.Adas || page.scheme is Scheme.Safety)) -> ScanFooter(listOf(codes), codesNotes)
@@ -212,7 +217,7 @@ internal fun SystemPageScreen(
                 LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam)
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
-            SystemTab.GB_FLAGS -> Pending("Нет данных")
+            SystemTab.GB_FLAGS -> GbFlagTiles(model.systems.gbFlags)
             SystemTab.CELLS -> model.packCells?.let { PackCells(it) }
             SystemTab.DTC -> SystemDtcTable(page.dtc, onOpen)
             SystemTab.DTC_READINESS -> if (ecm != null) DtcContent(ecm, Halves.RAIL)
@@ -222,12 +227,6 @@ internal fun SystemPageScreen(
             PidPicker(obd.live.rows, obd.live.focus, { actions.setFocus(ecm.request, it); picking = false }) { picking = false }
         }
     }
-}
-
-/** A tab with nothing to show yet: one sentence where the table would stand (`sysPending()`). */
-@Composable
-private fun Pending(text: String) {
-    ScanText(text, Type.CELL, Ink.DIM, Modifier.at(ScannerSpec.Rail.PENDING_X, ScannerSpec.Rail.PENDING_Y))
 }
 
 /**

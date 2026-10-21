@@ -281,6 +281,17 @@ internal object ScannerWords {
     /** A probe's tile: «Д1». */
     fun probe(index: Int): String = "Д${index + 1}"
 
+    /* ------------------------------------------- the pack's GB/T 32960 flags (7.2) */
+
+    /** The footer's source of «Флаги GB/T 32960»: the device the flags are read from and the stock reporter that sets them. */
+    const val GB_FLAGS_SOURCE = "1039 · gbacqservice"
+
+    /** A flag's tile: «бит 16». */
+    fun gbBit(bit: Int): String = "бит $bit"
+
+    /** A flag's code as read: «код 1». */
+    fun gbCode(raw: Int): String = "код $raw"
+
     /** The HV schema's contactor, under its label: «замкнут», «разомкнут»; nothing while it is not known. */
     fun contactor(closed: Boolean?): String? = when (closed) {
         true -> "замкнут"

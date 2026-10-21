@@ -348,6 +348,36 @@ class ScannerSpecContractTest {
     }
 
     @Test
+    fun theGbFlags() {
+        val g = ScannerSpec.GbFlags
+        val k = "gbFlags"
+        // every number of the JSON's gbFlags is held here, and nothing else is in it
+        assertEquals(setOf("headY", "cols", "gap", "groupY", "rowY", "tile"), (at(k) as Map<*, *>).keys)
+        assertEquals(setOf("h", "r", "padX", "padY", "nameY", "stateY"), (at(k, "tile") as Map<*, *>).keys)
+        n(g.HEAD_Y, k, "headY"); n(g.COLS.toFloat(), k, "cols"); n(g.GAP, k, "gap")
+        assertEquals(cols(k, "groupY"), g.GROUP_Y)
+        assertEquals(cols(k, "rowY"), g.ROW_Y)
+        n(g.TILE_H, k, "tile", "h"); n(g.TILE_R, k, "tile", "r"); n(g.PAD_X, k, "tile", "padX"); n(g.PAD_Y, k, "tile", "padY")
+        n(g.NAME_Y, k, "tile", "nameY"); n(g.STATE_Y, k, "tile", "stateY")
+        // the head under the tabs; each caption over its rows, the rows apart, the last over the footer
+        val type = ScannerSpec.Type
+        val label = type.COUNTER_LABEL.lh
+        assertTrue(g.HEAD_Y >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT)
+        assertTrue(g.HEAD_Y + label <= g.GROUP_Y[0] && g.GROUP_Y[0] + label <= g.ROW_Y[0])
+        assertTrue(g.ROW_Y[0] + g.TILE_H <= g.ROW_Y[1] && g.ROW_Y[1] + g.TILE_H <= g.GROUP_Y[1])
+        assertTrue(g.GROUP_Y[1] + label <= g.ROW_Y[g.LATER_ROW] && g.LATER_ROW == g.ROW_Y.lastIndex)
+        assertTrue(g.ROW_Y.last() + g.TILE_H <= ScannerSpec.Footer.TOP)
+        // inside a tile: the name under the bit, the word and the code over its foot
+        assertTrue(g.PAD_Y + label <= g.NAME_Y + g.PAD_Y - g.NAME_LIFT)
+        assertTrue(g.NAME_Y + g.PAD_Y - g.NAME_LIFT + type.CELL_SMALL.lh <= g.STATE_Y)
+        assertTrue(g.STATE_Y + type.CELL.lh <= g.TILE_H && g.STATE_Y + g.CODE_DROP + type.TILE_ADDR.lh <= g.TILE_H)
+        // the model's groups fit the rows: the pack's nine on two, the drive's five on one
+        val flags = dev.denza.apps.feature.diagnostics.scan.GbFlags
+        assertTrue(flags.PACK.size <= 2 * g.COLS && flags.PACK.size > g.COLS && flags.DRIVE.size <= g.COLS)
+        assertEquals(2, g.GROUP_Y.size)
+    }
+
+    @Test
     fun theParameterPage() {
         val p = ScannerSpec.Param
         n(p.CHART_X, "param", "chart", "x"); n(p.CHART_TOP, "param", "chart", "top"); n(p.CHART_BOTTOM, "param", "chart", "bottom")

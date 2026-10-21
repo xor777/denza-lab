@@ -153,15 +153,18 @@ private fun between(a: List<Float?>, b: List<Float?>, t: Float): List<Float?> =
 private fun extremes(view: PackCellsView): List<Pair<Int, Int>> =
     listOfNotNull(view.cellMin?.let { it to 1 }, view.cellMax?.let { it to -1 }).filter { it.first in view.cells.indices }
 
-/** A head over the chart or the tiles: what is drawn at the left, its figures at the right. */
+/**
+ * A head over the chart or the tiles: what is drawn at the left, its figures at the right, a lit one
+ * ([HeadCounter.on]) orange - the GB/T 32960 flags' count of the raised ones.
+ */
 @Composable
-private fun StatsHead(head: String, stats: List<HeadCounter>, y: Float, w: Float) {
+internal fun StatsHead(head: String, stats: List<HeadCounter>, y: Float, w: Float) {
     val p = ScannerSpec.PackCells
     val width = rememberWidths()
     ScanText(head, Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(24f, y))
     var r = w - 24f
     stats.asReversed().forEach { s ->
-        ScanText(s.value, Type.VALUE_BMS, Ink.WHITE, Modifier.endAt(r, y - p.STAT_LIFT))
+        ScanText(s.value, Type.VALUE_BMS, if (s.on) Ink.ORANGE else Ink.WHITE, Modifier.endAt(r, y - p.STAT_LIFT))
         r -= width(s.value, Type.VALUE_BMS) + p.STAT_GAP
         ScanText(s.label, Type.COUNTER_LABEL, Ink.MUTE, Modifier.endAt(r, y))
         r -= width(s.label, Type.COUNTER_LABEL) + p.STAT_STEP

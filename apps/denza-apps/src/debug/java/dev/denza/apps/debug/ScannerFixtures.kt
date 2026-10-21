@@ -27,6 +27,10 @@ import dev.denza.apps.feature.diagnostics.scan.EnginePlace
 import dev.denza.apps.feature.diagnostics.scan.EnginePoint
 import dev.denza.apps.feature.diagnostics.scan.Field
 import dev.denza.apps.feature.diagnostics.scan.FridgeMode
+import dev.denza.apps.feature.diagnostics.scan.GbFlagGroup
+import dev.denza.apps.feature.diagnostics.scan.GbFlagState
+import dev.denza.apps.feature.diagnostics.scan.GbFlagView
+import dev.denza.apps.feature.diagnostics.scan.GbFlagsView
 import dev.denza.apps.feature.diagnostics.scan.Header
 import dev.denza.apps.feature.diagnostics.scan.HeadCounter
 import dev.denza.apps.feature.diagnostics.scan.HvUnit
@@ -112,7 +116,7 @@ internal object ScannerFixtures {
             "scanner-sys-hv" -> sys(CarSystem.HV, SystemTab.STATE)
             "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
             "scanner-sys-pack-live" -> sys(CarSystem.PACK, SystemTab.LIVE)
-            "scanner-sys-pack-flags" -> sys(CarSystem.PACK, SystemTab.GB_FLAGS)
+            in FLAGS_BOARDS -> sys(CarSystem.PACK, SystemTab.GB_FLAGS)
             in CELLS_BOARDS -> sys(CarSystem.PACK, SystemTab.CELLS)
             "scanner-sys-climate" -> sys(CarSystem.CLIMATE, SystemTab.STATE)
             "scanner-sys-lv" -> sys(CarSystem.LV, SystemTab.STATE)
@@ -151,7 +155,7 @@ internal object ScannerFixtures {
             ),
             groups = groups,
             modules = modules(all, id),
-            systems = systems(all),
+            systems = systems(all, id),
             rail = rail(scanBoard.getJSONObject("rail")),
             systemPages = pages(all, groups, id),
             param = PARAM_KEYS[id]?.let { param(fixture(all, id), it) },
@@ -195,6 +199,31 @@ internal object ScannerFixtures {
             probesHead = f.getString("probesHead"),
         )
     }
+
+    /* ------------------------------------------- the pack's GB/T 32960 flags */
+
+    /** The parked sweep of 2026-10-20, and the same with the interlock open. */
+    private val FLAGS_BOARDS = setOf("scanner-sys-pack-flags", "scanner-sys-pack-flags-alarm")
+
+    /**
+     * «Флаги GB/T 32960» from its board (`sysGbFlags()`): the head, its count lit by its third element,
+     * and each group's tiles - bit, FID, name, the code read (none when absent), state and word.
+     */
+    private fun gbFlags(f: JSONObject): GbFlagsView = GbFlagsView(
+        head = f.getString("head"),
+        counters = arrays(f.getJSONArray("counters")).map { HeadCounter(it.getString(0), it.getString(1), on = it.optBoolean(2)) },
+        groups = objects(f.getJSONArray("groups")).map { g ->
+            GbFlagGroup(
+                g.getString("title"),
+                objects(g.getJSONArray("flags")).map { t ->
+                    GbFlagView(
+                        t.getInt("bit"), t.getString("fid"), t.getString("name"), if (t.isNull("raw")) null else t.getInt("raw"),
+                        GbFlagState.valueOf(t.getString("state").uppercase()), t.getString("word"),
+                    )
+                },
+            )
+        },
+    )
 
     /* ------------------------------------------------------ the parameter */
 
@@ -693,7 +722,7 @@ internal object ScannerFixtures {
 
     /* ------------------------------------------------- the systems' data */
 
-    private fun systems(all: JSONObject): SystemsView {
+    private fun systems(all: JSONObject, id: String): SystemsView {
         val hv = fixture(all, "scanner-sys-hv")
         val pack = fixture(all, "scanner-sys-pack-live")
         val drives = fixture(all, "scanner-sys-drives-compare")
@@ -732,6 +761,7 @@ internal object ScannerFixtures {
             ),
             adas = adas(adas),
             brakeModules = listOf(ESP, BSCM),
+            gbFlags = gbFlags(fixture(all, if (id in FLAGS_BOARDS) id else "scanner-sys-pack-flags")),
         )
     }
 

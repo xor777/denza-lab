@@ -183,6 +183,14 @@ class ScannerWordsTest {
     }
 
     @Test
+    fun aGbFlagsTileSaysItsBitAndItsCode() {
+        // the board's «бит 16» and «код 1»; the footer's source
+        assertEquals("бит 16", ScannerWords.gbBit(16))
+        assertEquals("код 1", ScannerWords.gbCode(1))
+        assertEquals("1039 · gbacqservice", ScannerWords.GB_FLAGS_SOURCE)
+    }
+
+    @Test
     fun theContactorSaysItsStateOnlyWhenKnown() {
         assertEquals("замкнут", ScannerWords.contactor(true))
         assertEquals("разомкнут", ScannerWords.contactor(false))

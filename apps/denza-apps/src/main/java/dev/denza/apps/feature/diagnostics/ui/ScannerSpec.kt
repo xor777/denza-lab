@@ -597,6 +597,32 @@ internal object ScannerSpec {
         const val MOVE_MS = 300
     }
 
+    /**
+     * «Флаги GB/T 32960» (`sysGbFlags()`): the JSON's `gbFlags` - a tile a flag, [COLS] to a row [GAP]
+     * apart across the area less 24 on each side, the first group on rows 0 and 1 of [ROW_Y], every
+     * later one on row 2, each group's caption at its [GROUP_Y]; the head's figures stand as
+     * [PackCells]' do. Then the numbers `scanner.js` writes inline.
+     */
+    object GbFlags {
+        const val HEAD_Y = 182f
+        const val COLS = 5
+        const val GAP = 12f
+        val GROUP_Y = listOf(222f, 446f)
+        val ROW_Y = listOf(244f, 342f, 468f)
+        const val TILE_H = 86f
+        const val TILE_R = 6f
+        const val PAD_X = 12f
+        const val PAD_Y = 10f
+        const val NAME_Y = 22f
+        const val STATE_Y = 60f
+
+        /** The row of every group after the first. */
+        const val LATER_ROW = 2
+        /** The name's line box stands this much over `NAME_Y + PAD_Y`; the code this much under the word's. */
+        const val NAME_LIFT = 4f
+        const val CODE_DROP = 2f
+    }
+
     /** Where a scheme may stand: under the tabs, over the footer. */
     object Content {
         const val TOP = 172f
