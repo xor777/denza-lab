@@ -102,7 +102,7 @@ private fun adasLook(row: String, cell: CompareCell): Pair<ScannerSpec.Style, In
         row.startsWith("DTC") -> Type.ADAS16
         row.startsWith("Запрос") || row.startsWith("Формат") -> Type.ADAS13
         "F194" in row -> Type.ADAS11
-        "кэше" in row -> Type.ADAS12_5
+        "Идентификатор" in row -> Type.ADAS12_5
         else -> Type.ADAS14
     }
     val inkOf = when {
@@ -110,7 +110,7 @@ private fun adasLook(row: String, cell: CompareCell): Pair<ScannerSpec.Style, In
         cell.warn -> Ink.ORANGE_INK
         row.startsWith("Запрос") -> Ink.DIM
         cell.shared && "F194" in row -> Ink.BLUE_INK
-        cell.shared && "кэше" in row -> Ink.DIM
+        cell.shared && "Идентификатор" in row -> Ink.DIM
         else -> Ink.WHITE
     }
     return size to inkOf

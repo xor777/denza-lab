@@ -341,8 +341,9 @@ internal object SystemsBuilder {
                 CompareRow("Номер ПО · F194", "UDS 22 F194", "", shared(results.map { r ->
                     r?.identity?.let { (it as? Polled.Got)?.value ?: ModelBuilder.word(it) } ?: "не читали"
                 })),
-                CompareRow("Имя в кэше BYD", "", "", shared(ecus.map(::cacheName))),
-                CompareRow("Версия ПО · кэш", "", "", shared(ecus.map { it.aliases.firstOrNull()?.softwareVersion ?: "—" })),
+                // the updater's identifier, which an update does not change; the snapshot's software
+                // version would contradict an updated block, so it is not shown (5.1)
+                CompareRow("Идентификатор BYD", "", "", shared(ecus.map(::cacheName))),
                 CompareRow("Положение", "", "", ecus.map { cell(POSITION[it.request] ?: "—") }),
                 // ADC also has a DoIP route in the stock route map; the rest are CAN only.
                 CompareRow("Связь", "", "", ecus.map { if (it.request == 0x712) cell("CAN · DoIP", warn = true) else cell("CAN") }),
