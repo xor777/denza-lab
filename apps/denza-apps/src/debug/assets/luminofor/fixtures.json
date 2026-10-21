@@ -36969,6 +36969,18 @@
        "opens": true
       },
       {
+       "name": "Контроллер силового домена",
+       "unit": "PDC-VCU",
+       "abbr": "PDC-VCU",
+       "short": "Силовой домен",
+       "req": "743",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
        "name": "Контроллер переднего мотора",
        "unit": "FMCU",
        "abbr": "FMCU",
@@ -37039,18 +37051,6 @@
        "active": "0",
        "history": "0",
        "opens": true
-      },
-      {
-       "name": "Контроллер силового домена",
-       "unit": "PDC-VCU",
-       "abbr": "PDC-VCU",
-       "short": "Силовой домен",
-       "req": "743",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
       }
      ]
     },
@@ -37097,42 +37097,6 @@
        "opens": true
       },
       {
-       "name": "Подушки безопасности",
-       "unit": "SRS · Veoneer",
-       "abbr": "SRS",
-       "short": "Подушки",
-       "req": "7F1",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Натяжитель ремня пассажира",
-       "unit": "MSRF",
-       "abbr": "MSRF",
-       "short": "Ремень пасс.",
-       "req": "713",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Натяжитель ремня водителя",
-       "unit": "MSRZ",
-       "abbr": "MSRZ",
-       "short": "Ремень вод.",
-       "req": "742",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
        "name": "Подруливание задних колёс, левое",
        "unit": "RWS-L",
        "abbr": "RWS-L",
@@ -37166,6 +37130,42 @@
        "kind": "hist",
        "active": "0",
        "history": "4",
+       "opens": true
+      },
+      {
+       "name": "Подушки безопасности",
+       "unit": "SRS · Veoneer",
+       "abbr": "SRS",
+       "short": "Подушки",
+       "req": "7F1",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Натяжитель ремня водителя",
+       "unit": "MSRZ",
+       "abbr": "MSRZ",
+       "short": "Ремень вод.",
+       "req": "742",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Натяжитель ремня пассажира",
+       "unit": "MSRF",
+       "abbr": "MSRF",
+       "short": "Ремень пасс.",
+       "req": "713",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
        "opens": true
       }
      ]
@@ -37449,23 +37449,11 @@
        "opens": true
       },
       {
-       "name": "Радар двери задней правой",
-       "unit": "RR_SDR",
-       "abbr": "RR_SDR",
-       "short": "Радар ЗП",
-       "req": "5A7",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Радар двери задней левой",
-       "unit": "RL_SDR",
-       "abbr": "RL_SDR",
-       "short": "Радар ЗЛ",
-       "req": "5B0",
+       "name": "Радар двери передней левой",
+       "unit": "FL_SDR",
+       "abbr": "FL_SDR",
+       "short": "Радар ПЛ",
+       "req": "5B2",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -37485,11 +37473,23 @@
        "opens": true
       },
       {
-       "name": "Радар двери передней левой",
-       "unit": "FL_SDR",
-       "abbr": "FL_SDR",
-       "short": "Радар ПЛ",
-       "req": "5B2",
+       "name": "Радар двери задней левой",
+       "unit": "RL_SDR",
+       "abbr": "RL_SDR",
+       "short": "Радар ЗЛ",
+       "req": "5B0",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Радар двери задней правой",
+       "unit": "RR_SDR",
+       "abbr": "RR_SDR",
+       "short": "Радар ЗП",
+       "req": "5A7",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -37685,6 +37685,18 @@
        "opens": true
       },
       {
+       "name": "Панель холодильника",
+       "unit": "RCP",
+       "abbr": "RCP",
+       "short": "Холод. панель",
+       "req": "5F4",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
        "name": "Холодильник",
        "unit": "VR",
        "abbr": "VR",
@@ -37702,18 +37714,6 @@
        "abbr": "MCPA",
        "short": "Пульт ср. ряда",
        "req": "5E4",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Панель холодильника",
-       "unit": "RCP",
-       "abbr": "RCP",
-       "short": "Холод. панель",
-       "req": "5F4",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -37992,6 +37992,18 @@
        "opens": true
       },
       {
+       "name": "Контроллер силового домена",
+       "unit": "PDC-VCU",
+       "abbr": "PDC-VCU",
+       "short": "Силовой домен",
+       "req": "743",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
        "name": "Контроллер переднего мотора",
        "unit": "FMCU",
        "abbr": "FMCU",
@@ -38062,18 +38074,6 @@
        "active": "0",
        "history": "0",
        "opens": true
-      },
-      {
-       "name": "Контроллер силового домена",
-       "unit": "PDC-VCU",
-       "abbr": "PDC-VCU",
-       "short": "Силовой домен",
-       "req": "743",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
       }
      ]
     },
@@ -38120,42 +38120,6 @@
        "opens": true
       },
       {
-       "name": "Подушки безопасности",
-       "unit": "SRS · Veoneer",
-       "abbr": "SRS",
-       "short": "Подушки",
-       "req": "7F1",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Натяжитель ремня пассажира",
-       "unit": "MSRF",
-       "abbr": "MSRF",
-       "short": "Ремень пасс.",
-       "req": "713",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Натяжитель ремня водителя",
-       "unit": "MSRZ",
-       "abbr": "MSRZ",
-       "short": "Ремень вод.",
-       "req": "742",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
        "name": "Подруливание задних колёс, левое",
        "unit": "RWS-L",
        "abbr": "RWS-L",
@@ -38189,6 +38153,42 @@
        "kind": "hist",
        "active": "0",
        "history": "4",
+       "opens": true
+      },
+      {
+       "name": "Подушки безопасности",
+       "unit": "SRS · Veoneer",
+       "abbr": "SRS",
+       "short": "Подушки",
+       "req": "7F1",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Натяжитель ремня водителя",
+       "unit": "MSRZ",
+       "abbr": "MSRZ",
+       "short": "Ремень вод.",
+       "req": "742",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Натяжитель ремня пассажира",
+       "unit": "MSRF",
+       "abbr": "MSRF",
+       "short": "Ремень пасс.",
+       "req": "713",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
        "opens": true
       }
      ]
@@ -38472,23 +38472,11 @@
        "opens": true
       },
       {
-       "name": "Радар двери задней правой",
-       "unit": "RR_SDR",
-       "abbr": "RR_SDR",
-       "short": "Радар ЗП",
-       "req": "5A7",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Радар двери задней левой",
-       "unit": "RL_SDR",
-       "abbr": "RL_SDR",
-       "short": "Радар ЗЛ",
-       "req": "5B0",
+       "name": "Радар двери передней левой",
+       "unit": "FL_SDR",
+       "abbr": "FL_SDR",
+       "short": "Радар ПЛ",
+       "req": "5B2",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -38508,11 +38496,23 @@
        "opens": true
       },
       {
-       "name": "Радар двери передней левой",
-       "unit": "FL_SDR",
-       "abbr": "FL_SDR",
-       "short": "Радар ПЛ",
-       "req": "5B2",
+       "name": "Радар двери задней левой",
+       "unit": "RL_SDR",
+       "abbr": "RL_SDR",
+       "short": "Радар ЗЛ",
+       "req": "5B0",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
+       "name": "Радар двери задней правой",
+       "unit": "RR_SDR",
+       "abbr": "RR_SDR",
+       "short": "Радар ЗП",
+       "req": "5A7",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -38708,6 +38708,18 @@
        "opens": true
       },
       {
+       "name": "Панель холодильника",
+       "unit": "RCP",
+       "abbr": "RCP",
+       "short": "Холод. панель",
+       "req": "5F4",
+       "proto": "UDS",
+       "kind": "ok",
+       "active": "0",
+       "history": "0",
+       "opens": true
+      },
+      {
        "name": "Холодильник",
        "unit": "VR",
        "abbr": "VR",
@@ -38725,18 +38737,6 @@
        "abbr": "MCPA",
        "short": "Пульт ср. ряда",
        "req": "5E4",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": true
-      },
-      {
-       "name": "Панель холодильника",
-       "unit": "RCP",
-       "abbr": "RCP",
-       "short": "Холод. панель",
-       "req": "5F4",
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
@@ -40249,7 +40249,7 @@
    "block": {
     "title": "Шасси",
     "aside": "· 6 блоков",
-    "line": "ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS-L 582 · RWS-R 796 · IDC 597 · шины: давление 1016, температура 1007",
+    "line": "ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007",
     "counters": [
      [
       "ДАВЛЕНИЕ",
@@ -56881,23 +56881,11 @@
      "opens": true
     },
     {
-     "name": "Радар двери задней правой",
-     "unit": "RR_SDR",
-     "abbr": "RR_SDR",
-     "short": "Радар ЗП",
-     "req": "5A7",
-     "proto": "UDS",
-     "kind": "ok",
-     "active": "0",
-     "history": "0",
-     "opens": true
-    },
-    {
-     "name": "Радар двери задней левой",
-     "unit": "RL_SDR",
-     "abbr": "RL_SDR",
-     "short": "Радар ЗЛ",
-     "req": "5B0",
+     "name": "Радар двери передней левой",
+     "unit": "FL_SDR",
+     "abbr": "FL_SDR",
+     "short": "Радар ПЛ",
+     "req": "5B2",
      "proto": "UDS",
      "kind": "ok",
      "active": "0",
@@ -56917,11 +56905,23 @@
      "opens": true
     },
     {
-     "name": "Радар двери передней левой",
-     "unit": "FL_SDR",
-     "abbr": "FL_SDR",
-     "short": "Радар ПЛ",
-     "req": "5B2",
+     "name": "Радар двери задней левой",
+     "unit": "RL_SDR",
+     "abbr": "RL_SDR",
+     "short": "Радар ЗЛ",
+     "req": "5B0",
+     "proto": "UDS",
+     "kind": "ok",
+     "active": "0",
+     "history": "0",
+     "opens": true
+    },
+    {
+     "name": "Радар двери задней правой",
+     "unit": "RR_SDR",
+     "abbr": "RR_SDR",
+     "short": "Радар ЗП",
+     "req": "5A7",
      "proto": "UDS",
      "kind": "ok",
      "active": "0",
