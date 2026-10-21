@@ -38,13 +38,13 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Complete factory metadata: 225 routing candidates; SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC answered matching F194 and empty mask09 lists. DCOBC format remains unknown. A public Z9GT PHEV manual index now supplies engine/battery/drive DTC heading candidates, but has conflicting definitions and no ECU-software binding; no OEM dictionary is qualified. The diagnostic section shows those headings, translated, as candidate descriptions of format00 codes | live routes; dictionary open | 2026-10-20 | [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20); [Manual candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | Factory-map candidates: of the 37 CAN routes outside the scanner catalog, 35 got one `22 F194` (`715`/`785` already had result 3); 22 answered. All 21 with a real code in `ECUVersion.json` returned it byte for byte, all 13 with only a zero placeholder got gateway result 3, and `5E7` returned the passenger computer's MCU code `4B450011DF990042E2` from its own OTA container. All 22 are in `EcuCatalog`; the 13 `5xx` responders are listed one by one in `DiagnosticWhitelist`. Their DTC memories were first read by the scanner's autoscan on 2026-10-20: IDC `597` has four records, the rest none | live | 2026-10-20 | [Factory-map candidates](#factory-map-candidates-on-this-car-2026-10-20); [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
 | Scanner on the car: 68/68 answered and 68 memories read in 148 exchanges, 19.9 s, exchange 18 ms median, step 120 ms at gap 100; history in LA_BCM 8, R_ZCU 2, INS 2, Media 1, CCS/SCPA 1, IDC 4; a lock race after the first idle minute stopped the section (fixed; three restarts on the car without it, 19:46–20:11) | live | 2026-10-20 | [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
-| Exact-model Xtool catalog: 172 Z9GT DM rows name25 previously unnamed catalog entries and rear-drive sides. Eight child identities matched cache8/8;30 stock FIDs have source evidence. Nine INS/FRL/CDC subroles remain unbound: their full codes are unique in225 cache rows, raw catalog columns and stock named-version/function maps contain no exact join. Repeating identity reads cannot supply the missing role mapping | model-specific roles + live child identity; nine subroles open | 2026-10-21 | [ECU roles and reverse crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21); [Deep inventory](#deep-inventory-and-telemetry-beyond-identification-2026-10-21); [Unattended qualification](#unattended-child-and-buffer-qualification-2026-10-21) |
+| Exact-model Xtool catalog:172 Z9GT DM rows name25 catalog entries and rear-drive sides. Eight child identities matched cache8/8. Nine INS/FRL/CDC subroles remain unbound after raw catalog, named-version and13-binary audits;23 apparent child-DID byte matches resolve to images/compressed API/name-pointer data. BSCM7E5 and ESP782 still lack a common physical identity | model-specific roles + live child identity; nine subroles open | 2026-10-21 | [ECU roles and reverse crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21); [Deep inventory](#deep-inventory-and-telemetry-beyond-identification-2026-10-21); [Unattended qualification](#unattended-child-and-buffer-qualification-2026-10-21) |
 | Diagnostic research: 81 CAN + 5 DoIP routes, 9,799 readable declarations and 58 MCU field descriptors. Z9GT passive captures and stock decoders establish paged166-cell/14-probe arrays, not atomic sweeps. Further source audit proves count255 cache/callback divergence, a duplicate-page completion counterexample and collection-policy meanings; none establishes cell fault/balancing enums. No new ECU addresses or applicable OEM DTC dictionary | live passive availability + firmware-backed arrays; physical placement and full validity open | 2026-10-21 | [Deep inventory](#deep-inventory-and-telemetry-beyond-identification-2026-10-21); [Live battery pages](#live-passive-streams-and-paged-battery-telemetry-2026-10-21); [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
 | Deeper source consumers: saved drive configuration7 selects18 fields for three drives; stock engine packing substitutes zero unless state3. Battery native completion is a sticky element-count latch, not page coverage or freshness. Wheel producer gate is bound to panorama command AA000048; the later typed GET returned MCU_OFFLINE despite20 matching source frames. Steering99000198 GET matched20 raw angle frames; its change stamp shares the MCU receive counter, not a qualified acquisition clock. FD words3/5 equal preceding complete cell extrema in7/7 pairs; insulation collector clamps u16 to60000, losing invalid-like bit patterns. No applicable OEM DTC definitions or record schemas | firmware + live finite buffer/source checks | 2026-10-21 | [Consumer semantics](#consumer-semantics-and-remaining-tests-2026-10-21); [Unattended qualification](#unattended-child-and-buffer-qualification-2026-10-21) |
 | Direct ECM data: the first23 responses qualified additional temperatures/pressure/voltage and A6 odometer; a further29 wire replies add15 Mode01 records and CALID `Z31L07AB01`. All43 advertised non-bitmap PIDs have replied across retained passes. PID56 exposed the conditional bank3 byte, PID54 exposed an incorrect signed conversion; both codecs corrected locally. EGR6B/lambda44 and sensor validity remain open. No engine start or new DTC dictionary | live snapshots + code corrections, not installed | 2026-10-21 | [Direct ECM data](#direct-ecm-data-with-the-engine-stopped-2026-10-21); [Remaining ECM parameters and calibration](#remaining-ecm-parameters-and-calibration-2026-10-21) |
 | BSCM7E5 and VCU7E2:23 bounded replies add3 and5 previously unread advertised PIDs; all8 BSCM and9 VCU non-bitmap PIDs have now replied. In1.03s the same coolant PID05 gave ECM10°C, VCU30°C and BSCM10°C. Source ECU must stay with the value; physical sensor provenance is unresolved | live | 2026-10-21 | [Brake and VCU data](#brake-and-vcu-obd-data-2026-10-21) |
 | Stock native DTC count/list tasks preserve the format byte and raw24-bit records; they contain no format01-to-display conversion in the traced positive-response path. One public overseas TIS workshop page and BYD's environmental-document channel are acquisition leads, without a matching Z9GT dictionary. CALID search found no binding; 63/64 rear-drive catalog codes also occur in U8 | firmware + public-source boundary | 2026-10-21 | [OEM DTC candidates](#oem-dtc-manual-candidates-2026-10-20) |
-| OEM warning dictionary:628 Chinese UI messages in the car-matched popup file;8 priority mappings traced from CAN261/channel0 ten-bit field through1007/26100008 and native/Godot code to exact text/color. Retained19 frames and2 GETs giveID0. Active rendering, fault-to-ECU/DTC ownership and installed MCU byte match remain unproved | firmware + retained source values; not a DTC dictionary | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21) |
+| OEM warning dictionary:628 Chinese UI messages;8 priority mappings traced from CAN261/channel0 through1007/26100008. Further audit separates warning IDs, native DataItems and14 GB alarm predicates; the inspected type07 serializer writes four fault-code counts as literal zero. BMS cell-overtemperature headings are acquisition candidates, not a proven warning-to-DTC relation. No applicable dictionary or warning-to-ECU/DTC join | firmware; dictionary and causal links open | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21); [Warning/DTC linkage](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -92,6 +92,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Adjacent current consumers and ISG boundary](#adjacent-current-consumers-and-isg-boundary-2026-10-21) — selective channel normalization, dual current caches, GB source selection and invalid generation state
 - [Battery validity and collection gates](#battery-validity-and-collection-gates-2026-10-21) — count-cache divergence, unreceived zeros, collection-policy reasons and separate charge/contactor labels
 - [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21) — ten-bit warning field,628-message stock dictionary,8 traced meanings and popup visibility limits
+- [Warning to DTC linkage and GB alarm boundary](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) — separate identifier namespaces,14 native alarm predicates, fixed-zero code counts and exact manual-page candidates
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — public headings, primary acquisition channels, CALID search and software-applicability gaps
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
@@ -3067,6 +3068,26 @@ and no redundant live pass was made. The
 [offline checker](../research/vehicle-diagnostics/check_remaining_roles_followup.py)
 reproduces the exact nine joins, raw-row schemas and bounded stock-source checks.
 
+The subsequent [raw fingerprint audit](../research/vehicle-diagnostics/remaining-role-fingerprints-20261021.json)
+checks13 existing MCU/HAL/UDS/cluster binaries,63,719,760 bytes. None contains
+the nine full child codes or the three selected BSCM/ESP fingerprints. Positive
+controls find the head-unit and passenger-computer MCU's own codes in their
+existing containers, so this is not merely a failed encoding search. All23
+short little-endian DID-like coincidences in the selected cluster data sections
+are classified:11 inside PNG payloads with valid chunk CRCs,11 inside compressed
+Godot API metadata, and one inside a name pointer. The latter `F654` bytes belong
+to pointer `0x5F654` naming `target1Direction`, not a version-DID table.
+The separately inspected native version-property routine writes five host
+properties; it supplies no child-role map. These finite negative results do not
+exclude an uninspected ECU-side definition.
+
+Factory ESP/IPB/BSC aliases share `782/F194`. `7E5` still identifies itself as
+`BSCM-BrakeSystem` with CALID `4000825042253153`, but that is not a common hardware
+or software identifier with782. Keep both diagnostic endpoints and leave their
+physical relationship unresolved. The
+[fingerprint checker](../research/vehicle-diagnostics/check_remaining_role_fingerprints.py)
+reproduces the raw searches, container classifications and positive controls.
+
 The exact stock parser writes `7F22` on diagnostic failure and can conditionally
 substitute repair metadata for default software versions. A nonzero cache is
 therefore not sufficient installation proof. The stock evidence is retained in
@@ -4118,6 +4139,92 @@ verifies43 source hashes,9 original GDC buffers,27 native anchors,25 source-line
 anchors,8 mappings,19 raw frames and2 saved GETs. This provides concrete factory
 message meanings for a warning reader; it does not fill the missing
 software-applicable DTC dictionary or warning-to-DTC/ECU mapping.
+
+### Warning to DTC linkage and GB alarm boundary (2026-10-21)
+
+**No direct warning-ID to DTC or sending-ECU mapping has been established.**
+The follow-up distinguishes three independent representations: the cluster's
+ten-bit warning ID, the GB collector's aggregate alarm flags, and an ECU's
+UDS/OBD fault memory. A similar label or matching number cannot join them.
+All work in this pass used retained firmware/captures and public documents;
+there were no new vehicle reads, induced faults or cloud requests from the car.
+
+The [warning linkage evidence](../research/vehicle-diagnostics/warning-dtc-linkage-20261021.json)
+contains a concrete namespace counterexample. Native DataItem `0x122` (290)
+is named `checkEngineOverheat`, but popup warning `122` is a generic system
+anomaly; the coolant-overtemperature message is warning `1E`. The
+`BusinessHistoryFault` producer reads FID `3D901015` and, when its online gate
+`3D901000==1` holds, publishes the value unchanged into DataItem290; otherwise
+it publishes zero. This is not a DTC read or a recovered trigger for warning1E.
+The inspected UI dispatchers do not establish a rendered lamp for this item.
+Likewise, a missing native warning cache record can yield zero: neither this
+zero nor a hidden popup means that fault memory is empty. The bounded audit
+covers375 decoded Godot scripts and the two native cluster libraries; it does
+not prove that no upstream ECU contains the missing mapping.
+
+The GB collection path provides a different, positive join. In the pinned
+`gbacqservice`, device1039 events enter callback `19DA0` and update the aggregate
+word at `3D50C`. Fourteen field-to-bit predicates were recovered for the
+profile170 / HEV energytype2 branch:
+
+| Source FID | Framework meaning, abbreviated | Aggregate bit | Raw values setting it, simulation off |
+| --- | --- | --- | --- |
+| `43800008` | Battery temperature difference | 0 | 2 |
+| `2440000C` | Battery high temperature | 1 | 1 or2 |
+| `4380000E` / `43800010` | Battery high / low voltage | 2 /3 | 2 |
+| `43800014` / `43800016` | High SOC / SOC jump | 7 /8 | 2 |
+| `4380000C` / `4380000A` | Battery mismatch / poor consistency | 9 /10 | 2 |
+| `26C00010` | `GB_HIGH_TEMP_ALARM` | 12 | 1 |
+| `26C00022` | `GB_DC_SYSTEM_FAILURE` | 14 | 2 |
+| `2400000C` / `2400000A` | IPM / drive-motor temperature state | 15 /17 | 2 |
+| `2440003E` | High-voltage interlock | 16 | 1 |
+| `43800012` | Battery overcharge | 18 | 2 |
+
+These are native consumer predicates, not a universal healthy/fault/invalid
+enum or a specific drive's ECU address. Other values can clear the aggregate
+bit. The stock simulation flag changes some predicates; it was modelled
+offline and never changed on the car. The later serializer has additional
+severity/masking rules; this table does not qualify that whole policy.
+
+At `192F0..19388`, the inspected `18880` packer writes a ten-byte type07
+record: type, computed level, big-endian aggregate word, and four literal
+zero bytes. The stores at `19350`, `1937C`, `19380`, `19384` use `wzr`.
+The original [GB/T32960.3-2016, table17](https://www.sae-hk.org/wp-content/uploads/2020/12/020-GBT-32960.3-2016-%E7%94%B5%E5%8A%A8%E6%B1%BD%E8%BD%A6%E8%BF%9C%E7%A8%8B%E6%9C%8D%E5%8A%A1%E4%B8%8E%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%E6%8A%80%E6%9C%AF%E8%A7%84%E8%8C%83-%E7%AC%AC3%E9%83%A8%E5%88%86%EF%BC%9A%E9%80%9A%E8%AE%AF%E5%8D%8F%E8%AE%AE%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F.pdf)
+identifies those four positions as battery, drive, engine and other fault-code
+counts. Their fixed zeros describe this serializer's missing code lists,
+including when the level/bitmap is nonzero; they are not completed ECU scans.
+The standard's code lists are manufacturer-defined, not automatically UDS
+codes. The historical layout reference does not establish current standard
+compliance or any other uploader/custom-section behavior. Its indexed table
+was available, while direct local PDF download returned403; no bypass was used.
+
+[`gb-alarm-dtc-boundary-20261021.json`](../research/vehicle-diagnostics/gb-alarm-dtc-boundary-20261021.json)
+pins the source,35 byte anchors and bounded instruction interpreter. Its
+[checker](../research/vehicle-diagnostics/check_gb_alarm_dtc_boundary.py) compares
+14,336 synthetic callback cases and4,096 serializer cases against the decoded
+integer instructions, without executing firmware or contacting the car.
+An independent scalar walker also starts at the actual device/FID dispatcher:
+28,672 callback cases and2,048 packet cases with varied prefix offsets and
+prefilled memory agree. Its replay and review are retained under
+`captures/diagnostics-linkage-20261021/gb-alarms/independent-review.json`.
+
+The [exact-source search and page candidates](../research/vehicle-diagnostics/oem-dtc-exact-source-search-20261021.json)
+retain a small, explicitly unproved acquisition list from the829 original
+Chinese publisher headings:
+
+| Warning | Exact candidate or rejected shortcut | Missing evidence |
+| --- | --- | --- |
+| `358`, high battery temperature | BMS `P1A3A22` / `outline_823_a`, individual-cell temperature generally too high; `P1A3922` / `outline_808_a`, individual-cell temperature severely too high | Applicable original pages, thresholds, derating and warning trigger; pack/ECU/software applicability |
+| `1E`, engine coolant too hot | `P011700` / `P011800` describe sensor-circuit voltage; they are not an actual overtemperature definition | Actual thermal-condition DTC/strategy page and its warning-output condition |
+| `20`, insufficient oil pressure | `P052200` / `P052300` describe sensor-circuit voltage/duty; they do not establish mechanical low oil pressure | Pressure warning condition and applicable original diagnostic pages |
+| `5D`, low battery charge with reduced power | No explicit SOC/charge heading found in the inspected BMS index; cell undervoltage is not an equivalent substitute | Low-SOC power-limit/warning strategy and whether it stores any DTC |
+| `47`, check4WD | VCU-communication headings exist in front/generator and both rear-drive sections | Evidence that the specific communication DTC activates this warning, rather than another condition |
+
+These rows are retrieval targets, not descriptions to attach automatically to
+current errors. No new exact software-to-dictionary or format01 display/raw
+conversion was obtained. The usable next evidence is the applicable original
+diagnostic page or sender-side warning-output definition; repeating an empty
+DTC read without an event does not establish a causal link.
 
 ### OEM DTC manual candidates (2026-10-20)
 

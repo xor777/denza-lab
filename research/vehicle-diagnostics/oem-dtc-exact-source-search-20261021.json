@@ -1,0 +1,696 @@
+{
+  "schema": "denza-lab.oem-dtc-exact-source-search.v1",
+  "date": "2026-10-21",
+  "status": "no_new_qualified_dictionary_exact_unproven_page_shortlist_retained",
+  "scope": "Retained local files and bounded unauthenticated public research. No vehicle/ADB/IPC, credential/session reuse, login, protected-page fetch, OTA acquisition/extraction, installation or fault induction.",
+  "captureBase": "captures/diagnostics-linkage-20261021/oem-sources",
+  "vehicleOperations": 0,
+  "authenticatedRequests": 0,
+  "qualifiedOemDefinitions": [],
+  "qualifiedSoftwareBindings": [],
+  "qualifiedWarningDtcLinks": [],
+  "qualifiedFormat01RawDisplayMappings": [],
+  "targets": [
+    {
+      "name": "ECM",
+      "route": "7E0",
+      "softwareCode": "32440011E004000000",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_ECM_UAES_01200001",
+          "ecuSoftVer": "4.00.10",
+          "ecuHardVer": "1.0.0",
+          "factoryRequestResponsePair": "7E0/7E8"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "BMS033",
+      "route": "7E7",
+      "softwareCode": "4A520011E00D00047B",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_BMS_BYD_03300001",
+          "ecuSoftVer": "3.48.07",
+          "ecuHardVer": "0.0.3",
+          "factoryRequestResponsePair": "7E7/7EF"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "FMCU",
+      "route": "7E3",
+      "softwareCode": "48370011E075000000",
+      "dtcFormatIdentifier": 1,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_FMCU_BYD_00100001",
+          "ecuSoftVer": "4.03.12",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E3/7EB"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "ISG",
+      "route": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "dtcFormatIdentifier": 1,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_ISG_BYD_00100001",
+          "ecuSoftVer": "4.03.13",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E6/7EE"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "SMCU",
+      "route": "744",
+      "softwareCode": "48370011E086001100",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU_BYD_00200001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "744/74C"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "SMCU3",
+      "route": "745",
+      "softwareCode": "48370011E088001100",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "745/74D"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    }
+  ],
+  "ecmCalibration": {
+    "request": "0904",
+    "responseHex": "4904015A33314C303741423031000000000000",
+    "calibrationId": "Z31L07AB01",
+    "source": "captures/diagnostics-followup-20261021/engine/live-03/result.json"
+  },
+  "UNPROVEN": {
+    "status": "page_acquisition_candidates_only",
+    "groups": [
+      {
+        "warningIdHex": "0x1E",
+        "warningOriginal": {
+          "id": "1E",
+          "text": "发动机冷却液温度过高，请安全停车并联系服务店",
+          "textColor": "0xE60008FF",
+          "icon": "res://scenes/popup/popup_261/resources/images/0x1E-0x1F.png"
+        },
+        "status": "UNPROVEN",
+        "warningOwnerECU": null,
+        "warningDtcLinkProved": false,
+        "semanticCandidates": [],
+        "excludedNearMatches": [
+          {
+            "subsystem": "engine_ecm",
+            "displayCode": "P011700",
+            "outlineId": "outline_209_a",
+            "publicTitleZh": "P011700 冷却液温度传感器1电路电压过低",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Check whether sensor-circuit failure has a documented warning fallback.",
+            "whyNotEquivalent": "Circuit voltage too low is not coolant temperature too high.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1343330"
+          },
+          {
+            "subsystem": "engine_ecm",
+            "displayCode": "P011800",
+            "outlineId": "outline_210_a",
+            "publicTitleZh": "P011800 发动机冷却液温度传感器电路电压过高",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Check whether sensor-circuit failure has a documented warning fallback.",
+            "whyNotEquivalent": "Circuit voltage too high is not coolant temperature too high.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1343330"
+          }
+        ],
+        "headingOnlyConclusion": "No heading explicitly naming actual engine-coolant overtemperature was found in the 496 engine headings. Sensor electrical faults cannot be substituted for warning 0x1E.",
+        "missingOriginalEvidence": [
+          "ECM diagnostic introduction DTA1343324 / outline_22_a and fault list DTA1343330 / outline_25_a, with CALID/software applicability.",
+          "The original warning-trigger/engine-overheat message specification: temperature threshold, enable/debounce/recovery, sensor-invalid fallback and an explicit association with CAN 0x261 warning ID 0x1E. Its document locator is not known."
+        ]
+      },
+      {
+        "warningIdHex": "0x20",
+        "warningOriginal": {
+          "id": "20",
+          "text": "机油压力不足，请安全停车并联系服务店",
+          "textColor": "0xE60008FF",
+          "icon": "res://scenes/popup/popup_261/resources/images/0x20.png"
+        },
+        "status": "UNPROVEN",
+        "warningOwnerECU": null,
+        "warningDtcLinkProved": false,
+        "semanticCandidates": [],
+        "excludedNearMatches": [
+          {
+            "subsystem": "engine_ecm",
+            "displayCode": "P052200",
+            "outlineId": "outline_490_a",
+            "publicTitleZh": "​P052200 机油压力传感器电路电压/占空比偏低",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Check sensor electrical detection and documented system reaction.",
+            "whyNotEquivalent": "Low sensor voltage/duty cycle is not proof of mechanically low oil pressure.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1343330"
+          },
+          {
+            "subsystem": "engine_ecm",
+            "displayCode": "P052300",
+            "outlineId": "outline_489_a",
+            "publicTitleZh": "​P052300 机油压力传感器电路电压/占空比偏高",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Check sensor electrical detection and documented system reaction.",
+            "whyNotEquivalent": "High sensor voltage/duty cycle is not proof of mechanically low oil pressure.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1343330"
+          }
+        ],
+        "headingOnlyConclusion": "No engine heading explicitly naming actual low lubrication pressure was found. P052200/P052300 are excluded electrical near matches, not assigned to warning 0x20.",
+        "missingOriginalEvidence": [
+          "Original P052200 / outline_490_a and P052300 / outline_489_a detection-and-system-reaction pages, only to distinguish circuit faults from pressure detection.",
+          "An applicable oil-pressure-warning specification associating the pressure-switch/sensor condition, engine-speed/time gates and CAN 0x261 warning ID 0x20. DTC storage may be independent; locator unknown."
+        ]
+      },
+      {
+        "warningIdHex": "0x358",
+        "warningOriginal": {
+          "id": "358",
+          "text": "电池温度高，加速性能下降",
+          "textColor": "0xEEF5FFFF",
+          "icon": "res://scenes/popup/popup_261/resources/images/0x342.png"
+        },
+        "status": "UNPROVEN",
+        "warningOwnerECU": null,
+        "warningDtcLinkProved": false,
+        "semanticCandidates": [
+          {
+            "subsystem": "battery_management",
+            "displayCode": "P1A3A22",
+            "outlineId": "outline_823_a",
+            "publicTitleZh": "P1A3A22 动力电池单节温度一般过高",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "The title explicitly names a traction-battery cell temperature generally too high.",
+            "whyNotEquivalent": "The title does not say reduced acceleration, warning 0x358, sensor aggregation, threshold, hysteresis or recovery.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1248942"
+          },
+          {
+            "subsystem": "battery_management",
+            "displayCode": "P1A3922",
+            "outlineId": "outline_808_a",
+            "publicTitleZh": "P1A3922 动力电池单节温度严重过高",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "The title explicitly names a traction-battery cell temperature severely too high.",
+            "whyNotEquivalent": "A severe cell-temperature DTC is not established as the trigger or prerequisite of the high-temperature acceleration warning.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1248942"
+          }
+        ],
+        "excludedNearMatches": [],
+        "headingOnlyConclusion": "These two headings describe actual high cell temperature and are the narrowest semantic acquisition candidates. They remain catalog headings, not OEM definitions or proved warning links.",
+        "missingOriginalEvidence": [
+          "BMS fault list DTA1248942 / outline_763_a plus the original per-code pages at outline_823_a and outline_808_a.",
+          "The applicable BMS033 3.48.07 temperature-derating/system-reaction table and the cluster/VCU warning assignment to CAN 0x261 ID 0x358, including thresholds and recovery."
+        ]
+      },
+      {
+        "warningIdHex": "0x5D",
+        "warningOriginal": {
+          "id": "5D",
+          "text": "动力电池电量低，驱动功率受限",
+          "textColor": "0xF18D00FF",
+          "icon": "res://scenes/popup/popup_261/resources/images/0x5C-0x5D-0x78.png"
+        },
+        "status": "UNPROVEN",
+        "warningOwnerECU": null,
+        "warningDtcLinkProved": false,
+        "semanticCandidates": [],
+        "excludedNearMatches": [
+          {
+            "subsystem": "battery_management",
+            "displayCode": "P1A3821",
+            "outlineId": "outline_792_a",
+            "publicTitleZh": "P1A3821 动力电池单节电压一般过低",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Keep as a negative control when the original BMS low-energy reaction is examined.",
+            "whyNotEquivalent": "Low individual-cell voltage is not a low state of charge threshold or the same power-limit reason.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1248942"
+          },
+          {
+            "subsystem": "battery_management",
+            "displayCode": "P1A3721",
+            "outlineId": "outline_802_a",
+            "publicTitleZh": "P1A3721 动力电池单节电压严重过低",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "Keep as a negative control when the original BMS low-energy reaction is examined.",
+            "whyNotEquivalent": "Severely low individual-cell voltage is not a low state of charge threshold or the same power-limit reason.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1248942"
+          }
+        ],
+        "headingOnlyConclusion": "No SOC/电量/荷电 heading occurs in the 206 battery headings. No DTC is proposed for the low-energy warning; undervoltage headings are explicitly excluded near matches.",
+        "missingOriginalEvidence": [
+          "An applicable BMS/VCU low-SOC power-derating and warning-assignment page specifying the low-energy threshold/recovery and CAN 0x261 ID 0x5D. No such original page locator is known.",
+          "BMS fault list DTA1248942 is a selection/applicability lead only; it cannot establish that a normal low-SOC warning stores any DTC."
+        ]
+      },
+      {
+        "warningIdHex": "0x47",
+        "warningOriginal": {
+          "id": "47",
+          "text": "请检查四驱系统",
+          "textColor": "0xF18D00FF",
+          "icon": "res://scenes/popup/popup_261/resources/images/0x47.png"
+        },
+        "status": "UNPROVEN",
+        "warningOwnerECU": null,
+        "warningDtcLinkProved": false,
+        "semanticCandidates": [
+          {
+            "subsystem": "front_drive",
+            "displayCode": "U01D487",
+            "outlineId": "outline_571_a",
+            "publicTitleZh": "U01D487 前驱动电机控制器与整车控制器通讯故障",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "One explicit front-controller to VCU communications-fault page.",
+            "whyNotEquivalent": "A component communications fault is not an explicit four-wheel-drive warning assignment; FMCU reports format 01 and raw/display encoding is also unproved.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1415144"
+          },
+          {
+            "subsystem": "generator",
+            "displayCode": "U01D487",
+            "outlineId": "outline_607_a",
+            "publicTitleZh": "U01D487 发电机控制器与整车控制器通讯故障",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "One explicit generator-controller to VCU communications-fault page.",
+            "whyNotEquivalent": "Generator communications do not establish ownership of the four-wheel-drive warning; ISG format 01 raw/display encoding is unproved.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1415099"
+          },
+          {
+            "subsystem": "rear_left",
+            "displayCode": "P1B0313",
+            "outlineId": "outline_666_a",
+            "publicTitleZh": "P1B0313 左后电机控制器与整车控制器通信故障",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "One explicit left-rear controller to VCU communications-fault page.",
+            "whyNotEquivalent": "A left-rear communications DTC is not an explicit mapping to the generic four-wheel-drive warning.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1414952"
+          },
+          {
+            "subsystem": "rear_right",
+            "displayCode": "P1B0413",
+            "outlineId": "outline_630_a",
+            "publicTitleZh": "P1B0413 右后电机控制器与整车控制器通信故障",
+            "status": "UNPROVEN",
+            "factoryDefinition": null,
+            "rawCode": null,
+            "warningLinkProved": false,
+            "softwareApplicabilityVerified": false,
+            "reasonToAcquirePage": "One explicit right-rear controller to VCU communications-fault page.",
+            "whyNotEquivalent": "A right-rear communications DTC is not an explicit mapping to the generic four-wheel-drive warning.",
+            "perCodeDocumentId": null,
+            "faultListDocumentId": "DTA1414996"
+          }
+        ],
+        "excludedNearMatches": [],
+        "headingOnlyConclusion": "This is a deliberately small communications-family shortlist across the four candidate controller sections. It is not an exhaustive list of causes and does not identify the sender/owner of warning 0x47.",
+        "missingOriginalEvidence": [
+          "Original code pages outline_571_a, outline_607_a, outline_666_a, outline_630_a and their four section fault lists, with supplier/software applicability.",
+          "The VCU four-wheel-drive degradation/arbitration matrix or an original controller system-reaction page explicitly naming the same CAN 0x261 warning ID 0x47. Matching a broad label is insufficient."
+        ]
+      }
+    ],
+    "provenance": "Exact original Chinese headings from the existing 829-row third-party public index; exact warning text from the captured car-matched popup dictionary. No primary per-code manual body or warning-to-DTC relationship was obtained.",
+    "cooccurrence": {
+      "observed": false,
+      "reason": "Selected retained warning evidence contains ID 0 only; no paired nonzero warning/DTC event is available in these selected sources. Events elsewhere are not excluded."
+    },
+    "missingOriginalCatalogPages": [
+      {
+        "subsystem": "engine_ecm",
+        "documentId": "DTA1343324",
+        "outlineId": "outline_22_a",
+        "kind": "diagnostic_introduction",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "front_drive",
+        "documentId": "DTA1415144",
+        "outlineId": "outline_540_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "generator",
+        "documentId": "DTA1415099",
+        "outlineId": "outline_575_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "rear_right",
+        "documentId": "DTA1414996",
+        "outlineId": "outline_611_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "rear_left",
+        "documentId": "DTA1414952",
+        "outlineId": "outline_647_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "battery_management",
+        "documentId": "DTA1248942",
+        "outlineId": "outline_763_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      },
+      {
+        "subsystem": "engine_ecm",
+        "documentId": "DTA1343330",
+        "outlineId": "outline_25_a",
+        "kind": "fault_list",
+        "bodyRetrievedInThisPass": false,
+        "source": "existing_public_catalog_locator",
+        "oemProvenanceVerified": false,
+        "acquisitionCondition": "Authorized original document acquisition with revision and ECU/software selection; no protected URL was fetched here."
+      }
+    ],
+    "commonMissingLinks": [
+      "Original publisher/OEM provenance and document revision.",
+      "Explicit application to the measured ECU/software, including ECM CALID and supplier variants.",
+      "Detection, confirmation, deactivation and system-reaction/derating rules.",
+      "An explicit warning-identifier/message association; a similar title is not such an association.",
+      "FMCU/ISG format 01 display/raw mapping, independently of any warning match."
+    ]
+  },
+  "publicSourceBoundary": {
+    "environmentalChannel": "https://www.bydglobal.com/cn/auto-environmental-information",
+    "disclosureNumberForTarget": null,
+    "vehicleIdentifierSubmitted": false,
+    "modelSummaryDocuments": [
+      {
+        "url": "https://www.mee.gov.cn/ywgz/dqhjbh/ydyhjgl/202502/W020250218511595492954.pdf",
+        "path": "captures/diagnostics-linkage-20261021/oem-sources/mee-202501-model-summary.pdf",
+        "httpStatus": 200,
+        "observedModel": "QCJ7200AEHEV3",
+        "pdfPageZeroBased": 17,
+        "contentClass": "model-name environmental-publication summary, not an OBD/DTC/calibration table"
+      },
+      {
+        "url": "https://www.mee.gov.cn/ywgz/dqhjbh/ydyhjgl/202505/W020250529556470328977.pdf",
+        "path": "captures/diagnostics-linkage-20261021/oem-sources/mee-202504-model-summary.pdf",
+        "httpStatus": 200,
+        "observedModel": "QCJ7200AEHEV3",
+        "pdfPageZeroBased": 14,
+        "contentClass": "model-name environmental-publication summary, not an OBD/DTC/calibration table"
+      }
+    ],
+    "veccPublicIndex": "https://info.vecc.org.cn/ve/index",
+    "veccResult": "Public web fetch timed out; no query or access-control workaround.",
+    "missingEnvironmentalLink": "The public model disclosure number and its actual manufacturer disclosure PDF, then explicit CALID/ECU applicability. A model-name summary cannot supply this join.",
+    "searchResults": "Bounded exact CALID/software/model/supplier and manufacturer-domain searches found no applicable original table. Irrelevant third-party results were not used as technical sources."
+  },
+  "supplementalLocalSearch": {
+    "roots": [
+      "captures/firmware",
+      "reverse"
+    ],
+    "filenameCount": 242416,
+    "sortedFilenameListSha256": "b8a1364e7d3bffb9c30f955696be11577195c072401174266d224b814f143cb6",
+    "structuredDiagnosticExtensions": [
+      ".odx",
+      ".odx-d",
+      ".pdx",
+      ".cdd",
+      ".a2l",
+      ".dbc"
+    ],
+    "structuredFiles": [],
+    "exactSearchCommand": [
+      "rg",
+      "--no-ignore",
+      "-n",
+      "-i",
+      "-g",
+      "*.json",
+      "-g",
+      "*.xml",
+      "-g",
+      "*.csv",
+      "-g",
+      "*.txt",
+      "-g",
+      "*.odx*",
+      "-g",
+      "*.cdd",
+      "-g",
+      "*.a2l",
+      "-g",
+      "*.dbc",
+      "Z31L07AB01|BMS_BYD_03300001|FMCU_BYD_00100001|ISG_BYD_00100001|SMCU3_BYD_00100001|P2BAE00|P1B0301",
+      "captures/firmware",
+      "reverse"
+    ],
+    "exactSearchExitCode": 1,
+    "exactSearchMatches": [],
+    "exactSearchStderr": "",
+    "limits": [
+      "Filename/selected text extensions only; no archives or arbitrary binary payload decoding.",
+      "This inventory is supplemental; zero named files or exact tokens is not proof that every local byte lacks definitions."
+    ]
+  },
+  "limitations": [
+    "This is not a DTC dictionary and does not establish that any selected DTC triggers a selected warning.",
+    "Per-code document IDs are unknown; exact public outline locators are preserved, never expanded into guessed protected URLs.",
+    "No actual low-SOC or lubrication-pressure DTC is invented from related electrical/undervoltage words.",
+    "Catalog coverage and headings are finite observations, not proof that a matching original document does not exist.",
+    "Controller identity/software evidence is historical and was not refreshed on the vehicle."
+  ],
+  "sources": [
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "bytes": 85175,
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json",
+      "bytes": 20983,
+      "sha256": "682ab0b1c304a5e117e5e4b2c1fa530b4f053f7a1ff28268c303bc03dcd6d9b3"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "bytes": 142434,
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/result.json",
+      "bytes": 1291,
+      "sha256": "62258c0610331ad7437099240d56654026428cf09580ac70a9b5790fae96c1fc"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-format-applicability-20261021.json",
+      "bytes": 6552,
+      "sha256": "6523a010cbc73c19dd092cfaff4f148b174c40cb9d56b0493053db0469b8b10d"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-source-followup-20261021.json",
+      "bytes": 13638,
+      "sha256": "d4d1acc76d34a243619d20c0ac4fb6c68795dce300681799b133ae9c3cf77e01"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-source-followup-20261021.json",
+      "bytes": 14136,
+      "sha256": "1b2e89fe7ac71fa455911d887f1beabd0a565e2cf485f2b46df12a3a9ddd8aa1"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-warning-mappings-20261021.json",
+      "bytes": 43103,
+      "sha256": "02e7e63f67128e49cf145fba03e739fef8ffffc314c3554c6d42fa2ac3b3b2c2"
+    },
+    {
+      "path": "captures/diagnostics-oem-dtc-20261020/engine/ecm-toc-original-chinese-candidate.json",
+      "bytes": 206882,
+      "sha256": "bf4ae55ac9071486a7509c7fae44eb57c1818560814d6bdcfff76b3c5de08fd8"
+    },
+    {
+      "path": "captures/diagnostics-oem-dtc-20261020/powertrain/toc-candidates-original-chinese.json",
+      "bytes": 238850,
+      "sha256": "08d0a3c6c68e4c1b201e06d936a1746a6727842c027e3e4ba17451cd39f60e59"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/byd-emissions-public.html",
+      "bytes": 99673,
+      "sha256": "2d4e16bc9981eb5b804b1f8e05405fe31a97725c5c4c648fc5da837bf9275c6d"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/byd-emissions-public-entry.js",
+      "bytes": 5584,
+      "sha256": "a23d1e28c9b27ba6ee2f0240257f3a8105714474b6633166c9f4d60026833163"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/local-search.json",
+      "bytes": 1060,
+      "sha256": "61a336a48630b487f408ae491a2a31b0898860b2cdb1ec8be213db6f57d4e3c1"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/mee-web-page-anchors.json",
+      "bytes": 9044,
+      "sha256": "c7856658da8ea33726d3739a2725a5f37deac1ece232348069a17f22617271af"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-downloads.json",
+      "bytes": 1061,
+      "sha256": "8b36dc88f71defb0aaae8cadbc0a474ff62af09d0d43ec2d339796fad043cc71"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-2.json",
+      "bytes": 14953,
+      "sha256": "dcf6794433fa796e7ce2f09f2c523dfef85fecdde1b7ae92aa34e2ae9f049a8d"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-3.json",
+      "bytes": 24882,
+      "sha256": "6d662d08f9347f1b572f2ca809afba2a97842c4affd95364b49f21059538813a"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-4.json",
+      "bytes": 18293,
+      "sha256": "91fcd783cd8679c9c819fb0ae1267eb665c83047757a6cbe0068038c34553f43"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-5.json",
+      "bytes": 27208,
+      "sha256": "5367efd24723761addbc5bad032158224ec27c7ae2be63ba9bf3d3ed5f882719"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-6.json",
+      "bytes": 4081,
+      "sha256": "b37b5359022ac7d8243c793f060cef96f3cad966846e9907774bb8cb80cb9a8e"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-7.json",
+      "bytes": 30150,
+      "sha256": "6f2456e0889cfe5c0faa56f5eff800e81a2640ee93e613c81cc82940abdf63f9"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/public-search-round-8.json",
+      "bytes": 27964,
+      "sha256": "71ca7cdba0e400266c169d2f0c6f215ce79667b56ea6d0bf91ff0fe250dd2d08"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/selected-public-queries.json",
+      "bytes": 1508,
+      "sha256": "97f5068750c11d56e94831fca4c70254825280d402e5dff5683586e8d9da2550"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/mee-202501-model-summary.pdf",
+      "bytes": 1256794,
+      "sha256": "493e614f859a204ca24a8a5d3aba80d84f9fe6ee3ab57a9e639fbfdbec694de2"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/mee-202504-model-summary.pdf",
+      "bytes": 1427862,
+      "sha256": "5849044e3a03f9a5ded3ca3fd93619d935d44f49c405b3f024e99e4dfecb505c"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/oem-sources/build_evidence.py",
+      "bytes": 14971,
+      "sha256": "9363084f9528f6a9da3d719bd9416009a61611802170043617f2390f1b1a997a"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_oem_dtc_exact_source_search.py"
+}

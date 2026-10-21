@@ -1,0 +1,683 @@
+{
+  "schema": "denza-lab.warning-dtc-linkage.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "archiveExtractions": 0,
+  "newDecompiles": 0,
+  "scope": "Existing local IVI and current-car cluster captures only. No OTA archive or OTA service work; no new car observation.",
+  "result": {
+    "qualifiedWarningDTCLinks": 0,
+    "qualifiedSenderECUIdentities": 0,
+    "newlyRecoveredFlagToBackendItem": 1,
+    "newQualifiedManufacturerDTCDictionaries": 0
+  },
+  "priorEvidence": "research/vehicle-diagnostics/oem-warning-mappings-20261021.json",
+  "searchManifest": "captures/diagnostics-linkage-20261021/warnings/scan-manifest.json",
+  "boundedSearches": [
+    {
+      "name": "godot",
+      "pattern": "DTC|[Dd]iagnostic|[Dd]tc|fault.?[Cc]ode|FaultCode|故障码",
+      "files": 375,
+      "matchCount": 0,
+      "matches": []
+    },
+    {
+      "name": "native_functions_strings_symbols",
+      "pattern": "DTC|[Dd]iagnostic|[Dd]tc|fault.?[Cc]ode|FaultCode|故障码",
+      "files": 6,
+      "matchCount": 0,
+      "matches": []
+    },
+    {
+      "name": "mycar_warning_consumer",
+      "pattern": "0x26100008|638582792|INSTRUMENT_DD_FAULT_NOTICE_261|onTextInfoChanged|\\.getTextInfo\\(",
+      "files": 2692,
+      "matchCount": 0,
+      "matches": []
+    },
+    {
+      "name": "systemui_warning_consumer",
+      "pattern": "0x26100008|638582792|INSTRUMENT_DD_FAULT_NOTICE_261|onTextInfoChanged|\\.getTextInfo\\(",
+      "files": 553,
+      "matchCount": 3,
+      "matches": [
+        {
+          "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/instrument/Instrument.java",
+          "line": 391,
+          "text": "    public static final String INSTRUMENT_DD_FAULT_NOTICE_261 = \"0x26100008\";"
+        },
+        {
+          "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/instrument/InstrumentMapper.java",
+          "line": 229,
+          "text": "        if (Instrument.INSTRUMENT_DD_FAULT_NOTICE_261.equals(str)) {"
+        },
+        {
+          "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/instrument/InstrumentMapper.java",
+          "line": 230,
+          "text": "            return 638582792;"
+        }
+      ]
+    },
+    {
+      "name": "healthdiagnostic_warning_consumer",
+      "pattern": "0x26100008|638582792|INSTRUMENT_DD_FAULT_NOTICE_261|onTextInfoChanged|\\.getTextInfo\\(",
+      "files": 5,
+      "matchCount": 0,
+      "matches": []
+    }
+  ],
+  "canonicalNative261ReferenceScan": {
+    "total": 47,
+    "exactWarningFID": 8,
+    "raw": "captures/diagnostics-linkage-20261021/warnings/native-261-references.json",
+    "byFunction": {
+      "BusinessUi2::registerCanData()": 18,
+      "BusinessUi2::updateWarningInfo()": 2,
+      "BusinessUi2::updateWarningInfoCarBody()": 16,
+      "BusinessUi2::warningInfoCanDataUpdate(unsigned int, void*)": 3,
+      "BusinessUi2::updateLowBatteryWarning()": 1,
+      "BusinessUi2::clusterDebug(unsigned int)": 1,
+      "BusinessAdasProjectionSR::registerCanData()": 1,
+      "BusinessAdasProjectionSR::canDataUpdate(unsigned int, void*)": 1,
+      "BusinessAdasProjectionSR::adsAlarmCardHandle()": 1,
+      "BusinessAlwaysDisplay::registerCanData()": 1,
+      "BusinessAlwaysDisplay::alwaysDisplayCanDataUpdate(unsigned int, void*)": 1,
+      "BusinessAlwaysDisplay::updateFeedbackLight()": 1
+    }
+  },
+  "exactWarningFIDReferences": [
+    {
+      "va": "0x17b604",
+      "function": "BusinessUi2::registerCanData()",
+      "prior": [
+        "0017b5f4  ldr      x8, [sp, #8]",
+        "0017b5f8  ldr      x2, [sp, #0x10]",
+        "0017b5fc  ldr      x0, [x8]",
+        "0017b600  mov      w1, #8"
+      ],
+      "instruction": "0017b604  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x182e7c",
+      "function": "BusinessUi2::updateWarningInfo()",
+      "prior": [
+        "00182e6c  sturb    w0, [x29, #-0x64]",
+        "00182e70  sturh    w9, [x29, #-0x44]",
+        "00182e74  ldr      x0, [x8]",
+        "00182e78  mov      w1, #8"
+      ],
+      "instruction": "00182e7c  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x183834",
+      "function": "BusinessUi2::updateWarningInfoCarBody()",
+      "prior": [
+        "00183824  stur     x0, [x29, #-0x80]",
+        "00183828  sturh    wzr, [x29, #-0x82]",
+        "0018382c  ldr      x0, [x8]",
+        "00183830  mov      w1, #8"
+      ],
+      "instruction": "00183834  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x183db8",
+      "function": "BusinessUi2::warningInfoCanDataUpdate(unsigned int, void*)",
+      "prior": [
+        "00183da8  b.eq     #0x183e70",
+        "00183dac  b        #0x183db0",
+        "00183db0  ldr      w8, [sp, #0x10]",
+        "00183db4  mov      w9, #8"
+      ],
+      "instruction": "00183db8  movk     w9, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x185fa4",
+      "function": "BusinessUi2::clusterDebug(unsigned int)",
+      "prior": [
+        "00185f94  adrp     x8, #0x32f000",
+        "00185f98  ldr      x8, [x8, #0xce8]",
+        "00185f9c  ldr      x0, [x8]",
+        "00185fa0  mov      w1, #8"
+      ],
+      "instruction": "00185fa4  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e26e8",
+      "function": "BusinessAdasProjectionSR::registerCanData()",
+      "prior": [
+        "001e26d8  ldr      x8, [sp, #8]",
+        "001e26dc  ldr      x2, [sp, #0x10]",
+        "001e26e0  ldr      x0, [x8]",
+        "001e26e4  mov      w1, #8"
+      ],
+      "instruction": "001e26e8  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e2b08",
+      "function": "BusinessAdasProjectionSR::canDataUpdate(unsigned int, void*)",
+      "prior": [
+        "001e2af8  b.eq     #0x1e33b8",
+        "001e2afc  b        #0x1e2b00",
+        "001e2b00  ldr      w8, [sp, #0x54]",
+        "001e2b04  mov      w9, #8"
+      ],
+      "instruction": "001e2b08  movk     w9, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e5348",
+      "function": "BusinessAdasProjectionSR::adsAlarmCardHandle()",
+      "prior": [
+        "001e5338  sturb    w0, [x29, #-0x24]",
+        "001e533c  sturh    w9, [x29, #-0x28]",
+        "001e5340  ldr      x0, [x8]",
+        "001e5344  mov      w1, #8"
+      ],
+      "instruction": "001e5348  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    }
+  ],
+  "newPositiveEvidence": [
+    {
+      "kind": "cached-property-consumer",
+      "function": "CanDataWrapper::GetData_UINT16",
+      "va": "0x1180a0",
+      "finding": "Reads the UINT16 at item+0x1C; null item returns0. FID overload0x1180E0 only looks up the item then calls this getter.",
+      "consequence": "The value is received/cached. This getter does not read DTCs or identify the transmitting ECU. Numeric0 can also be a missing-entry default."
+    },
+    {
+      "kind": "callback-to-warning",
+      "function": "BusinessUi2::warningInfoCanDataUpdate",
+      "va": "0x183cf0",
+      "finding": "Literal FID0x26100008 dispatches to updateWarningInfo; the callback does not receive a DTC number or ECU identity."
+    },
+    {
+      "kind": "separate-backend-history-flag",
+      "function": "BusinessHistoryFault::updateHistoryFault",
+      "va": "0x25ea60",
+      "inputFID": "0x3d901015",
+      "tableRealFID": "0x3d901815",
+      "noNeedPlatform": "0x100",
+      "dataItem": "0x122",
+      "dataItemDecimal": 290,
+      "dataItemName": "checkEngineOverheat",
+      "type": "UINT8 flag (table range0..1)",
+      "inputCallVA": "0x25f26c",
+      "inputStackOffset": "0x540",
+      "onlineFID": "0x3d901000",
+      "onlineStackOffset": "0x454",
+      "predicate": "If UINT8 FID0x3D901000==1, publish raw UINT8 FID0x3D901015 unchanged; otherwise publish0.",
+      "publishVA": "0x2608d4",
+      "clearVA": "0x260c34",
+      "uiConsumer": "Full display consumer not recovered. TelltaleMsgHandle DataItem0x122 jumps directly to epilogue0x466FF0; PopupMsgHandle also leaves this ID unhandled.",
+      "warningIDLink": null,
+      "dtc": null,
+      "owningECU": null,
+      "runtimeVerified": false,
+      "limitation": "This proves a received status flag→named backend item only. No physical sensor/temperature threshold, live availability, DTC relationship or fault-owning ECU is established."
+    },
+    {
+      "kind": "additional-warning-consumer",
+      "function": "BusinessAdasProjectionSR::adsAlarmCardHandle",
+      "va": "0x1e52a0",
+      "finding": "Reads FID0x26100008 and tests warningID0x247, then emits1/2 through FID0x40C0B01A under its gates.",
+      "consequence": "A downstream ADAS display/acknowledgement consumer, not the source of the engine/battery/drive warning or a DTC mapping. Never invoked."
+    }
+  ],
+  "namespaceCounterexample": {
+    "dataItem": {
+      "hex": "0x122",
+      "decimal": 290,
+      "name": "checkEngineOverheat"
+    },
+    "warning": {
+      "hex": "0x122",
+      "original": {
+        "id": "122",
+        "text": "系统异常，请行驶至服务店检修",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x122-0x20A-SUV.png"
+      },
+      "ruTranslation": "Нарушение работы системы; доедьте до сервисного центра для проверки.",
+      "translationIsOEM": false
+    },
+    "engineCoolantWarning": {
+      "hex": "0x1E",
+      "original": {
+        "id": "1E",
+        "text": "发动机冷却液温度过高，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x1E-0x1F.png"
+      }
+    },
+    "consequence": "DataItem IDs and WarnId values belong to different namespaces. Equality0x122 is not a join; engine-overheat semantics do not authorize replacing the actual generic OEM text for WarnId0x122."
+  },
+  "separateIVIDiagnostics": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/diagnostic_config.json",
+    "entries": 213,
+    "modules": [
+      "AUDIO",
+      "DIAG-APP",
+      "DIAG-CAMERA",
+      "DIAG-DRIVER",
+      "DIAG-MCU",
+      "DIAG-OTA",
+      "DIAG-PERFORMANCE-ABNORMAL-MONITOR",
+      "DIAG-PROTOCOL",
+      "DIAG-SYSTEM",
+      "MODEM-SUB-SYSTEM-STATUS",
+      "SIM-CARD-STATUS",
+      "com.android.phone",
+      "com.byd.bluetoothcall",
+      "com.byd.btsetting",
+      "com.byd.display",
+      "com.byd.eth",
+      "com.byd.mediacenter",
+      "com.byd.wlan",
+      "com.byd.xcall"
+    ],
+    "exactChineseTextIntersections": [],
+    "explicitWarningFIDReferences": 0,
+    "batteryNamedRows": [
+      {
+        "dtc": "9F3300",
+        "diagnostictype": 1,
+        "moduletype": "BATTERY-VOLTAGE-HIGH",
+        "destination": "0x110",
+        "modulename": "DIAG-MCU",
+        "describe": "蓄电池电压过高"
+      },
+      {
+        "dtc": "9F3400",
+        "diagnostictype": 1,
+        "moduletype": "BATTERY-VOLTAGE-LOW",
+        "destination": "0x110",
+        "modulename": "DIAG-MCU",
+        "describe": "蓄电池电压过低"
+      }
+    ],
+    "finding": "This213-entry diagnostic catalog describes IVI subsystems. Its DIAG-MCU battery-voltage rows do not identify traction battery/BMS033. No warningID or CAN261 join field is present in the inspected rows.",
+    "notAnECMOrBMSCatalog": true
+  },
+  "priorityWarnings": [
+    {
+      "id": "1B",
+      "original": {
+        "id": "1B",
+        "text": "制动系统故障，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x1B-0x62.png"
+      },
+      "ruTranslation": "Неисправность тормозной системы; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "1E",
+      "original": {
+        "id": "1E",
+        "text": "发动机冷却液温度过高，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x1E-0x1F.png"
+      },
+      "ruTranslation": "Слишком высокая температура охлаждающей жидкости ДВС; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "20",
+      "original": {
+        "id": "20",
+        "text": "机油压力不足，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x20.png"
+      },
+      "ruTranslation": "Недостаточное давление масла; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "46",
+      "original": {
+        "id": "46",
+        "text": "请检查ABS系统",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x46.png"
+      },
+      "ruTranslation": "Проверьте систему ABS.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "5D",
+      "original": {
+        "id": "5D",
+        "text": "动力电池电量低，驱动功率受限",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x5C-0x5D-0x78.png"
+      },
+      "ruTranslation": "Низкий заряд тяговой батареи; мощность привода ограничена.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "21",
+      "original": {
+        "id": "21",
+        "text": "系统故障，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x21-0x171-SUV.png"
+      },
+      "ruTranslation": "Неисправность системы; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "47",
+      "original": {
+        "id": "47",
+        "text": "请检查四驱系统",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x47.png"
+      },
+      "ruTranslation": "Проверьте систему полного привода.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    },
+    {
+      "id": "358",
+      "original": {
+        "id": "358",
+        "text": "电池温度高，加速性能下降",
+        "textColor": "0xEEF5FFFF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x342.png"
+      },
+      "ruTranslation": "Высокая температура батареи; ускорение ухудшено.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "светлый цвет OEM-текста",
+      "dtc": null,
+      "owningECU": null
+    }
+  ],
+  "boundedConclusions": [
+    "No qualified warningID→DTC/status-bit or fault-owningECU relationship was recovered in these inspected sources.",
+    "The known upstream path ends at a received CAN0x261/channel0/sub0 ten-bit enum. A receive table, cached getter and display callback do not establish the sender.",
+    "Absence of DTC-related names in the inspected375 scripts and six metadata tables is a bounded lexical result, not proof that all firmware/indirect or stripped code lacks such logic.",
+    "Eight exact warning-FID references were identified among47 canonical MOVK0x2610 references. Computed IDs, indirect calls or other binaries are outside this literal-reference enumeration.",
+    "The full native BusinessHistoryFault function was inspected as a likely false join. It consumes separate flags and publishes backend items; it does not provide a recovered DTC→WarnId table.",
+    "No extra priority warning entries were needed: the existing eight preserve the original Chinese and clearly labelled Russian translations. No similar-text match was promoted."
+  ],
+  "nextUsefulPrimarySources": [
+    {
+      "source": "Exact CN Z9GT PHEV CAN communication matrix / warning arbitration specification",
+      "requiredFields": [
+        "CAN0x261/channel0/sub0 transmitting ECU",
+        "ten-bit warning selection rules",
+        "trigger status signals and their senders",
+        "revision/application to profile170"
+      ],
+      "closes": "Identifies who selects/emits the warning and the upstream fault/status predicate. It still needs an explicit DTC relationship."
+    },
+    {
+      "source": "OEM diagnostic data or troubleshooting table matched to ECUsoftware",
+      "requiredFields": [
+        "DTC bytes and format",
+        "testFailed/confirmed status conditions",
+        "warningID or exact broadcast-status relation",
+        "software/CALID applicability"
+      ],
+      "targetIdentity": [
+        "ECM32440011E004000000/CALID Z31L07AB01",
+        "BMS0334A520011E00D00047B",
+        "FMCU48370011E075000000",
+        "ISG48370011E0EA000000",
+        "SMCU48370011E086001100",
+        "SMCU348370011E088001100"
+      ],
+      "closes": "Supplies an actual warning/status→DTC join. A generic title, same wording or matching system name is insufficient."
+    }
+  ],
+  "limitations": [
+    "Native cluster runtime loading remains unverified.",
+    "Installed MCU image identity remains unverified; earlier ten-bit producer evidence is reused, not upgraded.",
+    "Backend flag0 may be a clear/default/gated value, not proof of ECU health or absence of stored DTCs.",
+    "No live DTC/warning co-observation and no fault induction occurred. Even temporal correlation alone would not prove a unique cause.",
+    "No credentials, vehicle IPC, cloud, public network or archive extraction was used."
+  ],
+  "byteAnchors": [
+    {
+      "label": "UINT16 cached data/null-zero getter",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1180a0",
+      "bytes": "ff8300d1e00b00f9e10700f9e80740f9c80000b401000014e80740f908394079e83f007903000014ff3f007901000014e03f4079ff830091c0035fd6"
+    },
+    {
+      "label": "UINT16 FID lookup then cached getter",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1180e0",
+      "bytes": "ffc300d1fd7b02a9fd830091a0831ff8a1431fb8a0835ff8e00300f9ff0700f9a1435fb8ff2f0894e80300aae00340f9e80700f9e10740f926300894fd7b42a9ffc30091c0035fd6"
+    },
+    {
+      "label": "warning FID callback calls updateWarningInfo",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183db0",
+      "bytes": "e81340b90901805209c2a4720801096b6004005401000014e81340b9e903805209c2a4720801096b0004005401000014e81340b90905805209c2a4720801096be002005401000014e81340b909028a52094aa9720801096be002005401000014e81340b929038a52094aa9720801096b2002005401000014e81340b9c9088a52094aa9720801096b600100541e000014e00740f9ff8906941d000014e00740f9d0890694"
+    },
+    {
+      "label": "debug echo raw warning into DataItem0x320",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x185f80",
+      "bytes": "e91740f9e8031f2ae80300b928cd0439e83300b9480d00d0087546f9000140f90101805201c2a47286780694083c0012e83300b9480d00d0088146f9000140f9016480527b7e0694e20340b9e13340b97c7e0694e81740f9003540f9c1008052220080523780069401000014"
+    },
+    {
+      "label": "ADAS alarm card reads warning FID",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1e5344",
+      "bytes": "0101805201c2a4729dfb0494e80b40f9"
+    },
+    {
+      "label": "ADAS alarm card compares only warning0x247",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1e541c",
+      "bytes": "a8835d78081d09712104005401000014"
+    },
+    {
+      "label": "ADAS alarm response target",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1e5494",
+      "bytes": "410396520118a872a23300d1f4fa0494"
+    },
+    {
+      "label": "history DataItem0x122 wrapper",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x25eb40",
+      "bytes": "000140f9412480529a1b0394e80342f9e90b42f9e09703f9"
+    },
+    {
+      "label": "history engine-overheat FID read/store",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x25f264",
+      "bytes": "a102825201b2a772b5130394e80742f9e91f44b9e0031539"
+    },
+    {
+      "label": "history online FID read/store",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x25f9c4",
+      "bytes": "0100825201b2a772dd110394e80742f9e91f44b9e0531139"
+    },
+    {
+      "label": "history publish gate online==1",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x260854",
+      "bytes": "e853513908050071411b005401000014"
+    },
+    {
+      "label": "history engine-overheat publish raw flag",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x2608c8",
+      "bytes": "e09743f9e1035539e2031f2a3b140394"
+    },
+    {
+      "label": "history engine-overheat clear0",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x260c28",
+      "bytes": "e09743f9e2031f2ae103022a63130394"
+    },
+    {
+      "label": "Telltale DataItem dispatch algorithm",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4618f4",
+      "bytes": "28ec00511f091471a9831ff888b70254c9e9ffd029410f91ea0000102b7968784a090b8bf403022af30300aab6e300d140011fd6"
+    },
+    {
+      "label": "Telltale DataItem0x122 jump-table entry",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x19b59e",
+      "bytes": "b215"
+    },
+    {
+      "label": "Telltale unhandled-item epilogue",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x466ff0",
+      "bytes": "e81640f9a9835ff81f0109eb21050054f44f5ba9f6575aa9f85f59a9fcc340f9fd7b57a9ff030791c0035fd6"
+    },
+    {
+      "label": "Popup out-of-range DataItem checks",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x44564c",
+      "bytes": "3f540471c06600543f2c1371a17100545f040071e8179f1a"
+    }
+  ],
+  "sources": [
+    {
+      "path": "captures/cluster-native-20261018/client-api/api.tsv",
+      "sha256": "35c63670183d45a650c23acf51095bfb473f99acbf70508132343325154fb36b",
+      "bytes": 281383
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/disassembly.txt.gz",
+      "sha256": "cfd48312f9cc981bc17301570e6c891b322e1f0389feab98af13eeb972c137e7",
+      "bytes": 3029788
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/functions.tsv",
+      "sha256": "a8dcff56e811f874f8b1545b868952300edba7475cbc45a7b68f9e247a93504a",
+      "bytes": 4826465
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9",
+      "bytes": 200710
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "sha256": "0f812a8be3bd1ff48945322d0e1b5993a21436d11b2a1c7577651573468f21cc",
+      "bytes": 162442
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/history-register.asm",
+      "sha256": "f16b971ad37794e391ee2b9938d1d3e916db736f81caa28ac29dcf039adb1c55",
+      "bytes": 21122
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/history-selected-pairs.json",
+      "sha256": "1ee0818ca5a17700e4c145feeb0067d2cb424c0b3d6f26bd6398741cf37aedd2",
+      "bytes": 903
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/history-update.asm",
+      "sha256": "090b2cfb76cd1843d5734042e9d973df778fe1259bfbee07478d40793251ccd8",
+      "bytes": 109955
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-1180a0.asm",
+      "sha256": "b75395d71f069cf4944e39ffdac90ada5eb65c4e18010dce8e917603f7edb636",
+      "bytes": 472
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-1180e0.asm",
+      "sha256": "78ec638dd081898d63aa55a8a120bdf8dcef51cb26b7188a4a2ce4f76a9001e3",
+      "bytes": 694
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-183cf0.asm",
+      "sha256": "c340b099e029bf7feb7b31da4236d36af313a5d8a9d7baf6766bda596ad750ad",
+      "bytes": 4210
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-185d30.asm",
+      "sha256": "77494da509c2d39d765a5c0884310c930990bb352a713cbe180f520e7d2eb076",
+      "bytes": 8372
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-1e52a0.asm",
+      "sha256": "73e2d3a0158cca933313913dc5e759e50b7e2aa3294b037feca0aa3f7a298336",
+      "bytes": 5831
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-261-references.json",
+      "sha256": "1f5e93fba9c6c0a017cd483b22f78bf218f802232fa0a2f42654bd3670b97c74",
+      "bytes": 17120
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/scan-manifest.json",
+      "sha256": "4b051bf64b05cae219209fb4e497740c6642253cb95da3599c50348e5389c70a",
+      "bytes": 943172
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/diagnostic_config.json",
+      "sha256": "e313e1a062dd713374e02a25e6e4c359820849f735dc0e5e92abe6c0434966de",
+      "bytes": 76316
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+      "bytes": 17834072
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3",
+      "bytes": 29886784
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad",
+      "bytes": 142434
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-warning-mappings-20261021.json",
+      "sha256": "02e7e63f67128e49cf145fba03e739fef8ffffc314c3554c6d42fa2ac3b3b2c2",
+      "bytes": 43103
+    }
+  ]
+}

@@ -84,6 +84,28 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   checks43 sources,9 original token buffers,27 native anchors,25 line anchors,
   8 mappings,19 retained frames and2 historical GETs without vehicle I/O.
 
+- `warning-dtc-linkage-20261021.json` follows the warning cache/consumer paths
+  and separates native DataItem IDs from popup warning IDs. In particular,
+  DataItem290 `checkEngineOverheat` is not popup122 or an ECU DTC. No direct
+  warning-to-DTC/sending-ECU relation was recovered. Run
+  `.venv-firmware/bin/python research/vehicle-diagnostics/check_warning_dtc_linkage.py`.
+- `gb-alarm-dtc-boundary-20261021.json` recovers14 native GB-field-to-alarm-bit
+  predicates for profile170/HEV. The inspected type07 serializer always writes
+  four zero code counts even with a nonzero alarm mask; this is no substitute
+  for reading ECU memory. `check_gb_alarm_dtc_boundary.py`, run with the firmware
+  venv, replays14,336 synthetic callback cases and4,096 packet cases using a
+  bounded integer-instruction interpreter; it never executes firmware.
+- `oem-dtc-exact-source-search-20261021.json` records the finite exact-software
+  source search and unproved acquisition targets: BMS cell-overtemperature
+  headings, drive-to-VCU communication headings, and rejected engine sensor-
+  circuit/SOC shortcuts. No exact applicable OEM dictionary was recovered.
+  Run `python3 research/vehicle-diagnostics/check_oem_dtc_exact_source_search.py`.
+- `remaining-role-fingerprints-20261021.json` tests nine child-code fingerprints
+  against13 existing raw firmware files, with two own-MCU positive controls.
+  Twenty-three short DID coincidences are images/compressed API/name-pointer
+  data, not role assignments. No new role or BSCM7E5/ESP782 physical join.
+  Run `.venv-firmware/bin/python research/vehicle-diagnostics/check_remaining_role_fingerprints.py`.
+
 - `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
   33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS
   `783`, SRS `7F1`, ADC `712` and front radar `7F2` each returned explicit zero

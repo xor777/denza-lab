@@ -1,0 +1,652 @@
+{
+  "schema": "denza-lab.gb-alarm-dtc-boundary.v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/diagnostics-linkage-20261021/gb-alarms",
+  "vehicleOperations": 0,
+  "cloudOperations": 0,
+  "firmwareExecuted": false,
+  "status": "14 native aggregate input predicates recovered; no warning-ID to DTC or ECU dictionary mapping",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "bytes": 254608,
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce"
+    },
+    {
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "bytes": 542428,
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/gb-fid-initializer-values.json",
+      "bytes": 29286,
+      "sha256": "296dff0d2fba8a2b43d4ac00e15ea8ec1b62e4f62fbf39d0a31e163159b8afc6"
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/evaluate_gb_ids.py",
+      "bytes": 3571,
+      "sha256": "e67d6ecf78856e6916ada42b71cd1c54e6db170837b062ba7f1281cfe3faf1d6"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/replay_alarm_blocks.py",
+      "bytes": 3956,
+      "sha256": "b6b84a023c05cadc2d4c79db7933dd06ebf49d7af630503f11cea8ae41812b43"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/build_report.py",
+      "bytes": 7812,
+      "sha256": "728590be00f5641d1167c6a553dbd6d2a25a1bb2b455abceaceae110ab4c73ca"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/gbacqservice-19da0.asm",
+      "bytes": 31779,
+      "sha256": "6c3ff3dcbba284a5516dac01ca8ed67fcb6bc9053887465460c22a4b986720eb"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/gbacqservice-18880.asm",
+      "bytes": 43405,
+      "sha256": "0c75ac5404b8ef03e973c90d02c2664d9a9679b1ae99aec8a218a326b1c796a6"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/gbacqservice-1dff0.asm",
+      "bytes": 37557,
+      "sha256": "8cc28ac23e79c7347f20d288bbce0f8bc5ca48639e224808e53b50d42790ddd0"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/gbacqservice-selected-global-refs.json",
+      "bytes": 12388,
+      "sha256": "a5ec470cca310b2672070c006346563efffcd67dc2fce77038176bbba67626a1"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/standard-source.json",
+      "bytes": 403,
+      "sha256": "8790a3ae796df48cd569d77f92e8496ee3cb8cc832524c7d798492e525e0e385"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/gb-alarms/ndanev-source.json",
+      "bytes": 652,
+      "sha256": "74c36dde57507ef9c5962aa43c05728ce00adbe997f4dbc7fc5517150852ad8f"
+    }
+  ],
+  "native": {
+    "binary": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+    "callback": "0x19DA0",
+    "packer": "0x18880",
+    "aggregateWord": "0x3D50C",
+    "simulationByte": "0x3D44C",
+    "simulationSourceFID": "6DC00022",
+    "simulationChanged": false,
+    "profile": 170,
+    "energytype": 2,
+    "dispatcherDevice": 1039,
+    "dispatcherTarget": "0x19FC8"
+  },
+  "alarmInputs": [
+    {
+      "fid": "43800008",
+      "device": 1039,
+      "sourceNames": [
+        "GB_TEMP_DIFF_ALARM"
+      ],
+      "labelRu": "Разброс температур батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 0,
+      "bodyVA": "0x1a0f8",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        1,
+        2
+      ],
+      "initializer": {
+        "va": "0x1ec30",
+        "global": "0x3d3f4",
+        "value": "0x43800008"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "4380000A",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_POOR_CONSISTENCY_ALARM"
+      ],
+      "labelRu": "Неоднородность батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 10,
+      "bodyVA": "0x1a1b0",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1eaf8",
+        "global": "0x3d3f8",
+        "value": "0x4380000A"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "4380000C",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_NOT_MATCH_ALARM"
+      ],
+      "labelRu": "Несоответствие батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 9,
+      "bodyVA": "0x1a330",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1eae8",
+        "global": "0x3d3fc",
+        "value": "0x4380000C"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "4380000E",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_VOLTAGE_HIGH_ALARM"
+      ],
+      "labelRu": "Повышенное напряжение батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 2,
+      "bodyVA": "0x1a360",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        1,
+        2
+      ],
+      "initializer": {
+        "va": "0x1eb4c",
+        "global": "0x3d400",
+        "value": "0x4380000E"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "43800010",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_VOLTATE_LOW_ALARM"
+      ],
+      "labelRu": "Пониженное напряжение батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 3,
+      "bodyVA": "0x1a3a4",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1eb58",
+        "global": "0x3d404",
+        "value": "0x43800010"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "43800012",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_OVERCHARGE"
+      ],
+      "labelRu": "Перезаряд батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 18,
+      "bodyVA": "0x1a3d4",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        1,
+        2
+      ],
+      "initializer": {
+        "va": "0x1eaf0",
+        "global": "0x3d408",
+        "value": "0x43800012"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "43800014",
+      "device": 1039,
+      "sourceNames": [
+        "GB_SOC_HIGH_ALARM"
+      ],
+      "labelRu": "Высокий SOC",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 7,
+      "bodyVA": "0x1a420",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1ebf0",
+        "global": "0x3d40c",
+        "value": "0x43800014"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "43800016",
+      "device": 1039,
+      "sourceNames": [
+        "GB_SOC_TRIP_ALARM"
+      ],
+      "labelRu": "Скачок SOC",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 8,
+      "bodyVA": "0x1a488",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1ec10",
+        "global": "0x3d410",
+        "value": "0x43800016"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "2440003E",
+      "device": 1039,
+      "sourceNames": [
+        "GB_VOLTAGE_HIGH_INTERLOCK_ALARM"
+      ],
+      "labelRu": "Высоковольтная блокировка",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 16,
+      "bodyVA": "0x1a898",
+      "triggerRawValuesSimulationOff": [
+        1
+      ],
+      "triggerRawValuesSimulationOn": [
+        1
+      ],
+      "initializer": null,
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "26C00010",
+      "device": 1039,
+      "sourceNames": [
+        "GB_HIGH_TEMP_ALARM"
+      ],
+      "labelRu": "Высокая температура (GB_HIGH_TEMP_ALARM)",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 12,
+      "bodyVA": "0x1a8bc",
+      "triggerRawValuesSimulationOff": [
+        1
+      ],
+      "triggerRawValuesSimulationOn": [
+        1
+      ],
+      "initializer": null,
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "26C00022",
+      "device": 1039,
+      "sourceNames": [
+        "GB_DC_SYSTEM_FAILURE"
+      ],
+      "labelRu": "Неисправность системы DC",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 14,
+      "bodyVA": "0x1a7fc",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": null,
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "2440000C",
+      "device": 1039,
+      "sourceNames": [
+        "GB_BATTERY_HIGH_TEMP_ALARM"
+      ],
+      "labelRu": "Высокая температура батареи",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 1,
+      "bodyVA": "0x1a514",
+      "triggerRawValuesSimulationOff": [
+        1,
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        0,
+        1,
+        2
+      ],
+      "initializer": null,
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "2400000C",
+      "device": 1039,
+      "sourceNames": [
+        "GB_IPM_TEMP_STATE"
+      ],
+      "labelRu": "Температура силового модуля привода",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 15,
+      "bodyVA": "0x1a948",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1eba4",
+        "global": "0x3d41c",
+        "value": "0x2400000C"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    },
+    {
+      "fid": "2400000A",
+      "device": 1039,
+      "sourceNames": [
+        "GB_POWER_MOTOR_TEMP_STATE"
+      ],
+      "labelRu": "Температура электродвигателя",
+      "labelKind": "our translation of framework names; not OEM DTC description",
+      "bit": 17,
+      "bodyVA": "0x1a9f0",
+      "triggerRawValuesSimulationOff": [
+        2
+      ],
+      "triggerRawValuesSimulationOn": [
+        2
+      ],
+      "initializer": {
+        "va": "0x1ebe4",
+        "global": "0x3d420",
+        "value": "0x2400000A"
+      },
+      "scope": "callback predicate only; profile170, energytype2 HEV; later report severity/masking and runtime subscription separate"
+    }
+  ],
+  "alarmRecord": {
+    "identifier": 7,
+    "bytes": 10,
+    "layout": [
+      "identifier:u8",
+      "computed highest alarm level:u8",
+      "aggregate bitmap:u32be",
+      "N1:u8=0",
+      "N2:u8=0",
+      "N3:u8=0",
+      "N4:u8=0"
+    ],
+    "zeroStoreVAs": [
+      "0x19350",
+      "0x1937C",
+      "0x19380",
+      "0x19384"
+    ],
+    "zeroCountsMeaning": "GB/T32960.3-2016 table17 labels these battery, drive motor, engine and other fault-code counts. Fixed zero is a serializer limitation, not a completed ECU fault-memory scan. Even a nonzero level/bitmap does not populate a code list here.",
+    "evidenceScope": "selected record emitted by0x18880; not every stock uploader, GB revision or custom data section",
+    "standardReference": {
+      "url": "https://www.sae-hk.org/wp-content/uploads/2020/12/020-GBT-32960.3-2016-%E7%94%B5%E5%8A%A8%E6%B1%BD%E8%BD%A6%E8%BF%9C%E7%A8%8B%E6%9C%8D%E5%8A%A1%E4%B8%8E%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%E6%8A%80%E6%9C%AF%E8%A7%84%E8%8C%83-%E7%AC%AC3%E9%83%A8%E5%88%86%EF%BC%9A%E9%80%9A%E8%AE%AF%E5%8D%8F%E8%AE%AE%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F.pdf",
+      "section": "7.2.3.7, table17",
+      "method": "web indexed original-standard table; direct local download returned403; no bypass/retry",
+      "officialEditionMetadata": "https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=674DE45C0AD3DE2CD75B9C4CD8ED57C1",
+      "currentStandardApplicabilityClaimed": false,
+      "dictionaryClaimed": false
+    },
+    "syntheticReplays": [
+      {
+        "level": 0,
+        "bitmap": "00000000",
+        "packetHex": "07000000000000000000",
+        "synthetic": true
+      },
+      {
+        "level": 3,
+        "bitmap": "00010002",
+        "packetHex": "07030001000200000000",
+        "synthetic": true
+      },
+      {
+        "level": 2,
+        "bitmap": "FFFFFFFF",
+        "packetHex": "0702ffffffff00000000",
+        "synthetic": true
+      }
+    ]
+  },
+  "verification": {
+    "callbackCases": 14336,
+    "packetCases": 4096,
+    "rawDomain": [
+      0,
+      255
+    ],
+    "initialMasks": [
+      "00000000",
+      "FFFFFFFF"
+    ],
+    "simulationStates": [
+      false,
+      true
+    ],
+    "profile": 170,
+    "energytype": 2,
+    "limitInstructionsPerBlock": 120
+  },
+  "anchors": [
+    {
+      "start": "0x192f0",
+      "endExclusive": "0x19388",
+      "hex": "a86a0011093e4092083d4092eb230391ec008052ad6e0011ad3d4092af7e00116c692938c97d18536a692838a8720011083d409269692d38c97d1053aa7600114a3d4092cc7d085369692838e83d4092ad7a0011a98200116c692a38aa8a00117f692838a8860011ec030591ad3d4092293d4092083d40924a3d409280310091e1031f2a827e80526e692d387f6929387f6928387f692a38"
+    },
+    {
+      "start": "0x1a0f8",
+      "endExclusive": "0x1a12c",
+      "hex": "080100f0090d45b97f0a00712a791f120a0d05b9c00000547f060071a11c00540a0100f04a3151394a1c003429010032df000014"
+    },
+    {
+      "start": "0x1a1b0",
+      "endExclusive": "0x1a1d0",
+      "hex": "080100f0090d45b97f0a00712a7915120a0d05b92117005429011632b6000014"
+    },
+    {
+      "start": "0x1a330",
+      "endExclusive": "0x1a350",
+      "hex": "080100f0090d45b97f0a00712a7916120a0d05b9210b00542901173256000014"
+    },
+    {
+      "start": "0x1a360",
+      "endExclusive": "0x1a394",
+      "hex": "080100f0090d45b97f0a00712a791d120a0d05b9c00000547f060071610900540a0100f04a3151390a09003429011e3245000014"
+    },
+    {
+      "start": "0x1a3a4",
+      "endExclusive": "0x1a3c4",
+      "hex": "080100f0090d45b97f0a00712a791c120a0d05b98107005429011d3239000014"
+    },
+    {
+      "start": "0x1a3d4",
+      "endExclusive": "0x1a408",
+      "hex": "080100f0090d45b97f0a00712a790d120a0d05b9c00000547f060071c10500540a0100f04a3151396a05003429010e3228000014"
+    },
+    {
+      "start": "0x1a420",
+      "endExclusive": "0x1a440",
+      "hex": "080100f0090d45b97f0a00712a7918120a0d05b9a1030054290119321a000014"
+    },
+    {
+      "start": "0x1a488",
+      "endExclusive": "0x1a4a8",
+      "hex": "080100f0090d45b97f0a00712a7917120a0d05b96100005429011832090d05b9"
+    },
+    {
+      "start": "0x1a514",
+      "endExclusive": "0x1a550",
+      "hex": "080100f0090d45b97f0a00712a791e120a0d05b9200a00547f0600714009005493fcff350a0100f04a3151392afcff3429011f32090d05b9deffff17"
+    },
+    {
+      "start": "0x1a658",
+      "endExclusive": "0x1a684",
+      "hex": "29011f320a0100f05fd11239090d05b997ffff172a00805229011f320b0100f06ad11239090d05b991ffff17"
+    },
+    {
+      "start": "0x1a7fc",
+      "endExclusive": "0x1a820",
+      "hex": "080100f0090d45b97f0a00712a7911120a0d05b9a1e5ff5429011232090d05b92affff17"
+    },
+    {
+      "start": "0x1a898",
+      "endExclusive": "0x1a8e0",
+      "hex": "080100f0090d45b97f0600712a790f120a0d05b9c1e0ff5429011032090d05b903ffff17080100f0090d45b97f0600712a7913120a0d05b9a1dfff5429011432090d05b9fafeff17"
+    },
+    {
+      "start": "0x1a948",
+      "endExclusive": "0x1a96c",
+      "hex": "090100f02a0d45b90b0100d06b095b794c7910126be500517ff500712c0d05b9080e0054"
+    },
+    {
+      "start": "0x1a9f0",
+      "endExclusive": "0x1aa14",
+      "hex": "090100f02a0d45b90b0100d06b095b794c790e126be500517ff500712c0d05b9080a0054"
+    },
+    {
+      "start": "0x1ab28",
+      "endExclusive": "0x1ab3c",
+      "hex": "13ccff347f060071410200541f05007101020054"
+    },
+    {
+      "start": "0x1ab50",
+      "endExclusive": "0x1ab64",
+      "hex": "d3caff347f060071810200541f05007141020054"
+    },
+    {
+      "start": "0x1ab78",
+      "endExclusive": "0x1ab98",
+      "hex": "7f0a007161c9ff54280080524a0111320b0100f068e112392a0d05b945feff17"
+    },
+    {
+      "start": "0x1aba8",
+      "endExclusive": "0x1abc8",
+      "hex": "7f0a0071e1c7ff54280080524a010f320b0100f068f112392a0d05b939feff17"
+    },
+    {
+      "start": "0x19e34",
+      "endExclusive": "0x19e58",
+      "hex": "c8a60f511f9d00712804005469fffff029550a918a0000102b6968384a090b8b40011fd6"
+    },
+    {
+      "start": "0x8295",
+      "endExclusive": "0x82bd",
+      "hex": "361a1a1a1a1a2a1a6f1a1a1a001a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a005c00"
+    },
+    {
+      "start": "0x1e260",
+      "endExclusive": "0x1ec9c",
+      "hex": "09018052020280520803142a0970a8720274a87229010b324ae01f111f01007128118a1a0b0281520c018052c50780520c82a8728500a072e88f00b90801805208d8a8728d0115320a0115321003805211118a1a0a011c3208010b2a1088a6724811881a8a010b2a0b058052090215320bb6a8722e1f9652e847092988011c3291118d1a08118a1a0c018052ce01a0720cc4a47207028452e8c70a290801805208a2a472072aa9720a011532da04885211118a1a680115326811881a4a001d321ab2a772f3e397525300a07296058052f1230829480015324810881a160aa572d90994529e0c80521901a072e02bc03de89300b9080181524800082abf031df84b11881a0801805208daa5720a0180520811851a0a9aa872a5580111a0139c3cbfff3aa9e8af0b29480115325111881a482100114b212011bf831bf808118b1a4b014411f1a30c29880115328811881ae89700b908028052089ca8720ce11f110d01153271118c1a0b0580520ba4a47208118d1a6c011532cd029a526b118c1a9f020071e88b00b90803805208d6a572ad00a072f1af0d291111891a096d9c5248111c326900a072cb6899520011891a490d1b326b00a072c804885229118b1a08b2a6720ba93f11ec03182a61118d1a4ba10711e97f00b9092280524901092a26118e1aa94d22116311891a892c80524901092a4a2d8b52aa00a072cb0280528d0492520bc8a4720d2aa97237118a1a490282524a028652ae118b1a29b2a7720ab2a672eb038e525c11891aaaea98520b4aa972496020116a01a07208118b1a4911891a0a028e52aab2a772eb03142ae80b00b908068052e95300b90888a872090680520801153209a6a572444d41113511881a0902805248048052095aa2720854a472ef10841a1b11891a48038e52082aa97224919a5207028b520d118a1a1f0300718401a072075aa4720912911ae810841ad0f786521103805218208052b001a0721188b87218b4a97214028c523012901a11131d3214c8a872e92310292812801a91021b3280b59e52c70280522412801a51ab3f11070ca5722112811af1080011e510851a2012931a07071d32d32f8c52e710861ac63205111301a072e80f00b9c810931ac6f20511d3120611c610991a19031e2ae81300b928948b529e4200112800a0722a13831a23e38752c913881ac8021c326300a072d98194520811831a5900a0721e1a8052f17f40b91ef8a172e92304290930805209a0a5721113911a23011d326810991a996d9052b900a072a30c94522301a072ea23032928632b116812881a53c699523300a0720a018052c313831a0a70a872e81700b9c84300111e11931a48028052132294524801082af301a0720811931a93620011e87b00b9880d80520803082a38ba90520811971a5800a07257d38052e82f00b96812981a130280521388a472e83300b9680580526802082af33389521301a0720811931ab3499552d300a072e82b00b988049252084aa97208118e1ae87f00b9480480520828a57208119b1a5b138d1aed4f40b9e83b00b94802865208b2a77208119c1ae87700b9e8398a52e800a072dc12881ac8720511360a80520e11931a2801162ab60a80520811971a73323c113601162ae83700b9c812931af30a8052e83f00b968339d522801a0723811881a2801132a49600011826e93520211821ae85340b913be9c52f300a0722811881a09028452094aa972e85300b9e80b40b95613881a080680520888a8721a0380521511951a882e9e529712881a88021d3234118f1a0811931a7f012c6a49051c322913891aea0000f04bd10a390a0100900c0380521a10a47249bd00b90901009030e100b9100180520a01805210f6a1720a84a672097200114a7100110c82a6720b0100906d3101b929118a1a4a138c1aed4b40b90b0100906d7d01b90b01009069c500b9090100902a8501b9ea5b40b9090100902a0d01b9ea5740b9090100902a1901b9ea4340b9090100902a5d01b9ea4740b9090100902a6d01b9ea0f40b9090100902a6101b909010090246501b9ea6340b90901009021cd00b90901009020dd00b9090100902ae500b9ea5f40b90901009025d900b909010090a00301d1a16301d12a8101b9ea6740b9090100902a4501b909010090313d01b9ea6b40b909010090370101b9090100902a4d01b909010090274901b909010090282501b9e91340b9080100901c1d01b908010090093501b908010090180501b9e96f40b908010090062901b908010090031101b908010090095901b9e91b40b908010090095101b9e92340b908010090095501b9e97340b908010090096901b9e92740b908010090092101b9e91f40b9080100900e3901b9080100900e018052090901b9e91740b9080100900e70a872092d01b9e98b40b9080100901e1501b908010090097901b9e9af4529080100900a0100904b7501b94a058052097101b908028052081aa872eb3b40b9090158110a9aa3722811881a09028052095aa272ed0000f029690011a81903b94911891a0a0100904bf100b94a438052cb3e94520a20b3724b01a07268118a1aea8f40b9eb0000f06a1d03b9ea0000f0491503b9e90000f0285503b9e88340b9e90000f08b011b32ec3f40b94a031b32284103b9e88740b9e90000f04a118b1a0b0100906cf900b9284d03b9e93740b90c01009082fd00b9080100900c0100908ae900b9aa05805209f500b9a8018052a90180520c5a805208aaa072094aa1720a84a472ec01a0722811881a090180520b0180528a118a1a09f8a4720b82a5726d11891a2c011f326b011f32f80000f0083f03b96b118c1a0c0100908aed00b90a018052ac2997520a42a2722901541188118a1aea0000f04d4503b9ea0000f04b4903b90a01009048c900b908028e52a8b2a7728a038e5208051e32aab2a672ec5340b94811881a0b018052ea0000f00bfea572cd2900114c110db90c010090889101b96a011e32c8011e326c2900114811881a8a118d1a0c0100909b8d01b96c011f32cd011f328c118d1aed0000f0a8fd03b9e80000f00a0904b9e80000f00cf903b908010090168901b9ec9340b968051f32ca051f3208118a1a0a01009055c100b9ed0000f0ac2504b96a210011cc2100118d0494524a118c1a0c01009094d100b98c0494524cb3a7724db3a672f60000f0c80204b9a8118c1aec0000f08a0504b90a0100900e01805248d500b9080180520880a4724a0180522911881a0a02a5720c011e324d090011ac118c1aed0000f0a92904b9490580528d5b8152091aa672ad00a072ef0000f0ec1d04b9ac11891aed9740b90e70a87208011f32ef0000f04811881a6a310011ed2d04b9ed0000f0ac3d04b9cc3100114a118c1a6c390011cd390011ef0000f0e82104b988118d1aec0000f08a0d04b9ea7b40b9fb0000f00c889a5229290011ec01a0726a1b04b9ea0000f0481104b968011c32ca011c326b118e1a08118a1a0a0580520a76a872f90000f02bf703b98a118a1a6c521b11eb0000f0683504b98911891ae80000f00a4104b9e80000f0b3a300d1093904b9e82b40b9f70000f0e97f40b9ea0000f0e81604b908018052493104b90884a6720812881a09048052ea7740b9f50000f0fa0000f0a82603b9a8a300d14a5f03b9"
+    },
+    {
+      "start": "0x192f0",
+      "endExclusive": "0x19388",
+      "hex": "a86a0011093e4092083d4092eb230391ec008052ad6e0011ad3d4092af7e00116c692938c97d18536a692838a8720011083d409269692d38c97d1053aa7600114a3d4092cc7d085369692838e83d4092ad7a0011a98200116c692a38aa8a00117f692838a8860011ec030591ad3d4092293d4092083d40924a3d409280310091e1031f2a827e80526e692d387f6929387f6928387f692a38"
+    },
+    {
+      "start": "0x1a0e8",
+      "endExclusive": "0x1a0f8",
+      "hex": "080100f008f543b91f01156b61050054"
+    },
+    {
+      "start": "0x1a1a0",
+      "endExclusive": "0x1a1b0",
+      "hex": "080100f008f943b91f01156ba10b0054"
+    },
+    {
+      "start": "0x1a320",
+      "endExclusive": "0x1a330",
+      "hex": "080100f008fd43b91f01156b21010054"
+    },
+    {
+      "start": "0x1a350",
+      "endExclusive": "0x1a360",
+      "hex": "080100f0080144b91f01156bc1010054"
+    },
+    {
+      "start": "0x1a394",
+      "endExclusive": "0x1a3a4",
+      "hex": "080100f0080544b91f01156b21010054"
+    },
+    {
+      "start": "0x1a3c4",
+      "endExclusive": "0x1a3d4",
+      "hex": "080100f0080944b91f01156b01020054"
+    },
+    {
+      "start": "0x1a410",
+      "endExclusive": "0x1a420",
+      "hex": "080100f0080d44b91f01156be1020054"
+    },
+    {
+      "start": "0x1a478",
+      "endExclusive": "0x1a488",
+      "hex": "080100f0081144b91f01156b01040054"
+    },
+    {
+      "start": "0x1a504",
+      "endExclusive": "0x1a514",
+      "hex": "890180520988a472bf02096b01020054"
+    },
+    {
+      "start": "0x1a7cc",
+      "endExclusive": "0x1a7fc",
+      "hex": "c90780520988a472bf02096b000600540902805209d8a472bf02096ba00600544904805209d8a472bf02096b010a0054"
+    },
+    {
+      "start": "0x1a938",
+      "endExclusive": "0x1a948",
+      "hex": "090100f0291d44b93f01156be1040054"
+    },
+    {
+      "start": "0x1a9e0",
+      "endExclusive": "0x1a9f0",
+      "hex": "090100f0292144b93f01156be1030054"
+    }
+  ],
+  "limits": [
+    "No newly observed alarms or DTCs; no live/native calls.",
+    "Native predicate values are not a universal healthy/fault/invalid enum. Several unrecognised values clear the aggregate bit.",
+    "Source API is aggregate GB device1039, not a qualified physical sensor, individual rear drive, or exact ECU route.",
+    "Fields with similar names to popup1E/20/47/5D/358 have no proven direct warning-ID relationship.",
+    "The tested packet block does not consume UDS DTC records; fixed zero counters cannot establish absence of faults.",
+    "Broader packer computes severity and may mask bits; this study does not qualify that whole policy or export it as diagnostic severity.",
+    "Code/dictionary acquisition still requires direct ECU reading and exact applicable original diagnostic pages."
+  ]
+}

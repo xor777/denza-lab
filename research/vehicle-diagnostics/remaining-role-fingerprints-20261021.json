@@ -1,0 +1,302 @@
+{
+  "schema": "denza-lab.remaining-child-role-fingerprints.v1",
+  "date": "2026-10-21",
+  "scope": "Finite offline raw-binary/container/symbol audit beyond the previous exact-text and raw-catalog passes; existing extracted MCU/HAL/UDS/native-cluster files only. No OTA workflow, archive extraction, decompile, executable firmware, vehicle, ADB, network or cloud action.",
+  "inputs": {
+    "iviMcuApp": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "rawBinaryScan": true
+    },
+    "iviMcuContainer": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/payload.xcd",
+      "sha256": "a73457b1de3e8d8c86e60718092a62fb9af81445ffd8109bc803eb08827b45d2",
+      "rawBinaryScan": true
+    },
+    "fseMcuContainer": {
+      "path": "captures/fse-hud-route-20260924/ota-extra/decrypted-mcu_42_2_3.xcd",
+      "sha256": "1178904a0bccb8a0340e7c6863aeac21ab9bde3d09348603a65d2c517a0e6cfd",
+      "rawBinaryScan": true
+    },
+    "iviHal": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "rawBinaryScan": true
+    },
+    "fseHal": {
+      "path": "captures/fse-hud-route-20260924/system/system/lib64/hw/auto.default.so",
+      "sha256": "29e712e309a9bf547a2c4ad9cfe38d34f56c71acf7721630c3c4ec33d3977868",
+      "rawBinaryScan": true
+    },
+    "autoservice": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "sha256": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65",
+      "rawBinaryScan": true
+    },
+    "byddiagnostic": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbyddiagnosticservice.so",
+      "sha256": "32de1289536c70c8aea48564868cefbc68b3a6cf755e471d6ad05128bba7faa0",
+      "rawBinaryScan": true
+    },
+    "diagnostic": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libdiagnostic.so",
+      "sha256": "162d589ddac216c32f8d73945c3ce2a9f95701927ba624c5f166d539873f4fd2",
+      "rawBinaryScan": true
+    },
+    "libuds": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "rawBinaryScan": true
+    },
+    "udsDaemon": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/hw/vendor.ts.uds@1.0-service.default",
+      "sha256": "f42dfb89f9c83027e742474d8abb60c70bb6192da0cd1e0c513efe50189b28cc",
+      "rawBinaryScan": true
+    },
+    "cells": {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+      "rawBinaryScan": true
+    },
+    "client": {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3",
+      "rawBinaryScan": true
+    },
+    "clusterManager": {
+      "path": "captures/firmware/pulled-from-car-20261018/native/BydClusterManager",
+      "sha256": "8e95f4aaf8edd4883be16eaa2047cc1bd02c9355597d791a1eaa2f609bde5fdd",
+      "rawBinaryScan": true
+    },
+    "previousRoles": {
+      "path": "research/vehicle-diagnostics/child-role-gaps-20261021.json",
+      "sha256": "36c7a9af4f301f27a39f4c263e4b7a718c60dc02ba252cf22374b6c1011208bb",
+      "rawBinaryScan": false
+    },
+    "embeddedApiManifest": {
+      "path": "captures/cluster-native-20261018/client-api/manifest.json",
+      "sha256": "edb4506bb28366f2444a115118b9fac765af8f2e0ba414ba71964e117329a68e",
+      "rawBinaryScan": false
+    },
+    "embeddedApiXml": {
+      "path": "captures/cluster-native-20261018/client-api/embedded-classes.xml",
+      "sha256": "b9924e1333833c9ffe38dc512a759232bcb1b77ab806d5628847f9b6dded2ecf",
+      "rawBinaryScan": false
+    },
+    "checkedLayouts": {
+      "path": "captures/cluster-native-20261018/tables/checked-layouts.json",
+      "sha256": "62b2434a1cf5bfdfd4b8007d07d6b075543c8b458c5dc0e4f3937e280e285eeb",
+      "rawBinaryScan": false
+    },
+    "factory": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+      "rawBinaryScan": false
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+      "rawBinaryScan": false
+    },
+    "brakeCompletion": {
+      "path": "research/vehicle-diagnostics/brake-vcu-obd-completion-20261021.json",
+      "sha256": "2f4ae09bb1f3ea1a2f2dab6c1eca958a1aa234e28f1861d60143de5b8d22d551",
+      "rawBinaryScan": false
+    },
+    "espRawIdent": {
+      "path": "captures/diagnostics-remaining-20261020/ident-run/probe.txt",
+      "sha256": "a2acc0d16a5eee6c0321bb72664dafa611323eef2a61ff82afad19cf55d70384",
+      "rawBinaryScan": false
+    },
+    "firmwareIndex": {
+      "path": "captures/firmware-index.tsv",
+      "sha256": "46d135b567ae9406ab0dd07530019eb251a92f556193ab644b2ef73bcc76a8ff",
+      "rawBinaryScan": false
+    },
+    "nativeCorpus": {
+      "path": "research/cluster-native/corpus.json",
+      "sha256": "38b4dee02df27518058b818b3183bc04d01655ea4176dde6965ada5b896e6823",
+      "rawBinaryScan": false
+    },
+    "previousTextSearch": {
+      "path": "captures/diagnostics-deep-20261021/inventory/bounded-corpus-search.json",
+      "sha256": "5326941679c6594757de68b36a12284c92f77404f7f190a3b5777753635a28c1",
+      "rawBinaryScan": false
+    }
+  },
+  "summary": {
+    "rawFiles": 13,
+    "rawBytes": 63719760,
+    "targetChildNamespaces": 9,
+    "newQualifiedChildRoles": 0,
+    "newQualifiedPhysicalBrakeRelationship": false,
+    "newVehicleRequests": 0,
+    "newNetworkRequests": 0,
+    "newExtractions": 0,
+    "newFirmwareExecutions": 0
+  },
+  "newEvidence": [
+    {
+      "claim": "None of nine complete child software-code fingerprints or the retained brake full identifiers occurs in these13 raw files in the tested contiguous encodings.",
+      "evidence": "native-fingerprints.json/fullFingerprintScan",
+      "representations": [
+        "software codes: raw9 bytes, uppercase/lowercase ASCII hex, uppercase UTF16LE/BE hex",
+        "brake CALID/name: exact ASCII, UTF16LE/BE"
+      ],
+      "positiveControl": "The existing IVI and FSE MCU containers each return their own complete software-code literal, at file0x91 and0x8D respectively. No all-zero scanner or filename-only inference."
+    },
+    {
+      "claim": "All23 little-endian16 target-DID byte coincidences in the inspected five ELF data scopes have unrelated, verifiable owners.",
+      "counts": {
+        "pngCompressedPixelData": 11,
+        "namePointerLowBytes": 1,
+        "compressedGodotApiXml": 11
+      },
+      "evidence": "native-fingerprints.json/nativeDidPatternScan",
+      "meaning": "No one of these23 matches is a diagnostic DID record. No zero-extended LE32 target DID appears in these data scopes."
+    },
+    {
+      "claim": "Eleven matches are compressed image bytes inside two complete PNG containers in CellsCluster.",
+      "images": [
+        {
+          "address": "0x701b8",
+          "bytes": 37517,
+          "chunkCount": 9
+        },
+        {
+          "address": "0x79445",
+          "bytes": 73901,
+          "chunkCount": 13
+        }
+      ],
+      "validation": "PNG chunk boundaries and every CRC32 reproduced from ELF .rodata; all11 matches are inside IDAT data, not an image label or MCU metadata."
+    },
+    {
+      "claim": "Eleven matches are inside ClusterClient _doc_data_compressed.",
+      "address": "0x170090",
+      "bytes": 59919,
+      "validation": "One complete zlib stream expands to392330bytes and matches the already extracted API XML byte-for-byte and SHA256. No duplicate extracted file is created."
+    },
+    {
+      "claim": "Cells .data F654 is a name pointer, not a DID.",
+      "address": "0x35ffa8",
+      "wholePointer": "0x000000000005F654",
+      "owner": "g_DataSourceArray[1133].m_pDataItemName",
+      "rowAddress": "0x35ffa0",
+      "pointedString": "target1Direction",
+      "validation": "48-byte structure and name-pointer offset8 are established by retained DWARF; ELF pointer and pointed UTF8 string independently checked."
+    },
+    {
+      "claim": "Native versionProperty manages five host version properties, with no child-role mapping.",
+      "symbol": "_ZN12byd_auto_hal13FunctionTable15versionPropertyERKjPiPc",
+      "address": "0x655F0",
+      "bytes": 1376,
+      "fields": [
+        "mcu_boot_version",
+        "mcu_version",
+        "dsp_version",
+        "dyna_version",
+        "anc_version"
+      ],
+      "validation": "Exact symbol extent, complete bounded Capstone disassembly, literal addresses, and PLT relocation of call1CFAF0 to property_set retained. The fields refer to host versions, not INS_MCU/audio or FRL/switch children."
+    },
+    {
+      "claim": "The inspected plaintext MCU containers describe host routes741/749 and5E7/5EF, not the remaining child namespaces.",
+      "metadata": [
+        {
+          "inputKey": "iviMcuContainer",
+          "selectedMetadata": {
+            "EcuVersion": "1.00.01",
+            "EcuSoftwareCode": "4B450011E0930034E2",
+            "CanFuncID": "2015",
+            "CanReqID": "1857",
+            "CanRecID": "1865",
+            "CanChannel": "CAN1"
+          },
+          "roleScope": "Existing host MCU package; not an INS/FRL/CDC-ZCU child image"
+        },
+        {
+          "inputKey": "fseMcuContainer",
+          "selectedMetadata": {
+            "EcuVersion": "1.00.01",
+            "EcuSoftwareCode": "4B450011DF990042E2",
+            "CanFuncID": "2015",
+            "CanReqID": "1511",
+            "CanRecID": "1519",
+            "CanChannel": "CAN1"
+          },
+          "roleScope": "Existing host MCU package; not an INS/FRL/CDC-ZCU child image"
+        }
+      ],
+      "meaning": "The package code, route and role scope are kept together; shared4B45 prefix is not used as an INS MCU manufacturer/component binding."
+    }
+  ],
+  "brakeLinkage": {
+    "factoryAliasesAt782": [
+      {
+        "index": 191,
+        "ecuId": "HTH-2021_ESP_BOSCH_00100001",
+        "route": "782/78A",
+        "softwareDids": "F195/F194",
+        "cachedSoftwareCode": "32330011DF0B000101"
+      },
+      {
+        "index": 192,
+        "ecuId": "HTH-2021_IPB_BOSCH_00100001",
+        "route": "782/78A",
+        "softwareDids": "F195/F194",
+        "cachedSoftwareCode": "32330011DF0B000101"
+      },
+      {
+        "index": 193,
+        "ecuId": "HTH-2021_BSC_BYD_00100001",
+        "route": "782/78A",
+        "softwareDids": "F195/F194",
+        "cachedSoftwareCode": "32330011DF0B000101"
+      }
+    ],
+    "factory7e5Rows": 0,
+    "observed782F194": "32330011DF0B000101",
+    "observed7e5IdentityReads": [
+      {
+        "seq": 4,
+        "targetHex": "7E5",
+        "requestHex": "0904",
+        "responseHex": "49040134303030383235303432323533313533",
+        "frames": 1,
+        "latencyMs": 20,
+        "receivedNanos": 155583380852309
+      },
+      {
+        "seq": 5,
+        "targetHex": "7E5",
+        "requestHex": "090A",
+        "responseHex": "490A014253434D2D4272616B6553797374656D00000000",
+        "frames": 1,
+        "latencyMs": 15,
+        "receivedNanos": 155583898263462
+      }
+    ],
+    "calibrationId": "4000825042253153",
+    "name": "BSCM-BrakeSystem",
+    "physicalRelationship": "unknown; no common exact identity or source-defined logical-to-physical join"
+  },
+  "brakeConclusion": "Factory ESP_BOSCH, IPB_BOSCH and BSC_BYD are three candidate labels for the same782/F194 namespace and retained full code. The separately observed OBD7E5 identifies as BSCM-BrakeSystem/CALID4000825042253153. No source examined joins those identity formats or establishes whether they are two diagnostic interfaces on one physical controller. Neither a shared brake role nor token BSC is enough. No assertion of one or two physical brake controllers is made.",
+  "remainingRoleConclusion": "INS F394/F494, FRL F644/F654/FB24 and CDC-ZCU C294/C394/C494/C594 remain named-subrole unbound. Exact previously established factory-family ownership is preserved; no generic role, suffix, DID order, shared route, software-code prefix or chance byte sequence is promoted into an exact child binding.",
+  "limits": [
+    "Negative fingerprint results cover13 named existing raw files and the explicitly listed contiguous encodings; noncontiguous/constructed constants, padding, other compressed/encrypted payloads and unexamined images remain outside this check.",
+    "The LE16/LE32 candidate audit is restricted to .rodata/.data/.data.rel.ro in IVI auto.default, libuds, UDS daemon, Cells and Client. Other native tables and instruction-built values are not globally ruled out.",
+    "No fresh catalog, ECU cache, installed component or vehicle identity was obtained; static owner MCU package is not an installed-image hash qualification.",
+    "No archive, OTA strategy, factory server, private credential or account investigation was performed. Existing MCU XCD metadata is read only as component packaging, with a whitelist that omits keys and update instructions.",
+    "Raw fingerprints support exclusion of the specific apparent matches, not proof that no supplier/OEM diagnostic definition exists elsewhere."
+  ],
+  "qualifiedNewReadCandidates": [],
+  "rawEvidence": {
+    "path": "captures/diagnostics-linkage-20261021/roles/native-fingerprints.json",
+    "sha256": "74586c78f4684de5e6a991c4b3b499c6cb2fd5e4ab47ea7a20e18ce81570ca59"
+  },
+  "checker": {
+    "path": "research/vehicle-diagnostics/check_remaining_role_fingerprints.py",
+    "command": ".venv-firmware/bin/python research/vehicle-diagnostics/check_remaining_role_fingerprints.py"
+  }
+}
