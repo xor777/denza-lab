@@ -4,9 +4,7 @@ import dev.denza.apps.feature.diagnostics.protocol.DtcCode
 import dev.denza.apps.feature.diagnostics.protocol.DtcFormat
 import dev.denza.apps.feature.diagnostics.protocol.LookupSkip
 import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
-import dev.denza.apps.feature.diagnostics.protocol.OemHeading
 import dev.denza.apps.feature.diagnostics.protocol.OemSection
-import dev.denza.apps.feature.diagnostics.protocol.RearSide
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.carNow
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.session
 import java.io.File
@@ -144,29 +142,35 @@ class OemDtcReferenceTest {
     }
 
     @Test
-    fun theRearDrivesAreSearchedInBothRearSections() {
-        assertEquals(listOf(OemSection.REAR_LEFT, OemSection.REAR_RIGHT), OemDtcIndex.sections(0x744))
-        assertEquals(listOf(OemSection.REAR_LEFT, OemSection.REAR_RIGHT), OemDtcIndex.sections(0x745))
-        // The index gives the two sides different codes: one is found from either module, its own words name the side.
-        listOf(0x744, 0x745).forEach { smcu ->
-            val left = index.lookup(smcu, j2012(0x1B0301)).candidates.single()
-            assertEquals(OemSection.REAR_LEFT, left.section)
-            assertEquals(RearSide.LEFT, left.side)
-            assertEquals("Контроллер левого заднего электродвигателя: перенапряжение (программный контроль)", CatalogText.description(listOf(left)))
-            assertEquals(OemSection.REAR_RIGHT, index.lookup(smcu, j2012(0x1B0420)).candidates.single().section)
+    fun eachRearDriveSearchesItsOwnSide() {
+        assertEquals(OemSection.REAR_LEFT, OemDtcIndex.section(0x744))
+        assertEquals(OemSection.REAR_RIGHT, OemDtcIndex.section(0x745))
+        // The live `19 0A` registries of 2026-10-21: SMCU's is exactly the left section, SMCU3's the right.
+        val sides = mapOf(0x744 to OemSection.REAR_LEFT, 0x745 to OemSection.REAR_RIGHT)
+        val registries = sides.mapValues { (request, _) ->
+            val m = supported.getJSONArray("modules").objects().single { it.getString("requestIdHex") == "%03X".format(request) }
+            assertEquals(0, m.getJSONObject("formatRead").getInt("formatId"))
+            m.getJSONArray("records").objects().map { it.getString("raw24Hex").toInt(16) }
         }
-        // Not in the index, but the rule: equal headings on both sides are one, different ones are both, sided.
-        fun h(section: OemSection, title: String, outline: String) = OemHeading(section, "P1B0001", outline, title, title)
-        val same = OemDtcIndex(listOf(h(OemSection.REAR_LEFT, "A", "l"), h(OemSection.REAR_RIGHT, "A", "r")))
-            .lookup(0x744, j2012(0x1B0001))
-        assertEquals(1, same.candidates.size)
-        assertNull(same.candidates.single().side)
-        assertFalse(same.conflict)
-        assertEquals("A", CatalogText.description(same.candidates))
-        val differ = OemDtcIndex(listOf(h(OemSection.REAR_LEFT, "A", "l"), h(OemSection.REAR_RIGHT, "B", "r")))
-            .lookup(0x745, j2012(0x1B0001))
-        assertFalse(differ.conflict)
-        assertEquals("Л: A / П: B", CatalogText.description(differ.candidates))
+        assertTrue(registries.getValue(0x744).intersect(registries.getValue(0x745).toSet()).isEmpty())
+        sides.forEach { (request, section) ->
+            val registry = registries.getValue(request)
+            assertEquals(32, registry.size)
+            val found = registry.map { raw -> index.lookup(request, j2012(raw)).candidates.single() }
+            assertTrue(found.all { it.section == section })
+            assertEquals(
+                index.headings.filter { it.section == section }.map { it.outlineId }.sorted(),
+                found.map { it.outlineId }.sorted(),
+            )
+        }
+        // The other side's code is searched in the block's own section and not found there.
+        val left = index.lookup(0x744, j2012(0x1B0301)).candidates.single()
+        assertEquals("Контроллер левого заднего электродвигателя: перенапряжение (программный контроль)", CatalogText.description(listOf(left)))
+        listOf(0x744 to 0x1B0420, 0x745 to 0x1B0301).forEach { (request, raw) ->
+            val r = index.lookup(request, j2012(raw))
+            assertNull(r.skipped)
+            assertTrue(r.candidates.isEmpty())
+        }
     }
 
     @Test

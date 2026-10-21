@@ -3,22 +3,19 @@ package dev.denza.apps.feature.diagnostics.protocol
 /**
  * A section of the public table of contents of the Z9GT PHEV 2024 diagnostic manual
  * (`research/vehicle-diagnostics/oem-dtc-public-index-20261020.json`), by its key in that file.
- * [side] is set for the two rear drives' sections.
  */
-internal enum class OemSection(val key: String, val side: RearSide? = null) {
+internal enum class OemSection(val key: String) {
     ENGINE_ECM("engine_ecm"),
     BATTERY_MANAGEMENT("battery_management"),
     FRONT_DRIVE("front_drive"),
     GENERATOR("generator"),
-    REAR_LEFT("rear_left", RearSide.LEFT),
-    REAR_RIGHT("rear_right", RearSide.RIGHT);
+    REAR_LEFT("rear_left"),
+    REAR_RIGHT("rear_right");
 
     companion object {
         fun of(key: String): OemSection? = entries.firstOrNull { it.key == key }
     }
 }
-
-internal enum class RearSide(val short: String) { LEFT("Л"), RIGHT("П") }
 
 /** One row of the index joined with its Russian title: a heading of the catalog, never a definition. */
 internal data class OemHeading(
@@ -35,9 +32,8 @@ internal data class OemHeading(
 internal data class OemLocator(val section: OemSection, val outlineId: String)
 
 /**
- * One distinct heading a code has in the sections its module is searched in. Equal headings are one
- * candidate with every place they stand: both rear sections, or the BMS duplicate that differs only by
- * a zero-width space.
+ * One distinct heading a code has in its module's section. Equal headings are one candidate with every
+ * place they stand: the BMS duplicate that differs only by a zero-width space.
  */
 internal data class DtcCandidate(
     val displayCode: String,
@@ -47,11 +43,6 @@ internal data class DtcCandidate(
 ) {
     val section: OemSection get() = locators.first().section
     val outlineId: String get() = locators.first().outlineId
-    val sections: List<OemSection> get() = locators.map { it.section }.distinct()
-
-    /** The rear side this heading stands on alone; null when it is not a rear heading or stands on both. */
-    val side: RearSide? get() = sections.mapNotNull { it.side }.distinct().singleOrNull()
-        ?.takeIf { sections.all { s -> s.side != null } }
 }
 
 /** Why a code was not searched at all. */
@@ -63,7 +54,7 @@ internal enum class LookupSkip(val reason: String) {
 
 /**
  * What the catalog has for one record. Empty [candidates] with no [skipped] means the code was
- * searched and the module's sections do not list it. [conflict]: one section gives the code two or
+ * searched and the module's section does not list it. [conflict]: the section gives the code two or
  * more different headings - all are kept, none is chosen.
  */
 internal data class DtcLookup(
@@ -86,35 +77,34 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
         headings.groupBy { it.section to it.displayCode }
 
     fun lookup(request: Int, code: DtcCode): DtcLookup {
-        val sections = sections(request)
-        if (sections.isEmpty()) return DtcLookup(emptyList(), skipped = LookupSkip.NO_SECTION)
+        val section = section(request) ?: return DtcLookup(emptyList(), skipped = LookupSkip.NO_SECTION)
         val display = catalogCode(request, code) ?: return DtcLookup(
             emptyList(),
             skipped = if (code.format == DtcFormat.ISO_14229_1) LookupSkip.FORMAT_01 else LookupSkip.FORMAT_UNKNOWN,
         )
-        val found = sections.flatMap { bySectionCode[it to display].orEmpty() }
-        val candidates = found.groupBy { it.titleZh }.map { (zh, same) ->
+        val candidates = bySectionCode[section to display].orEmpty().groupBy { it.titleZh }.map { (zh, same) ->
             DtcCandidate(display, zh, same.first().titleRu, same.map { OemLocator(it.section, it.outlineId) })
         }
-        val conflict = sections.any { s -> found.filter { it.section == s }.map { it.titleZh }.distinct().size > 1 }
-        return DtcLookup(candidates, conflict)
+        return DtcLookup(candidates, conflict = candidates.size > 1)
     }
 
     companion object {
         val EMPTY = OemDtcIndex(emptyList())
 
         /**
-         * The sections a module's codes are searched in, by request address. SMCU drives the left rear
-         * motor and SMCU3 the right, yet each is searched in both rear sections: no code of theirs has been
-         * read against a section, so the manual's side is not taken for the block's (architecture, 4).
+         * The section a module's codes are searched in, by request address; null for a module without one.
+         * Each rear drive has its own side's: SMCU 744's live `19 0A` registry (2026-10-21,
+         * `research/vehicle-diagnostics/supported-dtc-20261021.json`) is exactly `rear_left`, SMCU3 745's
+         * exactly `rear_right`, and the two share no code (architecture, 4).
          */
-        fun sections(request: Int): List<OemSection> = when (request) {
-            0x7E0 -> listOf(OemSection.ENGINE_ECM)
-            0x7E7 -> listOf(OemSection.BATTERY_MANAGEMENT)
-            0x7E3 -> listOf(OemSection.FRONT_DRIVE)
-            0x7E6 -> listOf(OemSection.GENERATOR)
-            0x744, 0x745 -> listOf(OemSection.REAR_LEFT, OemSection.REAR_RIGHT)
-            else -> emptyList()
+        fun section(request: Int): OemSection? = when (request) {
+            0x7E0 -> OemSection.ENGINE_ECM
+            0x7E7 -> OemSection.BATTERY_MANAGEMENT
+            0x7E3 -> OemSection.FRONT_DRIVE
+            0x7E6 -> OemSection.GENERATOR
+            0x744 -> OemSection.REAR_LEFT
+            0x745 -> OemSection.REAR_RIGHT
+            else -> null
         }
 
         /**

@@ -551,18 +551,12 @@ internal class ModelBuilder(
 /**
  * The public catalog's headings as a record's screen text (architecture, 4): the Russian heading is the
  * description itself, with no mark and no source - the source is said once, in the screen's footer
- * ([ModelBuilder.CATALOG_SOURCE]). Two different headings of one section are both shown, «A / B»; the
- * rear drives' two sections, when they disagree, as «Л: A / П: B». Nothing else is added.
+ * ([ModelBuilder.CATALOG_SOURCE]). Two different headings of the module's section are both shown,
+ * «A / B». Nothing else is added.
  */
 internal object CatalogText {
-    fun description(candidates: List<DtcCandidate>): String? {
-        if (candidates.isEmpty()) return null
-        val sided = candidates.mapNotNull { it.side }.distinct().size > 1
-        return candidates.joinToString(" / ") { c ->
-            val side = c.side?.takeIf { sided }?.let { "${it.short}: " } ?: ""
-            side + c.titleRu
-        }
-    }
+    fun description(candidates: List<DtcCandidate>): String? =
+        candidates.takeIf { it.isNotEmpty() }?.joinToString(" / ") { it.titleRu }
 
     fun reference(c: DtcCandidate) = DtcReference(
         code = c.displayCode,
