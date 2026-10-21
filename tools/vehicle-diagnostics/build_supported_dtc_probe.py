@@ -42,6 +42,7 @@ def plans():
         raise ValueError('Java identities/addresses differ from six pinned targets')
     expected_calls = [('ecm-bms', 35000, 0x0A, False, 'ECM,BMS'), ('drives', 65000, 0x0A, False, 'FMCU,ISG,SMCU,SMCU3'),
                       ('rear-drives', 35000, 0x0A, False, 'SMCU,SMCU3'), ('isg-observe', 15000, 0x0A, False, 'ISG'),
+                      ('isg-trace', 15000, 0x0A, False, 'ISG'),
                       ('snapshot-ecm-bms', 35000, 0x03, False, 'ECM,BMS'),
                       ('snapshot-drives', 65000, 0x03, False, 'FMCU,ISG,SMCU,SMCU3'),
                       ('bms-snapshot-record', 25000, 0x03, True, 'BMS')]
@@ -71,6 +72,8 @@ def plans():
                       'expectedSoftwareCode': code, 'requests': requests}
             if read_record:
                 target.update(expectedFormatIdHex='00', requiredSnapshotPair={'rawDtcHex': '1A3A22', 'recordNumberHex': '01'})
+            if name == 'isg-trace':
+                target.update(expectedFormatIdHex='01')
             targets.append(target)
         result[name] = {'name': name, 'maxRequests': len(targets)*(4 if read_record else 3), 'overallSoftMs': ms,
                         'overallHardMs': ms+2000, 'readKind': 'snapshot-record' if read_record else 'snapshot-index' if subfunction == 3 else 'supported-dtc',
@@ -118,6 +121,7 @@ def build(output):
                             'maxCallbacksPerExchange': 64, 'maxCallbacksPerPlan': 1024,
                             'meaning': 'Conservative policy limits, not physical channel maxima; oversize aborts without partial success.'},
              'semantics': {'supportedListIsNotActiveFaults': True, 'formatSource': 'previous exact190109 response',
+                           'isgTracePlan': 'Only ISG exact identity/format01 then190A; result03 multipart failure transcript is separate from accepted UDS. No retries or extended deadlines.',
                            'snapshotIndexHasNoStatusMaskOrFormatByte': True,
                            'snapshotIndexPairsAreRawDtcAndRecordNumber': True,
                            'snapshotPayloadReadOnlyByPinnedBmsRecordPlan': True,
@@ -135,7 +139,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
     p = sub.add_parser('plan'); p.add_argument('--plan', choices=[
-        'ecm-bms', 'drives', 'rear-drives', 'isg-observe', 'snapshot-ecm-bms', 'snapshot-drives', 'bms-snapshot-record'])
+        'ecm-bms', 'drives', 'rear-drives', 'isg-observe', 'isg-trace', 'snapshot-ecm-bms', 'snapshot-drives', 'bms-snapshot-record'])
     p = sub.add_parser('build'); p.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if args.action == 'plan':

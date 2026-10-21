@@ -1,0 +1,561 @@
+{
+  "schema": "denza-lab.ecm-request-analysis.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "productEdits": false,
+  "scope": "Offline source analysis and replay of retained ECM responses. No ADB, vehicle network, installation, ECU write, session change, OTA operation, authenticated service or BydLog action.",
+  "identity": {
+    "requestIdHex": "7E0",
+    "responseIdHex": "7E8",
+    "did": "F194",
+    "softwareCodeHex": "32440011E004000000",
+    "calibrationId": "Z31L07AB01",
+    "mode09CalibrationResponseHex": "4904015A33314C303741423031000000000000",
+    "cachedEcuId": "HTH-2021_ECM_UAES_01200001",
+    "cacheSoftwareVersion": "4.00.10",
+    "cacheHardwareVersion": "1.0.0",
+    "boundary": "F194 and CALID were observed on this route. The cached ID/versions are separate retained metadata, not a live engine-firmware dump or a qualified diagnostic-dictionary revision."
+  },
+  "observations": [
+    {
+      "source": "captures/diagnostics-supported-20261021/ecm-bms/probe.txt",
+      "requestHex": "190A",
+      "txEnvelopeHex": "0A07E002190A",
+      "rxEnvelopeHex": "0A07E8030101027F1913",
+      "udsHex": "7F1913",
+      "gatewayResult": 2,
+      "latencyMs": 281,
+      "classification": "complete_negative_response",
+      "meaning": "Reported incorrect message length or invalid format. Does not establish unsupported subfunction, an omitted parameter or acceptance root cause."
+    },
+    {
+      "source": "captures/diagnostics-supported-20261021/ecm-bms/probe.txt",
+      "requestHex": "190109",
+      "udsHex": "5901FF000000",
+      "meaning": "AvailabilityFF, DTC format00, zero matching mask09; not a registry length."
+    },
+    {
+      "source": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/probe.txt",
+      "requestHex": "1903",
+      "udsHex": "5903",
+      "meaning": "Complete empty snapshot index, not supported-DTC enumeration."
+    },
+    {
+      "source": "captures/diagnostics-obd-20261020/probe.txt",
+      "requestHex": "1902FF",
+      "txEnvelopeHex": "0A07E0031902FF",
+      "rxEnvelopeHex": "0A07E8030101027F1913",
+      "udsHex": "7F1913",
+      "meaning": "Same NRC for a three-byte mask request; a generic missing third-byte explanation does not fit both observations."
+    },
+    {
+      "source": "captures/diagnostics-obd-20261020/run2/probe.txt",
+      "requestHex": "190208",
+      "txEnvelopeHex": "0A07E003190208",
+      "rxEnvelopeHex": "0A07E8030101015902FF",
+      "udsHex": "5902FF",
+      "meaning": "Confirmed-fault list accepted and empty at that time; service19 and subfunction02 are reachable. Not a registry substitute."
+    },
+    {
+      "source": "captures/diagnostics-obd-20261020/probe.txt",
+      "requestHex": "1901FF",
+      "txEnvelopeHex": "0A07E0031901FF",
+      "rxEnvelopeHex": "0A07E8060101015901FF000102",
+      "udsHex": "5901FF000102",
+      "meaning": "258 DTCs matched maskFF then. This is not a live registry count; it provides response-size arithmetic for the earlier1902FF exchange and a lower-bound hypothesis for190A."
+    }
+  ],
+  "firmware": {
+    "mcu": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "loadBase": "0x40000",
+      "applicability": "Owner IVI OTA image. Installed MCU byte hash not independently matched; source conclusions are qualified by this boundary.",
+      "decoder": "pypcode4.0.1 V850:LE:32:v850e3v5",
+      "ranges": [
+        {
+          "name": "normal-input-header",
+          "startVA": "0x150888",
+          "endExclusiveVA": "0x150900",
+          "sha256": "905a32d6d4c0c9b9becc1a635a16765afb574e731ecf6090376014dbaec1c9b1",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150888.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150888.json"
+        },
+        {
+          "name": "self-route-bypass",
+          "startVA": "0x150940",
+          "endExclusiveVA": "0x15094e",
+          "sha256": "26a3fa5505e7caa425f5169729acbde719de5320b8471264c1181c1eeb09a65a",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150940.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150940.json"
+        },
+        {
+          "name": "nonself-single-frame-transmit",
+          "startVA": "0x1511fa",
+          "endExclusiveVA": "0x15131c",
+          "sha256": "f89077450c3e041bfa09e23078eba32f0e2f3f7ca09571f0b88de849039897bb",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1511fa.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1511fa.json"
+        },
+        {
+          "name": "single-frame-receiver",
+          "startVA": "0x1528c8",
+          "endExclusiveVA": "0x152a2c",
+          "sha256": "834683660b5b96df0ab200e3c9dd1cb935ca3c992bbcc3f3a58f85fd485917b8",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1528c8.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1528c8.json"
+        },
+        {
+          "name": "negative-and-pending-receiver",
+          "startVA": "0x152ff6",
+          "endExclusiveVA": "0x1530fa",
+          "sha256": "b16859679944cfcf6a1cd2cfd43fe21b76d3521a1463463bac1313d21f8d4894",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152ff6.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152ff6.json"
+        },
+        {
+          "name": "negative-response-publisher",
+          "startVA": "0x151948",
+          "endExclusiveVA": "0x1519b6",
+          "sha256": "e42b8639e9b19877b9f0de4a6a30b4fca0a08d6ef3cb7f6828b42d760e5205c5",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-151948.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-151948.json"
+        },
+        {
+          "name": "outer-response-serializer",
+          "startVA": "0x15059e",
+          "endExclusiveVA": "0x150726",
+          "sha256": "7bdb8d80e8904b8f3c4f2fe52c058e31fc5b983257068cfc1c9d0122717e251d",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-15059e.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-15059e.json"
+        },
+        {
+          "name": "first-frame-size-gate-and-multi-frame-receiver",
+          "startVA": "0x152a2c",
+          "endExclusiveVA": "0x152fdc",
+          "sha256": "3341af16a07fa29d54e62137cbfe821cfa5c51515d721b6f573e876d4cd0ec5f",
+          "disassembly": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152a2c.asm",
+          "instructionRecords": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152a2c.json"
+        }
+      ]
+    },
+    "libuds": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "applicability": "Owner IVI OTA stock library; not the ECM controller firmware and not an ECM-specific diagnostic dataset.",
+      "supportedConstructorVA": "0x9fc5c",
+      "supportedConstructorEndExclusiveVA": "0x9febc",
+      "supportedClientVA": "0xaffcc",
+      "supportedConstructorCallVA": "0xb0070",
+      "packageVtableVA": "0x102a28",
+      "packageVptrOffset": "0x38",
+      "appendRelocationVA": "0x102a70",
+      "appendByteFunctionVA": "0xcf298",
+      "appendByteFunctionEndExclusiveVA": "0xcf2c8",
+      "packageConstructorVA": "0xcf174",
+      "countConstructorVA": "0x9eecc",
+      "listConstructorVA": "0x9f354",
+      "byMaskConstructorVA": "0x9f0e0"
+    }
+  },
+  "findings": [
+    {
+      "id": "stock-request-has-two-bytes",
+      "status": "firmware",
+      "claim": "CUdsClient::readSupportedDTC calls creatRequestSupportedDTCMessage; the helper appends19 then0A with no parameter. The observed190A request matches this stock construction.",
+      "anchors": [
+        "libuds0x9fe24..0x9fe58",
+        "libuds0xb0070",
+        "vtable0x102a70 -> CUdsPackage::putData(unsigned char const&)0xcf298"
+      ],
+      "limits": "Generic stock UDS client API, not proof this ECM must support0A in its current session."
+    },
+    {
+      "id": "short-request-verbatim",
+      "status": "firmware",
+      "claim": "Normal input uses byte3 as payload length and bytes4 onward as UDS. For nonself targets, the short branch copies exactly that length into a single CAN frame and fills the remaining data bytes with55. For7E0/190A this is02190A5555555555; trailing envelope memory is not added to the UDS request.",
+      "anchors": [
+        "mcu0x1508da..0x1508fa",
+        "mcu0x150940..0x15094a",
+        "mcu0x151260..0x151296"
+      ],
+      "limits": "Wire frame is source-derived, not a direct CAN capture of the retained ECM run."
+    },
+    {
+      "id": "negative-envelope-has-two-source-paths",
+      "status": "firmware_plus_retained_live_response",
+      "claim": "The single-frame receiver forwards remote NRC data, but the positive first-frame receiver can also generate13 locally on its length gate. Both call151948, which supplies7F and result02. Therefore0A07E8030101027F1913 alone cannot localize the refusal to the ECM or distinguish a remote NRC13 from a rejected positive first frame.",
+      "anchors": [
+        "mcu0x1529fe..0x152a1e -> remote negative handler152ff6",
+        "mcu0x152c86..0x152cdc -> locally generated13",
+        "mcu0x151978..0x1519a2 -> common publisher"
+      ],
+      "limits": "The actual ECM CAN first frame or raw CAN negative response is not retained. The installed MCU image hash is also not independently matched. The former claim that result02 proves an upstream NRC origin is refuted by this local first-frame branch."
+    },
+    {
+      "id": "pending-is-hidden-from-android",
+      "status": "firmware",
+      "claim": "For NRC78 the MCU rearms a timer with argument5000 and returns without publishing that CAN negative response. Android transcript absence of7F1978/PENDING does not establish absence of a CAN-level pending response.",
+      "anchors": [
+        "mcu0x153030..0x153074"
+      ],
+      "limits": "The retained281ms latency does not prove a pending response occurred. No such CAN frame is captured for ECM."
+    },
+    {
+      "id": "same-shape-different-service-result",
+      "status": "retained_live_response",
+      "claim": "1902FF returned13 while190208 succeeded on the same7E0 route.1903 also succeeds with two request bytes. This rules out a blanket inability of the path to carry two-byte requests or service19, without diagnosing the ECU acceptance rule.",
+      "anchors": [
+        "observations1902FF",
+        "observations190208",
+        "observations1903"
+      ],
+      "limits": "Runs are not simultaneous; the differing mask/subfunction and operating state are not isolated by a controlled ECM experiment."
+    },
+    {
+      "id": "positive-first-frame-size-cap",
+      "status": "firmware",
+      "claim": "For owner!=3 (the retained owner is0A), positive first-frame lengthL yields expected=L-1. Values expected<=6 or expected>=0x398 are rejected locally with13; only total UDS lengths8..920 pass this gate. ADDI negative0x398 sets carry when expected>=920; BNC accepts smaller values. This is a local response-size guard, not proof of a malformed request.",
+      "anchors": [
+        "mcu0x152c52..0x152c64 expected=L-1",
+        "mcu0x152c86..0x152c9a length/carry checks",
+        "mcu0x152cb8..0x152cdc writes13 and publishes",
+        "mcu-size-limit.pcode.txt CYf=carry(r1,0xfffffc68)"
+      ],
+      "limits": "Source behavior applies to the pinned owner IVI OTA image. No ECM declared first-frame length is captured for either refusal."
+    }
+  ],
+  "causeAssessment": {
+    "confirmed": "Exact observed190A produces a complete7F1913/result02 envelope. The request matches the stock generic constructor, but result02 is ambiguous between a remote NRC13 and a local MCU positive-response size rejection.",
+    "bestSupportedHypothesis": "The inspected IVI MCU can reject an otherwise positive response exceeding920 UDS bytes by synthesizing7F1913. The retained ECM maskFF count258 implies1035 bytes for a corresponding full19/02 list, exceeding that cap. A19/0A list containing at least258 codes would also exceed it. This explains both refusals without changing request shape, but the ECM first frame and installed MCU identity are missing.",
+    "rootCauseEstablished": false,
+    "nrcPhysicalOriginEstablished": false,
+    "unsupportedEstablished": false,
+    "extraByteRequiredEstablished": false,
+    "candidatesNotEstablished": [
+      {
+        "hypothesis": "IVI MCU rejects a positive large ECM response",
+        "status": "source_backed_leading_hypothesis",
+        "whyOpen": "Exact local13 branch and size cap recovered; arithmetic fits earlier258 count, but no ECM first frame is retained and the count was not simultaneous with the later190A read."
+      },
+      {
+        "hypothesis": "Remote ECM or an intervening vehicle gateway returns7F1913 directly",
+        "status": "not_excluded",
+        "whyOpen": "The same outer envelope is produced by forwarding a remote negative frame; the envelope alone cannot choose either branch."
+      },
+      {
+        "hypothesis": "ECM-specific service/subfunction/session/state policy or implementation behavior",
+        "status": "not_established",
+        "whyOpen": "No applicable engine binary, ODX/PDX or factory tester trace for the exact F194/CALID was recovered; changing sessions/extra bytes remains unjustified."
+      }
+    ]
+  },
+  "alternatives": {
+    "newSourceBackedRegistryRequest": null,
+    "newVehicleRequestProposed": false,
+    "reason": "The stock constructor supports exactly190A already tried, and the MCU can synthesize13 from response size. Adding00/FF or changing sessions is not justified by this evidence.",
+    "alreadyQualifiedReads": [
+      {
+        "requestHex": "190208",
+        "scope": "confirmed-fault list, observed accepted; no supported-registry claim"
+      },
+      {
+        "requestHex": "190109",
+        "scope": "mask09 count and format, observed accepted; no supported-registry claim"
+      },
+      {
+        "requestHex": "1903",
+        "scope": "snapshot index, observed empty; no supported-registry claim"
+      }
+    ],
+    "nextUsefulArtifact": "A separately authorized passive capture at the diagnostic CAN gateway of the identical already-authorized190A exchange, recording its first7E8 frame and any flow control, plus installed-MCU identity. It can distinguish positive oversized response from a remote negative13. Applicable ECM diagnostic data remains useful if the remote-negative path is observed. Do not infer the origin from result02 alone."
+  },
+  "publicReferences": [
+    {
+      "url": "https://udsoncan.readthedocs.io/en/v1.25.0/_modules/udsoncan/services/ReadDTCInformation.html",
+      "capture": "captures/diagnostics-isg-followup-20261021/ecm/udsoncan-1.25.0-ReadDTCInformation.html",
+      "purpose": "Library-author primary implementation independently groups0A among requests without extra parameters. It corroborates request shape and is not a BYD/UAES applicability rule."
+    }
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/source-reports/supported-dtc-20261021.json",
+      "bytes": 187540,
+      "sha256": "6c0abb930f188114d77e9c95dbdb6e96e13d199d185c9a2d76931815ecf19a49",
+      "originalPath": "research/vehicle-diagnostics/supported-dtc-20261021.json"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/source-reports/ecm-completion-20261021.json",
+      "bytes": 24903,
+      "sha256": "7fe44a15b5ae6382d4189626bc8b662f574bf721cb2c4995da65735d26b3bd8e",
+      "originalPath": "research/vehicle-diagnostics/ecm-completion-20261021.json"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/source-reports/dtc-format-applicability-20261021.json",
+      "bytes": 6552,
+      "sha256": "6523a010cbc73c19dd092cfaff4f148b174c40cb9d56b0493053db0469b8b10d",
+      "originalPath": "research/vehicle-diagnostics/dtc-format-applicability-20261021.json"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/source-reports/ecu-inventory-cache-20261018.json",
+      "bytes": 5386,
+      "sha256": "f7489a93cb7535f05f9ba59b81a047d8d8f09bed6733d040bba54aa2059207ef",
+      "originalPath": "research/vehicle-diagnostics/ecu-inventory-cache-20261018.json"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/probe.txt",
+      "bytes": 6045,
+      "sha256": "3f4bc23fc0ad35d3a725ee5ce7c65bd69ac401c3f6a80ff93d261a0115213f4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/probe.txt",
+      "bytes": 4100,
+      "sha256": "cc26f2106bb56c6d50d3e132c563d827cf6e1e4977fac292a528123d0f48a8f2"
+    },
+    {
+      "path": "captures/diagnostics-obd-20261020/probe.txt",
+      "bytes": 4747,
+      "sha256": "0f118e4bd419db888d6526812a0a9cc40a09db8fac6b163fcee2622a965d0165"
+    },
+    {
+      "path": "captures/diagnostics-obd-20261020/run2/probe.txt",
+      "bytes": 12030,
+      "sha256": "40e2511fce5be774667f95ccc1ac07119b429ba4695d3047a3f94a2a9428b40e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/protocol.txt",
+      "bytes": 853,
+      "sha256": "608972b43ff53c347eb9093fad32c1fcbdf0750cc2e1464be31175849264b19a"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "bytes": 1091824,
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-package-vtable.json",
+      "bytes": 5471,
+      "sha256": "4b1eccfb8a72ad15cc604ab29d98396ed623bb7dbf3d256927ea6eadade2a6d1"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/udsoncan-1.25.0-ReadDTCInformation.html",
+      "bytes": 174509,
+      "sha256": "5dc51b6a383bad81255c7a94a6a755e371dc464167d9afa5882e799bc467f032"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-9eecc.asm",
+      "bytes": 8429,
+      "sha256": "eee0b0f47140f367ee721793a2790ac578618652e909abfc424b161bc7026d02"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-9f0e0.asm",
+      "bytes": 6269,
+      "sha256": "ef5e1cb4a0862828c493066add253ebc6417d9774778a703fee3a389cbfb872e"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-9f354.asm",
+      "bytes": 8427,
+      "sha256": "709e298b6e24dc4e0286d340c31443828b20deef8263ce40f26c7d94447ee8f7"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-9fc5c.asm",
+      "bytes": 9427,
+      "sha256": "60e96565540c7d8fa50343abdf19a5facf221bf115c054593bd9fc6641976d70"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-affcc.asm",
+      "bytes": 37426,
+      "sha256": "2a5e0d830d45901adb850cc0bd7f9c19f156a0fe4a422a45af840dd8ad158fba"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-cf174.asm",
+      "bytes": 671,
+      "sha256": "56d517818ede9a695c9b48a1d01da1ebabec5c59162ccba0dfb5d04cfc45dfe3"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/libuds-cf298.asm",
+      "bytes": 459,
+      "sha256": "ffcd87c75df6576b21a11abc7a791b6fe7b6a1ea08d1a6795c9bc8f31a3593bd"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-15059e.asm",
+      "bytes": 5794,
+      "sha256": "30e63e5f1ecafa6f986a9e2998a6c10ee78088c7a5c1a5a254b7466359111af7"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150888.asm",
+      "bytes": 1449,
+      "sha256": "ae5d666f067eb82d9de922ada62338e48948317075609bba70ed08fe9ff01598"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150940.asm",
+      "bytes": 143,
+      "sha256": "4361b1cb5e56be993b384dd2a393be091d6b0a2c3787600d5ca567afe1967225"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1511fa.asm",
+      "bytes": 3636,
+      "sha256": "74a9493b7efd1ca9f45ae7a7412dc19596a31967f3af9f041329ef5bbbd8d627"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-151948.asm",
+      "bytes": 1256,
+      "sha256": "cab9304c7dbd358548af92827ba91415e3a07e28b6b35e36c205ef9e3fb45714"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1528c8.asm",
+      "bytes": 4262,
+      "sha256": "8a30ff09015c7070a99b45f9bc8c47f2565aac8e84ee59131bf98eff6fa904cd"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152ff6.asm",
+      "bytes": 3289,
+      "sha256": "e6046fb7fd041960f098fb9c794aa85ef940cc10fad879ea7b87c3fea05f5e59"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-15059e.json",
+      "bytes": 13911,
+      "sha256": "caa23b90c8738f30aea5fdf30a4e4442301669cac81b01aa52e74206a64e63c7"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150888.json",
+      "bytes": 3425,
+      "sha256": "e75d65c901bc2e528aca0efe31a9adcd92ccfa72b68cd329680611cc2d5eedc9"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-150940.json",
+      "bytes": 342,
+      "sha256": "5749a2fef5c002fe2101a98ef0ffa6968ca0712d95f94da7609ce678c506b823"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1511fa.json",
+      "bytes": 8630,
+      "sha256": "2e5508055cc51ad2e5400dc3a2fc62646a9ce7a5cc243193f3c3d601317b0898"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-151948.json",
+      "bytes": 2983,
+      "sha256": "d3bba2207bdf1ff3379085d2ae08b4903d9e8bd164cd198ecbbfa40d11b4501f"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-1528c8.json",
+      "bytes": 10143,
+      "sha256": "1536e39f5457901f4d285b8955de716ad056452fd4b186d9defc6b5bb5bcdd66"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152ff6.json",
+      "bytes": 7817,
+      "sha256": "a23c6b6dc1314734793c050dfb29203b573bc04dfb44c74ec944f5d8976a719e"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152a2c.asm",
+      "bytes": 17341,
+      "sha256": "143695c6d3aa14977ca7faaa75ebfc32ff6698f41184da28db27de57045f1ebc"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-152a2c.json",
+      "bytes": 41293,
+      "sha256": "ee6977bfd329d1c102fb40ffb64e892efb9384ee59c4ac25329c524fbeea229b"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/ecm/mcu-size-limit.pcode.txt",
+      "bytes": 810,
+      "sha256": "acee2306edb570307bb838d21ca619c9c298053f221c570a0463d1f5ddb90486"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_ecm_request_analysis.py",
+  "captureBase": "captures/diagnostics-isg-followup-20261021/ecm",
+  "responseSizeGate": {
+    "ownerHex": "0A",
+    "nonOwner3": true,
+    "declaredLengthBits": 12,
+    "expectedAfterSid": "L-1 whenL>=1; otherwise1",
+    "acceptedPositiveFirstFrameUdsBytesMin": 8,
+    "acceptedPositiveFirstFrameUdsBytesMax": 920,
+    "locallyRejectedAtOrAboveUdsBytes": 921,
+    "internalUpperExclusiveHex": "398",
+    "dtcResponseHeaderBytes": 3,
+    "recordBytes": 4,
+    "maxWholeDtcRecordsThroughThisGate": 229,
+    "firstRejectedWholeDtcRecordCount": 230,
+    "firstRejectedWholeDtcUdsBytes": 923,
+    "earlierEcmMaskFFCount": 258,
+    "earlierEcmListBytesAtCount": 1035,
+    "countReplyHex": "5901FF000102",
+    "registryCountObserved": false,
+    "boundaries": [
+      {
+        "L": 7,
+        "expected": 6,
+        "accepted": false
+      },
+      {
+        "L": 8,
+        "expected": 7,
+        "accepted": true
+      },
+      {
+        "L": 919,
+        "expected": 918,
+        "accepted": true
+      },
+      {
+        "L": 920,
+        "expected": 919,
+        "accepted": true
+      },
+      {
+        "L": 921,
+        "expected": 920,
+        "accepted": false
+      },
+      {
+        "L": 923,
+        "expected": 922,
+        "accepted": false
+      },
+      {
+        "L": 1035,
+        "expected": 1034,
+        "accepted": false
+      }
+    ],
+    "discriminator": "A directly captured7E8 first frame with positive59 0A and announcedL>=921 establishes the size-gate trigger for the observed path; a directly captured7E8 single-frame7F1913 instead supports remote refusal. Existing Android callback suppresses that distinction.",
+    "acceptedRegistryControls": [
+      {
+        "name": "BMS",
+        "route": "7E7",
+        "supportedRecords": 115,
+        "completeUdsBytes": 463,
+        "withinInspectedMcuSizeGate": true
+      },
+      {
+        "name": "FMCU",
+        "route": "7E3",
+        "supportedRecords": 32,
+        "completeUdsBytes": 131,
+        "withinInspectedMcuSizeGate": true
+      },
+      {
+        "name": "SMCU",
+        "route": "744",
+        "supportedRecords": 32,
+        "completeUdsBytes": 131,
+        "withinInspectedMcuSizeGate": true
+      },
+      {
+        "name": "SMCU3",
+        "route": "745",
+        "supportedRecords": 32,
+        "completeUdsBytes": 131,
+        "withinInspectedMcuSizeGate": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,470 @@
+{
+  "schema": "denza-lab.exact-dtc-definitions-followup.v1",
+  "date": "2026-10-21",
+  "builtUtc": "2026-10-21T12:36:02.160740+00:00",
+  "status": "no_new_qualified_exact_definitions_new_version_and_manual_acquisition_route_retained",
+  "scope": "Offline retained sources plus bounded unauthenticated public page/search reads. No vehicle, ADB, OTA, BydLogTool, credentials, login, payment, private API, protected manual body, installation, control or fault induction.",
+  "captureBase": "captures/diagnostics-isg-followup-20261021/dictionaries",
+  "vehicleOperations": 0,
+  "authenticatedRequests": 0,
+  "privateApiRequests": 0,
+  "formSubmissions": 0,
+  "qualifiedOemDefinitions": [],
+  "qualifiedSoftwareBindings": [],
+  "qualifiedWarningDtcLinks": [],
+  "target": {
+    "model": "2024 Denza Z9GT 易三方 PHEV",
+    "observedEcu": "BMS033",
+    "requestIdHex": "7E7",
+    "softwareCode": "4A520011E00D00047B",
+    "catalogEcuId": "HTH-2021_BMS_BYD_03300001",
+    "catalogSoftwareVersion": "3.48.07",
+    "catalogHardwareVersion": "0.0.3",
+    "dtcFormatIdentifier": 0,
+    "identityEvidenceRef": "captures/diagnostics-isg-followup-20261021/dictionaries/source-reports/supported-dtc-20261021.json",
+    "supportedCodeCount": 115,
+    "currentFaultCountForMask09": 0,
+    "statusBoundary": "Supported registry membership and observed status00 do not describe an active fault or define its meaning. No vehicle identity was refreshed in this pass."
+  },
+  "exactMissingBmsDefinitions": [
+    {
+      "displayCode": "P1A8E73",
+      "raw24Hex": "1A8E73",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    },
+    {
+      "displayCode": "P2BF900",
+      "raw24Hex": "2BF900",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    },
+    {
+      "displayCode": "P2BFF0B",
+      "raw24Hex": "2BFF0B",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    },
+    {
+      "displayCode": "P2BAA00",
+      "raw24Hex": "2BAA00",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    },
+    {
+      "displayCode": "P2BF600",
+      "raw24Hex": "2BF600",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    },
+    {
+      "displayCode": "P2BFF07",
+      "raw24Hex": "2BFF07",
+      "observedStatusHex": "00",
+      "supportedByExactSoftware": true,
+      "presentInInspectedBmsHeadings": false,
+      "qualifiedMeaningZh": null,
+      "qualifiedMeaningRu": null,
+      "primaryPerCodeDocumentId": null,
+      "definitionStatus": "UNKNOWN",
+      "nextAcquisition": "Applicable BMS033 3.48.07 revisioned fault list and per-code original; require the exact full seven-character code."
+    }
+  ],
+  "unresolvedConflict": {
+    "displayCode": "P2BAE00",
+    "raw24Hex": "2BAE00",
+    "supportedByExactSoftware": true,
+    "observedStatusHex": "00",
+    "originalPublicHeadings": [
+      {
+        "subsystem": "battery_management",
+        "displayCode": "P2BAE00",
+        "outlineId": "outline_921_a",
+        "publicTitleZh": "P2BAE00 升压接触器烧结",
+        "primaryDefinition": null
+      },
+      {
+        "subsystem": "battery_management",
+        "displayCode": "P2BAE00",
+        "outlineId": "outline_925_a",
+        "publicTitleZh": "​P2BAE00 电池包总压极限欠压",
+        "primaryDefinition": null
+      }
+    ],
+    "resolution": null,
+    "whyUnresolved": "Boost-contactor sintering and extreme pack undervoltage are incompatible catalog headings for the same complete code. Neither original page, revision nor software applicability is available; do not choose by order, frequency or generic SAE meaning."
+  },
+  "additionalCodeLabelAcquisitionConcern": {
+    "state": "secondary_catalog_difference_not_an_OEM_correction",
+    "z9gt": {
+      "displayCode": "P1A8F73",
+      "outlineId": "outline_842_a",
+      "publicTitleZh": "P1A8F73 直流充电正极接触器烧结"
+    },
+    "otherModel": "2023 BYD Tang DM-i Champion Edition",
+    "otherModelSourceUrl": "https://en.17vin.com/automotive_repair_manual_wiring_diagrams/BYD/2114.html",
+    "otherModelPublicHeadings": [
+      "P1A8E73 DC charging positive contact sintering",
+      "P1A8F73 - Sintering of DC Charging Negative Contactor"
+    ],
+    "inference": "The Z9GT heading labels P1A8F73 as the positive DC-charge contactor, while this Tang index labels E73 positive and F73 negative. This is a reason to acquire both original Z9GT contactor pages, not proof which heading/code is wrong. No Tang meaning is imported for the missing E73."
+  },
+  "newAcquisitionLead": {
+    "name": "中车云商 public Denza brand profile and separate version/manual publication channels",
+    "profileUrl": "https://www.iautocloud.com.cn/car_brand.html?orgId=174",
+    "platformBrandName": "腾势汽车",
+    "platformOrganizationId": "174",
+    "sourceClassification": "Primary evidence of the platform own publication/access claims; OEM authorization and target technical content remain unverified.",
+    "manufacturerAffiliationIndependentlyVerified": false,
+    "z9gtCoverageVerified": false,
+    "targetSoftwareCoverageVerified": false,
+    "exactProfileLinkedPages": [
+      {
+        "kind": "system_versions",
+        "relativeHref": "/maintion/ecuVersion.html?orgId=174",
+        "url": "https://www.iautocloud.com.cn/maintion/ecuVersion.html?orgId=174"
+      },
+      {
+        "kind": "repair_manuals",
+        "relativeHref": "/maintion/manual.html?orgId=174",
+        "url": "https://www.iautocloud.com.cn/maintion/manual.html?orgId=174"
+      }
+    ],
+    "latestObservedVersionNotice": {
+      "url": "https://www.iautocloud.com.cn/notice/detail.html?id=15759",
+      "titleZh": "腾势汽车-腾势的系统版本已经上传",
+      "platformTimestamp": "2025-02-19 15:36:26"
+    },
+    "latestObservedManualNotice": {
+      "url": "https://www.iautocloud.com.cn/notice/detail.html?id=15760",
+      "titleZh": "腾势汽车-腾势的维修手册已经上传",
+      "platformTimestamp": "2025-02-19 16:34:58"
+    },
+    "earlierVersionNotice": {
+      "url": "https://iautocloud.com.cn/notice/detail.html?id=15169",
+      "platformTimestamp": "2024-12-31 09:20:17"
+    },
+    "accessBoundary": {
+      "profileStatesOrdinaryIndividualUserWithoutOemCertification": true,
+      "profileStatesSmallestCatalogUnitCanBePrinted": true,
+      "publicShellLoginNoticeZh": "亲爱的用户，登陆后即可查阅免费资料！",
+      "publicShellPaidContentNoticeZh": "部分资料是付费内容，登陆后购买，即可查阅。",
+      "brandSelectionInExactHrefObserved": true,
+      "catalogModelRowsRetrieved": false,
+      "systemVersionRowsRetrieved": false,
+      "manualBodiesRetrieved": false,
+      "accountCreated": false,
+      "paymentMade": false,
+      "messageSent": false
+    },
+    "concreteNextAcquisition": "First establish legitimate platform/OEM provenance and whether the Denza entitlement actually includes Z9GT PHEV and BMS033. Obtain the software-version record selecting 4A520011E00D00047B / 3.48.07, then the applicable revisioned BMS fault-list and exact per-code pages as the smallest printable units. The public announcements alone do not promise those records exist."
+  },
+  "primaryPublicTisSchemaObservation": {
+    "sourceUrl": "https://tis.bydauto.com.cn/tis/static/index-a37aa18b.js",
+    "retainedSourcePath": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+    "anchorProjection": "captures/diagnostics-isg-followup-20261021/dictionaries/tis-static-dtc-schema-anchors.json",
+    "observedHeaderFields": [
+      "id",
+      "dtcCode",
+      "dtcName"
+    ],
+    "observedChineseUiLabels": [
+      "所属模块",
+      "DTC代码",
+      "DTC描述"
+    ],
+    "observedClientSymbols": [
+      "tisDtcModuleList",
+      "dtcDescription"
+    ],
+    "dataRetrieved": false,
+    "endpointCalled": false,
+    "clientExecuted": false,
+    "meaning": "The public official client explicitly models DTC code/name and belonging-module UI. These are data acquisition leads, not a target dictionary, a schema guarantee for every controller, user eligibility or software applicability."
+  },
+  "temperatureCandidates": [
+    {
+      "displayCode": "P1A3922",
+      "raw24Hex": "1A3922",
+      "supportedByExactSoftware": true,
+      "observedStatusHex": "00",
+      "outlineId": "outline_808_a",
+      "publicTitleZh": "P1A3922 动力电池单节温度严重过高",
+      "originalPageRetrieved": false,
+      "qualifiedDefinition": null,
+      "warning0x358Link": null
+    },
+    {
+      "displayCode": "P1A3A22",
+      "raw24Hex": "1A3A22",
+      "supportedByExactSoftware": true,
+      "observedStatusHex": "00",
+      "outlineId": "outline_823_a",
+      "publicTitleZh": "P1A3A22 动力电池单节温度一般过高",
+      "originalPageRetrieved": false,
+      "qualifiedDefinition": null,
+      "warning0x358Link": null
+    }
+  ],
+  "originalAcquisitionPacket": {
+    "bmsFaultList": {
+      "publicCatalogUrl": "https://dongcheyun.com/p/23710",
+      "documentId": "DTA1248942",
+      "outlineId": "outline_763_a",
+      "bodyObtained": false
+    },
+    "bmsPriorityCodes": [
+      "P1A8E73",
+      "P2BF900",
+      "P2BFF0B",
+      "P2BAA00",
+      "P2BF600",
+      "P2BFF07",
+      "P2BAE00",
+      "P1A8F73",
+      "P1A3922",
+      "P1A3A22"
+    ],
+    "bmsNeededOriginalEvidence": [
+      "Document cover/revision and explicit ECU/software applicability.",
+      "Complete full-code fault list for BMS033, including code/heading conflict resolution.",
+      "Per-code monitor/enable/threshold/debounce/recovery and system reaction fields; no inferred values.",
+      "Explicit 0x261/0x358 warning assignment if a warning link is claimed."
+    ],
+    "ecmSeparateBinding": {
+      "softwareCode": "32440011E004000000",
+      "calibrationId": "Z31L07AB01",
+      "ecuId": "HTH-2021_ECM_UAES_01200001",
+      "catalogSoftwareVersion": "4.00.10",
+      "diagnosticIntroductionDocumentId": "DTA1343324",
+      "faultListDocumentId": "DTA1343330",
+      "definitionSoftwareBindingRecovered": false,
+      "neededEvidence": "Applicable OEM revision or emission/diagnostic table explicitly tying this CALID/F194 to the engine fault list; generic BYD479ZQA/model identity is insufficient."
+    },
+    "packetSent": false
+  },
+  "rejectedMatches": [
+    {
+      "code": "P1A8E73",
+      "sourceUrl": "https://en.17vin.com/automotive_repair_manual_wiring_diagrams/BYD/2114.html",
+      "sourceClass": "secondary_other_model_catalog",
+      "reason": "Tang DM-i is not an original Z9GT BMS033 definition and provides no target software binding.",
+      "meaningImported": false
+    },
+    {
+      "code": "P2BF600",
+      "sourceUrl": "https://static.nhtsa.gov/odi/tsbs/2020/MC-10176962-0001.pdf",
+      "sourceClass": "Mazda manufacturer bulletin retained by NHTSA",
+      "reason": "Exact base/suffix notation P2BF6:00 occurs in a Mazda PCM/exhaust-shutter bulletin with Mazda3 applicability. It is not the BYD BMS ECU/software.",
+      "meaningImported": false
+    },
+    {
+      "code": "P2BAA00",
+      "sourceUrl": "https://bentleymotors-us.erwin-store.com/erwin/download.sealed?articleId=168800",
+      "sourceClass": "other_manufacturer_search_hit_only_not_fetched",
+      "reason": "A Bentley/NOx code-list search hit cannot define an observed BYD BMS code. No sealed or protected resource was fetched in this pass.",
+      "meaningImported": false
+    },
+    {
+      "code": "P2BF900",
+      "sourceUrl": "https://gsitlc.ext.gm.com/gmspo/mode6/pdf/2023/23OBDG03C.pdf",
+      "sourceClass": "GM manufacturer OBD table search_hit_only",
+      "reason": "A GM ECM exhaust-valve table for base P2BF9 is unrelated to this BYD BMS software; no meaning imported.",
+      "meaningImported": false
+    }
+  ],
+  "publicSearchBounds": "captures/diagnostics-isg-followup-20261021/dictionaries/public-query-bounds.json",
+  "limits": [
+    "Finite public search cannot prove a definition or original document does not exist.",
+    "The public iautocloud model/year controls and org174 notices do not prove Z9GT coverage or revision applicability.",
+    "The TIS entry script is retained public primary client code, not authenticated server data.",
+    "No six-code meaning, P2BAE00 resolution, warning association or engine CALID/software join was recovered.",
+    "Other-model contactor headings are kept solely to expose acquisition ambiguity; do not propagate them into product dictionaries.",
+    "The previously audited local corpus was reused; no new firmware extraction, decompilation or opaque binary dictionary decoding was performed."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/source-reports/supported-dtc-20261021.json",
+      "sha256": "6c0abb930f188114d77e9c95dbdb6e96e13d199d185c9a2d76931815ecf19a49",
+      "bytes": 187540,
+      "role": "existing_exact_software_registry_not_a_dictionary"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1",
+      "bytes": 85175,
+      "role": "existing_unqualified_original_Chinese_public_headings"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+      "sha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+      "bytes": 778964,
+      "role": "primary_public_client_static_schema_not_DTC_data",
+      "url": "https://tis.bydauto.com.cn/tis/static/index-a37aa18b.js"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-static-fetch.json",
+      "sha256": "fb980b9e11521ee684224b394203adac3244adc56eb92b8e2c59bfcbf534129c",
+      "bytes": 815,
+      "role": "existing_public_static_acquisition_provenance"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-exact-source-search-20261021.json",
+      "sha256": "91428b1b8594a3c50cfabbbfeea848f2d50f992e5588a67d3d07e70e35dd3d89",
+      "bytes": 31024,
+      "role": "prior_original_page_shortlist_and_software_targets"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-profile.html",
+      "sha256": "2a2c60b7c869561993b08ceae91a1cbaa2c006ece6a9cf0105dd73b38bc4e186",
+      "bytes": 31226,
+      "role": "new_public_page_capture",
+      "url": "https://www.iautocloud.com.cn/car_brand.html?orgId=174"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-notices-page2.html",
+      "sha256": "e3ddd9128769a8be511f12d6119a63953b7c9d1fa5b901e9ffd9f52f6fac4524",
+      "bytes": 14619,
+      "role": "new_public_page_capture",
+      "url": "https://iautocloud.com.cn/notice.html?orgId=174&page=2"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-ecu-version-public-shell.html",
+      "sha256": "3e76bb47e25083c6da6a5f6aa131ab767da63cd2fee3750b871a691c7b1828da",
+      "bytes": 42128,
+      "role": "new_public_page_capture",
+      "url": "https://iautocloud.com.cn/maintion/ecuVersion.html"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-vin-public-shell.html",
+      "sha256": "d942b2262ca9977ef4dc7c574b659cd8a38faa97f216334c18f9bb284b9b6b3a",
+      "bytes": 42526,
+      "role": "new_public_page_capture",
+      "url": "https://iautocloud.com.cn/maintion/vin.html"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-version-notice-15759.html",
+      "sha256": "d40a188c874d3b8ea900048dc36a5e905797c53e941018bdf32c28bf8039825d",
+      "bytes": 10812,
+      "role": "new_public_page_capture",
+      "url": "https://www.iautocloud.com.cn/notice/detail.html?id=15759"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-manual-notice-15760.html",
+      "sha256": "f157379adbf4520443ef3dba930718cefda85e40c7e3a04d145e3659a1097eb3",
+      "bytes": 10812,
+      "role": "new_public_page_capture",
+      "url": "https://www.iautocloud.com.cn/notice/detail.html?id=15760"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-version-notice-15169.html",
+      "sha256": "a4842241f1ad5190e7b4f6eb46667fc87bfd874eba6e5dfd346392907d1be4be",
+      "bytes": 10804,
+      "role": "new_public_page_capture",
+      "url": "https://iautocloud.com.cn/notice/detail.html?id=15169"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-manual-notice-15712.html",
+      "sha256": "94b043c5c8a268cafcd04d8cc188c90b340e1c5414bc839a4ed48097c1185440",
+      "bytes": 10804,
+      "role": "new_public_page_capture",
+      "url": "https://iautocloud.com.cn/notice/detail.html?id=15712"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/byd-commercial-public-landing.html",
+      "sha256": "3388198c86d2c1c36ad196f680f06c0e0ef1c914142dd10b08335fc4c587cd9b",
+      "bytes": 887,
+      "role": "new_public_page_capture",
+      "url": "https://sycwxgs.byd.com/"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/wrong-model-mazda-p2bf6-tsb.pdf",
+      "sha256": "d0377ad995b9e747cd1175d0547cdd291b7bbd676d63ec32ced98e5ac3ea1379",
+      "bytes": 606041,
+      "role": "new_public_page_capture",
+      "url": "https://static.nhtsa.gov/odi/tsbs/2020/MC-10176962-0001.pdf"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/wrong-model-tang-dmi-public-catalog.html",
+      "sha256": "a2d037a122eba73db388ecae7f07b5bb8c7d4083ae7f0339b20e8e3de742a665",
+      "bytes": 1260851,
+      "role": "new_public_page_capture",
+      "url": "https://en.17vin.com/automotive_repair_manual_wiring_diagrams/BYD/2114.html"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-ecu-version-shell.html",
+      "sha256": "a575f8518c217cb3f99928e558a2d3756dbac259f0a8447dd4530c4b282964cc",
+      "bytes": 42502,
+      "role": "new_public_page_capture",
+      "url": "https://www.iautocloud.com.cn/maintion/ecuVersion.html?orgId=174"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/iautocloud-denza-manual-shell.html",
+      "sha256": "0e3698391e0d45ff85cc1e1c99b3286d6543a7ef4ceb356d3ad237d4b7ee543a",
+      "bytes": 68496,
+      "role": "new_public_page_capture",
+      "url": "https://www.iautocloud.com.cn/maintion/manual.html?orgId=174"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/tis-static-dtc-schema-anchors.json",
+      "sha256": "46f6dd82a4783955c4b2df901ed5278be69891ed3a3e7ea6c717d12d274fb15f",
+      "bytes": 2070,
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/public-query-bounds.json",
+      "sha256": "d9facb045169629fbb9345bbb32dddaa3f8d8b68d224549f84808bc8e7508e01",
+      "bytes": 2585,
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/public-fetch-manifest.json",
+      "sha256": "04b16a41d475e8095f5f8b2fa8d216bb072ef03bfbd248649434ab792d14db42",
+      "bytes": 6676,
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/fetch_public_pages.py",
+      "sha256": "0021e215061a2579e6219f25f93351fe9d6824e300ce89eb75ddc0552a660323",
+      "bytes": 2701,
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/dictionaries/build_exact_followup.py",
+      "sha256": "c33fc95b7f95be3981032a40f56f2f51378f0bca8632d69f1d01a85e59efe8ed",
+      "bytes": 16062,
+      "role": "this_pass_reproducibility_evidence"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_exact_dtc_definitions_followup.py"
+}

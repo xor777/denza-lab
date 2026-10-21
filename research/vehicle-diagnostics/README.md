@@ -17,6 +17,28 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   source explains timeout-transcript publication and record order; the retained
   prefix contains 26 complete tuples in 107 of 231 declared UDS bytes, not a
   successful registry. Run `python3 research/vehicle-diagnostics/check_isg_gateway_trace.py`.
+- `isg-failure-report-20261021.json` retains the later completed `isg-trace`
+  plan: both published gateway fragments, 20 native records, 125/231 UDS bytes,
+  30 complete raw tuples and partial tail `183F`. The report is complete but
+  the supported registry is not. Sequence wrap succeeds; the source recorder
+  capacity is 106 records, and its filter can omit mismatched CAN frames.
+  `python3 research/vehicle-diagnostics/check_isg_failure_report.py` verifies
+  wire, frozen source/build, native anchors, health and cleanup offline. The
+  committed `fixtures/isg-failure-report-20261021.txt` also runs without the
+  firmware corpus through `python3 -m unittest discover -s
+  research/vehicle-diagnostics -p 'test_decode_isg_gateway_trace.py'`.
+- `ecm-request-analysis-20261021.json` binds the ECM evidence to software
+  `32440011E004000000` and CALID `Z31L07AB01`. Stock code sends exactly `190A`;
+  the MCU can synthesize NRC13 for a positive response above 920 bytes. The
+  earlier count of 258 would require 1035 bytes as one list, a source-backed
+  hypothesis rather than a proven cause: the ECM first CAN frame is missing.
+  MCU also consumes NRC78, so Android callback silence does not establish CAN
+  silence. Run `python3 research/vehicle-diagnostics/check_ecm_request_analysis.py`.
+- `exact-dtc-definitions-followup-20261021.json` retains Denza ECU-version/manual
+  acquisition leads and BYDTIS field-schema evidence, with zero qualified
+  definitions. The six BMS misses and P2BAE00 conflict remain unresolved; the
+  other-model contactor headings must not fill that gap. Run
+  `python3 research/vehicle-diagnostics/check_exact_dtc_definitions_followup.py`.
 - The supported-DTC evidence also retains `19 03` snapshot-index qualification:
   ECM empty, BMS 41 DTC/record pairs, front/ISG NRC12 and rear NRC31. Use
   `decode_snapshot_index.py` with the corresponding fixed plan. Returned record
@@ -43,6 +65,10 @@ owns only its nonce-named remote JAR. A run requires `--build`, a fixed `--plan`
 `--serial` and fresh `--output`. It never installs an APK or restarts ADB. Full
 acceptance requires both host lifecycle/health proof and wire decoder success;
 an incomplete run stays incomplete even if its process and file were removed.
+The `isg-trace` plan is fixed to identity/format01/190A on ISG, with 15/17-second
+soft/hard bounds and the original four-second request deadline. It separately
+collects bounded result03 report fragments; `GATEWAY_TRACE_CAPTURED` is never
+accepted as `SUPPORTED_READ`. Other plans retain their original failure policy.
 
 - `DtcReadProbe.java` is the original bounded shell-UID research probe for the
   qualified 0x720 → 0x728 transport, retained as evidence rather than built.

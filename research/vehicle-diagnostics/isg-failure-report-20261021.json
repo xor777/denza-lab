@@ -1,0 +1,845 @@
+{
+  "schema": "denza-lab.isg-failure-report-evidence.v1",
+  "date": "2026-10-21",
+  "status": "complete_published_failure_report_incomplete_uds_registry",
+  "historicalVehicleRequests": 3,
+  "replayVehicleOperations": 0,
+  "run": {
+    "plan": "isg-trace",
+    "jarSha256": "566492f9b363c3dd4061604b48ff127e5e62e6bc13ef16cfa9ceab4135ca63ca",
+    "tests": "PASS assertions=246 synthetic_only=true",
+    "exitCode": 0,
+    "jarRemoved": true,
+    "processAbsent": true,
+    "lifecycleVerified": true,
+    "healthStable": true,
+    "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+    "stockPids": {
+      "autoservice": 128,
+      "gbacqservice": 521,
+      "gbdataservice": 523,
+      "com.byd.avc": 4634
+    },
+    "crashEmpty": true,
+    "firmwareHashesMatch": true,
+    "exportIdle": true,
+    "apkInstalled": false
+  },
+  "decoded": {
+    "schema": "denza-lab.isg-gateway-trace-replay.v1",
+    "vehicleOperations": 0,
+    "softwareCode": "48370011E0EA000000",
+    "formatRead": {
+      "statusAvailabilityHex": "09",
+      "formatId": 1,
+      "memoryCountForMask09": 0,
+      "countScope": "DTCs matching request mask09; not the supported-registry length"
+    },
+    "events": [
+      {
+        "seq": 1,
+        "requestHex": "22F194",
+        "requestNanos": 162876534682897,
+        "frames": [
+          {
+            "seq": "1",
+            "target": "7E6",
+            "t_ns": "162876549044512",
+            "raw": "0A07EE0C01010162F19448370011E0EA000000"
+          }
+        ],
+        "duplicates": [
+          {
+            "seq": "1",
+            "target": "7E6",
+            "t_ns": "162876549109051",
+            "raw": "0A07EE0C01010162F19448370011E0EA000000"
+          }
+        ],
+        "responseHex": "62F19448370011E0EA000000",
+        "transport": true,
+        "state": "IDENTITY_MATCH",
+        "projection": false,
+        "replyNanos": 162876549044512,
+        "callbackCount": 1
+      },
+      {
+        "seq": 2,
+        "requestHex": "190109",
+        "requestNanos": 162877049721128,
+        "frames": [
+          {
+            "seq": "2",
+            "target": "7E6",
+            "t_ns": "162877062738666",
+            "raw": "0A07EE06010101590109010000"
+          }
+        ],
+        "duplicates": [
+          {
+            "seq": "2",
+            "target": "7E6",
+            "t_ns": "162877062775897",
+            "raw": "0A07EE06010101590109010000"
+          }
+        ],
+        "responseHex": "590109010000",
+        "transport": true,
+        "state": "FORMAT_READ",
+        "projection": true,
+        "replyNanos": 162877062738666,
+        "callbackCount": 1
+      },
+      {
+        "seq": 3,
+        "requestHex": "190A",
+        "requestNanos": 162877564586589,
+        "frames": [
+          {
+            "seq": "3",
+            "target": "7E6",
+            "t_ns": "162878618839513",
+            "raw": "0A07EEE9020103190AFC02030007E602190A5555555555000D0007E6300000555555555500000007EE10E7590A0918021900040007EE210018350000183600000007EE220000183700001800010007EE233800001806170000030007EE241806160018390000010007EE2500183A0000181A00000007EE260000191001001900000007EE271101001912010000010007EE281803960018049600010007EE290018059600180800010007EE2A9600180996001800010007EE2B3C0000180F190000010007EE2C1810170018170000010007EE2D0018110000181200080007EE2E0000180E00001800000007EE2F160000"
+          },
+          {
+            "seq": "3",
+            "target": "7E6",
+            "t_ns": "162878618943590",
+            "raw": "0A07EE1E0202C147870000000007EE20C1D48700183D0000010007EE2100183E0000183F"
+          }
+        ],
+        "duplicates": [
+          {
+            "seq": "3",
+            "target": "7E6",
+            "t_ns": "162878618873666",
+            "raw": "0A07EEE9020103190AFC02030007E602190A5555555555000D0007E6300000555555555500000007EE10E7590A0918021900040007EE210018350000183600000007EE220000183700001800010007EE233800001806170000030007EE241806160018390000010007EE2500183A0000181A00000007EE260000191001001900000007EE271101001912010000010007EE281803960018049600010007EE290018059600180800010007EE2A9600180996001800010007EE2B3C0000180F190000010007EE2C1810170018170000010007EE2D0018110000181200080007EE2E0000180E00001800000007EE2F160000"
+          },
+          {
+            "seq": "3",
+            "target": "7E6",
+            "t_ns": "162878618952513",
+            "raw": "0A07EE1E0202C147870000000007EE20C1D48700183D0000010007EE2100183E0000183F"
+          }
+        ],
+        "responseHex": null,
+        "transport": true,
+        "state": "GATEWAY_TRACE_CAPTURED",
+        "projection": false,
+        "replyNanos": 162878618943590,
+        "callbackCount": 3
+      }
+    ],
+    "probeEnd": {
+      "reason": "PLAN_DONE",
+      "requests": "3",
+      "completed": "3",
+      "targets": "1",
+      "cleanup": "true",
+      "callbacks": "8",
+      "queued": "0"
+    },
+    "report": {
+      "gatewayResult": 3,
+      "publishedReportComplete": true,
+      "payloadHex": "190AFC02030007E602190A5555555555000D0007E6300000555555555500000007EE10E7590A0918021900040007EE210018350000183600000007EE220000183700001800010007EE233800001806170000030007EE241806160018390000010007EE2500183A0000181A00000007EE260000191001001900000007EE271101001912010000010007EE281803960018049600010007EE290018059600180800010007EE2A9600180996001800010007EE2B3C0000180F190000010007EE2C1810170018170000010007EE2D0018110000181200080007EE2E0000180E00001800000007EE2F160000C147870000000007EE20C1D48700183D0000010007EE2100183E0000183F",
+      "retainedRequestPrefixHex": "190AFC",
+      "traceByteCount": 260,
+      "can": {
+        "nativeRecords": [
+          {
+            "offset": 0,
+            "rawHex": "02030007E602190A5555555555",
+            "counterDelta": 515,
+            "internalSelector": 0,
+            "canIdHex": "7E6",
+            "canBytes": "02190A5555555555"
+          },
+          {
+            "offset": 13,
+            "rawHex": "000D0007E63000005555555555",
+            "counterDelta": 13,
+            "internalSelector": 0,
+            "canIdHex": "7E6",
+            "canBytes": "3000005555555555"
+          },
+          {
+            "offset": 26,
+            "rawHex": "00000007EE10E7590A09180219",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "10E7590A09180219"
+          },
+          {
+            "offset": 39,
+            "rawHex": "00040007EE2100183500001836",
+            "counterDelta": 4,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2100183500001836"
+          },
+          {
+            "offset": 52,
+            "rawHex": "00000007EE2200001837000018",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2200001837000018"
+          },
+          {
+            "offset": 65,
+            "rawHex": "00010007EE2338000018061700",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2338000018061700"
+          },
+          {
+            "offset": 78,
+            "rawHex": "00030007EE2418061600183900",
+            "counterDelta": 3,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2418061600183900"
+          },
+          {
+            "offset": 91,
+            "rawHex": "00010007EE2500183A0000181A",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2500183A0000181A"
+          },
+          {
+            "offset": 104,
+            "rawHex": "00000007EE2600001910010019",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2600001910010019"
+          },
+          {
+            "offset": 117,
+            "rawHex": "00000007EE2711010019120100",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2711010019120100"
+          },
+          {
+            "offset": 130,
+            "rawHex": "00010007EE2818039600180496",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2818039600180496"
+          },
+          {
+            "offset": 143,
+            "rawHex": "00010007EE2900180596001808",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2900180596001808"
+          },
+          {
+            "offset": 156,
+            "rawHex": "00010007EE2A96001809960018",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2A96001809960018"
+          },
+          {
+            "offset": 169,
+            "rawHex": "00010007EE2B3C0000180F1900",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2B3C0000180F1900"
+          },
+          {
+            "offset": 182,
+            "rawHex": "00010007EE2C18101700181700",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2C18101700181700"
+          },
+          {
+            "offset": 195,
+            "rawHex": "00010007EE2D00181100001812",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2D00181100001812"
+          },
+          {
+            "offset": 208,
+            "rawHex": "00080007EE2E0000180E000018",
+            "counterDelta": 8,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2E0000180E000018"
+          },
+          {
+            "offset": 221,
+            "rawHex": "00000007EE2F160000C1478700",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2F160000C1478700"
+          },
+          {
+            "offset": 234,
+            "rawHex": "00000007EE20C1D48700183D00",
+            "counterDelta": 0,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "20C1D48700183D00"
+          },
+          {
+            "offset": 247,
+            "rawHex": "00010007EE2100183E0000183F",
+            "counterDelta": 1,
+            "internalSelector": 0,
+            "canIdHex": "7EE",
+            "canBytes": "2100183E0000183F"
+          }
+        ],
+        "nativeRecordCount": 20,
+        "declaredUdsBytes": 231,
+        "recoveredUdsBytes": 125,
+        "udsPrefixHex": "590A091802190018350000183600001837000018380000180617001806160018390000183A0000181A00001910010019110100191201001803960018049600180596001808960018099600183C0000180F190018101700181700001811000018120000180E000018160000C1478700C1D48700183D0000183E0000183F",
+        "unrecoveredByteCount": 106,
+        "reconstructedUdsComplete": false,
+        "completeRawRecordCount": 30,
+        "records": [
+          {
+            "raw24Hex": "180219",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183500",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183600",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183700",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183800",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180617",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180616",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183900",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183A00",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181A00",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "191001",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "191101",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "191201",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180396",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180496",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180596",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180896",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180996",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183C00",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180F19",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181017",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181700",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181100",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181200",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "180E00",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "181600",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "C14787",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "C1D487",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183D00",
+            "statusHex": "00"
+          },
+          {
+            "raw24Hex": "183E00",
+            "statusHex": "00"
+          }
+        ],
+        "partialDtcTailHex": "183F",
+        "consecutiveFrameCount": 17,
+        "sequenceWrapObserved": true,
+        "acceptedSuccessfulRegistry": false,
+        "displayCodeConversionApplied": false
+      }
+    },
+    "qualifiedFactoryDefinitions": [],
+    "qualifiedWarningDtcLinks": [],
+    "limitations": [
+      "A complete published MCU failure report is not a complete CAN-wire observation.",
+      "Native code omits mismatched-sequence frames from this report; no such mismatch is established by the capture.",
+      "The retained third request-prefix byte is not a byte sent in the two-byte190A request.",
+      "Counter units and flow-control versus first-frame wire chronology remain unqualified.",
+      "This decoder qualifies the observed selector0 and initial TX/flow-control records only; other report variants require separate qualification.",
+      "START has no timestamp; the observable upper bound is13s after the first request (15s plan minus2s required quiet).",
+      "Format01 is raw; reconstructed partial records are not a successful supported registry."
+    ]
+  },
+  "native": {
+    "imageApplicability": "Owner firmware package; installed MCU byte hash not independently proved here.",
+    "ranges": [
+      {
+        "name": "trace-record-builder",
+        "startVA": "0x1515a0",
+        "endExclusiveVA": "0x1516f2",
+        "sha256": "25a0fee16b02abe7d64bcedae182a17722fc534aa0422f638bd32d506f679be5",
+        "instructions": 89
+      },
+      {
+        "name": "multi-frame-receiver",
+        "startVA": "0x152a2c",
+        "endExclusiveVA": "0x152fdc",
+        "sha256": "3341af16a07fa29d54e62137cbfe821cfa5c51515d721b6f573e876d4cd0ec5f",
+        "instructions": 378
+      },
+      {
+        "name": "timeout-transcript-publisher",
+        "startVA": "0x1530fa",
+        "endExclusiveVA": "0x1531fa",
+        "sha256": "32d63002ad6ffc37d092efc5c2358e8f0873029aac465e3924bd2b6323395970",
+        "instructions": 66
+      },
+      {
+        "name": "response-chunker",
+        "startVA": "0x15324e",
+        "endExclusiveVA": "0x1532f2",
+        "sha256": "99a022f7dab2738aed1c80b8e8d90d7cb7b80aca693249b87f68f703d8e229c2",
+        "instructions": 51
+      }
+    ],
+    "instructionAnchors": [
+      {
+        "va": "0x15160e",
+        "bytesHex": "a40787081b62",
+        "assembly": "ld.hu      0x310d88[gp], r1"
+      },
+      {
+        "va": "0x151614",
+        "bytesHex": "4d0a",
+        "assembly": "add        0xd, r1"
+      },
+      {
+        "va": "0x151616",
+        "bytesHex": "010691fa",
+        "assembly": "addi       -0x56f, r1, r0"
+      },
+      {
+        "va": "0x15161a",
+        "bytesHex": "a605",
+        "assembly": "blt        0x15161e"
+      },
+      {
+        "va": "0x15161c",
+        "bytesHex": "d565",
+        "assembly": "br         0x1516e6"
+      },
+      {
+        "va": "0x152e66",
+        "bytesHex": "ea45",
+        "assembly": "bne        0x152ef2"
+      },
+      {
+        "va": "0x152ef2",
+        "bytesHex": "d575",
+        "assembly": "br         0x152fdc"
+      },
+      {
+        "va": "0x152f0e",
+        "bytesHex": "bfff92e6",
+        "assembly": "jarl       0x1515a0, lp"
+      }
+    ],
+    "recorderBound": {
+      "recordBytes": 13,
+      "strictUpperByteBound": 1391,
+      "maxRecordsFromZero": 106,
+      "maxRecordedBytes": 1378,
+      "observedRecords": 20,
+      "recordCapacityReached": false
+    },
+    "mismatchedSequenceFramesOmitted": true,
+    "mismatchObserved": false,
+    "rootCauseQualified": false
+  },
+  "priorPrefixComparison": {
+    "completeTuplesCompared": 26,
+    "equal": true,
+    "oldPublishedReportWasComplete": false
+  },
+  "independentReview": {
+    "verdicts": [
+      "PASS: no remaining collector or host-runner pre-live blocker found",
+      "Complete gateway result03 failure report retained; bounded125/231byte positive-response prefix only, no complete ISG registry or root cause established.",
+      "PASS: no actionable unresolved decoder finding in this snapshot"
+    ],
+    "invalidDecoderMutationCases": 12,
+    "allRejected": true,
+    "reviewerVehicleOperations": 0
+  },
+  "nextDiscriminator": "A separately qualified passive CAN-wire source is needed to distinguish missing, mismatched or unrecorded frames; do not infer the cause from this filtered MCU report.",
+  "qualifiedFactoryDefinitions": [],
+  "qualifiedWarningDtcLinks": [],
+  "sources": [
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/manifest.json",
+      "bytes": 9438,
+      "sha256": "4f5205ecede35198bdc7a46e4b3ee6ed3e3a6b8474ef8e88436377109e0b12b5"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/plan.json",
+      "bytes": 6462,
+      "sha256": "0b1f0684c326299ed9eadf75dfa85815bc6856f79fcf6ab18674aba8c56050fd"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "bytes": 9477,
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "bytes": 27516,
+      "sha256": "67bd125cbbcfa76efbe564c82927a636b2d7bc9e07fbbc11dec50a21a6988f8e"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "bytes": 2662,
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "bytes": 29991,
+      "sha256": "96484587919a63f9af91da1c03637fdd5b7422324a962914b05ecc3e183d4be7"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "bytes": 30582,
+      "sha256": "65547a3b377346f1cf525b1be59e3c1cdcad5d1cf130174fc98c5ff9b6c7cdd2"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/build-02/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "bytes": 9101,
+      "sha256": "567d7c21b9d10f72e8546962557d77d896899967e6780aa9257f43f57cc87627"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/experiment-plan.json",
+      "bytes": 1518,
+      "sha256": "323a8f08f2d0b01b2714c1841f376761f3a4feee700c7626fd785e91a3549ab9"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/host-source.py",
+      "bytes": 13653,
+      "sha256": "c086250984f3fc124ef6c62ad77dd972acd608215ffb35437741948bbe11b741"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/app-hash.txt",
+      "bytes": 152,
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/app-path.txt",
+      "bytes": 94,
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/crash.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/export-leases.txt",
+      "bytes": 7,
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/export-threads.txt",
+      "bytes": 322,
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/firmware-hashes.txt",
+      "bytes": 298,
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/manager.txt",
+      "bytes": 14,
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/park.txt",
+      "bytes": 47,
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/processes.txt",
+      "bytes": 7270,
+      "sha256": "610769ed409381cfda35b3d2805674724cdf691bf7433b9e1db29af7c760bacc"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/profile.txt",
+      "bytes": 4,
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/protocol.txt",
+      "bytes": 6,
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/sockets.txt",
+      "bytes": 17909,
+      "sha256": "a1fffa25ad6e259a273814e868c173f82b03409934f8d3ff55f37fc4351e39d4"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/speed.txt",
+      "bytes": 47,
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/postflight/status.json",
+      "bytes": 1407,
+      "sha256": "0acad5c02694e64c53c663e470bf30495396c286d652d818321207da063703ac"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/app-hash.txt",
+      "bytes": 152,
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/app-path.txt",
+      "bytes": 94,
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/crash.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/export-leases.txt",
+      "bytes": 7,
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/export-threads.txt",
+      "bytes": 322,
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/firmware-hashes.txt",
+      "bytes": 298,
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/manager.txt",
+      "bytes": 14,
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/park.txt",
+      "bytes": 47,
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/processes.txt",
+      "bytes": 7270,
+      "sha256": "b86403c195256d5f1d1be4d7ab4c06212583517bcc1e799c77ce2135c1692dc8"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/profile.txt",
+      "bytes": 4,
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/protocol.txt",
+      "bytes": 6,
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/sockets.txt",
+      "bytes": 18417,
+      "sha256": "88372aa5f396a146cf6b1a3ad998595711e37717b1f0636fdfb1628eda69020f"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/speed.txt",
+      "bytes": 47,
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/preflight/status.json",
+      "bytes": 1407,
+      "sha256": "d9f8e32fe34a3b8f33b475f8b875c96808effd2271fe447d7f4b196ba3a75b32"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/probe.txt",
+      "bytes": 3317,
+      "sha256": "5ac065485f2d898752d0e2593f27f36fa9aa0d3c72a1971587e91e583280306a"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/run.json",
+      "bytes": 4126,
+      "sha256": "7f214f4b080aed27c3e2aae96cbc4bd673c0b85d7142c8224f91573e4bf202c8"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/verify-jar-absent.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/verify-jar-absent.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/verify-process-absent.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/verify-process-absent.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/review/decoder-final-audit.json",
+      "bytes": 3366,
+      "sha256": "4196a8e03bc2cac13c893b7d3d9cc52d4dd5d91d37176ee1f30a23e7b50a023b"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/review/live-artifact-audit.json",
+      "bytes": 8286,
+      "sha256": "cad386166f4c4689c80836269bbe671fa58c22b126329186d8341312f992f3e0"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/review/prelive-build02-audit.json",
+      "bytes": 1402,
+      "sha256": "653ac334b4458267b70af59157e43aabd356cc3cfaf97371776a8e0e7442de8c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-trace/native-new-ranges.asm",
+      "bytes": 18007,
+      "sha256": "376ea2b6cba22c86c719e01eff08cd8a41a7efea9a850f54f4a090cf3f8cff7c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-trace/native-ranges.asm",
+      "bytes": 26864,
+      "sha256": "a52c669b5ef23aba00f9572906b7103b5ade136e54f482384ccfbf7f75106744"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_isg_failure_report.py",
+      "bytes": 8955,
+      "sha256": "1aed666d62b1bed9ad9b23f6ad28a9b8ec6396561729850708b0698ae332b399"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_isg_gateway_trace.py",
+      "bytes": 14061,
+      "sha256": "aa602c3d2303246545f541dbb3eee09d4eee457b840eaff53800a1fc13181fe8"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
+      "bytes": 30253,
+      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933"
+    },
+    {
+      "path": "research/vehicle-diagnostics/fixtures/isg-failure-report-20261021.txt",
+      "bytes": 3317,
+      "sha256": "5ac065485f2d898752d0e2593f27f36fa9aa0d3c72a1971587e91e583280306a"
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-gateway-trace-20261021.json",
+      "bytes": 14950,
+      "sha256": "750a02abbc6f3df80b9115c3b9f9a7b589245f1648d2dc67a4a58d06893ca08b"
+    },
+    {
+      "path": "research/vehicle-diagnostics/test_decode_isg_gateway_trace.py",
+      "bytes": 5547,
+      "sha256": "1ac1c7eb2c4017650d70d7a0985c416384f8bb7fe4b94d44946cb755019ac78a"
+    }
+  ]
+}

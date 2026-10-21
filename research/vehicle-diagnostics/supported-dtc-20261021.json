@@ -5233,7 +5233,7 @@
     },
     {
       "path": "tools/vehicle-diagnostics/run_supported_dtc_probe.py",
-      "sha256": "dd6730d265cd0c30df0a0290ebda8ef3be764c1068a591c93dbc3db3b7e4fd3f"
+      "sha256": "c086250984f3fc124ef6c62ad77dd972acd608215ffb35437741948bbe11b741"
     }
   ]
 }

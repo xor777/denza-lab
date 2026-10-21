@@ -287,8 +287,56 @@ public final class SupportedDtcReadProbeTest {
             check(!f.line("SNAPSHOT_RECORD_EMPTY seq=")&&!f.line("SNAPSHOT_RECORD seq="),"invalid empty shape no success projection "+response);
         }
     }
+    // First fragment is retained vehicle evidence. The four-byte continuation is synthetic.
+    static byte[] retainedIsgTraceFirst() { return unhex("0A07EEE9020103190A9F02030007E602190A5555555555000C0007E6300000555555555500000007EE10E7590A0918021900030007EE210018350000183600060007EE220000183700001800010007EE233800001806170000000007EE241806160018390000000007EE2500183A0000181A00000007EE260000191001001900000007EE271101001912010000010007EE281803960018049600000007EE290018059600180800010007EE2A9600180996001800010007EE2B3C0000180F190000040007EE2C1810170018170000000007EE2D0018110000181200000007EE2E0000180E00001800010007EE2F160000"); }
+    static Fake atTrace() { Fake f=new Fake("isg-trace");f.ready();atList(f,1,9);return f; }
+    static void isgTraceCapture() {
+        byte[] first=retainedIsgTraceFirst(),second=frame(0x7E6,2,2,0,unhex("01020304"));
+        Fake f=atTrace();f.receive(first);f.receive(Arrays.copyOf(first,first.length+19));
+        check(f.e.open&&!f.e.done&&f.e.completed==2,"trace first is not a successful UDS exchange");
+        f.receive(second);f.receive(second);f.advance(500);
+        check("PLAN_DONE".equals(f.finish)&&f.e.completed==3&&f.e.targetsFinished==1,"trace collection completes lifecycle");
+        check(f.line("GATEWAY_TRACE seq=3 target=7E6 result=03 frames=2 payload_bytes=237 trace_bytes=234 request_prefix=190A9F"),"separate failure transcript exact joined lengths");
+        check(f.line("state=GATEWAY_TRACE_CAPTURED")&&!f.line("SUPPORTED seq=3")&&!f.line("RESPONSE seq=3"),"trace never promotes to UDS registry");
+        f.advance(100000);check(f.sent.size()==3,"trace no retry or extra request");
+        f=atTrace();f.receive(first);f.advance(4000);
+        check(f.line("state=REQUEST_TIMEOUT")&&!f.line("GATEWAY_TRACE seq="),"missing fragment uses original deadline and stays partial");
+        f.advance(100000);check(f.sent.size()==3,"partial trace no retry");
+        f=atTrace();answer(f,supported(9,2));f.advance(500);
+        check("PLAN_DONE".equals(f.finish)&&f.line("state=SUPPORTED_READ"),"ordinary successful response remains valid");
+        f=new Fake("isg-trace");f.ready();atList(f,0,9);
+        check(f.sent.size()==2&&f.line("state=FORMAT_MISMATCH"),"trace exact format01 gate before190A");
+        for(int k=0;k<9;k++) {
+            f=atTrace();byte[] a=first.clone(),b=second.clone();
+            if(k==0)a[8]=3; // wrong echoed subfunction
+            if(k==1)a[3]=(byte)232; // short nonfinal chunk
+            if(k==2)a[4]=17; // frame count bound
+            if(k==3)a[2]--; // foreign route
+            if(k==4)a[6]=4; // other gateway failure still refused
+            if(k==5)b[4]=3; // changed fragment count
+            if(k==6)b[5]=1; // changed nonduplicate first fragment
+            if(k==7)b=frame(0x7E6,2,2,0,new byte[231]);
+            if(k==8)b=frame(0x7E6,2,2,0,new byte[0]);
+            f.receive(a);if(!f.e.done)f.receive(b);
+            check(f.e.done&&f.finish!=null&&!f.line("GATEWAY_TRACE seq="),"bad trace cannot complete "+k);
+            f.advance(100000);check(f.sent.size()==3,"bad trace cannot dispatch again "+k);
+        }
+        f=atTrace();f.receive(second);check(f.e.done&&!f.line("GATEWAY_TRACE seq="),"continuation before first refused");
+        f=atTrace();f.receive(frame(0x7E6,2,1,1,unhex("590A09180219")));f.receive(first);
+        check("TRACE_SHAPE_OR_SEQUENCE".equals(f.finish)&&!f.line("GATEWAY_TRACE seq="),"ordinary partial answer cannot turn into failure transcript");
+        f=atTrace();answer(f,unhex("7F1978"));f.receive(first);
+        check("TRACE_SHAPE_OR_SEQUENCE".equals(f.finish),"trace capture conservatively rejects mixed pending and failure transcript");
+        f=atTrace();f.receive(first);byte[] altered=first.clone();altered[20]^=1;f.receive(altered);
+        check("TRACE_SHAPE_OR_SEQUENCE".equals(f.finish),"altered duplicate cannot replace trace");
+        f=atTrace();f.receive(first);f.e.received(second,f.now+4_000_000_000L);
+        check("LATE_RESPONSE".equals(f.finish),"trace cannot extend original request deadline");
+        f=atTrace();for(int i=0;i<65&&!f.e.done;i++)f.receive(first);
+        check("EXCHANGE_CALLBACK_BOUND".equals(f.finish),"trace duplicates remain bounded");
+        f=new Fake("isg-observe");f.ready();atList(f,1,9);f.receive(first);
+        check("GATEWAY_SHAPE".equals(f.finish),"old observation plan retains original strict rejection");
+    }
     public static void main(String[] args) {
-        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();
+        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();isgTraceCapture();
         System.out.println("PASS assertions="+assertions+" synthetic_only=true");
     }
 }

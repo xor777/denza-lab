@@ -10,6 +10,7 @@ import android.os.SystemClock;
 import dev.denza.apps.platform.shell.ShellProxyBootstrap;
 import dev.denza.apps.feature.diagnostics.bus.DiagnosticFrameAssembler;
 import java.io.RandomAccessFile;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Proxy;
 import java.nio.channels.FileLock;
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ public final class SupportedDtcReadProbe {
         }
         int requestsPerTarget() { return readRecord?4:3; }
         int maxRequests() { return targets.length*requestsPerTarget(); }
+        boolean collectsTrace() { return "isg-trace".equals(name); }
     }
     static final Target ECM = new Target("ECM", 0x7E0, "32440011E004000000");
     static final Target BMS = new Target("BMS", 0x7E7, "4A520011E00D00047B");
@@ -64,6 +66,7 @@ public final class SupportedDtcReadProbe {
         if ("drives".equals(name)) return new Plan(name,65_000,FMCU,ISG,SMCU,SMCU3);
         if ("rear-drives".equals(name)) return new Plan(name,35_000,SMCU,SMCU3);
         if ("isg-observe".equals(name)) return new Plan(name,15_000,ISG);
+        if ("isg-trace".equals(name)) return new Plan(name,15_000,ISG);
         if ("snapshot-ecm-bms".equals(name)) return new Plan(name,35_000,0x03,ECM,BMS);
         if ("snapshot-drives".equals(name)) return new Plan(name,65_000,0x03,FMCU,ISG,SMCU,SMCU3);
         if ("bms-snapshot-record".equals(name)) return new Plan(name,25_000,0x03,true,BMS);
@@ -111,6 +114,8 @@ public final class SupportedDtcReadProbe {
         byte[] lastSource;
         long lastSourceAt;
         long deadline;
+        final ByteArrayOutputStream tracePayload=new ByteArrayOutputStream();
+        int traceTotal,traceNext=1;
         Engine(Plan plan,Host host) { this.plan=plan;this.host=host; }
         Target target() { return plan.targets[targetIndex]; }
         String id(int address) { return String.format("%03X",address); }
@@ -143,6 +148,7 @@ public final class SupportedDtcReadProbe {
                 if(!known || requests>=plan.maxRequests())
                     throw new IllegalStateException("fixed plan");
                 assembler.begin(target().address,uds);currentFrames.clear();exchangeCallbacks=0;
+                tracePayload.reset();traceTotal=0;traceNext=1;
                 sentAt=host.nanos();open=true;requests++;seq++;
                 final int currentSeq=seq;
                 host.later(()->{if(!done&&open&&seq==currentSeq)end("REQUEST_TIMEOUT",true);},REQUEST_MS);
@@ -167,6 +173,25 @@ public final class SupportedDtcReadProbe {
         void duplicate(int origin,int address,byte[] frame,long at) {
             host.out("DUPLICATE seq="+origin+" target="+id(address)+" t_ns="+at+" raw="+hex(frame));
         }
+        void trace(byte[] source,byte[] frame,long at,int count,int index,int length,int offset) {
+            if((traceTotal==0&&!currentFrames.isEmpty()) || index!=traceNext || (traceTotal!=0&&count!=traceTotal)
+                    || length>(index==1?233:230) || (index<count&&length!=(index==1?233:230))
+                    || (index==1&&(length<3||(frame[6]&255)!=3||(frame[7]&255)!=0x19||(frame[8]&255)!=0x0A))
+                    || (index>1&&length==0) || tracePayload.size()+length>4095) {
+                reject(source,at,"TRACE_SHAPE_OR_SEQUENCE");return;
+            }
+            traceTotal=count;traceNext++;
+            currentFrames.add(frame);tracePayload.write(frame,offset,length);
+            host.out("GATEWAY_TRACE_FRAME seq="+seq+" target="+id(target().address)+" t_ns="+at+" raw="+hex(frame));
+            if(index==count) {
+                byte[] joined=tracePayload.toByteArray();
+                host.out("GATEWAY_TRACE seq="+seq+" target="+id(target().address)+" result=03 frames="+count
+                    +" payload_bytes="+joined.length+" trace_bytes="+(joined.length-3)
+                    +" request_prefix="+hex(Arrays.copyOf(joined,3))+" raw="+hex(joined));
+                // This is a complete gateway failure report, never an accepted UDS registry.
+                end("GATEWAY_TRACE_CAPTURED",true);
+            }
+        }
         void received(byte[] bytes,long at) {
             if(done)return;
             lastSource=bytes;lastSourceAt=at;
@@ -184,6 +209,10 @@ public final class SupportedDtcReadProbe {
             int reply=((frame[1]&255)<<8)|(frame[2]&255);
             if(reply!=target().address+8||at<sentAt) { reject(bytes,at,"UNEXPECTED_DIAGNOSTIC_TRAFFIC");return; }
             if(at>=sentAt+REQUEST_MS*1_000_000L) { reject(bytes,at,"LATE_RESPONSE");return; }
+            if(plan.collectsTrace()&&target()==ISG&&phase==2&&format==1
+                    &&(traceTotal!=0||(index==1&&(frame[6]&255)==3&&length>0))) {
+                trace(bytes,frame,at,count,index,length,offset);return;
+            }
             if(index==1) {
                 int result=frame[6]&255;
                 if((result==1||result==2)&&length==0) { reject(bytes,at,"FRAME_SHAPE");return; }
@@ -227,7 +256,7 @@ public final class SupportedDtcReadProbe {
                 availability=uds[2]&255;format=uds[3]&255;
                 host.out("FORMAT seq="+seq+" target="+id(target().address)+" format="+String.format("%02X",format)
                     +" status_available="+String.format("%02X",availability)+" mask09_count="+(((uds[4]&255)<<8)|(uds[5]&255)));
-                if(plan.readRecord&&format!=0) { end("FORMAT_MISMATCH",true);return; }
+                if((plan.readRecord&&format!=0)||(plan.collectsTrace()&&format!=1)) { end("FORMAT_MISMATCH",true);return; }
                 end("FORMAT_READ",false);return;
             }
             if(phase==3&&plan.readRecord) {
