@@ -1,0 +1,538 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "vehicle": "Z9GT AutoType170",
+  "fluidContext": "Owner last reported fluid present; no emptying or refill requested in these tests.",
+  "runs": [
+    {
+      "name": "run-01",
+      "startedUtc": "2026-10-21T14:05:54.791994+00:00",
+      "endedUtc": "2026-10-21T14:07:27.787128+00:00",
+      "durationSeconds": 90,
+      "registrationReturned": true,
+      "registrationToEndGetSeconds": 90.00534362,
+      "baselineToRegistrationMs": 32.803693,
+      "readyOnDeviceNs": null,
+      "observation": {
+        "callbacks": [],
+        "callbackCount": 0,
+        "distinctValues": [],
+        "changes": 0,
+        "getValues": [
+          0,
+          0
+        ],
+        "heartbeatCount": 18,
+        "doorCallbacks": [],
+        "realLowFluidQualified": false
+      },
+      "warningReads": [
+        {
+          "phase": "before_register",
+          "elapsedNs": 168386276926379,
+          "value": 0
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168476315073692,
+          "value": 0
+        }
+      ],
+      "doorReads": [],
+      "jarSha256": "8352d830fdcb6347d88d56779ba7ab814a97dbcf72c34bd278586daafc31e405",
+      "appSha256": "8d3e6564f77724311d33ed3055983351e9e47dee98c8f11193331befde43f1a3",
+      "guardAndFirmwareMatched": true,
+      "stockPidsStable": true,
+      "crashBuffersEmpty": true,
+      "processAbsent": true,
+      "ownTemporaryJarRemoved": true,
+      "ownerGestureTiming": "Owner opened/closed a door but was unsure it fell within this window."
+    },
+    {
+      "name": "run-02",
+      "startedUtc": "2026-10-21T14:11:44.763032+00:00",
+      "endedUtc": "2026-10-21T14:13:47.634176+00:00",
+      "durationSeconds": 120,
+      "registrationReturned": true,
+      "registrationToEndGetSeconds": 120.00559293,
+      "baselineToRegistrationMs": 33.824308,
+      "readyOnDeviceNs": 168736160534939,
+      "observation": {
+        "callbacks": [
+          {
+            "sequence": 1,
+            "elapsedNs": 168779081944864,
+            "value": 319
+          },
+          {
+            "sequence": 2,
+            "elapsedNs": 168793081996557,
+            "value": 125
+          },
+          {
+            "sequence": 3,
+            "elapsedNs": 168801614808250,
+            "value": 0
+          }
+        ],
+        "callbackCount": 3,
+        "distinctValues": [
+          0,
+          125,
+          319
+        ],
+        "changes": 2,
+        "getValues": [
+          0,
+          319,
+          319,
+          0
+        ],
+        "heartbeatCount": 24,
+        "doorCallbacks": [
+          {
+            "sequence": 1,
+            "elapsedNs": 168779082286095,
+            "area": 1,
+            "state": 1
+          },
+          {
+            "sequence": 2,
+            "elapsedNs": 168791110146634,
+            "area": 1,
+            "state": 0
+          }
+        ],
+        "realLowFluidQualified": false
+      },
+      "warningReads": [
+        {
+          "phase": "before_register",
+          "elapsedNs": 168736125799323,
+          "value": 0
+        },
+        {
+          "phase": "door_callback",
+          "elapsedNs": 168779082517172,
+          "value": 319
+        },
+        {
+          "phase": "door_callback",
+          "elapsedNs": 168791111639019,
+          "value": 319
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168856165216561,
+          "value": 0
+        }
+      ],
+      "doorReads": [
+        {
+          "phase": "after_register",
+          "elapsedNs": 168736160113477,
+          "area": 1,
+          "state": 0
+        },
+        {
+          "phase": "after_register",
+          "elapsedNs": 168736160218093,
+          "area": 2,
+          "state": 0
+        },
+        {
+          "phase": "after_register",
+          "elapsedNs": 168736160388862,
+          "area": 3,
+          "state": 0
+        },
+        {
+          "phase": "after_register",
+          "elapsedNs": 168736160508554,
+          "area": 4,
+          "state": 0
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168856165748177,
+          "area": 1,
+          "state": 0
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168856165973792,
+          "area": 2,
+          "state": 0
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168856166147254,
+          "area": 3,
+          "state": 0
+        },
+        {
+          "phase": "before_unregister",
+          "elapsedNs": 168856166297177,
+          "area": 4,
+          "state": 0
+        }
+      ],
+      "jarSha256": "e1e7ef1874a4b59e29a1ab604f8718635535ca6d3cc75ded0e5450ab80df2a27",
+      "appSha256": "ef07f3a3811da1b5486e6f57504f4df74d1a63afef1c6e79b8b60e3fc72ad016",
+      "guardAndFirmwareMatched": true,
+      "stockPidsStable": true,
+      "crashBuffersEmpty": true,
+      "processAbsent": true,
+      "ownTemporaryJarRemoved": true,
+      "ownerGestureTiming": "Use timestamped door callback evidence, not an assumed user-message timestamp."
+    }
+  ],
+  "retainedDictionary": {
+    "13F": "\u8f66\u4f53\u72b6\u6001\uff08\u5929\u7a97\u3001\u8f66\u95e8\u3001\u524d\u8231\u76d6\u540e\u5907\u7bb1\u3001\u8f66\u7a97\u3001\u5b89\u5168\u5e26\uff09",
+    "7D": "\u672a\u68c0\u6d4b\u5230\u94a5\u5319\uff0c\u8bf7\u786e\u8ba4\u94a5\u5319\u662f\u5426\u5728\u8f66\u5185",
+    "1DD": "\u8bf7\u52a0\u6ce8\u6d17\u6da4\u6db2"
+  },
+  "liveQualification": {
+    "typedWarningCallbacksObserved": true,
+    "sameDeviceDoorControlObserved": true,
+    "warningSequenceIncludingInitialGet": [
+      0,
+      319,
+      125,
+      0
+    ],
+    "washerTriggerQualified": false,
+    "nativeProducerIdentified": false,
+    "n9MissingWarningCauseEstablished": false
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/build.json",
+      "sha256": "e45c6ebef4f51cfa9eaee1f5cc7c40522efa587f27402dfa3a544365f0f2c0c0"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/probe.jar",
+      "sha256": "8352d830fdcb6347d88d56779ba7ab814a97dbcf72c34bd278586daafc31e405"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/source/AbsBYDAutoInstrumentListener.java",
+      "sha256": "1a1dee1537b732a2d1522dab536c804d3ccb94b3674170f5bcbc8f78c57e5ea2"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/source/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/source/WasherWarningEventProbe.java",
+      "sha256": "68043b8d3469de7f3f53e197d5c8f345df6a25963d7a2c49edd5072998872a8c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/source/run_supported_dtc_probe.py",
+      "sha256": "b9962fd3c89156ba2f357463feba88c869c007a4e9d0890bb56b77924055590f"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-01/source/washer_warning_event_probe.py",
+      "sha256": "d442d9e6d143e55945d4fccea96c8390a69054052dccc3f4d92d0281249dbefe"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/build.json",
+      "sha256": "86d83570a9f5ae71c62e0068606c8339e9bf5cd740fcd01fb61dde9cca78f7c1"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/probe.jar",
+      "sha256": "e1e7ef1874a4b59e29a1ab604f8718635535ca6d3cc75ded0e5450ab80df2a27"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/source/AbsBYDAutoInstrumentListener.java",
+      "sha256": "daa87e92c2cd499bf5131eea68884098f4b85c99ee911bcd4698d35a3bd7eb29"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/source/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/source/WasherWarningEventProbe.java",
+      "sha256": "8939f03a5fd44ee65817973040a9386ec8f3b87af31479432b896f3d4a44cc04"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/source/run_supported_dtc_probe.py",
+      "sha256": "b9962fd3c89156ba2f357463feba88c869c007a4e9d0890bb56b77924055590f"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/build-02/source/washer_warning_event_probe.py",
+      "sha256": "661ae7bfb82ba4245005e364492a27206bb8fd063070f0a76499d34f56e5f624"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/app-hash.txt",
+      "sha256": "386977227cfa4f4b650d8c57b4ae6025852abf3eb3681a0fad2dcff11e15f2cf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/app-path.txt",
+      "sha256": "0db8ba978a0840818616e74d780e1b6ccd8ee384a8c53975b88457882db844bd"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/processes.txt",
+      "sha256": "8d48d9028c83f2864585d7bf3b94ae1376539369937eac32237a620d528eda0b"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/sockets.txt",
+      "sha256": "7ff706889353c5b9cb12dcf5f1afa2495064da15abd147d4363c1a284ca66fc9"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/postflight/status.json",
+      "sha256": "dff5be2ae8dcf45cb5df010333215fe44eb49524d98f70a7e0f4c794c69422f9"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/app-hash.txt",
+      "sha256": "386977227cfa4f4b650d8c57b4ae6025852abf3eb3681a0fad2dcff11e15f2cf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/app-path.txt",
+      "sha256": "0db8ba978a0840818616e74d780e1b6ccd8ee384a8c53975b88457882db844bd"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/processes.txt",
+      "sha256": "8558b51002ed305f3f15e307415a4148505a06826a68d01ac5ceefd4ebf4b11c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/sockets.txt",
+      "sha256": "7fbf78a7265b1ab6f17a87fd73bc645a6705522081b8b7da7055cdade7ccfd6e"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/preflight/status.json",
+      "sha256": "71829ea2a1758b06a89d2f6d67fec712704882c050cbece9f4f82be9f530aba8"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/run.json",
+      "sha256": "eeac1617ea243a01296baf9176e19a5c2a4d8cef495a80513b20b726df4accf6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-01/stdout.txt",
+      "sha256": "aa40b7fecc9776c38676953c40ce6c3bb33e8805fbc58ac95be9e80cafdfe9d6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/app-hash.txt",
+      "sha256": "425c5b85b85ee9834ae947139c63f156d32f45309b56fa857dd718a9c0e5b907"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/app-path.txt",
+      "sha256": "1b8897c6044ea30d04d2feac80791887cf697c21e73433dadd0dfdaa0d0cfb1d"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/processes.txt",
+      "sha256": "192511adf59353a5f145415a0918384abcebc4df743875e495047e779db7a89e"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/sockets.txt",
+      "sha256": "eb95cc190caa07827addce90212af27ed9ed407eafc0e732ee1ecc478418fb8f"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/postflight/status.json",
+      "sha256": "63c69b3d5957604e39e08a33cfaa71ea6d328f8f2236c1ce0c8f0d743b05bf7c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/app-hash.txt",
+      "sha256": "425c5b85b85ee9834ae947139c63f156d32f45309b56fa857dd718a9c0e5b907"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/app-path.txt",
+      "sha256": "1b8897c6044ea30d04d2feac80791887cf697c21e73433dadd0dfdaa0d0cfb1d"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/processes.txt",
+      "sha256": "f9748cc9052202ce5caf1bb9f2779eb039f4362cf7aa53ce85c4fd1f7d4499c1"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/sockets.txt",
+      "sha256": "04745a157876e4e090c9d3748e6599aed0c60c74a7776b2b2b281e5e8491dda2"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/preflight/status.json",
+      "sha256": "c96c73e166931ca3d5cd69f6daf955cab098ec38ab07803687503b70ac4ccfa7"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/run.json",
+      "sha256": "05d766ee814a507647c98479d70349381aca12a9976077b1a1f8ffef42446465"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/direct-listener/run-02/stdout.txt",
+      "sha256": "e09c0c4c89ecfff50cf4ede75f905ecc66de6ebc33cd5a740b4611c280132c05"
+    },
+    {
+      "path": "research/vehicle-diagnostics/washer-direct-listener-source-20261021.json",
+      "sha256": "92ca0cc525675705e077adaf5595927aa9920b8b899885b4eac1096602985076"
+    },
+    {
+      "path": "tools/test_washer_warning_event_probe.py",
+      "sha256": "9bfb00c1c1e95c1491b88888c15e33bff840190332cdc18e8c4e5e053b8b527c"
+    },
+    {
+      "path": "tools/washer_warning_event_probe.py",
+      "sha256": "661ae7bfb82ba4245005e364492a27206bb8fd063070f0a76499d34f56e5f624"
+    }
+  ],
+  "interpretation": [
+    "Registration returning void plus a running Looper is not a native enable ACK or proof that onTextInfoChanged delivered.",
+    "Door callbacks are a same-device scalar-listener control, not a substitute for an actual selected-warning transition.",
+    "A zero selected warning does not establish fluid OK, and no callback does not establish the car never forms1DD.",
+    "GETs during door callbacks are separately timestamped cache reads, not atomic CAN snapshots or a complete warning history.",
+    "These temporary shell-UID probes do not qualify ordinary app-UID access, background/reconnect reliability, or low-fluid delivery.",
+    "No physical low-fluid1DD test was made. No application notification was installed or left running."
+  ]
+}

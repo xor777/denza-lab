@@ -30,7 +30,8 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Turn signals: shell-UID listener on `0x1330002C` (raw lever phase, never names a side) and `0x38A0002C` (lamps: `1` off, `2` left, `4` right, `6` hazard) behind `VehicleSignalHub` (`TurnSignalEventProtocol.kt`) | live | 2026-09-04 | [Targeted turn-signal events](#targeted-turn-signal-events-2026-09-04) |
 | Refuted: the stock AVC window alone opens a Denza camera (window-only contract). Since 2026-09-23 Show needs AVC's card **and** the lamps on that side, and the lamps leaving close it | refuted | 2026-09-23 | [Firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23) |
 | Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size; Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car); [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
-| Washer goal is only a reliable refill warning, not measured level: OEM `1DD` is sufficient if its low-fluid delivery is qualified. MCU receives the selected enum; native name is `DOMAIN_261_10_21_TEXT_INFO`, not a concrete sender identity. CDC/INS/ZCU diagnostic routes do not establish warning ownership. No real low-fluid1DD observed; N9 saved states all13F, liquid-present Z9GT0. Service reports sensors on both cars; direct level DID is optional and no draining requested | firmware receive path proved; producer and low-fluid delivery unverified | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21); [Receiver and presentation](#washer-receiver-and-presentation-boundary-2026-10-21); [Producer boundary](#washer-warning-producer-boundary-2026-10-21) |
+| Washer goal is only a reliable refill warning, not measured level: OEM `1DD` is sufficient if its low-fluid delivery is qualified. MCU receives the selected enum; native name is `DOMAIN_261_10_21_TEXT_INFO`, not a concrete sender identity. CDC/INS/ZCU diagnostic routes do not establish warning ownership. No real low-fluid1DD observed; N9 saved states all13F, liquid-present Z9GT baseline0. Service reports sensors on both cars; direct level DID is optional and no draining requested | firmware receive path proved; producer and low-fluid delivery unverified | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21); [Receiver and presentation](#washer-receiver-and-presentation-boundary-2026-10-21); [Producer boundary](#washer-warning-producer-boundary-2026-10-21) |
+| Z9GT typed `onTextInfoChanged` works from a finite shell process: baseline0 then callbacks13F→7D→0, with independently recorded LF door opening/closing. First90s run was silent; owner gesture timing there is uncertain. No initial replay guarantee, physical low-fluid1DD, ordinary app-UID or persistent/background acceptance. Both temporary processes unregistered/exited; jars removed and health stable | live shell callback qualification; washer trigger open | 2026-10-21 | [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) |
 | Empty N9 warning audit:557 delivered CAN261 records all13F; all557 frames and8 scalar passes have an open body element, with no all-closed control or continuous empty-transition coverage. MCU interval-only export can omit synthetic transient warnings, but N9's active mode is unknown. UI suppression alone does not explain raw13F. The not-READY explanation is withdrawn: HAL maps raw power3 to API2. Neither warning priority nor an actual missed1DD is proved | negative observation confirmed; cause unresolved | 2026-10-21 | [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
@@ -113,6 +114,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
   - [Receiver and presentation boundary](#washer-receiver-and-presentation-boundary-2026-10-21) — ready-made CAN warning versus physical trigger; direct level DID optional
   - [Warning producer boundary](#washer-warning-producer-boundary-2026-10-21) — exact DOMAIN protocol name, renderer versus ECU, and missing transmitter/composer identity
   - [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) — confirmed empty reservoir, sampling/transition gaps and rejected power-value inference
+  - [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) — typed scalar callbacks and timed door control, without draining
 - [Targeted turn-signal events (2026-09-04)](#targeted-turn-signal-events-2026-09-04) — the two-FID light listener, its hub, and the camera contracts it fed
 - [Interior ambient light colour (2026-09-23, in progress)](#interior-ambient-light-colour-2026-09-23-in-progress) — where the cabin lamp colour lives and how it could be read
 - [Legacy BYDAuto events and system logs](#legacy-bydauto-events-and-system-logs) — the 2026-06-27 probe and system-log observations
@@ -5481,10 +5483,12 @@ at170530, so that raw-export gate does not gate entry into the scalar decoder.
 Sparse scalar GETs can nevertheless miss a change and reversal between reads.
 
 The SDK has a separate `onTextInfoChanged(int)` callback for decimal638582792
-(`26100008`). This is a candidate for observing warning changes, rather than
-inferring a complete history from1Hz raw exports. Its delivery/lifecycle in a
-chosen collector has not been qualified here, and no collector was installed
-or started. The active N9 mode/interval, physical CAN frequency and installed
+(`26100008`). This motivated direct observation of warning changes rather than
+inferring a complete history from1Hz raw exports. The offline audit alone did
+not qualify delivery or start a collector; the subsequent
+[Z9GT typed-listener test](#direct-warning-listener-on-z9gt-2026-10-21) below
+does establish finite shell delivery for13F/7D/0, not low-fluid1DD. The active
+N9 mode/interval, physical CAN frequency and installed
 MCU identity remain unknown: **no real missed1DD is proved**. Reproduce with
 `python3 research/vehicle-diagnostics/check_washer_observation_modes.py`;
 `washer-observation-modes-20261021.json` pins five sources, checks166 retained
@@ -5529,6 +5533,65 @@ Reports: `research/vehicle-diagnostics/washer-n9-negative-audit-20261021.json`,
 Their offline reproducers and bounded original-byte/disassembly evidence remain
 in `captures/washer-diagnostics-20261021/n9-negative-audit/`, `n9-origin/` and
 `n9-warning-applicability/`; root0A0 coverage has a separate hash manifest there.
+
+### Direct warning listener on Z9GT (2026-10-21)
+
+**The typed warning callback is live-proven from shell UID2000; the washer
+trigger is still unqualified.** This is a separate Z9GT/AutoType170 test, not a
+replay of the empty N9. The owner last reported fluid present. No fluid action,
+APK install, UDS request, CAN injection or vehicle setter was used.
+
+`tools/WasherWarningEventProbe.java` subclasses the real firmware
+`AbsBYDAutoInstrumentListener` and receives `onTextInfoChanged(int)` directly.
+The build-only ABI stub is excluded from dex, with all actual class definitions
+checked. It uses `BYDAutoInstrumentDevice`1007/FID26100008, a running main
+Looper, separately labelled baseline/end GETs, an independent hard deadline
+and explicit unregister. Optional `--doors` adds only the four fixed scalar
+FIDs26100014..17 and the matching typed door callback; no raw CAN stream or
+collection-table mode is involved. Each door callback also makes a separately
+timestamped warning GET, not an atomic same-frame observation.
+
+The source trace shows Java filtered registration, the native GET-permission
+check and subscription vectors. Device1007 does not take the special HAL-enable
+branch for1035 in the examined service body. Registration changes listener
+state; it is not literally zero internal writes. The JNI trampoline was not
+independently recovered. Registration returns `void`, so its return alone is
+not a native ACK; no initial cache replay is guaranteed. The live callback is
+the positive delivery evidence. See
+[`washer-direct-listener-source-20261021.json`](../research/vehicle-diagnostics/washer-direct-listener-source-20261021.json)
+and `check_washer_scalar_listener_contract.py` (12 source hashes,21 line anchors,
+seven native ranges).
+
+Two finite runs were retained in
+`captures/washer-diagnostics-20261021/direct-listener/`:
+
+- **run01,17:05:54–17:07:27 Moscow:**90seconds; warning GET0→0, zero callbacks,
+ 18 main-loop heartbeats. The owner opened/closed a door but was unsure it fell
+ within this interval. This run does not qualify event delivery or a controlled
+ negative response to a door action.
+- **run02,17:11:44–17:13:47 Moscow:**120seconds with four-door controls. All
+ four door GETs were0 before/after. Relative to READY, warning13F arrived at
+ +42.921s, LF door-open at+42.922s, LF door-close at+54.950s, warning7D at
+ +56.921s and warning0 at+65.454s. Thus baseline0 followed by **three real
+ warning callbacks13F→7D→0** and two door callbacks. Warning GETs inside the
+ open/close callbacks both read13F. The retained OEM dictionary labels13F as
+ body/door/hood/seatbelt context and7D as key not detected; no1DD was observed.
+
+Both runs ended normally with errors0 and explicit unregister. Their unique
+temporary process was absent and its jar was removed. Pre/post checks matched
+framework/HAL/service hashes, kept stock service PIDs and the installed Denza
+Apps APK hash stable, and found empty crash buffers. Source snapshots, built
+jar hashes and the raw evidence are retained; neither observer remains running.
+Replay [`check_washer_direct_listener_live.py`](../research/vehicle-diagnostics/check_washer_direct_listener_live.py)
+against [`washer-direct-listener-live-20261021.json`](../research/vehicle-diagnostics/washer-direct-listener-live-20261021.json).
+
+**What this closes:** this car can deliver changes of the selected-warning
+field to a dedicated shell reader without relying on periodically exported
+CAN261 samples. **What it does not close:** whether a low-fluid condition
+selects1DD, who produces it, why empty N9 lacked it, or whether13F outranks it.
+Ordinary app-UID access, background/reconnect reliability and lossless warning
+history are also not established. Zero is not a fluid-OK indication. This is
+an observation tool, not a shipped refill notification or a running monitor.
 
 ### N9 paired-state capture (2026-10-16)
 

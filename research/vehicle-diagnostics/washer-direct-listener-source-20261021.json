@@ -1,0 +1,457 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleCalls": 0,
+  "target": {
+    "device": 1007,
+    "fid": "0x26100008",
+    "decimalFID": 638582792,
+    "getter": "getTextInfo()",
+    "callback": "onTextInfoChanged(int)",
+    "superclass": "AbsBYDAutoDevice"
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "sha256": "1730ca60779d7d45f2976a947172f6c0b4b5145d763d07bc257d809275537362"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "sha256": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "sha256": "723632c4f73d88b4bf788508242cf396e432e587c2f8b0cc69fa89434fc434ba"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/IBYDAutoListenerIdsMap.java",
+      "sha256": "1eaf7268dcac4c934172afb9d5d0543b40a1bf5894b745c65bb0f1bd324527a0"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "sha256": "7d5b3fa0658a899bf85ac9a8f00287a39cba799887feac42a115a97731bbe7cf"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceFeaturesMap.java",
+      "sha256": "cd12d9640f004339889e45ac1f53b2e8a9e1de12b8df9c7e98e8b1524a67161d"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "sha256": "360f55d453b41bdf53757031b8126175eeef4df7049b3320a2eb6097b6b9fae7"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/AbsBYDAutoInstrumentListener.java",
+      "sha256": "e6157cd624a172810177b04a1e5b8ad6756d2521c8777df23f6e055f0b579772"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/MediaStateDelegate.java",
+      "sha256": "70f3aff65e5972eea13d63881c2b1377ebb502963526085c62e009c8c0810a3e"
+    },
+    {
+      "path": "research/vehicle-diagnostics/washer-observation-modes-20261021.json",
+      "sha256": "d26f4cdd5fde8cde1c5f4c60ed085266c25f9d3c4e1e2d2a53132effaadaaa02"
+    },
+    {
+      "path": "research/vehicle-diagnostics/washer-sensor-origin-20261021.json",
+      "sha256": "a527c6789982ee317459b52f5aea7cb05787add31ab92b243369ff2e2812b180"
+    }
+  ],
+  "lineAnchors": [
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "firstLine": 892,
+      "lastLine": 926,
+      "textSha256": "28e02b698c197060e452f74087f6b9fd6bdf48a825341e002e5b44572c443fce",
+      "excerpt": [
+        "    private BYDAutoInstrumentDevice(Context con) {",
+        "        super(con);",
+        "        this.mContext = con;",
+        "...",
+        "    @Override // android.hardware.bydauto.AbsBYDAutoDevice",
+        "    public String getGetPermission() {",
+        "        return INSTRUMENT_GET_PERM;"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "firstLine": 1943,
+      "lastLine": 1947,
+      "textSha256": "5e6d2d4a6a0c9e248610803913074f8b8a9bff1dadbca4b27ab3725869c37032",
+      "excerpt": [
+        "    public int getTextInfo() {",
+        "        int value = super.get(mDeviceType, 638582792);",
+        "        Log.d(TAG, \"getTextInfo is: \" + Integer.toHexString(value));",
+        "        return value;",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "firstLine": 3334,
+      "lastLine": 3364,
+      "textSha256": "04bc1ba178c17ba260db18a050bbc4386d0a4cf69ffbd7ae8d3f0f8f954625d0",
+      "excerpt": [
+        "",
+        "    @Override // android.hardware.IBYDAutoDevice",
+        "    public int getType() {",
+        "...",
+        "            super.unregisterListener((IBYDAutoListener) l);",
+        "        }",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/MediaStateDelegate.java",
+      "firstLine": 17,
+      "lastLine": 22,
+      "textSha256": "c4404e79308b4d7c86072b38dc4e2e3da2e973350e26dca1a0643dcbf1646cda",
+      "excerpt": [
+        "    MediaStateDelegate(Context context, BYDAutoInstrumentDevice device) {",
+        "        this.mContext = context;",
+        "        this.mDevice = device;",
+        "        this.mPackageName = context.getPackageName();",
+        "        this.mAudioManager = (AudioManager) this.mContext.getSystemService(\"audio\");",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/AbsBYDAutoInstrumentListener.java",
+      "firstLine": 70,
+      "lastLine": 71,
+      "textSha256": "c1b87c227e356b57a260f1523182c107f377ae276ac945340b6b7ee464f5c5f1",
+      "excerpt": [
+        "    public void onTextInfoChanged(int value) {",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/AbsBYDAutoInstrumentListener.java",
+      "firstLine": 554,
+      "lastLine": 559,
+      "textSha256": "8c7b6e755b4e5ab39c3fa08da2fd6bd3b85156ab389b7608a919179dcf0dd105",
+      "excerpt": [
+        "    public final void onDataChanged(IBYDAutoEvent event) {",
+        "        Object obj = event.getData();",
+        "        parse(obj);",
+        "        int value = event.getValue();",
+        "        int type = event.getEventType();",
+        "        switch (type) {"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/AbsBYDAutoInstrumentListener.java",
+      "firstLine": 1440,
+      "lastLine": 1443,
+      "textSha256": "7bb7b25bbb4257e70a782ea838303307ad9775dd21ced26958d027fbd578724d",
+      "excerpt": [
+        "                } else if (type == 638582792) {",
+        "                    onTextInfoChanged(value);",
+        "                    break;",
+        "                } else if (type == BYDAutoFeatureIds.INSTRUMENT_DD_FAULT_NOTICE_ABS_SYSTEM) {"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "firstLine": 68,
+      "lastLine": 86,
+      "textSha256": "522f389b1bb914006783cf8239d5f9946444eab6156495cba20aa759c7292ca5",
+      "excerpt": [
+        "    public boolean onPostEvent(IBYDAutoEvent event) {",
+        "        if (event == null || getType() != event.getDeviceType()) {",
+        "            return false;",
+        "...",
+        "            }",
+        "            return true;",
+        "        }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "firstLine": 120,
+      "lastLine": 166,
+      "textSha256": "91053fa0a4111f2e3a8f7754d17be7954a749caa4def4c7b1adf4b357a125cac",
+      "excerpt": [
+        "        BYDAutoDeviceManager bYDAutoDeviceManager;",
+        "        if (l != null) {",
+        "            boolean willEnable = false;",
+        "...",
+        "                bYDAutoDeviceManager.disableDevice(this);",
+        "            }",
+        "        }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "firstLine": 393,
+      "lastLine": 407,
+      "textSha256": "0c06e447cfe4129e184db49afe0c0d30c75ea6b66143de34ccfa3c37f0cbfee8",
+      "excerpt": [
+        "    private boolean checkDeviceFeatures(int deviceType, int[] featureIds) {",
+        "        Set<Integer> ids = BYDAutoDeviceFeaturesMap.getFeatureIdsFromDevice(deviceType);",
+        "        if (featureIds.length == 0) {",
+        "...",
+        "        return true;",
+        "    }",
+        "}"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "firstLine": 42,
+      "lastLine": 66,
+      "textSha256": "2298f197661379999aa3d2960033bc501cc7d14ab246ef95082c904ce4476563",
+      "excerpt": [
+        "    public int enableDevice(IBYDAutoDevice device) {",
+        "        BYDAutoManager bYDAutoManager = this.mAutoManager;",
+        "        if (bYDAutoManager != null) {",
+        "...",
+        "        }",
+        "        Log.e(TAG, \"disableDevice: mAutoManager is null and error exit\");",
+        "        return -2147482648;"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "firstLine": 87,
+      "lastLine": 94,
+      "textSha256": "890895d2df833edad6aa855e4272facff016d96d858cdc7866c7994cde922b45",
+      "excerpt": [
+        "    public int getInt(int device, int event) {",
+        "        BYDAutoManager bYDAutoManager = this.mAutoManager;",
+        "        if (bYDAutoManager != null) {",
+        "...",
+        "        Log.e(TAG, \"getInt: mAutoManager is null and error exit\");",
+        "        return -2147482648;",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "firstLine": 176,
+      "lastLine": 181,
+      "textSha256": "052c79866bf35ef177d2ff9704fcaa665ab220691639766364ff18679b26fb94",
+      "excerpt": [
+        "",
+        "        @Override // android.hardware.BYDAutoManager.OnBYDAutoListener",
+        "        public void onError(final int errCode, final String errMessage) {",
+        "            synchronized (this.mDevices) {",
+        "                Log.e(BYDAutoDeviceManager.TAG, \"onError: errCode is \" + errCode);",
+        "                Log.e(BYDAutoDeviceManager.TAG, \"onError: errMessage is \" + errMessage);"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "firstLine": 196,
+      "lastLine": 210,
+      "textSha256": "c44c62ccd077db2f0ad08399a5b73b9f8be34563ccb72f7d469b6b0c85610c67",
+      "excerpt": [
+        "        @Override // android.hardware.BYDAutoManager.OnBYDAutoListener",
+        "        public void onChanged(final int device_type, final int event_type, final int value, final Object data) {",
+        "            final IBYDAutoDevice device;",
+        "...",
+        "            }",
+        "        }",
+        ""
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "firstLine": 242,
+      "lastLine": 254,
+      "textSha256": "9ffc0b1f997282528e0b768c009108a0cb5e8694b1c2855705c36d4922b9d7b4",
+      "excerpt": [
+        "        public void addDevice(IBYDAutoDevice device) {",
+        "            synchronized (this.mDevices) {",
+        "                Log.e(BYDAutoDeviceManager.TAG, \"addDevice: enter \" + device.getType());",
+        "...",
+        "                }",
+        "                Log.e(BYDAutoDeviceManager.TAG, \"addDevice: exit\" + device.getType());",
+        "            }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/IBYDAutoListenerIdsMap.java",
+      "firstLine": 20,
+      "lastLine": 32,
+      "textSha256": "f3497a8ecf5188e66d4f167b50e6151d75d14b95b7871a0da64949901d403f69",
+      "excerpt": [
+        "    public void addToMap(T listener, int[] ids) {",
+        "        if (!this.mListenerAllIds.contains(listener)) {",
+        "            addToListenerIdMap(listener, ids);",
+        "...",
+        "            removeFromIdMap(listener);",
+        "        }",
+        "    }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/IBYDAutoListenerIdsMap.java",
+      "firstLine": 102,
+      "lastLine": 117,
+      "textSha256": "4312434774d94fbd485aac4e22f5417cb3b9e9c2168c806d2b3b45000f519e77",
+      "excerpt": [
+        "            mIdAllListeners.add(listener2);",
+        "        }",
+        "        return mIdAllListeners;",
+        "...",
+        "            for (T listener : listeners) {",
+        "                mAllListeners.add(listener);",
+        "            }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "firstLine": 116,
+      "lastLine": 136,
+      "textSha256": "eb52063c8c8b5712f6848a6a19f5cfb666d8731ad8feb6a8027947e6b1e2a9bf",
+      "excerpt": [
+        "        String packageName = this.mContext.getPackageName();",
+        "        Strategy strategy = this.mStrategyService.getStrategy(name, changeItems);",
+        "        for (Map.Entry<String, List<String>> entry : strategy.permissions.entrySet()) {",
+        "...",
+        "                }",
+        "            } else if (key.equals(StrategyManager.PMS_AUTOSTARTWHITE)) {",
+        "                int i2 = 0;"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "firstLine": 152,
+      "lastLine": 163,
+      "textSha256": "483f571ff497ab2fa479fecf466ee7bdf02ad6cc74d4f6fcdbe6ff3872044753",
+      "excerpt": [
+        "    public int getInt(int deviceType, int eventType) {",
+        "        if (mForbidCall) {",
+        "            Log.e(TAG, \"getInt: FORBID!\");",
+        "...",
+        "        return ret;",
+        "    }",
+        ""
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "firstLine": 344,
+      "lastLine": 390,
+      "textSha256": "7a7569a1c5b0243316ad367c172cf2b084b26e1722de278e8fd4ad734cec6f72",
+      "excerpt": [
+        "    public int enableDevice(int deviceID, int[] featureIDs) {",
+        "        if (mForbidCall) {",
+        "            Log.e(TAG, \"enableDevice: FORBID!\");",
+        "...",
+        "        if (mOnBYDAutoListeners.size() == 0) {",
+        "            nativeDisableObserver();",
+        "        }"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "firstLine": 426,
+      "lastLine": 444,
+      "textSha256": "3fc96ea373735ef4958525d34623a3e4bd84f8968afe2ffebac5e8f59c2b665c",
+      "excerpt": [
+        "    public static void dispatchNativeEvent(int device_type, int event_type, int value) {",
+        "        if (mForbidCall) {",
+        "            Log.e(TAG, \"dispatchNativeEvent: FORBID!\");",
+        "...",
+        "            }",
+        "        }",
+        "    }"
+      ]
+    }
+  ],
+  "nativeFunctionAnchors": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0x1c5e0",
+      "size": 692,
+      "sha256": "16b4bf33b62ff8643e5b45eaaf0c1d2e8f62b5d64659ba037ce50e459de0f1ac",
+      "symbol": "BYDAutoManager::enableDevice(int,int*,unsigned)",
+      "finding": "Service-filter registration, then native local filter update after success."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0x1c8a0",
+      "size": 800,
+      "sha256": "4d2ed2d28dbcf7d193e5a06bca5ab98136441437ee2a0b0cfec9add021c9677c",
+      "symbol": "BYDAutoManager::nativeEnableDevice(int,int*,unsigned)",
+      "finding": "Maintains the local device/FID subscription vector, no initial GET or history replay identified."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0x1f060",
+      "size": 748,
+      "sha256": "2d97fdc5490db8ee9126ab9028ee96676c38c769caae2df4a0db3fb597883cf9",
+      "symbol": "BYDAutoManager::registerObserver(sp<IBYDAutoObserver>)",
+      "finding": "Registers callback and local observer; no initial scalar replay identified."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "va": "0x2aa10",
+      "size": 872,
+      "sha256": "6614726ea7bc626813cceabc5d0267e30eb04b1601ed8067c41d72f74559270b",
+      "symbol": "BYDAutoService::enableDevice(int,int*,unsigned,callback)",
+      "finding": "Checks GET permission; device1035 alone takes HAL enable branch2AA78..2AAA4. Device1007 takes callback-proxy filter branch2AC0C."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "va": "0x28b00",
+      "size": 924,
+      "sha256": "2786ce77267bced3ff8c1a1b4645eee3550ce698c5ac13c65422c988fc84365b",
+      "symbol": "BYDAutoCallbackProxy::enableDevice(int,int*,unsigned)",
+      "finding": "Updates device/FID filter vector; no HAL setter, collection-table write or initial GET identified."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "va": "0x2ad80",
+      "size": 836,
+      "sha256": "e720560a5c593049c5090602d7571c05c4232e503168fb808818a4af34fa01d6",
+      "symbol": "BYDAutoService::checkGetPermission(int,int*,unsigned)",
+      "finding": "Same-process or callerUID<=9999 allowed after service/HAL checks; other UIDs use common and per-FID GET permissions. This is firmware logic, not new permission authority."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "va": "0x32760",
+      "size": 1184,
+      "sha256": "1787043e80f483bcdd47cd5e1836a1e06558da9ebef0cb1b1764318bb1973c9d",
+      "symbol": "BYDAutoService::registerCallback(callback)",
+      "finding": "Adds callback proxy and binder lifecycle; no initial selected-ID replay identified."
+    }
+  ],
+  "registration": [
+    "BYDAutoInstrumentDevice.registerListener(l,int[]) -> AbsBYDAutoDevice.registerListener(l,int[]) -> BYDAutoDeviceManager.enableDevice(device,int[]) -> BYDAutoManager.enableDevice(1007,int[]) -> nativeEnableDevice.",
+    "The feature array must be nonempty and in device1007 FeaturesMap. FID26100008 is in the retained InstrumentMap. Prefer exactly one FID, not all-instrument subscription.",
+    "AbsBYDAutoDevice tests isListenerAllIdsEmpty, not isListenerEmpty: filtered registration can call enable again while other filtered listeners exist. Do not register duplicate listeners or change a long-lived app's listener list for this probe.",
+    "The Java registration method returns void and ignores enableDevice status except thrown exceptions. A REG_RETURNED marker alone is not proof of active native delivery."
+  ],
+  "delivery": [
+    "Native scalar callback -> BYDAutoManager.dispatchNativeEvent(1007,26100008,value) -> OnBYDAutoListener.onChanged -> BYDAutoDeviceManager posts on Context.getMainLooper() -> device.postEvent -> AbsBYDAutoDevice selects listeners for the FID -> AbsBYDAutoInstrumentListener.onDataChanged -> onTextInfoChanged(value).",
+    "The callback receives the same scalar selected-ID as getTextInfo(), not a popup-visible event, sensor reading, DTC, ECU identity, source timestamp or warning-history list.",
+    "No explicit initial GET/cache replay is present in examined Java registration, native filter-enable and callback-register bodies. Initial delivery and its timing are not guaranteed; a separately marked baseline GET may precede registration as before_register. Preserve explicit operation ordering and the baseline-to-registration gap.",
+    "A prepared, running main Looper is mandatory for this device-manager delivery. Stamp callback receipt with on-device SystemClock.elapsedRealtimeNanos(); it is on-device receipt time, not host or source generation time.",
+    "The MCU static warning decoder compares and emits scalar changes before the separate raw-export policy. A scalar listener is therefore a justified candidate for changes that sparse GET/raw interval export can miss, not a guaranteed lossless original-bus history."
+  ],
+  "permissionsAndModes": [
+    "BYDAutoManager applies package PMS_AUTOAPIBLACK to registration, GET, enable and dispatch. nativeEnableDevice permission-deny -2147482644 raises SecurityException. Stop and report on denial; do not grant permissions or retry through privilege escalation.",
+    "Service enableDevice uses GET permissions, not SET permissions, for this callback subscription. Instrument declares android.permission.BYDAUTO_INSTRUMENT_GET for reading. Actual runtime access still requires qualification.",
+    "No raw collection-mode argument or CAN-monitor table setter is passed by scalar registerListener. This does not change dynamic raw-export mode, owner bits, or guarantee any currently-unseen raw tuple becomes available."
+  ],
+  "safetyVerdict": {
+    "candidate": "A single finite dedicated-process scalar observer plus explicitly marked baseline/end GET is source-justified receive-only research.",
+    "stateChanges": "Listener/filter registration and unregister mutate process/service subscription state. No vehicle setter or MCU collection-table write is identified for device1007 in the examined path; this is not a claim of literally zero IPC or zero internal state change.",
+    "sourceLimits": "JNI trampoline implementation was not independently recovered in this pass. Native exported client/service registration bodies and retained Java route were inspected; runtime build, registration success, ordering, reconnect and complete event delivery are not live-qualified.",
+    "finiteProbeContract": [
+      "One dedicated shell process, one filtered listener, device1007/FID26100008 only.",
+      "Prepare the main Looper and keep Context valid; log baseline GET as before_register, register the listener, then run the Looper. Preserve operation ordering and the baseline-to-registration gap; end GET is separately marked.",
+      "Log BEGIN, BASELINE(before_register), REG_RETURNED, CALLBACK(value,on-device elapsedRealtimeNanos receipt time), ERROR, END_GET, UNREGISTER, DONE separately; preserve every callback including repeated values.",
+      "Bound duration in the process; unregister in finally and quit the Looper. Do not depend solely on killing the host transport for cleanup.",
+      "No software vehicle setters, injection, collection-table updates, UDS, resets, synthetic values or APK install. The software probe is passive; an optional ordinary owner door opening is not injection or a forced vehicle command.",
+      "A quiet run does not prove absence of1DD generation: no source-freshness/lossless/reconnect guarantee; current13F already cached may yield no callback until it changes."
+    ]
+  }
+}
