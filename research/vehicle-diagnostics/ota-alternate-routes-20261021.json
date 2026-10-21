@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "mode": "offline firmware source inspection only; no car or cloud calls",
+  "question": "Does this client corpus expose an independent route to an applicable whole-vehicle OTA package or expected ECU tuple after checkVersion=111?",
+  "clients": {
+    "GCY": {
+      "root": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI",
+      "resourceCount": 18,
+      "uniquePaths": 17,
+      "routes": {
+        "url_ota_checkVersion": "ota/otaService/checkVersion",
+        "url_ota_downloadReport": "ota/otaService/downloadReport",
+        "url_ota_ecu_ethernet_check_version": "ota/checkVersion",
+        "url_ota_ecu_ethernet_file_transfer": "ota/ecuFileTransfer",
+        "url_ota_ecu_ethernet_get_random": "ota/getEcuRandom",
+        "url_ota_ecu_ethernet_get_signature": "ota/otaService/getSignature",
+        "url_ota_ecu_ethernet_request_logs": "ota/requestLogs",
+        "url_ota_ecu_ethernet_request_progress": "ota/requestProgress",
+        "url_ota_ecu_ethernet_request_reprogram": "ota/requestReprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer": "ota/upgradeIfoTransfer",
+        "url_ota_getEcuList": "ota/otaService/getEcuList",
+        "url_ota_login": "ota/otaService/loginIn",
+        "url_ota_messageReport": "api/bydota-msgreport/otaService/messageReport",
+        "url_ota_monitorDataReport": "ota/otaService/monitorDataReport",
+        "url_ota_register": "ota/otaService/register",
+        "url_ota_submitReport": "ota/otaService/submitReport",
+        "url_ota_token_login": "ota/otaService/loginIn",
+        "url_ota_versionSync": "ota/otaService/versionSync"
+      },
+      "withoutJavaResourceReference": [
+        "url_ota_ecu_ethernet_file_transfer",
+        "url_ota_ecu_ethernet_request_logs",
+        "url_ota_ecu_ethernet_request_progress",
+        "url_ota_ecu_ethernet_request_reprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer",
+        "url_ota_login"
+      ]
+    },
+    "GHY": {
+      "root": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2",
+      "resourceCount": 22,
+      "uniquePaths": 21,
+      "routes": {
+        "subit_report_sync": "client-service/fota/api/v1/service/submitReportSync",
+        "sync_all_ecu_version": "client-service/fota/api/v1/service/allEcuVersionSync",
+        "url_ota_checkVersion": "client-service/fota/api/v1/service/checkVersion",
+        "url_ota_downloadReport": "client-service/fota/api/v1/service/downloadReport",
+        "url_ota_ecu_ethernet_check_version": "ota/checkVersion",
+        "url_ota_ecu_ethernet_file_transfer": "ota/ecuFileTransfer",
+        "url_ota_ecu_ethernet_get_random": "ota/getEcuRandom",
+        "url_ota_ecu_ethernet_get_signature": "client-service/fota/api/v1/service/getSignature",
+        "url_ota_ecu_ethernet_request_logs": "ota/requestLogs",
+        "url_ota_ecu_ethernet_request_progress": "ota/requestProgress",
+        "url_ota_ecu_ethernet_request_reprogram": "ota/requestReprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer": "ota/upgradeIfoTransfer",
+        "url_ota_getEcuList": "client-service/fota/api/v1/service/getEcuList",
+        "url_ota_get_need_check_ecu_list": "client-service/fota/api/v1/service/getNeedCheckEcuList",
+        "url_ota_lockSync": "client-service/fota/api/v1/service/lockSync",
+        "url_ota_login": "client-service/fota/api/v1/service/loginIn",
+        "url_ota_messageReport": "client-service/fota/api/v1/service/messageReport",
+        "url_ota_monitorDataReport": "client-service/fota/api/v1/service/monitorDataReport",
+        "url_ota_register": "client-service/fota/api/v1/service/register",
+        "url_ota_submitReport": "client-service/fota/api/v1/service/submitReport",
+        "url_ota_token_login": "client-service/fota/api/v1/service/loginIn",
+        "url_ota_versionSync": "client-service/fota/api/v1/service/versionSync"
+      },
+      "withoutJavaResourceReference": [
+        "url_ota_ecu_ethernet_file_transfer",
+        "url_ota_ecu_ethernet_request_logs",
+        "url_ota_ecu_ethernet_request_progress",
+        "url_ota_ecu_ethernet_request_reprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer",
+        "url_ota_login"
+      ]
+    },
+    "ProductLineOTA": {
+      "root": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA",
+      "resourceCount": 24,
+      "uniquePaths": 23,
+      "routes": {
+        "subit_report_sync": "client-service/fota/api/v1/service/submitReportSync",
+        "sync_all_ecu_version": "client-service/fota/api/v1/service/allEcuVersionSync",
+        "url_ota_checkVersion": "client-service/fota/api/v1/service/checkVersion",
+        "url_ota_downloadReport": "client-service/fota/api/v1/service/downloadReport",
+        "url_ota_ecu_ethernet_check_version": "ota/checkVersion",
+        "url_ota_ecu_ethernet_file_transfer": "ota/ecuFileTransfer",
+        "url_ota_ecu_ethernet_get_random": "ota/getEcuRandom",
+        "url_ota_ecu_ethernet_get_signature": "client-service/fota/api/v1/service/getSignature",
+        "url_ota_ecu_ethernet_request_logs": "ota/requestLogs",
+        "url_ota_ecu_ethernet_request_progress": "ota/requestProgress",
+        "url_ota_ecu_ethernet_request_reprogram": "ota/requestReprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer": "ota/upgradeIfoTransfer",
+        "url_ota_getEcuList": "client-service/fota/api/v1/service/getEcuList",
+        "url_ota_getManufactureConfig": "client-service/fota/api/v1/service/getManufactureConfig",
+        "url_ota_getValidTime": "client-service/fota/api/v1/service/getMaxPrepareSeconds",
+        "url_ota_get_need_check_ecu_list": "client-service/fota/api/v1/service/getNeedCheckEcuList",
+        "url_ota_lockSync": "client-service/fota/api/v1/service/lockSync",
+        "url_ota_login": "client-service/fota/api/v1/service/loginIn",
+        "url_ota_messageReport": "client-service/fota/api/v1/service/messageReport",
+        "url_ota_monitorDataReport": "client-service/fota/api/v1/service/monitorDataReport",
+        "url_ota_register": "client-service/fota/api/v1/service/register",
+        "url_ota_submitReport": "client-service/fota/api/v1/service/submitReport",
+        "url_ota_token_login": "client-service/fota/api/v1/service/loginIn",
+        "url_ota_versionSync": "client-service/fota/api/v1/service/versionSync"
+      },
+      "withoutJavaResourceReference": [
+        "subit_report_sync",
+        "sync_all_ecu_version",
+        "url_ota_ecu_ethernet_file_transfer",
+        "url_ota_ecu_ethernet_request_logs",
+        "url_ota_ecu_ethernet_request_progress",
+        "url_ota_ecu_ethernet_request_reprogram",
+        "url_ota_ecu_ethernet_upgrade_info_transfer",
+        "url_ota_getValidTime",
+        "url_ota_get_need_check_ecu_list",
+        "url_ota_lockSync",
+        "url_ota_login",
+        "url_ota_monitorDataReport"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "claim": "In the inspected UpdateOTAModel classes the vehicle plan is requested through loadCheckVehicleVersion; package download receives an already known URL. No separate batch-to-package lookup is exposed there.",
+      "scope": "Three model classes and the enumerated URL resources, not every backend API."
+    },
+    {
+      "claim": "GCY/GHY loadEthernetEcuVersionAndCode constructs http://<ecu ip>:<port>/ota/checkVersion; its similar name does not make it a second cloud campaign API."
+    },
+    {
+      "claim": "ProductLineOTA ManufactureConfig has status, delayTime, keyMatch and maxPrepareSeconds; it is not an ECU version matrix. Some route resources have no Java R.string reference in the scoped package; resource presence alone does not establish an active workflow."
+    },
+    {
+      "claim": "COTA groupConfigs is keyed by appInfos with appPkgName/configVer/versionCode/resSeriesCode. Response is ConfigGroup -> AppConfig -> params/resources. Successful native handler saves query metadata and changes config caches.",
+      "limit": "params.data is an arbitrary string: the typed schema does not rule out every possible server payload. No ECU strategy consumer was established."
+    },
+    {
+      "claim": "COTA query/pad and its developmenttools variant return application/cluster resource descriptors (resPkgVersionCode, resZipMd5, resZipSize, URL); query/attr returns modelName, carConfiguration, colors, seats and carInfoVersion.",
+      "limit": "These are not evidence of the GCY campaign assignment or its expected ECU versions."
+    }
+  ],
+  "boundedCotaSearch": {
+    "root": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx",
+    "exclude": [
+      "R.java",
+      "*ExternalSynthetic*"
+    ],
+    "pattern": "ecuSoft|sourcePackageInfo|targetPackageInfo|com\\.byd\\.otaupdate|\\bECU\\b|\\becu\\b|firmware|OtaStatus|OTA_STATUS",
+    "filesSearched": 295,
+    "matches": [],
+    "limit": "Negative literal search is secondary evidence, not proof of all COTA/backend behavior."
+  },
+  "conclusion": "No additional qualified package/expected-ECU query was established. Do not invoke native COTA or production-line lifecycle, substitute identities/versions, or treat a local ECU version response as server compatibility.",
+  "externalBlocker": "The concrete mismatching ECU field and expected tuple, or an independently qualified compatible official baseline/campaign, remain unavailable.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/resources/res/values/strings.xml",
+      "sha256": "8f26e791977807db9a873159704f700d7ad1cbf43dd1171138ef9363c36727db"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/UpdateOTAModel.java",
+      "sha256": "e32cab0d4f4c2347e7386fecbeb9a192959d4b9352c0a112c68e63fce14b4e5f"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/resources/res/values/strings.xml",
+      "sha256": "11ba7a44fd13c0b094bdf52c441fc8b7bce9cee75e2ae2a0aa23012e3fe57703"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/UpdateOTAModel.java",
+      "sha256": "c96b0aab02ac65e19d9d916e11f4c28c07fa242c09692467943b11e64e7c90f5"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/resources/res/values/strings.xml",
+      "sha256": "a291ec1c5aad139170053a3633d09564b90b69ae182b2ec3238b1ec2574c5ffd"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/UpdateOTAModel.java",
+      "sha256": "52cdef02be850e9deafb8733688f888676f1b2af18e5ddadab9e9565c850d346"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carres/query/request/ICarResService.java",
+      "sha256": "540a32a855c49a650b23ad3ec5da2fb10a76b61601957d65b52b7be7c244774a"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carres/query/request/RequestInfoBuilder.java",
+      "sha256": "0982654965baf48037ffd7ffd10a3408ec8badeaaa17eb9fa7ec4cc7e83b13b8"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carres/query/response/CarResResponse.java",
+      "sha256": "9ca6dd0af9934054ffb093b9a1c738ceffef44fcad862aaf67842d5a6d39a361"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carproperties/net/ICarPropService.java",
+      "sha256": "b46d954c3fcc080af1976c2d0ceced366907bfc934efeabe1b3f0b5b73bca1f8"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carproperties/net/CarPropRequest.java",
+      "sha256": "3786628bd970d7da79959206ae929f3cb405e47cb904008e4a585eb07e18e40f"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/carproperties/net/CarPropResponse.java",
+      "sha256": "a136d82c142a14c10906c41bb8232f10eac396a96ccd0b854d07d6fe6d0136d9"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/core/configmanage/query/net/IConfigService.java",
+      "sha256": "8058f9fa12d0e6bea7fe05006ad99fd34baa23a62ce8c2db469d0bf234126ea8"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/core/configmanage/query/net/RequestInfoBuilder.java",
+      "sha256": "3edd8c2a3f9d6c3665405b9aa6a14f55fcf298d63742a92d268bdd64cedac4d4"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/core/configmanage/query/net/ConfigRequest.java",
+      "sha256": "df669079d3a6b9a2d3f8706a60c1f2f2ed985716ff7cc8668984212094f57f2a"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/yqzx/core/configmanage/query/net/ConfigEntity.java",
+      "sha256": "92a826492b79d40e2742ea8b73cdc7341b229066627f4ba919fb6a656650c7bf"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/model/ManufactureConfig.java",
+      "sha256": "a6b194dd71ba410055e1444286ea34b28057ccc779f01ba2a358c640315bdc8a"
+    }
+  ]
+}
