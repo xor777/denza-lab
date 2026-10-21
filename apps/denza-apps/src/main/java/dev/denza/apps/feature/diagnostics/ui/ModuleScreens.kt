@@ -583,7 +583,7 @@ internal fun IdentContent(ident: IdentView) {
     KeyRows(ident.own, cols, d.TOP + d.HEAD + 1f, i.ROW, d.LEFT_X, d.LEFT_W)
 
     cols = ScannerSpec.columns(i.CACHE_COLS, d.RIGHT_X, d.RIGHT_W)
-    HeadRow(cols, listOf(HeadLabel("КЭШ ОБНОВЛЕНИЙ BYD")), d.TOP, d.HEAD)
+    HeadRow(cols, listOf(HeadLabel("КАК ОПОЗНАН")), d.TOP, d.HEAD)
     var y = KeyRows(ident.cache, cols, d.TOP + d.HEAD + 1f, i.ROW, d.RIGHT_X, d.RIGHT_W)
     if (ident.pids.isEmpty()) return
     y += i.PID_GAP

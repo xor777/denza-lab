@@ -1349,7 +1349,7 @@
     y = keyRows(c, f.own, cols, y, I.row, Lf.x, Lf.w);
     if (f.note) para(c, f.note, Lf.x + 12, y + I.noteGap, 'small', 'faint', Lf.w - 12);
     cols = columns(I.cacheCols, R.x, R.w);
-    y = headRow(c, cols, ['КЭШ ОБНОВЛЕНИЙ BYD'], D.top, D.head);
+    y = headRow(c, cols, ['КАК ОПОЗНАН'], D.top, D.head);
     y = keyRows(c, f.cache, cols, y, I.row, R.x, R.w);
     // the cache is the record the role was proved by, not a reference the answer is matched against:
     // no «Сверка с F194» (architecture, 5.1). A block without OBD has no PIDs.

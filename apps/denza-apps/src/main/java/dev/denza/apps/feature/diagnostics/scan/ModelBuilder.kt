@@ -315,17 +315,16 @@ internal class ModelBuilder(
             updated(SoftwareKey(ecu.request, child.did))
         }
 
-        // The cache's side is the record the role was proved by; the answer is not judged against it (5.1).
+        // «Как опознан»: what the role was proved by, only what an update does not change - the
+        // snapshot's software code and version would contradict an updated block, so they stay in the
+        // catalog and its history baseline, not on screen (5.1, 5.5).
         val cache = mutableListOf(Field("Основание имени", ecu.identity.label))
         ecu.expectedObdName?.let { cache += Field("Ожидаемое имя · 09 0A", it) }
-        ecu.cachedSoftwareCode?.let { cache += Field("Код ПО в кэше", it) }
         ecu.aliases.firstOrNull()?.let { a ->
             cache += Field("Идентификатор", a.ecuId)
-            a.softwareVersion?.let { cache += Field("Версия ПО", it) }
             a.hardwareVersion?.let { cache += Field("Версия железа", it) }
         }
         ecu.aliases.drop(1).forEach { cache += Field("Вариант", it.ecuId, muted = true) }
-        if (ecu.aliases.isEmpty()) cache += Field("Идентификатор", "нет в кэше обновлений", muted = true)
 
         val offered = id?.offered.orEmpty()
         return IdentView(
