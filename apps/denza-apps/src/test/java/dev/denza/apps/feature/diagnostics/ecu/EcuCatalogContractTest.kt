@@ -246,7 +246,6 @@ class EcuCatalogContractTest {
         }
         walk(research("ota-ecu-prefix-20261018.json"))
         EcuCatalog.all.filter { it.identity == IdentityBasis.STOCK_ROUTE }.forEach { ecu ->
-            assertNull(ecu.snapshotF194)
             ecu.aliases.forEach { alias ->
                 assertNull(alias.softwareVersion)
                 val dia = "%03X/%03X".format(ecu.request, ecu.reply)
@@ -257,6 +256,34 @@ class EcuCatalogContractTest {
                 assertTrue("${alias.ecuId} at $dia", inRouteMap || corrected)
             }
         }
+    }
+
+    /**
+     * The stock-route blocks the update cache keeps a code for: 720 under CDC_BYD_00100001, the three ZCUs
+     * under their own records. Each code is what the cache held (2026-10-18) and what the block returned
+     * on 2026-10-21; it starts the code history and nothing else - the name stays the route's (5.1, 5.5).
+     */
+    @Test
+    fun theStockRouteBlocksStartTheirHistoryFromTheCachesCode() {
+        val core = research("ota-core-fields-live-20261021.json").getJSONObject("selectedEcus")
+        val read = core.keys().asSequence().associate { id ->
+            val e = core.getJSONObject(id)
+            val code = e.getJSONObject("fields").getJSONObject("ecuSoftCode")
+            assertEquals(id, code.getString("cached"), code.getString("actual"))
+            assertEquals(id, "62F194" + code.getString("actual"), code.getString("responseHex"))
+            address(e.getString("address")) to (id to code.getString("cached"))
+        }
+        val routes = EcuCatalog.all.filter { it.identity == IdentityBasis.STOCK_ROUTE }
+        assertEquals(setOf(0x720, 0x722, 0x726, 0x747), routes.filter { it.snapshotF194 != null }.mapNotNull { it.request }.toSet())
+        routes.filter { it.snapshotF194 != null }.forEach { ecu ->
+            val (ecuId, code) = read.getValue(ecu.request!!)
+            assertEquals(ecu.address, code, ecu.snapshotF194)
+            // 720's record is the CDC's; the ZCUs' are their routes' own names.
+            assertEquals(ecu.address, if (ecu.request == 0x720) "HTH-2021_CDC_BYD_00100001" else ecu.aliases.single().ecuId, ecuId)
+            assertTrue(ecu.address, ecu.uds && ecu.cachedSoftwareCode == null)
+        }
+        // LBMS keeps no code here: nothing to start from but its first read.
+        assertNull(EcuCatalog.byRequest(0x762)!!.snapshotF194)
     }
 
     @Test

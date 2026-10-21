@@ -36,8 +36,9 @@ class SoftwareHistoryTest {
         assertEquals(SoftwareSeen(snapshot, null, LocalDate.of(2026, 10, 18)), h.record(bms)!!.seen)
         assertEquals(EcuCatalog.SNAPSHOT_DATE, h.record(bms)!!.seen.since)
         assertEquals("47380011DFE3000102", h.record(massage)!!.seen.code)
-        // A block named by a stock route has no code in the catalog: nothing until it is read.
-        assertNull(h.record(SoftwareKey(0x726)))
+        // A stock-route block starts from the code the cache keeps for its route (B_ZCU), LBMS from nothing.
+        assertEquals(SoftwareSeen("4B310011E001760100", null, EcuCatalog.SNAPSHOT_DATE), h.record(SoftwareKey(0x726))!!.seen)
+        assertNull(h.record(SoftwareKey(0x762)))
         assertNull(h.lastChange(bms))
         // The snapshot read again teaches nothing, so nothing is written down.
         assertSame(h, h.seen(SoftwareRead(bms, snapshot, null), day))
@@ -78,10 +79,10 @@ class SoftwareHistoryTest {
 
     @Test
     fun aKeyWithoutASnapshotStartsWhereItIsFirstRead() {
-        val zcu = SoftwareKey(0x726)
-        val h = SoftwareHistory().seen(SoftwareRead(zcu, "4B310011E001540100", null), day)
-        assertEquals(SoftwareSeen("4B310011E001540100", null, day), h.record(zcu)!!.seen)
-        assertNull(h.lastChange(zcu))
+        val lbms = SoftwareKey(0x762)
+        val h = SoftwareHistory().seen(SoftwareRead(lbms, "4A520011AD4E000000", null), day)
+        assertEquals(SoftwareSeen("4A520011AD4E000000", null, day), h.record(lbms)!!.seen)
+        assertNull(h.lastChange(lbms))
     }
 
     @Test

@@ -21,7 +21,11 @@ internal enum class IdentityBasis(val label: String) {
      * and passes on any software code, since an update changes the code and not the block (5.1).
      */
     F194("22 F194"),
-    /** A stock route or script names the address; F194 was not read. */
+    /**
+     * A stock route or script names the address, and nothing the block answers is its gate. Where the
+     * update cache keeps a code for the route (720, 722, 726, 747) it is [Ecu.snapshotF194]: the code
+     * history's first entry, not the name (5.5).
+     */
     STOCK_ROUTE("маршрут стока"),
     /**
      * The role from the model's own scanner catalog (Z9GT DM), joined by its abbreviation to the factory
@@ -78,7 +82,9 @@ internal data class Ecu(
      * The software code `22 F194` returned on this car, as the updater's `ECUVersion.json` kept it on
      * 2026-10-18 ([EcuCatalog.SNAPSHOT_DATE]): the record the role was proved by, and the first entry of
      * the block's code history (5.5). Not the gate: an update changes the code while the address and
-     * the role stay, and the gate passes on any software code (5.1).
+     * the role stay, and the gate passes on any software code (5.1). For a block named by a stock route
+     * it is the history's first entry only - the code the cache keeps under that route's record - and
+     * proves no role.
      */
     val snapshotF194: String? = null,
     /** The name OBD `09 0A` must return, for an ECU identified that way: a name does not change with software. */
@@ -244,14 +250,19 @@ internal object EcuCatalog {
             snapshotF194 = "32330011DF42000000", supplier = "Bosch",
             aliases = listOf(cache("IPA_BOSCH_00100001", "4.00.09", "0.0.1"))),
 
-        // Body
+        // Body. Named by stock routes, no gate; the code the 2026-10-18 cache keeps for each route is the code
+        // history's start only (5.5): 720's under CDC_BYD_00100001, the three ZCUs' under their own records,
+        // each the code the block returned on 2026-10-21 (ota-core-fields-live-20261021.json).
         Ecu(EcuGroup.BODY, "LA_BCM", "Кузовной контроллер левый", "Кузов слева", false, 0x720, IdentityBasis.STOCK_ROUTE,
-            dtcQualified = true, dtcFormat = 0x00),
+            snapshotF194 = "4B310011E0019A0002", dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.BODY, "R_ZCU", "Кузов, зона справа", "Зона справа", true, 0x747, IdentityBasis.STOCK_ROUTE,
+            snapshotF194 = "4B310011E001770002",
             aliases = listOf(route("R_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.BODY, "F_ZCU", "Кузов, зона спереди", "Зона спереди", true, 0x722, IdentityBasis.STOCK_ROUTE,
+            snapshotF194 = "4B310011E001540100",
             aliases = listOf(route("F_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.BODY, "B_ZCU", "Кузов, зона сзади", "Зона сзади", false, 0x726, IdentityBasis.STOCK_ROUTE,
+            snapshotF194 = "4B310011E001760100",
             aliases = listOf(route("B_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00,
             children = listOf(
                 child(0xF204, "Левый комбинированный задний фонарь", "Комб. фонарь левый", "RL_L_BYD_00200001", "48330011DFC5000201"),
