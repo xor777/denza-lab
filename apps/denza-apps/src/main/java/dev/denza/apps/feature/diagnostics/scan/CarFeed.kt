@@ -23,6 +23,10 @@ internal data class CarReadings(
     /** The last `autoservice` batch, whatever its age; [extrasFresh] says whether it still counts. */
     val extras: Map<DiagnosticExtra, Double> = emptyMap(),
     val extrasFresh: Boolean = false,
+    /** When that batch's answer was in, on the car's `elapsedRealtimeNanos`: a new value is a new batch. */
+    val extrasAtNanos: Long = 0,
+    /** How long that batch took, ms; null when not measured. */
+    val extrasTookMs: Long? = null,
 ) {
     val parked: Boolean? get() = hub[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 }
     val speedKmh: Double? get() = hub[VehicleSignal.VEHICLE_SPEED]

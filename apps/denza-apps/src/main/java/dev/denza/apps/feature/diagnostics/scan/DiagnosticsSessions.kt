@@ -89,6 +89,8 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
             atNanos = SystemClock.elapsedRealtimeNanos(),
             extras = batch.values,
             extrasFresh = batch.values.isNotEmpty() && batch.fresh(now).isNotEmpty(),
+            extrasAtNanos = batch.atElapsed * 1_000_000L,
+            extrasTookMs = batch.tookMs,
         )
     }
 
@@ -131,6 +133,12 @@ internal class AdbExtrasShell(private val session: LocalAdbClient.PersistentShel
  * **A page's own GETs** ([show]): while a page with GETs of its own ([ExtraPage]) shows, the batch
  * is [DiagnosticExtraReader.command] of the pages shown, the next one at once; what is shown outlives
  * [stop], as the page that set it does.
+ *
+ * **A page's round** ([ExtraPage.periodMs]): while a page that asks for a quicker round shows - the
+ * pack's «Потоковые данные» (architecture 6.3) - a batch goes every that many ms from the start of
+ * one to the start of the next, back to back when the batch is slower; without one the wait is the
+ * five seconds after a batch's answer it always was. Every batch says how long it took
+ * ([DiagnosticExtras.tookMs]). A failure still waits five seconds, whatever is shown.
  */
 internal class ExtrasPoller(
     private val open: () -> ExtrasShell,
@@ -204,7 +212,8 @@ internal class ExtrasPoller(
                 }
                 if (get == null) {
                     val output = s.shell(DiagnosticExtraReader.command(pages))
-                    latest = DiagnosticExtraReader.decode(output, wallClock(), elapsed())
+                    val at = elapsed()
+                    latest = DiagnosticExtraReader.decode(output, wallClock(), at, at - began)
                 } else {
                     val value = DiagnosticExtraReader.word(s.shell(get.command))?.let(get.decode)
                     keep(get, SignalReading(nanos(), value))
@@ -219,7 +228,12 @@ internal class ExtrasPoller(
                 if (get != null) keep(get, SignalReading(nanos(), null))
                 false
             }
-            val wait = if (ok && get != null) (FOCUS_PERIOD_MS - (elapsed() - began)).coerceAtLeast(0) else PERIOD_MS
+            val period = when {
+                !ok -> null
+                get != null -> FOCUS_PERIOD_MS
+                else -> pages.mapNotNull { it.periodMs }.minOrNull()
+            }
+            val wait = period?.let { (it - (elapsed() - began)).coerceAtLeast(0) } ?: PERIOD_MS
             withTimeoutOrNull(wait) { wake.receive() }
         }
     }

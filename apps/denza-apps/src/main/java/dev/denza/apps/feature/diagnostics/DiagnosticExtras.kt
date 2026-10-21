@@ -200,7 +200,10 @@ private val MASSAGE_MODES = setOf(1, 2, 3, 4, 5, 6, 8, 9)
 
 internal data class DiagnosticExtras(
     val values: Map<DiagnosticExtra, Double> = emptyMap(),
+    /** When the batch's answer was in: the wall clock and `elapsedRealtime`, ms. */
     val atMillis: Long = 0, val atElapsed: Long = 0,
+    /** How long the batch took, from sending it to its answer, ms; null when not measured. */
+    val tookMs: Long? = null,
 ) {
     fun fresh(now: Long): Map<DiagnosticExtra, Double> =
         if (now >= atElapsed && now - atElapsed < STALE_MS) values else emptyMap()
@@ -208,18 +211,31 @@ internal data class DiagnosticExtras(
 }
 
 /**
- * A page whose own GETs join the batch only while it is in front (architecture, 6): no other page
- * pays for them.
+ * A page in front that asks the batch for more (architecture, 6): GETs of its own, which join the
+ * batch only while it is in front so no other page pays for them ([DiagnosticExtra.page]), or a
+ * quicker round ([periodMs]).
  */
-internal enum class ExtraPage {
+internal enum class ExtraPage(
+    /**
+     * While the page is in front, a batch every [periodMs] from the start of one to the start of the
+     * next - back to back when the batch is slower; the quickest page shown wins. Null keeps the
+     * shared five seconds between one batch's answer and the next.
+     */
+    val periodMs: Long? = null,
+) {
     /** «Салон · Состояние». */
     CABIN,
     /** «Тяговая батарея · Флаги GB/T 32960». */
     GB_FLAGS,
+    /**
+     * «Тяговая батарея · Потоковые данные»: no GETs of its own - the pack's are the shared batch's -
+     * but read as a stream, round after round (6.3). The floor keeps an instant answer from spinning.
+     */
+    PACK_LIVE(periodMs = 100),
 }
 
 internal object DiagnosticExtraReader {
-    /** The batch of the system screens, every five seconds. */
+    /** The batch of the system screens, every five seconds unless a page asks for quicker ([ExtraPage.periodMs]). */
     val command = command(emptySet())
 
     /** The same with the GETs of [pages], those in front: in the entries' order, after the shared ones. */
@@ -229,7 +245,7 @@ internal object DiagnosticExtraReader {
         "echo @@extra:${it.key}; service call autoservice ${it.transact} i32 ${it.device} i32 ${it.fid}"
     }
 
-    fun decode(output: String, atMillis: Long, atElapsed: Long): DiagnosticExtras {
+    fun decode(output: String, atMillis: Long, atElapsed: Long, tookMs: Long? = null): DiagnosticExtras {
         val sections = output.split(Regex("(?m)^@@extra:"))
         val byKey = DiagnosticExtra.entries.associateBy { it.key }
         val values = sections.mapNotNull { section ->
@@ -237,7 +253,7 @@ internal object DiagnosticExtraReader {
             val value = word(section)?.let(signal::decode) ?: return@mapNotNull null
             signal to value
         }.toMap()
-        return DiagnosticExtras(values, atMillis, atElapsed)
+        return DiagnosticExtras(values, atMillis, atElapsed, tookMs)
     }
 
     /** The word of a successful `service call` reply: status 0, then one 32-bit value. */
