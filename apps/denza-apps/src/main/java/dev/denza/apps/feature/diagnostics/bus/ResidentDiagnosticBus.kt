@@ -12,10 +12,14 @@ import java.security.SecureRandom
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /** One helper's stream: started once, then one line at a time. */
 internal interface DiagnosticBusLink : AutoCloseable {
@@ -24,6 +28,13 @@ internal interface DiagnosticBusLink : AutoCloseable {
 
     /** The answer between `BEGIN` and `END ok`; [HelperRefusal] for `END err`, another [IOException] when the stream is gone. */
     fun request(line: String, readTimeoutMs: Int): String
+
+    /**
+     * The lines the helper pushed between answers since the last call, `PUSH ` prefix off; waits
+     * up to [waitMs] when none is there and returns none if none comes. [IOException] when the
+     * stream is gone. A link that cannot carry them says so as a lost stream.
+     */
+    fun pushed(waitMs: Int): List<String> = throw IOException("this link carries no pushed lines")
 
     override fun close()
 }
@@ -37,6 +48,8 @@ internal class ResidentSessionLink(private val session: LocalAdbClient.ResidentS
     } catch (error: IOException) {
         throw DiagnosticBusLines.refusal(error) ?: error
     }
+
+    override fun pushed(waitMs: Int): List<String> = session.pushed(waitMs)
 
     override fun close() = session.close()
 }
@@ -64,6 +77,14 @@ internal class ResidentSessionLink(private val session: LocalAdbClient.ResidentS
  *
  * A cancelled exchange closes its link at once: the socket's close is what interrupts a blocked
  * read, and the helper ends with its stream. [close] does the same from any thread.
+ *
+ * [batteryPages] (architecture 6.3) asks the helper for `s gb` and then reads its pushed lines,
+ * [PUSH_WAIT_MS] at most at a time, under the same [mutex] as the exchanges - so an exchange waits
+ * for one short read at most, and the pages never wait for more than one exchange. The pages are
+ * the helper's: a lost link ends them, and a new helper opened by an exchange after a loss is not
+ * subscribed, so the flow ends with [DiagFailure.ChannelLost] and asking again is the caller's
+ * decision. Reading the pages counts as using the helper, which keeps its idle clock stopped
+ * while subscribed; leaving sends `u gb`.
  */
 internal class ResidentDiagnosticBus(
     private val links: (nonce: String) -> DiagnosticBusLink,
@@ -107,6 +128,75 @@ internal class ResidentDiagnosticBus(
         closed = true
         link?.close()
         link = null
+    }
+
+    override fun batteryPages(): Flow<BmsPage> = flow {
+        val served = mutex.withLock {
+            try {
+                subscribe()
+            } catch (lost: DiagFailure.ChannelLost) {
+                if (closed) throw lost
+                log("diagnostic helper lost (${lost.cause?.message ?: lost.message}), opening it once more for the pages")
+                subscribe()
+            }
+        }
+        try {
+            while (true) {
+                val lines = mutex.withLock { drain(served) }
+                for (line in lines) {
+                    when (val pushed = DiagnosticBusLines.pushed(line)) {
+                        is DiagnosticBusLines.Pushed.Page -> emit(pushed.page)
+                        is DiagnosticBusLines.Pushed.End -> {
+                            mutex.withLock { drop(served) }
+                            throw pushed.failure
+                        }
+                        null -> log("diagnostic helper pushed a line that is not a page: ${line.take(80)}")
+                    }
+                }
+            }
+        } finally {
+            withContext(NonCancellable) { mutex.withLock { leave(served) } }
+        }
+    }
+
+    /** `s gb` on the open helper, or a new one. Under [mutex]. */
+    private suspend fun subscribe(): DiagnosticBusLink {
+        if (closed) throw DiagFailure.ChannelLost(IllegalStateException("the diagnostic bus is closed"))
+        val live = reusable() ?: open()
+        val answer = call(live) { live.request(DiagnosticBusLines.SUBSCRIBE, RESPONSE_GRACE_MS) }
+        try {
+            DiagnosticBusLines.pagesTook(DiagnosticBusLines.SUBSCRIBE, answer)
+        } catch (malformed: DiagFailure) {
+            drop(live)
+            throw malformed
+        }
+        lastUsed = clock()
+        log("diagnostic helper subscribed to the BMS pages")
+        return live
+    }
+
+    /** The pushed lines of [served]; it must still be the open link. Under [mutex]. */
+    private suspend fun drain(served: DiagnosticBusLink): List<String> {
+        if (closed || link !== served) {
+            throw DiagFailure.ChannelLost(IllegalStateException("the helper serving the pages is gone"))
+        }
+        val lines = call(served) { served.pushed(PUSH_WAIT_MS) }
+        lastUsed = clock()
+        return lines
+    }
+
+    /** `u gb`, when [served] is still the open link; a failure only closes it. Under [mutex]. */
+    private suspend fun leave(served: DiagnosticBusLink) {
+        if (closed || link !== served) return
+        try {
+            val answer = call(served) { served.request(DiagnosticBusLines.LEAVE, RESPONSE_GRACE_MS) }
+            DiagnosticBusLines.pagesTook(DiagnosticBusLines.LEAVE, answer)
+            lastUsed = clock()
+            log("diagnostic helper left the BMS pages")
+        } catch (failure: DiagFailure) {
+            drop(served)
+            log("diagnostic helper did not leave the pages cleanly: ${failure.message}")
+        }
     }
 
     private suspend fun attempt(request: DiagRequest): DiagReply {
@@ -198,6 +288,8 @@ internal class ResidentDiagnosticBus(
         const val RESPONSE_GRACE_MS = 3_000
         /** The helper leaves after 60 s without a request; the app stops trusting it ten seconds sooner. */
         const val IDLE_REUSE_MS = 50_000L
+        /** The longest one read of the pages holds the link: what an exchange may wait for it. */
+        const val PUSH_WAIT_MS = 100
 
         fun launchCommand(entry: String, nonce: String, gapMs: Int): String =
             "CLASSPATH=${shellQuote(entry)} exec app_process /system/bin --nice-name=denza_diag_bus " +

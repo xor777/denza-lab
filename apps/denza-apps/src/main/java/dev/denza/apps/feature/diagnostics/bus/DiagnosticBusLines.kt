@@ -37,6 +37,52 @@ internal object DiagnosticBusLines {
         if (line != "g $ms") throw malformed(line)
     }
 
+    /** `s gb`: the BMS pages from now on, as pushed lines (architecture 3.3, 6.3). */
+    const val SUBSCRIBE = "s gb"
+
+    /** `u gb`: no more pages. */
+    const val LEAVE = "u gb"
+
+    /**
+     * The answer to [SUBSCRIBE] or [LEAVE] sent as [line]: the same line, alone. Anything else is
+     * a helper that does not speak this protocol, a program error.
+     */
+    fun pagesTook(line: String, payload: String) {
+        val lines = payload.split('\n').map(String::trim).filter(String::isNotEmpty)
+        if (lines.singleOrNull() != line) throw malformed(payload)
+    }
+
+    /** What a pushed line says: a page, or that the helper's session ended. */
+    sealed interface Pushed {
+        class Page(val page: BmsPage) : Pushed
+        class End(val failure: DiagFailure) : Pushed
+    }
+
+    /**
+     * A pushed line with its `DENZA_SERVE_<nonce>:PUSH ` taken off by the stream:
+     * `b <ns> <id> <payload>` is a page of CAN id 43A, 43C or 43D, `e <CODE> <why>` the helper's
+     * session ending while the pages flowed, its code read as an `END err` one. Anything else -
+     * a line the shell's echo cut, another word - is null: one record lost, never a failure.
+     */
+    fun pushed(line: String): Pushed? {
+        val words = line.trim().split(' ')
+        return when (words[0]) {
+            "b" -> {
+                if (words.size != 4) return null
+                val nanos = words[1].toLongOrNull()?.takeIf { it >= 0 } ?: return null
+                val id = words[2].takeIf { it.length == 3 && HEX_DIGITS.matches(it) }?.toIntOrNull(16)
+                    ?.takeIf { it == BmsPage.COUNTS || it == BmsPage.PROBES || it == BmsPage.CELLS } ?: return null
+                val payload = words[3].takeIf { it.length in 2..MAX_PAGE_BYTES * 2 && HEX.matches(it) } ?: return null
+                Pushed.Page(BmsPage(id, bytes(payload), nanos))
+            }
+            "e" -> {
+                if (words.size < 2 || !CODE.matches(words[1])) return null
+                Pushed.End(failure(HelperRefusal(words[1], words.drop(2).joinToString(" "))))
+            }
+            else -> null
+        }
+    }
+
     /**
      * The one line between `BEGIN` and `END ok`, as a reply to [request] sent as [seq]. Anything
      * else - another seq, a second line, a word out of place - is a helper that does not speak
@@ -104,6 +150,8 @@ internal object DiagnosticBusLines {
     private fun bytes(hex: String) = ByteArray(hex.length / 2) { hex.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
     private const val REFUSED_PREFIX = "the resident helper refused: "
+    private const val MAX_PAGE_BYTES = 64
     private val HEX = Regex("(?:[0-9A-F]{2})+")
+    private val HEX_DIGITS = Regex("[0-9A-F]+")
     private val CODE = Regex("[A-Z_]+")
 }

@@ -1,6 +1,9 @@
 package dev.denza.apps.feature.diagnostics.bus
 
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -22,6 +25,10 @@ import kotlinx.coroutines.sync.withLock
  *
  * [setGap] is the helper's `g <ms>`: it is recorded in [gaps] and becomes [gapMs], so the fake car
  * clock runs at the gap the engine asked for from the next exchange on.
+ *
+ * The BMS pages (architecture 6.3) are a script of their own: [page] queues a page for whoever
+ * collects [batteryPages], [failPages] ends the running subscription as a lost helper would,
+ * [failSubscribe] refuses the next `s gb`. [subscriptions] logs `s`, `u` (left) and `lost`.
  */
 internal class FakeDiagnosticBus(
     var gapMs: Int = 100,
@@ -101,6 +108,52 @@ internal class FakeDiagnosticBus(
     }
 
     override fun close() = synchronized(this) { closed = true }
+
+    private val pageSteps = Channel<Result<BmsPage>>(Channel.UNLIMITED)
+    private val subscriptionLog = mutableListOf<String>()
+    private var subscribeFailure: DiagFailure? = null
+
+    /** `s` per subscription, `u` when it was left, `lost` when it ended with a failure; in order. */
+    val subscriptions: List<String> get() = synchronized(this) { subscriptionLog.toList() }
+
+    /** A page for the subscription that is running or comes next. */
+    fun page(page: BmsPage) {
+        pageSteps.trySend(Result.success(page))
+    }
+
+    fun page(canId: Int, payload: String, receivedNanos: Long) = page(BmsPage(canId, bytes(payload), receivedNanos))
+
+    /** The running subscription, or the next one after its pages, ends with [failure]. */
+    fun failPages(failure: DiagFailure) {
+        pageSteps.trySend(Result.failure(failure))
+    }
+
+    /** The next `s gb` fails with [failure]. */
+    fun failSubscribe(failure: DiagFailure) = synchronized(this) { subscribeFailure = failure }
+
+    override fun batteryPages(): Flow<BmsPage> = flow {
+        synchronized(this@FakeDiagnosticBus) {
+            if (closed) throw DiagFailure.ChannelLost(IllegalStateException("the fake bus is closed"))
+            subscribeFailure?.let {
+                subscribeFailure = null
+                subscriptionLog += "lost"
+                throw it
+            }
+            subscriptionLog += "s"
+        }
+        var lost = false
+        try {
+            for (step in pageSteps) {
+                val page = step.getOrElse {
+                    lost = true
+                    throw it
+                }
+                emit(page)
+            }
+        } finally {
+            synchronized(this@FakeDiagnosticBus) { subscriptionLog += if (lost) "lost" else "u" }
+        }
+    }
 
     private fun next(request: DiagRequest): Step {
         val steps = scripts[key(request.address, hex(request.uds))] ?: return unscripted(request)

@@ -16,6 +16,7 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.lang.reflect.Proxy;
 import java.nio.channels.FileLock;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -26,9 +27,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Packed with {@link DiagnosticWhitelist} and {@link DiagnosticFrameAssembler} and nothing else
  * of the app, and run by {@code app_process} on an ADB stream of its own. It takes
- * {@code x <seq> <address> <uds> <timeout-ms>}, {@code g <gap-ms>} and {@code quit}; every other
- * word is refused. The whitelist is checked here again, because this process, not the app, is the
- * one that can write to the bus.
+ * {@code x <seq> <address> <uds> <timeout-ms>}, {@code g <gap-ms>}, {@code s gb}, {@code u gb} and
+ * {@code quit}; every other word is refused. The whitelist is checked here again, because this
+ * process, not the app, is the one that can write to the bus.
  *
  * <p>{@code g <ms>} sets the gap between exchanges, 0 to 500 ms, from the next exchange on, and is
  * answered with the same {@code g <ms>} between BEGIN and {@code END ok}: the gap now in force. The
@@ -45,6 +46,16 @@ import java.util.concurrent.TimeUnit;
  * <p>Before every request: the whitelist, profile 170, P, 0 km/h, the stock diagnostic manager at
  * rest and the gap since the previous exchange. The listener only copies the buffer and its
  * arrival time and posts them to the main looper; everything else happens there.
+ *
+ * <p>{@code s gb} and {@code u gb} subscribe to and leave the BMS's pages of the GB stream (device
+ * 1039, event {@code 9900001F}; architecture 6.3), each answered with the same line. Only while
+ * subscribed is a listener registered there; it forwards the records of CAN ids 43A, 43C and 43D
+ * at sub 0, channel 2 as pushed lines, {@code DENZA_SERVE_<nonce>:PUSH b <ns> <id> <payload>},
+ * printed whole between answers and never inside one. Nothing is sent to the car for them, so
+ * the per-request checks do not apply; the helper itself only starts parked. While subscribed the
+ * idle clock stands - the app reading the pages is the activity - and a session that ends while
+ * subscribed pushes {@code e <CODE> <why>} first. The listener goes on {@code u gb}, on
+ * {@code quit}, on the idle exit and on every other way out ({@link #release}).
  */
 @SuppressLint({"PrivateApi", "BlockedPrivateApi", "DiscouragedPrivateApi"})
 public final class DiagnosticBusMain {
@@ -66,10 +77,33 @@ public final class DiagnosticBusMain {
     static final int MAX_TIMEOUT_MS = 6_000;
     /** How much longer than its own timeout the reader waits for the main looper. */
     static final int STALL_MS = 5_000;
+    /** The GB stream: its device, its event, and the BMS pages of it that are forwarded (architecture, 6.3). */
+    static final String GB_DEVICE_CLASS = "android.hardware.bydauto.gb.BYDAutoGBDevice";
+    static final int GB_DEVICE = 1039;
+    static final int GB_EVENT = 0x9900001F;
+    static final int PAGE_COUNTS = 0x43A;
+    static final int PAGE_PROBES = 0x43C;
+    static final int PAGE_CELLS = 0x43D;
+    /** The ten-byte envelope before a record's payload: id (4, big-endian), sub, channel, counter (4). */
+    static final int ENVELOPE = 10;
+    static final int MAX_PAGE_PAYLOAD = 64;
+    /** Pushed lines waiting for the stream; a full queue drops pages, and the app sees the gap. */
+    static final int PUSH_QUEUE = 1_024;
 
     private final String begin;
     private final String end;
     private final String ready;
+    private final String push;
+    /** Every write to stdout holds it: an answer and a pushed line never interleave. */
+    private final Object out = new Object();
+    private final ArrayBlockingQueue<String> pushes = new ArrayBlockingQueue<>(PUSH_QUEUE);
+    /** True while the app is subscribed to the pages; written on the main looper. */
+    private volatile boolean subscribed;
+    private Context context;
+    private Object gbDevice;
+    private Object gbListener;
+    private Class<?> gbClass;
+    private Class<?> eventClass;
     /** Set by the request thread between two exchanges, read by the main looper at the next one. */
     private volatile int gapMs;
     private final DiagnosticFrameAssembler assembler = new DiagnosticFrameAssembler();
@@ -87,12 +121,15 @@ public final class DiagnosticBusMain {
     private volatile String fatal;
     private Exchange current;
     private long lastEndUptime = -1;
-    private final Runnable idleExit = () -> exit(0);
+    private final Runnable idleExit = () -> {
+        if (!subscribed) exit(0);
+    };
 
     private DiagnosticBusMain(String nonce, int gapMs) {
         begin = "DENZA_SERVE_" + nonce + ":BEGIN";
         end = "DENZA_SERVE_" + nonce + ":END";
         ready = "DENZA_SERVE_" + nonce + ":READY";
+        push = "DENZA_SERVE_" + nonce + ":PUSH ";
         this.gapMs = gapMs;
     }
 
@@ -139,11 +176,11 @@ public final class DiagnosticBusMain {
             if (autoService == null) return "HELPER_FAILED no autoservice";
             String guard = guard();
             if (guard != null) return guard;
-            Context context = ShellProxyBootstrap.systemContext();
+            context = ShellProxyBootstrap.systemContext();
             deviceClass = Class.forName("android.hardware.bydauto.mqtt.BYDAutoMqttDevice");
             listenerClass = Class.forName("android.hardware.IBYDAutoListener");
             valueClass = Class.forName("android.hardware.bydauto.BYDAutoEventValue");
-            Class<?> eventClass = Class.forName("android.hardware.IBYDAutoEvent");
+            eventClass = Class.forName("android.hardware.IBYDAutoEvent");
             device = deviceClass.getMethod("getInstance", Context.class).invoke(null, context);
             listener = Proxy.newProxyInstance(DiagnosticBusMain.class.getClassLoader(),
                     new Class<?>[]{listenerClass}, (proxy, method, a) -> {
@@ -196,12 +233,31 @@ public final class DiagnosticBusMain {
     private void announce() {
         if (announced) return;
         announced = true;
-        System.out.println(ready);
-        System.out.flush();
+        emit(ready + "\n");
         main.postDelayed(idleExit, IDLE_EXIT_MS);
         Thread reader = new Thread(this::serve, "denza-diag-bus-requests");
         reader.setDaemon(true);
         reader.start();
+        Thread writer = new Thread(this::pushAll, "denza-diag-bus-pushes");
+        writer.setDaemon(true);
+        writer.start();
+    }
+
+    /** Writes [text] whole: an answer block and a pushed line each go out under one lock and one flush. */
+    private void emit(String text) {
+        synchronized (out) {
+            System.out.print(text);
+            System.out.flush();
+        }
+    }
+
+    /** The pushed lines, in order, off the binder threads that queued them: a slow stream never holds up a binder thread or the main looper. */
+    private void pushAll() {
+        try {
+            while (true) emit(pushes.take() + "\n");
+        } catch (InterruptedException ignored) {
+            // The process is going.
+        }
     }
 
     /** A start that failed: nothing is held, and the first line learns why. */
@@ -215,6 +271,12 @@ public final class DiagnosticBusMain {
     private void fail(String verdict) {
         if (fatal != null) return;
         fatal = verdict;
+        if (subscribed) {
+            // The app may be sending nothing while it reads the pages: the end reaches it as a pushed line.
+            subscribed = false;
+            String last = push + "e " + verdict.replace('\n', ' ').replace('\r', ' ');
+            while (!pushes.offer(last)) pushes.poll();
+        }
         release();
         if (current != null) {
             Exchange exchange = current;
@@ -233,9 +295,11 @@ public final class DiagnosticBusMain {
                 String request = line.trim();
                 if (request.isEmpty()) continue;
                 if ("quit".equals(request)) break;
-                boolean gapLine = request.split(" +")[0].equals("g");
-                Exchange exchange = gapLine ? gap(request) : parse(request);
-                if (!gapLine && exchange.error == null) {
+                String word = request.split(" +")[0];
+                boolean gapLine = word.equals("g");
+                boolean pagesLine = word.equals("s") || word.equals("u");
+                Exchange exchange = gapLine ? gap(request) : pagesLine ? pages(request) : parse(request);
+                if (!gapLine && !pagesLine && exchange.error == null) {
                     String verdict = fatal;
                     if (verdict != null) {
                         exchange.finish(null, verdict, true);
@@ -246,14 +310,11 @@ public final class DiagnosticBusMain {
                         }
                     }
                 }
-                System.out.println(begin);
                 if (exchange.error == null) {
-                    System.out.println(exchange.answer);
-                    System.out.println(end + " ok");
+                    emit(begin + "\n" + exchange.answer + "\n" + end + " ok\n");
                 } else {
-                    System.out.println(end + " err " + exchange.error.replace('\n', ' ').replace('\r', ' '));
+                    emit(begin + "\n" + end + " err " + exchange.error.replace('\n', ' ').replace('\r', ' ') + "\n");
                 }
-                System.out.flush();
                 if (exchange.exits) break;
             }
         } catch (Throwable error) {
@@ -288,6 +349,136 @@ public final class DiagnosticBusMain {
         if (words.length != 2 || !"g".equals(words[0]) || !words[1].matches("[0-9]{1,3}")) return -1;
         int ms = Integer.parseInt(words[1]);
         return ms <= MAX_GAP_MS ? ms : -1;
+    }
+
+    /**
+     * {@code s gb} / {@code u gb}: the BMS pages from now on, or no more; answered with the same
+     * line. A session that is already over answers its verdict; a malformed line is refused like
+     * any unknown one. The listener is registered and dropped on the main looper.
+     */
+    private Exchange pages(String line) throws InterruptedException {
+        Exchange exchange = new Exchange();
+        String word = pagesOf(line);
+        String verdict = fatal;
+        if (verdict != null) {
+            exchange.finish(null, verdict, true);
+        } else if (word == null) {
+            exchange.finish(null, "REFUSED s gb or u gb required", false);
+        } else {
+            main.post(() -> {
+                if ("s".equals(word)) subscribe(exchange); else leave(exchange);
+            });
+            if (!exchange.done.await(STALL_MS, TimeUnit.MILLISECONDS)) {
+                exchange.finish(null, "HELPER_FAILED the helper stalled", true);
+            }
+        }
+        return exchange;
+    }
+
+    /** {@code s} or {@code u} of a well-formed {@code s gb} / {@code u gb} line, or null for any other line. */
+    static String pagesOf(String line) {
+        String[] words = line.trim().split(" +");
+        if (words.length != 2 || !"gb".equals(words[1])) return null;
+        return "s".equals(words[0]) || "u".equals(words[0]) ? words[0] : null;
+    }
+
+    /** On the main looper: the GB listener, once; the idle clock stands while the pages flow. */
+    private void subscribe(Exchange exchange) {
+        if (fatal != null) {
+            exchange.finish(null, fatal, true);
+            return;
+        }
+        try {
+            if (gbListener == null) registerPages();
+        } catch (Throwable error) {
+            fail("HELPER_FAILED " + describe(error));
+            exchange.finish(null, fatal, true);
+            return;
+        }
+        subscribed = true;
+        main.removeCallbacks(idleExit);
+        exchange.finish("s gb", null, false);
+    }
+
+    /** On the main looper: the GB listener goes and the idle clock starts again. */
+    private void leave(Exchange exchange) {
+        if (fatal != null) {
+            exchange.finish(null, fatal, true);
+            return;
+        }
+        subscribed = false;
+        unregisterPages();
+        idleClock();
+        exchange.finish("u gb", null, false);
+    }
+
+    private void registerPages() throws Exception {
+        gbClass = Class.forName(GB_DEVICE_CLASS);
+        Object device = gbClass.getMethod("getInstance", Context.class).invoke(null, context);
+        java.lang.reflect.Method deviceType = eventClass.getMethod("getDeviceType");
+        java.lang.reflect.Method eventType = eventClass.getMethod("getEventType");
+        java.lang.reflect.Method buffer = eventClass.getMethod("getBufferData");
+        Object pagesListener = Proxy.newProxyInstance(DiagnosticBusMain.class.getClassLoader(),
+                new Class<?>[]{listenerClass}, (proxy, method, a) -> {
+                    switch (method.getName()) {
+                        case "onDataChanged":
+                            // A binder thread: filter and queue, nothing more.
+                            try {
+                                if (subscribed && a != null && a.length > 0 && a[0] != null
+                                        && Integer.valueOf(GB_DEVICE).equals(deviceType.invoke(a[0]))
+                                        && Integer.valueOf(GB_EVENT).equals(eventType.invoke(a[0]))) {
+                                    long at = SystemClock.elapsedRealtimeNanos();
+                                    String line = pageLine((byte[]) buffer.invoke(a[0]), at);
+                                    if (line != null) pushes.offer(push + line);
+                                }
+                            } catch (Exception ignored) {
+                                // One record lost; the app sees the gap in its pages.
+                            }
+                            return null;
+                        case "hashCode":
+                            return System.identityHashCode(proxy);
+                        case "equals":
+                            return a != null && a.length == 1 && proxy == a[0];
+                        case "toString":
+                            return "DenzaDiagnosticPagesListener";
+                        default:
+                            return null;
+                    }
+                });
+        gbClass.getMethod("registerListener", listenerClass, int[].class)
+                .invoke(device, pagesListener, new int[]{GB_EVENT});
+        synchronized (this) {
+            gbDevice = device;
+            gbListener = pagesListener;
+        }
+    }
+
+    /** Drops the GB listener, if there is one; from the main looper or [release]. */
+    private synchronized void unregisterPages() {
+        try {
+            if (gbDevice != null && gbListener != null) {
+                gbClass.getMethod("unregisterListener", listenerClass).invoke(gbDevice, gbListener);
+            }
+        } catch (Throwable ignored) {
+            // The process goes with it at the latest.
+        }
+        gbDevice = null;
+        gbListener = null;
+    }
+
+    /**
+     * {@code b <ns> <id> <payload>} for a GB record the app asked for - CAN id 43A, 43C or 43D at
+     * sub 0, channel 2, behind the ten-byte envelope (id, sub, channel, counter) - and null for
+     * any other record. The payload goes as it came, upper-case hex.
+     */
+    static String pageLine(byte[] record, long atNanos) {
+        if (record == null || record.length <= ENVELOPE || record.length > ENVELOPE + MAX_PAGE_PAYLOAD) return null;
+        int id = ((record[0] & 0xFF) << 24) | ((record[1] & 0xFF) << 16) | ((record[2] & 0xFF) << 8) | (record[3] & 0xFF);
+        if (id != PAGE_COUNTS && id != PAGE_PROBES && id != PAGE_CELLS) return null;
+        if (record[4] != 0 || record[5] != 2) return null;
+        byte[] payload = new byte[record.length - ENVELOPE];
+        System.arraycopy(record, ENVELOPE, payload, 0, payload.length);
+        return "b " + atNanos + " " + String.format("%03X", id) + " " + hex(payload);
     }
 
     private Exchange parse(String line) {
@@ -400,8 +591,13 @@ public final class DiagnosticBusMain {
     /** An exchange ended: the gap and the idle clock start now. */
     private void closed() {
         lastEndUptime = SystemClock.uptimeMillis();
+        idleClock();
+    }
+
+    /** The idle clock from now; it stands while the app is subscribed to the pages. */
+    private void idleClock() {
         main.removeCallbacks(idleExit);
-        main.postDelayed(idleExit, IDLE_EXIT_MS);
+        if (!subscribed) main.postDelayed(idleExit, IDLE_EXIT_MS);
     }
 
     /** Null when a request may go out; otherwise {@code <CODE> <why>}. */
@@ -439,8 +635,10 @@ public final class DiagnosticBusMain {
         }
     }
 
-    /** Lets go of the listener and the lock; the process may still be answering its last line. */
+    /** Lets go of both listeners and the lock; the process may still be answering its last line. */
     private synchronized void release() {
+        subscribed = false;
+        unregisterPages();
         try {
             if (device != null && listener != null) {
                 deviceClass.getMethod("unregisterListener", listenerClass).invoke(device, listener);

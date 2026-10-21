@@ -2,18 +2,21 @@ package dev.denza.disharebridge;
 
 import android.content.Context;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
+import java.io.SequenceInputStream;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +30,10 @@ public final class LocalAdbClient {
     private static final int PORT = 5555;
     private static final int CONNECT_TIMEOUT_MS = 900;
     private static final int READ_TIMEOUT_MS = 2500;
+    /** Messages one {@code ResidentSession.pushed} call reads past the first, when they are already there. */
+    private static final int PUSHED_BATCH = 64;
+    /** Pushed lines kept for a caller that does not take them: about a minute of the BMS pages. */
+    static final int MAX_PUSHED_CHARS = 256 * 1024;
     private static final int ADB_VERSION = 0x01000000;
     private static final int MAX_PAYLOAD = 262144;
 
@@ -667,6 +674,13 @@ public final class LocalAdbClient {
         private final String readyMarker;
         private final String beginMarker;
         private final String endMarker;
+        private final String pushMarker;
+        /**
+         * What the helper printed outside every answer and nobody has taken yet: its pushed lines
+         * and, at the end, a line still on its way. Everything else - the shell's echo, noise - is
+         * dropped as it comes ({@link #keepPushed}).
+         */
+        private final StringBuilder outside = new StringBuilder();
         private volatile Socket socket;
         private volatile Socket connectingSocket;
         private InputStream input;
@@ -678,6 +692,7 @@ public final class LocalAdbClient {
             readyMarker = "DENZA_SERVE_" + nonce + ":READY";
             beginMarker = "DENZA_SERVE_" + nonce + ":BEGIN";
             endMarker = "DENZA_SERVE_" + nonce + ":END";
+            pushMarker = "DENZA_SERVE_" + nonce + ":PUSH ";
         }
 
         /** Runs [launchCommand] and waits for the helper to say it is up. */
@@ -767,14 +782,70 @@ public final class LocalAdbClient {
             }
             try {
                 socket.setSoTimeout(readTimeoutMs);
-                return runResidentRequest(
+                StringBuilder around = new StringBuilder();
+                String answer = runResidentRequest(
                         input,
                         output,
                         INTERACTIVE_SHELL_LOCAL_ID,
                         remoteId,
                         line,
                         beginMarker,
-                        endMarker);
+                        endMarker,
+                        around);
+                outside.append(around);
+                keepPushed(outside, pushMarker);
+                return answer;
+            } catch (IOException error) {
+                close();
+                throw error;
+            }
+        }
+
+        /**
+         * The lines the helper pushed on its own since the last call, oldest first, with their
+         * {@code DENZA_SERVE_<nonce>:PUSH } prefix taken off.
+         *
+         * <p>A pushed line is one the helper prints between two answers, never inside one; it
+         * carries the nonce like an answer does, so the shell's echo of a request or its noise is
+         * never read as one. Lines that came around an answer are kept by {@link #request} for
+         * this call. When none is waiting, this waits up to [waitMs] for the stream to bring
+         * something and returns an empty list if it brings nothing: a quiet helper is not a
+         * failure. Only the first byte of a message is waited for, so the wait never cuts a
+         * message and the stream stays whole. Any failure closes the session, as
+         * {@link #request} does.
+         */
+        public synchronized List<String> pushed(int waitMs) throws IOException {
+            if (closed) {
+                throw new IOException("the resident session is closed");
+            }
+            if (socket == null) {
+                throw new IOException("the resident helper is not running");
+            }
+            try {
+                List<String> lines = takePushed(outside, pushMarker);
+                if (!lines.isEmpty()) {
+                    return lines;
+                }
+                socket.setSoTimeout(Math.max(1, waitMs));
+                int first;
+                try {
+                    first = input.read();
+                } catch (SocketTimeoutException quiet) {
+                    return lines;
+                }
+                if (first < 0) {
+                    throw new EOFException("the resident helper's stream closed");
+                }
+                socket.setSoTimeout(READ_TIMEOUT_MS);
+                InputStream message = new SequenceInputStream(
+                        new ByteArrayInputStream(new byte[] {(byte) first}), input);
+                readOutside(message, output, INTERACTIVE_SHELL_LOCAL_ID, remoteId, outside);
+                // What has already arrived goes with this call; the rest waits for the next one.
+                for (int more = 0; more < PUSHED_BATCH && input.available() > 0; more++) {
+                    readOutside(input, output, INTERACTIVE_SHELL_LOCAL_ID, remoteId, outside);
+                }
+                keepPushed(outside, pushMarker);
+                return takePushed(outside, pushMarker);
             } catch (IOException error) {
                 close();
                 throw error;
@@ -829,13 +900,116 @@ public final class LocalAdbClient {
             String request,
             String beginMarker,
             String endMarker) throws IOException {
-        return exchangeWithResident(
+        return runResidentRequest(
+                input, output, localId, remoteId, request, beginMarker, endMarker, new StringBuilder());
+    }
+
+    /** As above; whatever came around the answer - before its BEGIN, after its END line - goes to [around]. */
+    static String runResidentRequest(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String request,
+            String beginMarker,
+            String endMarker,
+            StringBuilder around) throws IOException {
+        String[] seen = new String[1];
+        String answer = exchangeWithResident(
                 input,
                 output,
                 localId,
                 remoteId,
                 request,
-                received -> findResidentAnswer(received, beginMarker, endMarker));
+                received -> {
+                    String found = findResidentAnswer(received, beginMarker, endMarker);
+                    if (found != null) {
+                        seen[0] = received;
+                    }
+                    return found;
+                });
+        around.append(residentOutside(seen[0], beginMarker, endMarker));
+        return answer;
+    }
+
+    /** The text of [received] outside its one finished answer: before BEGIN and after the END line. */
+    static String residentOutside(String received, String beginMarker, String endMarker) {
+        int begin = received.indexOf(beginMarker);
+        if (begin < 0) {
+            return received;
+        }
+        int payloadStart = received.indexOf('\n', begin + beginMarker.length());
+        int end = payloadStart < 0 ? -1 : received.indexOf(endMarker, payloadStart + 1);
+        int statusEnd = end < 0 ? -1 : received.indexOf('\n', end);
+        if (statusEnd < 0) {
+            return received.substring(0, begin);
+        }
+        return received.substring(0, begin) + received.substring(statusEnd + 1);
+    }
+
+    /**
+     * Drops from [outside] every finished line that is not a pushed one, so a helper that pushes
+     * nothing keeps nothing; a line still on its way stays. More than [MAX_PUSHED_CHARS] of
+     * pushed lines nobody took loses the oldest of them.
+     */
+    static void keepPushed(StringBuilder outside, String pushMarker) {
+        int last = outside.lastIndexOf("\n");
+        if (last < 0) {
+            if (outside.length() > MAX_PUSHED_CHARS) {
+                outside.setLength(0);
+            }
+            return;
+        }
+        String tail = outside.substring(last + 1);
+        StringBuilder kept = new StringBuilder();
+        for (String line : outside.substring(0, last).split("\n", -1)) {
+            int at = line.indexOf(pushMarker);
+            if (at >= 0) {
+                kept.append(line, at, line.endsWith("\r") ? line.length() - 1 : line.length()).append('\n');
+            }
+        }
+        while (kept.length() > MAX_PUSHED_CHARS) {
+            kept.delete(0, kept.indexOf("\n") + 1);
+        }
+        outside.setLength(0);
+        outside.append(kept).append(tail);
+    }
+
+    /** The finished pushed lines of [outside], prefix off, taken out of it; a line on its way stays. */
+    static List<String> takePushed(StringBuilder outside, String pushMarker) {
+        List<String> lines = new ArrayList<>();
+        int last = outside.lastIndexOf("\n");
+        if (last < 0) {
+            return lines;
+        }
+        for (String line : outside.substring(0, last).split("\n", -1)) {
+            String clean = line.endsWith("\r") ? line.substring(0, line.length() - 1) : line;
+            if (clean.startsWith(pushMarker)) {
+                lines.add(clean.substring(pushMarker.length()));
+            }
+        }
+        outside.delete(0, last + 1);
+        return lines;
+    }
+
+    /** One message of a resident stream with no request open: its text to [outside], its write acknowledged. */
+    static void readOutside(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            StringBuilder outside) throws IOException {
+        Message message = readMessage(input);
+        verifyStreamMessage(message, localId, remoteId);
+        if (message.command == A_WRTE) {
+            outside.append(new String(message.payload, StandardCharsets.UTF_8));
+            writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
+        } else if (message.command == A_CLSE) {
+            writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
+            throw new EOFException("the resident helper's stream closed");
+        } else if (message.command != A_OKAY) {
+            throw new IOException("Unexpected resident message " + message.commandName());
+        }
     }
 
     /**

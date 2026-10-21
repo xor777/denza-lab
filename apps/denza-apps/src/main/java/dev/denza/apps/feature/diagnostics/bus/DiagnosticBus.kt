@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.bus
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * One physical request to one ECU on the car's diagnostic channel. [address] is the request id;
  * the ECU answers on [reply]. Only what [DiagnosticWhitelist] allows can be made at all.
@@ -92,10 +94,38 @@ internal sealed class DiagFailure(message: String, cause: Throwable? = null) : E
     class Refused(val why: String) : DiagFailure(why)
 }
 
+/**
+ * One record of the BMS's own pages on the GB stream (device 1039, event `9900001F`; architecture
+ * 6.3): CAN id `43A` (the counts), `43C` (six probe codes) or `43D` (three cell words), its payload
+ * as it came, and when the helper's listener got it on the car's `elapsedRealtimeNanos`.
+ */
+internal class BmsPage(val canId: Int, payload: ByteArray, val receivedNanos: Long) {
+    private val bytes = payload.copyOf()
+    val payload: ByteArray get() = bytes.copyOf()
+    val size: Int get() = bytes.size
+    /** The payload's byte at [index], 0..255. */
+    operator fun get(index: Int): Int = bytes[index].toInt() and 0xFF
+    override fun toString() = "%03X %s @%d".format(canId, hex(bytes), receivedNanos)
+
+    companion object {
+        const val COUNTS = 0x43A
+        const val PROBES = 0x43C
+        const val CELLS = 0x43D
+    }
+}
+
 /** The car's diagnostic channel: one exchange at a time, read-only by [DiagnosticWhitelist]. */
 internal interface DiagnosticBus : AutoCloseable {
     /** Returns what the ECU said; throws [DiagFailure] when the channel itself failed. */
     suspend fun exchange(request: DiagRequest): DiagReply
+
+    /**
+     * The BMS's pages while collected (architecture 6.3, helper lines `s gb` / `u gb`): collecting
+     * subscribes, cancelling leaves. Listening only - nothing goes to the car - and exchanges keep
+     * their turn while it runs. It ends with a [DiagFailure] when the helper that serves it is lost
+     * or its session ends; asking again is the caller's decision, never this flow's.
+     */
+    fun batteryPages(): Flow<BmsPage>
 
     /**
      * The helper's gap between two exchanges, 0..500 ms, from the next exchange on (architecture,
