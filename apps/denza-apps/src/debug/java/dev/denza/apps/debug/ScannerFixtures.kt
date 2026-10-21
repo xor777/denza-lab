@@ -31,6 +31,7 @@ import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.MonitorRow
 import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
@@ -143,6 +144,9 @@ internal object ScannerFixtures {
         override fun setFocus(request: Int, pids: List<Int>) {}
         override fun resetMinMax(request: Int) {}
         override fun setRecording(request: Int, on: Boolean) {}
+        override fun setParam(key: ParamKey?) {}
+        override fun setParamPaused(paused: Boolean) {}
+        override fun resetParam() {}
     }
 
     /* ----------------------------------------------------------- autoscan */

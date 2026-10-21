@@ -212,6 +212,13 @@ internal class DiagnosticsSession(
         }
     }
 
+    // The parameter page (architecture, 6.2): the contract; the polling is the next change.
+    override fun setParam(key: ParamKey?) = act {}
+
+    override fun setParamPaused(paused: Boolean) = act {}
+
+    override fun resetParam() = act {}
+
     private inline fun act(block: () -> Unit) {
         synchronized(lock) {
             block()

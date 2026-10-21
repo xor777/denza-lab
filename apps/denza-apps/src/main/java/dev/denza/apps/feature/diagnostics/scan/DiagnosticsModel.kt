@@ -20,6 +20,65 @@ internal data class DiagnosticsModel(
     val rail: List<RailItem> = emptyList(),
     /** Each system's page, by system; every [CarSystem] has one once a scan or a reading exists. */
     val systemPages: Map<CarSystem, SystemPage> = emptyMap(),
+    /** The parameter page the screens asked for with [DiagnosticsActions.setParam]; null when none (architecture, 6.2). */
+    val param: ParamView? = null,
+)
+
+/** What a parameter page reads alone (architecture, 6.2). */
+internal sealed interface ParamKey {
+    /** A Mode 01 PID of [request]: polled alone, the helper's gap at its smallest the car holds. */
+    data class Pid(val request: Int, val pid: Int) : ParamKey
+    /** A reading of the car - a `DiagnosticExtra.key`, or a hub signal's name: polled alone, about ten times a second. */
+    data class Signal(val key: String) : ParamKey
+}
+
+/** One parameter on its own page (board `scanner-sys-engine-rpm`, `scanner-sys-engine-ect`). */
+internal data class ParamView(
+    val key: ParamKey,
+    /** «Обороты коленвала». */
+    val name: String,
+    /** «· PID 0C · RPM», «· 1014·44600010». */
+    val aside: String,
+    /** «7E0 → 7E8 · Mode 01 · только 0C · 24,1 Гц · обмен 18 мс». */
+    val line: String,
+    /** «1 250»; «н/д» before the first reading. */
+    val value: String,
+    val unit: String,
+    val outOfNorm: Boolean,
+    /** The norm drawn as a band; null where none is known. */
+    val norm: ClosedFloatingPointRange<Float>?,
+    /** «80…105», «—». */
+    val normText: String,
+    /** The last five minutes, oldest first, timed by the car; a null value is a gap. */
+    val samples: List<Sample>,
+    /** The chart's right edge on the car's clock. */
+    val nowNanos: Long,
+    /** Per window - 10, 60 and 300 s - what the head, the side and the chart's scale say. */
+    val windows: Map<Int, ParamStats>,
+    val running: Boolean,
+    /** Measured: «24,1 Гц · 18 мс»; «—» before two samples. */
+    val rate: String,
+    /** «Запись» is offered: a PID's stream can be written, a car signal's not. */
+    val recordable: Boolean,
+    val recording: Boolean,
+)
+
+internal data class ParamStats(
+    val min: String,
+    val max: String,
+    val mean: String,
+    /** The dashed lines; null before a reading in the window. */
+    val minValue: Float?,
+    val maxValue: Float?,
+    /** The chart's vertical range, rounded outward to its grid. */
+    val scale: ClosedFloatingPointRange<Float>,
+    val grid: List<Float>,
+    /** The grid's labels: «2 200», «90». */
+    val gridText: List<String>,
+    /** The change over the last second: «+12», «−0,1», «—». */
+    val delta: String,
+    /** Readings in the window: «1 441». */
+    val points: String,
 )
 
 /**
@@ -492,6 +551,8 @@ internal data class LiveRow(
     val source: String,
     /** The last 60 s, oldest first, timed by the car. */
     val samples: List<Sample>,
+    /** What a tap on the row opens alone; null when it cannot be read on its own. */
+    val key: ParamKey? = null,
 )
 
 /** One reading on the car's clock; a null [value] is a gap the chart leaves open. */
@@ -518,6 +579,8 @@ internal data class SignalRow(
     /** True when the value is inside [norm], false outside, null when there is no norm. */
     val ok: Boolean?,
     val stale: Boolean,
+    /** What a tap on the row opens alone; null for a calculation («расчёт»). */
+    val key: ParamKey? = null,
 )
 
 /** ECUs side by side: the drives, the driver-assistance modules. */
@@ -585,4 +648,13 @@ internal interface DiagnosticsActions {
     fun resetMinMax(request: Int)
     /** «Запись»: the stream to `filesDir/diagnostics/stream-<time>.csv`. */
     fun setRecording(request: Int, on: Boolean)
+    /**
+     * A parameter page shown ([key]) or left (null): while shown only it is polled - every other
+     * stream and the autoscan stand - and [DiagnosticsModel.param] describes it (architecture, 6.2).
+     */
+    fun setParam(key: ParamKey?)
+    /** «Пауза» / «Продолжить» on the parameter page. */
+    fun setParamPaused(paused: Boolean)
+    /** «Сбросить мин/макс» on the parameter page: its windows start over. */
+    fun resetParam()
 }
