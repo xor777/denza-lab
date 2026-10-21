@@ -1061,7 +1061,7 @@
     tabs: paramTabs,
     label: 'СЕЙЧАС', value: '1 250', unit: 'об/мин', outOfNorm: false,
     stats: [['НОРМА', '—'], ['ЗА 1 С', '+12'], ['ТОЧЕК', '1 441']],
-    series: idleRpm, window: 60, scale: [1000, 2400], grid: [1000, 1400, 1800, 2200], gridText: num,
+    series: idleRpm, window: 60, scale: [1000, 2500], grid: [1000, 1500, 2000, 2500], gridText: num,
     ticks: [60, 45, 30, 15, 0], min: Math.min(...idleRpm.map(p => p[1])), max: Math.max(...idleRpm.map(p => p[1])),
     footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet'], ['Запись', 'quiet']],
       notes: [['24,1 Гц · 18 мс', true]] },
@@ -1069,7 +1069,7 @@
   const scannerSysEngineEct = Object.assign({}, scannerSysEngineRpm, {
     block: { title: 'Температура ОЖ', aside: '· PID 05 · ECT', line: '7E0 → 7E8 · Mode 01 · только 05 · 24,0 Гц · обмен 17 мс',
       counters: [['МИН', '88'], ['МАКС', '91'], ['СРЕДН.', '90']] },
-    value: '91', unit: '°C', stats: [['НОРМА', '80…105'], ['ЗА 1 С', '+0,1'], ['ТОЧЕК', '1 441']],
+    value: '91', unit: '°C', stats: [['НОРМА', '80…105'], ['ЗА 1 С', '+0'], ['ТОЧЕК', '1 441']],
     series: warmEct, scale: [70, 110], grid: [70, 80, 90, 100, 110], gridText: v => String(Math.round(v)), norm: [80, 105],
     min: Math.min(...warmEct.map(p => p[1])), max: Math.max(...warmEct.map(p => p[1])),
     footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet'], ['Запись', 'quiet']],
