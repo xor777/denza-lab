@@ -142,7 +142,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         running = running,
         rate = rate(),
         focus = focus,
-        rows = series.values.map { it.row(engineRunning) } + car.map { (row, s) -> s.carRow(row) },
+        rows = series.values.map { it.row(engineRunning, ParamKey.Pid(request, it.pid)) } + car.map { (row, s) -> s.carRow(row) },
         recording = recording,
     )
 
@@ -174,8 +174,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         return packs
     }
 
-    private fun csv(at: Long, pid: Int, raw: String, value: String) =
-        "$at,${Figures.address(request)},%02X,$raw,$value".format(pid)
+    private fun csv(at: Long, pid: Int, raw: String, value: String) = csvLine(at, request, pid, raw, value)
 
     /** One row's history, value and extremes. */
     private class Series(val pid: Int) {
@@ -261,7 +260,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 
         private fun extreme(v: Double?) = v?.let { Figures.number(it, decimals, signed = pid in SIGNED) } ?: "—"
 
-        fun row(engineRunning: Boolean?): LiveRow {
+        fun row(engineRunning: Boolean?, key: ParamKey): LiveRow {
             val def = ObdPids.of(pid)
             val norm = NORMS[pid]
             return LiveRow(
@@ -276,6 +275,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                 outOfNorm = norm?.outside(current, engineRunning) ?: false,
                 source = "PID",
                 samples = samples.toList(),
+                key = key,
             )
         }
 
@@ -291,15 +291,24 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
             outOfNorm = false,
             source = CAR_SOURCE,
             samples = samples.toList(),
+            key = ParamKey.Signal(row.signal.name),
         )
     }
 
     /**
      * A norm where one is known (SAE J1979 ranges and the plain physics of a warm petrol engine),
      * never invented for the rest. [running] limits the judgement to a running engine: a parked,
-     * cold car reads 1,275 В on its downstream O2 sensor, and that is not a fault.
+     * cold car reads 1,275 В on its downstream O2 sensor, and that is not a fault. [band] is what
+     * the parameter page draws (architecture, 6.2): the coolant's 80…105 although only overheating
+     * is judged, none for the intake pressure that is said and not judged.
      */
-    private class Norm(val text: String, val low: Double?, val high: Double?, val running: Boolean = false) {
+    class Norm(
+        val text: String,
+        val low: Double?,
+        val high: Double?,
+        val running: Boolean = false,
+        val band: ClosedFloatingPointRange<Float>? = null,
+    ) {
         fun outside(v: Double?, engineRunning: Boolean?): Boolean {
             if (v == null) return false
             if (running && engineRunning != true) return false
@@ -345,18 +354,27 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         /** Fuel trims and errors are read with their sign. */
         private val SIGNED = setOf(0x06, 0x07, 0x2D, 0x56)
 
+        /** The table's words for one PID, which the parameter page repeats (architecture, 6.2). */
+        fun signed(pid: Int): Boolean = pid in SIGNED
+        fun norm(pid: Int): Norm? = NORMS[pid]
+        fun abbreviation(pid: Int): String = ABBREVIATIONS[pid] ?: ""
+
+        /** One line of the stream's CSV: time, address, PID, raw bytes, value. */
+        fun csvLine(at: Long, request: Int, pid: Int, raw: String, value: String) =
+            "$at,${Figures.address(request)},%02X,$raw,$value".format(pid)
+
         private fun cost(pid: Int) = 1 + (ObdPids.of(pid)?.length ?: FRAME_DATA)
 
-        private fun plainNumber(v: Double) = String.format(Locale.ROOT, "%.3f", v).trimEnd('0').trimEnd('.')
+        fun plainNumber(v: Double) = String.format(Locale.ROOT, "%.3f", v).trimEnd('0').trimEnd('.')
 
         private val NORMS = mapOf(
             // Warm-up below 80 °C is no fault, so only overheating is flagged.
-            0x05 to Norm("80…105", null, 105.0),
-            0x06 to Norm("±10", -10.0, 10.0),
-            0x07 to Norm("±10", -10.0, 10.0),
+            0x05 to Norm("80…105", null, 105.0, band = 80f..105f),
+            0x06 to Norm("±10", -10.0, 10.0, band = -10f..10f),
+            0x07 to Norm("±10", -10.0, 10.0, band = -10f..10f),
             // The 12 V side with the DC-DC or the alternator charging it.
-            0x42 to Norm("13,2…14,8", 13.2, 14.8),
-            0x15 to Norm("0,1…0,9", 0.1, 0.9, running = true),
+            0x42 to Norm("13,2…14,8", 13.2, 14.8, band = 13.2f..14.8f),
+            0x15 to Norm("0,1…0,9", 0.1, 0.9, running = true, band = 0.1f..0.9f),
             // Idle only, and the session cannot tell idle from a light load: said, not judged.
             0x0B to Norm("ХХ 25…45", null, null),
         )

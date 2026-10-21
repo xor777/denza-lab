@@ -39,6 +39,8 @@ internal class SessionSnapshot(
     val recording: Int?,
     val car: CarReadings,
     val nowMillis: Long,
+    /** The parameter page, built by the session from its trace (architecture, 6.2). */
+    val param: ParamView? = null,
 )
 
 /**
@@ -72,6 +74,7 @@ internal class ModelBuilder(
             systems = SystemsBuilder.build(s, ::rowStatus),
             rail = SystemPagesBuilder.rail(pages),
             systemPages = if (anything) SystemPagesBuilder.pages(pages) else emptyMap(),
+            param = s.param,
         )
     }
 

@@ -9,13 +9,20 @@ import java.time.ZoneOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 
-/** The hub as a test sets it: P and speed, and a sweep counter the test bumps. */
+/**
+ * The hub as a test sets it: P and speed, and a sweep counter the test bumps. A parameter page's
+ * GET is logged in [focusLog]; the test puts its readings in [pending], which the session drains.
+ */
 internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     var opened = 0
     var closed = 0
+    val focusLog = mutableListOf<SignalGet?>()
+    val pending = mutableListOf<SignalReading>()
     override fun open() { opened++ }
     override fun read(): CarReadings = readings
     override fun close() { closed++ }
+    override fun focus(get: SignalGet?) { focusLog += get }
+    override fun focused(): List<SignalReading> = pending.toList().also { pending.clear() }
 
     companion object {
         fun parked(sweep: Long = 1, extra: Map<VehicleSignal, Double> = emptyMap()) = CarReadings(

@@ -19,6 +19,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,7 +55,7 @@ internal object DiagnosticsSessions {
         return DiagnosticsSession(
             buses = { ResidentDiagnosticBus.create(app) },
             store = FileScanStore(dir),
-            car = HubCarFeed(VehicleSession.hub(app), ExtrasPoller({ DenzaLocalAdb.client(app).openPersistentShell() }, log)),
+            car = HubCarFeed(VehicleSession.hub(app), ExtrasPoller({ AdbExtrasShell(DenzaLocalAdb.client(app).openPersistentShell()) }, log)),
             sinks = CsvStreamSinks(dir, zone),
             zone = zone,
             log = log,
@@ -90,6 +93,22 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
         extras.stop()
         hub.setActive(VehicleWatcher.DIAGNOSTICS, false)
     }
+
+    override fun focus(get: SignalGet?) = extras.focus(get)
+
+    override fun focused(): List<SignalReading> = extras.drain()
+}
+
+/** The one persistent shell of [ExtrasPoller]. */
+internal interface ExtrasShell : AutoCloseable {
+    fun shell(command: String): String
+    override fun close()
+}
+
+/** [ExtrasShell] over the app's own local ADB. */
+internal class AdbExtrasShell(private val session: LocalAdbClient.PersistentShellSession) : ExtrasShell {
+    override fun shell(command: String): String = session.shell(command)
+    override fun close() = session.close()
 }
 
 /**
@@ -97,17 +116,30 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
  * shell, profile 170 checked once per shell, [DiagnosticExtraReader.command] every five seconds,
  * values good for [DiagnosticExtras.STALE_MS]. A failed read closes the shell; the next round opens
  * a new one five seconds later, never sooner.
+ *
+ * **Focused** ([focus], architecture 6.2): while a parameter page shows a GET of its own, only that
+ * GET is sent, one every [FOCUS_PERIOD_MS] from the start of one to the start of the next (back to
+ * back when the shell is slower), each reading timed on the head unit's clock and kept for
+ * [drain]; the batch stands, its last values ageing as they would. A failed read is a gap and the
+ * same five seconds' wait: nothing loops on a failure. A new focus, or none, goes at once.
  */
 internal class ExtrasPoller(
-    private val open: () -> LocalAdbClient.PersistentShellSession,
+    private val open: () -> ExtrasShell,
     private val log: (String) -> Unit,
+    context: CoroutineContext = Dispatchers.IO,
+    private val wallClock: () -> Long = System::currentTimeMillis,
+    private val elapsed: () -> Long = SystemClock::elapsedRealtime,
+    private val nanos: () -> Long = SystemClock::elapsedRealtimeNanos,
 ) {
     @Volatile var latest = DiagnosticExtras()
         private set
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(context + SupervisorJob(context[Job]))
     private var job: Job? = null
-    @Volatile private var shell: LocalAdbClient.PersistentShellSession? = null
+    @Volatile private var shell: ExtrasShell? = null
+    @Volatile private var target: SignalGet? = null
+    private val readings = ArrayDeque<SignalReading>()
+    private val wake = Channel<Unit>(Channel.CONFLATED)
 
     @Synchronized fun start() {
         if (job?.isActive == true) return
@@ -120,11 +152,28 @@ internal class ExtrasPoller(
         shell?.close()
         shell = null
         latest = DiagnosticExtras()
+        target = null
+        readings.clear()
     }
+
+    /** Only [get] from the next round on; null brings the batch back. */
+    fun focus(get: SignalGet?) {
+        synchronized(this) {
+            if (target === get) return
+            target = get
+            readings.clear()
+        }
+        wake.trySend(Unit)
+    }
+
+    /** The focused readings since the last call, oldest first. */
+    fun drain(): List<SignalReading> = synchronized(this) { readings.toList().also { readings.clear() } }
 
     private suspend fun loop() {
         while (currentCoroutineContext().isActive) {
-            try {
+            val get = target
+            val began = elapsed()
+            val ok = try {
                 val s = shell ?: open().also { opened ->
                     val profile = opened.shell("getprop persist.sys.AutoType").trim()
                     if (profile != "170") {
@@ -133,20 +182,39 @@ internal class ExtrasPoller(
                     }
                     shell = opened
                 }
-                val output = s.shell(DiagnosticExtraReader.command)
-                latest = DiagnosticExtraReader.decode(output, System.currentTimeMillis(), SystemClock.elapsedRealtime())
+                if (get == null) {
+                    val output = s.shell(DiagnosticExtraReader.command)
+                    latest = DiagnosticExtraReader.decode(output, wallClock(), elapsed())
+                } else {
+                    val value = DiagnosticExtraReader.word(s.shell(get.command))?.let(get.decode)
+                    keep(get, SignalReading(nanos(), value))
+                }
+                true
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 log("diagnostic readings: ${error.javaClass.simpleName} ${error.message ?: ""}")
                 shell?.close()
                 shell = null
+                if (get != null) keep(get, SignalReading(nanos(), null))
+                false
             }
-            delay(PERIOD_MS)
+            val wait = if (ok && get != null) (FOCUS_PERIOD_MS - (elapsed() - began)).coerceAtLeast(0) else PERIOD_MS
+            withTimeoutOrNull(wait) { wake.receive() }
         }
+    }
+
+    private fun keep(get: SignalGet, reading: SignalReading) = synchronized(this) {
+        if (target !== get) return
+        readings.addLast(reading)
+        while (readings.size > MAX_KEPT) readings.removeFirst()
     }
 
     companion object {
         const val PERIOD_MS = 5_000L
+        /** A parameter page's GET: about ten a second (architecture, 6.2). */
+        const val FOCUS_PERIOD_MS = 100L
+        /** Readings nobody drained: a minute's worth, then the oldest go. */
+        private const val MAX_KEPT = 600
     }
 }

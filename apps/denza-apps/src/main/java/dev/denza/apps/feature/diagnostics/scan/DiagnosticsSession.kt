@@ -33,6 +33,15 @@ import kotlinx.coroutines.launch
  * the autoscan yields between modules and never inside one. While the stream's tab is visible the
  * autoscan stands; the stream and the button still run.
  *
+ * **One parameter alone** (6.2, [setParam]): while a parameter page is shown, nothing but its
+ * reading is polled - the autoscan, the identifications and every stream stand, a button the user
+ * pressed still goes first. A PID is a single `01 xx` back to back with the helper's gap at
+ * [PARAM_GAP_MS]; a non-answer or a busy gateway doubles the gap, up to [STREAM_GAP_MS], and it
+ * stays there for the page; leaving the page gives the stream its gap back. A car signal is read by
+ * the [CarFeed] - a GET of its own about ten times a second, or the hub's sweeps for a hot signal -
+ * and never touches the bus. The page's halts are the stream's: the same pause on «not parked», the
+ * same stop on a busy or lost channel.
+ *
  * **Nothing loops on a failure.** The bus already opens a lost helper once more (3.5); every
  * [DiagFailure] that still reaches here halts all work until something changes:
  * - [DiagFailure.NotParked] pauses with «Только на стоянке: P и 0 км/ч». The work resumes by itself
@@ -92,6 +101,16 @@ internal class DiagnosticsSession(
     private var live: Int? = null
     private var recording: Pair<Int, StreamSink>? = null
     private var readings = CarReadings()
+    private var param: ParamState? = null
+    /** The gap last asked of the bus; a new bus starts at its launch parameter. */
+    private var gapAsked = STREAM_GAP_MS
+
+    /** The parameter page: what it reads, its trace, and its own gap. */
+    private class ParamState(val spec: ParamSpec) {
+        val trace = ParamTrace(spec)
+        var paused = false
+        var gap = PARAM_GAP_MS
+    }
 
     private val mutable = MutableStateFlow(builder.build(snapshot()))
     val model: StateFlow<DiagnosticsModel> = mutable.asStateFlow()
@@ -110,6 +129,7 @@ internal class DiagnosticsSession(
         data class Ident(override val request: Int) : Work
         data class Scan(override val request: Int) : Work
         data class Stream(override val request: Int, val ask: DiagRequest) : Work
+        data class Param(override val request: Int, val key: ParamKey.Pid, val ask: DiagRequest) : Work
     }
 
     /** A unit of work ended early because the channel halted; nothing of it is kept. */
@@ -123,6 +143,7 @@ internal class DiagnosticsSession(
             car.open()
             readings = runCatching { car.read() }.getOrDefault(CarReadings())
             bus = buses()
+            gapAsked = STREAM_GAP_MS
             wake = Channel(Channel.CONFLATED)
             val s = CoroutineScope(context + SupervisorJob(context[Job]))
             scope = s
@@ -146,6 +167,8 @@ internal class DiagnosticsSession(
             recording = null
             live = null
             polling = null
+            if (param?.spec?.get != null) car.focus(null)
+            param = null
             if (phase == ScanPhase.RUNNING || phase == ScanPhase.PAUSED) phase = ScanPhase.STOPPED
             publish()
             pair
@@ -212,12 +235,40 @@ internal class DiagnosticsSession(
         }
     }
 
-    // The parameter page (architecture, 6.2): the contract; the polling is the next change.
-    override fun setParam(key: ParamKey?) = act {}
+    override fun setParam(key: ParamKey?) = act {
+        if (key == param?.spec?.key) return@act
+        val spec = key?.let(ParamSpec::of)
+        if (param?.spec?.get != null) car.focus(null)
+        param = spec?.let(::ParamState)
+        when {
+            spec == null -> gap(STREAM_GAP_MS)
+            spec.key is ParamKey.Pid -> {
+                gap(PARAM_GAP_MS)
+                retryStopped()
+            }
+            else -> {
+                gap(STREAM_GAP_MS)
+                spec.get?.let(car::focus)
+            }
+        }
+    }
 
-    override fun setParamPaused(paused: Boolean) = act {}
+    override fun setParamPaused(paused: Boolean) = act {
+        val p = param ?: return@act
+        if (p.paused == paused) return@act
+        p.paused = paused
+        p.spec.get?.let { car.focus(if (paused) null else it) }
+        if (!paused && p.spec.key is ParamKey.Pid) retryStopped()
+    }
 
-    override fun resetParam() = act {}
+    override fun resetParam() = act { param?.trace?.reset() }
+
+    /** The helper's gap from the next exchange on; asked only when it changes. Under [lock]. */
+    private fun gap(ms: Int) {
+        if (ms == gapAsked) return
+        gapAsked = ms
+        bus?.setGap(ms)
+    }
 
     private inline fun act(block: () -> Unit) {
         synchronized(lock) {
@@ -274,6 +325,8 @@ internal class DiagnosticsSession(
         if (halt != null) return null
         val shown = live
         val job: Work = userReads.firstOrNull()?.let { Work.Read(it) }
+            // The page alone: nothing else, and nothing while paused or for a car signal.
+            ?: param?.let { page -> paramWork(page) ?: return null }
             ?: identPending.firstOrNull()?.let { Work.Ident(it) }
             ?: when {
                 shown != null -> stream(shown)?.next()?.let { Work.Stream(shown, it) } ?: return null
@@ -286,6 +339,12 @@ internal class DiagnosticsSession(
             return null
         }
         return job
+    }
+
+    private fun paramWork(page: ParamState): Work? {
+        val key = page.spec.key as? ParamKey.Pid ?: return null
+        if (page.paused) return null
+        return Work.Param(key.request, key, DiagRequest(key.request, byteArrayOf(0x01, key.pid.toByte())))
     }
 
     private fun stream(request: Int): LiveStream? = streams[request] ?: idents[request]?.let { id ->
@@ -345,6 +404,21 @@ internal class DiagnosticsSession(
                     val lines = streams[job.request]?.accept(reply).orEmpty()
                     recording?.takeIf { it.first == job.request }?.second?.write(lines)
                     publish()
+                }
+            }
+            is Work.Param -> {
+                val reply = ask(job.ask)
+                synchronized(lock) {
+                    val page = param?.takeIf { it.spec.key == job.key } ?: return
+                    val lines = page.trace.accept(reply)
+                    // The table's row stays fresh for the way back; its own CSV lines would double these.
+                    streams[job.request]?.accept(reply)
+                    recording?.takeIf { it.first == job.request }?.second?.write(lines)
+                    if (reply is DiagReply.NoReply || reply is DiagReply.GatewayBusy) {
+                        page.gap = (page.gap * 2).coerceAtMost(STREAM_GAP_MS)
+                        gap(page.gap)
+                    }
+                    publishParam()
                 }
             }
         }
@@ -444,10 +518,13 @@ internal class DiagnosticsSession(
     // ------------------------------------------------------------------ the car, four times a second
 
     private suspend fun tick() {
+        var sinceFull = 0L
         while (true) {
             val r = runCatching { car.read() }.getOrNull()
+            val focused = runCatching { car.focused() }.getOrDefault(emptyList())
             var resumed = false
-            synchronized(lock) {
+            val interval = synchronized(lock) {
+                paramTick(r, focused)
                 if (r != null) {
                     readings = r
                     live?.let { request ->
@@ -465,10 +542,32 @@ internal class DiagnosticsSession(
                         }
                     }
                 }
-                publish()
+                // A car signal's page samples faster than the rest of the model needs rebuilding.
+                val fast = param?.let { it.spec.key is ParamKey.Signal && !it.paused } == true
+                if (!fast || resumed || sinceFull >= tickMs) {
+                    publish()
+                    sinceFull = 0
+                } else {
+                    publishParam()
+                }
+                if (fast) PARAM_TICK_MS.coerceAtMost(tickMs) else tickMs
             }
             if (resumed) wake.trySend(Unit)
-            delay(tickMs)
+            delay(interval)
+            sinceFull += interval
+        }
+    }
+
+    /** A car signal's page takes the hub's new sweep or the focused GET's readings. Under [lock]. */
+    private fun paramTick(r: CarReadings?, focused: List<SignalReading>) {
+        val page = param?.takeIf { it.spec.key is ParamKey.Signal && !it.paused } ?: return
+        val hub = page.spec.hub
+        if (hub != null) {
+            if (r == null || r.sweep == 0L || r.sweep == page.trace.lastSweep) return
+            page.trace.lastSweep = r.sweep
+            page.trace.put(r.atNanos, r.hub[hub])
+        } else {
+            focused.forEach { page.trace.put(it.atNanos, it.value) }
         }
     }
 
@@ -490,10 +589,27 @@ internal class DiagnosticsSession(
         recording = recording?.first,
         car = readings,
         nowMillis = wallClock(),
+        param = paramView(),
     )
 
     private fun publish() {
         mutable.value = builder.build(snapshot())
+    }
+
+    /** Only the page changed: the rest of the model stands as it was built. */
+    private fun publishParam() {
+        mutable.value = mutable.value.copy(param = paramView())
+    }
+
+    private fun paramView(): ParamView? {
+        val page = param ?: return null
+        val key = page.spec.key
+        val polling = !page.paused && (key !is ParamKey.Pid || (halt == null && scope != null))
+        return page.trace.view(
+            running = polling,
+            recording = key is ParamKey.Pid && recording?.first == key.request,
+            car = readings,
+        )
     }
 
     private fun reset() {
@@ -513,6 +629,7 @@ internal class DiagnosticsSession(
         focus.clear()
         live = null
         recording = null
+        param = null
     }
 
     companion object {
@@ -520,6 +637,12 @@ internal class DiagnosticsSession(
         const val RESCAN_AFTER_MS = 10 * 60_000L
         /** How often the hub is looked at: P and speed for the pause, the fast signals, the clock. */
         const val TICK_MS = 250L
+        /** How often a car signal's page is sampled: the hub's sweeps and the focused GET (6.2). */
+        const val PARAM_TICK_MS = 100L
+        /** The helper's gap for the stream and the autoscan: its launch parameter (3.3). */
+        const val STREAM_GAP_MS = 100
+        /** The parameter page's gap for a PID, before any back-off (6.2). */
+        const val PARAM_GAP_MS = 20
 
         const val PARK_NOTICE = "Только на стоянке: P и 0 км/ч"
         const val BUSY_NOTICE = "Канал занят штатной диагностикой или другим читателем"

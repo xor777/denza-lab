@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
+import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
+import dev.denza.apps.feature.vehicle.AutoserviceShell
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
@@ -46,7 +48,30 @@ internal interface CarFeed {
     fun open()
     fun read(): CarReadings
     fun close()
+
+    /**
+     * The parameter page's GET (architecture, 6.2): while set, only [get] is polled, about ten times
+     * a second, and the rest of the batch stands; null brings the batch back.
+     */
+    fun focus(get: SignalGet?) {}
+
+    /** The focused GET's readings since the last call, oldest first. */
+    fun focused(): List<SignalReading> = emptyList()
 }
+
+/** One `autoservice` GET, polled alone for a parameter page: a [DiagnosticExtra] or a cold hub signal. */
+internal class SignalGet(val device: Int, val fid: Int, val transact: Int, val decode: (Int) -> Double?) {
+    /** The shell command; its answer's word is [DiagnosticExtraReader.word]. */
+    val command: String get() = "service call autoservice $transact i32 $device i32 $fid"
+
+    companion object {
+        fun of(extra: DiagnosticExtra) = SignalGet(extra.device, extra.fid, extra.transact, extra::decode)
+        fun of(signal: VehicleSignal) = SignalGet(signal.device, signal.fid, signal.transact.code) { AutoserviceShell.decode(signal, it) }
+    }
+}
+
+/** One reading of the focused GET, on the head unit's `elapsedRealtimeNanos`; a null value is a gap. */
+internal data class SignalReading(val atNanos: Long, val value: Double?)
 
 /**
  * Hub values held for their own horizon, the way the retired window held them: a new snapshot is

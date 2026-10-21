@@ -104,6 +104,6 @@ internal object DiagnosticExtraReader {
     }
 
     /** The word of a successful `service call` reply: status 0, then one 32-bit value. */
-    private fun word(output: String): Int? = output.lineSequence().mapNotNull { ServiceCallParcel.oneLineWords(it) }
+    fun word(output: String): Int? = output.lineSequence().mapNotNull { ServiceCallParcel.oneLineWords(it) }
         .firstOrNull { it.size == 2 && it[0] == 0 }?.get(1)
 }

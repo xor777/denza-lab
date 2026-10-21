@@ -33,8 +33,8 @@ internal object SystemsBuilder {
     private fun extra(car: CarReadings, signal: DiagnosticExtra, decimals: Int = 0) =
         car.extra(signal)?.let { Figures.number(it, decimals) }
 
-    private fun source(signal: DiagnosticExtra) = "%d·%08X".format(signal.device, signal.fid)
-    private fun source(signal: VehicleSignal) = "%d·%08X".format(signal.device, signal.fid)
+    fun source(signal: DiagnosticExtra) = "%d·%08X".format(signal.device, signal.fid)
+    fun source(signal: VehicleSignal) = "%d·%08X".format(signal.device, signal.fid)
 
     // ------------------------------------------------------------------ high voltage
 
@@ -134,45 +134,80 @@ internal object SystemsBuilder {
 
     private fun pack(car: CarReadings): List<SignalRow> {
         val stale = !car.extrasFresh
-        fun hubRow(signal: VehicleSignal, name: String, unit: String, decimals: Int = 0) =
-            SignalRow(source(signal), name, hub(car, signal, decimals) ?: "—", unit, "—", null, false)
-        fun extraRow(signal: DiagnosticExtra, name: String, unit: String, decimals: Int = 0, norm: String = "—", ok: ((Double) -> Boolean)? = null): SignalRow {
-            val v = car.extras[signal]
-            return SignalRow(
-                source = source(signal),
-                name = name,
-                value = v?.let { Figures.number(it, decimals) } ?: "—",
-                unit = unit,
-                norm = norm,
-                ok = if (v != null && ok != null && !stale) ok(v) else null,
-                stale = v != null && stale,
-            )
+        val rows = PACK.map { r ->
+            if (r.hub != null) {
+                SignalRow(source(r.hub), r.name, hub(car, r.hub, r.decimals) ?: "—", r.unit, "—", null, false, ParamKey.Signal(r.key))
+            } else {
+                val v = car.extras[r.extra!!]
+                val norm = r.norm?.invoke(car)
+                SignalRow(
+                    source = source(r.extra),
+                    name = r.name,
+                    value = v?.let { Figures.number(it, r.decimals) } ?: "—",
+                    unit = r.unit,
+                    norm = norm?.text ?: "—",
+                    ok = if (v != null && norm?.outside != null && !stale) !norm.outside.invoke(v) else null,
+                    stale = v != null && stale,
+                    key = ParamKey.Signal(r.key),
+                )
+            }
         }
-        val volts = car.hub[VehicleSignal.PACK_VOLT]
-        // 500 Ω per volt of the pack, the usual floor for an isolated HV system; the field's unit
-        // is not proven on this car (likely kΩ, GB/T 32960), which the board's «¹» says.
-        val floorKOhm = volts?.let { it * 0.5 }
-        val insulationNorm = floorKOhm?.let { "≥ 500 Ом/В (≥ ${Figures.number(it, 0)} кОм)" } ?: "≥ 500 Ом/В"
-        val insulationOk: ((Double) -> Boolean)? = floorKOhm?.let { floor -> { v: Double -> v >= floor } }
         val spread = car.hub.spread()
-        return listOf(
-            hubRow(VehicleSignal.PACK_VOLT, "Напряжение ВВБ", "В"),
-            extraRow(DiagnosticExtra.CHARGE_CURRENT, "Ток ВВБ", "А", 1),
-            extraRow(DiagnosticExtra.SOC, "Уровень заряда (SOC)", "%"),
-            extraRow(DiagnosticExtra.SOH, "Состояние (SOH), оценка BMS", "%", norm = "≥ 80", ok = { it >= 80.0 }),
-            hubRow(VehicleSignal.CELL_MIN_MV, "Напряжение ячейки, мин.", "мВ"),
-            hubRow(VehicleSignal.CELL_MAX_MV, "Напряжение ячейки, макс.", "мВ"),
-            SignalRow("расчёт", "Разброс напряжений ячеек", spread?.let { Figures.number(it, 0) } ?: "—", "мВ", "—", null, false),
-            extraRow(DiagnosticExtra.TEMP_MIN, "Температура модулей, мин.", "°C"),
-            extraRow(DiagnosticExtra.TEMP_MAX, "Температура модулей, макс.", "°C"),
-            hubRow(VehicleSignal.PACK_TEMP_AVG, "Температура модулей, сред.", "°C"),
-            extraRow(DiagnosticExtra.INSULATION, "Сопротивление изоляции, канал BMC", "кОм", norm = insulationNorm, ok = insulationOk),
-            extraRow(DiagnosticExtra.INSULATION_2, "Сопротивление изоляции, канал 2", "кОм", norm = insulationNorm, ok = insulationOk),
-            extraRow(DiagnosticExtra.CELL_COUNT, "Ячеек последовательно", "шт"),
-            extraRow(DiagnosticExtra.PROBE_COUNT, "Датчиков температуры", "шт"),
-            extraRow(DiagnosticExtra.CONTACTOR, "Главный контактор, разряд", "сост.", norm = "—"),
-        )
+        val calc = SignalRow("расчёт", "Разброс напряжений ячеек", spread?.let { Figures.number(it, 0) } ?: "—", "мВ", "—", null, false)
+        val at = PACK.indexOfFirst { it.hub == VehicleSignal.CELL_MAX_MV } + 1
+        return rows.take(at) + calc + rows.drop(at)
     }
+
+    /**
+     * One reading of the pack's «Потоковые данные»: a hub signal or a GET of the batch, its words,
+     * and its norm against the car now. The parameter page names a reading the way its row does.
+     */
+    class PackReading(
+        val name: String,
+        val unit: String,
+        val decimals: Int = 0,
+        val extra: DiagnosticExtra? = null,
+        val hub: VehicleSignal? = null,
+        val norm: ((CarReadings) -> SignalNorm)? = null,
+    ) {
+        /** The row's [ParamKey.Signal]: the extra's key or the hub signal's name. */
+        val key: String get() = extra?.key ?: hub!!.name
+        /** «1014·44600010». */
+        val source: String get() = extra?.let { source(it) } ?: source(hub!!)
+    }
+
+    /** A norm: its words, the band a chart draws (null for none), what is outside it (null: not judged). */
+    class SignalNorm(val text: String, val band: ClosedFloatingPointRange<Float>?, val outside: ((Double) -> Boolean)?)
+
+    // 500 Ω per volt of the pack, the usual floor for an isolated HV system; the field's unit
+    // is not proven on this car (likely kΩ, GB/T 32960), which the board's «¹» says.
+    private val insulation: (CarReadings) -> SignalNorm = { car ->
+        val floorKOhm = car.hub[VehicleSignal.PACK_VOLT]?.let { it * 0.5 }
+        if (floorKOhm == null) {
+            SignalNorm("≥ 500 Ом/В", null, null)
+        } else {
+            SignalNorm("≥ 500 Ом/В (≥ ${Figures.number(floorKOhm, 0)} кОм)", null) { it < floorKOhm }
+        }
+    }
+
+    /** The pack's readings in the board's order; the cells' spread («расчёт») follows the maximum. */
+    val PACK: List<PackReading> = listOf(
+        PackReading("Напряжение ВВБ", "В", hub = VehicleSignal.PACK_VOLT),
+        PackReading("Ток ВВБ", "А", 1, extra = DiagnosticExtra.CHARGE_CURRENT),
+        PackReading("Уровень заряда (SOC)", "%", extra = DiagnosticExtra.SOC),
+        PackReading("Состояние (SOH), оценка BMS", "%", extra = DiagnosticExtra.SOH,
+            norm = { SignalNorm("≥ 80", 80f..100f) { it < 80.0 } }),
+        PackReading("Напряжение ячейки, мин.", "мВ", hub = VehicleSignal.CELL_MIN_MV),
+        PackReading("Напряжение ячейки, макс.", "мВ", hub = VehicleSignal.CELL_MAX_MV),
+        PackReading("Температура модулей, мин.", "°C", extra = DiagnosticExtra.TEMP_MIN),
+        PackReading("Температура модулей, макс.", "°C", extra = DiagnosticExtra.TEMP_MAX),
+        PackReading("Температура модулей, сред.", "°C", hub = VehicleSignal.PACK_TEMP_AVG),
+        PackReading("Сопротивление изоляции, канал BMC", "кОм", extra = DiagnosticExtra.INSULATION, norm = insulation),
+        PackReading("Сопротивление изоляции, канал 2", "кОм", extra = DiagnosticExtra.INSULATION_2, norm = insulation),
+        PackReading("Ячеек последовательно", "шт", extra = DiagnosticExtra.CELL_COUNT),
+        PackReading("Датчиков температуры", "шт", extra = DiagnosticExtra.PROBE_COUNT),
+        PackReading("Главный контактор, разряд", "сост.", extra = DiagnosticExtra.CONTACTOR),
+    )
 
     // ------------------------------------------------------------------ drives
 
