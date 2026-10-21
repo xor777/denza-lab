@@ -831,6 +831,54 @@
     });
   }
 
+  // One parameter on its own page: the reading large, its chart across the page, only it polled.
+  // f.series is [t seconds back, value] oldest first; the chart is the window f.window seconds wide.
+  function sysParam(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block);
+      tabs(c, f.tabs);
+      const P = L.param, x0 = P.chart.x, x1 = W - 24, y0 = P.chart.top, y1 = P.chart.bottom;
+      // the reading
+      text(c, f.label, 24, P.hero.labelY, 'counterLabel', 'mute');
+      const big = style('paramValue');
+      const draw = () => text(c, f.value, 24, P.hero.valueY, 'paramValue', f.outOfNorm ? 'orangeInk' : 'white');
+      glow(c, 18, f.outOfNorm ? 'rgba(255,159,25,0.55)' : 'rgba(67,159,252,0.45)', draw); draw();
+      text(c, f.unit, 24, P.hero.valueY + big.lh + 4, 'paramUnit', 'dim');
+      let ky = P.hero.statsY;
+      f.stats.forEach(([k, v]) => {
+        text(c, k, 24, ky, 'counterLabel', 'mute');
+        text(c, v, P.hero.statsW, ky - 3, 'valueBms', 'text', { align: 'right' });
+        rule(c, 24, ky + 22, P.hero.statsW - 24, 'hair');
+        ky += P.hero.statsStep;
+      });
+      // the chart: scale, grid, norm band, min/max lines, the trace, the last point
+      const [lo, hi] = f.scale, yv = v => y1 - (v - lo) / (hi - lo) * (y1 - y0), xt = t => x1 - t / f.window * (x1 - x0);
+      if (f.norm) fill(c, x0, yv(f.norm[1]), x1 - x0, yv(f.norm[0]) - yv(f.norm[1]), 'blueShare');
+      f.grid.forEach(v => {
+        const y = yv(v);
+        fill(c, x0, y, x1 - x0, 1, 'hair');
+        text(c, f.gridText(v), x0 - 10, y - style('sig').lh / 2, 'sig', 'faint', { align: 'right' });
+      });
+      f.ticks.forEach(t => {
+        const x = xt(t);
+        fill(c, x, y0, 1, y1 - y0, 'hair');
+        text(c, t ? '−' + t + ' с' : 'сейчас', x, y1 + 10, 'sig', 'faint', { align: t ? 'center' : 'right' });
+      });
+      [[f.min, 'мин'], [f.max, 'макс']].forEach(([v, k]) => {
+        const y = yv(v);
+        stroke(c, `M${x0} ${y}H${x1}`, 'line4', 1, [4, 4]);
+        text(c, k + ' ' + f.gridText(v), x0 + 8, y + (k === 'мин' ? 4 : -style('sig').lh - 4), 'sig', 'dim2');
+      });
+      const p = new Path2D();
+      f.series.forEach(([t, v], i) => { const x = xt(t), y = yv(v); if (i) p.lineTo(x, y); else p.moveTo(x, y); });
+      c.save(); c.lineJoin = 'round';
+      glow(c, 8, 'rgba(67,159,252,0.7)', () => stroke(c, p, 'blue', 1.8));
+      c.restore();
+      const [lt, lv] = f.series[f.series.length - 1];
+      glow(c, 10, 'rgba(67,159,252,0.9)', () => { c.beginPath(); c.arc(xt(lt), yv(lv), 4.5, 0, 2 * Math.PI); c.fillStyle = col('blueInk'); c.fill(); });
+    });
+  }
+
   const TILE = {
     ok:     { fill: 'tileOk', line: 'blueEdge', ink: 'white', sub: 'dim', state: 'blueSoft', addr: 'faint' },
     hist:   { fill: 'tileHist', line: 'sep', ink: 'white', sub: 'dim', state: 'ink4', addr: 'faint' },
@@ -1291,7 +1339,7 @@
     });
   }
 
-  const SCREENS = { sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

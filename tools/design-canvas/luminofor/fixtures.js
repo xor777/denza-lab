@@ -1036,6 +1036,46 @@
     tabs: Object.assign({}, scannerSysAdas.tabs, { active: 1 }), footer: codesFooter,
   });
 
+  // A parameter on its own page: only it polled, the gap down to 20 ms; an illustrative warm idle
+  // with one blip of the throttle, 24 samples a second for 60 s.
+  const idleRpm = (() => {
+    const out = [];
+    for (let i = 0; i <= 1440; i++) {
+      const t = 60 - i / 24, blip = t < 38 && t > 30 ? 890 * Math.exp(-(38 - t) * 0.55) * Math.min(1, (38 - t) * 3) : 0;
+      out.push([+t.toFixed(3), 1250 + 18 * Math.sin(i * 0.21) + 9 * Math.sin(i * 0.77 + 1) + 6 * Math.sin(i * 2.3) + blip]);
+    }
+    return out;
+  })();
+  const warmEct = (() => {
+    const out = [];
+    for (let i = 0; i <= 1440; i++) { const t = 60 - i / 24; out.push([+t.toFixed(3), 88 + 3 * (1 - Math.exp(-(60 - t) / 25)) + 0.3 * Math.sin(i * 0.17)]); }
+    return out;
+  })();
+  const paramTabs = { items: ['10 с', '60 с', '5 мин'], active: 1 };
+  const num = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const scannerSysEngineRpm = {
+    top: sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает'), rail: sysRail('Двигатель'),
+    block: { title: 'Обороты коленвала', aside: '· PID 0C · RPM', line: '7E0 → 7E8 · Mode 01 · только 0C · 24,1 Гц · обмен 18 мс',
+      counters: [['МИН', num(Math.min(...idleRpm.map(p => p[1])))], ['МАКС', num(Math.max(...idleRpm.map(p => p[1])))],
+        ['СРЕДН.', num(idleRpm.reduce((a, p) => a + p[1], 0) / idleRpm.length)]] },
+    tabs: paramTabs,
+    label: 'СЕЙЧАС', value: '1 250', unit: 'об/мин', outOfNorm: false,
+    stats: [['НОРМА', '—'], ['ЗА 1 С', '+12'], ['ТОЧЕК', '1 441']],
+    series: idleRpm, window: 60, scale: [1000, 2400], grid: [1000, 1400, 1800, 2200], gridText: num,
+    ticks: [60, 45, 30, 15, 0], min: Math.min(...idleRpm.map(p => p[1])), max: Math.max(...idleRpm.map(p => p[1])),
+    footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet'], ['Запись', 'quiet']],
+      notes: [['24,1 Гц · 18 мс', true]] },
+  };
+  const scannerSysEngineEct = Object.assign({}, scannerSysEngineRpm, {
+    block: { title: 'Температура ОЖ', aside: '· PID 05 · ECT', line: '7E0 → 7E8 · Mode 01 · только 05 · 24,0 Гц · обмен 17 мс',
+      counters: [['МИН', '88'], ['МАКС', '91'], ['СРЕДН.', '90']] },
+    value: '91', unit: '°C', stats: [['НОРМА', '80…105'], ['ЗА 1 С', '+0,1'], ['ТОЧЕК', '1 441']],
+    series: warmEct, scale: [70, 110], grid: [70, 80, 90, 100, 110], gridText: v => String(Math.round(v)), norm: [80, 105],
+    min: Math.min(...warmEct.map(p => p[1])), max: Math.max(...warmEct.map(p => p[1])),
+    footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet'], ['Запись', 'quiet']],
+      notes: [['24,0 Гц · 17 мс', true]] },
+  });
+
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
     'cluster-launch': [{ kind: 'cluster' }, scenes.launch],
@@ -1118,6 +1158,8 @@
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
+    'scanner-sys-engine-rpm': [scanner('sysParam'), scannerSysEngineRpm],
+    'scanner-sys-engine-ect': [scanner('sysParam'), scannerSysEngineEct],
     'scanner-sys-climate': [scanner('sysClimate'), scannerSysClimate],
     'scanner-sys-lv':    [scanner('sysLv'), scannerSysLv],
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
