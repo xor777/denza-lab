@@ -1,0 +1,1569 @@
+{
+  "schema": "denza-lab.ecm-owner3-route.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "firmwareExecutions": 0,
+  "eligibleForLive": false,
+  "liveRequestRecommendation": null,
+  "status": "owner03_is_not_a_large_response_bypass_same19_list_capacity_shared_stock_lane",
+  "scope": "Offline normal-input owner03 MCU lifecycle and bounded VHDS sender/registration/callback chain. No reader/product changes, live requests, registration changes, services, ECU/session/security operations or vehicle connection.",
+  "images": {
+    "mcu": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "loadBase": "0x40000"
+    },
+    "vhds": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0"
+    }
+  },
+  "applicability": "Owner IVI OTA corpus only; installed MCU/VHDS identity and current component state are not established by this pass.",
+  "request": {
+    "sender": "VHDS3F460 writes03, requestIDBE16, then node bytes[C:C+u16(node+A)] and sends device1033/FIDAA00010A at3F50C. The copied node bytes must already contain the normal input's length/service fields.",
+    "mcuChain": "dispatch rowCD9D8={AA00010A,16C840,0};16C840->15147E->150888 for bit7-clear input",
+    "normalABI": "byte0 owner,1..2 requestIDBE16,3 UDS length byte,4 service,5.. following request bytes.1508C2 copies owner03 directly to shared RAMFEBC926C; requestIDFEBC926E,lengthFEBC9270,serviceFEBC9271.",
+    "nonself": "requestID!=741 at15094A selects shared1511FA transmission. There is no independent owner03 CAN transmitter in this branch; outgoing standard CAN frame uses internal selector0 and requestedID, same shared active state.",
+    "siblingBoundary": "Prefix02 CAN-trigger sender257A0 and prefix03 sibling3F460 must not be conflated. A parser's compatible node layout is not a proven control-flow edge into3F460. No configuration or manually constructed request is proposed here."
+  },
+  "firstFrame": {
+    "commonFilter": "1528E4 requires shared active==1;1528F0..1528FE accepts only requestID+8. PCI high nibble selects FF/CF/SF.",
+    "owner03": {
+      "expectedBody": "max-style lower handling: L>=3 ? L-3 :3; positive service must equal request service+0x40",
+      "acceptedTotalUdsInterval": [
+        7,
+        922
+      ],
+      "guard": "152AFA rejects expected<=3;152B02 ADDI(-0x398) and152B06 BNC accept expected<920. Otherwise152B32 supplies13 and152B44->151948 publishes local NRC before any owner03 FC.",
+      "fieldSplit": "Positive FF service goes to header.field4, UDS bytes1..2 to header.u16field6 at152ACA..152AD6. Body begins UDS byte3:152BC6 uses frame+0xA,152BCA copies3 bytes. This is a two-byte-field/DID-oriented split, not an unbounded raw mirror.",
+      "flowControl": "Accepted branch builds standard8byte CTS payload3000000000000000 on requestedID/internal selector0 and169A6E at152C2E. Local size rejection returns before this send."
+    },
+    "otherOwners": {
+      "expectedBody": "L>=1 ? L-1 :1",
+      "acceptedTotalUdsInterval": [
+        8,
+        920
+      ],
+      "guard": "152C8E rejects expected<=6;152C96/152C9A accept expected<920. Local13 path152CC6->151948.",
+      "fieldSplit": "Only positive service is split; u16field6 is zero and FF body starts atUDS byte1."
+    }
+  },
+  "consecutiveFrames": {
+    "shared": true,
+    "sequence": "152E50..152E66 compares received low nibble with expected sequence counter&0xF. Mismatch152EF2->152FDC returns without copying, incrementing sequence, or recording this frame. Shared receive timeout is rearmed before this check.",
+    "copy": "152E72..152EDC copies7 bytes or the stored final remainder intoFEBC8ED4+assembledCount, then increments the sequence counter. No owner03 alternate sequence algorithm is selected.",
+    "ownerDifference": "152EF4..152F0A owner03 copies assembledCount to shared timeout data length; other owners call raw diagnostic recorder1515A0.152F12..152F50 publishes when assembledCount equals expected body length.",
+    "qualification": "This is bounded static control-flow/copy analysis, not an ISO-TP emulator or proof of an observed transfer. Full/remainder counter DIVQ alias semantics are not newly formalized here."
+  },
+  "publication": {
+    "output": "Same descriptorA6488={9900010A,240,FEEFBE31}.03 remains the first outer response byte; responseID=requestID+8.",
+    "normalCompletion": "15324E sends body chunks of230 through15059E. First fragment prepends service and, only if u16field6!=0, its two bytes; subsequent fragments carry body only. Thus a normal nonzero two-byte-field can be reconstructed, while this split is not a drop-in parser guarantee for arbitrary service shapes.",
+    "release": "1506F4..150706 clears shared active and retained timeout length on final fragment only.",
+    "negative": "151948 uses shared output with result02/service7F and supplied request-service/NRC. Owner03 size rejection is locally generated13, not proof of an ECU NRC.",
+    "timeout": "15315C..153178 selects assembled bufferFEBC8ED4 for owner03; other owners use filtered raw-CAN traceFEBC9286. Owner03 timeout is a partial assembled-body view, not a pre-size-gate CAN mirror.",
+    "singleFrame": "152926..152A28 is shared across owners. It splits only service, leaves two-byte header field0, copies bounded SF body, and uses the common publisher; owner03 special FF split does not apply to every reply shape."
+  },
+  "callback": {
+    "registration": "VHDS162D0..16354 allocates observer, sets vptr49350 and context atobj+10, callsBYDAutoManager::registerObserver.163A0..163AC enables device1033 for firstFID at4C1E0=9900010A. ELF relative relocation493A0->2A9B0 binds the buffer callback slot.",
+    "dispatch": "2A9B0 checks device409hex and FID9900010A then2AA24->23970;239F8..23A0C sends prefix03 to componentmain+AE0's3D230. That handler requires componentactive+2D and prefix03, and derives requestID=responseID-8.",
+    "stockWorker": "Direct source call edges3E4D8/3E510(worker3E190) and3DA5C/3DAB8(retry3D9D0) target3F460.3F534 sets componentactive+2D and3F544 invokes scheduling helper3E000 with parameter6; units/full scheduling semantics are outside this bound.",
+    "independentLane": false,
+    "intersection": "A stock component can be eligible to consume03 callbacks when active. Prefix03 does not isolate a custom reader from that consumer. Actual startup success, enabled state, task node and current activity are not established."
+  },
+  "arbiter": {
+    "sharedActiveRAM": "0xfeeee5f2",
+    "indexedBusyStateBaseRAM": "0xfebc9950",
+    "admission": "15147E checks shared active and1541AA(index0,1,2). Any busy condition uses1516F2, which returns result05 in an incoming-owner envelope with bounded attempted request data and prior shared context. There is no per-owner03 independent admission slot in this path.",
+    "constraints": "Shared requestID/service/buffer/timers plus requestID+8 receive filter mean this remains one shared diagnostic engine. No claim of atomic inter-process arbitration, race freedom, or exclusive ownership follows from this sequential MCU branch.",
+    "noAuthorizationExpansion": "A source-supported owner prefix is not a new authorized diagnostic route or an exemption from the existing read-only request policy."
+  },
+  "sizeDiscriminator": {
+    "registryFormula": "positive19-list length=3+4*N",
+    "maximum19ListRecordsBoth": 229,
+    "records230Bytes": 923,
+    "hypotheticalECMRecords": 258,
+    "hypotheticalECMListBytes": 1035,
+    "owner03ExpectedBodyAt1035": 1032,
+    "otherExpectedBodyAt1035": 1034,
+    "bothReject1035": true,
+    "ecmCauseEstablished": false,
+    "meaning": "Owner03 gains only two total UDS bytes (921/922); neither is a3+4*N length. It does not raise registry record capacity and cannot bypass the hypothesized1035byte ECM response limit. Actual ECM FF length and installed MCU hash remain missing; original NRC13 origin/root cause is not established."
+  },
+  "limits": [
+    "All implementation claims concern the pinned OTA binaries, not a newly qualified installed runtime.",
+    "No live request, reader change, stock service invocation, registration/table/owner change or firmware execution occurred.",
+    "Only the normal bit7-clear input route is qualified here; fragmented-input variants, another CAN engine or another transport are not excluded or proposed.",
+    "DID-oriented names describe observed field splitting; they do not establish a service whitelist or universal UDS behavior.",
+    "No first-frame/CF success, ECM supported registry, or original NRC source is inferred from this static candidate.",
+    "Callback linkage proves an intended stock consumer path. It does not prove present process/component state or ownership on the vehicle.",
+    "No all-firmware absence assertion or ready-to-run prefix03 instruction is made."
+  ],
+  "ranges": [
+    {
+      "image": "mcu",
+      "name": "input-fid-callback",
+      "startVA": "0x16c840",
+      "endExclusiveVA": "0x16c86a",
+      "sha256": "fd94270887b1c8930bdf7d0fadc63fadea376d4b1e12c30f05f8bde8899ea16a",
+      "instructions": 13,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-16c840.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-16c840.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared-input-arbiter",
+      "startVA": "0x15147e",
+      "endExclusiveVA": "0x15154c",
+      "sha256": "2da3e87c5b55320dd832b9b5cbb3a4fca587131526fa7ea05d3eddc9160b1e3d",
+      "instructions": 63,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15147e.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15147e.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "indexed-busy-state-getter",
+      "startVA": "0x1541aa",
+      "endExclusiveVA": "0x1541ba",
+      "sha256": "ac8d7fcb92f92c0fa52ec81805fed1f3d91ed7407a9b6d9a12d90502353026af",
+      "instructions": 6,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1541aa.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1541aa.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "normal-input-owner-header-and-self-branch",
+      "startVA": "0x150888",
+      "endExclusiveVA": "0x15094e",
+      "sha256": "444a8afe5e32754634a5366f74f195815a3736c50daa83b4334b412ecb69bd40",
+      "instructions": 51,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-150888.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-150888.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "nonself-can-transmit",
+      "startVA": "0x1511fa",
+      "endExclusiveVA": "0x15131c",
+      "sha256": "f89077450c3e041bfa09e23078eba32f0e2f3f7ca09571f0b88de849039897bb",
+      "instructions": 79,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1511fa.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1511fa.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared-busy-result05",
+      "startVA": "0x1516f2",
+      "endExclusiveVA": "0x15182c",
+      "sha256": "9b13649c5640ba90aa4206126b21a5511867eb779463a3883a6bd33c9a6e7afc",
+      "instructions": 108,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1516f2.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1516f2.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "receive-filter-and-single-frame",
+      "startVA": "0x1528c8",
+      "endExclusiveVA": "0x152a2c",
+      "sha256": "834683660b5b96df0ab200e3c9dd1cb935ca3c992bbcc3f3a58f85fd485917b8",
+      "instructions": 93,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1528c8.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1528c8.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "owner03-first-frame",
+      "startVA": "0x152a2c",
+      "endExclusiveVA": "0x152c52",
+      "sha256": "d466ce0c5859b3788b1e8dac68a35c39046606c832212c55e1d64cf063e31a4e",
+      "instructions": 144,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152a2c.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152a2c.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "other-owner-first-frame-size-guard",
+      "startVA": "0x152c52",
+      "endExclusiveVA": "0x152ce0",
+      "sha256": "51749e7dccba6dcaa74f9ade103087cb2102163f1a99aeb273ff4995d91bbd97",
+      "instructions": 35,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152c52.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152c52.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared-consecutive-frame-and-completion",
+      "startVA": "0x152df4",
+      "endExclusiveVA": "0x152f62",
+      "sha256": "2a0069dd0d5d8f6aaf3a36732c0495051b25007f73c72b416783d357a8c3871c",
+      "instructions": 91,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152df4.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152df4.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared-negative-publisher",
+      "startVA": "0x151948",
+      "endExclusiveVA": "0x1519b6",
+      "sha256": "e42b8639e9b19877b9f0de4a6a30b4fca0a08d6ef3cb7f6828b42d760e5205c5",
+      "instructions": 27,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-151948.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-151948.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "negative-and-pending-handler",
+      "startVA": "0x152ff6",
+      "endExclusiveVA": "0x1530fa",
+      "sha256": "b16859679944cfcf6a1cd2cfd43fe21b76d3521a1463463bac1313d21f8d4894",
+      "instructions": 72,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152ff6.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152ff6.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "owner-specific-timeout-body",
+      "startVA": "0x1530fa",
+      "endExclusiveVA": "0x1531fa",
+      "sha256": "32d63002ad6ffc37d092efc5c2358e8f0873029aac465e3924bd2b6323395970",
+      "instructions": 66,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1530fa.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1530fa.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared230-byte-body-chunker",
+      "startVA": "0x15324e",
+      "endExclusiveVA": "0x1532f2",
+      "sha256": "99a022f7dab2738aed1c80b8e8d90d7cb7b80aca693249b87f68f703d8e229c2",
+      "instructions": 51,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15324e.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15324e.asm"
+    },
+    {
+      "image": "mcu",
+      "name": "shared-completion-envelope",
+      "startVA": "0x15059e",
+      "endExclusiveVA": "0x150726",
+      "sha256": "7bdb8d80e8904b8f3c4f2fe52c058e31fc5b983257068cfc1c9d0122717e251d",
+      "instructions": 132,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15059e.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15059e.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "observer-construction-register-and-enable1033",
+      "startVA": "0x162d0",
+      "endExclusiveVA": "0x163b0",
+      "sha256": "34655ece1a574b24e5742239a1845a5c9e5c1cf9661ba7bf68a933fd59951686",
+      "instructions": 56,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-162d0.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-162d0.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "observer-device-fid-dispatch",
+      "startVA": "0x2a9b0",
+      "endExclusiveVA": "0x2ab08",
+      "sha256": "3d02989c924c4a2330a8de028c1ce3eb1b38889d539539509aa90ab2e6e729ce",
+      "instructions": 86,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-2a9b0.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-2a9b0.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "prefix-dispatch-basic-block",
+      "startVA": "0x23970",
+      "endExclusiveVA": "0x23a14",
+      "sha256": "527d8a5119118e517c8293719215f915d46e1ba787c5480dc2f3da78a8b8765d",
+      "instructions": 41,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-23970.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-23970.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "owner03-active-reply-entry",
+      "startVA": "0x3d230",
+      "endExclusiveVA": "0x3d318",
+      "sha256": "ede5613a09a6beb32f7778a8ee5a1cc25123232e9c16039ea63d619cc476b700",
+      "instructions": 58,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3d230.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3d230.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "owner03-sender",
+      "startVA": "0x3f460",
+      "endExclusiveVA": "0x3f5c4",
+      "sha256": "01c87df8ea21518eb818f5dde5323d6cfd4f15e8dfb5910ced3bd2081bd38ad4",
+      "instructions": 89,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3f460.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3f460.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "retry-call-edge1",
+      "startVA": "0x3da50",
+      "endExclusiveVA": "0x3da60",
+      "sha256": "ddcf2c57b9afd7758d6077e372a9dc087f4da9d5e7d4ca687db492645986d612",
+      "instructions": 4,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3da50.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3da50.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "retry-call-edge2",
+      "startVA": "0x3dab0",
+      "endExclusiveVA": "0x3dabc",
+      "sha256": "63ad8e09f0808329c7d782d61f611d330a7ed27814924e99ee0ac1b5d3a9c6e2",
+      "instructions": 3,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3dab0.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3dab0.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "worker-call-edge1",
+      "startVA": "0x3e4cc",
+      "endExclusiveVA": "0x3e4dc",
+      "sha256": "ad6a1f4ea288aee7be2d6d96050f7df302df711baecbf35718764f3314a441d5",
+      "instructions": 4,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e4cc.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e4cc.asm"
+    },
+    {
+      "image": "vhds",
+      "name": "worker-call-edge2",
+      "startVA": "0x3e504",
+      "endExclusiveVA": "0x3e514",
+      "sha256": "0f6ce3f24b71950dfe98d07c57376a5ead81e3596968ed3915b15b7de8b9a612",
+      "instructions": 4,
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e504.json",
+      "assembly": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e504.asm"
+    }
+  ],
+  "anchors": [
+    {
+      "image": "mcu",
+      "va": "0x16c856",
+      "instruction": [
+        "jarl",
+        "0x15147e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x151492",
+      "instruction": [
+        "ld.bu",
+        "0x310d8a[gp], r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15149a",
+      "instruction": [
+        "be",
+        "0x1514ba"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15149e",
+      "instruction": [
+        "jarl",
+        "0x1541aa, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1514a8",
+      "instruction": [
+        "jarl",
+        "0x1541aa, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1514b2",
+      "instruction": [
+        "jarl",
+        "0x1541aa, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1514b8",
+      "instruction": [
+        "be",
+        "0x15151e"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x151518",
+      "instruction": [
+        "jarl",
+        "0x1516f2, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15152e",
+      "instruction": [
+        "jarl",
+        "0x150888, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1541ae",
+      "instruction": [
+        "mov",
+        "0xfebc9950, ep"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1541b6",
+      "instruction": [
+        "sld.bu",
+        "0x0[ep], r10"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1508b8",
+      "instruction": [
+        "st.b",
+        "r1, 0x310d8a[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1508c2",
+      "instruction": [
+        "st.b",
+        "r1, -0x145fc[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1508d4",
+      "instruction": [
+        "st.h",
+        "r1, -0x145fa[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1508de",
+      "instruction": [
+        "st.b",
+        "r1, -0x145f8[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1508e8",
+      "instruction": [
+        "st.b",
+        "r1, -0x145f7[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15094a",
+      "instruction": [
+        "bne",
+        "0x1511fa"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x151222",
+      "instruction": [
+        "ld.bu",
+        "-0x145f8[gp], r28"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15126e",
+      "instruction": [
+        "jarl",
+        "0x1b3ed4, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x151296",
+      "instruction": [
+        "jarl",
+        "0x169a6e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1517c0",
+      "instruction": [
+        "mov",
+        "0x5, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x151806",
+      "instruction": [
+        "jarl",
+        "0x196f3a, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1528ec",
+      "instruction": [
+        "bne",
+        "0x152fdc"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1528fa",
+      "instruction": [
+        "add",
+        "0x8, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1528fe",
+      "instruction": [
+        "bne",
+        "0x152fdc"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152aac",
+      "instruction": [
+        "cmp",
+        "0x3, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152aae",
+      "instruction": [
+        "bne",
+        "0x152c52"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152ab6",
+      "instruction": [
+        "addi",
+        "-0x3, r28, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152ad6",
+      "instruction": [
+        "st.h",
+        "r1, -0x1499e[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152afa",
+      "instruction": [
+        "bnh",
+        "0x152b08"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152b02",
+      "instruction": [
+        "addi",
+        "-0x398, r1, r0"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152b06",
+      "instruction": [
+        "bnc",
+        "0x152b4c"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152b32",
+      "instruction": [
+        "movea",
+        "0x13, r0, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152b44",
+      "instruction": [
+        "jarl",
+        "0x151948, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152b48",
+      "instruction": [
+        "jr",
+        "0x152fdc"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152bc6",
+      "instruction": [
+        "addi",
+        "0xa, r29, r7"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152bca",
+      "instruction": [
+        "mov",
+        "0x3, r8"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152bd2",
+      "instruction": [
+        "st.h",
+        "r1, 0x3111bc[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c12",
+      "instruction": [
+        "st.b",
+        "r1, 0x55[sp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c26",
+      "instruction": [
+        "jarl",
+        "0x1b3e60, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c2e",
+      "instruction": [
+        "jarl",
+        "0x169a6e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c56",
+      "instruction": [
+        "addi",
+        "-0x1, r28, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c8e",
+      "instruction": [
+        "bnh",
+        "0x152c9c"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c96",
+      "instruction": [
+        "addi",
+        "-0x398, r1, r0"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152c9a",
+      "instruction": [
+        "bnc",
+        "0x152ce0"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152cc6",
+      "instruction": [
+        "movea",
+        "0x13, r0, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152cd8",
+      "instruction": [
+        "jarl",
+        "0x151948, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152e64",
+      "instruction": [
+        "cmp",
+        "r1, r28"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152e66",
+      "instruction": [
+        "bne",
+        "0x152ef2"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152e86",
+      "instruction": [
+        "jarl",
+        "0x1b3ed4, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152eca",
+      "instruction": [
+        "jarl",
+        "0x1b3ed4, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152eea",
+      "instruction": [
+        "st.h",
+        "r1, 0x3111be[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152efa",
+      "instruction": [
+        "cmp",
+        "0x3, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152f04",
+      "instruction": [
+        "st.h",
+        "r1, 0x310d88[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152f0e",
+      "instruction": [
+        "jarl",
+        "0x1515a0, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152f20",
+      "instruction": [
+        "bne",
+        "0x152f60"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x152f50",
+      "instruction": [
+        "jarl",
+        "0x15324e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15197c",
+      "instruction": [
+        "st.b",
+        "r1, -0x149a0[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15198a",
+      "instruction": [
+        "st.b",
+        "r1, -0x149a1[gp]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1519a2",
+      "instruction": [
+        "jarl",
+        "0x15059e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x153162",
+      "instruction": [
+        "cmp",
+        "0x3, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x153172",
+      "instruction": [
+        "mov",
+        "0xfebc8ed4, r8"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x153178",
+      "instruction": [
+        "jarl",
+        "0x15324e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15318a",
+      "instruction": [
+        "mov",
+        "0xfebc9286, r8"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15326e",
+      "instruction": [
+        "st.b",
+        "r1, 0x0[r29]"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x15329e",
+      "instruction": [
+        "jarl",
+        "0x15059e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1532a4",
+      "instruction": [
+        "movea",
+        "0xe6, r0, r1"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1532ae",
+      "instruction": [
+        "jarl",
+        "0x15059e, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1532c0",
+      "instruction": [
+        "addi",
+        "-0xe6, r28, r28"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1505de",
+      "instruction": [
+        "be",
+        "0x1505e6"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1505e0",
+      "instruction": [
+        "add",
+        "0x3, r27"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1505e6",
+      "instruction": [
+        "add",
+        "0x1, r27"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x150696",
+      "instruction": [
+        "be",
+        "0x1506c4"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x1506f0",
+      "instruction": [
+        "jarl",
+        "0x196f3a, lp"
+      ]
+    },
+    {
+      "image": "mcu",
+      "va": "0x150700",
+      "instruction": [
+        "st.b",
+        "r0, 0x310d8a[gp]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x162e8",
+      "instruction": [
+        "add",
+        "x8, x8, #0x350"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x162ec",
+      "instruction": [
+        "str",
+        "x19, [x20, #0x10]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x162f0",
+      "instruction": [
+        "str",
+        "x8, [x20]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x16354",
+      "instruction": [
+        "bl",
+        "#0x47e60"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x163a0",
+      "instruction": [
+        "add",
+        "x2, x2, #0x1e0"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x163a4",
+      "instruction": [
+        "mov",
+        "w1, #0x409"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x163a8",
+      "instruction": [
+        "mov",
+        "w3, #1"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x163ac",
+      "instruction": [
+        "bl",
+        "#0x47e70"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2a9cc",
+      "instruction": [
+        "cmp",
+        "w1, #0x409"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2aa04",
+      "instruction": [
+        "mov",
+        "w8, #0x22"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2aa08",
+      "instruction": [
+        "movk",
+        "w8, #0x9900, lsl #16"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2aa0c",
+      "instruction": [
+        "add",
+        "w9, w8, #0xe8"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2aa10",
+      "instruction": [
+        "cmp",
+        "w2, w9"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x2aa24",
+      "instruction": [
+        "bl",
+        "#0x23970"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x239f8",
+      "instruction": [
+        "cmp",
+        "w21, #3"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x239fc",
+      "instruction": [
+        "b.ne",
+        "#0x23a38"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x23a00",
+      "instruction": [
+        "add",
+        "x0, x20, #0xae0"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x23a0c",
+      "instruction": [
+        "bl",
+        "#0x3d230"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3d264",
+      "instruction": [
+        "ldrb",
+        "w8, [x0, #0x2d]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3d268",
+      "instruction": [
+        "cbz",
+        "w8, #0x3d318"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3d274",
+      "instruction": [
+        "cmp",
+        "w5, #3"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3d278",
+      "instruction": [
+        "b.ne",
+        "#0x3d340"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3d2a0",
+      "instruction": [
+        "sub",
+        "w8, w24, #8"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f48c",
+      "instruction": [
+        "ldrh",
+        "w8, [x23, #0xa]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4b0",
+      "instruction": [
+        "mov",
+        "w8, #3"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4b4",
+      "instruction": [
+        "add",
+        "x0, x21, #3"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4b8",
+      "instruction": [
+        "add",
+        "x1, x23, #0xc"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4bc",
+      "instruction": [
+        "strb",
+        "w8, [x21]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4c4",
+      "instruction": [
+        "strb",
+        "w8, [x21, #1]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4cc",
+      "instruction": [
+        "strb",
+        "w8, [x21, #2]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4d0",
+      "instruction": [
+        "ldrh",
+        "w2, [x23, #0xa]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4d4",
+      "instruction": [
+        "bl",
+        "#0x47b30"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4e8",
+      "instruction": [
+        "add",
+        "w20, w8, #3"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f4fc",
+      "instruction": [
+        "mov",
+        "w1, #0x409"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f500",
+      "instruction": [
+        "movk",
+        "w2, #0xaa00, lsl #16"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f50c",
+      "instruction": [
+        "bl",
+        "#0x47e80"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f534",
+      "instruction": [
+        "strb",
+        "w8, [x19, #0x2d]"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3f544",
+      "instruction": [
+        "bl",
+        "#0x3e000"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3da5c",
+      "instruction": [
+        "bl",
+        "#0x3f460"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3dab8",
+      "instruction": [
+        "bl",
+        "#0x3f460"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3e4d8",
+      "instruction": [
+        "bl",
+        "#0x3f460"
+      ]
+    },
+    {
+      "image": "vhds",
+      "va": "0x3e510",
+      "instruction": [
+        "bl",
+        "#0x3f460"
+      ]
+    }
+  ],
+  "reproduce": {
+    "check": "python3 research/vehicle-diagnostics/check_ecm_owner3_route.py",
+    "mcuDecode": "PYTHONPATH=/private/tmp/denza-pypcode-20261018 /opt/homebrew/bin/python3.13 captures/diagnostics-transport-followup-20261021/owner3/decode_mcu.py",
+    "build": ".venv-firmware/bin/python captures/diagnostics-transport-followup-20261021/owner3/build_report.py"
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "bytes": 318376,
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_ecm_owner3_route.py",
+      "bytes": 6542,
+      "sha256": "6a7a0277e91d0f79e6847e336147997aaf952272e4cc2c8e0dfaebe205d8113d"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/build_report.py",
+      "bytes": 14875,
+      "sha256": "26d6693df1e719c826e6afe528519dd749ccc09391bc8ac7211162a6b42d367e"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/decode_mcu.py",
+      "bytes": 2832,
+      "sha256": "ab8133dbe8708044e61ea847abf198c3767cb3346e3bf36b6e82bb6f53e6cf7c"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-ranges.json",
+      "bytes": 6450,
+      "sha256": "deee42007f562f7d76a2ff9eeee6e9c09c84a8e06152b321b53d9e500607b8da"
+    },
+    {
+      "path": "research/vehicle-diagnostics/diagnostic-can-mcu-visibility-20261021.json",
+      "bytes": 27066,
+      "sha256": "6b78be5ba00edfee37967e028536630921fe4b03cf292014c205f21e4b7a6041"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecm-request-analysis-20261021.json",
+      "bytes": 25553,
+      "sha256": "2aac12d9cee0c280e84b67a6649d85bbde5f266cc529083052be76a5cc5dfa21"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-16c840.asm",
+      "bytes": 582,
+      "sha256": "b1991e0e6e2a07fc482d1532d72b44079cbd9fa18984ee8ce5da8372066d9c26"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-16c840.json",
+      "bytes": 1392,
+      "sha256": "f18fe39ac774c49ce08f33c386cbcac95847bd93b1126bb76768040b76001996"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15147e.asm",
+      "bytes": 2818,
+      "sha256": "70241288207c5a6d64fd35568de92e2c5412e3d0fd9509c29bea103cde2980cc"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15147e.json",
+      "bytes": 6737,
+      "sha256": "106a0c9e224fa0dc930b76edcaee46143ed928f052381481e20391408ad949ea"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1541aa.asm",
+      "bytes": 254,
+      "sha256": "6ab80b5d71848e8d904e54c34c0fc11b682eb5683dfe537f745435b20da241ca"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1541aa.json",
+      "bytes": 622,
+      "sha256": "1b0f76c91981b96a4bc56278d43774179be5eee7614778c27fd93deafb091214"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-150888.asm",
+      "bytes": 2366,
+      "sha256": "4d6fec4e0e2de2d729e1fc2ae98003266bd222ec4aae4ba61b6d59fc011ac1f8"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-150888.json",
+      "bytes": 5609,
+      "sha256": "ef0f2ad33349b407cd162a1e2f9d6754fcb4a34d307ae5565428c0145745d3e7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1511fa.asm",
+      "bytes": 3636,
+      "sha256": "74a9493b7efd1ca9f45ae7a7412dc19596a31967f3af9f041329ef5bbbd8d627"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1511fa.json",
+      "bytes": 8630,
+      "sha256": "2e5508055cc51ad2e5400dc3a2fc62646a9ce7a5cc243193f3c3d601317b0898"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1516f2.asm",
+      "bytes": 4726,
+      "sha256": "d9e129d23ee51ebdf981b6eb45eea74e915823d661b46d4ea84d270c67d6258e"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1516f2.json",
+      "bytes": 11344,
+      "sha256": "ee93cf39de18471c365166fe2417184a21b3c72db533293849ea4b95245f5909"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1528c8.asm",
+      "bytes": 4262,
+      "sha256": "8a30ff09015c7070a99b45f9bc8c47f2565aac8e84ee59131bf98eff6fa904cd"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1528c8.json",
+      "bytes": 10143,
+      "sha256": "1536e39f5457901f4d285b8955de716ad056452fd4b186d9defc6b5bb5bcdd66"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152a2c.asm",
+      "bytes": 6595,
+      "sha256": "e500a1dd386117525d44b867c4526ad221e6568c5525fea05d809a67fff011d3"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152a2c.json",
+      "bytes": 15714,
+      "sha256": "e81cfe997e560719f08ce5c4718990ab458ee0eb54b31177c1d9cdc04cf1299b"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152c52.asm",
+      "bytes": 1627,
+      "sha256": "523b2ebeaf3ecc9bf803de78ceec42719c90e9556a13bac54ffbffa16e1406fe"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152c52.json",
+      "bytes": 3860,
+      "sha256": "5db8e835e30891acd343bc5c0bdee2c7841821d01a815565047a3fe1b8881ef2"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152df4.asm",
+      "bytes": 4210,
+      "sha256": "78ce82bdb0801dca93ed9cc9621f66674dac738c55e1c3fd7193db3717750a9b"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152df4.json",
+      "bytes": 10006,
+      "sha256": "52381a1a8d4f0e40d48350f6348bd67daf91cbfbd07fdaf58b94bcda9c22625f"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-151948.asm",
+      "bytes": 1256,
+      "sha256": "cab9304c7dbd358548af92827ba91415e3a07e28b6b35e36c205ef9e3fb45714"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-151948.json",
+      "bytes": 2983,
+      "sha256": "d3bba2207bdf1ff3379085d2ae08b4903d9e8bd164cd198ecbbfa40d11b4501f"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152ff6.asm",
+      "bytes": 3289,
+      "sha256": "e6046fb7fd041960f098fb9c794aa85ef940cc10fad879ea7b87c3fea05f5e59"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-152ff6.json",
+      "bytes": 7817,
+      "sha256": "a23c6b6dc1314734793c050dfb29203b573bc04dfb44c74ec944f5d8976a719e"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1530fa.asm",
+      "bytes": 3023,
+      "sha256": "fb4843a6cdb21360cb1c39f96db874dee08481876dc4de3aaa317f83994bb1b5"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-1530fa.json",
+      "bytes": 7211,
+      "sha256": "6544910ab73947999262716d07d572508e8dddfd0b9f9af9c342c920a1c4ed04"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15324e.asm",
+      "bytes": 2292,
+      "sha256": "bb662312df72797af3efd5c150f8e3ab3c2c0919709cc829c801361bc378eedc"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15324e.json",
+      "bytes": 5466,
+      "sha256": "f8794cb24b750f84b85c5940400a07187bd735cba3f74a26c32e8e35e7613bfe"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15059e.asm",
+      "bytes": 5794,
+      "sha256": "30e63e5f1ecafa6f986a9e2998a6c10ee78088c7a5c1a5a254b7466359111af7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/mcu-15059e.json",
+      "bytes": 13911,
+      "sha256": "caa23b90c8738f30aea5fdf30a4e4442301669cac81b01aa52e74206a64e63c7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-162d0.asm",
+      "bytes": 2549,
+      "sha256": "61dcb3a56f7a46abbb387ba09bf43b8cac811b6eece7c948a724e81a87627401"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-162d0.json",
+      "bytes": 6018,
+      "sha256": "034415e5cfe1bb589104c1b814302ea03b67460549752561f7dc9069e0a1765f"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-2a9b0.asm",
+      "bytes": 3949,
+      "sha256": "1d61d94ae50b912f1f2bcd4b98c947c9792f13f53f08dea46489d841b8723ee8"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-2a9b0.json",
+      "bytes": 9289,
+      "sha256": "f75968d6f756e664a0843b4dc8c0d94581b332da5b102abd249666d01094d4d6"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-23970.asm",
+      "bytes": 1921,
+      "sha256": "141a871dfe6e77afbc4be11cea959e5d69863ddabac0263e383bc5c823872f71"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-23970.json",
+      "bytes": 4469,
+      "sha256": "bd2d9a7c0152549d940f58dd37057b7af6189d3f13df3e53ca2aa44fa9d4db5a"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3d230.asm",
+      "bytes": 2720,
+      "sha256": "536d71a0995deaef97cbe1856113f67ebfc091bfb051bd32817f7f1925571bfa"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3d230.json",
+      "bytes": 6331,
+      "sha256": "bfcd4b36873c9e97ff5a88f7905969069aa60f33499019a7c955f68da6f8f2f3"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3f460.asm",
+      "bytes": 4140,
+      "sha256": "63fb88ac4159cf9da29e0a3b2612c5aba66e5129fc5eb55587a157bd96055183"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3f460.json",
+      "bytes": 9669,
+      "sha256": "1702e5352f2f3514591214768f4ceac3fe6c91af6c02cc7d47e31abc647d4b9e"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3da50.asm",
+      "bytes": 178,
+      "sha256": "529a03f1d4fc1728176ba8f6114a81b5e60a97ed3e2b17f9e8d7c00488496bf1"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3da50.json",
+      "bytes": 430,
+      "sha256": "daad7fc3e83e66f0f25467a1013cbe065247d375a1cd70466e4777b416b12225"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3dab0.asm",
+      "bytes": 130,
+      "sha256": "70f63c7a6e2d83f0279f94f69669fd1f296dc550e4ab4460303233019dbcd2e7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3dab0.json",
+      "bytes": 318,
+      "sha256": "5530fd281f333a6e589b1d9504258943a28fed46713b8fad8f380ec3db46fc73"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e4cc.asm",
+      "bytes": 182,
+      "sha256": "bc9c2dcf46673146b25f92e9c51eb8bbcf6ae8c90db0cb3afa04b01763383fd1"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e4cc.json",
+      "bytes": 434,
+      "sha256": "9f27c76daaaee38c0baff42b3ca4a99af6b3909b47bf04b2121c3307b834f358"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e504.asm",
+      "bytes": 177,
+      "sha256": "1cf4be3cfaa741105d45bdb8b1e2280aed505d88ccf3c4aca5926779a3fb9fbf"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/owner3/vhds-3e504.json",
+      "bytes": 425,
+      "sha256": "8e3fdc3008aa5b7141ee591d1a205cc67e8c4af083c7c46ee696c34f7d40bb06"
+    }
+  ]
+}

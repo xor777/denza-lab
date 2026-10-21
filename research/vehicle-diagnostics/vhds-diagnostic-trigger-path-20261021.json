@@ -1,0 +1,614 @@
+{
+  "schema": "vhds-diagnostic-trigger-path-v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/diagnostics-transport-followup-20261021/hal/trigger",
+  "binary": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+    "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+    "bytes": 318376,
+    "applicability": "Owner IVI OTA34.1.33.2605218.1. Source bytes only; installed vhds bytes and task/config contents were not captured or matched in this task."
+  },
+  "scope": {
+    "method": "Existing one-file owner-OTA extraction, exact schema/string anchors and targeted direct-call/data-offset slices.26 selected functions/26,252 bytes including the8-byte handler thunk; no global disassembly or complete call graph.",
+    "actions": "Offline read-only binary/source review plus new owned report/checker/capture artifacts. No car/ADB/network access, native execution, loader/parser invocation, config write, ECU request or shared-doc/product edit. Frozen HAL pair untouched by this subtask.",
+    "priority": "checkDidList schema, request/response IDs, byte serialization, CAN condition and the default sender. Scheduling handoff remains explicitly bounded."
+  },
+  "claims": {
+    "runtimeTaskObserved": false,
+    "specificWarningToDtcMappingRecovered": false,
+    "dtcDictionaryRecovered": false,
+    "readOnlySidWhitelistAtSendBoundary": false,
+    "canTriggerDefaultPrefix": "02",
+    "siblingPrefix03LinkedToThisTrigger": false,
+    "schedulingHandoffFullyTraced": false
+  },
+  "conclusion": "The shipped code can associate a configured CAN field/condition with a configurable ECU diagnostic payload. checkDidList is a byte-parameter list, not a guaranteed two-byte DID list. Selected CAN-trigger nodes feed a type4 vector consumed by the ordinary prefix02 sender. A separate prefix03 sender exists. No captured task establishes which warning, ECU, DTC or DID the owner vehicle currently uses; no DTC code/description dictionary or specific warning→DTC mapping was recovered in this bounded path.",
+  "parser": {
+    "function": "1C620, log label parseAllInOneTriggerList",
+    "root": "Input string is parsed with cJSON_Parse at1C6C4; root.resultData must be an array (1C6D8..1C738). Entries are read separately, and the full item can be logged at1C788/1C7B0.",
+    "fields": [
+      {
+        "json": "signal",
+        "decode": "strtoll base16; low32 stored as CAN ID",
+        "source": "1C7C0..1C7D4,1CA90",
+        "structOffset": "0x00"
+      },
+      {
+        "json": "childrenId",
+        "decode": "strtoll base16; low8 stored as sub-ID",
+        "source": "1C7E8..1C7FC,1CA98",
+        "structOffset": "0x04"
+      },
+      {
+        "json": "values",
+        "decode": "strtoll base10; low8 trigger threshold",
+        "source": "1C810..1C824,1CAB8",
+        "structOffset": "0x08"
+      },
+      {
+        "json": "startBit",
+        "decode": "cJSON integer low8",
+        "source": "1C838..1C844,1CABC",
+        "structOffset": "0x09"
+      },
+      {
+        "json": "endBit",
+        "decode": "cJSON integer low8",
+        "source": "1C850..1C85C,1CAC0",
+        "structOffset": "0x0A"
+      },
+      {
+        "json": "logic",
+        "decode": "strtoll base10; low8 comparison selector",
+        "source": "1C868..1C880,1CAC4",
+        "structOffset": "0x0B"
+      },
+      {
+        "json": "checkId",
+        "decode": "strtoll base16; low16 request ID; low16(checkId+8) expected response ID. The source does not consult the diagnostic route catalog in this construction.",
+        "source": "1C894..1C8B4,1CD04..1CD14,1CE9C..1CEA4",
+        "structOffset": "diagnostic node0x06/0x08"
+      },
+      {
+        "json": "checkType",
+        "decode": "strtoll base16; low8 placed as service byte",
+        "source": "1C8C0..1C8E0,1CEC0..1CEC8",
+        "structOffset": "diagnostic node0x0D"
+      },
+      {
+        "json": "checkDidList",
+        "decode": "Optional array, positive count on the allocation path; each element is used as a string with strlen<=8.15D80 converts character pairs to bytes, at most4 decoded bytes from an8-character string. Odd final character becomes its low-nibble byte; invalid hexadecimal characters can coerce to0. The native conversion is permissive, not strict hex validation.",
+        "source": "1C8EC..1C914,1CD64..1CD80,1CEB0..1CEB4,15D80..15E8C",
+        "structOffset": "one diagnostic node per list item"
+      }
+    ],
+    "monitorEntry": "Parser sets channel0,mode1,operation1 at1CAA0..1CAB0 and initial previous extracted value0 at1CAC8. Later22510 serializes these as8-byte monitor entries and sends device1033/selectedAA000165. Parsing is effectful; it is not a safe inspection API.",
+    "knownDirectEntry": "The sole direct parser call found in the targeted .text BL/B scan is1B7F0:1BAE4. Its explicit early path accepts input type0x100 only when property sys.vhds.test_enable==1 (1B83C..1B884). The later ordinary switch is limited to types<=10. Indirect callers/runtime entry are not excluded. This does not prove normal production loading of a specific task.",
+    "formatLimits": "The parser does not supply a strict validation contract: it narrows values and uses native string pointers; no complete malformed-input/lifecycle audit is claimed. Its source schema is separate from current cache-file contents, which were not read.",
+    "upstreamAbiCandidate": {
+      "status": "candidate_not_fully_bound",
+      "evidence": "Only direct handler caller found is1FD40:1FD44→1B7F0. AARCH64_RELATIVE1027 relocation49120 points1FD40;49120=490E0+40, with nearby490F0→onAsBinder2B5E0. Root separately traced libvhds application transaction5 to virtual slot+40.",
+      "limit": "Constructor/vptr assignment of490E0 was not proved here; no complete Binder route binding and no calling stock application/process or delivered input payload is claimed.",
+      "capture": "handler-relocation-candidates.json"
+    }
+  },
+  "diagnosticNode": {
+    "allocation": "1CE30..1CE5C allocates0x8F0 shared-node storage and zeroes0x8D6 data bytes. Offsets below refer to its data pointer.",
+    "layout": [
+      {
+        "offset": "0x00",
+        "meaning": "Decimal text of narrowed request ID used as an internal key; do not interpret as a vehicle warning/DTC description."
+      },
+      {
+        "offset": "0x06",
+        "meaning": "u16 request CAN ID in native little-endian node storage"
+      },
+      {
+        "offset": "0x08",
+        "meaning": "u16 expected response CAN ID=(checkId+8)&FFFF"
+      },
+      {
+        "offset": "0x0A",
+        "meaning": "u16 serialized payload size=decoded parameter byte count+2"
+      },
+      {
+        "offset": "0x0C",
+        "meaning": "One-byte application length=decoded parameter byte count+1"
+      },
+      {
+        "offset": "0x0D",
+        "meaning": "Service byte=(u8)checkType"
+      },
+      {
+        "offset": "0x0E",
+        "meaning": "Decoded checkDidList element bytes"
+      },
+      {
+        "offset": "0x15/0x16",
+        "meaning": "Initial result/state0 and list-item index"
+      }
+    ],
+    "meaning": "checkDidList contributes0..4 parameter bytes to a caller-selected service. The field name alone does not prove a DID, DTC query,2-byte value, read-only service or supported ECU address. Request/reply arithmetic is source-defined; target routing/bus/runtime acceptance remain separate."
+  },
+  "canTrigger": {
+    "queueConsumer": "26BB0 consumes retained raw records;26C94..26CA8 passes CAN ID,sub-ID,channel and payload pointer into26E20.",
+    "match": "26F8C..26FA0 matches configured CAN ID and sub-ID. The inspected matcher does not compare the channel at this point; earlier capture/owner filtering may constrain it.",
+    "extract": "26FA4..270FC uses startBit/endBit byte/bit positions. Explicit position checks are<=63; extraction details remain source arithmetic, not a named vehicle warning definition.",
+    "comparisons": [
+      {
+        "logic": 0,
+        "condition": "current==threshold and previousByte==0"
+      },
+      {
+        "logic": 1,
+        "condition": "current>threshold and previousByte==0"
+      },
+      {
+        "logic": 2,
+        "condition": "current>=threshold and previousByte==0"
+      }
+    ],
+    "previousValue": "27198 always stores the low8 extracted current value. The guard checks previous extracted byte==0, not the previous truth of the comparison. It is not a general rising-edge detector; current0/threshold0/logic0 can satisfy on consecutive zero samples.",
+    "selectedTasks": "After match,27378..273AC finds associated diagnostic nodes by the key built from CANID/startBit/endBit and copies them into object+5D8.1AC60 applies additional vehicle/state/property gates. The allowed path writes type4 at27434..27438 and signals controller2745C.",
+    "handoffLimit": "The exact callback/thread path from this condition signal to notify_hal_diagnostic invocation is not fully traced here. The producer and consumer share the same+5D8 vector/type4 data contract; no execution or timing claim follows.",
+    "consumer": "25200 selects from a7-entry jump table86CC; diagnosis_type4 maps to25388, which reads+5D8.25478/255FC invokes257A0 on selected nodes."
+  },
+  "senders": {
+    "defaultCanTrigger": {
+      "function": "257A0",
+      "selection": "type4 skips specialized5/6/8 paths at25870..25888 and reaches25A90.",
+      "envelope": "[02,requestIDhi,requestIDlo,node payload0x0C..], where payload contains length,service,parameters.25AD8 setBuffer(device1033,FIDAA00010A).",
+      "whitelist": "No service-byte read-only whitelist at this inspected boundary; service and parameters come from the node. External arbitration, MCU validation and ECU acceptance are not bypassed or proven by this source result."
+    },
+    "siblingType3": {
+      "function": "3F460",
+      "envelope": "[03,requestIDhi,requestIDlo,node payload0x0C..];3F50C setBuffer1033/AA00010A.3E190 worker and3D9D0 retry call it.",
+      "limit": "A sibling implementation; not a demonstrated alternate transport for the specific CAN-trigger path above. Its MCU owner, reassembly semantics, caps and arbitration are left to the separate MCU study. Do not infer equivalent or unrestricted raw UDS response behavior."
+    },
+    "otherType2": {
+      "function": "38B30",
+      "envelope": "[02,requestIDhi,requestIDlo,caller supplied bytes], length narrowed to one byte in inspected code;38CB4 setBuffer1033/AA00010A.",
+      "limit": "A separate loopDiag path381A0. No proof this call is the same configured CAN-trigger task."
+    }
+  },
+  "possibleEffects": [
+    {
+      "source": "1C620→22510→2290C",
+      "effect": "Parses config and writes the MQTT CAN monitor table; logs complete config items."
+    },
+    {
+      "source": "25200:254F0..25528",
+      "effect": "If readiness getter device1005/FID99000003 returns0, calls setInt1005/AA00004A=1 and waits2seconds before rechecking. This report names the call rather than assigning an unproved ECU wake effect."
+    },
+    {
+      "source": "257A0,3F460,38B30",
+      "effect": "Transmits caller/config supplied service and parameter bytes. Selected code is not a read-only scan whitelist; mutating diagnostic services are not excluded at these send boundaries. No such action was performed."
+    },
+    {
+      "source": "3D230:3D484..3D490",
+      "effect": "The sibling response parser special-cases byte54 and7F. This is recognition in source, not an observed ClearDTC operation or a specific config assignment."
+    },
+    {
+      "source": "1ABB0→19360",
+      "effect": "One branch has control setInt and calls a method containing curl_easy_perform19884. Do not run the handler/loader to discover state. No network request was made by this analysis."
+    }
+  ],
+  "warningAndDtcBoundary": {
+    "established": "The schema is capable of relating a raw CAN field predicate to a configured ECU/service/parameter list. It can express diagnostic parameter bytes used by a DTC/DID request when a task supplies them.",
+    "notEstablished": [
+      "No actual resultData task or saved configuration payload was captured/read here.",
+      "No specific warning ID/name, warning1007 mapping, raw DTC tuple, status semantics or code-description entry was recovered in these selected paths.",
+      "No source claim that checkType must be19 or22, or that every checkDidList element is a two-byte DID.",
+      "No proof that a task is loaded on owner profile170 or that installed vhds matches the OTA file.",
+      "No complete native symbol/string or indirect-call graph absence claim."
+    ]
+  },
+  "syntheticProjections": [
+    {
+      "kind": "synthetic_not_captured_task",
+      "input": {
+        "checkId": "07E6",
+        "checkType": "22",
+        "item": "F194"
+      },
+      "expected": {
+        "requestId": "07E6",
+        "expectedResponseId": "07EE",
+        "payloadLength": 4,
+        "nodePayload": "0322F194",
+        "defaultType2Envelope": "0207E60322F194",
+        "siblingType3Envelope": "0307E60322F194"
+      }
+    },
+    {
+      "kind": "synthetic_not_captured_task",
+      "input": {
+        "checkId": "07E6",
+        "checkType": "19",
+        "item": "0109"
+      },
+      "expected": {
+        "requestId": "07E6",
+        "expectedResponseId": "07EE",
+        "payloadLength": 4,
+        "nodePayload": "03190109",
+        "defaultType2Envelope": "0207E603190109",
+        "siblingType3Envelope": "0307E603190109"
+      }
+    },
+    {
+      "kind": "synthetic_not_captured_task",
+      "input": {
+        "checkId": "07E6",
+        "checkType": "22",
+        "item": "ABC"
+      },
+      "expected": {
+        "requestId": "07E6",
+        "expectedResponseId": "07EE",
+        "payloadLength": 4,
+        "nodePayload": "0322AB0C",
+        "defaultType2Envelope": "0207E60322AB0C",
+        "siblingType3Envelope": "0307E60322AB0C"
+      }
+    },
+    {
+      "kind": "synthetic_not_captured_task",
+      "input": {
+        "checkId": "07E6",
+        "checkType": "19",
+        "item": ""
+      },
+      "expected": {
+        "requestId": "07E6",
+        "expectedResponseId": "07EE",
+        "payloadLength": 2,
+        "nodePayload": "0119",
+        "defaultType2Envelope": "0207E60119",
+        "siblingType3Envelope": "0307E60119"
+      }
+    },
+    {
+      "kind": "synthetic_not_captured_task",
+      "input": {
+        "checkId": "107E6",
+        "checkType": "122",
+        "item": "00112233"
+      },
+      "expected": {
+        "requestId": "07E6",
+        "expectedResponseId": "07EE",
+        "payloadLength": 6,
+        "nodePayload": "052200112233",
+        "defaultType2Envelope": "0207E6052200112233",
+        "siblingType3Envelope": "0307E6052200112233"
+      }
+    }
+  ],
+  "syntheticModelLimit": "Numeric-to-byte/condition projections exercise selected arithmetic only. They do not reproduce native strtoll errors, validate an ECU plan, authorize transmission or establish current data. Prefix03 examples are sibling layout examples only.",
+  "directEdges": [
+    {
+      "va": "0x1c7c0",
+      "target": "0x48250"
+    },
+    {
+      "va": "0x1c7e8",
+      "target": "0x48250"
+    },
+    {
+      "va": "0x1c894",
+      "target": "0x48250"
+    },
+    {
+      "va": "0x1c8c0",
+      "target": "0x48250"
+    },
+    {
+      "va": "0x1c8ec",
+      "target": "0x48250"
+    },
+    {
+      "va": "0x1ceb4",
+      "target": "0x15d80"
+    },
+    {
+      "va": "0x1d0d0",
+      "target": "0x22510"
+    },
+    {
+      "va": "0x2290c",
+      "target": "0x47e80"
+    },
+    {
+      "va": "0x26ca8",
+      "target": "0x26e20"
+    },
+    {
+      "va": "0x2740c",
+      "target": "0x1ac60"
+    },
+    {
+      "va": "0x25478",
+      "target": "0x257a0"
+    },
+    {
+      "va": "0x25ad8",
+      "target": "0x47e80"
+    },
+    {
+      "va": "0x3f50c",
+      "target": "0x47e80"
+    },
+    {
+      "va": "0x3e4d8",
+      "target": "0x3f460"
+    },
+    {
+      "va": "0x3da5c",
+      "target": "0x3f460"
+    },
+    {
+      "va": "0x25508",
+      "target": "0x480a0"
+    },
+    {
+      "va": "0x1bae4",
+      "target": "0x1c620"
+    }
+  ],
+  "sources": [
+    {
+      "path": "research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py",
+      "sha256": "f4a070209dc940c6322f4ad49f9424f54e3ae8b2b1f875bfaa64c174ce716a8c",
+      "bytes": 7460
+    },
+    {
+      "path": "research/cluster-native/inspect_native.py",
+      "sha256": "c8020b0720d33a327122ae5f039c7fc494ffe4ec0df300a3fccbd3202b2e7d0d",
+      "bytes": 19791
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+      "bytes": 318376
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-ota/extraction.json",
+      "sha256": "ea2424a5cfb37f3864e30bc1f4d2e0f42cac3d90b27619164cc4cafa45904962",
+      "bytes": 222
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/chain-direct-xrefs.json",
+      "sha256": "ec06bec9438f6593628af0a2d4a5dd2c8c2b2d26f5cc35b3770702675b83c66b",
+      "bytes": 1461
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/diagnostic-function-string-xrefs.json",
+      "sha256": "fc78c7822d5d00395a7e25c7aa30993619a2f3b194d6fb37a58a1fb62b857d79",
+      "bytes": 2705
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/diagnostic-strings.json",
+      "sha256": "2ad53d3ae0cb31183212cf82f1b516952cdd95db660eba43824cb3acff17ad06",
+      "bytes": 14418
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/initial-direct-xrefs.json",
+      "sha256": "171d8a9ee9c1fcc06b143b894a93a3d84e4afffe6a802371bf2d131e38b0e292",
+      "bytes": 1460
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/inspect_selected.py",
+      "sha256": "58224962f3fbbb0bd6b8afda17318e28bdda033fbf422be0eec3f4fbfddffd50",
+      "bytes": 1638
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/key-string-anchors.json",
+      "sha256": "a29a9511fcd2faea4d3c16e8ed3b9ea5f4ef8a1e756e8450947bc290c72b65a5",
+      "bytes": 3855
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/native-ranges.json",
+      "sha256": "65b346c73bb3c73999b26597213fb9aabe35fc26a170073153fab4970b9645c7",
+      "bytes": 8614
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/notify-case-table.json",
+      "sha256": "661bc80321d5a016229e5641af8a00adfa877f406220a33add5bbbed470887ab",
+      "bytes": 556
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/notify-direct-xrefs.json",
+      "sha256": "cb03bbb4ec50fc2dda7172671e898d53b6e89d8b4e857a2d70fceeae7d635057",
+      "bytes": 583
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/trigger-string-xrefs.json",
+      "sha256": "1232d785e7a9841f40dac079796bf1f504e04e0c160dbeae4ee85e32ebed4adb",
+      "bytes": 4063
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-15d80.asm",
+      "sha256": "c5ebe815cf824b4ddc8d4ec03e8122d0be1ae540a440b7b91fd53320f53a5a1b",
+      "bytes": 2277
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-16730.asm",
+      "sha256": "f4d3d9eb50108672678605ea8afadfccbbe6163e260f70dc507bd0183f2ad509",
+      "bytes": 3896
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-19360.asm",
+      "sha256": "2f071a270a58cd9e3079c35103f8bbe47a87d129051699cf1eebb4b1fbff11b6",
+      "bytes": 17772
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-1abb0.asm",
+      "sha256": "c8b2175b014c7f9f028fd1729ead84f1f22261e50d39a70a80a5ab3e0f5c114c",
+      "bytes": 1591
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-1ac60.asm",
+      "sha256": "61e6dfaddef2d2a9a002c8b351ff0886141064417d4da9c18eddfb764e138112",
+      "bytes": 6613
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-1b7f0.asm",
+      "sha256": "5121c573454fdad755d4086d4b70192ec42950a1309fbda3c6c8cb311dfff989",
+      "bytes": 31714
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-1c620.asm",
+      "sha256": "63c09316d86977315846fae13c2ddac7374aae65921655bf3a4ab6915dbda758",
+      "bytes": 31979
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-22510.asm",
+      "sha256": "4de58a83e6b345f75ac353421bec626582548812e839f7af5d7ac84ce0a518d6",
+      "bytes": 10929
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-23800.asm",
+      "sha256": "86a523c51649bec2fa8de64cc8284c4aff45d314f1706a8a48a3d7b0a4abac81",
+      "bytes": 3496
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-251a0.asm",
+      "sha256": "4b71c38fa5a75637af0c39e2a1b99f792dea6beac272d6c81697bc6616f33b51",
+      "bytes": 981
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-25200.asm",
+      "sha256": "a1d3d6144922cc105ae01ac1e742755c7d6ddf7571215fc7b677d5185b9320fc",
+      "bytes": 9648
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-25660.asm",
+      "sha256": "f4675b689d54edf698a29e409a239ac1e918cc4db3d368a2d7e293e9c7f7c4eb",
+      "bytes": 988
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-256c0.asm",
+      "sha256": "bdfa998e504bc0195ab60ac35c0515c6d47f067f726f88ac3e5385bb6b6298c5",
+      "bytes": 2169
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-257a0.asm",
+      "sha256": "7ceb138bc4ebc127415a580581ee3da08edcde5b72b6164a2c6ca8879a8760e3",
+      "bytes": 8055
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-26bb0.asm",
+      "sha256": "38a42a157e0cbfb7b692006d6097a6dc003f5f484e9c3dab29f2b0d2d4d732c1",
+      "bytes": 3209
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-26e20.asm",
+      "sha256": "dfb82e19037738ad16aec8487cb6a52173dada36aeba616b6a674a6b0c78d45e",
+      "bytes": 21497
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-2ac10.asm",
+      "sha256": "757f5d74a9b0f89083baf651b862dd9b795a09d02cde02ef91c9c2c726cf65df",
+      "bytes": 475
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-381a0.asm",
+      "sha256": "9095a273bb84421afb72a2b782fe0b9146e409cb732b9e4f671c75af22bd13cc",
+      "bytes": 15378
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-38b30.asm",
+      "sha256": "dbba9c6becfe9e16edd7dd068c0453196e75d74766524816865bfa51a208bfb4",
+      "bytes": 4403
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-39f10.asm",
+      "sha256": "f419102c447c31a36356ee015f2a670ff0ac02bdba9b3c44e0ca84652ad7d959",
+      "bytes": 2453
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-3a120.asm",
+      "sha256": "6c1b50c796aafb3ac744645bc160c1c5cf1df6d7296462dacf65dc5d66431e8f",
+      "bytes": 20570
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-3d230.asm",
+      "sha256": "c22339e9f34461c80c6b254ba08e479473662111f68e08d5fb4d15db251a3fc5",
+      "bytes": 16402
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-3d9d0.asm",
+      "sha256": "e1e7d71ea20f1c06bbe81274544f73a7ba1442248dca7ece4ccd68c1e2387aca",
+      "bytes": 2517
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-3e190.asm",
+      "sha256": "404f2cda138dbbf88377c8316e82e8981b9005a81d8355aa35f4bf514e877650",
+      "bytes": 10874
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-3f460.asm",
+      "sha256": "2437b279011fed5cc270f8538748bb56367fcf4632c93df16733af27c15776f7",
+      "bytes": 3189
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/config-handler-direct-xrefs.json",
+      "sha256": "606fc2ef26a16192f10677a5fc3e87b437c12a11b345d00893ba3f005336038c",
+      "bytes": 146
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/embedded-task-payload-search.json",
+      "sha256": "3f480edc5ee6bf8068c6c284aaa44ec17548279ffea11a57ed1991e6d890110b",
+      "bytes": 1430
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/handler-relocation-candidates.json",
+      "sha256": "0b319291d995d7d5c9c18274df347fdae485447d4da3fe5b07540b17584b9afc",
+      "bytes": 5890
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/trigger/vhds-1fd40.asm",
+      "sha256": "1e68272f2830e6f188b4015664f2af5f57dda9c7fbc5c3924d62c9823d12b46e",
+      "bytes": 239
+    }
+  ],
+  "missingArtifactsAndNextSources": [
+    {
+      "missing": "Actual resultData configuration with concrete checkId/checkType/checkDidList and its applicability/version",
+      "nextReadOnlySource": "Existing owner backups or already retained authorized exports of /data/vhds/trigger_list_cfg/triggerlistconfig.txt and allone.txt; path/contents/schema relation must be checked independently. This task read no device files.",
+      "limit": "File source path is not evidence of present contents, readability, matching vehicle or active loading."
+    },
+    {
+      "missing": "Concrete producer of inputType0x100 configuration and the normal loading path",
+      "nextReadOnlySource": "Already extracted stock client call sites to libvhds/IVHDS application transaction5; daemon1B7F0 remoteOrder and the source conditional sys.vhds.test_enable branch.",
+      "limit": "No named stock producer or normal production invocation is established by the selected direct-call evidence."
+    },
+    {
+      "missing": "Complete Binder ABI binding",
+      "nextReadOnlySource": "Daemon constructor assignment for candidate sub-vptr490E0, its slot+40→1FD40 thunk, compared with the root-owned libvhds transaction5 study.",
+      "limit": "Candidate relocation shape alone is not a complete call route."
+    },
+    {
+      "missing": "Fully traced condition-signal scheduling handoff",
+      "nextReadOnlySource": "Internal handler/controller consumption of object+639 signal and callbacks251A0/25660→25200; producer+5D8/type4 and consumer are already pinned.",
+      "limit": "No runtime execution, ordering or timing is inferred from the shared data contract."
+    },
+    {
+      "missing": "Installed daemon identity and live task/config applicability",
+      "nextReadOnlySource": "Any already retained installed-file hash/process/config evidence matching this exact owner-OTA vhds hash.",
+      "limit": "OTA ownership and historical170/CANFD context do not prove installed daemon bytes or an active task."
+    },
+    {
+      "missing": "Specific warning→DTC association and code/description dictionary",
+      "nextReadOnlySource": "A source-qualified config plus warning-field definition and applicable OEM diagnostic definitions or already captured task/result pairing.",
+      "limit": "Generic CAN predicate plumbing and service-byte construction do not supply warning names, raw DTC descriptions or a warning1007 mapping."
+    }
+  ],
+  "embeddedPayloadInventory": {
+    "capture": "embedded-task-payload-search.json",
+    "scope": "Printable strings in .rodata28,628bytes, .data.rel.ro6,160bytes and .data136bytes, each section hashed. Exact key tokens checkId/checkType/checkDidList/resultData.",
+    "result": "Five matching strings: four standalone key names and a resultDataJson-null log; zero co-occurring checkId/checkType/checkDidList string candidates and zero quoted JSON-key payload candidates.",
+    "applicability": "No built-in/example task with concrete request/service/parameter values was recovered by this scoped string search. Constructed, encoded/compressed, external or other-binary examples remain unexamined. Synthetic projections in this report are explicitly invented arithmetic examples, not task evidence."
+  }
+}

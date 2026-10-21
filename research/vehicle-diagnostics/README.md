@@ -81,6 +81,26 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   model is separate from the actual 57-record CAN payload, and our historical
   `DUPLICATE_DTC_CODE` failure stays failed. Run
   `python3 research/vehicle-diagnostics/check_isg_stock_reader_policy.py`.
+- `vhds-client-interface-20261021.json` traces the five application Binder
+  transactions in the owner's `libvhds.so` and its single-int32 listener.
+  Proxies supply no reply Parcel; the inspected interface qualifies no table,
+  configuration or dictionary readback. No transaction was invoked. The
+  report also preserves the corpus index before and after registering the two
+  new native files. Run
+  `python3 research/vehicle-diagnostics/check_vhds_client_interface.py`.
+- `vhds-diagnostic-trigger-path-20261021.json` retains the configurable CAN
+  predicate and ECU/service/parameter schema, its type4/prefix02 sender and
+  the separately bounded prefix03 sibling. The known direct parser entry is
+  test-property gated; scheduler and constructor bindings remain incomplete.
+  No real task, ECU assignment, warning-to-DTC mapping or dictionary was
+  recovered. Parsing/sending can change state and is not a readback route.
+  Run `python3 research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py`.
+- `ecm-owner3-route-20261021.json` traces the stock prefix03 consumer and MCU
+  framing/size/arbitration boundary. Its positive length range7..922 still
+  rejects the hypothesized1035-byte ECM registry; it does not offer a larger
+  list capacity or an independent raw-response lane. No live alternate-owner
+  request was made. Run
+  `python3 research/vehicle-diagnostics/check_ecm_owner3_route.py`.
 - `isg-format-source-applicability-20261021.json` traces factory meanings to
   exact numeric `data.attach[].dtcList` keys in the original downloaded script,
   selected by `scriptCode`/`scriptVersion`/`forStation`. It identifies the
@@ -242,6 +262,11 @@ Other plans retain their original failure policy.
   Twenty-three short DID coincidences are images/compressed API/name-pointer
   data, not role assignments. No new role or BSCM7E5/ESP782 physical join.
   Run `.venv-firmware/bin/python research/vehicle-diagnostics/check_remaining_role_fingerprints.py`.
+  Replay limitation found during the later corpus refresh: this older report
+  pins a historical global-index hash whose snapshot was already unavailable
+  before the refresh. Its input pin is preserved, not changed to claim a fresh
+  successful replay; see `vhds-client-interface-20261021.json` for the exact
+  pre-refresh index and mismatch. This does not supply new ECU roles.
 
 - `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
   33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS

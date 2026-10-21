@@ -25,7 +25,7 @@
       "bytes": 35470
     },
     {
-      "path": "captures/firmware-index.tsv",
+      "path": "captures/diagnostics-transport-followup-20261021/client/firmware-index-before-vhds-20261021.tsv",
       "sha256": "2ba97c1167095a1eda48211e41da6acbc7b2dec1344f74d6ac6a5ab9e5a50794",
       "bytes": 120101
     },
@@ -648,7 +648,7 @@
       "size": 318376,
       "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
       "readerValidation": "Existing reader decrypts Config in memory and verifies selected payload-operation compressed-byte SHA256 before decoding; full OTA rehash/repack was not performed.",
-      "indexLookupAfter": "firmware_corpus.py find vhds still returns listing-only results because its existing index/extraction manifests were kept unchanged to preserve prior source pins. Future researchers can use the exact canonical path and independent manifest above."
+      "indexLookupAfter": "Historical extraction-stage lookup returned listing-only results. Superseded by the same-day canonical manifest registration and 503-row index refresh recorded in vhds-client-interface-20261021.json: find vhds now locates the daemon and lib64 client library. The source pin for the index used by this audit was relocated to its byte-identical immutable pre-refresh snapshot; retained lookup evidence is unchanged."
     },
     "runtimeOwnerProven": false,
     "exclusiveOwnerProven": false,

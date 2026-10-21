@@ -8,14 +8,14 @@ Behavior Method".
 
 ## Current state
 
-Updated 2026-10-18. What a session needs before it opens either archive.
+Updated 2026-10-21. What a session needs before it opens either archive.
 
 | Claim | Status | Since | Section |
 | --- | --- | --- | --- |
 | The IVI OTA `Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip` is the image of the owner's car, which reports `34.1.33.2605218.1` | live | 2026-09-23 | [Archives](#archives) |
 | The FSE OTA `Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip` is the passenger computer's image; installed DiShare matches it by hash | live | 2026-09-24 | [Archives](#archives) |
 | Both archives sit in `~/Dev/denza/firmware/`, not `~/Downloads` (moved 2026-10-07) | live | 2026-10-07 | [Archives](#archives) |
-| `python3 tools/firmware_corpus.py find <name>` lists indexed copies, decompiles and partition-listing lines; canonical build manifests are now included. The 2026-10-18 index has 420 entries: 234 files, 90 jadx trees, 88 loose APKs/JARs, 8 listings. Native cluster pulls have a separate manifest | code | 2026-10-18 | [Looking before extracting](#looking-before-extracting), [Native cluster corpus](#native-cluster-corpus) |
+| `python3 tools/firmware_corpus.py find <name>` lists indexed copies, decompiles and partition-listing lines, including canonical build manifests. The 2026-10-21 refresh after `vhds`/`libvhds.so` has 503 entries: 255 files, 101 jadx trees, 139 loose binaries, 8 listings. Native cluster pulls have a separate manifest | code | 2026-10-21 | [Looking before extracting](#looking-before-extracting), [Native cluster corpus](#native-cluster-corpus) |
 | `reverse/dishare-jadx` is DiShare `1.5.1.1.23102ef` pulled from the car before the OTA; the OTA's own DiShare is a different APK (SHA-256 `ffc548…` IVI, `ef1d35…` FSE) | firmware | 2026-10-08 | [What is already there](#what-is-already-there) |
 | Each file is in the corpus once: the 14 loose APKs and JARs that were byte-identical to another copy (1.97 GB) were removed on 2026-10-08 and the docs that cited them repointed. Repeated decompiles remain: DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
 | The IVI system partition is system-as-root: `/system/framework/services.jar` lands at `<out>/system/system/framework/services.jar` | code | 2026-09-23 | [Reading an archive](#reading-an-archive) |
@@ -88,6 +88,18 @@ tests cover both layouts, build isolation and unsupported manifest schemas. Per-
 reports such as `mcu/extraction.json` are provenance, not record lists; derived MCU files have
 ordinary records in the build manifest. The earlier count of 402 was accurate for the incomplete
 index, not evidence that all extracted files were searchable.
+
+The 2026-10-21 diagnostic continuation adds the owner's `system/bin/vhds`
+(318,376 bytes) and `system/lib64/libvhds.so` (34,864 bytes) to the canonical
+IVI manifest and index. Their native audits are in
+[vehicle-diagnostics](../research/vehicle-diagnostics/README.md). The index is
+mutable: an evidence report should pin an immutable copy of the index used
+for its search, rather than block later corpus registration. This refresh
+preserved the table-readback report's exact pre-refresh bytes in
+`captures/diagnostics-transport-followup-20261021/client/firmware-index-before-vhds-20261021.tsv`.
+The older remaining-role report already had a different index hash before
+this refresh; its missing historical snapshot was not replaced with the new
+index or silently declared revalidated.
 
 ## Reading an archive
 

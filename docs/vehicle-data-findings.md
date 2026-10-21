@@ -49,8 +49,9 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | OEM warning dictionary:628 Chinese UI messages;8 priority mappings traced from CAN261/channel0 through1007/26100008. Further audit separates warning IDs, native DataItems and14 GB alarm predicates; the inspected type07 serializer writes four fault-code counts as literal zero. BMS cell-overtemperature headings are acquisition candidates, not a proven warning-to-DTC relation. No applicable dictionary or warning-to-ECU/DTC join | firmware; dictionary and causal links open | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21); [Warning/DTC linkage](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) |
 | Supported-code registries: BMS 115, FMCU 32 and each rear drive 32; 109 BMS codes match candidate headings, six are absent. Both rear sets match 32 own-side headings. ECM `190A` returns NRC13, whose origin is not established. ISG later returned a full positive 231-byte list with 57 entries/56 distinct raw codes; the reader rejected its duplicate C1D487 and that pass remains failed. Snapshot index: ECM empty; BMS 41 pairs; front/ISG NRC12, rears NRC31. BMS `1904` for `P1A3A22/01` returns code/status00 without a snapshot record; the original reader aborted on that short response | live registries and snapshot observations; meanings remain open | 2026-10-21 | [Supported DTC registries](#supported-dtc-registries-2026-10-21) |
 | ISG: the complete positive reply contains231 bytes,57 entries/56 distinct raw codes,status00. Duplicate C1D487 at positions28/40 triggers our reader policy; the pass remains failed. The separately inspected stock IP-client190A parser appends raw records without deduplication, but its use for this CAN capture is not established. ECM NRC13 origin remains open without its first CAN reply | complete ISG wire response; native implementation evidence; ECM cause open | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21); [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
-| MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL tracing finds no qualified existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
+| MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
 | Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; no new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
+| VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -104,6 +105,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) — conditional raw path, six owner listeners and complete positive ISG reply rejected for a repeated code
 - [Table readback boundary](#collection-table-readback-boundary-2026-10-21) — MCU mutations, HAL replay and the still-unknown runtime table
 - [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) — native ordered records, local uniqueness policy and the exact source of factory descriptions
+- [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) — configurable CAN conditions and ECU requests, source applicability, sibling owner03 framing and size limit
 - [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21) — Denza acquisition leads, six unknown BMS codes and unresolved conflicting headings
 - [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21) — obfuscated JSON audit, HU/modem exclusions and BYDTIS manual-selection context
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — public headings, primary acquisition channels, CALID search and software-applicability gaps
@@ -4716,6 +4718,22 @@ not a live table snapshot. No loader, privileged helper or ECU query was used,
 and no file contents were read. Replay with
 [`check_diagnostic_source_cache_presence.py`](../research/vehicle-diagnostics/check_diagnostic_source_cache_presence.py).
 
+**The small VHDS Binder client does not qualify an alternative readback.**
+One selected owner-OTA library, `system/lib64/libvhds.so` (34,864 bytes), was
+extracted and inspected without loading it. `BnVDS::onTransact` at `4C90`
+dispatches five application transactions: two accept a listener Binder,
+one accepts an integer, one has no application arguments, and one accepts an
+integer/count/byte buffer. Their proxies supply a null reply Parcel; the
+service branches do not serialize an application result. The listener at
+`4330` delivers one int32, not a configuration or dictionary stream. A
+no-argument transaction is not thereby read-only, and no transaction was
+invoked. Generic inherited Binder operations and other daemon surfaces are
+outside this limited conclusion. Reproduce the seven-function audit with
+[`check_vhds_client_interface.py`](../research/vehicle-diagnostics/check_vhds_client_interface.py).
+Both native files now have canonical extraction records and are discoverable
+through the [firmware corpus index](firmware-corpus.md#looking-before-extracting);
+the earlier table-search index remains pinned as an immutable snapshot.
+
 ### Stock ISG reader and factory script source (2026-10-21)
 
 **The repeated ISG code is present in the retained wire response; rejection
@@ -4778,6 +4796,68 @@ not an established public dictionary endpoint; no request was made. See
 and [`check_isg_format_source_applicability.py`](../research/vehicle-diagnostics/check_isg_format_source_applicability.py).
 No engine, battery or drive factory definition or warning-to-DTC link is added
 by this pass.
+
+### VHDS diagnostic tasks and owner03 boundary (2026-10-21)
+
+**The factory daemon contains a configurable CAN-condition-to-diagnostic
+mechanism, but this pass recovers its schema, not the car's task data.**
+`parseAllInOneTriggerList` at `1C620` reads an array under `resultData`:
+
+| Fields | Source-backed interpretation |
+| --- | --- |
+| `signal`, `childrenId` | Hexadecimal CAN ID and sub-ID, narrowed to32 and8 bits |
+| `startBit`, `endBit`, `values`, `logic` | Bit range, threshold and comparison selector for a CAN field |
+| `checkId` | Hexadecimal ECU request ID narrowed to16 bits; expected response is `(checkId+8)&FFFF` |
+| `checkType` | Hexadecimal service value narrowed to one byte |
+| `checkDidList` | Parameter strings, each at most eight characters; decoded into at most four bytes per request, not necessarily two-byte DIDs |
+
+The parameter conversion is permissive, including odd-nibble handling and
+invalid characters becoming zero. This is a description of the existing
+parser, not a validation rule to copy into a reader. The parser also writes
+MQTT monitor-table entries. It must not be invoked just to inspect its input.
+The only direct parser call found by the bounded scan is in `1B7F0`: input
+type `0x100` and `sys.vhds.test_enable=1` select that path. This does not prove
+normal production loading or exclude indirect callers. No actual payload
+establishes which ECU or warning our car uses through this mechanism.
+
+The CAN matcher checks configured ID/sub-ID and the extracted field. Its
+three comparisons are equality, greater-than and greater-or-equal, each also
+requiring the previous extracted **byte** to be zero. This is not a general
+comparison-edge detector: equality to zero can retrigger on consecutive zero
+samples. Selected nodes are copied into the type4 vector at object `+5D8`;
+`notify_hal_diagnostic` selects that vector and sender `257A0` emits prefix
+`02` through device1033/`AA00010A`. The intermediate scheduling handoff is
+not fully traced, so no runtime timing or execution claim follows.
+
+The sender takes service and parameters from its node without a read-only
+SID whitelist at that boundary. Its controller can also call
+`setInt(1005, AA00004A, 1)` after readiness GET `99000003` returns zero.
+The separate response parser's recognition of `54` is not evidence that a
+ClearDTC operation occurred. None of these paths was run. The useful next
+evidence is a real configuration payload with provenance and applicability,
+not a call to the loader. Source/cache names alone do not bind a warning ID,
+DTC code, description, DID or current ECU address. See
+[`vhds-diagnostic-trigger-path-20261021.json`](../research/vehicle-diagnostics/vhds-diagnostic-trigger-path-20261021.json)
+and [`check_vhds_diagnostic_trigger_path.py`](../research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py).
+
+**Sibling owner03 is not a route around the ECM response-size limit.** The
+VHDS sibling sender `3F460` uses prefix `03`, with an existing stock receiver
+on `9900010A`. This is separate from the prefix02 CAN-trigger path above.
+Its MCU positive-response framing handles a service and two-byte field in
+the outer result header, rather than exposing an interchangeable raw UDS
+response. Its length guard accepts `L=7..922`; a1035-byte response still takes
+the local NRC13 path. Both this limit and the ordinary920-byte limit allow at
+most229 four-byte records after a three-byte `590A` header. The historical
+ECM count258 would still not fit. That arithmetic does not prove the size or
+origin of the actual ECM NRC13 without its missing first CAN reply.
+
+Owner03 also shares the diagnostic busy/active guard and has a stock
+consumer; it is not an independent transport lane. No live alternate-owner
+probe is qualified by this audit. See
+[`ecm-owner3-route-20261021.json`](../research/vehicle-diagnostics/ecm-owner3-route-20261021.json)
+and [`check_ecm_owner3_route.py`](../research/vehicle-diagnostics/check_ecm_owner3_route.py).
+No new ECU address, applicable OEM definition or warning-to-DTC mapping is
+added by either source trace.
 
 ### OEM DTC manual candidates (2026-10-20)
 

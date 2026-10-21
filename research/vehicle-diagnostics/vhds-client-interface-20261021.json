@@ -1,0 +1,267 @@
+{
+  "schema": "denza-lab.vhds-client-interface.v1",
+  "date": "2026-10-21",
+  "status": "five_command_transactions_and_int_callback_no_dictionary_or_table_return_qualified",
+  "vehicleOperations": 0,
+  "binderCalls": 0,
+  "firmwareExecutions": 0,
+  "library": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+    "bytes": 34864,
+    "sha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21"
+  },
+  "captureBase": "captures/diagnostics-transport-followup-20261021/client",
+  "scope": "One selected lib64 library extracted from the owner OTA, never loaded/executed; seven bounded native functions and their jump table/proxy arguments. No daemon start, binder transaction, files from car or network request.",
+  "ranges": [
+    {
+      "address": "0x4330",
+      "bytes": 196,
+      "sha256": "d460e1721a59f9a3d0406f3eb726ae36a1ba324cd7d6376c238511c5504a7b47",
+      "symbol": "android::BnVhdsListener::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-4330.asm"
+    },
+    {
+      "address": "0x4c90",
+      "bytes": 652,
+      "sha256": "5b6a99e35b9a657df721fec7d223410ec9a70dc8f97d695ce9383e63144be36b",
+      "symbol": "android::BnVDS::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-4c90.asm"
+    },
+    {
+      "address": "0x5120",
+      "bytes": 280,
+      "sha256": "f8718927912c890ed1a41b3bae954c95469c0e9e7cd777711f32f0df7461e128",
+      "symbol": "sub_5120",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-5120.asm"
+    },
+    {
+      "address": "0x5240",
+      "bytes": 280,
+      "sha256": "1d277f43d4e4729c5181eab42fe09af30c010e9926410b138f2e31c9d9b50612",
+      "symbol": "sub_5240",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-5240.asm"
+    },
+    {
+      "address": "0x5360",
+      "bytes": 180,
+      "sha256": "8a2a86ffdf042500f53e80dbf2f293d216cbcc870a2cd9c5a1f3c86ab56e49f5",
+      "symbol": "sub_5360",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-5360.asm"
+    },
+    {
+      "address": "0x5420",
+      "bytes": 156,
+      "sha256": "e841285e338792ed6ea1f1ed45379aa3f50923dedf813ee28c3a3a6cd4ef5ed9",
+      "symbol": "sub_5420",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-5420.asm"
+    },
+    {
+      "address": "0x54c0",
+      "bytes": 224,
+      "sha256": "507906aab7e5384c8f927e7be651da0dfd7f14014279c5b88954184eb4f5f59c",
+      "symbol": "sub_54c0",
+      "disassembly": "captures/diagnostics-transport-followup-20261021/client/libvhds-54c0.asm"
+    }
+  ],
+  "anchors": [
+    {
+      "address": "0x4cec",
+      "hex": "E80600511F110071C80E0054E9FFFFF029DD0D918A0000102B6968384A090B8B40011FD6"
+    },
+    {
+      "address": "0x4d58",
+      "hex": "680240F9081140F94D000014"
+    },
+    {
+      "address": "0x4d8c",
+      "hex": "E8030091493C0091F603002A29717C92F9030091170109CBFF020091E00317AAE1031F2AF0020094C27E4093E00314AAE10317AAF0020094680240F9E00313AAE103152AE20317AAE303162A082140F900013FD6"
+    },
+    {
+      "address": "0x4e04",
+      "hex": "680240F9E103002AE00313AA081940F900013FD634000014"
+    },
+    {
+      "address": "0x4e2c",
+      "hex": "680240F9E00313AA081D40F900013FD6E0031F2A"
+    },
+    {
+      "address": "0x4e8c",
+      "hex": "680240F9081540F9A14300D1E00313AA00013FD6A8035FF8"
+    },
+    {
+      "address": "0x4390",
+      "hex": "E00314AA3F050094680240F9E103002AE00313AA081140F900013FD6E0031F2A"
+    }
+  ],
+  "applicationTransactions": [
+    {
+      "code": 1,
+      "entry": "0x4d10",
+      "argumentShape": "strong binder converted to IVhdsListener",
+      "proxy": "0x5120",
+      "serverVtableSlot": "0x20",
+      "replyParcel": null,
+      "serverSerializesResult": false
+    },
+    {
+      "code": 2,
+      "entry": "0x4e44",
+      "argumentShape": "strong binder converted to IVhdsListener",
+      "proxy": "0x5240",
+      "serverVtableSlot": "0x28",
+      "replyParcel": null,
+      "serverSerializesResult": false
+    },
+    {
+      "code": 3,
+      "entry": "0x4dec",
+      "argumentShape": "int32",
+      "proxy": "0x5360",
+      "serverVtableSlot": "0x30",
+      "replyParcel": null,
+      "serverSerializesResult": false
+    },
+    {
+      "code": 4,
+      "entry": "0x4e1c",
+      "argumentShape": "no application argument",
+      "proxy": "0x5420",
+      "serverVtableSlot": "0x38",
+      "replyParcel": null,
+      "serverSerializesResult": false
+    },
+    {
+      "code": 5,
+      "entry": "0x4d64",
+      "argumentShape": "int32, int32 byte count, input bytes",
+      "proxy": "0x54c0",
+      "serverVtableSlot": "0x40",
+      "replyParcel": null,
+      "serverSerializesResult": false
+    }
+  ],
+  "callback": {
+    "dispatcher": "0x4330 android::BnVhdsListener::onTransact",
+    "code": 1,
+    "payload": "int32",
+    "virtualSlot": "0x20",
+    "dataStreamOrDictionaryEstablished": false
+  },
+  "interpretation": "The five named application transaction numbers dispatch input/listener arguments. Their proxies pass a null reply Parcel; the service branches do not serialize an application result. The listener accepts one int32. This inspected interface therefore provides no source-qualified configuration/table/dictionary readback. Method meanings require the daemon implementation; passing a no-argument transaction is not assumed read-only.",
+  "qualifiedTableReadback": false,
+  "qualifiedDictionaryReadback": false,
+  "limits": [
+    "Generic inherited Binder transactions are outside this application-level conclusion.",
+    "The daemon may expose other surfaces; this is not a whole-system absence proof.",
+    "No current service presence, permission, behavior or installed library byte identity is established by offline inspection.",
+    "No interface was invoked to work around the private-file permission denials."
+  ],
+  "corpusRegistration": {
+    "canonicalCopies": [
+      "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so"
+    ],
+    "indexCommand": "python3 tools/firmware_corpus.py index",
+    "rowsAtRefresh": 503,
+    "countsAtRefresh": {
+      "binary": 139,
+      "file": 255,
+      "jadx": 101,
+      "listing": 8
+    },
+    "indexAfterSnapshot": "captures/diagnostics-transport-followup-20261021/client/firmware-index-after-vhds-20261021.tsv",
+    "oldIndexSnapshot": "captures/diagnostics-transport-followup-20261021/client/firmware-index-before-vhds-20261021.tsv",
+    "oldIndexSha256": "2ba97c1167095a1eda48211e41da6acbc7b2dec1344f74d6ac6a5ab9e5a50794",
+    "halSourcePinRelocation": "Only source.path moved from the mutable index to its byte-identical snapshot; historical lookup content, source byte count and SHA256 are unchanged.",
+    "priorRoleReportIndexPin": "46d135b567ae9406ab0dd07530019eb251a92f556193ab644b2ef73bcc76a8ff",
+    "olderPinAlreadyMismatchedBeforeRefresh": true,
+    "preexistingMismatchBoundary": "remaining-role-fingerprints-20261021.json already expected46d135... while the pre-refresh index was2ba97c... . No matching older snapshot was found in the bounded index-filename search; that older report was left unchanged. This refresh does not revalidate its historical index-dependent assertions."
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+      "bytes": 34864,
+      "sha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/extraction-command.json",
+      "bytes": 526,
+      "sha256": "ec213236ad2fb749a5b50e511a93e63431ae54480136b122b75687bd7d7398a4"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-extraction.json",
+      "bytes": 242,
+      "sha256": "0e1b98edc2b85a51062c7d78cccd3197f77338d7f6d2aa874f1a97e0e7dbeace"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-native-ranges.json",
+      "bytes": 1966,
+      "sha256": "689395bd339dc525652036831f6a18d15e679f821e42fd3077d5b5f50cd1331a"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-functions.json",
+      "bytes": 5610,
+      "sha256": "9f9a33c1f9e5926e47d547c227bf8ad4dd706f51c712fbf07a526430d5a5988b"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-selected-strings.json",
+      "bytes": 4094,
+      "sha256": "4165dd513a16d8e20f53fe586ad72c42c71f7d311520d0ee80b629505b2367bc"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/firmware-index-before-vhds-20261021.tsv",
+      "bytes": 120101,
+      "sha256": "2ba97c1167095a1eda48211e41da6acbc7b2dec1344f74d6ac6a5ab9e5a50794"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/firmware-index-after-vhds-20261021.tsv",
+      "bytes": 120560,
+      "sha256": "d7d85cfaa35cd0d36f5c1cbfd25af5114f90aafb3158ede79dfbd5960ae98dc3"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_vhds_client_interface.py",
+      "bytes": 3471,
+      "sha256": "ed6705c007815ce12fff13f5efcd6707d97ac23e043e8c3235afe7c7e0e918f8"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_isg_stock_reader_policy.py",
+      "bytes": 7085,
+      "sha256": "d47d07558ea105c78b3116252a5f205a25db7ce1668fe1c57e583ad993b8b0d7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-4330.asm",
+      "bytes": 2269,
+      "sha256": "8edf05995514d0a875bff966729880387d6d5d66f00641b7f11e4a01146b1137"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-4c90.asm",
+      "bytes": 7721,
+      "sha256": "840769352946bd428759c56b4b8ed1f0a798b3ee41f6e67785f066f22c071898"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-5120.asm",
+      "bytes": 3420,
+      "sha256": "a7f4a05216503971f0913b0d799507f2811e5d9d475ed2163c7e0f2c70fb4eca"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-5240.asm",
+      "bytes": 3420,
+      "sha256": "2680e35795c4a979e979f23dec0d428e8d76a36a22540beadfb25be6667cb2a5"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-5360.asm",
+      "bytes": 2098,
+      "sha256": "cb8415c4d3161878dd8c88880ec2eb25585da524cdd5c0f4f241e7447e193002"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-5420.asm",
+      "bytes": 1817,
+      "sha256": "2bdb315c68e05a7e0c12e21f308e01330579730a9a45864df6a357861e8d7eb9"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/client/libvhds-54c0.asm",
+      "bytes": 2632,
+      "sha256": "76fca3368d088132516a95d2c60043e00e19f93c6f32818580599ea441825f3b"
+    }
+  ]
+}
