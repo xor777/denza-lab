@@ -57,8 +57,10 @@ final class ModuleFields {
                         .text(Road.SUMMARY_TIME, HudProtocol.duration(hint.remainingSeconds));
             }
             if (hint.icon != null) {
+                // The wire floors field 9 at 11 m (0-10 is the HUD's Chinese «now»), but a Denza Apps
+                // host older than that floor writes these fields with its own encoder: floor them here too.
                 maneuver.bytes(Road.MANEUVER_PNG, icon)
-                        .number(Road.MANEUVER_METERS, Math.max(0, hint.distance))
+                        .number(Road.MANEUVER_METERS, Math.max(Road.MANEUVER_METERS_MIN, hint.distance))
                         .text(Road.ROAD_NAME, hint.road)
                         .number(Road.STOCK_MANEUVER, hint.stockId);
             }
