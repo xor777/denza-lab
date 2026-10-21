@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.scan.Target
 import org.junit.Assert.assertEquals
@@ -54,6 +55,49 @@ class ScannerStackTest {
         assertNull(ScannerStack.railSystem(listOf(topology)))
         // Back from a system goes to the autoscan, and from the autoscan out
         assertEquals(listOf(topology), ScannerStack.back(hv))
+    }
+
+    @Test
+    fun aParameterIsAStepOverTheLiveDataItWasOpenedFrom() {
+        val rpm = ParamKey.Pid(0x7E0, 0x0C)
+        val live = ScannerStack.retab(
+            ScannerStack.rail(listOf(ScannerRoute.Scan()), CarSystem.ENGINE),
+            ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE),
+        )
+        val page = ScannerStack.param(live, rpm)
+        assertEquals(ScannerRoute.Param(rpm), page.last())
+        assertEquals(ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE), ScannerStack.under(page))
+        // Back and «‹ Потоковые данные» return to the live tab, the rail keeps the system lit
+        assertEquals("‹ Потоковые данные", ScannerStack.backLabel(page, ::name))
+        assertEquals(live, ScannerStack.back(page))
+        assertEquals(CarSystem.ENGINE, ScannerStack.railSystem(page))
+        // the head names the parameter, so the crumbs end at the system, which takes the page off
+        assertEquals(listOf("Двигатель"), ScannerStack.crumbs(page).map { ScannerStack.title(it.second, ::name) })
+        assertEquals(live, ScannerStack.toLevel(page, ScannerStack.crumbs(page).last().first))
+        // the rail picks another system: the page goes with the system under it
+        assertEquals(listOf(ScannerRoute.Scan(), ScannerRoute.System(CarSystem.PACK)), ScannerStack.rail(page, CarSystem.PACK))
+
+        // on a block's live tab the block stays under the page
+        val block = ScannerStack.retab(ScannerStack.open(listOf(ScannerRoute.Scan()), Target.Module(0x7E0)), ScannerRoute.Module(0x7E0, tab = 1))
+        val overBlock = ScannerStack.param(block, rpm)
+        assertEquals(ScannerRoute.Module(0x7E0, tab = 1), ScannerStack.under(overBlock))
+        assertEquals(block, ScannerStack.back(overBlock))
+        assertNull(ScannerStack.railSystem(overBlock))
+
+        // a pack signal the same way
+        val cell = ParamKey.Signal("1014·44600010")
+        val pack = ScannerStack.retab(ScannerStack.rail(listOf(ScannerRoute.Scan()), CarSystem.PACK), ScannerRoute.System(CarSystem.PACK, SystemTab.LIVE))
+        assertEquals(pack, ScannerStack.back(ScannerStack.param(pack, cell)))
+        assertEquals(ScannerRoute.System(CarSystem.PACK, SystemTab.LIVE), ScannerStack.under(pack))
+    }
+
+    @Test
+    fun theWindowsAndTheirTicks() {
+        assertEquals(listOf("10 с", "60 с", "5 мин"), ScannerSpec.Param.WINDOWS.map(ScannerWords::window))
+        assertEquals(listOf("−60 с", "−45 с", "−30 с", "−15 с", "сейчас"), ScannerWords.ticks(60).map { it.second })
+        assertEquals(listOf(60f, 45f, 30f, 15f, 0f), ScannerWords.ticks(60).map { it.first })
+        assertEquals(listOf("−10 с", "−7,5 с", "−5 с", "−2,5 с", "сейчас"), ScannerWords.ticks(10).map { it.second })
+        assertEquals(listOf("−300 с", "−225 с", "−150 с", "−75 с", "сейчас"), ScannerWords.ticks(300).map { it.second })
     }
 
     @Test

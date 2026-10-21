@@ -10,6 +10,8 @@ import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
+import dev.denza.apps.feature.diagnostics.scan.ParamView
 import dev.denza.apps.feature.diagnostics.scan.RailItem
 import dev.denza.apps.feature.diagnostics.scan.RailTone
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
@@ -265,5 +267,46 @@ internal object ScannerWords {
             else -> "блоков"
         }
         return "· $n $word"
+    }
+
+    /* ------------------------------------------------- a parameter's page */
+
+    /** The window tabs: «10 с», «60 с», «5 мин». */
+    fun window(seconds: Int): String = if (seconds % 60 == 0 && seconds > 60) "${seconds / 60} мин" else "$seconds с"
+
+    /**
+     * The chart's time ticks, seconds back with their words: five, evenly from the window's left
+     * edge to «сейчас», as the board's 60 s (`sysParam()`: «−60 с», «−45 с» … «сейчас»).
+     */
+    fun ticks(window: Int): List<Pair<Float, String>> = (4 downTo 0).map { i ->
+        val t = window * i / 4f
+        t to if (i == 0) "сейчас" else "−${seconds(t)} с"
+    }
+
+    /** «7,5», «45». */
+    private fun seconds(t: Float): String =
+        if (t == kotlin.math.floor(t)) t.toInt().toString() else String.format(java.util.Locale.ROOT, "%.1f", t).replace('.', ',')
+
+    /**
+     * The page of [key] as the session describes it, or before it does: the row's name and reading,
+     * nothing on the chart yet. Null when no row has the key - the page has nothing to stand on.
+     */
+    fun paramOf(model: DiagnosticsModel, key: ParamKey): ParamView? {
+        model.param?.takeIf { it.key == key }?.let { return it }
+        return when (key) {
+            is ParamKey.Pid -> model.modules[key.request]?.obd?.live?.rows?.firstOrNull { it.key == key }?.let { r ->
+                ParamView(
+                    key, r.name, "· PID ${pid(r.pid)} · ${r.abbreviation}", "${route(key.request)} · Mode 01 · только ${pid(r.pid)}",
+                    r.value, r.unit, r.outOfNorm, null, r.norm, emptyList(), 0L, emptyMap(), running = true, rate = "—",
+                    recordable = true, recording = false,
+                )
+            }
+            is ParamKey.Signal -> model.systems.pack.firstOrNull { it.key == key }?.let { r ->
+                ParamView(
+                    key, r.name, "· ${r.source}", "autoservice · только этот сигнал", r.value, r.unit, r.ok == false, null, r.norm,
+                    emptyList(), 0L, emptyMap(), running = true, rate = "—", recordable = false, recording = false,
+                )
+            }
+        }
     }
 }

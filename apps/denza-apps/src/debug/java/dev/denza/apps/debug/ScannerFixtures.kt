@@ -32,6 +32,8 @@ import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
 import dev.denza.apps.feature.diagnostics.scan.ParamKey
+import dev.denza.apps.feature.diagnostics.scan.ParamStats
+import dev.denza.apps.feature.diagnostics.scan.ParamView
 import dev.denza.apps.feature.diagnostics.scan.MonitorRow
 import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
@@ -80,6 +82,10 @@ internal object ScannerFixtures {
         return when (id) {
             "scanner-sys-topology" -> listOf(ScannerRoute.Scan(topology = true))
             "scanner-sys-engine" -> sys(CarSystem.ENGINE, SystemTab.LIVE)
+            "scanner-sys-engine-rpm", "scanner-sys-engine-ect", "scanner-sys-pack-cell" -> {
+                val key = PARAM_KEYS.getValue(id)
+                sys(if (key is ParamKey.Pid) CarSystem.ENGINE else CarSystem.PACK, SystemTab.LIVE) + ScannerRoute.Param(key)
+            }
             "scanner-sys-engine-scheme" -> sys(CarSystem.ENGINE, SystemTab.STATE)
             "scanner-sys-engine-dtc" -> sys(CarSystem.ENGINE, SystemTab.DTC_READINESS)
             "scanner-sys-body" -> sys(CarSystem.BODY, SystemTab.DTC)
@@ -132,7 +138,64 @@ internal object ScannerFixtures {
             systems = systems(all),
             rail = rail(scanBoard.getJSONObject("rail")),
             systemPages = pages(all, groups),
+            param = PARAM_KEYS[id]?.let { param(fixture(all, id), it) },
         )
+    }
+
+    /* ------------------------------------------------------ the parameter */
+
+    /** What each parameter board opened: the row of the live data it stands for. */
+    private val PARAM_KEYS: Map<String, ParamKey> = mapOf(
+        "scanner-sys-engine-rpm" to ParamKey.Pid(ECM, 0x0C),
+        "scanner-sys-engine-ect" to ParamKey.Pid(ECM, 0x05),
+        "scanner-sys-pack-cell" to ParamKey.Signal("1014·44600010"),
+    )
+
+    /** The board's clock: its series counts seconds back from here. */
+    private const val NOW = 3_600_000_000_000L
+
+    /**
+     * A parameter's page from its board (`sysParam()`): `series` is `[seconds back, value]` oldest
+     * first; the board's one window is the 60 s tab, its counters, side rows, scale and grid that
+     * window's figures, the grid's words the board's `gridText` - the figure with thin groups.
+     */
+    private fun param(f: JSONObject, key: ParamKey): ParamView {
+        val block = f.getJSONObject("block")
+        val counters = arrays(block.getJSONArray("counters")).associate { it.getString(0) to it.getString(1) }
+        val side = arrays(f.getJSONArray("stats")).associate { it.getString(0) to it.getString(1) }
+        val series = arrays(f.getJSONArray("series"))
+        val scale = f.getJSONArray("scale")
+        val grid = (0 until f.getJSONArray("grid").length()).map { f.getJSONArray("grid").getDouble(it).toFloat() }
+        val norm = f.optJSONArray("norm")
+        val buttons = arrays(f.getJSONObject("footer").getJSONArray("buttons")).map { it.getString(0) }
+        val window = f.getInt("window")
+        return ParamView(
+            key = key, name = block.getString("title"), aside = block.getString("aside"), line = block.getString("line"),
+            value = f.getString("value"), unit = f.getString("unit"), outOfNorm = f.optBoolean("outOfNorm"),
+            norm = norm?.let { it.getDouble(0).toFloat()..it.getDouble(1).toFloat() }, normText = side.getValue("НОРМА"),
+            samples = series.map { Sample(NOW - (it.getDouble(0) * 1e9).toLong(), it.getDouble(1).toFloat()) },
+            nowNanos = NOW,
+            windows = mapOf(
+                window to ParamStats(
+                    min = counters.getValue("МИН"), max = counters.getValue("МАКС"), mean = counters.getValue("СРЕДН."),
+                    minValue = f.getDouble("min").toFloat(), maxValue = f.getDouble("max").toFloat(),
+                    scale = scale.getDouble(0).toFloat()..scale.getDouble(1).toFloat(),
+                    grid = grid, gridText = grid.map(::grouped),
+                    delta = side.getValue("ЗА 1 С"), points = side.getValue("ТОЧЕК"),
+                ),
+            ),
+            running = "Пауза" in buttons,
+            rate = footnote(f),
+            recordable = "Запись" in buttons,
+            recording = false,
+        )
+    }
+
+    /** The board's `num()`: rounded, thousands apart by a space. */
+    private fun grouped(v: Float): String {
+        val n = Math.round(v)
+        val digits = kotlin.math.abs(n).toString().reversed().chunked(3).joinToString(" ").reversed()
+        return if (n < 0) "−$digits" else digits
     }
 
     /** Does nothing: a fixture is a still. */
@@ -464,6 +527,7 @@ internal object ScannerFixtures {
                             value = r.getString("value"), unit = r.getString("unit"), min = r.getString("min"), max = r.getString("max"),
                             norm = r.getString("norm"), outOfNorm = false, source = "PID",
                             samples = (0 until trace.length()).map { Sample(it * 1_000_000_000L, trace.getDouble(it).toFloat()) },
+                            key = ParamKey.Pid(ECM, r.getString("pid").toInt(16)),
                         )
                     },
                     recording = false,
@@ -492,7 +556,11 @@ internal object ScannerFixtures {
                 machines = objects(hv.getJSONArray("machines")).map { m -> Field(m.getString("name"), m.getString("values"), muted = !m.optBoolean("live")) },
             ),
             pack = arrays(pack.getJSONArray("rows")).map { r ->
-                SignalRow(r.getString(0), r.getString(1), r.getString(2), r.getString(3), r.getString(4), ok = if (r.getString(5) == "OK") true else null, stale = false)
+                SignalRow(
+                    r.getString(0), r.getString(1), r.getString(2), r.getString(3), r.getString(4), ok = if (r.getString(5) == "OK") true else null, stale = false,
+                    // a reading opens alone; a calculation has nothing to poll
+                    key = r.getString(0).takeIf { it != "расчёт" }?.let { ParamKey.Signal(it) },
+                )
             },
             drives = CompareView(
                 // [«FMCU · 7E3», «передний»]: the block heads its column, its role under it

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.RailItem
 import dev.denza.apps.feature.diagnostics.scan.Scheme
 import dev.denza.apps.feature.diagnostics.scan.SystemDtcRow
@@ -125,6 +126,8 @@ internal fun SystemPageScreen(
     onOpen: (Target) -> Unit,
     actions: DiagnosticsActions,
     sample: ScannerSample?,
+    /** A row of «Потоковые данные» with a key opens its parameter alone (architecture, 6.2). */
+    onParam: (ParamKey) -> Unit = {},
 ) {
     val requests = page.blocks.mapNotNull { it.request }
     val ecm = if (page.system == CarSystem.ENGINE) requests.firstOrNull()?.let { moduleOf(model, it) } else null
@@ -175,8 +178,8 @@ internal fun SystemPageScreen(
         ScanTabs(page.tabs.map { it.label }, page.tabs.indexOf(tab).coerceAtLeast(0), { onTab(page.tabs[it]) })
         when (tab) {
             SystemTab.STATE -> page.scheme?.let { SchemeContent(model, it, onOpen) }
-            SystemTab.LIVE -> if (page.system == CarSystem.PACK) PackTable(model.systems.pack) else if (obd != null) {
-                LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS)
+            SystemTab.LIVE -> if (page.system == CarSystem.PACK) PackTable(model.systems.pack, onParam) else if (obd != null) {
+                LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam)
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
             SystemTab.GB_FLAGS -> Pending("Нет данных")

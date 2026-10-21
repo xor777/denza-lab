@@ -302,6 +302,21 @@ class ScannerSpecContractTest {
     }
 
     @Test
+    fun theParameterPage() {
+        val p = ScannerSpec.Param
+        n(p.CHART_X, "param", "chart", "x"); n(p.CHART_TOP, "param", "chart", "top"); n(p.CHART_BOTTOM, "param", "chart", "bottom")
+        n(p.LABEL_Y, "param", "hero", "labelY"); n(p.VALUE_Y, "param", "hero", "valueY"); n(p.STATS_Y, "param", "hero", "statsY")
+        n(p.STATS_W, "param", "hero", "statsW"); n(p.STATS_STEP, "param", "hero", "statsStep")
+        // the reading, the side rows and the chart's top stay inside the area under the tabs, over the footer
+        val type = ScannerSpec.Type
+        assertTrue(p.VALUE_Y >= p.LABEL_Y + type.COUNTER_LABEL.lh)
+        assertTrue(p.STATS_Y >= p.VALUE_Y + type.PARAM_VALUE.lh + p.UNIT_GAP + type.PARAM_UNIT.lh)
+        assertTrue(p.CHART_TOP >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT)
+        assertTrue(p.CHART_BOTTOM + p.TICK_LABEL_GAP + type.SIG.lh <= ScannerSpec.Footer.TOP)
+        assertEquals(listOf(10, 60, 300), p.WINDOWS)
+    }
+
+    @Test
     fun theCarAndItsCallouts() {
         val c = ScannerSpec.Car
         n(c.TOP, "car", "top"); n(c.H, "car", "h"); n(c.W, "car", "w"); n(c.NOSE_R, "car", "noseR"); n(c.TAIL_R, "car", "tailR")

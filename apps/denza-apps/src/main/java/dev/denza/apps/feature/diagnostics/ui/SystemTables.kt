@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.CompareCell
 import dev.denza.apps.feature.diagnostics.scan.CompareView
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.SignalRow
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
@@ -18,7 +19,7 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  */
 
 @Composable
-internal fun PackTable(rows: List<SignalRow>) {
+internal fun PackTable(rows: List<SignalRow>, onParam: ((ParamKey) -> Unit)? = null) {
     val b = ScannerSpec.Bms
     val w = LocalScanWidth.current - 48f
     val cols = ScannerSpec.columns(b.COLS, 24f, w)
@@ -30,6 +31,9 @@ internal fun PackTable(rows: List<SignalRow>) {
     var y = b.TOP + b.HEAD + 1f
     rows.forEach { r ->
         val h = b.ROW
+        // a reading with a key opens alone; a calculation has none
+        val key = r.key
+        if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
         ScanText(r.source, Type.SIG, Ink.FAINT2, Modifier.at(cols[0].first + 12f, mid(y, h, Type.SIG)))
         ScanText(r.name, Type.CELL14, Ink.WHITE, Modifier.at(cols[1].first, mid(y, h, Type.CELL14)), maxWidth = cols[1].second)
         ScanText(r.value, Type.VALUE_BMS, if (r.stale) Ink.FAINT else Ink.WHITE, Modifier.endAt(cols[2].first + cols[2].second - b.VALUE_PAD, mid(y, h, Type.VALUE_BMS)))

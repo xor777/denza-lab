@@ -94,6 +94,11 @@ internal object ScannerSpec {
         val BIT_GLOW = rgba(0x439FFC, 0.8f)
         val TRACE_GLOW = rgba(0x439FFC, 0.6f)
         val RANGE_GLOW = rgba(0x439FFC, 0.7f)
+        /** A parameter's page (`sysParam()`): the reading's glow, in norm and out of it; the trace's and its last point's. */
+        val PARAM_GLOW = rgba(0x439FFC, 0.45f)
+        val PARAM_GLOW_OUT = rgba(0xFF9F19, 0.55f)
+        val PARAM_TRACE_GLOW = rgba(0x439FFC, 0.7f)
+        val PARAM_DOT_GLOW = rgba(0x439FFC, 0.9f)
 
         /** The JSON's names, for the contract test. */
         val byName: Map<String, Int> = mapOf(
@@ -514,6 +519,40 @@ internal object ScannerSpec {
         val ECU_MON_COLS = listOf(FR, 100f, 110f)
         const val PENDING_X = 36f
         const val PENDING_Y = 184f
+    }
+
+    /**
+     * One parameter on its own page (`sysParam()`): the reading at the left, its chart across the
+     * rest; the area's coordinates. The JSON's `param`, then the numbers `scanner.js` writes inline.
+     */
+    object Param {
+        const val CHART_X = 380f
+        const val CHART_TOP = 196f
+        const val CHART_BOTTOM = 584f
+        const val LABEL_Y = 196f
+        const val VALUE_Y = 220f
+        const val STATS_Y = 368f
+        const val STATS_W = 300f
+        const val STATS_STEP = 38f
+
+        const val VALUE_GLOW = 18f
+        const val UNIT_GAP = 4f
+        /** A side row's value stands this much over its label's line box; its rule this far under the label's top. */
+        const val STATS_LIFT = 3f
+        const val STATS_RULE = 22f
+        const val GRID_LABEL_GAP = 10f
+        const val TICK_LABEL_GAP = 10f
+        const val LIMIT_LABEL_X = 8f
+        const val LIMIT_LABEL_GAP = 4f
+        const val DASH = 4f
+        const val TRACE = 1.8f
+        const val TRACE_GLOW = 8f
+        const val DOT_R = 4.5f
+        const val DOT_GLOW = 10f
+
+        /** The windows, seconds, in the tabs' order; the page opens on the second. */
+        val WINDOWS = listOf(10, 60, 300)
+        const val FIRST_WINDOW = 1
     }
 
     /** Where a scheme may stand: under the tabs, over the footer. */

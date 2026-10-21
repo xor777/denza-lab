@@ -40,6 +40,7 @@ import dev.denza.apps.feature.diagnostics.scan.ModuleView
 import dev.denza.apps.feature.diagnostics.scan.MonitorRow
 import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
@@ -73,6 +74,8 @@ internal fun ModulePage(
     sample: ScannerSample?,
     /** «‹ Автоскан», or the screen the module was opened from. */
     backLabel: String = ScannerStack.BACK_TO_SCAN,
+    /** A live row with a key opens its parameter alone. */
+    onParam: ((ParamKey) -> Unit)? = null,
 ) {
     val obd = module.obd
     val tabs = moduleTabs(module)
@@ -104,7 +107,7 @@ internal fun ModulePage(
         ScanTabs(tabs, tab, onTab, alert = if (obd?.mil == MilState.ON) TAB_DTC else null)
         when {
             ident -> IdentContent(module.ident)
-            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS)
+            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam)
             else -> DtcContent(module)
         }
         if (picking && obd != null) {
@@ -453,7 +456,7 @@ private fun Monitors(list: List<MonitorRow>, x: Halves) {
 
 /** An OBD responder's live data (`liveTable()`): the block's columns across the window, the rail's beside it. */
 @Composable
-internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<Float>?, colSpec: List<Float>) {
+internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<Float>?, colSpec: List<Float>, onParam: ((ParamKey) -> Unit)? = null) {
     val e = ScannerSpec.EcuLive
     val w = LocalScanWidth.current - 48f
     val cols = ScannerSpec.columns(colSpec, 24f, w)
@@ -469,6 +472,9 @@ internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange
     rows.forEach { r ->
         val h = e.ROW
         fun end(i: Int) = cols[i].first + cols[i].second - 12f
+        // a row with a key opens its parameter alone; the row itself draws nothing more
+        val key = r.key
+        if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
         ScanText(ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
         ScanRuns(
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),

@@ -22,6 +22,7 @@ import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
+import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.scan.Target
 
@@ -35,6 +36,9 @@ internal sealed interface ScannerRoute {
 
     /** A system's page at one of its [SystemTab]s; null is the page's first. */
     data class System(val system: CarSystem, val tab: SystemTab? = null) : ScannerRoute
+
+    /** One parameter on its own page, over the live data it was opened from (architecture, 6.2). */
+    data class Param(val key: ParamKey) : ScannerRoute
 }
 
 /**
@@ -47,6 +51,9 @@ internal sealed interface ScannerRoute {
 internal object ScannerStack {
     const val BACK_TO_SCAN = "‹ Автоскан"
 
+    /** A parameter's page always goes back to the live data it was opened from. */
+    const val BACK_TO_LIVE = "‹ Потоковые данные"
+
     fun open(stack: List<ScannerRoute>, target: Target): List<ScannerRoute> = when (target) {
         is Target.Module -> stack + ScannerRoute.Module(target.request)
         is Target.System -> rail(stack, target.screen)
@@ -55,6 +62,13 @@ internal object ScannerStack {
     /** A rail tap: the autoscan with its own tab kept, and the system over it when one was picked. */
     fun rail(stack: List<ScannerRoute>, system: CarSystem?): List<ScannerRoute> =
         stack.take(1) + listOfNotNull(system?.let { ScannerRoute.System(it) })
+
+    /** A row of the live data: its parameter alone, a step over the table. */
+    fun param(stack: List<ScannerRoute>, key: ParamKey): List<ScannerRoute> = stack + ScannerRoute.Param(key)
+
+    /** The screen a parameter's page stands on: the system's live tab, or the block's. */
+    fun under(stack: List<ScannerRoute>): ScannerRoute? =
+        if (stack.lastOrNull() is ScannerRoute.Param) stack.getOrNull(stack.size - 2) else stack.lastOrNull()
 
     /** The system the rail shows lit: the one under the top screen, or none for the autoscan. */
     fun railSystem(stack: List<ScannerRoute>): CarSystem? = (stack.getOrNull(1) as? ScannerRoute.System)?.system
@@ -73,19 +87,25 @@ internal object ScannerStack {
     /**
      * The crumbs after «Диагностика», each with its index in the stack: a system stands in the
      * autoscan's place, as the rail has it - «Шасси › Тормозная система», not «Автоскан › Шасси › …».
+     * A parameter's page is no crumb: its head names it, and the screen under it is the last crumb.
      */
     fun crumbs(stack: List<ScannerRoute>): List<Pair<Int, ScannerRoute>> =
-        stack.withIndex().filter { (i, _) -> !(i == 0 && stack.getOrNull(1) is ScannerRoute.System) }.map { it.index to it.value }
+        stack.withIndex()
+            .filter { (i, r) -> !(i == 0 && stack.getOrNull(1) is ScannerRoute.System) && r !is ScannerRoute.Param }
+            .map { it.index to it.value }
 
     /** The name of a screen in the crumbs and on «‹ …»: the module's, the system's rail name, «Автоскан». */
     fun title(route: ScannerRoute, moduleName: (Int) -> String?): String = when (route) {
         is ScannerRoute.Scan -> "Автоскан"
         is ScannerRoute.Module -> moduleName(route.request) ?: "Блок"
         is ScannerRoute.System -> route.system.railName
+        is ScannerRoute.Param -> BACK_TO_LIVE.removePrefix("‹ ")
     }
 
-    fun backLabel(stack: List<ScannerRoute>, moduleName: (Int) -> String?): String =
-        stack.getOrNull(stack.size - 2)?.let { "‹ " + title(it, moduleName) } ?: BACK_TO_SCAN
+    fun backLabel(stack: List<ScannerRoute>, moduleName: (Int) -> String?): String = when {
+        stack.lastOrNull() is ScannerRoute.Param -> BACK_TO_LIVE
+        else -> stack.getOrNull(stack.size - 2)?.let { "‹ " + title(it, moduleName) } ?: BACK_TO_SCAN
+    }
 }
 
 /**
@@ -113,24 +133,33 @@ internal fun DiagnosticsScreen(
     val route = stack.last()
     val back = { ScannerStack.back(stack)?.let { stack = it } ?: onClose() }
     val open = { t: Target -> stack = ScannerStack.open(stack, t) }
+    val openParam = { k: ParamKey -> stack = ScannerStack.param(stack, k) }
     val retab = { next: ScannerRoute -> stack = ScannerStack.retab(stack, next) }
     val moduleName = { request: Int -> moduleOf(model, request)?.name }
     val backLabel = ScannerStack.backLabel(stack, moduleName)
     BackHandler { back() }
 
-    // An ECU's screen asks for its identification and readiness once while open; the stream runs
-    // only while «Потоковые данные» is in front.
+    // An ECU's screen asks for its identification and readiness once while open - a parameter's page
+    // over it keeps it open; the stream runs only while «Потоковые данные» is in front. A parameter's
+    // page asks for its parameter alone while it shows (architecture, 6.2).
     val current = rememberUpdatedState(actions)
     val r = route
-    if (r is ScannerRoute.Module) {
-        DisposableEffect(r.request) {
-            current.value.setModuleOpen(r.request, true)
-            onDispose { current.value.setModuleOpen(r.request, false) }
+    val under = ScannerStack.under(stack)
+    if (under is ScannerRoute.Module) {
+        DisposableEffect(under.request) {
+            current.value.setModuleOpen(under.request, true)
+            onDispose { current.value.setModuleOpen(under.request, false) }
         }
-        val live = model.modules[r.request]?.obd != null && r.tab == 1
-        DisposableEffect(r.request, live) {
-            if (live) current.value.setLiveVisible(r.request, true)
-            onDispose { if (live) current.value.setLiveVisible(r.request, false) }
+        val live = r is ScannerRoute.Module && model.modules[r.request]?.obd != null && r.tab == 1
+        DisposableEffect(under.request, live) {
+            if (live) current.value.setLiveVisible(under.request, true)
+            onDispose { if (live) current.value.setLiveVisible(under.request, false) }
+        }
+    }
+    if (r is ScannerRoute.Param) {
+        DisposableEffect(r.key) {
+            current.value.setParam(r.key)
+            onDispose { current.value.setParam(null) }
         }
     }
 
@@ -164,7 +193,7 @@ internal fun DiagnosticsScreen(
                     if (module == null) {
                         LaunchedEffect(r) { back() }
                     } else {
-                        ModulePage(module, r.tab, header, { retab(r.copy(tab = it)) }, back, actions, sample, backLabel)
+                        ModulePage(module, r.tab, header, { retab(r.copy(tab = it)) }, back, actions, sample, backLabel, openParam)
                     }
                 }
                 is ScannerRoute.System -> {
@@ -173,7 +202,16 @@ internal fun DiagnosticsScreen(
                         // a system the session has not described yet: the autoscan instead
                         LaunchedEffect(r) { stack = ScannerStack.rail(stack, null) }
                     } else {
-                        SystemPageScreen(model, page, r.tab ?: page.tabs.first(), frame, { retab(r.copy(tab = it)) }, open, actions, sample)
+                        SystemPageScreen(model, page, r.tab ?: page.tabs.first(), frame, { retab(r.copy(tab = it)) }, open, actions, sample, openParam)
+                    }
+                }
+                is ScannerRoute.Param -> {
+                    val view = ScannerWords.paramOf(model, r.key)
+                    if (view == null) {
+                        LaunchedEffect(r) { back() }
+                    } else {
+                        // beside the rail when it stands on a system's page; over the whole window on a block's
+                        ParamPage(view, if (under is ScannerRoute.System) frame else null, header, actions, back)
                     }
                 }
             }
