@@ -17,7 +17,12 @@ internal data class ObdQuantity(val label: String?, val value: Double, val unit:
 /** What one PID's data bytes say. */
 internal sealed interface ObdValue {
     data class Numbers(val quantities: List<ObdQuantity>, val note: String? = null) : ObdValue
-    data class Text(val text: String) : ObdValue
+    /**
+     * Words; [code] is the short form a table's value column takes («CL»), [note] what stands beside
+     * it («замкн. петля») - a whole sentence does not fit a value column (on the car 2026-10-20 it ran
+     * over the parameter's name).
+     */
+    data class Text(val text: String, val code: String? = null, val note: String? = null) : ObdValue
     /** PID 00/20/40/…: the PIDs this ECU offers in the next block of 32. */
     data class Supported(val pids: List<Int>) : ObdValue
     /** PID 01 and 41. */
@@ -111,6 +116,16 @@ internal object ObdPids {
         0x10 to "замкнутый контур, отказ датчика обратной связи",
     )
 
+    /** PID 03 for a table: the loop's code (SAE J1979: OL open, CL closed) and a few words why. */
+    private val FUEL_LOOP = mapOf(
+        0x00 to ("—" to "не работает"),
+        0x01 to ("OL" to "не прогрет"),
+        0x02 to ("CL" to "замкн. петля"),
+        0x04 to ("OL" to "нагрузка"),
+        0x08 to ("OL" to "отказ системы"),
+        0x10 to ("CL" to "отказ датчика"),
+    )
+
     private val OBD_STANDARD = mapOf(
         1 to "OBD-II (CARB)", 2 to "OBD (EPA)", 3 to "OBD и OBD-II", 4 to "OBD-I", 5 to "не соответствует OBD",
         6 to "EOBD", 7 to "EOBD и OBD-II", 8 to "EOBD и OBD", 9 to "EOBD, OBD и OBD-II", 10 to "JOBD",
@@ -123,7 +138,10 @@ internal object ObdPids {
         ObdPid(0x01, "Мониторы с момента сброса кодов", 4) { ObdValue.Monitors(Monitors.decode(it, thisCycle = false)) },
         ObdPid(0x03, "Состояние топливной системы", 2) { b ->
             fun name(v: Int) = FUEL_SYSTEM[v] ?: "код %02X".format(v)
-            ObdValue.Text(if (b[1] == 0) name(b[0]) else "1: ${name(b[0])}; 2: ${name(b[1])}")
+            fun code(v: Int) = FUEL_LOOP[v]?.first ?: "%02X".format(v)
+            fun note(v: Int) = FUEL_LOOP[v]?.second ?: "код %02X".format(v)
+            if (b[1] == 0) ObdValue.Text(name(b[0]), code(b[0]), note(b[0]))
+            else ObdValue.Text("1: ${name(b[0])}; 2: ${name(b[1])}", "${code(b[0])}/${code(b[1])}", "1: ${note(b[0])}; 2: ${note(b[1])}")
         },
         percent("Расчётная нагрузка", 0x04),
         temperature("Температура ОЖ", 0x05),

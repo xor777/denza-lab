@@ -58,7 +58,10 @@ class ObdCodecTest {
         assertEquals("в коррекции не участвует", (o2.value as ObdValue.Numbers).note)
         assertEquals(ObdValue.Text("тип 41"), pid(0x7E0, 0x1C, "411C29").value)
         assertEquals("0 с", number(pid(0x7E0, 0x1F, "411F0000")).text)
-        assertEquals(ObdValue.Text("не работает"), pid(0x7E0, 0x03, "41030000").value)
+        assertEquals(ObdValue.Text("не работает", "—", "не работает"), pid(0x7E0, 0x03, "41030000").value)
+        // a table takes the loop's code and a few words, not the sentence (on the car 2026-10-20 it ran over the name)
+        assertEquals(ObdValue.Text("замкнутый контур по датчику O2", "CL", "замкн. петля"), pid(0x7E0, 0x03, "41030200").value)
+        assertEquals(ObdValue.Text("разомкнутый контур: не прогрет", "OL", "не прогрет"), pid(0x7E0, 0x03, "41030100").value)
 
         // Every numeric value the research decoder stored for 7E0 is the same here.
         val rows = obd.getJSONArray("run2_detail").objects().filter { it.getString("request") == "07E0" && it.getString("uds").startsWith("01") }

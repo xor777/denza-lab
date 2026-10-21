@@ -184,6 +184,8 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         var unit = ""
         var current: Double? = null
         var plain = ""
+        /** A text PID's few words beside its code, in the norm's column. */
+        var note: String? = null
         private var decimals = 0
         private var min: Double? = null
         private var max: Double? = null
@@ -201,7 +203,8 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                     number(at, q.value)
                 }
                 is ObdValue.Text -> {
-                    value = v.text
+                    value = v.code ?: v.text
+                    note = v.note
                     plain = "\"${v.text}\""
                     current = null
                     mark(at)
@@ -271,7 +274,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                 unit = unit,
                 min = extreme(min),
                 max = extreme(max),
-                norm = norm?.text ?: "—",
+                norm = note ?: norm?.text ?: "—",
                 outOfNorm = norm?.outside(current, engineRunning) ?: false,
                 source = "PID",
                 samples = samples.toList(),

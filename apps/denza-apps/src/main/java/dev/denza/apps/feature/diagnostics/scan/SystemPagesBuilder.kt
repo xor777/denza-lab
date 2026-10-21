@@ -442,8 +442,8 @@ internal object SystemPagesBuilder {
             v(pid, decimals, signed)?.let { "$name $it$unit" } ?: "$name $NA"
         val loop = rows[0x03]?.value?.takeIf { it != "—" }?.let { text ->
             when {
-                text.startsWith("замкнутый") -> "петля замкнута (CL)"
-                text.startsWith("разомкнутый") -> "петля разомкнута (OL)"
+                text.startsWith("CL") -> "петля замкнута (CL)"
+                text.startsWith("OL") -> "петля разомкнута (OL)"
                 else -> text
             }
         } ?: "петля $NA"

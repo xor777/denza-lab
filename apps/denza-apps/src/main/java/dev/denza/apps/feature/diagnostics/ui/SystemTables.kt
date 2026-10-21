@@ -36,7 +36,7 @@ internal fun PackTable(rows: List<SignalRow>, onParam: ((ParamKey) -> Unit)? = n
         if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
         ScanText(r.source, Type.SIG, Ink.FAINT2, Modifier.at(cols[0].first + 12f, mid(y, h, Type.SIG)))
         ScanText(r.name, Type.CELL14, Ink.WHITE, Modifier.at(cols[1].first, mid(y, h, Type.CELL14)), maxWidth = cols[1].second)
-        ScanText(r.value, Type.VALUE_BMS, if (r.stale) Ink.FAINT else Ink.WHITE, Modifier.endAt(cols[2].first + cols[2].second - b.VALUE_PAD, mid(y, h, Type.VALUE_BMS)))
+        ScanText(r.value, Type.VALUE_BMS, if (r.stale) Ink.FAINT else Ink.WHITE, Modifier.endAt(cols[2].first + cols[2].second - b.VALUE_PAD, mid(y, h, Type.VALUE_BMS)), maxWidth = cols[2].second - b.VALUE_PAD)
         ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
         ScanText(r.norm, Type.NORM, Ink.FAINT, Modifier.at(cols[4].first, mid(y, h, Type.NORM)), maxWidth = cols[4].second)
         val mark = when {

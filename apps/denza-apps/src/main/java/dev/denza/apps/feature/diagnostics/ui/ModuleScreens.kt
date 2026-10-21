@@ -480,11 +480,12 @@ internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
             Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second,
         )
-        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE_INK else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)))
+        // a value stays in its column, whatever its length
+        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE_INK else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)), maxWidth = cols[2].second - 12f)
         ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
         ScanText(r.min, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(4), mid(y, h, Type.CELL_MONO)))
         ScanText(r.max, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(5), mid(y, h, Type.CELL_MONO)))
-        ScanText(r.norm, Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[6].first, mid(y, h, Type.NORM_MONO)))
+        ScanText(r.norm, Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[6].first, mid(y, h, Type.NORM_MONO)), maxWidth = cols[6].second - 8f)
         if (r.samples.isNotEmpty()) Spark(r, chartRange, minOf(e.SPARK_W, cols[7].second - 8f), Modifier.at(cols[7].first, y + (h - e.SPARK_H) / 2f))
         Rule(24f, y + h, w, Ink.HAIR)
         y += h + 1f

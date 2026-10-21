@@ -150,7 +150,7 @@ internal class ParamTrace(val spec: ParamSpec) {
                 return listOf(LiveStream.csvLine(at, key.request, key.pid, reading.rawHex, LiveStream.plainNumber(q.value)))
             }
             v is ObdValue.Text -> {
-                value = v.text
+                value = v.code ?: v.text
                 current = null
                 mark(at)
                 return listOf(LiveStream.csvLine(at, key.request, key.pid, reading.rawHex, "\"${v.text}\""))
