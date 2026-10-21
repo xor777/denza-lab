@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "status": "no_identified_CDC720_or_INS723_image_in_bounded_retained_corpus",
+  "question": "Do already-retained local files contain the producer-side firmware bytes for CDC720 or INS723?",
+  "safety": {
+    "offlineOnly": true,
+    "networkCalls": 0,
+    "liveOperations": 0,
+    "extractions": 0,
+    "firmwareExecuted": false,
+    "secretValuesCopied": false
+  },
+  "targets": [
+    {
+      "ecuSoftCode": "4B310011E0019A0002",
+      "ecuConfigCode": "4B50FF11E0019A0002",
+      "ecuHardVer": "0.4.1",
+      "ecuId": "HTH-2021_CDC_BYD_00100001",
+      "ecuConfigVer": "4.00.02",
+      "ecuSoftVer": "4.00.53"
+    },
+    {
+      "ecuSoftCode": "4B450011E0250037B1",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.3",
+      "ecuId": "HTH-2021_INS_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.04"
+    }
+  ],
+  "summary": {
+    "filesConsidered": 545443,
+    "archiveDirectoriesRead": 549,
+    "archiveMembersCounted": 2518927,
+    "blobCandidatesInspected": 8521,
+    "broadNameMatchesPaths": 9,
+    "broadNameMatchesArchiveMembers": 112,
+    "exactCodeOrControllerNameMatchesArchiveMembers": 0,
+    "actualTargetImagesIdentified": 0
+  },
+  "findings": [
+    "Both retained top-level OTA packages are IVI/FSE packages. Their current ZIP directories are preserved in raw evidence; full multi-GB archive SHA-256 was not recomputed this pass.",
+    "The retained plaintext IVI Config module list is Android, Mcu, Dsp, Anc, Screen, Camera. Package attributes contain Android, IVI Mcu, DSP, ANC and Screen updates, not a package identified as CDC720 or INS723.",
+    "The FSE outer package has update.zip, mcu_42_2_3.xcd and dspres_e_0.xcd; no member is identified as either target. FSE/IVI MCU binaries are not thereby images of the separately identified CDC/INS controllers.",
+    "ECUVersion holds the exact CDC/INS software identities but no firmware bytes. needCheckEcuList is 358-byte CDN/inventory metadata. VehicleVersion2 and SourceVehicleVersion2 are 4/6-byte markers, not ECU images.",
+    "Prior retained OTA history evidence found no saved applicable strategy/result package; subsequent retained read-only identity replies establish identities, not downloaded images. Those historical reports are inputs only; no car or OTA request was made by this check.",
+    "Broad CDC/INS filename matches are SomeipInsService/obfuscated Java names and obfuscated Android PNG/XML/JSON resources (e.g. res/InS.png, res/CDC.json), not exact controller/software-code matches. Their names do not identify ECU images.",
+    "UpgradeServer includes a previously retained res/raw/update.zip with real update/mcu.xcd and mcu_b.xcd containers. Its own config is qc+mcu and metadata says Android 7.1.2 msm8953_64, timestamp 1602674794. These opaque MCU members are not identified as CDC720/INS723, and no target software-code binding was found in their package metadata."
+  ],
+  "evidence": {
+    "rawInventory": "captures/washer-diagnostics-20261021/producer-image-inventory/inventory.json",
+    "metadata": {
+      "iviConfig": {
+        "path": "captures/telematics-20260923/readable-firmware/Config-readable.xml",
+        "bytes": 7497,
+        "sha256": "f6f7cfc212bbf5b60f4a3159e1e132c85b587267fdfa25e97c22c319a1111179",
+        "moduleNames": [
+          "Android",
+          "Mcu",
+          "Dsp",
+          "Anc",
+          "Screen",
+          "Camera"
+        ],
+        "packageAttributesOnly": [
+          {
+            "ModuleName": "Android",
+            "FileName": "android.zip"
+          },
+          {
+            "ModuleName": "Mcu",
+            "FileName": "di5.1_ruisa_app_canfd_e_34.2.3.2605202.2.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_80.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_8.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_55.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_50.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_5.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_49.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_47.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_46.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_41.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_36.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_33.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_3.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_23.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_16.xcd"
+          },
+          {
+            "ModuleName": "Dsp",
+            "FileName": "dspres_e_0.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_53_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_52_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_50_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4F_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4E_250707028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4D_250223028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4C_251029028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4B_241001028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_4A_250403028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_47_241227028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_46_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_45_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_44_250821028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_43_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_42_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_41_240801028.xcd"
+          },
+          {
+            "ModuleName": "Anc",
+            "FileName": "ANC_40_240801028.xcd"
+          },
+          {
+            "ModuleName": "Screen",
+            "FileName": "fse-yanfeng-app_34.1.8_20250530_1.10.00.xcd"
+          }
+        ]
+      },
+      "ecuVersion": {
+        "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+        "bytes": 39890,
+        "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+        "recordCount": 225,
+        "targetIdentityRecords": [
+          {
+            "ecuSoftCode": "4B310011E0019A0002",
+            "ecuConfigCode": "4B50FF11E0019A0002",
+            "ecuHardVer": "0.4.1",
+            "ecuId": "HTH-2021_CDC_BYD_00100001",
+            "ecuConfigVer": "4.00.02",
+            "ecuSoftVer": "4.00.53"
+          },
+          {
+            "ecuSoftCode": "4B450011E0250037B1",
+            "ecuConfigCode": "000000000000000000",
+            "ecuHardVer": "0.0.3",
+            "ecuId": "HTH-2021_INS_BYD_00100001",
+            "ecuConfigVer": "0.00.00",
+            "ecuSoftVer": "4.00.04"
+          }
+        ]
+      },
+      "needCheckEcuList": {
+        "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/03-needCheckEcuList.json",
+        "bytes": 358,
+        "sha256": "24f1d5ea2812faba54f46f377b3f8d55660047cdf71fa61c3cae8e25d8d87b68",
+        "fieldNames": [
+          "cdnUrl",
+          "ecuList",
+          "status",
+          "timestamp"
+        ],
+        "hasCdnUrl": true,
+        "ecuListCount": 0,
+        "classification": "CDN/inventory metadata; URL deliberately not copied or fetched"
+      },
+      "shortVersionMarkers": [
+        {
+          "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/05-VehicleVersion2",
+          "bytes": 4,
+          "sha256": "35a6fd96d1fdcfa5e7af2835bcbb523bd99798499c8115df9eaba3b77c261ba8"
+        },
+        {
+          "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/06-SourceVehicleVersion2",
+          "bytes": 6,
+          "sha256": "372cd2377dd2e60c9323fe9e2a7a606cb08babce08e17173100e2d93161e6f98"
+        }
+      ],
+      "embeddedUpgradeServerPackage": {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/UpgradeServer/resources/res/raw/update.zip",
+        "bytes": 2039080,
+        "sha256": "99294d86059852d3c6853a71d333863418d547b394ab332381e92f6edd7336af",
+        "config": "qc+mcu",
+        "metadata": [
+          "ota-required-cache=0",
+          "ota-type=BLOCK",
+          "post-build=Android/msm8953_64/msm8953_64:7.1.2/N2G47H/52:user/release-keys",
+          "post-timestamp=1602674794",
+          "pre-device=msm8953_64"
+        ],
+        "mcuMembers": [
+          {
+            "name": "update/mcu.xcd",
+            "bytes": 1228608,
+            "sha256": "2b41fe73a9f38e1fc2ed36c4354d207224625538f00e6fa6244d3fca26591bc3"
+          },
+          {
+            "name": "update/mcu_b.xcd",
+            "bytes": 1228187,
+            "sha256": "bf16e54ab5fd5928dc37879655ca101bdbf00ae0c5ff389b6367696f964409ba"
+          }
+        ],
+        "classification": "Real retained MCU containers, but package metadata identifies Android 7.1.2/msm8953_64; no binding to the target CDC/INS codes or versions. Contents were not decoded or executed."
+      }
+    },
+    "priorReports": [
+      {
+        "path": "research/vehicle-diagnostics/ota-history-read-20261021.json",
+        "bytes": 7089,
+        "sha256": "aa849a0e917b257e2adc90426cadd643ea2ac1daf87690087790fe1f4c183cb8"
+      },
+      {
+        "path": "research/vehicle-diagnostics/ota-core-fields-live-20261021.json",
+        "bytes": 18636,
+        "sha256": "5125cd7b7fe91a5b6b65411282e3a11c0da1c296c41c235f80cb6657f50f9fea"
+      },
+      {
+        "path": "research/vehicle-diagnostics/ota-remaining-fields-live-20261021.json",
+        "bytes": 69171,
+        "sha256": "befc092b6857f8f68637153e14e7fcf7d7bcafa969c58933df4ec67e8915d558"
+      },
+      {
+        "path": "research/vehicle-diagnostics/washer-producer-routing-20261021.json",
+        "bytes": 15427,
+        "sha256": "e92ed3af2481b61a773bcac6af1e3c10ef85c442a9c4bf104e786dae29b23d11"
+      }
+    ]
+  },
+  "bounds": [
+    "No recursive decryption or blind signature carving of opaque blobs was attempted. Absence of an identified image is not mathematical proof against an arbitrarily renamed/encrypted embedded image.",
+    "ZIP/APK/JAR/TAR directories were read. The already-retained UpgradeServer update.zip metadata and two MCU members were read in memory for hashes only; nested members were not written or decoded. The encrypted IVI Android member and partition payloads were not newly decrypted or recursively searched.",
+    "The snapshot is limited to the documented local corpus roots, not arbitrary home directories or secrets. Existing source/worktree backup archives are not assumed to be ECU packages. Two files with APK/JAR extensions were not valid supported archive directories and are listed as such in the raw inventory."
+  ],
+  "nearestMissingArtifacts": [
+    {
+      "ecu": "CDC720",
+      "required": "Actual application/firmware container bytes bound by a manifest to HTH-2021_CDC_BYD_00100001, software code 4B310011E0019A0002 v4.00.53 (or a documented applicable variant)."
+    },
+    {
+      "ecu": "INS723",
+      "required": "Actual application/firmware container bytes bound by a manifest to HTH-2021_INS_BYD_00100001, software code 4B450011E0250037B1 v4.00.04 (or a documented applicable variant)."
+    },
+    {
+      "requiredForEither": "Package manifest/checksums plus load map or decoding description, and N9 profile 168 versus Z9GT profile 170 applicability/coding. A version reply, CDN URL, HTML release note or unfulfilled download strategy is insufficient."
+    }
+  ],
+  "ownershipCaveat": "CDC and INS remain acquisition candidates, not attributed CAN261 transmitters, warning 1DD selectors, or washer sensor input owners. An image inventory alone cannot settle those three roles.",
+  "reproduce": "python3 research/vehicle-diagnostics/check_washer_producer_image_inventory.py"
+}

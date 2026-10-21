@@ -1,0 +1,108 @@
+{
+  "schema": "denza-lab.washer-input-document-leads.v1",
+  "date": "2026-10-21",
+  "status": "finite_public_primary_pass_complete_no_qualified_level_input_document",
+  "purpose": "Find an applicable physical washer LEVEL input document for CN N9 or CN Z9GT DM, to connect sensor contact to warning producer; not another CAN sender-name search or a guessed diagnostic DID.",
+  "targetModels": ["CN DENZA N9 PHEV", "CN DENZA Z9GT DM"],
+  "result": {
+    "levelSensorController": null,
+    "connectorAndPin": null,
+    "sensorPartNumber": null,
+    "signalPolarityOrEncoding": null,
+    "codingOrConfigurationGate": null,
+    "namedSensorCircuitDtc": null,
+    "lowFluidWarningFunctionalOwner": null,
+    "warning1ddProducer": null,
+    "applicableOemDocumentId": null,
+    "qualifiedReadRequest": null
+  },
+  "contextNotReprovenHere": {
+    "ownerServiceClaim": "Service says washer-level sensors exist on both N9 and Z9GT. This pass does not independently verify the wiring and does not dispute the claim.",
+    "warningEnum": "Native DOMAIN_261_10_21_TEXT_INFO / FID 0x26100008 admits 0x1DD in retained dictionaries. That receiver label does not identify the physical sensor input owner or semantic producer.",
+    "pumpBoundary": "Factory front-washer actuator 0x747/0x74F, service 0x2F control 0x3362 is not a washer LEVEL definition. No 0x22 read is inferred from it."
+  },
+  "newPrimaryObjectsChecked": [
+    {
+      "id": "CN204095758U",
+      "url": "https://patents.google.com/patent/CN204095758U/zh",
+      "owner": "BYD Co Ltd, per patent record",
+      "scope": "Washer reservoir mechanical assembly",
+      "inputJoin": false,
+      "whyNotQualified": "No level/sensor terminology in full returned page; no target-model deployment or electrical allocation."
+    },
+    {
+      "id": "CN217789750U",
+      "url": "https://patents.google.com/patent/CN217789750U/zh",
+      "owner": "BYD Co Ltd and BYD Precision Manufacturing Co Ltd, per patent record",
+      "scope": "Camera cleaning mechanism",
+      "inputJoin": false,
+      "whyNotQualified": "Spray/vibration/heating is not reservoir level sensing; no model or warning allocation."
+    },
+    {
+      "id": "DTRM326712",
+      "url": "https://eutis.bydauto.com/tis/file/manual/wsm/722/en_US/DTRM326712.html",
+      "owner": "Official BYD EU TIS",
+      "scope": "HV electrical power-off/on workshop page",
+      "inputJoin": false,
+      "whyNotQualified": "Wrong subject; URL selector 722 has no proven target-model binding and is not an ECU diagnostic-address statement."
+    }
+  ],
+  "candidateExclusions": {
+    "falseBydPatentMatches": [
+      ["CN112026520A", "BAIC Group ORV Co Ltd"],
+      ["CN118972445A", "Chery New Energy Automobile Co Ltd"],
+      ["CN116692756A", "FAW Bestune Car Co Ltd"],
+      ["CN211731285U", "FAW Group Corp"],
+      ["WO2023237123A1", "FAW Group Corp"]
+    ],
+    "bydSpecificArbitrationMechanismRecovered": false,
+    "d9OtaStory": "Different model; secondary reporting is not a physical input/controller definition for either target.",
+    "aftermarketPartsAndGenericModels": "No vendor seller claim or another BYD model's wiring is promoted to target evidence."
+  },
+  "documentAcquisitionTarget": {
+    "kind": "Primary model/revision-qualified OEM electrical and functional documentation, if publicly made available",
+    "requestTermsZh": ["洗涤液液位传感器", "洗涤液位开关", "雨刮和洗涤系统 电路图", "接插件 针脚定义", "低液位报警 功能说明 配置条件"],
+    "requiredFirstSheet": [
+      "Explicit N9 PHEV or CN Z9GT DM market/year and relevant harness/controller revision",
+      "Washer reservoir LEVEL sensor or switch symbol, not pump motor, rear washer or headlamp/camera cleaning outlet",
+      "Sensor connector ID, signal/ground terminals and destination controller connector/pin",
+      "Electrical state interpretation and debounce or enable conditions, if specified"
+    ],
+    "requiredSecondJoin": [
+      "Controller functional allocation of low washer-fluid warning versus sensor open/short fault",
+      "Any network signal/message and transmitting controller carrying the level state or selected warning",
+      "Warning arbitration/priority/configuration mapping connecting that source to 0x1DD, if used on the model"
+    ],
+    "notSufficient": "A reservoir parts photo or input pin alone would identify a physical input owner, not automatically prove the node that selects 0x1DD or transmits CAN 0x261.",
+    "currentPublicPrimarySourceUrlForThatSheet": null,
+    "thirdPartyLocatorOnly": "https://baochimingche.com/zh-hans/product/denza-tengshi-n9-service-repair-manual/",
+    "authorityBoundary": "No account, purchase, private endpoint or service contact is authorized. Stop at the public evidence gap; do not obtain restricted material."
+  },
+  "evidence": {
+    "path": "captures/washer-diagnostics-20261021/input-document-leads/public-evidence.json",
+    "sha256": "ed2184329fe8e19927a2a67d8a432fc7393348dfdec5a2f2dd3d9e300b9236f1",
+    "recordedNewQueryCount": 36,
+    "oldSenderMatrixQueriesRepeated": false,
+    "localInputs": [
+      "research/vehicle-diagnostics/oem-dtc-public-source-followup-20261021.json",
+      "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "captures/diagnostics-ecu-roles-20261021/manual/source-register.json",
+      "captures/diagnostics-ecu-roles-20261021/manual/prior-public-index-check.json",
+      "research/vehicle-diagnostics/washer-body-read-20261021.json",
+      "research/vehicle-diagnostics/washer-producer-source-map-20261021.json"
+    ],
+    "localSearchBoundary": "Targeted text search in existing diagnostic/research/manual/washer evidence, not archive/binary re-extraction."
+  },
+  "interpretation": "Bounded negative result, not proof that the circuit or feature does not exist. No new reason for N9's missing 0x1DD and no ECU assignment is established.",
+  "safety": {
+    "offlineOrPublicReadOnly": true,
+    "vehicleCommands": false,
+    "udsOrDidProbes": false,
+    "physicalOwnerActions": false,
+    "privateOrCredentialedCalls": false,
+    "protectedManualBodyRetrieved": false,
+    "sharedDocsOrPreviousReportsEdited": false,
+    "productOrWhitelistChanges": false,
+    "commitCreated": false
+  }
+}

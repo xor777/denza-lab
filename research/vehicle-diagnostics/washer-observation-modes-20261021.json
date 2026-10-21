@@ -1,0 +1,161 @@
+{
+  "schema": "denza-lab.washer-observation-modes.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleCalls": 0,
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.asm",
+      "sha256": "de28275f912e3d2805e994946d7aeddf727c3033e34ccd938aeb9a8c672fb963"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1704ac.asm",
+      "sha256": "a193c3cd1525f45ade84c16fa80c9efb3fb4e4a639c979a6ade38d9371b4a3bd"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/AbsBYDAutoInstrumentListener.java",
+      "sha256": "e6157cd624a172810177b04a1e5b8ad6756d2521c8777df23f6e055f0b579772"
+    },
+    {
+      "path": "research/vehicle-diagnostics/washer-sensor-origin-20261021.json",
+      "sha256": "a527c6789982ee317459b52f5aea7cb05787add31ab92b243369ff2e2812b180"
+    }
+  ],
+  "checkedDisassemblyInstructions": 166,
+  "sourceOrder": {
+    "staticFieldDispatch": "17052A -> 17042C",
+    "dynamicRawMirror": "170530 -> 170B3C -> 170A12",
+    "consequence": "The dynamic raw reporting mode is not the condition for entering the earlier static warning-field decoder."
+  },
+  "rawModes": {
+    "0": "every matched frame",
+    "1": "payload change",
+    "2": "elapsed interval; otherwise cache only",
+    "3": "payload change or elapsed interval"
+  },
+  "syntheticCounterexample": {
+    "observedOnCar": false,
+    "counterUnits": "unspecified synthetic units",
+    "interval": 1000,
+    "incoming": [
+      {
+        "counter": 1000,
+        "warning": "0x13F"
+      },
+      {
+        "counter": 1250,
+        "warning": "0x1DD"
+      },
+      {
+        "counter": 1500,
+        "warning": "0x13F"
+      },
+      {
+        "counter": 2000,
+        "warning": "0x13F"
+      }
+    ],
+    "rawExports": {
+      "0": [
+        {
+          "counter": 1000,
+          "warning": "0x13F"
+        },
+        {
+          "counter": 1250,
+          "warning": "0x1DD"
+        },
+        {
+          "counter": 1500,
+          "warning": "0x13F"
+        },
+        {
+          "counter": 2000,
+          "warning": "0x13F"
+        }
+      ],
+      "1": [
+        {
+          "counter": 1000,
+          "warning": "0x13F"
+        },
+        {
+          "counter": 1250,
+          "warning": "0x1DD"
+        },
+        {
+          "counter": 1500,
+          "warning": "0x13F"
+        }
+      ],
+      "2": [
+        {
+          "counter": 1000,
+          "warning": "0x13F"
+        },
+        {
+          "counter": 2000,
+          "warning": "0x13F"
+        }
+      ],
+      "3": [
+        {
+          "counter": 1000,
+          "warning": "0x13F"
+        },
+        {
+          "counter": 1250,
+          "warning": "0x1DD"
+        },
+        {
+          "counter": 1500,
+          "warning": "0x13F"
+        }
+      ]
+    },
+    "scalarChanges": [
+      {
+        "counter": 1000,
+        "warning": "0x13F"
+      },
+      {
+        "counter": 1250,
+        "warning": "0x1DD"
+      },
+      {
+        "counter": 1500,
+        "warning": "0x13F"
+      }
+    ],
+    "sparseScalarReads": [
+      {
+        "counter": 1000,
+        "warning": "0x13F"
+      },
+      {
+        "counter": 2000,
+        "warning": "0x13F"
+      }
+    ],
+    "conclusion": "Mode2 can omit a transient1DD from raw export while the earlier static scalar changes to1DD and back. Sparse GETs can then read only13F. This is a counterexample to treating these samples as a complete history, not a claim about the real N9 event."
+  },
+  "directObservationCandidate": {
+    "device": 1007,
+    "fid": "0x26100008",
+    "sdkCallback": "onTextInfoChanged(int)",
+    "sourceBinding": "AbsBYDAutoInstrumentListener routes decimal638582792 directly to onTextInfoChanged.",
+    "limit": "Listener registration/delivery/lifecycle in a chosen app or shell collector is not live-qualified by this offline pass. No recorder was installed or started."
+  },
+  "n9Applicability": {
+    "activeRawMode": null,
+    "interval": null,
+    "installedMcuHashMatched": false,
+    "realMissed1DDProved": false,
+    "actualPhysicalCanRateKnown": false,
+    "limit": "Approximately1Hz callbacks alone cannot distinguish physical bus rate from MCU reporting policy. Mode0/1/3 would preserve the modeled payload changes under the model assumptions."
+  }
+}

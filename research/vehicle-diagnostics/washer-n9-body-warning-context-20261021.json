@@ -1,0 +1,2139 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleCalls": 0,
+  "physicalEmptyAccepted": true,
+  "scope": "Saved N9 captures only; corpus consumer is not proven loaded by the observed cluster runtime.",
+  "sources": [
+    {
+      "path": "captures/cluster-native-20261018/client-api/classes/WarnCarBody.xml",
+      "sha256": "687596f890e7de633f8f77587f82ecb4aa199c95c1040a3bd7e2754d862fee15"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "sha256": "37a912b342e557e492efca03f6d9cb62ba6c4bb37fc177cae9249b6dcee83181"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_car_body.gd",
+      "sha256": "30a37c2984b12d5c10712960bc00c20b6336c5db29838aae7315094057932ebc"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "sha256": "0f812a8be3bd1ff48945322d0e1b5993a21436d11b2a1c7577651573468f21cc"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/bigdata.log",
+      "sha256": "17b1cafae0f54a227791e4c3f3f6b96fb2ace80697b2297db6724eb4b92f8d36"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/gb.log",
+      "sha256": "b3a9bc17ea4290d5b6727dc3bbd0e382e72ef7c24eef11be674fe5e078fceef2"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/yun.log",
+      "sha256": "27a4d54b4a7db9f672e9a6c68bde747b124981772c14a3c8f4ff13cbbedd5452"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/bigdata.log",
+      "sha256": "2b1f07172197d727783517cbc5abc99b3c80702d7fff22b4d1b058e0c8788c3c"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/gb.log",
+      "sha256": "810f1e5cb8bc046181872fd4032cfd543df469cedd176f1ac55c38806b4d75e8"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/yun.log",
+      "sha256": "da135d0265bdc809a3afe0883fd205a0f908a5803c2541c47f56fe7dd1e3e52b"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/bigdata.log",
+      "sha256": "4d97713881f7a2cd1b5b767599c707515efa2e47eaf859a79736ee31b5d722e2"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/gb.log",
+      "sha256": "cb5d6823303c8cb15e0ec72196f91012a970a9af99e0acd6bbf2c124a7962a48"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/yun.log",
+      "sha256": "f8b9db6ab8660bb737f736404a2c5cbeba21d65d7848e53ee5043111cf8fbd4f"
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/fids.tsv",
+      "sha256": "7bb0966534a52224c70d3a47dd897e9df0cbf1ba7865e043a25f057f27955994"
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/raw-can.log",
+      "sha256": "2f42c0cec47c058b224ef8e752761ee485dc892bb6de0be7022046f17d96f611"
+    },
+    {
+      "path": "captures/washer-n9-20261016/full/raw-can.log",
+      "sha256": "f6231192788b61fc23173aaf9c572abfddfdc794d47827e95570c04a5a76ec4f"
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/fids.tsv",
+      "sha256": "177fc932fd9b3fff5a2d2be4d31091ce68a1eab30878e9ffb84ed1561e110f37"
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/raw-can.log",
+      "sha256": "3551e322842e4a1cf12a5fe4beab7b3827ccec9aa50df463bbbac1bac1dc165a"
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/fids.tsv",
+      "sha256": "b063692f3abb178e89cf856b82d2fa1b8b441056abebef531a4a50dc68dfe75d"
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/raw-can.log",
+      "sha256": "11d297f5ece72d90b853256b8e78f6150eb4acd1f11c06767dfcb4e676172b5d"
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-late-raw.log",
+      "sha256": "77b4129ea206011db26d6d89748d4ed6e27a062922474ebe47e184463832e2ab"
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/fids.tsv",
+      "sha256": "9e41f175a731409a26c00ab8191bb236f8a078a3e2e7304d0dc6a679a188cd4d"
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/raw-can.log",
+      "sha256": "a235c32509ddc82b180e1cb4ef80cc8f9cfe4574a0ea86e7211da31a09cfe8cc"
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-bigdata.log",
+      "sha256": "44fdefa8256721dbcd8ee0a0af0a9edc18ad2d67d8abba7e3510e2d8c471e8b8"
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-gb.log",
+      "sha256": "fed032ab4d2dba47bc335028c7e5f66fb5c46ecc3d85b0e400bae42ef69e8937"
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-ota.log",
+      "sha256": "dda4639dbb620ba08bfef5bf3c2cbc3ab068d9372f297a796a7c217d27b703b9"
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-yun.log",
+      "sha256": "684d5b403b0b6faca8d463b355d67b8fd5356e709a259f520430a6fa1421cc1f"
+    },
+    {
+      "path": "captures/washer-n9-20261016/watch-01-raw.log",
+      "sha256": "271bb31eb1d2d54a7d835783c602f0a20d15c97e7659902618b8cd99ed7c8165"
+    },
+    {
+      "path": "research/vehicle-diagnostics/washer-observation-modes-20261021.json",
+      "sha256": "d26f4cdd5fde8cde1c5f4c60ed085266c25f9d3c4e1e2d2a53132effaadaaa02"
+    },
+    {
+      "path": "tools/analyze_can_turn_capture.py",
+      "sha256": "bcb80504876c832a472a2e931b5609c2975968222852cfd7eceff53528f536bf"
+    }
+  ],
+  "descriptorTable": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "loadBase": "0x40000",
+    "va": "0xd637c",
+    "bytes": "006102e0000000001900000084f80d00",
+    "coordinateConvention": "one-based byte, LSB0 bit, little-endian contiguous extraction",
+    "descriptors": [
+      {
+        "fid": "26100000",
+        "name": "online",
+        "descriptorVa": "0xdf884",
+        "bytes": "0000000066691700503a0900",
+        "coordinates": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlerVa": "0x176966",
+        "propertyVa": "0x93a50",
+        "propertyBytes": "00001026010000006451effe",
+        "cacheVa": "0xfeef5164",
+        "size": 1
+      },
+      {
+        "fid": "26100008",
+        "name": "selected_warning",
+        "descriptorVa": "0xdf890",
+        "bytes": "010002019ca018005c3a0900",
+        "coordinates": [
+          1,
+          0,
+          2,
+          1
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a5c",
+        "propertyBytes": "08001026020000006851effe",
+        "cacheVa": "0xfeef5168",
+        "size": 2
+      },
+      {
+        "fid": "26100014",
+        "name": "door_left_front",
+        "descriptorVa": "0xdf89c",
+        "bytes": "020402049ca01800683a0900",
+        "coordinates": [
+          2,
+          4,
+          2,
+          4
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a68",
+        "propertyBytes": "14001026010000006c51effe",
+        "cacheVa": "0xfeef516c",
+        "size": 1
+      },
+      {
+        "fid": "26100015",
+        "name": "door_right_front",
+        "descriptorVa": "0xdf8a8",
+        "bytes": "020502059ca01800743a0900",
+        "coordinates": [
+          2,
+          5,
+          2,
+          5
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a74",
+        "propertyBytes": "15001026010000007051effe",
+        "cacheVa": "0xfeef5170",
+        "size": 1
+      },
+      {
+        "fid": "26100016",
+        "name": "door_left_rear",
+        "descriptorVa": "0xdf8b4",
+        "bytes": "020602069ca01800803a0900",
+        "coordinates": [
+          2,
+          6,
+          2,
+          6
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a80",
+        "propertyBytes": "16001026010000007451effe",
+        "cacheVa": "0xfeef5174",
+        "size": 1
+      },
+      {
+        "fid": "26100017",
+        "name": "door_right_rear",
+        "descriptorVa": "0xdf8c0",
+        "bytes": "020702079ca018008c3a0900",
+        "coordinates": [
+          2,
+          7,
+          2,
+          7
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a8c",
+        "propertyBytes": "17001026010000007851effe",
+        "cacheVa": "0xfeef5178",
+        "size": 1
+      },
+      {
+        "fid": "26100018",
+        "name": "trunk",
+        "descriptorVa": "0xdf8cc",
+        "bytes": "030003009ca01800983a0900",
+        "coordinates": [
+          3,
+          0,
+          3,
+          0
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93a98",
+        "propertyBytes": "18001026010000007c51effe",
+        "cacheVa": "0xfeef517c",
+        "size": 1
+      },
+      {
+        "fid": "26100019",
+        "name": "hood",
+        "descriptorVa": "0xdf8d8",
+        "bytes": "030103019ca01800a43a0900",
+        "coordinates": [
+          3,
+          1,
+          3,
+          1
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93aa4",
+        "propertyBytes": "19001026010000008051effe",
+        "cacheVa": "0xfeef5180",
+        "size": 1
+      },
+      {
+        "fid": "2610001A",
+        "name": "belt_driver",
+        "descriptorVa": "0xdf8e4",
+        "bytes": "030203029ca01800b03a0900",
+        "coordinates": [
+          3,
+          2,
+          3,
+          2
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93ab0",
+        "propertyBytes": "1a001026010000008451effe",
+        "cacheVa": "0xfeef5184",
+        "size": 1
+      },
+      {
+        "fid": "2610001B",
+        "name": "belt_passenger",
+        "descriptorVa": "0xdf8f0",
+        "bytes": "030303039ca01800bc3a0900",
+        "coordinates": [
+          3,
+          3,
+          3,
+          3
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93abc",
+        "propertyBytes": "1b001026010000008851effe",
+        "cacheVa": "0xfeef5188",
+        "size": 1
+      },
+      {
+        "fid": "2610001C",
+        "name": "belt_row2_left",
+        "descriptorVa": "0xdf8fc",
+        "bytes": "030403049ca01800c83a0900",
+        "coordinates": [
+          3,
+          4,
+          3,
+          4
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93ac8",
+        "propertyBytes": "1c001026010000008c51effe",
+        "cacheVa": "0xfeef518c",
+        "size": 1
+      },
+      {
+        "fid": "2610001D",
+        "name": "belt_row2_middle",
+        "descriptorVa": "0xdf908",
+        "bytes": "030503059ca01800d43a0900",
+        "coordinates": [
+          3,
+          5,
+          3,
+          5
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93ad4",
+        "propertyBytes": "1d001026010000009051effe",
+        "cacheVa": "0xfeef5190",
+        "size": 1
+      },
+      {
+        "fid": "2610001E",
+        "name": "belt_row2_right",
+        "descriptorVa": "0xdf914",
+        "bytes": "030603069ca01800e03a0900",
+        "coordinates": [
+          3,
+          6,
+          3,
+          6
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93ae0",
+        "propertyBytes": "1e001026010000009451effe",
+        "cacheVa": "0xfeef5194",
+        "size": 1
+      },
+      {
+        "fid": "2610001F",
+        "name": "power_generation",
+        "descriptorVa": "0xdf920",
+        "bytes": "030704039ca01800ec3a0900",
+        "coordinates": [
+          3,
+          7,
+          4,
+          3
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93aec",
+        "propertyBytes": "1f001026010000009851effe",
+        "cacheVa": "0xfeef5198",
+        "size": 1
+      },
+      {
+        "fid": "26100026",
+        "name": "energy_feedback",
+        "descriptorVa": "0xdf92c",
+        "bytes": "040604079ca01800f83a0900",
+        "coordinates": [
+          4,
+          6,
+          4,
+          7
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93af8",
+        "propertyBytes": "26001026010000009c51effe",
+        "cacheVa": "0xfeef519c",
+        "size": 1
+      },
+      {
+        "fid": "26100028",
+        "name": "text_color",
+        "descriptorVa": "0xdf938",
+        "bytes": "050005029ca01800043b0900",
+        "coordinates": [
+          5,
+          0,
+          5,
+          2
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b04",
+        "propertyBytes": "2800102601000000a051effe",
+        "cacheVa": "0xfeef51a0",
+        "size": 1
+      },
+      {
+        "fid": "2610002B",
+        "name": "tja_standby_light",
+        "descriptorVa": "0xdf944",
+        "bytes": "050305059ca01800103b0900",
+        "coordinates": [
+          5,
+          3,
+          5,
+          5
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b10",
+        "propertyBytes": "2b00102601000000a451effe",
+        "cacheVa": "0xfeef51a4",
+        "size": 1
+      },
+      {
+        "fid": "2610002E",
+        "name": "light_color",
+        "descriptorVa": "0xdf950",
+        "bytes": "050606009ca018001c3b0900",
+        "coordinates": [
+          5,
+          6,
+          6,
+          0
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b1c",
+        "propertyBytes": "2e00102601000000a851effe",
+        "cacheVa": "0xfeef51a8",
+        "size": 1
+      },
+      {
+        "fid": "26100031",
+        "name": "belt_row3_left",
+        "descriptorVa": "0xdf95c",
+        "bytes": "060106019ca01800283b0900",
+        "coordinates": [
+          6,
+          1,
+          6,
+          1
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b28",
+        "propertyBytes": "3100102601000000ac51effe",
+        "cacheVa": "0xfeef51ac",
+        "size": 1
+      },
+      {
+        "fid": "26100032",
+        "name": "belt_row3_middle",
+        "descriptorVa": "0xdf968",
+        "bytes": "060206029ca01800343b0900",
+        "coordinates": [
+          6,
+          2,
+          6,
+          2
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b34",
+        "propertyBytes": "3200102601000000b051effe",
+        "cacheVa": "0xfeef51b0",
+        "size": 1
+      },
+      {
+        "fid": "26100033",
+        "name": "belt_row3_right",
+        "descriptorVa": "0xdf974",
+        "bytes": "060306039ca01800403b0900",
+        "coordinates": [
+          6,
+          3,
+          6,
+          3
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b40",
+        "propertyBytes": "3300102601000000b451effe",
+        "cacheVa": "0xfeef51b4",
+        "size": 1
+      },
+      {
+        "fid": "26100035",
+        "name": "voice_frequency",
+        "descriptorVa": "0xdf980",
+        "bytes": "060506075ec818004c3b0900",
+        "coordinates": [
+          6,
+          5,
+          6,
+          7
+        ],
+        "handlerVa": "0x18c85e",
+        "propertyVa": "0x93b4c",
+        "propertyBytes": "3500102601000000b851effe",
+        "cacheVa": "0xfeef51b8",
+        "size": 1
+      },
+      {
+        "fid": "26100038",
+        "name": "voice_type",
+        "descriptorVa": "0xdf98c",
+        "bytes": "0700070392c71800583b0900",
+        "coordinates": [
+          7,
+          0,
+          7,
+          3
+        ],
+        "handlerVa": "0x18c792",
+        "propertyVa": "0x93b58",
+        "propertyBytes": "3800102601000000bc51effe",
+        "cacheVa": "0xfeef51bc",
+        "size": 1
+      },
+      {
+        "fid": "2610003C",
+        "name": "unnamed_3c",
+        "descriptorVa": "0xdf998",
+        "bytes": "070407079ca01800643b0900",
+        "coordinates": [
+          7,
+          4,
+          7,
+          7
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b64",
+        "propertyBytes": "3c00102601000000c051effe",
+        "cacheVa": "0xfeef51c0",
+        "size": 1
+      },
+      {
+        "fid": "26100040",
+        "name": "unnamed_40",
+        "descriptorVa": "0xdf9a4",
+        "bytes": "080008079ca01800703b0900",
+        "coordinates": [
+          8,
+          0,
+          8,
+          7
+        ],
+        "handlerVa": "0x18a09c",
+        "propertyVa": "0x93b70",
+        "propertyBytes": "4000102601000000c451effe",
+        "cacheVa": "0xfeef51c4",
+        "size": 1
+      }
+    ]
+  },
+  "nativeByteAnchors": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183680",
+      "bytes": "ff0305d1fd7b12a9fc9b00f9fd830491a94300d1e93b00f9680d0090088146f9e83f00f96a0d00904a7546f9ea4300f9200500f92a0540f9ea3700f93f0100f9000140f9a1648052ba880694e93b40f9e83f40f9200100f9bf831ef8000140f9c1648052b3880694e83f40f9a0831ef8bf031ef8000140f9e1648052ad880694e83f40f9a0031ef8bf831df8000140f901658052a7880694e83f40f9a0831df8bf031df8000140f921658052a1880694e83f40f9a0031df8bf831cf8000140f9416580529b880694e83f40f9a0831cf8bf031cf8000140f96165805295880694e83f40f9a0031cf8bf831bf8000140f9816580528f880694e83f40f9a0831bf8bf031bf8000140f9a165805289880694e83f40f9a0031bf8bf831af8000140f9c165805283880694e83f40f9a0831af8bf031af8000140f9e16580527d880694e83f40f9a0031af8bf8319f8000140f90166805277880694e83f40f9a08319f8bf0319f8000140f92166805271880694e83f40f9a00319f8bf8318f8000140f9416680526b880694e83f40f9a08318f8bf0318f8000140f96166805265880694e84340f9a00318f8bfe31778000140f90101805201c2a47262820694e84340f9a0e31778bfd31738000140f94103805201c2a4723b820694e84340f9a0d31738bfc31738000140f96103805201c2a47234820694e84340f9a0c31738bfb31738000140f98103805201c2a4722d820694e84340f9a0b31738bfa31738000140f9a103805201c2a47226820694e84340f9a0a31738bf931738000140f9c103805201c2a4721f820694e84340f9a0931738bf831738000140f92106805201c2a47218820694e84340f9a0831738bf731738000140f94106805201c2a47211820694e84340f9a0731738bf631738000140f96106805201c2a4720a820694e84340f9a0631738bf531738000140f98106805201c2a47203820694e84340f9a0531738bf431738000140f98102805201c2a472fc810694e84340f9a0431738bf331738000140f9a102805201c2a472f5810694e84340f9a0331738bf231738000140f9c102805201c2a472ee810694e84340f9a0231738bf131738000140f9e102805201c2a472e7810694e84340f9a0131738ff430239000140f90103805201c2a472e0810694e84340f9e0430239ff3f0239000140f92103805201c2a472d9810694e84340f9e03f0239ff3b0239000140f901c2a452d3810694e84340f9e03b0239ff370239000140f90105805201dea472cc810694e84340f9e0370239ff330239000140f901dea452c6810694e0330239ff2f0239ff2f0239e8334239080500712102005401000014e8374239080d0071a101005401000014a8e3577808fd04712101005401000014e83b423908050071a10000540100001428008052e82f023903000014ff2f023901000014a8835af8e83300f9e93b4239280080520801096ba100005401000014a8435738e85f00b904000014e8031f2ae85f00b901000014e03340f9e15f40b9e8031f2a02010012bc870694a8035af8e82b00f9e93b4239280080520801096ba100005401000014a8335738e84f00b904000014e8031f2ae84f00b901000014e02b40f9e14f40b9e8031f2a02010012aa870694a88359f8e82300f9e93b4239280080520801096ba100005401000014a8235738e83f00b904000014e8031f2ae83f00b901000014e02340f9e13f40b9e8031f2a0201001298870694a80359f8e81b00f9e93b4239280080520801096ba100005401000014a8135738e82f00b904000014e8031f2ae82f00b901000014e01b40f9e12f40b9e8031f2a0201001286870694a88358f8e81300f9e93b4239280080520801096ba100005401000014e8434239e81f00b904000014e8031f2ae81f00b901000014e01340f9e11f40b9e8031f2a0201001274870694a80358f8e80b00f9e93b4239280080520801096ba100005401000014e83f4239e80f00b904000014e8031f2ae80f00b901000014e00b40f9e10f40b9e8031f2a0201001262870694e83b40f9e03740f9010140f9a2d35738758a0694e03740f9a1835ef8a2c35738718a0694e03740f9a1835df8a2b357386d8a0694e03740f9a1035df8a2a35738698a0694e03740f9a1835cf8a2935738658a0694e03740f9a1035cf8a2835738618a0694e03740f9a1835bf8a27357385d8a0694e03740f9a1035bf8a2635738598a0694e03740f9a1035ef8a2535738558a0694e82f423900010012fc9b40f9fd7b52a9ff030591c0035fd6",
+      "label": "body reads, 13F display gate, direct opening publication, nine belt helper calls"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x185c60",
+      "bytes": "ffc300d1fd7b02a9fd830091a0831ff8e10b00f9e23f0039ff3b0039480d00d0087546f9e80300f9000140f941058052015aa2722b790694e80340f9e03b0039ff370039000140f901c2a45225790694e0370039e93b4039680080520801096b0102005401000014e9374039280080520801096b6101005401000014e83f40390801003501000014e00b40f921008052e8031f2a02010012327f069407000014e00b40f9e1031f2ae8031f2a020100122c7f069401000014fd7b42a9ffc30091c0035fd6",
+      "label": "raw belt 0 maps item1 only when raw power3 and online1; otherwise item0"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445958",
+      "bytes": "680e43f85f000071e9179f1a093900b9",
+      "label": "row2 left client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4459a4",
+      "bytes": "680e43f85f000071e9179f1a093d00b9",
+      "label": "row2 middle client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4459f0",
+      "bytes": "680e43f85f000071e9179f1a094900b9",
+      "label": "row3 middle client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445e4c",
+      "bytes": "680e43f85f000071e9179f1a093100b9",
+      "label": "driver client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445e98",
+      "bytes": "680e43f85f000071e9179f1a093500b9",
+      "label": "passenger client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445ee4",
+      "bytes": "680e43f85f000071e9179f1a094100b9",
+      "label": "row2 right client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445f30",
+      "bytes": "680e43f85f000071e9179f1a094500b9",
+      "label": "row3 left client inversion"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445f7c",
+      "bytes": "680e43f85f000071e9179f1a094d00b9",
+      "label": "row3 right client inversion"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xe0c50",
+      "bytes": "290040b9a8e384123f090071e033881ac0035fd6",
+      "label": "binary0/1 validation converter, no input mutation"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x176966",
+      "bytes": "501a63ff0d0063e7090063ef050006e807e03df7090004f5000d610ac105820d620a8a2d3d370900013abfff88a38407090c3565e00992153d0f09008407093435652906ec691700203e8813630f01000042beff509be50d3d4f09002806ec69170020368813003abeff029a84070f543565005223ff0d0023ef050023e70900031e10007f00",
+      "label": "online arrival sets1 and rearms5000ms timeout"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x1769ec",
+      "bytes": "501a63ff0d0063df090063e7050063ef010006d807e01ce88407090c3565e009920d840709343565beff009c84070f0435653df70900000d610a9a0d1d30003abfffeca2e051b205beff586323ff0d0023ef010023e7050023df0900031e10007f00",
+      "label": "online timeout sets0"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x196f94",
+      "bytes": "06080710e009ba050052a50d21f70900009de299c20501150152a50500527f00",
+      "label": "scalar compare-and-write cache returns changed flag"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x18c792",
+      "bytes": "031ee8ff63ff150063e7090063ef050063d7110063df0d0006e807e09d0f0100e009ba15a407950e2962810ae90d2606e3340d0027060e3a0d002046440729061f350d00bcffe0b300009d3f01009d4f0300bd0f0300bd4701005f3a5f4a1c36050087008900630f0100bbff94d60ad8b9ff167d0ad01d301c38bfff90d8e051fa05bfffdcd5e051ba0561d2aa151b30b9ff787e1b382606253b0d00bcff60b261d2ca050032b9ffd67c0032bfffbad5005223ff150023ef050023e7090023df0d0023d71100031e18007f00",
+      "label": "voice type calls generic18A09C at18C80C"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x18c85e",
+      "bytes": "031eecff63ff110063df0d0063ef050063e7090006e807d81d301b38bfff22d8e051b265",
+      "label": "voice frequency calls generic18A09C at18C87A"
+    }
+  ],
+  "lineAnchors": [
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_car_body.gd",
+      "line": 81,
+      "text": "    168 : [ Vector2 ( 120.37 + 3 , 135.41 - 5 ) , Vector2 ( 167.01 - 2 , 135.41 - 5 ) , Vector2 ( 120.37 + 3 , 185.06 - 3 ) , Vector2 ( 0 , 0 ) , Vector2 ( 167.01 - 2 , 185.06 - 3 ) , Vector2 ( 120.37 + 10 , 225.69 + 3 ) , Vector2 ( 0 , 0 ) , Vector2 ( 167.01 - 8 , 225.69 + 3 ) ] ,"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_car_body.gd",
+      "line": 224,
+      "text": "func _car_cap_state ( cap : TextureRect , state : int , res : Resource ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_car_body.gd",
+      "line": 241,
+      "text": "func _car_belt_state ( belt : TextureRect , state : int ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_car_body.gd",
+      "line": 253,
+      "text": "func _carbody_state_handle ( data : PopupData . PopupCompData ) -> void :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "line": 2529,
+      "text": "    WARN_ID_CAR_BODY_DOOR_SAFETY_BELT = 319 ,"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "line": 1363,
+      "text": "            \"id\": \"13F\","
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "line": 807,
+      "text": "805\t0x35c220\t805\t0x325\tDATA_ITEM_ID_MAIN_BELT\tmainBelt\tDATA_ITEM_TYPE_INTEGER\t0000000000000000\t0"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "line": 816,
+      "text": "814\t0x35c3d0\t814\t0x32e\tDATA_ITEM_ID_LEFT_FRONT_DOOR\tleftFrontDoor\tDATA_ITEM_TYPE_INTEGER\t0000000000000000\t0"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "line": 821,
+      "text": "819\t0x35c4c0\t819\t0x333\tDATA_ITEM_ID_FRONT_HATCH_DOOR\tfrontHatchDoor\tDATA_ITEM_TYPE_INTEGER\t0000000000000000\t0"
+    }
+  ],
+  "scalarOpeningRegistrations": [
+    {
+      "init": "0x128d40",
+      "fid": 638582804,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128d68",
+      "kind": "get"
+    },
+    {
+      "init": "0x128d7c",
+      "fid": 638582805,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128da4",
+      "kind": "get"
+    },
+    {
+      "init": "0x128db8",
+      "fid": 638582806,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128de0",
+      "kind": "get"
+    },
+    {
+      "init": "0x128df4",
+      "fid": 638582807,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128e1c",
+      "kind": "get"
+    },
+    {
+      "init": "0x128e30",
+      "fid": 638582808,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128e58",
+      "kind": "get"
+    },
+    {
+      "init": "0x128e6c",
+      "fid": 638582809,
+      "storage_type": 0,
+      "converter": 920656,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128e94",
+      "kind": "get"
+    }
+  ],
+  "streamCoverage": [
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/bigdata.log",
+      "stream": "bigdata",
+      "received": 29717,
+      "warningFrames": 0,
+      "done": {
+        "received": 29717,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/gb.log",
+      "stream": "gb",
+      "received": 16631,
+      "warningFrames": 179,
+      "done": {
+        "received": 16631,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/yun.log",
+      "stream": "yun",
+      "received": 21948,
+      "warningFrames": 0,
+      "done": {
+        "received": 21948,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/bigdata.log",
+      "stream": "bigdata",
+      "received": 29533,
+      "warningFrames": 0,
+      "done": {
+        "received": 29533,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/gb.log",
+      "stream": "gb",
+      "received": 16517,
+      "warningFrames": 179,
+      "done": {
+        "received": 16517,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/yun.log",
+      "stream": "yun",
+      "received": 22382,
+      "warningFrames": 0,
+      "done": {
+        "received": 22382,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/bigdata.log",
+      "stream": "bigdata",
+      "received": 29082,
+      "warningFrames": 0,
+      "done": {
+        "received": 29082,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/gb.log",
+      "stream": "gb",
+      "received": 15760,
+      "warningFrames": 179,
+      "done": {
+        "received": 15760,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/yun.log",
+      "stream": "yun",
+      "received": 21771,
+      "warningFrames": 0,
+      "done": {
+        "received": 21771,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/raw-can.log",
+      "stream": "bigdata",
+      "received": 29817,
+      "warningFrames": 0,
+      "done": {
+        "received": 29817,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/full/raw-can.log",
+      "stream": "bigdata",
+      "received": 29680,
+      "warningFrames": 0,
+      "done": {
+        "received": 29680,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/raw-can.log",
+      "stream": "bigdata",
+      "received": 29362,
+      "warningFrames": 0,
+      "done": {
+        "received": 29362,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/raw-can.log",
+      "stream": "bigdata",
+      "received": 29600,
+      "warningFrames": 0,
+      "done": {
+        "received": 29600,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/raw-can.log",
+      "stream": "bigdata",
+      "received": 29208,
+      "warningFrames": 0,
+      "done": {
+        "received": 29208,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-late-raw.log",
+      "stream": "bigdata",
+      "received": 9823,
+      "warningFrames": 0,
+      "done": {
+        "received": 9823,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-bigdata.log",
+      "stream": "bigdata",
+      "received": 3294,
+      "warningFrames": 0,
+      "done": {
+        "received": 3294,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-gb.log",
+      "stream": "gb",
+      "received": 1881,
+      "warningFrames": 20,
+      "done": {
+        "received": 1881,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-ota.log",
+      "stream": "ota",
+      "received": 0,
+      "warningFrames": 0,
+      "done": {
+        "received": 0,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-yun.log",
+      "stream": "yun",
+      "received": 2485,
+      "warningFrames": 0,
+      "done": {
+        "received": 2485,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    },
+    {
+      "path": "captures/washer-n9-20261016/watch-01-raw.log",
+      "stream": "bigdata",
+      "received": 28896,
+      "warningFrames": 0,
+      "done": {
+        "received": 28896,
+        "dropped": 0,
+        "errors": 0,
+        "queued": 0
+      }
+    }
+  ],
+  "rawWindows": [
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/gb.log",
+      "count": 179,
+      "firstLine": 48,
+      "lastLine": 16615,
+      "fieldHistograms": {
+        "selected_warning": {
+          "319": 179
+        },
+        "door_left_front": {
+          "0": 179
+        },
+        "door_right_front": {
+          "0": 179
+        },
+        "door_left_rear": {
+          "0": 179
+        },
+        "door_right_rear": {
+          "0": 179
+        },
+        "trunk": {
+          "0": 179
+        },
+        "hood": {
+          "1": 179
+        },
+        "belt_driver": {
+          "1": 179
+        },
+        "belt_passenger": {
+          "1": 179
+        },
+        "belt_row2_left": {
+          "1": 179
+        },
+        "belt_row2_middle": {
+          "1": 179
+        },
+        "belt_row2_right": {
+          "1": 179
+        },
+        "power_generation": {
+          "0": 179
+        },
+        "energy_feedback": {
+          "0": 179
+        },
+        "text_color": {
+          "0": 179
+        },
+        "tja_standby_light": {
+          "1": 179
+        },
+        "light_color": {
+          "1": 179
+        },
+        "belt_row3_left": {
+          "1": 179
+        },
+        "belt_row3_middle": {
+          "1": 179
+        },
+        "belt_row3_right": {
+          "1": 179
+        },
+        "voice_frequency": {
+          "0": 179
+        },
+        "voice_type": {
+          "0": 179
+        },
+        "unnamed_3c": {
+          "0": 12,
+          "1": 10,
+          "10": 16,
+          "11": 8,
+          "12": 13,
+          "13": 7,
+          "14": 17,
+          "15": 7,
+          "2": 16,
+          "3": 6,
+          "4": 13,
+          "5": 10,
+          "6": 15,
+          "7": 7,
+          "8": 13,
+          "9": 9
+        },
+        "unnamed_40": {
+          "111": 6,
+          "127": 16,
+          "143": 10,
+          "15": 9,
+          "159": 12,
+          "175": 7,
+          "191": 17,
+          "207": 7,
+          "223": 13,
+          "239": 8,
+          "255": 16,
+          "31": 13,
+          "47": 7,
+          "63": 15,
+          "79": 10,
+          "95": 13
+        }
+      },
+      "openingCombinations": {
+        "hood": 179
+      },
+      "noSupportedOpeningFrames": 0,
+      "allEightRawBeltsOneFrames": 179,
+      "payloads": {
+        "3f0d7e30481e009f": 12,
+        "3f0d7e30481e108f": 10,
+        "3f0d7e30481e207f": 16,
+        "3f0d7e30481e306f": 6,
+        "3f0d7e30481e405f": 13,
+        "3f0d7e30481e504f": 10,
+        "3f0d7e30481e603f": 15,
+        "3f0d7e30481e702f": 7,
+        "3f0d7e30481e801f": 13,
+        "3f0d7e30481e900f": 9,
+        "3f0d7e30481ea0ff": 16,
+        "3f0d7e30481eb0ef": 8,
+        "3f0d7e30481ec0df": 13,
+        "3f0d7e30481ed0cf": 7,
+        "3f0d7e30481ee0bf": 17,
+        "3f0d7e30481ef0af": 7
+      },
+      "byteSumModulo256": {
+        "255": 179
+      },
+      "consecutivePayloadChanges": 178,
+      "hostDeliveryIntervalsSeconds": {
+        "min": 0.991237154,
+        "median": 1.000504116,
+        "max": 1.053937461
+      },
+      "envelopeCounterIntervalsMs": {
+        "min": 999.0,
+        "median": 1000.0,
+        "max": 1050.0
+      },
+      "openingTransitions": [
+        {
+          "selectedFrameIndex": 0,
+          "sourceLine": 48,
+          "sequence": 46,
+          "timeNs": 33907648420709,
+          "afterFirstSeconds": 0.0,
+          "payload": "3f0d7e30481ee0bf",
+          "openings": {
+            "door_left_front": 0,
+            "door_right_front": 0,
+            "door_left_rear": 0,
+            "door_right_rear": 0,
+            "trunk": 0,
+            "hood": 1
+          }
+        }
+      ]
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/gb.log",
+      "count": 179,
+      "firstLine": 35,
+      "lastLine": 16501,
+      "fieldHistograms": {
+        "selected_warning": {
+          "319": 179
+        },
+        "door_left_front": {
+          "1": 179
+        },
+        "door_right_front": {
+          "0": 179
+        },
+        "door_left_rear": {
+          "1": 179
+        },
+        "door_right_rear": {
+          "0": 179
+        },
+        "trunk": {
+          "0": 179
+        },
+        "hood": {
+          "1": 179
+        },
+        "belt_driver": {
+          "1": 179
+        },
+        "belt_passenger": {
+          "1": 179
+        },
+        "belt_row2_left": {
+          "1": 179
+        },
+        "belt_row2_middle": {
+          "1": 179
+        },
+        "belt_row2_right": {
+          "1": 179
+        },
+        "power_generation": {
+          "0": 179
+        },
+        "energy_feedback": {
+          "0": 179
+        },
+        "text_color": {
+          "0": 179
+        },
+        "tja_standby_light": {
+          "1": 179
+        },
+        "light_color": {
+          "1": 179
+        },
+        "belt_row3_left": {
+          "1": 179
+        },
+        "belt_row3_middle": {
+          "1": 179
+        },
+        "belt_row3_right": {
+          "1": 179
+        },
+        "voice_frequency": {
+          "0": 179
+        },
+        "voice_type": {
+          "0": 179
+        },
+        "unnamed_3c": {
+          "0": 9,
+          "1": 9,
+          "10": 20,
+          "11": 7,
+          "12": 9,
+          "13": 8,
+          "14": 21,
+          "15": 7,
+          "2": 19,
+          "3": 10,
+          "4": 9,
+          "5": 7,
+          "6": 20,
+          "7": 5,
+          "8": 13,
+          "9": 6
+        },
+        "unnamed_40": {
+          "111": 21,
+          "127": 8,
+          "143": 9,
+          "15": 9,
+          "159": 7,
+          "175": 20,
+          "191": 6,
+          "207": 13,
+          "223": 5,
+          "239": 20,
+          "255": 7,
+          "31": 10,
+          "47": 19,
+          "63": 9,
+          "79": 9,
+          "95": 7
+        }
+      },
+      "openingCombinations": {
+        "door_left_front,door_left_rear,hood": 179
+      },
+      "noSupportedOpeningFrames": 0,
+      "allEightRawBeltsOneFrames": 179,
+      "payloads": {
+        "3f5d7e30481e004f": 9,
+        "3f5d7e30481e103f": 9,
+        "3f5d7e30481e202f": 19,
+        "3f5d7e30481e301f": 10,
+        "3f5d7e30481e400f": 9,
+        "3f5d7e30481e50ff": 7,
+        "3f5d7e30481e60ef": 20,
+        "3f5d7e30481e70df": 5,
+        "3f5d7e30481e80cf": 13,
+        "3f5d7e30481e90bf": 6,
+        "3f5d7e30481ea0af": 20,
+        "3f5d7e30481eb09f": 7,
+        "3f5d7e30481ec08f": 9,
+        "3f5d7e30481ed07f": 8,
+        "3f5d7e30481ee06f": 21,
+        "3f5d7e30481ef05f": 7
+      },
+      "byteSumModulo256": {
+        "255": 179
+      },
+      "consecutivePayloadChanges": 178,
+      "hostDeliveryIntervalsSeconds": {
+        "min": 0.994239077,
+        "median": 1.0008904615,
+        "max": 1.055764538
+      },
+      "envelopeCounterIntervalsMs": {
+        "min": 999.0,
+        "median": 1000.0,
+        "max": 1055.0
+      },
+      "openingTransitions": [
+        {
+          "selectedFrameIndex": 0,
+          "sourceLine": 35,
+          "sequence": 33,
+          "timeNs": 32614767162170,
+          "afterFirstSeconds": 0.0,
+          "payload": "3f5d7e30481ee06f",
+          "openings": {
+            "door_left_front": 1,
+            "door_right_front": 0,
+            "door_left_rear": 1,
+            "door_right_rear": 0,
+            "trunk": 0,
+            "hood": 1
+          }
+        }
+      ]
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/gb.log",
+      "count": 179,
+      "firstLine": 78,
+      "lastLine": 15715,
+      "fieldHistograms": {
+        "selected_warning": {
+          "319": 179
+        },
+        "door_left_front": {
+          "0": 116,
+          "1": 63
+        },
+        "door_right_front": {
+          "0": 179
+        },
+        "door_left_rear": {
+          "0": 179
+        },
+        "door_right_rear": {
+          "1": 179
+        },
+        "trunk": {
+          "0": 179
+        },
+        "hood": {
+          "1": 179
+        },
+        "belt_driver": {
+          "1": 179
+        },
+        "belt_passenger": {
+          "1": 179
+        },
+        "belt_row2_left": {
+          "1": 179
+        },
+        "belt_row2_middle": {
+          "1": 179
+        },
+        "belt_row2_right": {
+          "1": 179
+        },
+        "power_generation": {
+          "0": 179
+        },
+        "energy_feedback": {
+          "0": 179
+        },
+        "text_color": {
+          "0": 179
+        },
+        "tja_standby_light": {
+          "1": 179
+        },
+        "light_color": {
+          "1": 179
+        },
+        "belt_row3_left": {
+          "1": 179
+        },
+        "belt_row3_middle": {
+          "1": 179
+        },
+        "belt_row3_right": {
+          "1": 179
+        },
+        "voice_frequency": {
+          "0": 179
+        },
+        "voice_type": {
+          "0": 179
+        },
+        "unnamed_3c": {
+          "0": 9,
+          "1": 26,
+          "10": 4,
+          "11": 6,
+          "12": 8,
+          "13": 26,
+          "14": 6,
+          "15": 5,
+          "2": 6,
+          "3": 4,
+          "4": 9,
+          "5": 25,
+          "6": 4,
+          "7": 6,
+          "8": 10,
+          "9": 25
+        },
+        "unnamed_40": {
+          "111": 3,
+          "127": 10,
+          "143": 26,
+          "15": 27,
+          "159": 6,
+          "175": 3,
+          "191": 10,
+          "207": 26,
+          "223": 4,
+          "239": 3,
+          "255": 11,
+          "31": 4,
+          "47": 4,
+          "63": 11,
+          "79": 26,
+          "95": 5
+        }
+      },
+      "openingCombinations": {
+        "door_left_front,door_right_rear,hood": 63,
+        "door_right_rear,hood": 116
+      },
+      "noSupportedOpeningFrames": 0,
+      "allEightRawBeltsOneFrames": 179,
+      "payloads": {
+        "3f8d7e30481e001f": 2,
+        "3f8d7e30481e100f": 20,
+        "3f8d7e30481e20ff": 5,
+        "3f8d7e30481e30ef": 2,
+        "3f8d7e30481e40df": 2,
+        "3f8d7e30481e50cf": 19,
+        "3f8d7e30481e60bf": 4,
+        "3f8d7e30481e70af": 3,
+        "3f8d7e30481e809f": 3,
+        "3f8d7e30481e908f": 19,
+        "3f8d7e30481ea07f": 4,
+        "3f8d7e30481eb06f": 3,
+        "3f8d7e30481ec05f": 2,
+        "3f8d7e30481ed04f": 20,
+        "3f8d7e30481ee03f": 5,
+        "3f8d7e30481ef02f": 3,
+        "3f9d7e30481e000f": 7,
+        "3f9d7e30481e10ff": 6,
+        "3f9d7e30481e20ef": 1,
+        "3f9d7e30481e30df": 2,
+        "3f9d7e30481e40cf": 7,
+        "3f9d7e30481e50bf": 6,
+        "3f9d7e30481e709f": 3,
+        "3f9d7e30481e808f": 7,
+        "3f9d7e30481e907f": 6,
+        "3f9d7e30481eb05f": 3,
+        "3f9d7e30481ec04f": 6,
+        "3f9d7e30481ed03f": 6,
+        "3f9d7e30481ee02f": 1,
+        "3f9d7e30481ef01f": 2
+      },
+      "byteSumModulo256": {
+        "255": 179
+      },
+      "consecutivePayloadChanges": 178,
+      "hostDeliveryIntervalsSeconds": {
+        "min": 0.991259385,
+        "median": 1.0002912305,
+        "max": 1.052284846
+      },
+      "envelopeCounterIntervalsMs": {
+        "min": 999.0,
+        "median": 1000.0,
+        "max": 1051.0
+      },
+      "openingTransitions": [
+        {
+          "selectedFrameIndex": 0,
+          "sourceLine": 78,
+          "sequence": 76,
+          "timeNs": 34984448684773,
+          "afterFirstSeconds": 0.0,
+          "payload": "3f8d7e30481ed04f",
+          "openings": {
+            "door_left_front": 0,
+            "door_right_front": 0,
+            "door_left_rear": 0,
+            "door_right_rear": 1,
+            "trunk": 0,
+            "hood": 1
+          }
+        },
+        {
+          "selectedFrameIndex": 116,
+          "sourceLine": 10235,
+          "sequence": 10233,
+          "timeNs": 35100854486934,
+          "afterFirstSeconds": 116.405802161,
+          "payload": "3f9d7e30481e50bf",
+          "openings": {
+            "door_left_front": 1,
+            "door_right_front": 0,
+            "door_left_rear": 0,
+            "door_right_rear": 1,
+            "trunk": 0,
+            "hood": 1
+          }
+        }
+      ]
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-gb.log",
+      "count": 20,
+      "firstLine": 37,
+      "lastLine": 1828,
+      "fieldHistograms": {
+        "selected_warning": {
+          "319": 20
+        },
+        "door_left_front": {
+          "0": 20
+        },
+        "door_right_front": {
+          "0": 20
+        },
+        "door_left_rear": {
+          "0": 20
+        },
+        "door_right_rear": {
+          "0": 20
+        },
+        "trunk": {
+          "0": 20
+        },
+        "hood": {
+          "1": 20
+        },
+        "belt_driver": {
+          "1": 20
+        },
+        "belt_passenger": {
+          "1": 20
+        },
+        "belt_row2_left": {
+          "1": 20
+        },
+        "belt_row2_middle": {
+          "1": 20
+        },
+        "belt_row2_right": {
+          "1": 20
+        },
+        "power_generation": {
+          "0": 20
+        },
+        "energy_feedback": {
+          "0": 20
+        },
+        "text_color": {
+          "0": 20
+        },
+        "tja_standby_light": {
+          "1": 20
+        },
+        "light_color": {
+          "1": 20
+        },
+        "belt_row3_left": {
+          "1": 20
+        },
+        "belt_row3_middle": {
+          "1": 20
+        },
+        "belt_row3_right": {
+          "1": 20
+        },
+        "voice_frequency": {
+          "0": 20
+        },
+        "voice_type": {
+          "0": 20
+        },
+        "unnamed_3c": {
+          "0": 5,
+          "12": 5,
+          "4": 5,
+          "8": 5
+        },
+        "unnamed_40": {
+          "159": 5,
+          "223": 5,
+          "31": 5,
+          "95": 5
+        }
+      },
+      "openingCombinations": {
+        "hood": 20
+      },
+      "noSupportedOpeningFrames": 0,
+      "allEightRawBeltsOneFrames": 20,
+      "payloads": {
+        "3f0d7e30481e009f": 5,
+        "3f0d7e30481e405f": 5,
+        "3f0d7e30481e801f": 5,
+        "3f0d7e30481ec0df": 5
+      },
+      "byteSumModulo256": {
+        "255": 20
+      },
+      "consecutivePayloadChanges": 19,
+      "hostDeliveryIntervalsSeconds": {
+        "min": 0.996535308,
+        "median": 1.000394693,
+        "max": 1.003011154
+      },
+      "envelopeCounterIntervalsMs": {
+        "min": 1000.0,
+        "median": 1000.0,
+        "max": 1000.0
+      },
+      "openingTransitions": [
+        {
+          "selectedFrameIndex": 0,
+          "sourceLine": 37,
+          "sequence": 35,
+          "timeNs": 31744635043119,
+          "afterFirstSeconds": 0.0,
+          "payload": "3f0d7e30481e405f",
+          "openings": {
+            "door_left_front": 0,
+            "door_right_front": 0,
+            "door_left_rear": 0,
+            "door_right_rear": 0,
+            "trunk": 0,
+            "hood": 1
+          }
+        }
+      ]
+    }
+  ],
+  "scalarSnapshots": [
+    {
+      "phase": "liquid-present",
+      "passNumber": 1,
+      "path": "captures/washer-n9-20261016/liquid-present/fids.tsv",
+      "reads": [
+        {
+          "line": 13191,
+          "timeNs": 23402219061929,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 13193,
+          "timeNs": 23402240756160,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13194,
+          "timeNs": 23402251225390,
+          "fid": "0x26100015",
+          "value": "0x00000001"
+        },
+        {
+          "line": 13195,
+          "timeNs": 23402262098314,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13196,
+          "timeNs": 23402272840775,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13197,
+          "timeNs": 23402283402006,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13198,
+          "timeNs": 23402294173929,
+          "fid": "0x26100019",
+          "value": "0x00000000"
+        }
+      ],
+      "openElements": [
+        "door_right_front"
+      ],
+      "readSpanSeconds": 0.075112
+    },
+    {
+      "phase": "liquid-present",
+      "passNumber": 2,
+      "path": "captures/washer-n9-20261016/liquid-present/fids.tsv",
+      "reads": [
+        {
+          "line": 23195,
+          "timeNs": 23509801714551,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 23197,
+          "timeNs": 23509822701397,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23198,
+          "timeNs": 23509833301012,
+          "fid": "0x26100015",
+          "value": "0x00000001"
+        },
+        {
+          "line": 23199,
+          "timeNs": 23509844546551,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23200,
+          "timeNs": 23509855419243,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23201,
+          "timeNs": 23509866668166,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23202,
+          "timeNs": 23509878184089,
+          "fid": "0x26100019",
+          "value": "0x00000000"
+        }
+      ],
+      "openElements": [
+        "door_right_front"
+      ],
+      "readSpanSeconds": 0.076469538
+    },
+    {
+      "phase": "empty",
+      "passNumber": 1,
+      "path": "captures/washer-n9-20261016/empty/fids.tsv",
+      "reads": [
+        {
+          "line": 13191,
+          "timeNs": 24681857908159,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 13193,
+          "timeNs": 24681881439851,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13194,
+          "timeNs": 24681893242698,
+          "fid": "0x26100015",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13195,
+          "timeNs": 24681904230621,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13196,
+          "timeNs": 24681914729467,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13197,
+          "timeNs": 24681925178621,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13198,
+          "timeNs": 24681935605159,
+          "fid": "0x26100019",
+          "value": "0x00000001"
+        }
+      ],
+      "openElements": [
+        "hood"
+      ],
+      "readSpanSeconds": 0.077697
+    },
+    {
+      "phase": "empty",
+      "passNumber": 2,
+      "path": "captures/washer-n9-20261016/empty/fids.tsv",
+      "reads": [
+        {
+          "line": 23195,
+          "timeNs": 24790821303012,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 23197,
+          "timeNs": 24790842210396,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23198,
+          "timeNs": 24790852635242,
+          "fid": "0x26100015",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23199,
+          "timeNs": 24790863412550,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23200,
+          "timeNs": 24790874139858,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23201,
+          "timeNs": 24790884774319,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23202,
+          "timeNs": 24790896533166,
+          "fid": "0x26100019",
+          "value": "0x00000001"
+        }
+      ],
+      "openElements": [
+        "hood"
+      ],
+      "readSpanSeconds": 0.075230154
+    },
+    {
+      "phase": "refilled",
+      "passNumber": 1,
+      "path": "captures/washer-n9-20261016/refilled/fids.tsv",
+      "reads": [
+        {
+          "line": 13191,
+          "timeNs": 25303057915888,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 13193,
+          "timeNs": 25303081006350,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13194,
+          "timeNs": 25303091723273,
+          "fid": "0x26100015",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13195,
+          "timeNs": 25303102314427,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13196,
+          "timeNs": 25303113570735,
+          "fid": "0x26100017",
+          "value": "0x00000001"
+        },
+        {
+          "line": 13197,
+          "timeNs": 25303125335042,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13198,
+          "timeNs": 25303141393427,
+          "fid": "0x26100019",
+          "value": "0x00000000"
+        }
+      ],
+      "openElements": [
+        "door_right_rear"
+      ],
+      "readSpanSeconds": 0.083477539
+    },
+    {
+      "phase": "refilled",
+      "passNumber": 2,
+      "path": "captures/washer-n9-20261016/refilled/fids.tsv",
+      "reads": [
+        {
+          "line": 23195,
+          "timeNs": 25411002581741,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 23197,
+          "timeNs": 25411024209433,
+          "fid": "0x26100014",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23198,
+          "timeNs": 25411034734049,
+          "fid": "0x26100015",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23199,
+          "timeNs": 25411045296818,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23200,
+          "timeNs": 25411055960510,
+          "fid": "0x26100017",
+          "value": "0x00000001"
+        },
+        {
+          "line": 23201,
+          "timeNs": 25411066386972,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23202,
+          "timeNs": 25411077386972,
+          "fid": "0x26100019",
+          "value": "0x00000000"
+        }
+      ],
+      "openElements": [
+        "door_right_rear"
+      ],
+      "readSpanSeconds": 0.074805231
+    },
+    {
+      "phase": "refilled-hood-open",
+      "passNumber": 1,
+      "path": "captures/washer-n9-20261016/refilled-hood-open/fids.tsv",
+      "reads": [
+        {
+          "line": 13191,
+          "timeNs": 25979223285236,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 13193,
+          "timeNs": 25979244358083,
+          "fid": "0x26100014",
+          "value": "0x00000001"
+        },
+        {
+          "line": 13194,
+          "timeNs": 25979254814467,
+          "fid": "0x26100015",
+          "value": "0x00000001"
+        },
+        {
+          "line": 13195,
+          "timeNs": 25979265403621,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13196,
+          "timeNs": 25979275856621,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13197,
+          "timeNs": 25979286863006,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 13198,
+          "timeNs": 25979297789467,
+          "fid": "0x26100019",
+          "value": "0x00000001"
+        }
+      ],
+      "openElements": [
+        "door_left_front",
+        "door_right_front",
+        "hood"
+      ],
+      "readSpanSeconds": 0.074504231
+    },
+    {
+      "phase": "refilled-hood-open",
+      "passNumber": 2,
+      "path": "captures/washer-n9-20261016/refilled-hood-open/fids.tsv",
+      "reads": [
+        {
+          "line": 23195,
+          "timeNs": 26087348570781,
+          "fid": "0x26100008",
+          "value": "0x0000013F"
+        },
+        {
+          "line": 23197,
+          "timeNs": 26087372265781,
+          "fid": "0x26100014",
+          "value": "0x00000001"
+        },
+        {
+          "line": 23198,
+          "timeNs": 26087383366781,
+          "fid": "0x26100015",
+          "value": "0x00000001"
+        },
+        {
+          "line": 23199,
+          "timeNs": 26087394971627,
+          "fid": "0x26100016",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23200,
+          "timeNs": 26087405687704,
+          "fid": "0x26100017",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23201,
+          "timeNs": 26087416161551,
+          "fid": "0x26100018",
+          "value": "0x00000000"
+        },
+        {
+          "line": 23202,
+          "timeNs": 26087427174704,
+          "fid": "0x26100019",
+          "value": "0x00000001"
+        }
+      ],
+      "openElements": [
+        "door_left_front",
+        "door_right_front",
+        "hood"
+      ],
+      "readSpanSeconds": 0.078603923
+    }
+  ],
+  "conclusions": [
+    "All557 recorded CAN261/sub0/channel0 frames select13F, have hood=1, trunk=0, and all8 directly described belt fields=1. No raw frame is an all-supported-openings-clear control.",
+    "13F is explicitly the body/doors/hood/trunk/windows/seatbelts warning in stock resources, not an unidentified fallback code. Recorded openings are semantically consistent with that body presentation, but the upstream selection/priority rule is not recovered.",
+    "Availability20 and empty179 have only hood open; liquid-present179 have hood plus LF and LR open; refill179 have hood plus RR, then LF and RR. Every first-cycle scalar pass also has at least one opening; with hood0 a door remains open. Scalar reads are not atomic and are not substituted for same-frame values.",
+    "All8 raw belt fields1 produce item0 and client buckled1 in this implementation. They do not establish unbuckled warning, physical belt engagement, or occupant presence. First-row-middle FID26100034 is read by native but absent from this MCU descriptor list; byte6 bit4 is not assigned that name by this report.",
+    "Voice frequency/type wire fields are0 in every frame. This alone neither proves no audible warning nor a silence/suppression cause.",
+    "Payload bytes and door fields change while13F stays fixed; host envelopes/counters advance. This excludes an entirely identical frozen retained packet sequence at this observation point, not an upstream cached or default selected-ID field. No source-defined counter/checksum semantics are assigned to unnamed3C/40 fields.",
+    "Repeated scalar GET13F may reflect cached value. The MCU online flag is arrival/timeout metadata, not a payload bit. The raw exporter can decimate in interval-only mode; actual N9 collection mode was not retained, so the557 exports do not prove uninterrupted original-bus warning history.",
+    "The corpus supplies no body-clear control and no demonstrated upstream priority rule. It therefore cannot distinguish a legitimately persistent13F, stale selected-ID subfield, missed1DD interval, or absent1DD generation. None is a proven root cause of the accepted empty-reservoir observation."
+  ]
+}
