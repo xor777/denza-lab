@@ -272,7 +272,6 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
         val h = calloutH(lines)
         Triple(Offset(if (left) lx else rx, y - h / 2f), lines, Offset(if (left) k.left else k.right, y))
     }
-    val by = k.y0 + 22f + TILE_H / 2f
     val top = ScannerSpec.Content.TOP
     val cs = ScannerSpec.ChassisScheme
     val steer = listOf(
@@ -284,13 +283,13 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
         wire("M${k.x0} ${k.front}H${k.x0 + k.w}M${k.x0} ${k.rear}H${k.x0 + k.w}", Ink.WIRE3, 1.4f)
         plates.forEach { (at, lines, to) -> leader(at.x, at.y, o.W, calloutH(lines), to.x, to.y) }
         wire("M${k.x0 + 20} ${k.front}H${k.x0 + k.w - 20}", Ink.WIRE2, 3f)
-        // the brake system's OBD interface above the left tyres, joined to its block
-        wire("M${lx + TILE_W} ${top + TILE_H / 2}H${(lx + TILE_W + cx - TILE_W / 2) / 2}V${by}H${cx - TILE_W / 2}", Ink.WIRE4, 1.2f, floatArrayOf(4f, 3f))
         steer.forEach { hangLeader(it, cx) }
     }
     plates.forEach { (at, lines, _) -> Plate(at.x, at.y, o.W, lines) }
     SchemeTile(s.esp, cx - TILE_W / 2, k.y0 + 22f, onOpen)
     SchemeTile(s.eps, cx - TILE_W / 2, k.front - TILE_H / 2, onOpen)
+    // the brake system's OBD interface above the left tyres, on its own: no common hardware or
+    // software identity with ESP/IPB 782 is known, so no wire joins them
     SchemeTile(s.bscm, lx, top, onOpen)
     steer.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
     SchemeTile(s.motion, cx - TILE_W / 2, k.mid - TILE_H / 2, onOpen)

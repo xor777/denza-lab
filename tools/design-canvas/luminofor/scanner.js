@@ -574,10 +574,9 @@
       unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.esp);
       stroke(c, `M${K.x0 + 20} ${K.front}H${K.x0 + K.w - 20}`, 'wire2', 3);
       unitTile(c, cx - T.w / 2, K.front - T.h / 2, f.units.eps);
-      // the brake system's OBD interface above the left tyres, joined to its block
-      const by = K.y0 + 22 + T.h / 2, top = L.content.top;
-      stroke(c, `M${lx + T.w} ${top + T.h / 2}H${(lx + T.w + cx - T.w / 2) / 2}V${by}H${cx - T.w / 2}`, 'wire4', 1.2, [4, 3]);
-      unitTile(c, lx, top, f.units.bscm);
+      // the brake system's OBD interface above the left tyres, on its own: no common hardware or
+      // software identity with ESP/IPB 782 is known, so no wire joins them
+      unitTile(c, lx, L.content.top, f.units.bscm);
       const S = L.chassisScheme;
       hang(c, f.units.rwsL, lx, K.rear + S.steerDrop, [K.x0, K.rear + S.steerAt], cx);
       hang(c, f.units.rwsR, W - lx - T.w, K.rear + S.steerDrop, [K.x0 + K.w, K.rear + S.steerAt], cx);
