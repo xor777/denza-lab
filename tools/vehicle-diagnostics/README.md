@@ -244,7 +244,7 @@ them invalidates the build. The new host reuses the old export lease, so it
 cannot run beside another metadata reader. The exposure and watchdog limits
 described below still apply. Full findings: [OTA](../../docs/ota-update-findings.md#подготовленный-изолированный-запрос-gcy).
 
-## Isolated GHY metadata client (first input refusal; follow-up prepared)
+## Isolated GHY metadata client (input and HTTPS failures; diagnosis prepared)
 
 `GhyCheckVersionProbe.java` reads GHY preferences, its own SourceVehicleVersion
 and the common ECU cache. After verified export closure/GO it uses the pinned,
@@ -276,10 +276,18 @@ The first authorized build-v3 session stopped at `input_version/missing_input1`
 before GO, certificate/signing APIs or network. Cleanup and unchanged APK/process
 identities were verified. Its one-session authorization is consumed.
 
-The default runner and builder are host-only. Prepared follow-up build:
-`captures/ota-ghy-20261021/build-v4/`. Offline: 42 GHY Java checks, 27 GCY Java
-checks and 18 host tests. This build needs separate session authorization;
-GHY server acceptance remains untested. The isolated request omits versionSync,
+The separately authorized build-v4 session selected stock `v1.0.0`, read the
+unchanged 225-row cache and completed factory identity setup, then returned
+`https/operation_failed`. No GHY response was captured; actual HTTP/signature
+counts were not recorded. Cleanup was independently verified; authorization
+is consumed. This is not evidence of a GHY application-level rejection.
+
+The default runner and builder are host-only. Prepared diagnostic build:
+`captures/ota-ghy-20261021/build-v5/`. Offline: 52 GHY Java checks, 27 GCY Java
+checks and 19 host tests. It only unwraps adapter exceptions into fixed safe
+codes, without changing TLS behavior or exporting free-text errors. This build
+needs separate session authorization; GHY server acceptance remains untested.
+The isolated request omits versionSync,
 which in the full stock flow may replace the effective version before checking.
 The shared host runner's optional validators preserve GCY defaults but change
 its source hash; old GCY manifests fail the runner's hash gate intentionally.

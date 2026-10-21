@@ -83,7 +83,7 @@ def snapshot(value):
         if p is not None: plan(p)
 
 
-def parse_message(raw):
+def parse_message(raw, *, codes=CODES):
     require(len(raw) <= base.MAX_LINE)
     try:
         value = json.loads(raw, object_pairs_hook=base.unique_pairs,
@@ -94,19 +94,22 @@ def parse_message(raw):
     if value.get("state") == "ERROR":
         require(set(value) == {"state", "stage", "code"})
         require(type(value["stage"]) is str and type(value["code"]) is str)
-        require(value["stage"] in STAGES and value["code"] in CODES)
+        require(value["stage"] in STAGES and value["code"] in codes)
         raise base.HelperFailure(value["stage"], value["code"])
     return value
 
 
 class Helper(base.Helper):
+    def parse(self, raw):
+        return parse_message(raw)
+
     def message(self, timeout):
         deadline = time.monotonic() + timeout
         while True:
             if b"\n" in self.buffer:
                 raw, _, tail = self.buffer.partition(b"\n")
                 self.buffer[:] = tail
-                return parse_message(raw)
+                return self.parse(raw)
             remaining = deadline - time.monotonic()
             if remaining <= 0 or not self.selector.select(remaining):
                 raise base.Refused("helper_deadline")

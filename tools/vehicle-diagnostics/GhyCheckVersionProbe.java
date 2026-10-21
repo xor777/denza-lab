@@ -129,7 +129,32 @@ public final class GhyCheckVersionProbe {
     static Object factoryCall(String method,Class<?>[] types,Object... args) throws Exception {
         // Exact retained adapter hash is pinned by the build/runner. Its main is never called.
         java.lang.reflect.Method m=Class.forName("dev.denza.tools.OncarTls").getDeclaredMethod(method,types);
-        m.setAccessible(true);return m.invoke(null,args);
+        m.setAccessible(true);
+        try {return m.invoke(null,args);}
+        catch(java.lang.reflect.InvocationTargetException e) {
+            // Never serialize exception messages: they may contain identity data.
+            throw new EcuMapMetadataProbe.Failure(factoryFailure(e.getCause()));
+        }
+    }
+    static String factoryFailure(Throwable error) {
+        String kind="ghy_factory_other";
+        for(int depth=0;error!=null&&depth<8;depth++,error=error.getCause()) {
+            // These messages are fixed literals in the pinned adapter, not a
+            // free-text server error. Preserve the bounded reason only.
+            if(error instanceof IllegalStateException&&"mutual TLS not established".equals(error.getMessage()))
+                return "ghy_mutual_tls_not_established";
+            if(error instanceof IllegalStateException&&"owner certificate changed".equals(error.getMessage()))
+                return "ghy_owner_certificate_changed";
+            if(error instanceof UnknownHostException)return "ghy_dns";
+            if(error instanceof ConnectException)return "ghy_tcp_connect";
+            if(error instanceof java.net.SocketTimeoutException)return "ghy_timeout";
+            if(error instanceof java.security.cert.CertificateException)return "ghy_certificate";
+            if(error instanceof SSLPeerUnverifiedException)return "ghy_peer_unverified";
+            if(error instanceof SSLHandshakeException)kind="ghy_tls_handshake";
+            else if(error instanceof SSLException&&kind.equals("ghy_factory_other"))kind="ghy_tls";
+            else if(error instanceof IOException&&kind.equals("ghy_factory_other"))kind="ghy_io";
+        }
+        return kind;
     }
     static final class FactoryNetwork implements Network {
         final EcuMapMetadataProbe.Inputs inputs;final long end;int requests;

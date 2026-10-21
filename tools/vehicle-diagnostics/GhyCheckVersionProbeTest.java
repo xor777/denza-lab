@@ -72,6 +72,20 @@ public final class GhyCheckVersionProbeTest {
         reject(()->decode(frame(0,emptyFile,new byte[]{1}),1));
         Map<String,Object> emptyCache=new LinkedHashMap<>(emptyFile);emptyCache.put("fileName","ECUVersion.json");
         reject(()->decode(frame(0,emptyCache,new byte[0]),2));
+        // Second live session reached https but hid an adapter exception behind
+        // reflection. Synthetic causes reproduce that information loss without TLS.
+        check(GhyCheckVersionProbe.factoryFailure(new java.net.UnknownHostException("PRIVATE_TOKEN_TEST")).equals("ghy_dns"));
+        check(GhyCheckVersionProbe.factoryFailure(new java.net.ConnectException("PRIVATE_TOKEN_TEST")).equals("ghy_tcp_connect"));
+        check(GhyCheckVersionProbe.factoryFailure(new java.net.SocketTimeoutException("PRIVATE_TOKEN_TEST")).equals("ghy_timeout"));
+        javax.net.ssl.SSLHandshakeException handshake=new javax.net.ssl.SSLHandshakeException("PRIVATE_TOKEN_TEST");
+        handshake.initCause(new java.security.cert.CertificateException("PRIVATE_TOKEN_TEST"));
+        check(GhyCheckVersionProbe.factoryFailure(handshake).equals("ghy_certificate"));
+        check(GhyCheckVersionProbe.factoryFailure(new javax.net.ssl.SSLHandshakeException("PRIVATE_TOKEN_TEST")).equals("ghy_tls_handshake"));
+        check(GhyCheckVersionProbe.factoryFailure(new javax.net.ssl.SSLPeerUnverifiedException("PRIVATE_TOKEN_TEST")).equals("ghy_peer_unverified"));
+        check(GhyCheckVersionProbe.factoryFailure(new IllegalStateException("mutual TLS not established")).equals("ghy_mutual_tls_not_established"));
+        check(GhyCheckVersionProbe.factoryFailure(new IllegalStateException("owner certificate changed")).equals("ghy_owner_certificate_changed"));
+        check(GhyCheckVersionProbe.factoryFailure(new IllegalStateException("PRIVATE_TOKEN_TEST")).equals("ghy_factory_other"));
+        check(GhyCheckVersionProbe.factoryFailure(new IOException("PRIVATE_TOKEN_TEST")).equals("ghy_io"));
         reject(()->GhyCheckVersionProbe.inputs(bytes("<map><string name=\"user_token\">x\nHeader: bad</string></map>"),bytes("v1.0")));
         Fake f=new Fake();Map<String,Object> result=GhyCheckVersionProbe.query(in,cache(),f);
         check(f.operations.equals(Arrays.asList("getEcuList","checkVersion")));

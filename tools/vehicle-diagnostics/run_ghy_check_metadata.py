@@ -22,6 +22,9 @@ ADAPTER_SHA256 = "95bbb8e871dc306145d298eaa8a70af5611c113a73726b703bf47dac6aecfb
 # again; no general signer entry point or old adapter main is invoked here.
 GHY_APK = ("/system/app/OTAUpdate2/OTAUpdate2.apk",
            "1529790d11ecf3c3a6883096f30a685e9af6ca3c6d57eb4359daec90a7afdb04")
+DIAGNOSTIC_CODES = {"ghy_factory_other", "ghy_mutual_tls_not_established",
+    "ghy_owner_certificate_changed", "ghy_dns", "ghy_tcp_connect", "ghy_timeout",
+    "ghy_certificate", "ghy_peer_unverified", "ghy_tls_handshake", "ghy_tls", "ghy_io"}
 
 
 def source_paths():
@@ -75,10 +78,15 @@ def response(value):
             gcy.require(bool(value["missingCacheIds"]) and check is None and failure is None)
         elif outcome == "check_failed":
             gcy.require(not value["missingCacheIds"] and check is None and type(failure) is str
-                        and failure in gcy.CODES)
+                        and failure in gcy.CODES | DIAGNOSTIC_CODES)
         else:
             gcy.require(outcome == "check_returned" and not value["missingCacheIds"] and failure is None)
             gcy.plan(check, response=True)
+
+
+class Helper(gcy.Helper):
+    def parse(self, raw):
+        return gcy.parse_message(raw, codes=gcy.CODES | DIAGNOSTIC_CODES)
 
 
 class Device(gcy.Device):
@@ -113,8 +121,8 @@ class Device(gcy.Device):
         command = (f"CLASSPATH={base.LEASE}/classes.dex app_process /system/bin "
                    f"--nice-name={base.NICE_NAME} GhyCheckVersionProbe --nonce {nonce}")
         self.existing_adb_server()
-        return gcy.Helper(subprocess.Popen([*base.ADB, "shell", "-T", command], stdin=subprocess.PIPE,
-                                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
+        return Helper(subprocess.Popen([*base.ADB, "shell", "-T", command], stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
 
 
 def run(device, artifact, digest, nonce, save_snapshot):

@@ -1,5 +1,6 @@
 """No ADB: metadata validation and closure/GO order through the shared runner."""
 from pathlib import Path
+import json
 import unittest
 from unittest import mock
 import run_ghy_check_metadata as host
@@ -94,6 +95,19 @@ class Tests(unittest.TestCase):
         for source in (None, [], "access_denied", "guessed"):
             v = snapshot(); v["ghyVersionSource"] = source
             with self.assertRaises(host.base.Refused): host.snapshot(v)
+
+    def test_factory_failure_codes_survive_without_free_text(self):
+        for code in host.DIAGNOSTIC_CODES:
+            raw = json.dumps({"state": "ERROR", "stage": "https", "code": code}).encode()
+            with self.assertRaises(host.base.HelperFailure) as caught:
+                host.Helper.parse(None, raw)
+            self.assertEqual(caught.exception.code, code)
+            with self.assertRaises(host.base.Refused): host.gcy.parse_message(raw)
+        raw = json.dumps({"state": "ERROR", "stage": "https", "code": "PRIVATE_TOKEN"}).encode()
+        with self.assertRaises(host.base.Refused): host.Helper.parse(None, raw)
+        value = response(); value.update(outcome="check_failed", checkVersion=None,
+                                         checkFailure="ghy_certificate")
+        host.response(value)
 
 
 if __name__ == "__main__": unittest.main()
