@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "single getEcuList attempt retaining ecuIp",
+  "summary": {
+    "cloudRequestLimit": 1,
+    "ecuCalls": 0,
+    "apkInstalls": 0,
+    "result": "http_auth",
+    "exactHttpStatusKnown": false,
+    "httpStatusCandidates": [
+      401,
+      403
+    ],
+    "applicationStatusObtained": false,
+    "routeIpsObtained": false,
+    "cleanupVerified": true,
+    "postflightAtUtc": "2026-10-21T13:58:26.443816+00:00"
+  },
+  "sources": {
+    "build": {
+      "path": "captures/ota-doip-catalog-20261021/build/build.json",
+      "sha256": "65f1ad9412689276bc0ab6ce4bace7dcc8a45465d93211febe4f8598cc3ae964"
+    },
+    "priorFactoryMap": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "localUdsConfig": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/uds/UDS_CFG.json",
+      "sha256": "e46b264c572753ce93dd15c956d1f59abd99898134832b8fa9adff0a628d9424"
+    },
+    "localSomeipConfig": {
+      "path": "captures/hud-firmware-20260923/system/system/etc/someip/someip_stack.json",
+      "sha256": "c3f4a5ffa32bcf358f055d8fbcef722139b42d5407df2b27dfc7a4574776bc01"
+    },
+    "stockDoipReader": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sha256": "284603fe3b2e667216814905cf24774e3db10f6778b6e86c2278728be42ab58a"
+    },
+    "stockReaderSelection": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnoseFactory.java",
+      "sha256": "2db4d777dedabfca4bca6cb04b1476b62c05a12c4023ee807a756c87fc760cba"
+    },
+    "stockLoginManager": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/manager/login/LoginManager.java",
+      "sha256": "4f53dce569e65afd9266b19ddd5b4f25a5b37803d4bcb5070c246641e7c5c498"
+    },
+    "stockTokenRetry": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenDealFunction.java",
+      "sha256": "3c95b2f25f8007cec19804b7e96e51cea43bf9b1a423f04f79988391b4a3fc2b"
+    }
+  },
+  "session": {
+    "path": "captures/ota-doip-catalog-20261021/read/session/session.json",
+    "sha256": "cb2c027a49261c0dec337c213eb96285365604bd429700414b72b6b997f3d133"
+  },
+  "preflight": {
+    "path": "captures/ota-doip-catalog-20261021/read/preflight/status.json",
+    "sha256": "713c31619dc3cd517cd6875b577ed596ff4a6f82115a8fdc94d65c19a33ce59c"
+  },
+  "postflight": {
+    "path": "captures/ota-doip-catalog-20261021/read/postflight/status.json",
+    "sha256": "6ed014beef179ca71bf2e7d9cc51d1534c479ef030ce18be397555ab7f288310"
+  },
+  "preProcesses": {
+    "path": "captures/ota-doip-catalog-20261021/read/preflight/processes.txt",
+    "sha256": "e63d20741bc368ac9b99edb92c1d2ec864a358127346ab047c8112c5c37cecc8"
+  },
+  "postProcesses": {
+    "path": "captures/ota-doip-catalog-20261021/read/postflight/processes.txt",
+    "sha256": "dd1ed4cb81504ef6396dd2c9f0b2aa5083379fad458bbb0dbc5ce86452528377"
+  },
+  "healthComparison": {
+    "path": "captures/ota-doip-catalog-20261021/read/health-comparison.json",
+    "sha256": "29df43fba3e0b792182a308e4565f0776b221ddf85f0f4dda584e1dd6442bf29"
+  },
+  "limits": [
+    "HTTP401 and403 are deliberately collapsed by the existing client; exact status and response body were not retained.",
+    "This newer authorization-class HTTP refusal does not establish the cause of the earlier application111.",
+    "No token refresh, login or further cloud retry was performed.",
+    "UDS_CFG and SOME/IP config identify the local client address only, not the eight remote ECU candidate endpoints.",
+    "Stock DoipDiagnostic calls session03 before DID reads; no such lifecycle was invoked.",
+    "No remote IP is inferred from a logical address, and no DoIP probe or installation occurred."
+  ],
+  "stockAuthBoundary": {
+    "nativeLoginSideEffects": [
+      "logout removes USER_TOKEN",
+      "successful login persists new USER_TOKEN",
+      "login callback can write login fault status",
+      "registration fallback exists"
+    ],
+    "nativeFlowInvoked": false,
+    "preciseHttpStatusRequiredToClassify401Versus403": true
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh Media stock composition inputs and fixed F194/F193",
+  "sources": {
+    "build": {
+      "path": "captures/ota-media-fields-20261021/build/build.json",
+      "sha256": "65a4c569782a3f9ef3ffb1bf986c7fb0a857a15148ae8aef283eb6136c6d8556"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "mapping": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/resources/res/raw/media_softcode_mapping.json",
+      "sha256": "0099acf1425c3bffd86ac769082b56bdca3c2a8cb807a23777bfa41d0e020dc9"
+    },
+    "stockCanReplay": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "stockCanReplayManifest": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/source-methods.json",
+      "sha256": "e53d717638ebe6cbfb88fd930b7e9309b06c56c79482b3f3b4cde30244763dc6"
+    },
+    "stockMedia": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/MediaDiagnostic.java",
+      "sha256": "9c5a9ed89cbad73aba0c5f1d1338ad4d0ddd8dcae81a60e8792cbed89e2d5da7"
+    },
+    "stockComposition": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646"
+    },
+    "stockIviHardware": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b"
+    },
+    "stockMcuGetter": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/version/BYDAutoVersionDevice.java",
+      "sha256": "0ae00836ffbbb256e5929992ecc3bb96f8c195f4338def087ab281a5ea89781e"
+    }
+  },
+  "summary": {
+    "udsReads": 2,
+    "getterSnapshots": 2,
+    "composedFieldsMatched": 3,
+    "cloudRequests": 0,
+    "apkInstalls": 0
+  },
+  "inputsBefore": {
+    "state": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/inputs.json",
+      "sha256": "ab8603e081542d916c589322e2d2e2679846e3ae47bd440420f0a444ba12f266"
+    },
+    "stdout": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/stdout.txt",
+      "sha256": "4c755015d7535193803aad27826c11bc264ec9b0d89e859639fefe67d7cec6c8"
+    },
+    "preflight": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/preflight/status.json",
+      "sha256": "0a9978f8c76fbc059563f12829154a05a33006d7fff124480f1ef96dcced0f8a"
+    },
+    "postflight": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/postflight/status.json",
+      "sha256": "cfd5d434101a4a858a8db60145de3f4b846ba57a95112404e820dec711afed51"
+    },
+    "preProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/preflight/processes.txt",
+      "sha256": "6cd31215f291c50780f12f4f5507e05ac08c56f6d3fdfee934bf2f27d3fc1c17"
+    },
+    "postProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-before/postflight/processes.txt",
+      "sha256": "8ba0979959c13ee12798d1916f4028b52688a5afc22cb2402abb772b146f5350"
+    }
+  },
+  "inputsAfter": {
+    "state": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/inputs.json",
+      "sha256": "6705abd152cf8abbbb8e96010e04117d5d02dfcc46a3dfb98e1983344d9d1ac0"
+    },
+    "stdout": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/stdout.txt",
+      "sha256": "4c755015d7535193803aad27826c11bc264ec9b0d89e859639fefe67d7cec6c8"
+    },
+    "preflight": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/preflight/status.json",
+      "sha256": "cdea7e6b92847d755bfccdafeeb6ce9b28dd7332db80dc6ab65f2b7bc2a2e84c"
+    },
+    "postflight": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/postflight/status.json",
+      "sha256": "25944b600d0ab99846ca243db8c82fc79c71b74644b6f01ab8dca9fca45e5fab"
+    },
+    "preProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/preflight/processes.txt",
+      "sha256": "7f08151f9f3fe1343bad04f282be0a9e65c0f855be046ffb466f36b44afb0fc0"
+    },
+    "postProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/inputs-after/postflight/processes.txt",
+      "sha256": "c967864ea5db69778b6cfeb5c178ea83f3536ea99ae9da4765664557f3319558"
+    }
+  },
+  "diagnostic": {
+    "session": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/session.json",
+      "sha256": "b6a8987969d1e468797c58cacd5e8bf9656e0802fc1acf95613510d9444be183"
+    },
+    "protocol": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/protocol.txt",
+      "sha256": "8266127d40106fdfa390c8bede40d2244aa6b7fbd89629d2033401b3bb2f08d1"
+    },
+    "preflight": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/preflight/status.json",
+      "sha256": "04307fb3f0882d0e55ef49258dcaa58fec0882f6f63b92fa11b5a6604e62e53e"
+    },
+    "postflight": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/postflight/status.json",
+      "sha256": "cec2576cd10ee9ad5281d5b59230a6a5c017612c192147ef553b66fcbb9ff2bf"
+    },
+    "preProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/preflight/processes.txt",
+      "sha256": "007478247815d35e1d766a27b2caa24bb9ce99b8cde9d7154869329079abba00"
+    },
+    "postProcesses": {
+      "path": "captures/ota-media-fields-20261021/media/diagnostic/postflight/processes.txt",
+      "sha256": "d2f6d270d832cb017f64f07ed87a89884e93ff1f313910f64e70a05d4cb48b33"
+    }
+  },
+  "composition": {
+    "path": "captures/ota-media-fields-20261021/media/composition.json",
+    "sha256": "4cd6e60aaefa8164b0130ce3ab0396ff777f4c8e8b002d096bab226fd9e62a94"
+  },
+  "limits": [
+    "MCU version is the same getter used by stock OTA; no forced query was issued.",
+    "Media configuration DIDs are absent; zero configuration fields are defaults, not measurements.",
+    "Stock method replay checks raw code and hardware; composite mapping/concatenation is checked separately against the retained resource and current inputs.",
+    "No expected server tuple or applicable update package obtained."
+  ]
+}

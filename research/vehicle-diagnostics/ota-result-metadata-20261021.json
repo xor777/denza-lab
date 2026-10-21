@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fixed OTA result preference metadata projection",
+  "sources": {
+    "manifest": {
+      "path": "captures/ota-result-metadata-20261021/read/manifest.json",
+      "sha256": "2a15aa0346a96af7e8f952a03abbab01e8f58ba2634b2ffcf926889d7b99a9e1"
+    },
+    "stockHelper": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646"
+    },
+    "stockResultModel": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/UpgradeResultSubmitInfo.java",
+      "sha256": "4f6c8a898ca3fc8c3dba30d3c5c338d741fa6f6d292b167e04aeed8c066d3285"
+    },
+    "stockProductLinePrefs": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/base/util/SpUtil.java",
+      "sha256": "779ac5c508397451a5ac0e960b915a2f5f87aa0312bec6dfc3a4035bb4429c39"
+    }
+  },
+  "summary": {
+    "status": "complete",
+    "gcyMissingKeys": 3,
+    "ghyMissingKeys": 3,
+    "productLineFileStatus": "not_listed",
+    "ecuRoutesRecovered": 0,
+    "baselineRecovered": false,
+    "oemRequests": 0,
+    "ecuCalls": 0,
+    "apkInstalls": 0,
+    "startedUtc": "2026-10-21T14:02:32.264954+00:00",
+    "finishedUtc": "2026-10-21T14:02:35.186504+00:00"
+  },
+  "session": {
+    "path": "captures/ota-result-metadata-20261021/read/session.json",
+    "sha256": "aba884b2e6dc643927ba127937964b10b18850d9304593dc3a2ed53ce5674b98"
+  },
+  "preflight": {
+    "path": "captures/ota-result-metadata-20261021/read/preflight/status.json",
+    "sha256": "5795d0150a9b7f1354524d1cdd8799aa9b66980e9e3f77598d03335f2cd9726a"
+  },
+  "postflight": {
+    "path": "captures/ota-result-metadata-20261021/read/postflight/status.json",
+    "sha256": "c27d09570d790791cbf8d20362ff942291a8df16391f1fe79a826c3e482eaff8"
+  },
+  "preProcesses": {
+    "path": "captures/ota-result-metadata-20261021/read/preflight/processes.txt",
+    "sha256": "4d9dcd223808058329aa66978363e0580bfc6f2e2defcb06c2e6daee50baefe8"
+  },
+  "postProcesses": {
+    "path": "captures/ota-result-metadata-20261021/read/postflight/processes.txt",
+    "sha256": "e03bdaaa117643daa82e3999a6a2661a2d364adc20df38b1f2bcfb86620f270e"
+  },
+  "limits": [
+    "Absence applies only to three named keys and the exact checked files at this time.",
+    "Raw preferences were processed transiently and not retained. The retained projection and source hashes cannot independently replay raw XML absence.",
+    "No token, UUID, VIN, private key or unrelated preference value was retained.",
+    "ProductLineOTA not_listed is the exporter directory listing result, not a forensic inventory of all application data."
+  ]
+}
