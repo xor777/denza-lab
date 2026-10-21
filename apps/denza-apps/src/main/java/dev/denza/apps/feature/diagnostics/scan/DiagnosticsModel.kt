@@ -621,10 +621,11 @@ internal data class IdentView(
      * calibration (Mode 09), PID 1C and the odometer; the DTC format; the codes of the modules behind it.
      */
     val own: List<Field>,
-    /** What the stock OTA cache or route list knows: identifier, versions. */
+    /**
+     * What the stock OTA cache or route list knows: identifier, versions. A record of how the block's
+     * role was proved, not something the answer is compared with (architecture, 5.1).
+     */
     val cache: List<Field>,
-    /** F194 against the catalog: true matched, false another ECU, null not read. */
-    val matched: Boolean?,
     /** Supported Mode 01 PIDs, «0C»; the bitmap PIDs come last and are drawn muted by the screen. */
     val pids: List<String>,
 )

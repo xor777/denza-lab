@@ -144,7 +144,6 @@ class DiagnosticsSessionTest {
         val m = s.model.value
         assertEquals(ModuleStatus.OTHER_ECU, m.row(0x7E3).status)
         assertEquals("—", m.row(0x7E3).active)
-        assertEquals(false, m.modules.getValue(0x7E3).ident.matched)
         assertEquals("18/68", m.scan.memoryRead)
         s.stop()
     }

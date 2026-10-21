@@ -585,20 +585,6 @@ internal fun IdentContent(ident: IdentView) {
     cols = ScannerSpec.columns(i.CACHE_COLS, d.RIGHT_X, d.RIGHT_W)
     HeadRow(cols, listOf(HeadLabel("КЭШ ОБНОВЛЕНИЙ BYD")), d.TOP, d.HEAD)
     var y = KeyRows(ident.cache, cols, d.TOP + d.HEAD + 1f, i.ROW, d.RIGHT_X, d.RIGHT_W)
-    if (ident.matched != null) {
-        val h = i.ROW
-        ScanText("Сверка с F194", Type.KEY, Ink.DIM2, Modifier.at(cols[0].first + 12f, mid(y, h, Type.KEY)))
-        Row(Modifier.at(cols[1].first, y + (h - ScannerSpec.Badge.H) / 2f)) {
-            if (ident.matched) Badge("СОВПАЛ", ScannerSpec.Tones.OK) else Badge("НЕ СОВПАЛ", ScannerSpec.Tones.ON)
-            val aside = if (ident.matched) ScannerWords.matchedBytes(ident) else "другой блок на маршруте"
-            if (aside != null) {
-                Spacer(Modifier.width(10.dp))
-                ScanText(aside, Type.UNIT, Ink.DIM2, Modifier.padding(top = ((ScannerSpec.Badge.H - Type.UNIT.lh) / 2f).dp))
-            }
-        }
-        Rule(d.RIGHT_X, y + h, d.RIGHT_W, Ink.HAIR)
-        y += h + 1f
-    }
     if (ident.pids.isEmpty()) return
     y += i.PID_GAP
     // the caption and the count on one baseline, the lower of the two styles' baselines

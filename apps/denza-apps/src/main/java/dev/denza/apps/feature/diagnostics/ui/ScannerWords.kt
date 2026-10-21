@@ -5,7 +5,6 @@ import dev.denza.apps.feature.diagnostics.scan.CompareView
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.DtcRow
 import dev.denza.apps.feature.diagnostics.scan.IdentProcedure
-import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.LinkState
 import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
@@ -217,13 +216,6 @@ internal object ScannerWords {
     fun pidsAsked(pids: List<String>): String {
         val maps = pids.filter(::bitmapPid).filter { it.toInt(16) in IdentProcedure.MAPS }
         return (listOf("00") + maps).joinToString(", ") { "01 $it" }
-    }
-
-    /** «побайтно, 9 байт»: the F194 the catalog was matched against, by its length. */
-    fun matchedBytes(ident: IdentView): String? {
-        val f194 = ident.own.firstOrNull { "F194" in it.key }?.value ?: return null
-        val hex = f194.filter { it.isLetterOrDigit() }
-        return if (hex.length % 2 == 0 && hex.all { it in "0123456789ABCDEFabcdef" }) "побайтно, ${hex.length / 2} байт" else null
     }
 
     /** The live tab's line: the route, the mode, how many PIDs, the measured rate. */

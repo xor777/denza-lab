@@ -305,8 +305,8 @@ internal class ModelBuilder(
             field("${child.shortName} · 22 ${child.hex}", childText(child, p, id?.read))
         }
 
+        // The cache's side is the record the role was proved by; the answer is not judged against it (5.1).
         val cache = mutableListOf(Field("Основание имени", ecu.identity.label))
-        ecu.expectedF194?.let { cache += Field("Ожидаемый F194", it) }
         ecu.expectedObdName?.let { cache += Field("Ожидаемое имя · 09 0A", it) }
         ecu.cachedSoftwareCode?.let { cache += Field("Код ПО в кэше", it) }
         ecu.aliases.firstOrNull()?.let { a ->
@@ -317,13 +317,10 @@ internal class ModelBuilder(
         ecu.aliases.drop(1).forEach { cache += Field("Вариант", it.ecuId, muted = true) }
         if (ecu.aliases.isEmpty()) cache += Field("Идентификатор", "нет в кэше обновлений", muted = true)
 
-        val idF194 = (id?.dids?.get(IdentDid.F194) as? Polled.Got)?.value?.text
-        val matched = r?.matched ?: idF194?.let { it == ecu.expectedF194 }
         val offered = id?.offered.orEmpty()
         return IdentView(
             own = own,
             cache = cache,
-            matched = matched,
             pids = (offered.filterNot(ObdPids::isBitmap) + offered.filter(ObdPids::isBitmap)).map { "%02X".format(it) },
         )
     }

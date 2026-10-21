@@ -234,7 +234,7 @@ internal fun moduleOf(model: DiagnosticsModel, request: Int): ModuleView? {
         line = "${row.route} · ${row.protocol}",
         status = row.status,
         dtc = DtcView(emptyList(), emptyList(), DataQuality.NOT_POLLED, outsideMask = false, footnote = ""),
-        ident = IdentView(emptyList(), emptyList(), matched = null, pids = emptyList()),
+        ident = IdentView(emptyList(), emptyList(), pids = emptyList()),
         obd = null,
     )
 }

@@ -607,7 +607,7 @@ internal object ScannerFixtures {
             request = request, name = title.removePrefix("≈ "), unit = block.getString("aside").removePrefix("· "),
             inferred = title.startsWith("≈ "), line = block.getString("line"), status = status,
             dtc = DtcView(emptyList(), emptyList(), DataQuality.COMPLETE_EMPTY, false, ""),
-            ident = IdentView(emptyList(), emptyList(), matched = null, pids = emptyList()), obd = null,
+            ident = IdentView(emptyList(), emptyList(), pids = emptyList()), obd = null,
         )
     }
 
@@ -643,7 +643,6 @@ internal object ScannerFixtures {
         val liveLine = live.getJSONObject("block").getString("line")
         val rate = Regex("опрос ([^·]+?) ·").find(liveLine)?.groupValues?.get(1) ?: "—"
         val ident = fixture(all, "scanner-ecu-ident")
-        val match = ident.getJSONArray("match")
         return ModuleView(
             request = ECM, name = block.getString("title"), unit = block.getString("aside").removePrefix("· "),
             inferred = false, line = block.getString("line"), status = ModuleStatus.OK,
@@ -651,7 +650,6 @@ internal object ScannerFixtures {
             ident = IdentView(
                 own = fields(ident.getJSONArray("own")),
                 cache = fields(ident.getJSONArray("cache")),
-                matched = match.getString(1) == "СОВПАЛ",
                 pids = strings(ident.getJSONArray("pids")),
             ),
             obd = ObdView(

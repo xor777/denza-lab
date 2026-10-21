@@ -1351,12 +1351,10 @@
     cols = columns(I.cacheCols, R.x, R.w);
     y = headRow(c, cols, ['КЭШ ОБНОВЛЕНИЙ BYD'], D.top, D.head);
     y = keyRows(c, f.cache, cols, y, I.row, R.x, R.w);
-    const h = I.row;
-    text(c, f.match[0], cols[0][0] + 12, mid(y, h, 'key'), 'key', 'dim2');
-    const bw = badge(c, f.match[1], cols[1][0], y + (h - L.badge.h) / 2, 'ok');
-    text(c, f.match[2], cols[1][0] + bw + 10, mid(y, h, 'unit'), 'unit', 'dim2');
-    rule(c, R.x, y + h, R.w, 'hair');
-    y += h + 1 + I.pidGap;
+    // the cache is the record the role was proved by, not a reference the answer is matched against:
+    // no «Сверка с F194» (architecture, 5.1). A block without OBD has no PIDs.
+    if (!f.pids || !f.pids.length) { footer(c, f.footer); return; }
+    y += I.pidGap;
     // the supported PIDs: caption and count on one baseline, then the grid
     const by = y + Math.max(base(0, 'counterLabel'), base(0, 'pidHead')) + (I.pidHeadH - style('counterLabel').lh) / 2;
     glyphs(c, f.pidsLabel, R.x, by, style('counterLabel'), 'mute');

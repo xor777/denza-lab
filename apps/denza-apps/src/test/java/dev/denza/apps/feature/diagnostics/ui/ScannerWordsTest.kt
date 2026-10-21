@@ -4,8 +4,6 @@ import dev.denza.apps.feature.diagnostics.scan.CompareColumn
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.DtcRow
 import dev.denza.apps.feature.diagnostics.scan.DtcView
-import dev.denza.apps.feature.diagnostics.scan.Field
-import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
@@ -92,13 +90,6 @@ class ScannerWordsTest {
         assertEquals("01 00, 01 20, 01 40, 01 60, 01 80, 01 A0", ScannerWords.pidsAsked(pids + listOf("A0", "A6")))
         // A map beyond the last one read is listed, not asked.
         assertEquals("01 00, 01 20, 01 40, 01 60, 01 80, 01 A0", ScannerWords.pidsAsked(pids + listOf("A0", "A6", "C0")))
-    }
-
-    @Test
-    fun theMatchIsCountedInTheBytesOfF194() {
-        val ident = IdentView(listOf(Field("Номер ПО поставщика · F194", "32440011E004000000")), emptyList(), true, emptyList())
-        assertEquals("побайтно, 9 байт", ScannerWords.matchedBytes(ident))
-        assertEquals(null, ScannerWords.matchedBytes(ident.copy(own = emptyList())))
     }
 
     @Test
