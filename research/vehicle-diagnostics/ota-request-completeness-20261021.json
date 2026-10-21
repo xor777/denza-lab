@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "hypotheses": {
+    "isolatedClientAccidentallyRetainedFailedRows": "not supported: stock keeps all rows too",
+    "staleFrontZcuSoftwareVersion": "fresh F195 matches cached4.00.36",
+    "staleOtherEcuFields": "not excluded by this bounded read"
+  },
+  "cacheGrouping": {
+    "fields": [
+      "ecuReprogramType",
+      "ecuChannel",
+      "ecuDiaId",
+      "logicAddress",
+      "ecuDId",
+      "ecuHardDid",
+      "ecuConfigDid"
+    ],
+    "recordCount": 225,
+    "groupCount": 191,
+    "multirowGroups": 30,
+    "sizeHistogram": {
+      "1": 161,
+      "2": 26,
+      "3": 4
+    },
+    "conflictingGroups": [],
+    "limits": [
+      "Grouping uses retained20Oct metadata and18Oct cache, not fresh physical inventory.",
+      "Equal route metadata does not establish equal diagnostic dispatch; Media/SMM are special cases.",
+      "191 full signatures are not191 physical ECUs.",
+      "No basis established for dropping default/negative rows as a stock-compatible correction."
+    ]
+  },
+  "frontZcuRead": {
+    "startedAtUtc": "2026-10-21T13:04:10.926979+00:00",
+    "postflightAtUtc": "2026-10-21T13:04:15.757238+00:00",
+    "requests": [
+      [
+        "722",
+        "22F194"
+      ],
+      [
+        "722",
+        "22F195"
+      ]
+    ],
+    "responses": [
+      {
+        "seq": 1,
+        "targetHex": "722",
+        "requestHex": "22F194",
+        "responseHex": "62F1944B310011E001540100",
+        "frames": 1,
+        "latencyMs": 18,
+        "receivedNanos": 164684700457851
+      },
+      {
+        "seq": 2,
+        "targetHex": "722",
+        "requestHex": "22F195",
+        "responseHex": "62F1959C641A011301",
+        "frames": 1,
+        "latencyMs": 43,
+        "receivedNanos": 164685245379928,
+        "stockParsedVersion": "4.00.36",
+        "cachedVersion": "4.00.36",
+        "cacheMatch": true,
+        "additionalDataHex": "1A011301"
+      }
+    ],
+    "cloudRequests": 0,
+    "apkInstalled": false,
+    "healthStable": true,
+    "jarRemoved": true,
+    "processAbsent": true,
+    "exitCode": 0,
+    "extraVersionBytesMeaning": "unknown; preserved as1A011301; not called a date or ignored transport padding"
+  },
+  "nextEvidenceGap": "Fresh six-field inventory remains incomplete for other ECU namespaces. Existing diagnostic scans mainly qualified software codes (F194), not all versions/configuration. Further fixed read plans require source/route/response qualification; expected server tuple remains unknown.",
+  "sources": [
+    {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/session.json",
+      "sha256": "00f1731859b69800769600e95f877c02f58baf41f73a2904613ecf5dcfb04f40"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/plan.json",
+      "sha256": "17da44197d5262be58ac8bd4c2e11e3a94014dd2146faa8eb26b3c3f66186bfa"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/live-01/result.json",
+      "sha256": "876f2d7ffda9492cfdfaa200f867b97ce6977b558df71be8b9fa133d086d2cfd"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/live-01/protocol.txt",
+      "sha256": "e2c9d5e6e6220fb1fd2c71205d9d4c012456ecc97e790430140576f898b57c3b"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/preflight/status.json",
+      "sha256": "7b6c7eb927ad4f0717ef6c59a5460d435b595b3b5ff2f83a09e758c546cc911d"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/postflight/status.json",
+      "sha256": "12b6b3509d68c1d5113230917ad6b92db953e35ef599f16fd9e5c265e173245e"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/preflight/processes.txt",
+      "sha256": "2845cf23fff0bfa1a6ce34bf972abc8884fee2f8f2320a57f7561179da8326cd"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/postflight/processes.txt",
+      "sha256": "8e9e3f663725da65f4339a5acdc88bf63dd072befff8e3b922c519614b0b7094"
+    },
+    {
+      "path": "captures/ota-zcu-version-20261021/runner-source.py",
+      "sha256": "261e4289f484d00b81f706338670288aaa79a63841a1770f2a30614d03deba8f"
+    },
+    {
+      "path": "tools/vehicle-diagnostics/read_ota_front_zcu_version.py",
+      "sha256": "261e4289f484d00b81f706338670288aaa79a63841a1770f2a30614d03deba8f"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/front-zcu/build/build.json",
+      "sha256": "526f77af6799492681d7057dd199748d4aad1680b80c1289d344361768c2730a"
+    }
+  ],
+  "sourceAnchors": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+      "lineStart": 53,
+      "lineEnd": 77,
+      "meaning": "All server candidates are retained and initialized to defaults."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+      "lineStart": 264,
+      "lineEnd": 316,
+      "meaning": "Completion returns full list after possible repair-origin substitution; no row filtering."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 633,
+      "lineEnd": 651,
+      "meaning": "All rows are serialized into six fields and cached before checkVersion."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 172,
+      "lineEnd": 178,
+      "meaning": "Gateway result2 triggers negative markers; cached7F22 is not the original complete NRC."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 343,
+      "lineEnd": 357,
+      "meaning": "Stock version decoder consumes two bytes at the beginning of UDS data."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 469,
+      "lineEnd": 490,
+      "meaning": "Negative marker fills still-default fields; raw reason is not retained in those fields."
+    }
+  ],
+  "validation": {
+    "stockMethodReplay": "4.00.36",
+    "rawUds": "62F1959C641A011301",
+    "replaySource": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "referencesVerified": 19
+  }
+}
