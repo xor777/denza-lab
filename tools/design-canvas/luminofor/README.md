@@ -85,6 +85,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `scanner-sys-body`, `scanner-sys-body-blocks` | a system's DTC across its blocks (the body's ten); its blocks as the autoscan's rows |
 | `scanner-sys-engine`, `scanner-sys-engine-dtc` | the engine's live data and its DTC lists and readiness at the rail's width |
 | `scanner-sys-pack-live`, `scanner-sys-pack-flags` | the pack's readings from the signal bus; its GB/T 32960 tab with nothing yet |
+| `scanner-sys-engine-rpm`, `-ect`, `scanner-sys-pack-cell` | one parameter on its own page (`sysParam()`), opened from a row of the live data: engine speed with a throttle blip, coolant with its norm as a band, the pack's cell minimum flat at 10 Hz (a signal of the car: no «Запись») |
 | `scanner-sys-drives-compare`, `scanner-sys-adas-compare` | the drives and the seven driver-assistance blocks side by side at the rail's width |
 | `scanner-body-dtc` | a body block's memory: two historical DTC, their status bits as a matrix, status 0x28 explained |
 | `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
@@ -296,6 +297,8 @@ corrections below.
   0.9–1.3 levels: Chrome lays about 15 % more ink on a glyph than Android does from the same font
   files. The systems' 19 boards and the six block boards compared that evening at 0.65–2.15 %
   (mean 0.40–1.36 levels); the topology's 68 small tiles are the most, the schemes 0.65–1.19 %.
+  The three parameter pages (`ParamScreen.kt`) compared on 2026-10-21 at 0.73–0.79 % (mean
+  0.49–0.56 levels); the live tables they open from, their rows now tappable, at 1.60–1.73 %.
 - Corrected while the system boards were ported: «→» in text had been drawn by the schemes' flow
   arrow, a second function of the same name, so every route on the system boards lost its arrow
   (the flow arrow is `flow()` now); a counter is as wide as its value and a padding's room, rounded
