@@ -5,14 +5,22 @@ import dev.denza.apps.feature.vehicle.VehicleSignal
 
 /**
  * A state's words: the codes the firmware names, short and Russian as the boards write them, and what
- * any other code the reading admits says - «код N» unless [other] says otherwise.
+ * any other code the reading admits says - «код N» unless [other] says otherwise. [alerts] are the
+ * codes whose word the card names a fault or an alarm - a stream's row says them in orange.
  */
-internal class StateWords(val named: Map<Int, String>, private val other: String? = null) {
+internal class StateWords(
+    val named: Map<Int, String>,
+    private val other: String? = null,
+    val alerts: Set<Int> = emptySet(),
+) {
     /** [value]'s word; «н/д» when nothing came. */
     fun word(value: Double?): String {
         val code = value?.toInt() ?: return NA
         return named[code] ?: other ?: "код $code"
     }
+
+    /** Whether [value] is a code its card names a fault or an alarm; nothing read is none. */
+    fun alert(value: Double?): Boolean = value?.toInt()?.let { it in alerts } == true
 
     private companion object {
         const val NA = "н/д"
@@ -24,12 +32,14 @@ internal class StateWords(val named: Map<Int, String>, private val other: String
  * batch and the hub's states - as research/vehicle-diagnostics/stream-selection-20261021.json names
  * them; [CarReadings.word] says a reading in them. A code the card does not name is «н/д» where the
  * reading's range refuses it, «код N» where it admits it. Numbers - the blower's step, the air's
- * quality steps - have no words.
+ * quality steps - have no words. The alerts are the codes a card names a fault («отказ», «ошибка»)
+ * or an alarm (a leak, a pressure or temperature out of its band, the sensors' batteries low).
  */
 internal object CarStates {
     private const val NA = "н/д"
 
-    private fun words(vararg named: Pair<Int, String>, other: String? = null) = StateWords(named.toMap(), other)
+    private fun words(vararg named: Pair<Int, String>, other: String? = null, alerts: Set<Int> = emptySet()) =
+        StateWords(named.toMap(), other, alerts)
 
     // ---- high voltage and 12 V
     val POWER_LEVEL = words(0 to "выкл", 1 to "ACC", 2 to "ON", 3 to "OK (готов)", 4 to "OK (ложный)")
@@ -37,19 +47,19 @@ internal object CarStates {
     /** The hub's charge port, `CHARGING_GUN_STATE_CONNECTED_*`: 1..5; the hub's wider gate lets 0 and 6..8 by, which are none. */
     val CHARGE_GUN = words(1 to "не подключён", 2 to "AC", 3 to "DC", 4 to "AC + DC", 5 to "V2L", other = NA)
     /** The energy system's generation, the hub's; 0 is the stock INVALID, never «off» ([SystemPagesBuilder.GENERATION_WORDS]). */
-    val GENERATION = StateWords(SystemPagesBuilder.GENERATION_WORDS, other = NA)
+    val GENERATION = StateWords(SystemPagesBuilder.GENERATION_WORDS, other = NA, alerts = setOf(3))
 
     // ---- drives and chassis
     val GEAR_SELECTOR = words(1 to "P", 2 to "R", 3 to "N", 4 to "D", 5 to "M", 6 to "S")
     val BRAKE_SWITCH = words(0 to "не нажата", 1 to "нажата", 2 to "нажата", 3 to "не нажата")
-    val EPB = words(0 to "отпускается", 1 to "отпущен", 2 to "затягивается", 3 to "затянут", 4 to "отказ")
+    val EPB = words(0 to "отпускается", 1 to "отпущен", 2 to "затягивается", 3 to "затянут", 4 to "отказ", alerts = setOf(4))
     val SUSPENSION_PROCESS = words(1 to "подъём", 2 to "опускание", 3 to "завершено", 4 to "прервано")
     val SUSPENSION_LEVEL = words(1 to "низкий", 2 to "средний", 3 to "высокий")
-    val TPMS_STATE = words(0 to "норма", 1 to "самопроверка", 2 to "нет сигнала", 3 to "отказ", 4 to "отключена")
-    val TPMS_BATTERY = words(0 to "норма", 1 to "разряжены")
-    val TYRE_TEMP_STATE = words(0 to "норма", 1 to "очень высокая", 2 to "высокая", 3 to "датчики спят")
-    val LEAK = words(0 to "норма", 1 to "быстрая утечка", 2 to "медленная утечка")
-    val PRESSURE_STATE = words(0 to "норма", 1 to "давление высокое", 2 to "давление низкое")
+    val TPMS_STATE = words(0 to "норма", 1 to "самопроверка", 2 to "нет сигнала", 3 to "отказ", 4 to "отключена", alerts = setOf(3))
+    val TPMS_BATTERY = words(0 to "норма", 1 to "разряжены", alerts = setOf(1))
+    val TYRE_TEMP_STATE = words(0 to "норма", 1 to "очень высокая", 2 to "высокая", 3 to "датчики спят", alerts = setOf(1, 2))
+    val LEAK = words(0 to "норма", 1 to "быстрая утечка", 2 to "медленная утечка", alerts = setOf(1, 2))
+    val PRESSURE_STATE = words(0 to "норма", 1 to "давление высокое", 2 to "давление низкое", alerts = setOf(1, 2))
 
     // ---- safety
     val BELT_FRONT = words(0 to "не пристёгнут", 1 to "пристёгнут")
@@ -70,15 +80,22 @@ internal object CarStates {
     // ---- climate
     val ON_OFF = words(0 to "выкл", 1 to "вкл")
     val AIR_INTAKE = words(0 to "наружный воздух", 1 to "рециркуляция")
-    val SENSOR = words(0 to "исправен", 1 to "отказ")
+    val SENSOR = words(0 to "исправен", 1 to "отказ", alerts = setOf(1))
+
+    // ---- the pack: the stock constants' words (SystemsBuilder), its faults the alerts
+    val CONTACTOR = StateWords(SystemsBuilder.CONTACTOR_WORDS)
+    /** 5..8 the faults of the plug, the charger and the grid; the rest are the charge's course. */
+    val PACK_CHARGE = StateWords(SystemsBuilder.PACK_CHARGE_WORDS, alerts = setOf(5, 6, 7, 8))
+    val CHARGER_STATE = StateWords(SystemsBuilder.CHARGER_STATE_WORDS)
+    val CHARGER_FAULT = StateWords(SystemsBuilder.CHARGER_FAULT_WORDS, alerts = setOf(2, 3))
 
     private val BY_EXTRA: Map<DiagnosticExtra, StateWords> = buildMap {
         put(DiagnosticExtra.POWER_LEVEL, POWER_LEVEL)
         put(DiagnosticExtra.DCDC_MODE, DCDC_MODE)
-        put(DiagnosticExtra.CONTACTOR, StateWords(SystemsBuilder.CONTACTOR_WORDS))
-        put(DiagnosticExtra.PACK_CHARGE_STATE, StateWords(SystemsBuilder.PACK_CHARGE_WORDS))
-        put(DiagnosticExtra.CHARGER_STATE, StateWords(SystemsBuilder.CHARGER_STATE_WORDS))
-        put(DiagnosticExtra.CHARGER_FAULT, StateWords(SystemsBuilder.CHARGER_FAULT_WORDS))
+        put(DiagnosticExtra.CONTACTOR, CONTACTOR)
+        put(DiagnosticExtra.PACK_CHARGE_STATE, PACK_CHARGE)
+        put(DiagnosticExtra.CHARGER_STATE, CHARGER_STATE)
+        put(DiagnosticExtra.CHARGER_FAULT, CHARGER_FAULT)
         put(DiagnosticExtra.GEAR_SELECTOR, GEAR_SELECTOR)
         put(DiagnosticExtra.BRAKE_SWITCH, BRAKE_SWITCH)
         put(DiagnosticExtra.EPB, EPB)
