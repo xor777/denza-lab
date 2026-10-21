@@ -96,8 +96,10 @@ class ScannerStackTest {
         assertEquals(listOf("10 с", "60 с", "5 мин"), ScannerSpec.Param.WINDOWS.map(ScannerWords::window))
         assertEquals(listOf("−60 с", "−45 с", "−30 с", "−15 с", "сейчас"), ScannerWords.ticks(60).map { it.second })
         assertEquals(listOf(60f, 45f, 30f, 15f, 0f), ScannerWords.ticks(60).map { it.first })
-        assertEquals(listOf("−10 с", "−7,5 с", "−5 с", "−2,5 с", "сейчас"), ScannerWords.ticks(10).map { it.second })
-        assertEquals(listOf("−300 с", "−225 с", "−150 с", "−75 с", "сейчас"), ScannerWords.ticks(300).map { it.second })
+        // the other windows in round steps, not quarters («−7,5 с», «−225 с» read badly)
+        assertEquals(listOf("−10 с", "−8 с", "−6 с", "−4 с", "−2 с", "сейчас"), ScannerWords.ticks(10).map { it.second })
+        assertEquals(listOf("−5 мин", "−4 мин", "−3 мин", "−2 мин", "−1 мин", "сейчас"), ScannerWords.ticks(300).map { it.second })
+        assertEquals(listOf(300f, 240f, 180f, 120f, 60f, 0f), ScannerWords.ticks(300).map { it.first })
     }
 
     @Test

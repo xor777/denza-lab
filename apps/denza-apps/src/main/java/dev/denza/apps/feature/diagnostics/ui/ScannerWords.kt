@@ -275,17 +275,24 @@ internal object ScannerWords {
     fun window(seconds: Int): String = if (seconds % 60 == 0 && seconds > 60) "${seconds / 60} мин" else "$seconds с"
 
     /**
-     * The chart's time ticks, seconds back with their words: five, evenly from the window's left
-     * edge to «сейчас», as the board's 60 s (`sysParam()`: «−60 с», «−45 с» … «сейчас»).
+     * The chart's time ticks, seconds back with their words, from the window's left edge to
+     * «сейчас» in round steps: 60 s by 15 as the board (`sysParam()`: «−60 с», «−45 с» …), 10 s by
+     * 2, five minutes by the minute («−5 мин» … «−1 мин»).
      */
-    fun ticks(window: Int): List<Pair<Float, String>> = (4 downTo 0).map { i ->
-        val t = window * i / 4f
-        t to if (i == 0) "сейчас" else "−${seconds(t)} с"
+    fun ticks(window: Int): List<Pair<Float, String>> {
+        val step = when {
+            window <= 10 -> 2
+            window <= 60 -> 15
+            else -> 60
+        }
+        return (window downTo 0 step step).map { t ->
+            t.toFloat() to when {
+                t == 0 -> "сейчас"
+                step == 60 -> "−${t / 60} мин"
+                else -> "−$t с"
+            }
+        }
     }
-
-    /** «7,5», «45». */
-    private fun seconds(t: Float): String =
-        if (t == kotlin.math.floor(t)) t.toInt().toString() else String.format(java.util.Locale.ROOT, "%.1f", t).replace('.', ',')
 
     /**
      * The page of [key] as the session describes it, or before it does: the row's name and reading,
