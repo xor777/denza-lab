@@ -285,10 +285,11 @@ corrections below.
 - The rear drives and DCOBC answer on their factory routes (SMCU 744, SMCU3 745, DCOBC 7E4; findings,
   «Complete factory map»): every address answers, 19 memories read, and no tile is dashed. A legend entry
   for a tile kind no tile on the board has is left out (`footer`'s `present`), so the topology and
-  the HV schematic no longer explain «адрес не найден». Which rear motor each SMCU drives is not
-  established: both are «Контроллер заднего мотора», the drives' columns are headed by block, the
-  autoservice signals keep their sides as Л / П in the signal line, as do the HV schematic's rear
-  motors.
+  the HV schematic no longer explain «адрес не найден». ~~Which rear motor each SMCU drives is not
+  established~~ - superseded 2026-10-21: the model's scanner catalog names SMCU 744 the left rear
+  and SMCU3 745 the right rear, and each one's `19 0A` registry equals its own side's section of
+  the manual's index (findings, «ECU roles and reverse catalog crosswalk»; architecture §4); the
+  drives' callouts name side and block («ЗАДНИЙ ЛЕВЫЙ · SMCU 744»).
 - Screen text without caveats (owner, 2026-10-20): data and names only - no ≈, footnotes,
   «только чтение» or «Пример»; the one source line is «Описания: каталог мануала Z9GT PHEV,
   перевод» in the footer of a codes screen that shows such descriptions (`scanner-ecu-fault`).
