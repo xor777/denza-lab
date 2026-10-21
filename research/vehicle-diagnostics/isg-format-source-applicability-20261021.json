@@ -1,0 +1,816 @@
+{
+  "schema": "denza-lab.isg-format-source-applicability.v1",
+  "date": "2026-10-21",
+  "status": "original_dictionary_source_and_persistence_traced_no_applicable_ISG_scenario_binding",
+  "scope": "Offline trace of retained OEM SpotInspection EOL Java/resources; no repeated APK/member/110-JSON audit. Parent owns live transport and native duplicate policy.",
+  "captureBase": "captures/diagnostics-transport-followup-20261021/dictionaries",
+  "vehicleOperations": 0,
+  "adbOperations": 0,
+  "networkRequests": 0,
+  "newExtractions": 0,
+  "newDecompilations": 0,
+  "sharedCodeChanged": false,
+  "qualifiedOemDefinitions": [],
+  "qualifiedFormat01RawDisplayMappings": [],
+  "applicableOriginalISGScriptRecovered": false,
+  "target": {
+    "name": "ISG",
+    "requestIdHex": "7E6",
+    "responseIdHex": "7EE",
+    "measuredSoftwareCode": "48370011E0EA000000",
+    "identityResponseLine": 32,
+    "identityResponseHex": "62F19448370011E0EA000000",
+    "formatResponseLine": 38,
+    "formatResponseHex": "590109010000",
+    "dtcFormatIdentifier": 1,
+    "statusAvailabilityHex": "09",
+    "memoryCountForMask09": 0,
+    "catalogEcuId": "HTH-2021_ISG_BYD_00100001",
+    "catalogSoftwareVersion": "4.03.13",
+    "catalogHardwareVersion": "0.0.5",
+    "catalogVersionBoundary": "Cached/catalog version metadata; this pass directly replays only F194 and format/count from the owner capture."
+  },
+  "answer": {
+    "commonFormatter": "Real OEM routine with conditional applicability; source existence alone does not establish this ISG uses it.",
+    "originalMeaningSource": "Selected original ScriptContent.data.attach[].dtcList[].code/desc, exact numeric code equality in MatchUtils.log1902; no match produces an empty description.",
+    "scriptSelectionTuple": {
+      "scriptCode": null,
+      "scriptVersion": null,
+      "forStation": null
+    },
+    "missingBinding": "No original retained script selected for ISG F194 48370011E0EA000000 / cached version 4.03.13 / format01. Thus no ECU/software-bound dtcList and no proven format01 raw-to-display map.",
+    "profileBoundary": "Upstream task provides script identities and systemIds. The inspected common runner does not infer a script/supplier from F194 or the cached ECU ID. Server selection or identity checks inside the missing real script remain possible."
+  },
+  "callChain": [
+    {
+      "stage": "incoming task dispatch",
+      "source": "receiver",
+      "lines": [
+        50,
+        68
+      ],
+      "behavior": "MessageDecoder produces header/data; executor selected by header.dataVersion; getRunner then checkAndParse/execute."
+    },
+    {
+      "stage": "execute command dispatch",
+      "source": "executor",
+      "lines": [
+        61,
+        79
+      ],
+      "behavior": "EXECUTE_EOL branch constructs ScriptRunCommandRunner with received header/data."
+    },
+    {
+      "stage": "original scenario load",
+      "source": "run_binding",
+      "lines": [
+        263,
+        268
+      ],
+      "behavior": "For each incoming scriptList entry, getContent(scriptCode,scriptVersion,forStation). No automatic ECU software lookup at this call."
+    },
+    {
+      "stage": "module selection",
+      "source": "run_binding",
+      "lines": [
+        303,
+        348
+      ],
+      "behavior": "Validate original content, optionally filter its EcuSystem.systemId by incoming command.systemIds, attach same content to SystemStatus."
+    },
+    {
+      "stage": "case and step execution",
+      "source": "system_execution",
+      "lines": [
+        275,
+        302
+      ],
+      "behavior": "Sorted cases/steps passed to ScriptStepExecutor.runStep."
+    },
+    {
+      "stage": "per-ECU attachment",
+      "source": "case_selection",
+      "lines": [
+        32,
+        59
+      ],
+      "behavior": "Case ecuAbbrName joins first matching data.attach entry; CAN request/response values required. JADX capture-name defect documented separately."
+    },
+    {
+      "stage": "wire route",
+      "source": "uds_route",
+      "lines": [
+        151,
+        159
+      ],
+      "behavior": "Request goes through selected attach.can.reqCanId/rspCanId."
+    },
+    {
+      "stage": "response interpretation",
+      "source": "step_execution",
+      "lines": [
+        243,
+        268
+      ],
+      "behavior": "Script-controlled validStartBit/dataCell structure and cell sizes produce numeric cell values passed to MatchUtils.log1902."
+    },
+    {
+      "stage": "DTC display gate",
+      "source": "formatter_and_lookup",
+      "lines": [
+        299,
+        327
+      ],
+      "behavior": "Only SID19/subfunction02; accepts one32-bit cell or separate24/8-bit cells. Does not accept dtcFormatIdentifier. The observed registry was190A; no same-function log gate for190A."
+    },
+    {
+      "stage": "original meaning and notation",
+      "source": "formatter_and_lookup",
+      "lines": [
+        354,
+        432
+      ],
+      "behavior": "Derive raw numeric24-bit value; find exact attach.dtcList[].code then desc; separately render PCBU code. The display notation is not the lookup key."
+    }
+  ],
+  "formatter": {
+    "algorithm": "PCBU[firstByte >> 6] + upper_hex_two_digits(firstByte & 0x3F) + upper_hex(last_two_bytes)",
+    "formatIdentifierArgument": false,
+    "formatIdentifierBranchInInspectedFunction": false,
+    "format01SpecialCaseFound": false,
+    "actualStockISGOutputObserved": false,
+    "190AHandlerUsesThisRoutineProved": false,
+    "staticConditionalExamples": [
+      {
+        "raw24Hex": "180219",
+        "sourceRendererOutput": "P180219"
+      },
+      {
+        "raw24Hex": "C14787",
+        "sourceRendererOutput": "U014787"
+      },
+      {
+        "raw24Hex": "C1D487",
+        "sourceRendererOutput": "U01D487"
+      }
+    ],
+    "rawDictionaryKey": "24-bit numeric integer extracted according to the original script response layout; equality precedes display rendering.",
+    "unknownDescriptionBehavior": "Empty string when no non-null Attach.Dtc exact-code match is found.",
+    "applicabilityVerdict": "UNPROVEN_FOR_ISG_48370011E0EA000000_FORMAT_01"
+  },
+  "originalSchema": {
+    "scriptTaskIdentity": [
+      "forStation",
+      "funcType",
+      "priority",
+      "scriptCode",
+      "scriptFormatVer",
+      "scriptName",
+      "scriptVersion"
+    ],
+    "scriptContent": [
+      "business",
+      "data",
+      "formatVer",
+      "protocol",
+      "receiver",
+      "scriptCode",
+      "scriptName",
+      "scriptVer",
+      "sender",
+      "uuid",
+      "vin"
+    ],
+    "data": [
+      "attach",
+      "systems"
+    ],
+    "system": [
+      "cases",
+      "desc",
+      "name",
+      "priority",
+      "systemId"
+    ],
+    "case": [
+      "caseId",
+      "caseName",
+      "ecuAbbrName",
+      "priority",
+      "steps"
+    ],
+    "attach": [
+      "bus",
+      "can",
+      "dtcList",
+      "dtcStatusList",
+      "ecuAbbrName",
+      "ecuName",
+      "frameSize",
+      "security"
+    ],
+    "dtcEntry": {
+      "code": "int",
+      "desc": "String"
+    },
+    "formatVersionBoundary": "Script formatVer3.0.0 is the JSON scenario schema, not the ECU DTCFormatIdentifier01.",
+    "explicitSupplierOrF194SelectorInTheseBeans": false,
+    "limits": "No selector in these common bean fields/checkScript is not proof the actual missing script or upstream selector lacks ECU identity/version conditions."
+  },
+  "supplierVariantCandidates": [
+    {
+      "publicDisplayCode": "P183800",
+      "outlineId": "outline_595_a",
+      "publicTitleZh": "P183800 发电机控制器IGBT散热器过温故障-弗迪方案/发电机控制器水温过温故障-博格华纳方案",
+      "sourceUrl": "https://dongcheyun.com/p/23710",
+      "sourceType": "third_party_public_table_of_contents",
+      "hypotheticalRaw24Hex": "183800",
+      "sourceRendererOutputIfRaw24Used": "P183800",
+      "qualifiedMeaning": null,
+      "supplierSelected": null,
+      "format01MappingQualified": false,
+      "reason": "The public title has incompatible Fudi/BorgWarner branches. No recovered applicable original script, F194-to-supplier selector, primary manual body or actual stock ISG rendering selects a branch."
+    },
+    {
+      "publicDisplayCode": "P183F00",
+      "outlineId": "outline_601_a",
+      "publicTitleZh": "P183F00 发电机控制器散热器故障-弗迪方案/发电机控制器水温温度传感器故障-博格华纳方案",
+      "sourceUrl": "https://dongcheyun.com/p/23710",
+      "sourceType": "third_party_public_table_of_contents",
+      "hypotheticalRaw24Hex": "183F00",
+      "sourceRendererOutputIfRaw24Used": "P183F00",
+      "qualifiedMeaning": null,
+      "supplierSelected": null,
+      "format01MappingQualified": false,
+      "reason": "The public title has incompatible Fudi/BorgWarner branches. No recovered applicable original script, F194-to-supplier selector, primary manual body or actual stock ISG rendering selects a branch."
+    }
+  ],
+  "persistence": {
+    "source": "script_storage",
+    "readMethod": "ScriptDao.getContent(code,version,station) -> getFile -> FileUtils.readTextFromFile -> JSON.parseObject(..., ScriptContent.class)",
+    "fileNameTemplate": "<scriptCode>-<scriptVersion>-script.txt",
+    "metadataSiblingTemplate": "<scriptCode>-<scriptVersion>.json",
+    "androidApi": "BaseApp.getAppContext().getExternalFilesDir(nonemptyStation ? \"Scripts/\"+station : \"Scripts\")",
+    "expectedUser0ExternalDirectory": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<forStation>/",
+    "expectedUser0ExternalScript": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<forStation>/<scriptCode>-<scriptVersion>-script.txt",
+    "externalPathStatus": "Derived from source and historical actual root listing; exact current mount/user and access not checked.",
+    "internalFallbackDirectory": "/data/user/0/com.byd.spotinspection/files/Scripts/<forStation>/",
+    "internalFallbackBoundary": "Only used if externalFilesDir returns null; not a second guaranteed copy, never accessed in this pass.",
+    "appContext": "Normal Application.getApplicationContext; no device-protected context conversion in this source path.",
+    "javaGetterStrictlyReadOnly": false,
+    "getterSideEffect": "getFile calls mkdir if directory missing; Android external-files directory lookup may also create app directory. Do not invoke getters/services as passive probes.",
+    "metadataSiblingContainsOriginalDtcList": false,
+    "metadataBoundary": "saveResponseToFile removes data before saving. Metadata can exist without successful script decode; it cannot replace original script content.",
+    "priorExternalListing": {
+      "source": "prior_empty_scripts_listing",
+      "date": "2026-10-18",
+      "contents": "Only Scripts root directory row, no retained station directories or script files in this report. This is historical presence evidence only."
+    },
+    "futureMetadataOnlyCandidate": {
+      "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts",
+      "operation": "Existing directory and regular-file name/size/mtime listing only, if parent later establishes exclusive live ownership and useful changed-cache evidence.",
+      "performed": false,
+      "reasonDeferred": "Car may be used by other sessions and retained cache was empty; no new live acquisition required for this report."
+    }
+  },
+  "publicReadRoutes": {
+    "spotInspectionExportedProvider": {
+      "authority": "com.byd.spotinspection.provider.DynaConfigContentProvider",
+      "queryColumns": [
+        "ShowInAppList",
+        "AppStopEnable",
+        "AppForceStopEnable",
+        "AppClearDateEnable",
+        "AppClearCacheEnable"
+      ],
+      "queryRow": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "scriptOrDtcRead": false,
+      "openFileOverride": false,
+      "source": "provider"
+    },
+    "exportedServices": [
+      {
+        "name": "com.byd.spotinspection.MainService",
+        "source": "main_service_interface",
+        "inspectedInterface": [
+          "cancelCheck",
+          "checkDone",
+          "checking",
+          "setHandler",
+          "stopCheck"
+        ],
+        "dictionaryReadMethodFound": false
+      },
+      {
+        "name": "com.byd.spotinspection.ProductLineService",
+        "source": "product_line_binder",
+        "inspectedInterface": [
+          "postHandler",
+          "postShowPhaseChange",
+          "postUserOption"
+        ],
+        "dictionaryReadMethodFound": false
+      },
+      {
+        "name": "com.byd.spotinspection.eol.EolMainService",
+        "source": "eol_service_binder",
+        "inspectedInterface": [
+          "registerListener",
+          "unRegisterListener"
+        ],
+        "dictionaryReadMethodFound": false,
+        "onCreateSideEffect": "Creates presenter and calls init; no start or bind performed."
+      }
+    ],
+    "sourceProvenPassiveDictionaryApiFound": false,
+    "boundary": "Exported flags alone do not expose ScriptDao. Only the inspected provider/Binder interfaces are covered; no inference that all OEM packages lack such an API."
+  },
+  "retainedMetadataJoin": {
+    "projectionPath": "captures/diagnostics-transport-followup-20261021/dictionaries/isg-script-identity-metadata-key-scan.json",
+    "examinedArtifacts": 3,
+    "fullEcuMapRecords": 225,
+    "exactIdentityOrDtcListKeyHits": 0,
+    "applicableTupleRecovered": false,
+    "boundary": "Key-level negative only for the three named existing ECU metadata artifacts; no new private/cache/key/token reads, no claim about unavailable upstream task metadata."
+  },
+  "knownButWrongScenario": {
+    "kind": "Built-in super-low-power shutdown scenario",
+    "scriptCode": "SR1951115667872665600_CF1",
+    "scriptVersion": "1.00_0010",
+    "forStation": "超低功耗",
+    "formatVer": "3.0.0",
+    "protocol": "UDS-FULL",
+    "attachProjection": [
+      {
+        "ecuAbbrName": "LA_BCM",
+        "reqCanId": 1824,
+        "rspCanId": [
+          1832
+        ],
+        "dtcListRows": 1
+      },
+      {
+        "ecuAbbrName": "LBMS",
+        "reqCanId": 1890,
+        "rspCanId": [
+          1898
+        ],
+        "dtcListRows": 0
+      }
+    ],
+    "ISGPresent": false,
+    "ISGDictionaryQualified": false,
+    "boundary": "This known tuple proves storage/schema mechanics only. It has LA_BCM/LBMS, not ISG; the single LA_BCM DTC entry does not establish an applicable powertrain definition. The loading/enter-low-power code is not invoked."
+  },
+  "upstreamAcquisitionBoundary": {
+    "source": "download_boundary",
+    "fieldsOnly": "downloadBaseUrl from received ScriptRequest; request includes scriptCode/version/format and header VIN/UUID/taskId/token.",
+    "publicUnauthenticatedDictionaryRouteEstablished": false,
+    "requestPerformed": false,
+    "boundary": "This identifies an upstream task download dependency; it is not authorization or a public URL. No credentials, private APIs, auth requests, encrypted responses or keys were used."
+  },
+  "nextConcreteEvidenceNeeded": [
+    "Legitimately retained original script file plus its scriptCode/scriptVersion/forStation selection metadata that binds to this exact ISG software/profile.",
+    "Original data.attach entry naming ISG and CAN7E6/7EE, its dtcList, and the actual DTC response step/format/version conditions.",
+    "For P183800/P183F00, original supplier/version applicability selecting Fudi or BorgWarner; public combined titles alone do not choose it.",
+    "If no local original scenario exists, original OEM ISG manual fault-list body plus an explicit software/revision and format01 mapping. No generic definition substitution."
+  ],
+  "limits": [
+    "Existing decompiled Java is primary retained OEM app code, with possible decompiler defects. ScriptCheckUtil line43 refers to str while the enclosing capture is ecuAbbrName; the readable matching intent is not bytecode-level revalidation.",
+    "No matching original ISG scenario or per-ECU ISG dtcList was recovered. Common formatter/schema and public headings remain conditional evidence.",
+    "Public generator titles are third-party table-of-contents candidates; primary manual body and OEM provenance remain unverified.",
+    "No new vehicle/ADB/network operation, archive extraction/decompile, product dictionary, shared docs or commit."
+  ],
+  "anchorsPath": "captures/diagnostics-transport-followup-20261021/dictionaries/isg-format-applicability-source-anchors.json",
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/MqttMessageReceiver.java",
+      "sha256": "633c1fef168f9c2c72aabb69f86d53b46493288898984b31a42d305ebb7cf41c",
+      "bytes": 5483,
+      "id": "receiver",
+      "lineRanges": [
+        [
+          50,
+          68
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/EolExecutorV3.java",
+      "sha256": "1fd763bb6c8ff3c2403c537617fe18ce43efb6ba318c068115aec26094579877",
+      "bytes": 6399,
+      "id": "executor",
+      "lineRanges": [
+        [
+          61,
+          79
+        ],
+        [
+          84,
+          113
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptRunCommandRunner.java",
+      "sha256": "5e62b3729b17183d5581f158cefd70f2d8d2c26962d11988b165a8002fdbecaf",
+      "bytes": 29021,
+      "id": "run_binding",
+      "lineRanges": [
+        [
+          263,
+          268
+        ],
+        [
+          303,
+          327
+        ],
+        [
+          330,
+          348
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptExecutor.java",
+      "sha256": "21277d9b4d079f0bcf113acb66f93b5a9ffd9d967defc79e010f657e8678e992",
+      "bytes": 17309,
+      "id": "system_execution",
+      "lineRanges": [
+        [
+          275,
+          302
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptStepExecutor.java",
+      "sha256": "a9b965f210ba21df43c16839e4743ff029aeb44d3d2ec6015d2a964466db1160",
+      "bytes": 18109,
+      "id": "step_execution",
+      "lineRanges": [
+        [
+          50,
+          80
+        ],
+        [
+          243,
+          268
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/ScriptCheckUtil.java",
+      "sha256": "515b562a93e3b674a80f87bf04fb148da86cfd6ec537f77a1382e349bdd6bd42",
+      "bytes": 15500,
+      "id": "case_selection",
+      "lineRanges": [
+        [
+          32,
+          59
+        ],
+        [
+          98,
+          162
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45",
+      "bytes": 25950,
+      "id": "formatter_and_lookup",
+      "lineRanges": [
+        [
+          299,
+          327
+        ],
+        [
+          354,
+          399
+        ],
+        [
+          429,
+          432
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/uds/UdsManager.java",
+      "sha256": "a1fbf0a4f3fab0069cb80c28e8a763e0ed63872b730ac33112faf39d3b7fcb79",
+      "bytes": 38700,
+      "id": "uds_route",
+      "lineRanges": [
+        [
+          151,
+          159
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Script.java",
+      "sha256": "cdf1ae2db9d441e7f409166579fa9f77ac9f33e760e95c6f0102335f4c088a3c",
+      "bytes": 1676,
+      "id": "script_identity",
+      "lineRanges": [
+        [
+          6,
+          13
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/ScriptContent.java",
+      "sha256": "03b71abab9ec16190082564e4b564d9ab6e8c38b73dd5f4e7c043e167daa9c35",
+      "bytes": 6680,
+      "id": "script_content",
+      "lineRanges": [
+        [
+          6,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/ScriptData.java",
+      "sha256": "b6923eed20f3b24411ef166f9b5aa20f23d83100590d170cbac4f6d494659c1c",
+      "bytes": 1749,
+      "id": "script_data",
+      "lineRanges": [
+        [
+          6,
+          8
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/EcuSystem.java",
+      "sha256": "2100805440191aee2c5a90ceaf8bc6c4f87f968262e2d0c5ecf838142bca3634",
+      "bytes": 2928,
+      "id": "system_schema",
+      "lineRanges": [
+        [
+          6,
+          11
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Case.java",
+      "sha256": "bd906e5eb55c7baf6dfa5f66d83ec072d48b6dc534f83868908f111d18a805b6",
+      "bytes": 3040,
+      "id": "case_schema",
+      "lineRanges": [
+        [
+          6,
+          11
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Attach.java",
+      "sha256": "c496d093f810c0a2fe8cae4e952ede4513968e5f8c6729014703914769c95e8a",
+      "bytes": 14068,
+      "id": "attach_schema",
+      "lineRanges": [
+        [
+          6,
+          14
+        ],
+        [
+          433,
+          435
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/ScriptDao.java",
+      "sha256": "64aa42f3a06378288bfc369b6bb7ce8cf3be8313c1062bd9719400de08ffc5b8",
+      "bytes": 6846,
+      "id": "script_storage",
+      "lineRanges": [
+        [
+          31,
+          43
+        ],
+        [
+          87,
+          100
+        ],
+        [
+          103,
+          120
+        ],
+        [
+          146,
+          164
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/BaseApp.java",
+      "sha256": "89deceb0c59dc8aa51c180b5d28995ff9fca96d0c5647f893867e282f8b81b4f",
+      "bytes": 1495,
+      "id": "app_context",
+      "lineRanges": [
+        [
+          13,
+          20
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/ScriptDownloadManager.java",
+      "sha256": "d1976fbb65e6970757ca170bec547d70c07608584685b4a7164442b9255039d8",
+      "bytes": 23493,
+      "id": "download_boundary",
+      "lineRanges": [
+        [
+          80,
+          83
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/bean/DownloadResponseVO.java",
+      "sha256": "2fbdda7dbfdb1b9b336734172dc8dbc58d2df006e58f53b8aa4e1138c3b2586f",
+      "bytes": 2435,
+      "id": "download_response_schema",
+      "lineRanges": [
+        [
+          6,
+          18
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/AndroidManifest.xml",
+      "sha256": "b24047770eb6c47d3d2cce1873140a77cdad3d6b96af29d63fbf7bc6fee01f4d",
+      "bytes": 7721,
+      "id": "manifest",
+      "lineRanges": [
+        [
+          1,
+          14
+        ],
+        [
+          35,
+          47
+        ],
+        [
+          65,
+          68
+        ],
+        [
+          105,
+          110
+        ],
+        [
+          143,
+          149
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/provider/DynaConfigContentProvider.java",
+      "sha256": "769b94a716f857fbc9b731a8134f8b03af63fb7e24e57d7f15c789ad379bb8e8",
+      "bytes": 1410,
+      "id": "provider",
+      "lineRanges": [
+        [
+          10,
+          42
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/MainService.java",
+      "sha256": "95d0b5dcdf1608789717442bacbc205d4e14eda9ad753e5e883158c7d1facb66",
+      "bytes": 14241,
+      "id": "main_service_interface",
+      "lineRanges": [
+        [
+          45,
+          55
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/ProductLineService.java",
+      "sha256": "7cb1e619e8bd851e0989635fb64386ce293ff8ef53cf9a17d9277b06677e9215",
+      "bytes": 54572,
+      "id": "product_line_binder",
+      "lineRanges": [
+        [
+          566,
+          603
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/EolMainService.java",
+      "sha256": "9159339dc199f6045d13955bf471621d8895c68bee8fb708d1ac7b2fba3e7f6b",
+      "bytes": 2661,
+      "id": "eol_service_binder",
+      "lineRanges": [
+        [
+          20,
+          29
+        ],
+        [
+          50,
+          76
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager.java",
+      "sha256": "ceb59e5ca1ec0784b34d4e22507e81dc26450ce20e0cee6934f982e3d4898776",
+      "bytes": 15002,
+      "id": "low_power_loader",
+      "lineRanges": [
+        [
+          150,
+          160
+        ],
+        [
+          241,
+          258
+        ]
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+      "bytes": 11809,
+      "id": "low_power_resource"
+    },
+    {
+      "path": "captures/adas-speed-20261018/reports/live-eol-script-list.txt",
+      "sha256": "84962d491cc6c18f59fde9b22b4655adecd0ade75075d552b38741ec8c421ed3",
+      "bytes": 112,
+      "id": "prior_empty_scripts_listing",
+      "lineRanges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-scenario-origin-20261021.json",
+      "sha256": "5d05824fd134c2ec60101711ecaa611a678cfd07bd24cd78cfeaecded83a6a20",
+      "bytes": 31651,
+      "id": "prior_scenario_origin"
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-supported-dictionary-candidates-20261021.json",
+      "sha256": "22a6bb8176ab88598d1b7845607c894cf519d1e600d04cdd38e8eacd41ad1569",
+      "bytes": 46549,
+      "id": "prior_full_isg_dictionary_candidates"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1",
+      "bytes": 85175,
+      "id": "public_heading_index"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+      "bytes": 118681,
+      "id": "full_ecu_map"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-inventory-cache-20261018.json",
+      "sha256": "f7489a93cb7535f05f9ba59b81a047d8d8f09bed6733d040bba54aa2059207ef",
+      "bytes": 5386,
+      "id": "ecu_cache_summary"
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+      "bytes": 39890,
+      "id": "approved_ecu_version_metadata"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/dictionaries/isg-format-applicability-source-anchors.json",
+      "sha256": "83aaca81f11ee47c7a8a9b6309c2999588418145dd80e74a645ba805a5488e73",
+      "bytes": 53093,
+      "id": "source_anchor_projection"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/dictionaries/isg-script-identity-metadata-key-scan.json",
+      "sha256": "f67653d957da9311b81611686d7edb907752bd554dd21a5e7970be29fdcc42a2",
+      "bytes": 2119,
+      "id": "metadata_key_scan_projection"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_isg_format_source_applicability.py"
+}

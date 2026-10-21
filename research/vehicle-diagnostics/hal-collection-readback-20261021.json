@@ -1,0 +1,734 @@
+{
+  "schema": "hal-collection-readback-v1",
+  "date": "2026-10-21",
+  "scope": "Offline source-bounded assessment of existing Android/HAL CAN collection ownership, metadata, and readback paths. Owner IVI corpus only; no table modification.",
+  "captureBase": "captures/diagnostics-transport-followup-20261021/hal",
+  "sources": [
+    {
+      "path": "research/vehicle-diagnostics/check_hal_collection_readback.py",
+      "sha256": "ea44572cf2a8e491f1ccd0782687488c7608a00985f885d6f99db402ce9dc9a9",
+      "bytes": 7828
+    },
+    {
+      "path": "research/cluster-native/inspect_native.py",
+      "sha256": "c8020b0720d33a327122ae5f039c7fc494ffe4ec0df300a3fccbd3202b2e7d0d",
+      "bytes": 19791
+    },
+    {
+      "path": "research/vehicle-diagnostics/diagnostic-can-observer-candidates-20261021.json",
+      "sha256": "859f2645ed274ad668766e3bf5f3793142a82afa50b68b6671e3310025f9a5b9",
+      "bytes": 22284
+    },
+    {
+      "path": "research/vehicle-diagnostics/engine-drive-consumers-20261021.json",
+      "sha256": "558996ec969904ab0e07d547a41369b7d88f39bf3c2600efd43551dcd2b8f1c2",
+      "bytes": 35470
+    },
+    {
+      "path": "captures/firmware-index.tsv",
+      "sha256": "2ba97c1167095a1eda48211e41da6acbc7b2dec1344f74d6ac6a5ab9e5a50794",
+      "bytes": 120101
+    },
+    {
+      "path": "captures/hud-firmware-20260923/files-system.txt",
+      "sha256": "07d253d4af590e8d15bf84384ca44d84ff488a892c60bdeb6b522f25eda1c0f6",
+      "bytes": 388814
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/hal/hal-set-table.asm",
+      "sha256": "aa2985bce2ec565737b8ffe6d5a837ab4232a3e933534a0d03ba7e7d97ad1839",
+      "bytes": 19323
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/packets/hal-b0a70.asm",
+      "sha256": "f18daf27d86f59ce403b9ff1ca226868733e1f9759a945b04166616c19fa1fec",
+      "bytes": 113137
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/vehicledata/BYDAutoVehicleDataDevice.java",
+      "sha256": "369cec01190f71a1b56661f3a567a69fac5687c1c097589f6485ce925ba03495",
+      "bytes": 5423
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "sha256": "360f55d453b41bdf53757031b8126175eeef4df7049b3320a2eb6097b6b9fae7",
+      "bytes": 11512
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "sha256": "7d5b3fa0658a899bf85ac9a8f00287a39cba799887feac42a115a97731bbe7cf",
+      "bytes": 17501
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceFeaturesMap.java",
+      "sha256": "cd12d9640f004339889e45ac1f53b2e8a9e1de12b8df9c7e98e8b1524a67161d",
+      "bytes": 732233
+    },
+    {
+      "path": "reverse/candatacollect-jadx/sources/com/byd/CanDataCollect/entity/CanDataHandle.java",
+      "sha256": "0bcdc00a3e3ac9df22e4c7f1d42d883933fc55397469447e49dbcc9beca81072",
+      "bytes": 19309
+    },
+    {
+      "path": "reverse/candatacollect-jadx/sources/com/byd/CanDataCollect/entity/JsonDataHandel.java",
+      "sha256": "d539305a9dd95bf55e6192eb5cfaf6e8c4faba83af696bbafc49798d3bb3ae7c",
+      "bytes": 35090
+    },
+    {
+      "path": "reverse/candatacollect-jadx/sources/com/byd/CanDataCollect/entity/VehicleDataStorage.java",
+      "sha256": "4d2538968fab8ff6b353d072a9044aaa618a4e71d7a52e1e962da8f5cff054e7",
+      "bytes": 40971
+    },
+    {
+      "path": "reverse/candatacollect-jadx/sources/com/byd/CanDataCollect/entity/Constant.java",
+      "sha256": "33fbd10f9daa8f6676f89424aed24024cf9df44e12e0e4877bb959003d964b33",
+      "bytes": 10784
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/gb-default-table-bytes.json",
+      "sha256": "749538ed15b12434c766dc5fcdbd6366c603932366b60a43d46a4b3eba3966ce",
+      "bytes": 22871
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager",
+      "sha256": "9e36cdbf841d54a3b1ea3631b5d5b867d5908bd191a113f53b5bb4182df82eb9",
+      "bytes": 583632
+    },
+    {
+      "path": "captures/telematics-20260923/readable-firmware/current-files/system/bin/mqttserv",
+      "sha256": "31d3196145b7ab48e179bf2c9bdcb3032a217b9507e2f29b6cceecf3c10db4fb",
+      "bytes": 633400
+    },
+    {
+      "path": "captures/telematics-20260924/alternative-identity-paths/files/system/lib64/libmqttserv.so",
+      "sha256": "7b1b92894cd8bf13aaf9d008fe89beba0171ce890deceb6aa34dd5a6442611e6",
+      "bytes": 116096
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/search_stock_clients.py",
+      "sha256": "f24a1d3014496c356371dd8a467e9e010da86c9b84e97cf3063003b34334e315",
+      "bytes": 3139
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/stock-client-search.json",
+      "sha256": "f249f54447f1f54e824932a533e5e0303bbfaf88782a14133924c4e458996811",
+      "bytes": 13176077
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/stock-client-search-summary.json",
+      "sha256": "a722c79eda0cb8603d1df399deeb81bae4d478e80c5a70ee22836346c873a1ea",
+      "bytes": 18294
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/native-ranges.json",
+      "sha256": "7948d1225b2683b26145bac12a9ed71b715f1c34c59b37851a466f6d54414944",
+      "bytes": 8631
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/getter-direct-xrefs.json",
+      "sha256": "973f92164397145bac5a8fdea3f970fe1b705f323cc6e774e36babca5d86a5e4",
+      "bytes": 4352
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/readback-symbol-candidates.json",
+      "sha256": "ceefa3390d4b8a864f2742f9c669a19645523700da1d8d628974550fe5352625",
+      "bytes": 8441
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/native-stock-client-search.json",
+      "sha256": "acfd922265eb524b6143575eb52bf353ae8e15b928e4e306714e22b747e85772",
+      "bytes": 5764
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/dump-option-strings.json",
+      "sha256": "2cd7b7de64e8025a79042df2d0d05fa19d70d3b78959ab9226da7428b01779b0",
+      "bytes": 591
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/getter-property-strings.json",
+      "sha256": "5b98961b00b99ed40e00d7639c541ba40816c33328e97041f182a27d22419266",
+      "bytes": 159
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/retained-default-table-audit.json",
+      "sha256": "530b196172598036de8515d6f90f3f41a3c73b39b2fa4b597b4dcfebc762bf29",
+      "bytes": 3352
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydautoservice.so",
+      "sha256": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65",
+      "bytes": 378464
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "sha256": "1730ca60779d7d45f2976a947172f6c0b4b5145d763d07bc257d809275537362",
+      "bytes": 189096
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-84270.asm",
+      "sha256": "b4bf54cc6b8547dc2c5b9c3b8555d747984e7031d4bb32d6e01a86a886323c9a",
+      "bytes": 275
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-84280.asm",
+      "sha256": "00cd208deeec1c8860e0d274140f5edcc64f8631a39e972057f5090706bbef8d",
+      "bytes": 1429
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-84310.asm",
+      "sha256": "72b6748136373b0ba5995b4ecc594204b1f01a3d8b19eccff69fb2f1224b56e5",
+      "bytes": 1277
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-84390.asm",
+      "sha256": "84600e9614d37a01728b711ed0a348c747fee1130d666b1a624c5e5453e66138",
+      "bytes": 1435
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-83ae0.asm",
+      "sha256": "333787c392b9b42f4ec3c56176738ba02b77380f8ce45a2ba3d5fbdbe124b92f",
+      "bytes": 2181
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-83be0.asm",
+      "sha256": "11506637e892da5f6ffe223a355863c030e7ade9ace91d2ecf8c5f95486013fe",
+      "bytes": 2440
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-83e10.asm",
+      "sha256": "636adc6a55919133a0674a046c453775920f2422fe9162c99ef883ea94b9c3f5",
+      "bytes": 2441
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b3c20.asm",
+      "sha256": "6c920cffaf980b9b7c9cad6375b6a29e06f77130426297be3b654b0c17ef220c",
+      "bytes": 2310
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b3d00.asm",
+      "sha256": "ffd023325975c43ef6db4e0923fd46e429fb0b5969c5de7813af1d737583239c",
+      "bytes": 1943
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b39b0.asm",
+      "sha256": "3e5deb78182b48da4c361eff0bc5eb7ba98cd3eee68db1bfc137b6f2057b8bcc",
+      "bytes": 2801
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b6310.asm",
+      "sha256": "8014653d0ee2034a23cb872b22998946788153f6c2f51c4bea275e1ef7596a90",
+      "bytes": 1923
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b6560.asm",
+      "sha256": "5e2b5f614471fda50271ddc4ea1f558062eb1eabdcfb2fa7fac6871cbabe4456",
+      "bytes": 1234
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-840f0.asm",
+      "sha256": "1de6f09370d1b3646d8005dcf1552123fc07e3704403471cf874a619258a68d0",
+      "bytes": 2747
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-841b0.asm",
+      "sha256": "b1acb28b1f94300410c605c6b8e9fbff38df1a3d93635637e18a6cd1bacf1f36",
+      "bytes": 2410
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-82e00.asm",
+      "sha256": "558085663214bf0d4de92827e8f017265ed8ddf5e63be8f1a4cf792aadbd07b9",
+      "bytes": 2243
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/hal-b63c0.asm",
+      "sha256": "76d3a4742d391f7509fa656b55aaa24f5b90db8dbbe591171b6c2ce70fa152d7",
+      "bytes": 1883
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/service-2d890.asm",
+      "sha256": "5369af17ece8202627966ab80049f8c312be2d0c29ce4bb1a74db57f0f73b4d7",
+      "bytes": 3920
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/service-339c0.asm",
+      "sha256": "d945706231f1dba442ab7ad7d43632eeaeffa93bf85e817e33807af3ea0a1032",
+      "bytes": 41660
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/client-1d880.asm",
+      "sha256": "478f2af672906780b25e7a67d948d4ab2d7f21ee2ae0658db7a4b9bc6e7af7ef",
+      "bytes": 3152
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/client-23100.asm",
+      "sha256": "761ada0ef6fb98a99c1c5ff8aac9060602a104ea8381798656fdf0be2ba18c9e",
+      "bytes": 1528
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/service-2bb60.asm",
+      "sha256": "6e4acb87e776119c5bbb006b804b3961ed469641be2b52267a5a6a199baac831",
+      "bytes": 2618
+    },
+    {
+      "path": "research/split-firmware/extract_system_files.py",
+      "sha256": "14efc379ab070973bda096fae43aaba51c561d5074bc6b31c537cf8ae4b9f8cb",
+      "bytes": 3609
+    },
+    {
+      "path": "research/telematics-firmware/check_config.py",
+      "sha256": "338861d83b4e7d65d1df15b4bf6b5fcfbe95507f356a50074438bc589b77de28",
+      "bytes": 2101
+    },
+    {
+      "path": "research/telematics-firmware/current_payload.py",
+      "sha256": "a50f3d68eed86db59583696711e5241b8b4c79b189cbf8292245e543ccc2380d",
+      "bytes": 3713
+    },
+    {
+      "path": "research/telematics-firmware/read_android.py",
+      "sha256": "9dcd39f09183b1fbf4096ad8919f948a42aba601318c17618cd5087adfcae668",
+      "bytes": 3394
+    },
+    {
+      "path": "research/telematics-firmware/extract_cloud.py",
+      "sha256": "ea11fd67fe8d3cb43d05f5017713d32d34804ffa6732a567c341ea82af665aae",
+      "bytes": 3574
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-ota/extraction.json",
+      "sha256": "ea2424a5cfb37f3864e30bc1f4d2e0f42cac3d90b27619164cc4cafa45904962",
+      "bytes": 222
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-ota/system/system/bin/vhds",
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+      "bytes": 318376
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+      "bytes": 318376
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/vhds-extraction-20261021.json",
+      "sha256": "d08af60a90936eedf20cea4cbe9af534d9dbaaa32f152c2d6cca60a1cc8ff515",
+      "bytes": 626
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91",
+      "bytes": 4
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93",
+      "bytes": 6
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-candidates.json",
+      "sha256": "b77d3aa8916caadfab01c68eb9afab15763fbdc071b00c6e6423256902d7741b",
+      "bytes": 18591
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-api-direct-xrefs.json",
+      "sha256": "3f0e5d097010d399dde51f68341be753d9bb8283e6587f8bd3986277c53920b1",
+      "bytes": 4772
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-global-store-candidates.json",
+      "sha256": "ebe17a381eaf934f77021995ffb69b272f4b93bf45833a2564ca4ec9fa8f8597",
+      "bytes": 681
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-native-ranges.json",
+      "sha256": "35b935d52557078a5d0db54e2699310a273a7732282c5c4a8963fa8f987a40f8",
+      "bytes": 6909
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-config-path-strings.json",
+      "sha256": "8946ebb0cb22155a572b633da042a866deba46c42863f367797a514bc4cc7e83",
+      "bytes": 327
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-key-strings.json",
+      "sha256": "b668afc32fe37456c9b0806c1f1d2ba3c4c7f32972bbcbf95f04ef4cd525e62e",
+      "bytes": 473
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-config-string-xrefs.json",
+      "sha256": "2a15603db1a15a5fc0d4930c418048c726d48f5bbd4f83a6caaad7a53189b6e2",
+      "bytes": 5904
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-selected-local-xrefs.json",
+      "sha256": "4e78912732c9f410aab7c9d8a10b2eaaa8173b2dc6ad5b33b344cbdcffa4a9ec",
+      "bytes": 1023
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-file-api-xrefs.json",
+      "sha256": "9cb72b55825f984b0870f50362cf3b30dde35088b8b8629e41b97578da398def",
+      "bytes": 1815
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-config-parser-keys.json",
+      "sha256": "5451bb02200d5411a7a565fd494b7416a4b2b36c3ea46bc99203a09d62eb4c07",
+      "bytes": 1096
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-16270.asm",
+      "sha256": "b40e7f940a7eb8da528b6514b9de066705632957b58b23a3dc19d91f7742b1c1",
+      "bytes": 11787
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-22510.asm",
+      "sha256": "42c3946189ddeb23b5cf36b830177c05c5e349e6b4d55883b267a6497ddeec13",
+      "bytes": 10951
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-257a0.asm",
+      "sha256": "8d463614ac8a0196f93d3676d40005fbdb551f124b9dc09abe9ac3d597868dfe",
+      "bytes": 8077
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-2a9b0.asm",
+      "sha256": "673f209ea7eade3c34e3e666c35d4ba83892a9933527644d86ff762448b5025f",
+      "bytes": 3039
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-34990.asm",
+      "sha256": "ce8060c2e81a2eba5d5641d6a011dcfdb92e59887635b0191e15af0ae651281e",
+      "bytes": 3540
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-38b30.asm",
+      "sha256": "98bb4cfc69cc6987a372f14f3d34d410a5d0ea1351fe6644015825fc299c1e05",
+      "bytes": 4425
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-3a020.asm",
+      "sha256": "45961c21f9b0abbd3e2252bb04fc452081ab8ffb614d671a40ee02157f553b48",
+      "bytes": 2283
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-3f460.asm",
+      "sha256": "2cfbe8a168d9649146c4b31e3328ec620558a6d5cde5d0b835039c8526a9d433",
+      "bytes": 3211
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-2e550.asm",
+      "sha256": "8087968ed5ebaa329f981f189f3e1dc1f5fe7886df76b98a285addd297a172e4",
+      "bytes": 13231
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-34c00.asm",
+      "sha256": "e11dde5587698c1f3e3540645ffd80af391e4e615ca42846b1e63c9d43544899",
+      "bytes": 8160
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-3b840.asm",
+      "sha256": "549f96155d82ca271cf587ddae8754ad67f6c69c707dd2ccea771e78e3d9ed6e",
+      "bytes": 8160
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-179e0.asm",
+      "sha256": "521c9969a52f8ede427104ef00ccf4ef1d2cb3ebf101bfd360bf545866cd29ad",
+      "bytes": 2734
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-20420.asm",
+      "sha256": "0997080cbfc7949095455f9aaf08b8174e4964fd4bb61f946eaafcc324c43e25",
+      "bytes": 9674
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-230e0.asm",
+      "sha256": "a212d86d42ea8c3682a4cf90d731e3cd8f56148a080d0b1d5120ee815d3c17a6",
+      "bytes": 2714
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-23210.asm",
+      "sha256": "ccaa41bdc4570c195123548c7439f3d1348d5a6636d4ab81e3d922487f59f1e3",
+      "bytes": 3210
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-30a30.asm",
+      "sha256": "c9ecd7afa8a00b6a9d8b7f76178d7c70036b431dc66746011b4da9fcfac08759",
+      "bytes": 5184
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-18550.asm",
+      "sha256": "da947ec730353d1193cfbe2b7c54eeb168aeb5894ebe76b8c0e36f644e34aec0",
+      "bytes": 15898
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-1c620.asm",
+      "sha256": "9b92f73a05b5087d199d02dc48ba552f59b31fdb692b9e1ebcf0695bdcf5d16c",
+      "bytes": 32001
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-16b20.asm",
+      "sha256": "97c52bdfb5dd8e0981c6780c302e0fbea839b889dcafc0d4c906f579047909ad",
+      "bytes": 16464
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/hal/vhds-168c0.asm",
+      "sha256": "35eabaab2d0ac814695ce8d7ab4f95df40e319c2f3ab53918927be7ed4e0daca",
+      "bytes": 3406
+    }
+  ],
+  "conclusion": {
+    "qualifiedLiveReadbackOperations": [],
+    "currentTableSnapshotAvailable": false,
+    "mqttApplicationOwner": "vhds_source_writer_runtime_unresolved",
+    "secretObdApplicationOwner": "unresolved_in_examined_corpus",
+    "summary": "Internal HAL enumeration exists, but no examined Binder/Java/API operation is qualified to return the current CAN ownership table. query/replay/dump paths have explicit writes or other effects. Bounded extraction identifies vhds as a conditional source-path writer of MQTT/AA000165, including three built-in entries with IDs347/4BF/44A. No current table snapshot, exclusive/runtime ownership or target7E8/7EE presence is established. SecretOBD source writer remains unresolved in this examined corpus."
+  },
+  "method": {
+    "corpusFirst": [
+      "Read the existing observer-candidates and engine consumer reports, corpus index, canonical native files and retained native disassemblies before analysis.",
+      "firmware_corpus.py find lookups: table, SecretObd, BydLogTool, AcquisitionControl, cloudmanager/cloud, mqtt, vhds. Initial lookups reused existing corpus. A later explicit one-file continuation extracted only owner-OTA /system/bin/vhds with the existing reader; no decompile.",
+      "Stock Java exact-token scope is frozen in stock-client-search.json: 50 explicitly indexed IVI/current-car BYD/API trees, 45,671 file hashes, 96 hit files; names/hex/unsigned/signed decimal FIDs plus sendRegisterTable.",
+      "Native candidate search is limited to retained cloudmanager, mqttserv, libmqttserv.so symbol/printable string and exact little-endian32 FID literals; it does not identify all constructed instruction constants.",
+      "VHDS exact imports/string/literal candidates then targeted direct branches/global-FID stores/config-string xrefs selected20 functions totaling18,268 bytes. No global disassembly, library extraction, firmware execution or network access."
+    ],
+    "writesPerformed": [
+      "New owned offline evidence/report/checker; one318,376-byte vhds extraction and byte-identical canonical copy plus separate extraction manifest. Existing corpus index/extraction manifests unchanged."
+    ],
+    "notPerformed": [
+      "No car/ADB/network access, firmware execution, IPC, SET AA000165/AA000241, table query, dump invocation, log toggle, application launch, shared source/doc edit, or commit."
+    ]
+  },
+  "internalHal": {
+    "binary": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+    "ownerLookup": {
+      "function": "FeatureMapper::getOwner(long const&)",
+      "va": "0x83be0",
+      "semantics": "Exact long-key lookup in CAN map. Missing key returns -10011; no insertion. This is a C++ method requiring the internal mapper object, not a public Binder/Java table getter.",
+      "key": "Six bytes constructed by HAL: BE32 CAN ID, sub-ID byte, channel byte. No bus/selector meaning beyond the source-proven key fields is added."
+    },
+    "enumerators": [
+      {
+        "va": "0x84270",
+        "method": "getCanMapSize()",
+        "semantics": "Returns map size from object +0x70; no owner filter."
+      },
+      {
+        "va": "0x84310",
+        "method": "getCanMapKeys(long*)",
+        "semantics": "Walks nodes from +0x68; outputs keys whose getOwner result is positive."
+      },
+      {
+        "va": "0x84280",
+        "method": "getCanMapKeys(int const&, long*)",
+        "semantics": "Outputs keys for which owner & requested mask is nonzero."
+      },
+      {
+        "va": "0x84390",
+        "method": "getCanMapUniqueKeys(int const&, long*)",
+        "semantics": "Outputs keys for which owner equals requested mask exactly; unique here does not mean deduplicating physical CAN frames."
+      }
+    ],
+    "directCallScope": "All .text direct BL/B targets to the selected method bodies and PLT stubs were scanned. Enumeration callers were updateParameters and setTable. This does not resolve virtual/GOT/callback callers or prove that no other interface can exist.",
+    "mutationBoundary": "setTable at B65D0 maps AA000165→owner0x10 and AA000241→owner0x20, updates owners/modes, and reaches writeDeviceOriginal. makeMap840F0 allocates a ParameterCan and inserts it in the separate map at object+0x58. Passive listener registration alone does not insert these keys."
+  },
+  "publicSurface": {
+    "bufferGetter": {
+      "java": "BYDAutoDeviceManager.getBuffer(device,event) → BYDAutoManager.getBuffer; AbsBYDAutoDevice forwards buffer GETs.",
+      "nativeClient": "libbydauto BYDAutoManager::getBuffer 1D880 dispatches to service interface virtual slot+0x80.",
+      "service": "libbydautoservice getBuffer2D890 checks GET permission, calls setHalProperty2BB60, then HAL interface virtual slot+0x40.",
+      "hal": "AutoHardwareInterface::getPointer B6310 → FeatureMapper::getStringValue82E00. This uses the ordinary FID/value map (+0x8/+0x10), requires cached parameter type3, and returns cached buffer+0x34/length+0x12C. It does not enumerate the separate CAN owner map.",
+      "effects": "HAL may log and updates its cached last-parameter pointer at mapper+0x80. Service setHalProperty conditionally writes property auto.hal_t_d%d_e%d to a timestamp when object byte+0x618 is set (2BB80..2BC20). No MCU write is visible in the inspected HAL getPointer/getStringValue function bodies. Neither cache type nor buffer availability for MQTT/SecretOBD is qualified by their raw callbacks."
+    },
+    "featureMetadata": "AbsBYDAutoDevice.checkDeviceFeatures uses BYDAutoDeviceFeaturesMap.getFeatureIdsFromDevice, a static Java feature allowlist. Listed FIDs/devices are API metadata, not current CAN keys, modes, owner bits, subscriber success, or wire availability.",
+    "tableWriter": "Framework BYDAutoVehicleDataDevice.sendRegisterTable(type,bytes), device1048, maps type1 OTA,2 GB,3 BigData,4 YUN,5 MQTT/AA000165 and calls super.set. It has no table-readback counterpart in this class and no SecretOBD case. Copied versions are API definitions, not evidence of app ownership."
+  },
+  "effectfulCandidates": [
+    {
+      "name": "AutoHardwareInterface::query(unsigned int)",
+      "va": "0xb3d00",
+      "effect": "encodeQur followed by writeDeviceOriginal at B3D58; transmits to MCU. Not a local metadata GET."
+    },
+    {
+      "name": "AutoHardwareInterface::query(unsigned int*,unsigned int)",
+      "va": "0xb3c20",
+      "effect": "encodeQurArray followed by writeDeviceOriginal; transmits to MCU."
+    },
+    {
+      "name": "AutoHardwareInterface::query_can_pro()",
+      "va": "0xb39b0",
+      "effect": "Constructs 99000158 and encodeQurArray, then writeDeviceOriginal B3A50. Name does not establish table readback; the MCU report finds a one-byte99000158 descriptor, not entries/modes. Do not infer a semantic pair with setter AA000158: its separately traced mutating ADAS/DMS sound path does not establish query99000158 meaning."
+    },
+    {
+      "name": "updateParameters inbound9900001C",
+      "range": "0xb1110..0xb11e4",
+      "effect": "Reads existing positive-owner local keys and their modes; encodeReqCan AA00001B at B11B4; sends buffer by writeDeviceOriginal B11E4. This replays/adds existing collection requests to MCU, rather than publishing a snapshot of its entries."
+    },
+    {
+      "name": "BYDAutoService::dump",
+      "va": "0x339c0",
+      "effect": "-v/-V set autoservice log level (33DA4) and dispatch listener log changes; -H/-h set HAL log level through vtable call33FBC; -R/-r call reset33EFC. -test creates/injects synthetic event/value objects. Whole dump is therefore not qualified as an observational table-readback interface. No option, including no-argument invocation, was executed."
+    }
+  ],
+  "stockOwnership": {
+    "exactTokenFindings": "96 hit files consist of copied feature constants/mappers/SDK metadata, copied BYDAutoVehicleDataDevice definitions, and one actual application source file CanDataHandle.java. Its four sendRegisterTable calls all pass type3 (BigData); none establishes MQTT/SecretOBD ownership. This limited Java result is superseded for source-writer attribution by the later vhds native proof below; absence of a32-bit literal did not exclude its split MOV/global-FID construction.",
+    "mqtt": "vhds source-path writer recovered from owner OTA: AA000165 is selected by the protocol predicate below, loaded from global4C344 by registerDynamic3A020, and passed to BYDAutoManager::setBuffer(device1033) at3A0BC. Init16270 calls it at16464 and separately writes a347 monitor entry at16428. This establishes a shipped source-path writer, not installed-byte identity, execution, unique ownership, current table entries or live availability.",
+    "secretObd": "Device1023 raw event99000241 and owner bit0x20 are source-proven. Application/process responsible for populating this owner table is unresolved in the examined corpus. No SecretOBD table bytes or source-qualified app-owned write recovered.",
+    "coverageGap": "vhds was subsequently extracted narrowly and retained canonically with its own immutable manifest. libvhds.so remains only listed/not extracted here. Native virtual/GOT/indirect writer paths and unexamined services remain open; source-path writer is not exclusive/runtime ownership."
+  },
+  "savedConfiguration": {
+    "sourceBackedFileReadCandidate": {
+      "application": "com.byd.CanDataCollect (BigData type3)",
+      "paths": [
+        "/cancollect/dataCollect/canConfigureJson",
+        "/cancollect/dataCollect/vehicleCode"
+      ],
+      "source": "Constant.java23..24; VehicleDataStorage.readCanConfige426 reads with FileInputStream/BufferedReader; JsonDataHandel657..675 checks stored vehicleCode before parsing cached config.",
+      "qualification": "These are source-backed local file paths to inspect in a future separately owned read-only capture. They are not live HAL/MCU readback, not MQTT/SecretOBD configs, and were not read from the car. No saved contents from these exact paths were recovered in this bounded corpus. Do not invoke the app parser/initialization to obtain them: subsequent configuration flow can write HAL tables."
+    },
+    "runtimeState": "No current owner table or captured applicable saved config contents are established. The newly traced vhds file writer provides two source-backed cache paths, not their current existence, readability, content or reload behavior.",
+    "vhdsFiles": {
+      "paths": [
+        "/data/vhds/trigger_list_cfg/triggerlistconfig.txt",
+        "/data/vhds/trigger_list_cfg/allone.txt"
+      ],
+      "writeProof": "179E0 formats %s/%s/%s using /data/vhds, trigger_list_cfg and allone.txt when w2==4, otherwise triggerlistconfig.txt;17A88 fopen(wb),17AB4 fwrite.",
+      "permissions": "168C0 creates absent /data/vhds and trigger_list_cfg with mkdir0777 subject to inherited umask; existing modes unchanged. fopen(wb) creates files0666 subject to inherited umask or truncates existing files. No chmod/umask import or explicit chmod in the inspected functions. Current owner/mode/SELinux/access/existence unobserved here.",
+      "readbackQualification": "Local filesystem bytes could be inspected separately without invoking the app. No current contents were captured by this offline task. The write path does not prove these are a complete owner table or that a file matches the parser schema below."
+    }
+  },
+  "gbDefaults": {
+    "binary": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+    "source": "captures/diagnostics-next-depth-20261021/engine/gb-default-table-bytes.json",
+    "derived": [
+      {
+        "energyType": 1,
+        "count": 33,
+        "targetMatches": []
+      },
+      {
+        "energyType": 2,
+        "count": 34,
+        "targetMatches": []
+      }
+    ],
+    "semantics": "Native built-in GB defaults at3CDD8/3CFE8,16 bytes/record, contain no CAN ID7E8/7EE. Existing engine consumer report traces service/persisted config taking priority. Neither default bytes nor absence of target IDs proves which table was loaded on the vehicle. These are GB defaults, not MQTT/SecretOBD tables."
+  },
+  "limitations": {
+    "noWireAbsenceConclusion": true,
+    "points": [
+      "This report qualifies no new live operation and contains no current table snapshot.",
+      "Internal getOwner/getCanMap methods require an in-process HAL object; symbol existence does not provide a public API or authorize hooking a process.",
+      "Negative Java token search is limited to explicit files, tokens and retained decompilation; JNI, computed IDs, omitted decompiles and unextracted services remain open.",
+      "SecretOBD pointer offset differs from ordinary raw streams in extended envelope mode; byte layout remains opaque.",
+      "Current MQTT deliveries from the earlier pass establish that stream delivery occurred then, not which application owns its table, which keys were loaded, or whether7E8/7EE existed on wire.",
+      "Source-backed file reading is separate from invoking loader/parser methods, which may configure tables.",
+      "VHDS demonstrates the native-search limit: exact32-bit FID literals were absent, but split instruction/global values prove AA000165 writes. Negative string/literal search is not semantic absence."
+    ]
+  },
+  "vhdsContinuation": {
+    "newExtraction": {
+      "requestedFiles": [
+        "/system/bin/vhds"
+      ],
+      "archive": "/Users/dmitry/Dev/denza/firmware/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip",
+      "reader": "research/split-firmware/extract_system_files.py",
+      "readerCopy": "captures/diagnostics-transport-followup-20261021/hal/vhds-ota/system/system/bin/vhds",
+      "canonicalCopy": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "readerManifest": "captures/diagnostics-transport-followup-20261021/hal/vhds-ota/extraction.json",
+      "canonicalCopyManifest": "captures/firmware/ivi-34.1.33.2605218.1/vhds-extraction-20261021.json",
+      "size": 318376,
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+      "readerValidation": "Existing reader decrypts Config in memory and verifies selected payload-operation compressed-byte SHA256 before decoding; full OTA rehash/repack was not performed.",
+      "indexLookupAfter": "firmware_corpus.py find vhds still returns listing-only results because its existing index/extraction manifests were kept unchanged to preserve prior source pins. Future researchers can use the exact canonical path and independent manifest above."
+    },
+    "runtimeOwnerProven": false,
+    "exclusiveOwnerProven": false,
+    "protocolPredicate": {
+      "propertySources": [
+        "sys.car.protocol",
+        "persist.sys.protocol.record"
+      ],
+      "isCanFD": "Either property equals CANFD",
+      "isToyota": "Either property equals TOYOTA",
+      "tableFid": "AA000165 except isToyota && !isCanFD; legacy000A4F2E otherwise",
+      "proof": "3B840..3BAA0 builds both booleans from GetProperty/strcmp;3BAAC bics wzr,w22,w21;3BAB0 AA000165;3BAB8 csel legacy on ne;3BAC8 stores selectedFID at4C344.",
+      "owner170Join": "Prior retained live01 preflight profile.txt=170 and protocol.txt=CANFD qualify the CANFD side for that historical observation. This predicate does not test profile170 and no new property read occurred in this offline task."
+    },
+    "builtInWriteBuffers": [
+      {
+        "source": "16270 init flow,16418..16428 stack construction and setBuffer1033; global4C2A4 selected by2E550; non-legacy valueAA000165.",
+        "bytes": "0000034700000101",
+        "entries": [
+          {
+            "canId": "347",
+            "subId": 0,
+            "channel": 0,
+            "mode": 1,
+            "operation": 1
+          }
+        ]
+      },
+      {
+        "source": "3A020 registerDynamic stack construction3A054..3A080, setBuffer1033/selectedFID4C344,len16 at3A0BC; called by init16270 at16464.",
+        "bytes": "000004BF000200010000044A00020001",
+        "entries": [
+          {
+            "canId": "4BF",
+            "subId": 0,
+            "channel": 2,
+            "mode": 0,
+            "operation": 1
+          },
+          {
+            "canId": "44A",
+            "subId": 0,
+            "channel": 2,
+            "mode": 0,
+            "operation": 1
+          }
+        ]
+      }
+    ],
+    "dynamicConfigParser": {
+      "function": "1C620",
+      "schema": "cJSON_Parse(input string), root.resultData array; item.signal parsed base16→u32 CANID, item.childrenId base16→u8 subID. At1CA90..1CAB0 stores channel0,mode1,operation1. Additional trigger/diagnostic metadata is parsed separately.",
+      "effects": "Parser logs each complete item via cJSON_PrintUnformatted at1C788/1C7B0 and invokes22510 at1D0D0;22510 builds8-byte monitor entries and calls setBuffer1033/selectedAA000165 at2290C. It is not a readback parser to run on the car.",
+      "minimalHostProjectionCandidate": {
+        "acceptedShape": "Only offline JSON object with resultData array of objects whose signal and childrenId are validated hex strings in source-width bounds. Missing/other schema rejects; do not invoke native parser.",
+        "outputFields": [
+          "CANID",
+          "subID",
+          "channel=0",
+          "mode=1"
+        ],
+        "omit": [
+          "values",
+          "startBit",
+          "endBit",
+          "logic",
+          "checkId",
+          "checkType",
+          "checkDidList",
+          "all other task/auth metadata"
+        ],
+        "limit": "Schema is source-proven for1C620, not proven for each saved filename. No payload content was read, and no reusable live extraction command is qualified by this report."
+      }
+    },
+    "effectsAndLimits": [
+      "Init registers observers/enables devices, writes monitor tables, and starts threads; never launch vhds to inspect state.",
+      "The inspected diagnostic send paths38B30/3F460 call setBuffer1033/AA00010A; their existence is separate from passive monitor-table ownership. No diagnostic requests or security-access actions were executed.",
+      "Config cache writer179E0 truncates/creates files. A different inspected file helper23210 reads6bytes of trigger_one_day; it is not a CAN table getter.",
+      "No source-qualified SecretOBD/AA000241 writer recovered among these selected direct API-call functions. This is not a complete indirect call-graph exclusion.",
+      "No7E8/7EE in the3 built-in monitor entries does not exclude them from dynamically supplied JSON, another writer, loaded runtime tables, or physical CAN."
+    ]
+  }
+}

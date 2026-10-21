@@ -1,0 +1,1014 @@
+{
+  "schema": "denza-lab.mcu-collection-readback.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "productEdits": false,
+  "priorReportsChanged": false,
+  "scope": "Existing MCU raw-CAN collection table inspection only. No car/ADB/network, ECU requests, table/owner/log changes, extraction, installation or firmware execution.",
+  "status": "no_read_only_mcu_table_readback_qualified_in_traced_paths",
+  "image": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+    "bytes": 1933312,
+    "loadBase": "0x40000",
+    "gp": "0xfebdd868",
+    "decoder": "pypcode4.0.1 V850:LE:32:v850e3v5",
+    "applicability": "Owner IVI OTA; installed MCU byte identity remains unproved."
+  },
+  "table": {
+    "bucketBaseRAM": "0xfebe3844",
+    "bucketBytes": 3812,
+    "bucketPointers": 953,
+    "recordPoolRAM": "0xfebdda24",
+    "recordStride": 80,
+    "recordSlots": 251,
+    "nodePoolRAM": "0xfebe2894",
+    "nodeStride": 16,
+    "nodeSlots": 251,
+    "allocationLayout": "Pool addresses name free-block headers. Each block has a4-byte free-list header; allocation returns block+4 and freeing subtracts4. Node/record offsets below are relative to those returned pointers, not the free-block header.",
+    "node": {
+      "0": "next pointer",
+      "4": "packed key",
+      "8": "record pointer"
+    },
+    "record": {
+      "0": "effective report mode 0..3",
+      "1": "interval-table index 0..10",
+      "4": "time/counter value updated by merge"
+    },
+    "key": "(internalSelector<<24)|((CANID&0x7ff)<<8)|subID",
+    "diagnosticKeysSelector0": {
+      "ECMPrimary": "0x0007e800",
+      "ISGPrimary": "0x0007ee00",
+      "ECMFirstByte14Fallback": "0x0007e814",
+      "ISGFirstByte10Fallback": "0x0007ee10"
+    },
+    "lookup": "169892 calls16961C. The primitive reads a bucket and follows node.next until key equality; returns node.record, or caller-supplied default on miss. No stores/calls/publication occur in16961C..16964A.",
+    "bucketArithmeticQualification": "DIVQU at169626 uses divisor0x3B9 and aliases result registers (r19/r19). The retained pypcode translation writes remainder then quotient to the same register. This report does not resolve architectural alias precedence or assert an exact bucket-index formula; storage/chain/reader evidence does not depend on it.",
+    "runtimeContent": "RAM contents are not present in the OTA image. No existing7E8/7EE record or mode is established by this investigation."
+  },
+  "inputDispatch": [
+    {
+      "rowVA": "0xcd90c",
+      "fid": "0xaa00001b",
+      "callbackVA": "0x16bb6a",
+      "effect": "add/merge; mutates record mode/index/time or allocates/inserts; excluded"
+    },
+    {
+      "rowVA": "0xcd918",
+      "fid": "0xaa00001c",
+      "callbackVA": "0x16bbf2",
+      "effect": "delete; removes hash node and returns record to free pool; excluded"
+    },
+    {
+      "rowVA": "0xcd924",
+      "fid": "0xaa00001d",
+      "callbackVA": "0x16bc70",
+      "effect": "reset; reinitializes record and hash pools; excluded"
+    },
+    {
+      "rowVA": "0xcd930",
+      "fid": "0xaa00001e",
+      "callbackVA": "0x16bc96",
+      "effect": "transmits supplied CAN frame via1698BC->169A6E; excluded"
+    },
+    {
+      "rowVA": "0xcdab0",
+      "fid": "0xaa000158",
+      "callbackVA": "0x16cb7e",
+      "effect": "decodes scalar149F94 then calls1273A2. The latter has ADAS/DMS-sound-labelled branches, writes state and configures callback scheduling; potentially mutating, not a table getter. Not established as semantic pair of query99000158."
+    }
+  ],
+  "addABI": "Payload bytes0..3 CANID big-endian,4 subID,5 internal selector,6 interval-index high nibble/report-mode low nibble.16966E rejects mode>3 or index>10, then merges or inserts rather than reading it back.",
+  "outputDescriptors": [
+    {
+      "va": "0xa6380",
+      "fid": "0x9900001c",
+      "bytes": 1,
+      "bufferRAM": "0xfeefb45a"
+    },
+    {
+      "va": "0xa63f8",
+      "fid": "0x9900004d",
+      "bytes": 4,
+      "bufferRAM": "0xfeefb3ac"
+    },
+    {
+      "va": "0xa6638",
+      "fid": "0x99000158",
+      "bytes": 1,
+      "bufferRAM": "0xfeefb479"
+    }
+  ],
+  "publicationCandidates": [
+    {
+      "fid": "0x9900001c",
+      "chain": "15CA8E->196EFA(A6380)->15CC32",
+      "result": "publishes one cached byte, not table records/modes. No inbound table-query chain or Android consumer is established by this MCU-only trace; no live query proposed."
+    },
+    {
+      "fid": "0x9900004d",
+      "chain": "16BBC6==3 ->16BBCE->197148->196EFA(A63F8)->15CC32; then15CD8C",
+      "result": "allocation/add failure callback includes selector, CANID low16 big-endian and subID (four bytes) copied from attempted input. It does not traverse existing entries or return effective modes."
+    },
+    {
+      "fid": "0x99000158",
+      "chain": "known descriptor A6638 only; its inbound query and response dispatch are not traced here",
+      "result": "The specific cached descriptor has width1. This does not exclude a query causing publication through another FID. AA000158 is a separate setter number and its sound-state path is not established as the handler of query99000158. Table-readback applicability remains unqualified."
+    },
+    {
+      "fid": "0x9900001d",
+      "chain": "existing evidence170B3C->169892->170A12->170926->15CC32",
+      "result": "event-driven matching CAN payload export includes CANID/subID/selector/counter/data, not the table's effective mode or interval index. Reused prior source; not re-disassembled here."
+    }
+  ],
+  "romStrings": [
+    {
+      "va": "0x45901",
+      "text": "adas on,adas[%d],island[%d].\n"
+    },
+    {
+      "va": "0x4591f",
+      "text": "@@lightcharge working\n"
+    },
+    {
+      "va": "0x45936",
+      "text": "AK7709_DMS sound type soft ,val is %d\n"
+    },
+    {
+      "va": "0x4595d",
+      "text": "AK7709_DMS sound type hard ,val is %d\n"
+    },
+    {
+      "va": "0x45984",
+      "text": "ak7709 dms middle going,val is %d.\n"
+    },
+    {
+      "va": "0x459a8",
+      "text": "unknown DMS sound type,val is %d\n"
+    }
+  ],
+  "setter158": {
+    "chain": "AA000158->16CB7E->149F94 scalar decoder->1273A2",
+    "stateBranches": "Subject to existing-state guards, scalar0 writes3, scalar1 writes8, scalar5 writes4 to GP+30BDAE. Branches call1603D0/160508 with callbacks1272C0/127328, then1231A4 writes0x17 to GP+30BD54. These are state-changing paths, not table enumeration.",
+    "labels": "ROM strings explicitly name ADAS/island status and AK7709_DMS soft/hard sound type. This identifies the inspected setter path; it does not establish the meaning of query99000158.",
+    "downstreamCallees": "Other sound/state callees and scheduled callback bodies are not traced, so no wider side-effect inventory is claimed."
+  },
+  "query158Boundary": {
+    "semanticPairWithAA000158Established": false,
+    "inboundQueryResponsePathTraced": false,
+    "otherFIDPublicationExcluded": false,
+    "status": "untraced query candidate, not a qualified table readback and not excluded by descriptor width alone",
+    "nextBoundedSourceStep": "If this query remains relevant, identify its actual MCU inbound query dispatcher and all resulting publications before assigning table semantics or proposing live use."
+  },
+  "relativeBranchCandidates": {
+    "0x16961c": [
+      {
+        "va": "0x1698a8",
+        "linkRegister": 31
+      }
+    ],
+    "0x169892": [
+      {
+        "va": "0x169706",
+        "linkRegister": 31
+      },
+      {
+        "va": "0x169840",
+        "linkRegister": 31
+      },
+      {
+        "va": "0x169850",
+        "linkRegister": 31
+      },
+      {
+        "va": "0x170b84",
+        "linkRegister": 31
+      },
+      {
+        "va": "0x170ba4",
+        "linkRegister": 31
+      }
+    ],
+    "0x16966e": [
+      {
+        "va": "0x16bbc0",
+        "linkRegister": 31
+      }
+    ],
+    "0x169824": [
+      {
+        "va": "0x16bc4e",
+        "linkRegister": 31
+      }
+    ],
+    "0x16987c": [
+      {
+        "va": "0x16bc82",
+        "linkRegister": 31
+      }
+    ],
+    "0x1698bc": [
+      {
+        "va": "0x16bd2c",
+        "linkRegister": 31
+      }
+    ]
+  },
+  "literalCandidates": {
+    "0xfebe3844": [
+      "0x169420",
+      "0x1694ba",
+      "0x169554"
+    ],
+    "0xfebdda24": [
+      "0x1693cc"
+    ],
+    "0xfebe2894": [
+      "0x1695ec",
+      "0x169610"
+    ],
+    "0x16961c": [],
+    "0x169892": [],
+    "0xa6380": [
+      "0xfbaf4",
+      "0x15ca96"
+    ],
+    "0xa6638": [
+      "0xfbfe8",
+      "0x10fe56"
+    ]
+  },
+  "ranges": [
+    {
+      "name": "record-pools-hash-insert-remove-lookup",
+      "startVA": "0x169336",
+      "endExclusiveVA": "0x16964a",
+      "sha256": "18b8f2237ab08f992d838dc4be4f83800c80bdfe2103e5dcb052c9109ad0f82d",
+      "instructions": 243,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-169336.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-169336.json"
+    },
+    {
+      "name": "mode-merge-delete-reset-wrapper-and-raw-tx-wrapper",
+      "startVA": "0x16964a",
+      "endExclusiveVA": "0x1698da",
+      "sha256": "849f63fdb7c7e9d954ffc08a3a66ffeb98f0d632890a36dce9fb4147b21aa1a0",
+      "instructions": 241,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16964a.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16964a.json"
+    },
+    {
+      "name": "inbound-table-add-delete-reset-and-raw-tx",
+      "startVA": "0x16bb6a",
+      "endExclusiveVA": "0x16bd58",
+      "sha256": "e168846463f10c4cb99cc7faa9985790556674b46301943f9d2c8da846d9f4df",
+      "instructions": 165,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16bb6a.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16bb6a.json"
+    },
+    {
+      "name": "table-refresh-signal-publication",
+      "startVA": "0x15ca8e",
+      "endExclusiveVA": "0x15cab0",
+      "sha256": "68e23613bf4d82c47e7e1b234188807be0f77d3cdffdb88388b9ea889f1d9cca",
+      "instructions": 9,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-15ca8e.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-15ca8e.json"
+    },
+    {
+      "name": "allocation-failure-id-publication",
+      "startVA": "0x197148",
+      "endExclusiveVA": "0x19719c",
+      "sha256": "ffeb96f3b08928d4bf0f8ee3ace6a55d107f8ca756c760d8ed7b888f5cea5619",
+      "instructions": 22,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-197148.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-197148.json"
+    },
+    {
+      "name": "descriptor-publication-helper",
+      "startVA": "0x196efa",
+      "endExclusiveVA": "0x196f3a",
+      "sha256": "f5770ea036ff0674585dca9804e2954482afdc2affb7173602f5f03e413972ba",
+      "instructions": 23,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-196efa.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-196efa.json"
+    },
+    {
+      "name": "scalar-158-input",
+      "startVA": "0x16cb7e",
+      "endExclusiveVA": "0x16cbbe",
+      "sha256": "3825cd77944a39152e5e821dc9c779670ec99a857e4ff2bcb32373aaf7dae123",
+      "instructions": 19,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16cb7e.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16cb7e.json"
+    },
+    {
+      "name": "158-setter-adas-dms-sound-state-branches",
+      "startVA": "0x1273a2",
+      "endExclusiveVA": "0x127696",
+      "sha256": "8d567b4e062118fa430935f0ae29bfba5244411ddae09d6a38624aecd596dc19",
+      "instructions": 208,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1273a2.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1273a2.json"
+    },
+    {
+      "name": "sound-state-word-set-get",
+      "startVA": "0x1231a4",
+      "endExclusiveVA": "0x1231b6",
+      "sha256": "ab9ecce7747c279314cff6618ae80ae357a38f644a43ee77d7d891963d4c3dce",
+      "instructions": 5,
+      "assembly": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1231a4.asm",
+      "decodedInstructions": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1231a4.json"
+    }
+  ],
+  "anchors": [
+    {
+      "va": "0x16941e",
+      "instruction": [
+        "mov",
+        "0xfebe3844, r6"
+      ]
+    },
+    {
+      "va": "0x169426",
+      "instruction": [
+        "movea",
+        "0xee4, r0, r8"
+      ]
+    },
+    {
+      "va": "0x16942a",
+      "instruction": [
+        "jarl",
+        "0x1b3e60, lp"
+      ]
+    },
+    {
+      "va": "0x1694b0",
+      "instruction": [
+        "movea",
+        "0x3b9, r0, r2"
+      ]
+    },
+    {
+      "va": "0x1694b4",
+      "instruction": [
+        "divqu",
+        "r2, r1, r1"
+      ]
+    },
+    {
+      "va": "0x16961c",
+      "instruction": [
+        "mov",
+        "r6, r1"
+      ]
+    },
+    {
+      "va": "0x169626",
+      "instruction": [
+        "divqu",
+        "r18, r19, r19"
+      ]
+    },
+    {
+      "va": "0x16962e",
+      "instruction": [
+        "ld.w",
+        "0x5fdc[r19], ep"
+      ]
+    },
+    {
+      "va": "0x169634",
+      "instruction": [
+        "sld.w",
+        "0x4[ep], r19"
+      ]
+    },
+    {
+      "va": "0x16963a",
+      "instruction": [
+        "sld.w",
+        "0x8[ep], r10"
+      ]
+    },
+    {
+      "va": "0x16963e",
+      "instruction": [
+        "sld.w",
+        "0x0[ep], r19"
+      ]
+    },
+    {
+      "va": "0x169642",
+      "instruction": [
+        "cmp",
+        "r0, ep"
+      ]
+    },
+    {
+      "va": "0x169646",
+      "instruction": [
+        "mov",
+        "r2, r10"
+      ]
+    },
+    {
+      "va": "0x169652",
+      "instruction": [
+        "sld.bu",
+        "0x1[ep], r2"
+      ]
+    },
+    {
+      "va": "0x169658",
+      "instruction": [
+        "movea",
+        "0x3e8, r0, r1"
+      ]
+    },
+    {
+      "va": "0x169660",
+      "instruction": [
+        "shl",
+        "0x1, r2"
+      ]
+    },
+    {
+      "va": "0x169664",
+      "instruction": [
+        "ld.hu",
+        "0x5e220[r2], r1"
+      ]
+    },
+    {
+      "va": "0x16969c",
+      "instruction": [
+        "sld.bu",
+        "0x6[ep], r19"
+      ]
+    },
+    {
+      "va": "0x16969e",
+      "instruction": [
+        "andi",
+        "0xf, r19, r1"
+      ]
+    },
+    {
+      "va": "0x1696a2",
+      "instruction": [
+        "andi",
+        "0xf0, r19, r19"
+      ]
+    },
+    {
+      "va": "0x1696ae",
+      "instruction": [
+        "cmp",
+        "0x3, r1"
+      ]
+    },
+    {
+      "va": "0x1696b6",
+      "instruction": [
+        "cmp",
+        "0xa, r2"
+      ]
+    },
+    {
+      "va": "0x169706",
+      "instruction": [
+        "jarl",
+        "0x169892, lp"
+      ]
+    },
+    {
+      "va": "0x169720",
+      "instruction": [
+        "st.b",
+        "r2, 0x1[r29]"
+      ]
+    },
+    {
+      "va": "0x169756",
+      "instruction": [
+        "st.b",
+        "r0, 0x0[r29]"
+      ]
+    },
+    {
+      "va": "0x16975a",
+      "instruction": [
+        "st.b",
+        "r0, 0x1[r29]"
+      ]
+    },
+    {
+      "va": "0x169774",
+      "instruction": [
+        "st.b",
+        "r1, 0x0[r29]"
+      ]
+    },
+    {
+      "va": "0x1697a4",
+      "instruction": [
+        "st.b",
+        "r1, 0x0[r29]"
+      ]
+    },
+    {
+      "va": "0x1697ac",
+      "instruction": [
+        "st.b",
+        "r1, 0x0[r29]"
+      ]
+    },
+    {
+      "va": "0x1697b4",
+      "instruction": [
+        "st.w",
+        "r10, 0x4[r29]"
+      ]
+    },
+    {
+      "va": "0x1697bc",
+      "instruction": [
+        "jarl",
+        "0x1693d8, lp"
+      ]
+    },
+    {
+      "va": "0x1697dc",
+      "instruction": [
+        "st.b",
+        "r1, 0x0[r29]"
+      ]
+    },
+    {
+      "va": "0x1697e4",
+      "instruction": [
+        "st.b",
+        "r1, 0x1[r29]"
+      ]
+    },
+    {
+      "va": "0x1697f4",
+      "instruction": [
+        "jarl",
+        "0x169498, lp"
+      ]
+    },
+    {
+      "va": "0x169840",
+      "instruction": [
+        "jarl",
+        "0x169892, lp"
+      ]
+    },
+    {
+      "va": "0x169850",
+      "instruction": [
+        "jarl",
+        "0x169892, lp"
+      ]
+    },
+    {
+      "va": "0x16985c",
+      "instruction": [
+        "jarl",
+        "0x169336, lp"
+      ]
+    },
+    {
+      "va": "0x169862",
+      "instruction": [
+        "jarl",
+        "0x169534, lp"
+      ]
+    },
+    {
+      "va": "0x169882",
+      "instruction": [
+        "jarl",
+        "0x169394, lp"
+      ]
+    },
+    {
+      "va": "0x169886",
+      "instruction": [
+        "jarl",
+        "0x169418, lp"
+      ]
+    },
+    {
+      "va": "0x1698a8",
+      "instruction": [
+        "jarl",
+        "0x16961c, lp"
+      ]
+    },
+    {
+      "va": "0x1698ca",
+      "instruction": [
+        "jarl",
+        "0x169a6e, lp"
+      ]
+    },
+    {
+      "va": "0x16bbaa",
+      "instruction": [
+        "andi",
+        "0x7ff, r28, r2"
+      ]
+    },
+    {
+      "va": "0x16bbb0",
+      "instruction": [
+        "sld.bu",
+        "0x5[ep], r1"
+      ]
+    },
+    {
+      "va": "0x16bbb6",
+      "instruction": [
+        "sld.bu",
+        "0x4[ep], r2"
+      ]
+    },
+    {
+      "va": "0x16bbc0",
+      "instruction": [
+        "jarl",
+        "0x16966e, lp"
+      ]
+    },
+    {
+      "va": "0x16bbc6",
+      "instruction": [
+        "cmp",
+        "0x3, r26"
+      ]
+    },
+    {
+      "va": "0x16bbce",
+      "instruction": [
+        "jarl",
+        "0x197148, lp"
+      ]
+    },
+    {
+      "va": "0x16bc4e",
+      "instruction": [
+        "jarl",
+        "0x169824, lp"
+      ]
+    },
+    {
+      "va": "0x16bc82",
+      "instruction": [
+        "jarl",
+        "0x16987c, lp"
+      ]
+    },
+    {
+      "va": "0x16bd2c",
+      "instruction": [
+        "jarl",
+        "0x1698bc, lp"
+      ]
+    },
+    {
+      "va": "0x15ca94",
+      "instruction": [
+        "mov",
+        "0xa6380, r6"
+      ]
+    },
+    {
+      "va": "0x15ca9a",
+      "instruction": [
+        "jarl",
+        "0x196efa, lp"
+      ]
+    },
+    {
+      "va": "0x19715e",
+      "instruction": [
+        "st.b",
+        "r1, 0x31db44[gp]"
+      ]
+    },
+    {
+      "va": "0x197168",
+      "instruction": [
+        "st.b",
+        "r1, 0x31db45[gp]"
+      ]
+    },
+    {
+      "va": "0x197172",
+      "instruction": [
+        "st.b",
+        "r1, 0x31db46[gp]"
+      ]
+    },
+    {
+      "va": "0x19717c",
+      "instruction": [
+        "st.b",
+        "r1, 0x31db47[gp]"
+      ]
+    },
+    {
+      "va": "0x197182",
+      "instruction": [
+        "mov",
+        "0xa63f8, r6"
+      ]
+    },
+    {
+      "va": "0x197188",
+      "instruction": [
+        "jarl",
+        "0x196efa, lp"
+      ]
+    },
+    {
+      "va": "0x19718c",
+      "instruction": [
+        "jarl",
+        "0x15cd8c, lp"
+      ]
+    },
+    {
+      "va": "0x196f2a",
+      "instruction": [
+        "jarl",
+        "0x15cc32, lp"
+      ]
+    },
+    {
+      "va": "0x16cb9c",
+      "instruction": [
+        "jarl",
+        "0x149f94, lp"
+      ]
+    },
+    {
+      "va": "0x16cba4",
+      "instruction": [
+        "jarl",
+        "0x1273a2, lp"
+      ]
+    },
+    {
+      "va": "0x1273b2",
+      "instruction": [
+        "jarl",
+        "0x1231ae, lp"
+      ]
+    },
+    {
+      "va": "0x12742a",
+      "instruction": [
+        "st.b",
+        "r1, 0x30bdae[gp]"
+      ]
+    },
+    {
+      "va": "0x1274f0",
+      "instruction": [
+        "st.b",
+        "r1, 0x30bdae[gp]"
+      ]
+    },
+    {
+      "va": "0x1275b4",
+      "instruction": [
+        "st.b",
+        "r1, 0x30bdae[gp]"
+      ]
+    },
+    {
+      "va": "0x127476",
+      "instruction": [
+        "jarl",
+        "0x160508, lp"
+      ]
+    },
+    {
+      "va": "0x12748a",
+      "instruction": [
+        "jarl",
+        "0x1603d0, lp"
+      ]
+    },
+    {
+      "va": "0x12749a",
+      "instruction": [
+        "jarl",
+        "0x1231a4, lp"
+      ]
+    },
+    {
+      "va": "0x1274de",
+      "instruction": [
+        "mov",
+        "r29, r7"
+      ]
+    },
+    {
+      "va": "0x1274e0",
+      "instruction": [
+        "mov",
+        "0x45936, r6"
+      ]
+    },
+    {
+      "va": "0x1274e6",
+      "instruction": [
+        "jarl",
+        "0x157a8e, lp"
+      ]
+    },
+    {
+      "va": "0x1275a4",
+      "instruction": [
+        "mov",
+        "r29, r7"
+      ]
+    },
+    {
+      "va": "0x1275a6",
+      "instruction": [
+        "mov",
+        "0x4595d, r6"
+      ]
+    },
+    {
+      "va": "0x1231a6",
+      "instruction": [
+        "st.w",
+        "r1, 0x30bd54[gp]"
+      ]
+    }
+  ],
+  "conclusion": {
+    "qualifiedReadOnlyRequest": null,
+    "current7E8Membership": "unknown",
+    "current7EEMembership": "unknown",
+    "observed": "Pinned static MCU structures and call/descriptor chains only; no runtime table read was performed.",
+    "boundedExclusion": "The reviewed dynamic-table entry points are add/merge/delete/reset and raw transmission. The exact-key lookup's known relative callers are those mutators and raw receive processing. Neither lookup path enumerates/publishes existing modes. Known9900001C and99000158 cached descriptors have scalar widths; add failure exports an attempted key only. Query99000158 dispatch/publication remains untraced and is not excluded by those widths; AA000158 is a separately traced mutating sound-state path.",
+    "blocker": "No inbound read-only query -> existing RAM table traversal -> entries/modes publication -> Android delivery chain is established. A readback recommendation would require another concrete source-backed path."
+  },
+  "limits": [
+    "Relative-branch and little-endian pointer scans enumerate encodings, not all executable references. Computed addresses, indirect branches and inlined alternate readers may escape this bounded analysis.",
+    "No claim that readback is absent from all firmware, bootloader, debug interfaces, Android HAL cache, or other collection tables.",
+    "No runtime membership/mode follows from missing raw callbacks, a ROM literal search, or the earlier six observer ledgers.",
+    "9900001C/99000158 descriptors are specific known publications. Their widths alone do not prove every possible use of those numbers has identical behavior.",
+    "Record mode semantics are reused from the prior pinned MCU visibility report; observed frame cadence is not a readback of effective mode.",
+    "DIVQU alias precedence is unresolved; no emulator or synthetic bucket-index model is represented as established firmware behavior.",
+    "HAL query/write-side client tracing is owned separately. No source-backed live request is proposed here."
+  ],
+  "reproduce": {
+    "check": "python3 research/vehicle-diagnostics/check_mcu_collection_readback.py",
+    "decode": "PYTHONPATH=/private/tmp/denza-pypcode-20261018 /opt/homebrew/bin/python3.13 captures/diagnostics-transport-followup-20261021/mcu/build_evidence.py",
+    "decoderDependency": "Existing local pypcode4.0.1 runtime; no installation is performed. The checker itself uses only the Python standard library."
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_mcu_collection_readback.py",
+      "bytes": 6329,
+      "sha256": "50b2f796dfc905f96541cc3422dae1483a711f24ff39c5ed9544de3e1ea9567a"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/build_evidence.py",
+      "bytes": 15269,
+      "sha256": "f872764a00bea5468050081a6d1323fe096b9dea297a31fc72a516b9e76405e7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/divqu-alias.pcode.txt",
+      "bytes": 169,
+      "sha256": "3006fd16179cc34912c39d36ac47aea5ad591bbb716e1fdce29b4c1161365191"
+    },
+    {
+      "path": "research/vehicle-diagnostics/diagnostic-can-mcu-visibility-20261021.json",
+      "bytes": 27066,
+      "sha256": "6b78be5ba00edfee37967e028536630921fe4b03cf292014c205f21e4b7a6041"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170b3c.json",
+      "bytes": 5383,
+      "sha256": "0f01dbebb68139a193d6fad75ae3e46295f230ad586440af42740e9a042fc845"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.json",
+      "bytes": 11040,
+      "sha256": "22eb59ddcd7f03ee6dbf15b102a50c4070fe5f0c906541bbb7370e76644e502f"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170926.json",
+      "bytes": 7816,
+      "sha256": "c720a295c13fec386f66ffbab443bca27bab4b5d239f1b9164f0d6e5a1e554ad"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-169336.asm",
+      "bytes": 10897,
+      "sha256": "07ea2d4bf5541ad6104cc3036f8f3fd6963a291ee8684809c7a4bdcd93ecd4ce"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-169336.json",
+      "bytes": 25963,
+      "sha256": "6a125bc9fad7e8769f1ec0d86250fe31a271f39ba1ec2e58942e4611d22397a8"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16964a.asm",
+      "bytes": 10557,
+      "sha256": "00aff19f1df8486bf2cf7adcb5a75f09aebc90c3f4c9f13ac996d2cd1bf731ad"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16964a.json",
+      "bytes": 25210,
+      "sha256": "974c437a923d09b5336c135f6f96853a65564dcc3f488829a6706853703d37f0"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16bb6a.asm",
+      "bytes": 7393,
+      "sha256": "f85e1f1cd8f812f2bad35df59bd479d5a74d0e2699c87eb0b15e3f5384ac4f5b"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16bb6a.json",
+      "bytes": 17583,
+      "sha256": "82d13dfbb3be480bab8ad518718f7ed69f3f18eb87256fbe643fcc365acf1675"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-15ca8e.asm",
+      "bytes": 402,
+      "sha256": "a5b1c3a0e59f096e2238d90a8174b4a6a9e79c84b65250f2d8c799814ad54b94"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-15ca8e.json",
+      "bytes": 972,
+      "sha256": "086b36ed07194baeab142e08d7df000af54836b468811033fc882fa3dfb3bd83"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-197148.asm",
+      "bytes": 1012,
+      "sha256": "944a8ce6391d924e6405c5b56694d947e9216bd92c8c3b76d12b54e88b06cdcc"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-197148.json",
+      "bytes": 2410,
+      "sha256": "8a016e09bfb65060e7e553d46abf5f8b96d5adaad3d9100d2b0a722ccd0eb7de"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-196efa.asm",
+      "bytes": 1014,
+      "sha256": "2877641f4f95999643326ff68913363966dda14394daf7568b0f153f2d4fbf38"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-196efa.json",
+      "bytes": 2418,
+      "sha256": "1e86874cb93667a16c651db3e45d159adc5c8d8e42a33711fc9b1c590bd8f39d"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16cb7e.asm",
+      "bytes": 861,
+      "sha256": "7df5a9c278f34be71e8b06c1962175ca18075efc4f49807ddf2fdcd9cee1d5a3"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-16cb7e.json",
+      "bytes": 2051,
+      "sha256": "3072cb734c4c76e5357c45562573f98214472ea90a553405930cd28cef062b44"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1273a2.asm",
+      "bytes": 9426,
+      "sha256": "662b72fa5035839e87f75a27d79f4dc58645f5a796dfb0fe5d582140c7285365"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1273a2.json",
+      "bytes": 22478,
+      "sha256": "4a3f34bd98919f16fbda24c816a663fdceaa5e0145724a227b4f80d02b4a2ef7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1231a4.asm",
+      "bytes": 222,
+      "sha256": "a389c6edb250b8cb81bb914438087ab3e27090d719f794cba137bc6e0844cf69"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/mcu/mcu-1231a4.json",
+      "bytes": 538,
+      "sha256": "e9825bd7897f624c13c9d2fa190535aada95210532c4ef60ad4589a76e537007"
+    }
+  ]
+}

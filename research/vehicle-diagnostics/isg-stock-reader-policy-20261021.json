@@ -1,0 +1,368 @@
+{
+  "schema": "denza-lab.isg-stock-reader-policy.v1",
+  "date": "2026-10-21",
+  "status": "stock_ip_client_appends_raw_records_without_deduplication_actual_CAN_capture_remains_reader_rejected",
+  "scope": "Offline bounded native review and assembly-derived copy model against the existing CAN capture. Firmware is never loaded or executed. This does not establish the native IP client as the producer of the captured CAN response.",
+  "vehicleOperations": 0,
+  "firmwareExecutions": 0,
+  "capturePath": "captures/diagnostics-can-visibility-20261021/live-01/probe.txt",
+  "captureBase": "captures/diagnostics-transport-followup-20261021/isg",
+  "nativeLibrary": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+    "bytes": 1091824,
+    "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161"
+  },
+  "nativeFunctions": [
+    {
+      "address": "0x9FC5C",
+      "bytes": 608,
+      "sha256": "69021a2314f9f9ae3c5aa589349685984553ebcc044c89e41c6b5c42d561042b",
+      "symbol": "com::ts::car::uds::common::CUdsMsgHelper::creatRequestSupportedDTCMessage(unsigned short, unsigned short, com::ts::car::uds::api::TargetAddressType)"
+    },
+    {
+      "address": "0xAFFCC",
+      "bytes": 2972,
+      "sha256": "f770e4b075c951b611a01861183a1f588924778043eb1a72fa1243a634a309d7",
+      "symbol": "com::ts::car::uds::application::CUdsClient::readSupportedDTC()"
+    },
+    {
+      "address": "0xC565C",
+      "bytes": 720,
+      "sha256": "8c3e895ceb2b4973f6ed4b8e3776608b99bef35c2a82b6c1ed536ddec45d0a99",
+      "symbol": "sub_c565c"
+    },
+    {
+      "address": "0xC3958",
+      "bytes": 36,
+      "sha256": "9851007b16f8e1c85081c91c98772858afdc9a50e12ec806ef8124a15bfda64a",
+      "symbol": "sub_c3958"
+    },
+    {
+      "address": "0xC2A9C",
+      "bytes": 332,
+      "sha256": "826e69881e682249aa66846af9a88a147f2d0c4a8a8c08ff7bac46ee6c1932f5",
+      "symbol": "std::__1::enable_if<__is_forward_iterator<com::ts::car::uds::api::DTCAndStatusRecord*>::value && is_constructible<com::ts::car::uds::api::DTCAndStatusRecord, std::__1::iterator_traits<com::ts::car::uds::api::DTCAndStatusRecord*>::reference>::value, void>::type std::__1::vector<com::ts::car::uds::api::DTCAndStatusRecord, std::__1::allocator<com::ts::car::uds::api::DTCAndStatusRecord>>::assign<com::ts::car::uds::api::DTCAndStatusRecord*>(com::ts::car::uds::api::DTCAndStatusRecord*, com::ts::car::uds::api::DTCAndStatusRecord*)"
+    },
+    {
+      "address": "0xBD998",
+      "bytes": 172,
+      "sha256": "b88aab16a11676a83da293c8d939965978b4650cae3040ba703e02dc5b5f4efd",
+      "symbol": "std::__1::vector<com::ts::car::uds::api::DTCAndStatusRecord, std::__1::allocator<com::ts::car::uds::api::DTCAndStatusRecord>>::vector(std::__1::vector<com::ts::car::uds::api::DTCAndStatusRecord, std::__1::allocator<com::ts::car::uds::api::DTCAndStatusRecord>> const&)"
+    },
+    {
+      "address": "0xC317C",
+      "bytes": 264,
+      "sha256": "424b5e447e12f27ffdd21b70fd5dc51460183c6b6f1d2f791069a2b4bda55368",
+      "symbol": "void std::__1::vector<com::ts::car::uds::api::DTCAndStatusRecord, std::__1::allocator<com::ts::car::uds::api::DTCAndStatusRecord>>::__push_back_slow_path<com::ts::car::uds::api::DTCAndStatusRecord const&>(com::ts::car::uds::api::DTCAndStatusRecord const&)"
+    }
+  ],
+  "instructionAnchors": [
+    {
+      "address": "0x9FE24",
+      "hex": "290380524A018052E9630039602200A9EA530039",
+      "interpretation": "request bytes 19 and 0A"
+    },
+    {
+      "address": "0xB00FC",
+      "hex": "88020090FA0300AA086132911CE401A9FF7F08A90AF000B8082400A9",
+      "interpretation": "positive task vtable100C98"
+    },
+    {
+      "address": "0xB059C",
+      "hex": "88020090F80300AA08C13591161000791928003900B0803C1AB001F8080000F9",
+      "interpretation": "fallback copy task vtable100D70"
+    },
+    {
+      "address": "0xC56DC",
+      "hex": "E8230091E00318AAE103172AE203162AE303152AE40314AAFFCC0094",
+      "interpretation": "IP indication call"
+    },
+    {
+      "address": "0xC56F8",
+      "hex": "7F7E00A97F7201B87F0A00F980008052EAC70094F40300AA750E0091E20300AA5F4400B87F0A0039E00315AAE10314AA22CD0094",
+      "interpretation": "initialize return vector and assign one zero word"
+    },
+    {
+      "address": "0xC572C",
+      "hex": "E827403949048052690600396802003928010034E93341F8E8B340F8290108CB3F0D00F161080054080940396806003940000014",
+      "interpretation": "positive-vs-negative branch"
+    },
+    {
+      "address": "0xC5760",
+      "hex": "E83341F8E9B340F8EB230091760540B2080109CB0A0900F1690A00542C0940394BFD42D37F0600396C0A00398B0600B4",
+      "interpretation": "positive payload length, availability and loop count"
+    },
+    {
+      "address": "0xC57C4",
+      "hex": "2901178B4A0140392B094079EC1A00911F010CEBEA130039EB5300782906005468B240F86A3241F8291940391F010AEBE91F0039E0000054",
+      "interpretation": "copy raw code bytes and status; compare vector end/capacity"
+    },
+    {
+      "address": "0xC57FC",
+      "hex": "E90740B9090100B968B240F80811009168B200F804000014E1130091E00315AA05CE0094",
+      "interpretation": "append record directly or through vector push"
+    },
+    {
+      "address": "0xC5820",
+      "hex": "FA0100B4E83341F8E9B340F8EA1E0091FF0700B9080109CB1F010AEB09040054180700916A0080520AF77EB3F71200912A010A8B5A0700D1D5FFFF17",
+      "interpretation": "advance source offset by four and loop count"
+    },
+    {
+      "address": "0xC3958",
+      "hex": "5F2403D509104079012C0091090100790A284039090D0091E00309AA0A09003996D40014",
+      "interpretation": "fallback copies entity and vector"
+    },
+    {
+      "address": "0xC2B40",
+      "hex": "E10314AAE20315AA8AD30094680640F90801158B1B000014",
+      "interpretation": "vector assign copies the source range"
+    },
+    {
+      "address": "0xC31FC",
+      "hex": "C80240B9F80A188BF60A198BBF0600F1084700B8CB000054E00317AAE10314AAE20315AAD4D10094740240F9776200A9760A00F9",
+      "interpretation": "push-back writes new word and copies existing words"
+    },
+    {
+      "address": "0xBD9E4",
+      "hex": "812240A9140101CB9F0600F1CB000054E20314AADEE70094680640F90801148B680600F9",
+      "interpretation": "vector copy preserves byte range"
+    }
+  ],
+  "nativeRoute": {
+    "requestBuilder": "0x9FC5C creatRequestSupportedDTCMessage",
+    "requestHex": "190A",
+    "clientEntry": "0xAFFCC CUdsClient::readSupportedDTC",
+    "positiveTaskVtable": "0x100C98",
+    "positiveTask": "0xC565C",
+    "indicationCall": "0xC56F4 -> PLT0xF8AF0 CUdsOnIpProtocol::indicationMessage",
+    "fallbackTaskVtable": "0x100D70",
+    "fallbackTask": "0xC3958",
+    "fallbackMeaning": "Copies the prepared result entity and its vector; not an independent CAN transport path."
+  },
+  "retainedReply": {
+    "requestIdHex": "7E6",
+    "responseIdHex": "7EE",
+    "softwareF194": "48370011E0EA000000",
+    "dtcFormatIdentifier": 1,
+    "payloadBytes": 231,
+    "payloadSha256": "da06b9abccf4658e3f0df0647199401d32059dd9c0d31e5ded9c9e052af6aafe",
+    "orderedRecordCount": 57,
+    "uniqueRawCodeCount": 56,
+    "duplicateRawHex": "C1D487",
+    "duplicateOrdinals": [
+      28,
+      40
+    ],
+    "statuses": "all00",
+    "activeFaultCountClaimed": false
+  },
+  "assemblyDerivedModel": {
+    "inputRecordCountFormula": "(payload_bytes - 2) >> 2",
+    "inputRecordHex": [
+      "18021900",
+      "18350000",
+      "18360000",
+      "18370000",
+      "18380000",
+      "18061700",
+      "18061600",
+      "18390000",
+      "183A0000",
+      "181A0000",
+      "19100100",
+      "19110100",
+      "19120100",
+      "18039600",
+      "18049600",
+      "18059600",
+      "18089600",
+      "18099600",
+      "183C0000",
+      "180F1900",
+      "18101700",
+      "18170000",
+      "18110000",
+      "18120000",
+      "180E0000",
+      "18160000",
+      "C1478700",
+      "C1D48700",
+      "183D0000",
+      "183E0000",
+      "183F0000",
+      "18400000",
+      "2B131700",
+      "2B131600",
+      "2B141700",
+      "2B141600",
+      "2B150000",
+      "2B160000",
+      "2B170000",
+      "C1D48700",
+      "2B181700",
+      "2B182000",
+      "2B182100",
+      "2B190100",
+      "2B190200",
+      "2B1A0000",
+      "2B1B0000",
+      "2B1C0000",
+      "2B1D0000",
+      "2B1E0000",
+      "2B120000",
+      "2B120100",
+      "2B120200",
+      "2B120300",
+      "2B120400",
+      "18410000",
+      "2B1E0100"
+    ],
+    "outputRecordHex": [
+      "00000000",
+      "18021900",
+      "18350000",
+      "18360000",
+      "18370000",
+      "18380000",
+      "18061700",
+      "18061600",
+      "18390000",
+      "183A0000",
+      "181A0000",
+      "19100100",
+      "19110100",
+      "19120100",
+      "18039600",
+      "18049600",
+      "18059600",
+      "18089600",
+      "18099600",
+      "183C0000",
+      "180F1900",
+      "18101700",
+      "18170000",
+      "18110000",
+      "18120000",
+      "180E0000",
+      "18160000",
+      "C1478700",
+      "C1D48700",
+      "183D0000",
+      "183E0000",
+      "183F0000",
+      "18400000",
+      "2B131700",
+      "2B131600",
+      "2B141700",
+      "2B141600",
+      "2B150000",
+      "2B160000",
+      "2B170000",
+      "C1D48700",
+      "2B181700",
+      "2B182000",
+      "2B182100",
+      "2B190100",
+      "2B190200",
+      "2B1A0000",
+      "2B1B0000",
+      "2B1C0000",
+      "2B1D0000",
+      "2B1E0000",
+      "2B120000",
+      "2B120100",
+      "2B120200",
+      "2B120300",
+      "2B120400",
+      "18410000",
+      "2B1E0100"
+    ],
+    "nativeVectorSize": 58,
+    "executedFirmware": false,
+    "observedLiveNativeOutput": false,
+    "zeroPrefixEvidence": "C5704 allocates4; C5718 stores zero and advances end by4; C5728 assigns [first,end), then C57FC/C581C append input records. C2A9C copies the specified range. No intervening vector clear in this positive branch.",
+    "zeroPrefixBoundary": "Static construction inference for the inspected native task, not a wire record. Our shell reader bypasses this native client and the captured231-byte payload contains no00000000 tuple. It cannot explain repeatedC1D487."
+  },
+  "interpretation": {
+    "recordTraversal": "The inspected positive branch copies three raw code bytes plus status in input order. The comparison atC57F0 is vector end/capacity, not equality between DTC codes. The push-back helper copies existing words and adds one word without a key comparison.",
+    "nativeDedupePresentInReviewedPath": false,
+    "nativeFormatConversionPresentInReviewedPath": false,
+    "actualCaptureUsedThisNativeParser": false,
+    "duplicateCauseEstablished": false,
+    "standardsConformanceEstablished": false,
+    "conclusion": "The Java collector uniqueness gate is an additional local acceptance rule, not proof that the wire payload is truncated or that the ECU produced an active fault. The stock IP client is implementation evidence only; do not infer UDS standards compliance from it."
+  },
+  "originalReaderOutcome": {
+    "source": "tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+    "reason": "DUPLICATE_DTC_CODE",
+    "remainsFailed": true,
+    "endExact": "END reason=DUPLICATE_DTC_CODE requests=6 completed=5 targets=1 cleanup=false callbacks=12 queued=1",
+    "policyChanged": false,
+    "liveReplayed": false,
+    "boundary": "Historical queued=1/cleanup=false/lifecycleVerified=false is retained; this offline review does not upgrade the old run to clean completion."
+  },
+  "qualifiedFactoryDefinitions": [],
+  "qualifiedFormat01Mappings": [],
+  "nextDiscriminators": [
+    "A raw-preserving research result could retain repeated records with an explicit anomaly and separate unique-count projection, but this pass does not change the collector or its historical verdict.",
+    "An applicable factory ISG scenario or explicit ECU/supplier format mapping is still required before assigning display codes or meanings.",
+    "The native zero initializer is a separate library-model concern; no ECU interpretation should be based on the derived leading placeholder."
+  ],
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "bytes": 1091824,
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/probe.txt",
+      "bytes": 5992,
+      "sha256": "cc3627edbae0ac1b382d6b9bc102addda26ba2b385485a366cf7f17d65aa262d"
+    },
+    {
+      "path": "tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "bytes": 30666,
+      "sha256": "88df12e4ce643a5c55a344f9833e68d794fbda775da4eced470711a78257e783"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_isg_stock_reader_policy.py",
+      "bytes": 7085,
+      "sha256": "d47d07558ea105c78b3116252a5f205a25db7ce1668fe1c57e583ad993b8b0d7"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-9fc5c.asm",
+      "bytes": 9761,
+      "sha256": "0bdec78ab3dcd38aec5719a2db8b477fe6abee1d799f616afee175cc125a6478"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-affcc.asm",
+      "bytes": 38902,
+      "sha256": "87c37d6c4985a50adf4258dbce2515e8248e1845c5a64bb1a262ed2cd48e768c"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-c565c.asm",
+      "bytes": 9268,
+      "sha256": "2f820e5e3fb1bc72f53d3a2155cfc21ac8b249a55e1b63226d9501c9d9d6d529"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-c3958.asm",
+      "bytes": 814,
+      "sha256": "9bb9ecef1f1a874f6594aaec8a617269aedf7161210179d4541cd8c4ed063faa"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-c2a9c.asm",
+      "bytes": 4391,
+      "sha256": "55ea1731de225e15681c65925b543cb61a230bfc5f645f17a9e7f3c6b87d6f19"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-bd998.asm",
+      "bytes": 2394,
+      "sha256": "1bbb8ea68f1fa84b931740cc3792338f2dcab9075e6bafa294f6129a961683c6"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/isg/libuds-c317c.asm",
+      "bytes": 3459,
+      "sha256": "ebe19b6367ecddb07cec376861103a294ffdeeb01538630f9fd34fa72d577037"
+    }
+  ]
+}

@@ -61,6 +61,38 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   this exact format01 ISG response is not established; no factory definitions
   or format conversions are promoted. Run
   `python3 research/vehicle-diagnostics/check_isg_supported_dictionary_candidates.py`.
+- `mcu-collection-readback-20261021.json` follows existing collection storage,
+  lookup callers and publication candidates. Add/delete/reset/CAN-send inputs
+  are mutations; scalar notifications and failed-add keys do not return the
+  existing table. Runtime keys/modes remain unknown, with no readback qualified
+  in the traced paths. Run
+  `python3 research/vehicle-diagnostics/check_mcu_collection_readback.py`.
+- `hal-collection-readback-20261021.json` separates internal owner-map helpers
+  from Binder/SDK getters. Incoming `9900001C` causes table replay through
+  outgoing `AA00001B`; `getBuffer` reads a different FID cache. A bounded
+  stock-client search followed by one `vhds` extraction finds a conditional
+  MQTT writer for CAN347/channel0 and4BF/44A/channel2 plus configuration-driven
+  rows; runtime ownership/table contents and the SecretOBD writer remain
+  unproved. Run
+  `python3 research/vehicle-diagnostics/check_hal_collection_readback.py`.
+- `isg-stock-reader-policy-20261021.json` traces the stock native IP-client
+  `190A` parser and vector helpers: ordered raw entries are appended without
+  deduplication or format conversion. The assembly-derived zero-initializer
+  model is separate from the actual 57-record CAN payload, and our historical
+  `DUPLICATE_DTC_CODE` failure stays failed. Run
+  `python3 research/vehicle-diagnostics/check_isg_stock_reader_policy.py`.
+- `isg-format-source-applicability-20261021.json` traces factory meanings to
+  exact numeric `data.attach[].dtcList` keys in the original downloaded script,
+  selected by `scriptCode`/`scriptVersion`/`forStation`. It identifies the
+  external file path and the metadata sibling that omits `data`; no applicable
+  ISG script or format01 display mapping is recovered. Run
+  `python3 research/vehicle-diagnostics/check_isg_format_source_applicability.py`.
+- `diagnostic-source-cache-presence-20261021.json` retains three bounded ADB
+  metadata invocations, zero ECU requests: current170/CANFD, four exact private
+  config paths denied by shell permissions, and zero regular-file rows through
+  depth2 of the accessible SpotInspection Scripts root. No file contents or
+  current table were recovered. Run
+  `python3 research/vehicle-diagnostics/check_diagnostic_source_cache_presence.py`.
 - `dtc-dictionary-local-paths-20261021.json` closes the earlier obfuscated
   resource gap:110 additional JSON resources and4014 targeted APK members.
   HU diagnostics, modem flags and a sampleLA_BCM script are not target ECU

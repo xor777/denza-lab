@@ -1,0 +1,80 @@
+{
+  "schema": "denza-lab.diagnostic-source-cache-presence.v1",
+  "date": "2026-10-21",
+  "timeUtc": "2026-10-21T14:05:01Z",
+  "status": "bounded_metadata_only_private_paths_denied_public_script_files_not_observed_at_depth2",
+  "scope": "Three bounded ADB invocations against the existing transport; get-state, two non-identifying properties, fixed-path stat and maxdepth2 regular-file metadata listing. No file contents, ECU traffic, service start, loader, ByDLogTool, authorization material or table writes. Separate from the offline native reports.",
+  "adbInvocations": 3,
+  "ecuRequests": 0,
+  "fileContentsRead": 0,
+  "vehicleMutations": 0,
+  "reportedHeadUnitProperties": {
+    "persist.sys.AutoType": "170",
+    "sys.car.protocol": "CANFD"
+  },
+  "identityBoundary": "These are current properties of the existing connected transport, not a fresh firmware/APK hash qualification or a unique vehicle identifier. No app or firmware behavior was exercised.",
+  "protectedFiles": [
+    {
+      "path": "/data/vhds/trigger_list_cfg/triggerlistconfig.txt",
+      "result": "permission_denied",
+      "exists": null,
+      "contentsRead": false
+    },
+    {
+      "path": "/data/vhds/trigger_list_cfg/allone.txt",
+      "result": "permission_denied",
+      "exists": null,
+      "contentsRead": false
+    },
+    {
+      "path": "/cancollect/dataCollect/canConfigureJson",
+      "result": "permission_denied",
+      "exists": null,
+      "contentsRead": false
+    },
+    {
+      "path": "/cancollect/dataCollect/vehicleCode",
+      "result": "permission_denied",
+      "exists": null,
+      "contentsRead": false
+    }
+  ],
+  "scriptDirectory": {
+    "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts",
+    "metadata": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts|directory|3452|2770|1000|1078|1792423198",
+    "maxDepth": 2,
+    "regularFileRows": 0,
+    "enumerationExit": 0,
+    "applicableScriptRecovered": false
+  },
+  "currentCollectionTableRecovered": false,
+  "qualifiedFactoryDefinitions": [],
+  "limits": [
+    "Permission denied does not establish whether a private file exists or what it contains.",
+    "The listing covers regular files through depth2 under the exact external Scripts path only; internal fallback, deeper paths and other packages are not covered.",
+    "A source registration path and current CANFD property do not prove process execution, ownership, table contents or absence on the physical bus.",
+    "No protected-file access was retried through a privileged helper. Previous one-session authorizations were not reused."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/cache-presence/result.json",
+      "bytes": 1194,
+      "sha256": "8350f6300424921d6c9654013345d1f82da1f9d253c6ce24490cf36620b6db74"
+    },
+    {
+      "path": "captures/diagnostics-transport-followup-20261021/cache-presence/script-files.json",
+      "bytes": 255,
+      "sha256": "0d4521e92dcbc5afc0baaaf172b556089881a334d636a30a92e100a68b120176"
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-format-source-applicability-20261021.json",
+      "bytes": 28831,
+      "sha256": "78a7fc825c9d30c080ab05cec26e8477ec81904ffbc0ff62a11a289d27927c8a"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_diagnostic_source_cache_presence.py",
+      "bytes": 3727,
+      "sha256": "9b7167f7da236e6e59c831a4974e5d8ce711b30105fbb7ecbfc32ce161902668"
+    }
+  ]
+}
