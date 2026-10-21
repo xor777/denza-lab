@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.vehicle.AutoserviceShell
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
@@ -59,10 +60,10 @@ internal interface CarFeed {
     fun focused(): List<SignalReading> = emptyList()
 
     /**
-     * «Салон · Состояние» shown or left (architecture, 6): while shown the batch carries the cabin's
-     * GETs too ([DiagnosticExtra.cabin]), from the next round on; no other page reads them.
+     * A page with GETs of its own shown or left (architecture, 6): while [page] shows the batch carries
+     * its GETs too ([DiagnosticExtra.page]), from the next round on; no other page reads them.
      */
-    fun cabin(shown: Boolean) {}
+    fun page(page: ExtraPage, shown: Boolean) {}
 }
 
 /** One `autoservice` GET, polled alone for a parameter page: a [DiagnosticExtra] or a cold hub signal. */

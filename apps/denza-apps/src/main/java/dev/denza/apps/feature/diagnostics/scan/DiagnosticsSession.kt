@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.bus.DiagFailure
 import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.DiagRequest
@@ -318,8 +319,8 @@ internal class DiagnosticsSession(
         }
     }
 
-    /** The cabin's GETs ride the car feed's batch; nothing on the bus changes. */
-    override fun setCabinVisible(visible: Boolean) = car.cabin(visible)
+    /** A page's own GETs ride the car feed's batch; nothing on the bus changes. */
+    override fun setExtrasVisible(page: ExtraPage, visible: Boolean) = car.page(page, visible)
 
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {

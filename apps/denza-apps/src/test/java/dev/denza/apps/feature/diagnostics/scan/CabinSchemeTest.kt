@@ -3,6 +3,7 @@ package dev.denza.apps.feature.diagnostics.scan
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.carNow
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.session
 import java.io.File
@@ -199,9 +200,9 @@ class CabinSchemeTest {
         val s = session(carNow(), car = car)
         s.start()
         runCurrent()
-        s.setCabinVisible(true)
-        s.setCabinVisible(false)
-        assertEquals(listOf(true, false), car.cabinLog)
+        s.setExtrasVisible(ExtraPage.CABIN, true)
+        s.setExtrasVisible(ExtraPage.CABIN, false)
+        assertEquals(listOf(ExtraPage.CABIN to true, ExtraPage.CABIN to false), car.pageLog)
         s.stop()
     }
 
@@ -211,7 +212,7 @@ class CabinSchemeTest {
     private fun parked(): CarReadings {
         val a = JSONArray(File(root, "research/vehicle-diagnostics/cabin-signals-20261021.json").readText())
         val entries = (0 until a.length()).map { a.getJSONObject(it) }
-        val batch = DiagnosticExtra.entries.filter { it.cabin }.joinToString("\n") { e ->
+        val batch = DiagnosticExtra.entries.filter { it.page == ExtraPage.CABIN }.joinToString("\n") { e ->
             val r = entries.single { it.getLong("fidSigned").toInt() == e.fid && it.getInt("device") == e.device }
             "@@extra:${e.key}\nResult: Parcel(00000000 %08x   '........')".format(r.getString("observedParked20261020").toInt())
         }

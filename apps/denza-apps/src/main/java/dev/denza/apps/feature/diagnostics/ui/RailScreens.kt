@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
@@ -151,11 +152,11 @@ internal fun SystemPageScreen(
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
-    // the cabin's GETs join the batch only while its scheme is in front (architecture, 6)
-    val cabin = page.system == CarSystem.CABIN && tab == SystemTab.STATE
-    DisposableEffect(cabin) {
-        if (cabin) current.value.setCabinVisible(true)
-        onDispose { if (cabin) current.value.setCabinVisible(false) }
+    // a page's own GETs join the batch only while it is in front: the cabin's scheme (architecture, 6)
+    val extras = if (page.system == CarSystem.CABIN && tab == SystemTab.STATE) ExtraPage.CABIN else null
+    DisposableEffect(extras) {
+        extras?.let { current.value.setExtrasVisible(it, true) }
+        onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }
     }
     var picking by remember { mutableStateOf(false) }
     val read = { requests.forEach(actions::readModule) }

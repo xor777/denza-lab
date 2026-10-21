@@ -33,7 +33,7 @@ class CabinExtrasTest {
     private fun entry(e: DiagnosticExtra): JSONObject =
         research.single { it.getString("fid").removePrefix("0x").toLong(16).toInt() == e.fid && it.getInt("device") == e.device }
 
-    private val cabin = DiagnosticExtra.entries.filter { it.cabin }
+    private val cabin = DiagnosticExtra.entries.filter { it.page == ExtraPage.CABIN }
 
     /** The set points are the stock's control FIDs read back; every other GET is a status. */
     private val setPoints = setOf(
@@ -105,7 +105,7 @@ class CabinExtrasTest {
     @Test
     fun onlyTheCabinsBatchCarriesTheCabinsGets() {
         val base = DiagnosticExtraReader.command
-        val all = DiagnosticExtraReader.cabinCommand
+        val all = DiagnosticExtraReader.command(setOf(ExtraPage.CABIN))
         cabin.forEach { e ->
             val get = "echo @@extra:${e.key}; service call autoservice 5 i32 ${e.device} i32 ${e.fid}"
             assertFalse(e.name, base.contains("@@extra:${e.key};"))
@@ -126,25 +126,26 @@ class CabinExtrasTest {
 
     @Test
     fun theCabinJoinsTheBatchAtOnceAndLeavesItAtOnce() = runTest {
+        val cabinBatch = DiagnosticExtraReader.command(setOf(ExtraPage.CABIN))
         val shell = Shell()
         val poller = ExtrasPoller({ shell }, {}, backgroundScope.coroutineContext, { testScheduler.currentTime }, { testScheduler.currentTime }, { 0L })
         poller.start()
         runCurrent()
         assertEquals(DiagnosticExtraReader.command, shell.commands.last())
         advanceTimeBy(1_000)
-        poller.cabin(true)
+        poller.show(ExtraPage.CABIN, true)
         runCurrent()
-        assertEquals("the next batch at once", DiagnosticExtraReader.cabinCommand, shell.commands.last())
+        assertEquals("the next batch at once", cabinBatch, shell.commands.last())
         assertEquals(1.0, poller.latest.values.getValue(DiagnosticExtra.HUD), 0.0)
         val n = shell.commands.size
         advanceTimeBy(4_900)
         assertEquals("then every five seconds", n, shell.commands.size)
         advanceTimeBy(200)
-        assertEquals(DiagnosticExtraReader.cabinCommand, shell.commands.last())
-        poller.cabin(true)
+        assertEquals(cabinBatch, shell.commands.last())
+        poller.show(ExtraPage.CABIN, true)
         runCurrent()
         assertEquals("asked again, nothing more", n + 1, shell.commands.size)
-        poller.cabin(false)
+        poller.show(ExtraPage.CABIN, false)
         runCurrent()
         assertEquals(DiagnosticExtraReader.command, shell.commands.last())
         poller.stop()

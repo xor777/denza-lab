@@ -7,6 +7,7 @@ import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
 import dev.denza.apps.feature.diagnostics.DiagnosticExtras
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.bus.ResidentDiagnosticBus
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleTelemetryHub
@@ -100,7 +101,7 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
 
     override fun focused(): List<SignalReading> = extras.drain()
 
-    override fun cabin(shown: Boolean) = extras.cabin(shown)
+    override fun page(page: ExtraPage, shown: Boolean) = extras.show(page, shown)
 }
 
 /** The one persistent shell of [ExtrasPoller]. */
@@ -127,9 +128,9 @@ internal class AdbExtrasShell(private val session: LocalAdbClient.PersistentShel
  * [drain]; the batch stands, its last values ageing as they would. A failed read is a gap and the
  * same five seconds' wait: nothing loops on a failure. A new focus, or none, goes at once.
  *
- * **The cabin** ([cabin]): while «Салон · Состояние» shows, the batch is
- * [DiagnosticExtraReader.cabinCommand], the next one at once; the flag outlives [stop], as the
- * page that set it does.
+ * **A page's own GETs** ([show]): while a page with GETs of its own ([ExtraPage]) shows, the batch
+ * is [DiagnosticExtraReader.command] of the pages shown, the next one at once; what is shown outlives
+ * [stop], as the page that set it does.
  */
 internal class ExtrasPoller(
     private val open: () -> ExtrasShell,
@@ -146,7 +147,7 @@ internal class ExtrasPoller(
     private var job: Job? = null
     @Volatile private var shell: ExtrasShell? = null
     @Volatile private var target: SignalGet? = null
-    @Volatile private var cabin = false
+    @Volatile private var pages: Set<ExtraPage> = emptySet()
     private val readings = ArrayDeque<SignalReading>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
@@ -175,10 +176,13 @@ internal class ExtrasPoller(
         wake.trySend(Unit)
     }
 
-    /** The cabin's GETs in the batch or not; a change sends the next batch at once. */
-    fun cabin(shown: Boolean) {
-        if (cabin == shown) return
-        cabin = shown
+    /** [page]'s GETs in the batch or not; a change sends the next batch at once. */
+    fun show(page: ExtraPage, shown: Boolean) {
+        synchronized(this) {
+            val next = if (shown) pages + page else pages - page
+            if (next == pages) return
+            pages = next
+        }
         wake.trySend(Unit)
     }
 
@@ -199,7 +203,7 @@ internal class ExtrasPoller(
                     shell = opened
                 }
                 if (get == null) {
-                    val output = s.shell(if (cabin) DiagnosticExtraReader.cabinCommand else DiagnosticExtraReader.command)
+                    val output = s.shell(DiagnosticExtraReader.command(pages))
                     latest = DiagnosticExtraReader.decode(output, wallClock(), elapsed())
                 } else {
                     val value = DiagnosticExtraReader.word(s.shell(get.command))?.let(get.decode)

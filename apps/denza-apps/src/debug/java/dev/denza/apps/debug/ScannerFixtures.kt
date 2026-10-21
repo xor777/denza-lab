@@ -1,5 +1,6 @@
 package dev.denza.apps.debug
 
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.AskRow
 import dev.denza.apps.feature.diagnostics.scan.Callout
@@ -265,7 +266,7 @@ internal object ScannerFixtures {
         override fun resetParam() {}
         override fun setCellsVisible(visible: Boolean) {}
         override fun setCellsPaused(paused: Boolean) {}
-        override fun setCabinVisible(visible: Boolean) {}
+        override fun setExtrasVisible(page: ExtraPage, visible: Boolean) {}
     }
 
     /* ----------------------------------------------------------- autoscan */

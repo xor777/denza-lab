@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 
 /**
@@ -812,6 +813,6 @@ internal interface DiagnosticsActions {
     fun setCellsVisible(visible: Boolean)
     /** «Пауза» / «Продолжить» on «Ячейки»: paused, nothing is listened to and the drawn sweep stays; leaving the tab ends it. */
     fun setCellsPaused(paused: Boolean)
-    /** «Салон · Состояние» shown or left: the cabin's GETs join the `autoservice` batch only while it is (architecture, 6). */
-    fun setCabinVisible(visible: Boolean)
+    /** A page with GETs of its own shown or left - «Салон · Состояние»: they join the `autoservice` batch only while it is (architecture, 6). */
+    fun setExtrasVisible(page: ExtraPage, visible: Boolean)
 }

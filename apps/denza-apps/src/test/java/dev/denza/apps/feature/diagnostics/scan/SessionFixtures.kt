@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.bus.FakeDiagnosticBus
 import dev.denza.apps.feature.diagnostics.bus.hex
 import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
@@ -12,7 +13,7 @@ import kotlinx.coroutines.test.TestScope
 /**
  * The hub as a test sets it: P and speed, and a sweep counter the test bumps. A parameter page's
  * GET is logged in [focusLog]; the test puts its readings in [pending], which the session drains.
- * The cabin's GETs asked for are logged in [cabinLog].
+ * The pages whose own GETs were asked for or let go are logged in [pageLog].
  */
 internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     var opened = 0
@@ -24,9 +25,9 @@ internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     override fun close() { closed++ }
     override fun focus(get: SignalGet?) { focusLog += get }
     override fun focused(): List<SignalReading> = pending.toList().also { pending.clear() }
-    /** The cabin's GETs asked for or not, in order. */
-    val cabinLog = mutableListOf<Boolean>()
-    override fun cabin(shown: Boolean) { cabinLog += shown }
+    /** A page's own GETs asked for or not, in order. */
+    val pageLog = mutableListOf<Pair<ExtraPage, Boolean>>()
+    override fun page(page: ExtraPage, shown: Boolean) { pageLog += page to shown }
 
     companion object {
         fun parked(sweep: Long = 1, extra: Map<VehicleSignal, Double> = emptyMap()) = CarReadings(
