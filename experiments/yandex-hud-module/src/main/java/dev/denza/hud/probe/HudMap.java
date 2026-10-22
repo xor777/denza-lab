@@ -107,6 +107,7 @@ final class HudMap implements AutoCloseable {
             policy.left = (float) rect.optDouble(0, policy.left); policy.top = (float) rect.optDouble(1, policy.top);
             policy.right = (float) rect.optDouble(2, policy.right); policy.bottom = (float) rect.optDouble(3, policy.bottom);
         }
+        policy.naviPointRow = (float) value.optDouble("naviPointRow", policy.naviPointRow);
         policy.curvatureWindow = value.optDouble("curvatureWindow", policy.curvatureWindow);
         policy.freewayLimit = value.optInt("freewayLimit", policy.freewayLimit);
         policy.mainRoadLimit = value.optInt("mainRoadLimit", policy.mainRoadLimit);

@@ -70,11 +70,12 @@ public final class StockCameraTest {
         check(Math.abs(base.pitch - StockCameraProjection.maxPitch(16)) < 1e-4, "base pitch 60 held under the ceiling: " + base.pitch);
         check(step[1] <= 15f / 10 + 1e-4, "pitch moves at most maxDelta/count a frame: " + step[1]);
 
-        // 1100 m before the turn its Action record starts: the far manoeuvre fits below 14, the rule's lower bound 15 holds.
+        // 1100 m before the turn its Action record starts: a far manoeuvre on row 160 needs less zoom
+        // than the base road's 16, and the rule's lower bound 15 holds it.
         step[0] = step[1] = 0;
         StockCamera.Pose far = drive(camera, city, keypoints, 1400, 1500, 0, 60, clock, step);
         check(far.strategy == StockCamera.ACTION, "within the main road's 1100 m the Action record is live");
-        check(Math.abs(far.zoom - 15) < .05, "a far manoeuvre zooms out to the rule's lower bound: " + far.zoom);
+        check(far.zoom >= 15 - 1e-4 && far.zoom < 16, "a far manoeuvre zooms out, not under the rule's 15: " + far.zoom);
         check(Math.abs(far.pitch - Math.min(30, StockCameraProjection.maxPitch(far.zoom))) < 1e-3,
                 "a keypoint record asks pitch 30, under the zoom's ceiling: " + far.pitch);
         check(step[0] <= .7f / 10 + 1e-5, "zoom moves at most 0.07 a frame: " + step[0]);
@@ -90,6 +91,27 @@ public final class StockCameraTest {
         }
         check(climbing, "approaching a manoeuvre never zooms out");
         check(Math.abs(near.zoom - 17) < 1e-4, "50 m before the turn the HUD's maximum zoom: " + near.zoom);
+
+        // Standing 700 m before the turn the zoom settles where the turn sits on view row 160
+        // (mNaviPointOffsetToScreenTop), above the part the glass shows.
+        camera.reset();
+        clock[0] = 0;
+        StockCamera.Pose settled = null;
+        for (int i = 0; i < 12; i++) settled = drive(camera, city, keypoints, 1800, 1800, 0, 60, clock, null);
+        double[] turn = city.point(2500), car = city.point(1800);
+        double[] row = StockCameraProjection.project(turn[0], turn[1], car[0], car[1], settled.zoom, settled.pitch, 0);
+        check(Math.abs(row[1] - 160) < 2, "PointHeight puts the manoeuvre on row 160: " + row[1] + " at zoom " + settled.zoom);
+
+        // InRect: the route's vertices ahead of the car (not the car: 3300..4000 m) on a straight
+        // road are a box 0 wide; half its height over the 560 rows above the car, in world units per
+        // pixel, is the zoom.
+        camera.reset();
+        clock[0] = 0;
+        for (int i = 0; i < 12; i++) settled = drive(camera, city, keypoints, 3200, 3200, 0, 60, clock, null);
+        double height = StockCameraProjection.world(city.point(4000)[0], 37.6, city.point(3300)[0], 37.6)[1];
+        double expected = Math.max(15, Math.min(17, StockCameraProjection.zoomFor(.5 * height / 560)));
+        check(settled.strategy == StockCamera.END && Math.abs(settled.zoom - expected) < .01,
+                "InRect averages the box over the rectangle above the car: " + settled.zoom + " vs " + expected);
 
         // After the turn the base record is back.
         StockCamera.Pose after = drive(camera, city, keypoints, 2510, 2700, 0, 60, clock, null);
@@ -144,6 +166,8 @@ public final class StockCameraTest {
         StockCameraOptics.Pose between = StockCameraOptics.mapkit(16.25f, 30);
         check(between.zoom > 15.83f && between.zoom < 16.28f && between.tilt < 30 && between.tilt > 29.5f && between.fov > 29.2f,
                 "between poses the corrections interpolate; a pitch under the ceiling keeps its tilt offset");
+        check(Math.abs(StockCameraProjection.zoomFor(StockCameraProjection.pixelToWorld(15.37)) - 15.37) < 1e-9
+                && StockCameraProjection.zoomFor(1e6) == 14 && StockCameraProjection.zoomFor(0) == 17, "zoomFor inverts the pixel table");
         check(StockCameraOptics.frame(StockCameraOptics.FOCUS_Y) == 135 && StockCameraOptics.frame(StockCameraOptics.CROP_HEIGHT) == 180,
                 "the window's focus is the frame's car point, its crop the frame");
         System.out.println("StockCameraTest: " + checks + " assertions passed");

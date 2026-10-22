@@ -96,11 +96,20 @@ Put together (new, `StockCamera` and `StockCameraOptics`):
   record within the end rule's distance of the finish, otherwise BaseRoad; of
   the live ones the earliest end wins (all carry the stock priority 10000).
   BaseRoad takes the base zoom and pitch rules (pitch looked up with the
-  current zoom, screen type 2 for the square HUD view). Action fits the
-  manoeuvre to the display rectangle's top (PointHeight, dropped at 90° or more
-  off the course, the stock angle test); EndPoint fits the remaining route into
-  the rectangle above the car (InRect, never zooming out within one record);
-  both clamp to the rule's bounds and ask pitch 30. Targets go into the two
+  current zoom, screen type 2 for the square HUD view). Action puts the
+  manoeuvre on view row 160 (PointHeight, dropped at 90° or more off the
+  course, the stock angle test); EndPoint fits the remaining route into the
+  display rectangle above the car (InRect, never zooming out within one
+  record); both clamp to the rule's bounds and ask pitch 30. The fits are the
+  stock ones, read from libGbl and libAutoDice
+  (`captures/rea-20261022-stock-camera-rect/`, `evidence-index.json`):
+  PointHeight's row is `mNaviPointOffsetToScreenTop` = 160 of the 800×800 view,
+  above the part the glass shows, fitted about the car at the current pitch;
+  BestDisplayRect is unset on the HUD and so the screen bound (0,0)-(800,800),
+  only junction-image rects would be cut from it; InRect (AutoDice flag 0)
+  takes the remaining vertices' bounding box in world units, turns its corners
+  to the course and averages width/800 and height/(car row) into world units
+  per pixel - top-down, pitch ignored, no margins. Targets go into the two
   queues with maxDelta 0.7 / 15 and count 10; every frame pops them; the HUD's
   zoom 14..17 and the profile's pitch ceiling apply last. A new route starts
   from the untouched stock pose, zoom 16, pitch 33.74.
@@ -124,8 +133,13 @@ Adapter choices, named in `StockCamera.Policy` and overridable from the theme's
   500 m ahead, taken as one link. Yandex's vertex density is not AutoNavi's.
 - Formway is unknown: no angle measure, no ComplexRoad records.
 - Record overlap and the 200 m hysteresis were not recovered: earliest end wins.
-- BestDisplayRect is unset in the stock HUD; here it is the part of the view
-  the glass shows, `(100,290)-(700,650)`, with its top lowered to 330.
+- World units per pixel turn into a zoom through the measured GBL pixel table
+  (`StockCameraProjection.zoomFor`); AutoDice uses a runtime table the static
+  read could not reach, estimated within 0.09 of a level.
+- Cadence: with the default `GblMap.HighRealDynamicLevel = false` the stock
+  queues are popped once per car-position update (`OnLocInfoUpdate` →
+  `ExcuteDynamicLevelResult`), whose rate is set natively and not determined;
+  with it on, once per rendered frame. Here they are popped every frame, 5 fps.
 - Course is the module's own 300 ms smoothing of the guidance course; roll and
   the dynamic centre are not modelled.
 
@@ -142,9 +156,9 @@ function addresses, scope and gaps are recorded in
 [`stock-camera-evidence-20261022.json`](stock-camera-evidence-20261022.json).
 
 Not reproduced: the native record builders and their overlap state machine,
-the AutoDice fit helpers (the fits use the recovered projection instead), roll,
-reset and lock transitions, the live cloud profile and the native evaluation
-cadence. The guidance-provided ClassifiedLocation is already native processed
+roll, reset and lock transitions, the live cloud profile, the car-position
+rate that paces the queues, and whether the engine smooths between posture
+messages. The guidance-provided ClassifiedLocation is already native processed
 data; it must not be relabeled as raw GPS.
 
 An independent HUD map **inside the running Navigator process**, using its

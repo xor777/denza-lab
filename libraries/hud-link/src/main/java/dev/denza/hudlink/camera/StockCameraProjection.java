@@ -21,6 +21,21 @@ public final class StockCameraProjection {
         return table[index] + (table[index + 1] - table[index]) * (bounded - 14 - index);
     }
 
+    /** The zoom whose world units per pixel are {@code perPixel}: the table's inverse, held to 14..17. */
+    public static double zoomFor(double perPixel) {
+        if (!(perPixel < PIXEL_TO_WORLD[0])) return 14;
+        for (int i = 0; i < PIXEL_TO_WORLD.length - 1; i++) {
+            if (perPixel >= PIXEL_TO_WORLD[i + 1]) return 14 + i + (PIXEL_TO_WORLD[i] - perPixel) / (PIXEL_TO_WORLD[i] - PIXEL_TO_WORLD[i + 1]);
+        }
+        return 17;
+    }
+
+    /** World units east and north of the centre, as the projection measures them. */
+    public static double[] world(double latitude, double longitude, double centerLatitude, double centerLongitude) {
+        return new double[]{((longitude - centerLongitude + 540) % 360 - 180) / 360 * WORLD,
+                (mercator(latitude) - mercator(centerLatitude)) / (2 * Math.PI) * WORLD};
+    }
+
     /** Full native viewport pixels. Null means the point is behind the perspective horizon. */
     public static double[] project(double latitude, double longitude, double centerLatitude, double centerLongitude,
                             double zoom, double pitch, double course) {

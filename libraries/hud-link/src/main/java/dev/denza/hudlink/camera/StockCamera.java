@@ -27,11 +27,13 @@ import java.util.List;
  *     EndPoint record within its distance of the finish; of the live ones the earliest end wins
  *     (all have the stock priority 10000). The stock overlap and 200 m hysteresis rules were not
  *     recovered.
- * <li>The fits. A manoeuvre is fitted to the display rectangle's top (PointHeight), the remaining
- *     route into the rectangle (InRect, never zooming out within one record), both with the
- *     recovered projection; the stock geometry helpers were not recovered. The rectangle itself
- *     is unset in the stock HUD; here it is the part of the view the glass shows.
  * </ul>
+ * The fits are the stock ones, read from libGbl and libAutoDice
+ * (captures/rea-20261022-stock-camera-rect/): PointHeight puts the manoeuvre on view row
+ * {@code mNaviPointOffsetToScreenTop} = 160 of the 800×800 view - above the part the glass shows -,
+ * about the car, at the current pitch; InRect takes the remaining route's bounding box top-down,
+ * turned to the course, and averages its width and height over the display rectangle's - for the
+ * HUD the whole view down to the car, BestDisplayRect being unset and so the screen bound.
  * Course, roll and the dynamic centre are not this class's: the caller turns the map.
  */
 public final class StockCamera {
@@ -39,10 +41,12 @@ public final class StockCamera {
     private static final float MISSING = -9999f;
     private static final double EARTH = 6371008.8;
 
-    /** Adapter choices the recovered code leaves open. */
+    /** The stock HUD's values, and the adapter choices the recovered code leaves open. */
     public static final class Policy {
-        /** BestDisplayRect in the 800×800 view. The glass shows (100,290)-(700,650); a manoeuvre is fitted a little below its top edge. */
-        public float left = 100, top = 330, right = 700, bottom = 650;
+        /** BestDisplayRect in the 800×800 view: unset on the HUD, so the screen bound. */
+        public float left = 0, top = 0, right = 800, bottom = 800;
+        /** DynamicLevelParam.mNaviPointOffsetToScreenTop: the view row PointHeight puts the manoeuvre on. */
+        public float naviPointRow = 160;
         /** The stock selector's screen type: 2 unless the view is wider than tall, and the HUD view is square. */
         public float screenType = 2;
         public float minZoom = 14, maxZoom = 17;
@@ -222,28 +226,41 @@ public final class StockCamera {
         double bearing = Math.toDegrees(Math.atan2(east, north));
         double off = ((bearing - course) % 360 + 540) % 360 - 180;
         if (Math.abs(off) >= 90 || Math.hypot(north, east) < 1e-3) return MISSING;
-        // Higher zoom carries the keypoint up the view: the largest zoom that keeps it at or below the top.
+        // Higher zoom carries the keypoint up the view: the zoom that puts it on the navi point row.
         return largestZoom(z -> {
             double[] p = StockCameraProjection.project(keypoint[0], keypoint[1], car[0], car[1], z, pitch, course);
-            return p != null && p[1] >= policy.top;
+            return p != null && p[1] >= policy.naviPointRow;
         });
     }
 
-    /** InRect: the largest zoom that keeps the route ahead, up to {@code end}, inside the display rectangle above the car. */
+    /**
+     * InRect as AutoDice fits it (flag 0): the remaining route's bounding box in world units about
+     * the car, its corners turned to the course, width and height each over the rectangle's - whose
+     * bottom is the car's row -, the two ratios averaged into world units per pixel and that turned
+     * into a zoom. Pitch and the rectangle's place do not count, only its size.
+     */
     private float inRect(Route route, double at, double end, double[] car, double course) {
+        double[] carScreen = StockCameraProjection.project(car[0], car[1], car[0], car[1], zoom, pitch, course);
+        double bottom = carScreen != null && carScreen[1] > policy.top ? (int) carScreen[1] : policy.bottom;
+        double width = policy.right - policy.left, height = bottom - policy.top;
+        if (width <= 0 || height < 1) return MISSING;
         int from = route.segment(at) + 1, to = route.segment(end);
         double[] last = route.point(end);
-        return largestZoom(z -> {
-            double[] carScreen = StockCameraProjection.project(car[0], car[1], car[0], car[1], z, pitch, course);
-            double bottom = carScreen != null && carScreen[1] > policy.top ? (int) carScreen[1] : policy.bottom;
-            if (policy.right <= policy.left || bottom - policy.top < 1) return false;
-            for (int i = from; i <= to + 1; i++) {
-                double[] p = i <= to ? StockCameraProjection.project(route.latitude[i], route.longitude[i], car[0], car[1], z, pitch, course)
-                        : StockCameraProjection.project(last[0], last[1], car[0], car[1], z, pitch, course);
-                if (p == null || p[0] < policy.left || p[0] > policy.right || p[1] < policy.top || p[1] > bottom) return false;
-            }
-            return true;
-        });
+        double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY, minY = minX, maxY = maxX;
+        for (int i = from; i <= to + 1; i++) {
+            double[] world = StockCameraProjection.world(i <= to ? route.latitude[i] : last[0], i <= to ? route.longitude[i] : last[1], car[0], car[1]);
+            minX = Math.min(minX, world[0]); maxX = Math.max(maxX, world[0]);
+            minY = Math.min(minY, world[1]); maxY = Math.max(maxY, world[1]);
+        }
+        double angle = Math.toRadians(course), cos = Math.cos(angle), sin = Math.sin(angle);
+        double minR = Double.POSITIVE_INFINITY, maxR = Double.NEGATIVE_INFINITY, minF = minR, maxF = maxR;
+        for (double[] corner : new double[][]{{minX, minY}, {minX, maxY}, {maxX, minY}, {maxX, maxY}}) {
+            double right = corner[0] * cos - corner[1] * sin, forward = corner[0] * sin + corner[1] * cos;
+            minR = Math.min(minR, right); maxR = Math.max(maxR, right);
+            minF = Math.min(minF, forward); maxF = Math.max(maxF, forward);
+        }
+        double perPixel = .5 * ((maxR - minR) / width + (maxF - minF) / height);
+        return (float) Math.max(policy.minZoom, Math.min(policy.maxZoom, StockCameraProjection.zoomFor(perPixel)));
     }
 
     private interface Fits { boolean at(double zoom); }
