@@ -100,7 +100,7 @@ def main():
          *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
          package/'StockHudSymbols.java', package/'StockCameraQueue.java', package/'StockCameraProjection.java',
-         package/'StockCameraRules.java', package/'StockCameraDefaults.java',
+         package/'StockCameraRules.java', package/'StockCameraDefaults.java', package/'StockCameraCurvature.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
@@ -108,7 +108,8 @@ def main():
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',
-         ROOT/'research/yandex-hud-renderer/stock-camera-rule-oracle.csv'])
+         ROOT/'research/yandex-hud-renderer/stock-camera-rule-oracle.csv',
+         ROOT/'research/yandex-hud-renderer/stock-camera-curvature-oracle.csv'])
     selected = subprocess.check_output([str(java/'bin/java'), '-cp', str(unit_classes),
                                        'dev.denza.hud.probe.ModuleTest', 'assets'], text=True).splitlines()
     for name in selected:

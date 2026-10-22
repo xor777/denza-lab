@@ -72,9 +72,13 @@ no runtime connection yet to `HudMap`:
   800×800 projection before crop `(100,290,600,360)` and downsample0.5. Native
   projection samples include fractional zoom, fixed pitch and points500m away.
   Maximum error is0.1273 raw px, or0.0637 final HUD px, on this corpus.
+- `StockCameraCurvature`: original detailed turn sum and point-density modes,
+  including repeated-point behavior checked against91 original native cases.
+  Segment aggregation is separately corroborated from source bytes; its
+  end-to-end execution still needs a valid native PathInfo.
 
-`CameraTest` passes1942 assertions; the build also checks the generated defaults
-against [`stock-camera-defaults.json`](stock-camera-defaults.json). The three
+`CameraTest` passes2126 assertions; the build also checks the generated defaults
+against [`stock-camera-defaults.json`](stock-camera-defaults.json). The four
 `stock-camera-*-oracle.csv` files contain actual outputs of original functions,
 not expectations generated from the Java implementation. Native source hash,
 function addresses, scope and gaps are recorded in

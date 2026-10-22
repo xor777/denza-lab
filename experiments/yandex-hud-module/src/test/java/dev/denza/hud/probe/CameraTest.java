@@ -89,6 +89,25 @@ public final class CameraTest {
                 "original disabled SimplePitch returns true with sentinel");
         check(StockCameraRules.simplePitch(keypoint, result) && result.value == 30 && result.count == 10,
                 "original enabled SimplePitch result");
+        for (String line : Files.readAllLines(Paths.get(args[3]))) {
+            if (line.startsWith("#") || line.startsWith("case,") || line.isEmpty()) continue;
+            String[] row = line.split(",");
+            String[] coordinates = row[4].isEmpty() ? new String[0] : row[4].split(";");
+            double[][] points = new double[coordinates.length][2];
+            for (int i = 0; i < coordinates.length; i++) {
+                String[] xy = coordinates[i].split(":");
+                points[i][0] = Double.parseDouble(xy[0]); points[i][1] = Double.parseDouble(xy[1]);
+            }
+            StockCameraCurvature.Value value = StockCameraCurvature.calculate(Integer.parseInt(row[1]), Integer.parseInt(row[2]),
+                    Long.parseLong(row[3]), points);
+            check(value.method == Integer.parseInt(row[5]), "native curvature method " + row[0]);
+            float expected = Float.parseFloat(row[6]);
+            check(same(value.curvature, expected), "native curvature value " + row[0] + ": " + value.curvature + " vs " + expected);
+        }
+        check(StockCameraCurvature.segment(400, new long[]{100, 300}, new int[]{5, 4}) == 7.5f,
+                "segment denominator includes links below the five-point threshold");
+        check(StockCameraCurvature.segment(0, new long[0], new int[0]) == 0,
+                "empty segment keeps the original zero accumulator");
         System.out.println("Native projection max error: " + maxError + " raw px");
         System.out.println("CameraTest: " + checks + " assertions passed");
     }
