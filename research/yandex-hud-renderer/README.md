@@ -1,5 +1,59 @@
 # Yandex HUD renderer experiment
 
+## Stock-like prototype (2026-10-22)
+
+The embedded builder has an explicit `--renderer-profile stock-prototype` option.
+It renders Yandex's actual selected route with a separate perspective camera,
+the recovered BYD HUD traffic fills, no traffic gradients, an approximately
+stock-shaped blue cursor and focus `(150,135)`. The existing profile remains
+the default and its exported theme is byte-identical. The preset is owned by
+[`stock-prototype.js`](stock-prototype.js); it is not loaded by default builds.
+
+The camera uses MapKit tilt 45, numerical zoom caps 14..17, course smoothing
+300 ms and a 5 fps target. **The stock camera behaviour is not reproduced.**
+The distance-to-manoeuvre zoom formula and 0.8 zoom/s easing remain ours. The
+GBL pitch is not assumed equivalent to MapKit tilt. Route width 9 px, outline
+1.5 px and the cursor vector are visual starting points, not recovered stock
+pixel measurements. Road shades and road-event signs retain the existing
+YandexHUD design. Stock traffic borders and the original skeleton cursor model
+are not reproduced by this preset.
+
+```sh
+python3 tools/yandex_hud_build/build.py --abi arm64-v8a \
+  --renderer-profile stock-prototype \
+  --out captures/yandex-hud-stock-prototype-20261022/build
+```
+
+This produces a separate `*-stock-prototype-arm64-debug.apk`; omission of the
+option builds the existing design. For its isolated emulator acceptance use
+`tools/yandex_hud_build/acceptance.py --target-fps 5` with the normal explicit
+emulator serial/APK/output options. The 10 fps profile retains the old default
+acceptance thresholds. AR cache verification compares the count across the
+same measured native route id, since the process can build more than one route
+before the measurement starts.
+
+Native MapKit output with a real Moscow route was obtained from the embedded
+APK on AOSP Android 14. Final acceptance passed: 39 map packets in the roughly
+8-second foreground interval, 60 in 12 seconds in background, real lane/AR
+packets, reconnect, three black clears and no wire errors. Two earlier runs
+failed the old process-wide `arGeometryBuilds == 1` assertion; the native
+counter was constant throughout each measured route but included prior route
+builds. The corrected checker verifies both the native route id and a constant
+positive build count. Four regression tests cover reuse, extra builds, changed
+route and missing geometry.
+
+At 13:15 MSK the owner-authorized update from YandexHUD.2 was installed on the
+car using the existing ADB connection. Installed SHA-256:
+`83d0ba566eaea5d304604a7e145896787cef9239c85dea4c36cf7820b486f225`.
+Signer, UID and first-install time were preserved; this proves installation,
+not appearance or driving behaviour on the physical glass. Evidence and the
+known previous APK are retained in `captures/yandex-hud-stock-prototype-20261022/`
+and `captures/yandex-hud-release-2/build-01/` respectively.
+
+A complete stock HUD road frame remains unavailable
+because that separate OEM SDK rejected data requests as unactivated. Therefore
+this is a prototype for visual comparison, not a claim of pixel equivalence.
+
 An independent HUD map **inside the running Navigator process**, using its
 existing MapKit and current Guidance. Full navigation stays in the original
 main-screen Activity. This directory is the original instrumented emulator experiment. The

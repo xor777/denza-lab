@@ -200,7 +200,9 @@ public final class HudModule {
                 nextAttempt = now + 1000;
             } finally {
                 // One in-flight frame; fixed-rate attempts skip work under output backpressure.
-                MAIN.postDelayed(this::tick, Math.max(0, (wasActive ? 100 : 400) - (SystemClock.elapsedRealtime() - now)));
+                JSONObject camera = theme.optJSONObject("camera");
+                int fps = camera == null ? 10 : Math.max(1, Math.min(10, camera.optInt("maxFps", 10)));
+                MAIN.postDelayed(this::tick, Math.max(0, (wasActive ? 1000 / fps : 400) - (SystemClock.elapsedRealtime() - now)));
             }
         }
 

@@ -35,7 +35,7 @@ final class HudMap implements AutoCloseable {
     /** Heading settles over about this long; a raw GPS course shakes the whole map. */
     private static final double HEADING_MS = 300;
     private final Reflect api;
-    private final JSONObject theme, routeStyle;
+    private final JSONObject theme, routeStyle, camera;
     private final Object offscreen, window, map, objects;
     private Object line, route, geometry, conditionsListener;
     private String routeId;
@@ -59,17 +59,18 @@ final class HudMap implements AutoCloseable {
         this.api = api;
         this.theme = theme;
         routeStyle = theme.getJSONObject("route");
+        camera = theme.optJSONObject("camera") == null ? new JSONObject() : theme.getJSONObject("camera");
         Object kit = api.call(api.type("com.yandex.mapkit.MapKitFactory"), "getInstance");
         offscreen = api.call(kit, "createOffscreenMapWindow", 300, 180, 1f);
         window = api.call(offscreen, "getMapWindow");
         map = api.call(window, "getMap");
         objects = api.call(map, "getMapObjects");
         api.call(map, "setNightModeEnabled", true);
-        api.call(map, "set2DMode", true);
+        api.call(map, "set2DMode", camera.optBoolean("twoD", true));
         api.call(map, "setModelsEnabled", false);
         api.call(map, "setIndoorEnabled", false);
         if (!Boolean.TRUE.equals(api.call(map, "setMapStyle", theme.getJSONArray("mapStyle").toString()))) throw new IllegalStateException("Map style rejected");
-        api.call(window, "setMaxFps", 10);
+        api.call(window, "setMaxFps", Math.max(1, Math.min(10, camera.optInt("maxFps", 10))));
         JSONArray focus = theme.getJSONObject("size").getJSONArray("focus");
         api.call(window, "setFocusPoint", api.make("com.yandex.mapkit.ScreenPoint", (float) focus.getDouble(0), (float) focus.getDouble(1)));
     }
@@ -94,12 +95,14 @@ final class HudMap implements AutoCloseable {
             api.call(line, "hide", api.make("com.yandex.mapkit.geometry.Subpolyline", start, frame.position));
         } else hideArrows();
         double ahead = Math.max(130, Math.min(600, Double.isFinite(frame.cameraDistance) ? frame.cameraDistance * 1.2 : 350));
-        double target = Math.max(14.6, Math.min(16.7, Math.log(156543.03392 * Math.cos(Math.toRadians(frame.latitude)) * 118 / ahead) / Math.log(2)));
-        double step = Math.min(250, Math.max(0, now - cameraAt)) * .0008;
+        double target = Math.max(camera.optDouble("minZoom", 14.6), Math.min(camera.optDouble("maxZoom", 16.7),
+                Math.log(156543.03392 * Math.cos(Math.toRadians(frame.latitude)) * camera.optDouble("reachPixels", 118) / ahead) / Math.log(2)));
+        double step = Math.min(250, Math.max(0, now - cameraAt)) * camera.optDouble("zoomPerSecond", .8) / 1000;
         zoom = Double.isNaN(zoom) ? target : zoom + Math.max(-step, Math.min(step, target - zoom));
         cameraAt = now;
         smoothHeading(frame.heading, now);
-        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) heading, 0f));
+        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) heading,
+                (float) camera.optDouble("tilt", 0)));
         // Placement reads the camera just set; MapKit draws the placemarks with that same camera.
         int placed = 0;
         if (onRoute && frame.mode.equals("guidance")) {

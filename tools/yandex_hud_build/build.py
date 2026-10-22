@@ -74,6 +74,8 @@ def main():
     parser.add_argument('--abi', choices=('universal', 'arm64-v8a'), default='universal',
                         help='Keep all architectures, or only ARM64 native libraries')
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--renderer-profile', choices=('current', 'stock-prototype'), default='current',
+                        help='Opt-in map presentation; current keeps the existing owner design')
     parser.add_argument('--jadx-jar', type=Path, default=Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar'))
     args = parser.parse_args()
     args.out = args.out.resolve()
@@ -128,7 +130,7 @@ def main():
         extra = 'classes'+str(max([1 if x == 'classes.dex' else int(x[7:-4]) for x in dex_names])+1)+'.dex'
         changes[extra] = (dex/'classes.dex').read_bytes()
         changes['classes'+str(int(extra[7:-4])+1)+'.dex'] = (args.out/'guidance-hook.dex').read_bytes()
-        changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs'], cwd=ROOT)
+        changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs', args.renderer_profile], cwd=ROOT)
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w', allowZip64=False) as output:
             for info in original.infolist():
                 if info.filename in excluded:
@@ -146,7 +148,8 @@ def main():
              '-keypass', 'denza-local-experiment', '-alias', 'hud-experiment', '-keyalg', 'RSA', '-keysize', '3072',
              '-validity', '3650', '-dname', 'CN=Denza HUD local experiment, O=Owner local research'])
     architecture = 'arm64' if args.abi == 'arm64-v8a' else 'universal'
-    result = args.out/f'{LABEL}-{BUILD_NUMBER}-{architecture}-debug.apk'
+    profile_suffix = '-stock-prototype' if args.renderer_profile == 'stock-prototype' else ''
+    result = args.out/f'{LABEL}-{BUILD_NUMBER}{profile_suffix}-{architecture}-debug.apk'
     run([build_tools/'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hud-experiment', '--ks-pass', 'pass:denza-local-experiment', '--out', result, args.out/'aligned.apk'], env=env)
     run([build_tools/'apksigner', 'verify', '--verbose', '--print-certs', result], env=env)
     run([build_tools/'zipalign', '-c', '-P', '16', '4', result])
@@ -167,6 +170,7 @@ def main():
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
     report['abi'] = args.abi
+    report['renderer_profile'] = args.renderer_profile
     report['apk_bytes'] = result.stat().st_size
     report['removed_native_entries'] = sorted(excluded)
     report['removed_native_compressed_bytes'] = removed_native_bytes

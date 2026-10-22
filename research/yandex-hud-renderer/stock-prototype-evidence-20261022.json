@@ -1,0 +1,15 @@
+{
+  "profile": "stock-prototype",
+  "apk": "YandexHUD-3-stock-prototype-arm64-debug.apk",
+  "sha256": "83d0ba566eaea5d304604a7e145896787cef9239c85dea4c36cf7820b486f225",
+  "default_theme_byte_identical": true,
+  "emulator_acceptance_passed": true,
+  "foreground_frames_in_about_8s": 39,
+  "background_frames_in_about_12s": 60,
+  "wire_errors": 0,
+  "camera": "prototype: tilt45, focus150,135, numerical caps14..17; stock dynamic law not yet implemented",
+  "car_install_verified": true,
+  "car_data_identity_preserved": true,
+  "physical_hud_acceptance": false,
+  "ongoing_work": "Recover and implement the stock dynamic camera law per subsequent user instruction"
+}

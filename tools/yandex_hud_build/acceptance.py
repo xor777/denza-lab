@@ -9,6 +9,12 @@ import subprocess
 import time
 
 
+def ar_cache_reused(initial, current):
+    return (initial['native_route_id'] == current['native_route_id']
+            and initial['renderer']['arGeometryBuilds'] > 0
+            and initial['renderer']['arGeometryBuilds'] == current['renderer']['arGeometryBuilds'])
+
+
 def verify_ar_geometry(directory, native):
     """Independently locate every received point on the original MapKit polyline, in order."""
     scale = math.cos(math.radians(native[0][1]))
@@ -42,6 +48,8 @@ def main():
     parser.add_argument('--serial', required=True)
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--apk', required=True, type=Path)
+    parser.add_argument('--target-fps', type=int, choices=(5, 10), default=10,
+                        help='Renderer profile target; retains the same acceptance margin')
     parser.add_argument('--require-lanes', action='store_true', help='Require real lane packets during foreground/background guidance')
     parser.add_argument('--require-ar', action='store_true', help='Require foreground/background AR and compare it with native route geometry')
     args = parser.parse_args()
@@ -60,7 +68,7 @@ def main():
     if adb('shell', 'sha256sum', paths[0][8:]).split()[0] != expected:
         parser.error('Installed candidate differs from --apk')
     args.out.mkdir(parents=True, exist_ok=False)
-    report = {'apk_sha256': expected, 'snapshots': [], 'checks': {}}
+    report = {'apk_sha256': expected, 'target_fps': args.target_fps, 'snapshots': [], 'checks': {}}
     original_pid = adb('shell', 'pidof', 'ru.yandex.yandexnavi').strip()
 
     def command(action, **values):
@@ -87,6 +95,9 @@ def main():
                     if attempt == 2: raise
                     time.sleep(0.05)
         item['activity'] = adb('shell', 'dumpsys', 'activity', 'activities')
+        if args.require_ar:
+            reference = json.loads(adb('shell', 'cat', '/data/data/ru.yandex.yandexnavi/files/denza-hud-native-route.json'))
+            item['native_route_id'] = reference['routeId']
         report['snapshots'].append(item)
         (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(name, item['renderer'], item['receiver'], flush=True)
@@ -132,7 +143,11 @@ def main():
         report['checks']['background_ar_packets'] = second['receiver'].get('arPackets', 0) - first['receiver'].get('arPackets', 0)
         if args.require_ar:
             report['checks']['background_ar_geometry'] = verify_ar_geometry(args.out / 'background', native['points'])
-            report['checks']['ar_geometry_cached'] = second['renderer']['arGeometryBuilds'] == 1
+        # The counter belongs to the process, not the selected route: Navigator can replace
+        # its initial route before measurement. Check reuse over one unchanged measured route.
+        if args.require_ar:
+            initial = report['snapshots'][0]
+            report['checks']['ar_geometry_cached'] = ar_cache_reused(initial, second)
         (args.out / 'background.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
         receiver_pid = adb('shell', 'pidof', 'com.ts.car.someip.service').strip()
         if not receiver_pid.isdecimal(): raise RuntimeError('Expected one emulator receiver process')
@@ -164,7 +179,7 @@ def main():
         (args.out / 'module.log').write_text(adb('logcat', '-d', '-v', 'threadtime', '-s', 'DenzaYandexHud', 'HudReceiver'))
         (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     check = report['checks']
-    ok = (check.get('foreground_frames', 0) >= 50 and check.get('background_frames', 0) >= 80
+    ok = (check.get('foreground_frames', 0) >= 5 * args.target_fps and check.get('background_frames', 0) >= 8 * args.target_fps
           and check.get('hint_packets', 0) > 0
           and check.get('foreground_unique_png', 0) > 10 and check.get('background_unique_png', 0) > 10
           and check.get('hidden') and check.get('background_disabled_clears')

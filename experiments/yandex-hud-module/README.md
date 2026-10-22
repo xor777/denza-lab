@@ -10,6 +10,14 @@ has not been changed by these build/test tools. Detailed evidence belongs to
 
 ## Runtime
 
+The optional `stock-prototype` renderer profile is selected with
+`build.py --renderer-profile stock-prototype`; see the
+[profile and its limits](../../research/yandex-hud-renderer/README.md#stock-like-prototype-2026-10-22).
+`HudMap` reads the theme's optional `camera` object for perspective, focus,
+zoom bounds and MapKit fps; `HudModule` uses that fps for its active tick too.
+Existing themes without `camera` keep 2D, zero tilt and 10 fps. The prototype
+does not implement the stock dynamic camera law.
+
 - Two small hooks capture application context at MapKit initialization and the
   completed `GuidanceBinding` instance. Deferred work runs on the main thread.
   The original main Activity, navigation engine and foreground service retain
