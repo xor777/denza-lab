@@ -9,6 +9,12 @@ stock-shaped blue cursor and focus `(150,135)`. The existing profile remains
 the default and its exported theme is byte-identical. The preset is owned by
 [`stock-prototype.js`](stock-prototype.js); it is not loaded by default builds.
 
+> **Superseded 2026-10-22 (later):** the profile now uses the stock camera,
+> see [Stock camera](#stock-camera-2026-10-22). The prototype's numerical caps
+> 14..17 in a 300×180 window showed about twice the stock scale: the stock HUD
+> halves an 800×800 view, and MapKit matches it at nearly the same numerical
+> zoom only in a 600×540 window halved the same way.
+
 The camera uses MapKit tilt 45, numerical zoom caps 14..17, course smoothing
 300 ms and a 5 fps target. **The stock camera behaviour is not reproduced.**
 The distance-to-manoeuvre zoom formula and 0.8 zoom/s easing remain ours. The
@@ -54,11 +60,17 @@ A complete stock HUD road frame remains unavailable
 because that separate OEM SDK rejected data requests as unactivated. Therefore
 this is a prototype for visual comparison, not a claim of pixel equivalence.
 
-## Stock camera implementation in progress (2026-10-22)
+## Stock camera (2026-10-22)
 
-The installed YandexHUD.3 still uses the prototype camera described above.
-The next camera's confirmed components are implemented as portable Java, with
-no runtime connection yet to `HudMap`:
+The `stock-prototype` profile (`camera.law = "stock"`) drives the module's map
+with the stock HUD's guided camera. The camera is shared code in
+`libraries/hud-link`, package `dev.denza.hudlink.camera`, plain Java 8 like the
+rest of the library: the YandexHUD module compiles it into Navigator's dex,
+Denza Apps carries it with `:hud-link`. Only the module draws a map it can aim:
+with Denza Apps as host the module's frame still comes from the module, and
+Denza Apps' own capture shows Yandex's screen with Yandex's camera.
+
+Recovered and checked against original functions (the oracles below):
 
 - `StockCameraQueue`: original one-second candidate interpolation and signed
   per-evaluation clamps, sentinel and retarget semantics. Original ARM64 queue
@@ -77,19 +89,63 @@ no runtime connection yet to `HudMap`:
   Segment aggregation is separately corroborated from source bytes; its
   end-to-end execution still needs a valid native PathInfo.
 
-`CameraTest` passes2126 assertions; the build also checks the generated defaults
-against [`stock-camera-defaults.json`](stock-camera-defaults.json). The four
+Put together (new, `StockCamera` and `StockCameraOptics`):
+
+- Records and targets. A fresh fix chooses the record: an Action record from
+  the action rule's `effectDistance` before a manoeuvre up to it, an EndPoint
+  record within the end rule's distance of the finish, otherwise BaseRoad; of
+  the live ones the earliest end wins (all carry the stock priority 10000).
+  BaseRoad takes the base zoom and pitch rules (pitch looked up with the
+  current zoom, screen type 2 for the square HUD view). Action fits the
+  manoeuvre to the display rectangle's top (PointHeight, dropped at 90° or more
+  off the course, the stock angle test); EndPoint fits the remaining route into
+  the rectangle above the car (InRect, never zooming out within one record);
+  both clamp to the rule's bounds and ask pitch 30. Targets go into the two
+  queues with maxDelta 0.7 / 15 and count 10; every frame pops them; the HUD's
+  zoom 14..17 and the profile's pitch ceiling apply last. A new route starts
+  from the untouched stock pose, zoom 16, pitch 33.74.
+- Optics. `StockCameraOptics` gives MapKit's zoom, tilt and vertical FOV for a
+  stock pose in a 600×540 offscreen window with the focus at its centre; the
+  module crops its top 600×360 and halves it to the 300×180 frame, the stock
+  HUD's own crop, with the car at (150,135). The seven fitted poses are in
+  [`stock-camera-mapkit-calibration.csv`](stock-camera-mapkit-calibration.csv);
+  the fitted FOV follows the stock fa3 table converted to the window height
+  (60/36/42° → 43/25/29°). MapKit pixel sizes - route and arrow widths, the
+  style's road scale, event placemarks - are doubled in that window so the
+  frame keeps the theme's sizes.
+
+Adapter choices, named in `StockCamera.Policy` and overridable from the theme's
+`camera.policy`:
+
+- Road class: a Yandex highway range with the posted limit stands in for the
+  missing functional class - freeway 0 at 100 km/h or none, city expressway 6
+  below; off highways main road 7 from 60 km/h, ordinary road 9 below.
+- Curvature: the stock point-density measure over the route's vertices
+  500 m ahead, taken as one link. Yandex's vertex density is not AutoNavi's.
+- Formway is unknown: no angle measure, no ComplexRoad records.
+- Record overlap and the 200 m hysteresis were not recovered: earliest end wins.
+- BestDisplayRect is unset in the stock HUD; here it is the part of the view
+  the glass shows, `(100,290)-(700,650)`, with its top lowered to 330.
+- Course is the module's own 300 ms smoothing of the guidance course; roll and
+  the dynamic centre are not modelled.
+
+Tests: `CameraTest` (2126 assertions against the native oracles) and
+`StockCameraTest` (records, fits, queues, bounds and the calibrated optics on
+synthetic city, motorway and curvy routes), plain mains under
+`libraries/hud-link/src/test/java/dev/denza/hudlink/camera/`, run by the
+YandexHUD build and by Gradle through `StockCameraJUnitTest`. The build also
+checks the generated defaults against
+[`stock-camera-defaults.json`](stock-camera-defaults.json). The four
 `stock-camera-*-oracle.csv` files contain actual outputs of original functions,
 not expectations generated from the Java implementation. Native source hash,
 function addresses, scope and gaps are recorded in
 [`stock-camera-evidence-20261022.json`](stock-camera-evidence-20261022.json).
 
-The original new-3D route-record selection/priority, Action/Complex/End geometry,
-roll/reset behavior and playback cadence still need completion. Public Yandex
-route APIs expose highway ranges but no confirmed one-to-one GBL road-class or
-formway mapping. The guidance-provided ClassifiedLocation is already native
-processed data; it must not be relabeled as raw GPS. These gaps prevent calling
-the current code a complete stock camera or enabling its partial controller.
+Not reproduced: the native record builders and their overlap state machine,
+the AutoDice fit helpers (the fits use the recovered projection instead), roll,
+reset and lock transitions, the live cloud profile and the native evaluation
+cadence. The guidance-provided ClassifiedLocation is already native processed
+data; it must not be relabeled as raw GPS.
 
 An independent HUD map **inside the running Navigator process**, using its
 existing MapKit and current Guidance. Full navigation stays in the original

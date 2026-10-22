@@ -1,5 +1,6 @@
 /* Experimental BYD-like presentation of Yandex's own map/route, not a recovered BYD renderer.
- * Opt-in only. See README: the full stock road image and dynamic camera law remain unverified. */
+ * Opt-in only. The camera is the stock HUD's (hud-link StockCamera with the calibrated MapKit
+ * optics, see README «Stock camera»); colours, cursor and widths are visual starting points. */
 (function(root) {
 'use strict';
 function theme(base) {
@@ -15,15 +16,16 @@ function theme(base) {
     value.route.gradient = 0;
     value.route.arrow.fill = '#F0F9FF';
     value.route.arrow.outline = '#2C428A';
-    value.camera = {twoD:false, tilt:45, maxFps:5, minZoom:14, maxZoom:17,
-        zoomPerSecond:.8, reachPixels:110};
+    // The stock HUD camera; widths and icons above stay in frame pixels, the module doubles them
+    // for its 600x540 window. policy: the adapter choices StockCamera.Policy names, if any change.
+    value.camera = {law:'stock', maxFps:5};
     // Approximation of the measured blue stock cursor silhouette, not the skeleton model.
     value.cursor = [{op:'shape',d:[['M',150,121],['L',166,150],['L',150,145],['L',134,150],['Z']],fill:'#0066FF'}];
     value.events.cursor = [132,119,36,33];
     value.prototypeNotes = {
         measured:'300x180 output, blue cursor, approximately (150,135) anchor; stock device target 5fps',
         extracted:'traffic fills, no route gradient, HUD zoom caps 14..17',
-        approximated:'MapKit tilt45, route width9/outline1.5, cursor vector and manoeuvre-distance zoom law',
+        approximated:'route width9/outline1.5, cursor vector; camera: road class from highway+limit, curvature window, display rect, no ComplexRoad',
         retained:'existing Yandex road shade, event icons, native manoeuvre and lane slots',
         limitation:'No complete stock road/route frame exists for pixel matching; GBL pitch and MapKit tilt are not assumed equivalent'
     };

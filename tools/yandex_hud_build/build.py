@@ -96,20 +96,26 @@ def main():
     link = ROOT / 'libraries/hud-link/src/main/java'
     plain = ['HudMessage', 'HudProtocol', 'HudFields', 'HudRoadPacket', 'HudRole', 'HudScene', 'HudComposition',
              'HudLayer', 'HudMode', 'HudWindow', 'HudRect', 'HudImage', 'HudSource', 'HudSink']
+    # The stock HUD camera lives in the library too (dev.denza.hudlink.camera); its oracle and
+    # controller tests are plain mains, run here and, through a JUnit wrapper, by Gradle.
+    camera_tests = ROOT / 'libraries/hud-link/src/test/java/dev/denza/hudlink/camera'
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
+         *sorted((link/'dev/denza/hudlink/camera').glob('*.java')),
+         camera_tests/'CameraTest.java', camera_tests/'StockCameraTest.java',
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
-         package/'StockHudSymbols.java', package/'StockCameraQueue.java', package/'StockCameraProjection.java',
-         package/'StockCameraRules.java', package/'StockCameraDefaults.java', package/'StockCameraCurvature.java',
+         package/'StockHudSymbols.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.CameraTest',
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-rule-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-curvature-oracle.csv'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.StockCameraTest',
+         ROOT/'research/yandex-hud-renderer/stock-camera-mapkit-calibration.csv'])
     selected = subprocess.check_output([str(java/'bin/java'), '-cp', str(unit_classes),
                                        'dev.denza.hud.probe.ModuleTest', 'assets'], text=True).splitlines()
     for name in selected:

@@ -1,4 +1,4 @@
-package dev.denza.hud.probe;
+package dev.denza.hudlink.camera;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;

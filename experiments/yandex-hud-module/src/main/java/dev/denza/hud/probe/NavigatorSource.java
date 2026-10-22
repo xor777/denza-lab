@@ -39,7 +39,8 @@ final class NavigatorSource {
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield, location;
         double heading, latitude, cameraDistance = Double.NaN;
-        long staleMs;
+        /** When the last fresh fix arrived; the stock camera sets its targets once per fix. */
+        long staleMs, fixAt = -1;
         List<Lane> lanes = Collections.emptyList();
         Hint hint;
         boolean active() { return !mode.equals("off"); }
@@ -96,6 +97,7 @@ final class NavigatorSource {
         if (!held) { frame.mode = "waiting"; return frame; }
         long age = now - lastChanged;
         frame.staleMs = age > FRESH_MS ? age : 0;
+        frame.fixAt = lastChanged;
         frame.location = heldLocation;
         frame.point = heldPoint;
         frame.latitude = heldLatitude;

@@ -1,16 +1,18 @@
-package dev.denza.hud.probe;
+package dev.denza.hudlink.camera;
 
 /** Original GBL's three different curvature measures; point density is not a turn angle.
  * CalculateCurvature ELF0x12b7a68; segment aggregation is in BuildPathCache ELF0x12a1a30.
  * Coordinates are native XY doubles (Z ignored), lengths unsigned metres, arithmetic float32. */
-final class StockCameraCurvature {
-    static final class Value {
-        final int method;
-        final float curvature;
+public final class StockCameraCurvature {
+    private StockCameraCurvature() { }
+
+    public static final class Value {
+        public final int method;
+        public final float curvature;
         Value(int method, float curvature) { this.method = method; this.curvature = curvature; }
     }
 
-    static Value calculate(int roadClass, int formway, long lengthMetres, double[][] points) {
+    public static Value calculate(int roadClass, int formway, long lengthMetres, double[][] points) {
         if (formway == 3 || formway == 6 || formway == 8) {
             float sum = 0;
             for (int i = 1; i + 1 < points.length; i++) {
@@ -36,7 +38,7 @@ final class StockCameraCurvature {
     /** The native denominator includes every segment link, even those excluded from the numerator.
      * Caller supplies the original segment length and valid-link metadata, rather than summing
      * only qualifying links or using a geometry window that changes its meaning. */
-    static float segment(long totalLengthMetres, long[] linkLengths, int[] pointCounts) {
+    public static float segment(long totalLengthMetres, long[] linkLengths, int[] pointCounts) {
         if (linkLengths.length != pointCounts.length) throw new IllegalArgumentException("link metadata length");
         float sum = 0;
         for (int i = 0; i < linkLengths.length; i++) {

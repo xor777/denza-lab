@@ -38,6 +38,8 @@ final class HudPainter implements AutoCloseable {
     private final Path glyphs = new Path();
     private final RectF inkF = new RectF();
     private final float mapDim;
+    /** Window pixels per frame pixel of the map's placemarks: 2 for the stock camera's halved window. */
+    private final float iconScale;
     final HudEvents placement;
     private String key;
     private byte[] staticPng;
@@ -55,6 +57,8 @@ final class HudPainter implements AutoCloseable {
         icons = theme.getJSONObject("icons");
         events = theme.getJSONObject("events");
         mapDim = (float) theme.getJSONObject("states").getDouble("mapDim");
+        JSONObject camera = theme.optJSONObject("camera");
+        iconScale = camera != null && "stock".equals(camera.optString("law")) ? 1 / dev.denza.hudlink.camera.StockCameraOptics.SCALE : 1;
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeJoin(Paint.Join.ROUND);
         paint.setTypeface(medium);
@@ -113,8 +117,10 @@ final class HudPainter implements AutoCloseable {
         float left = Math.min(box[0], -margin), top = Math.min(box[1], -margin);
         float right = Math.max(box[0] + box[2], margin), bottom = Math.max(box[1] + box[3], margin);
         int width = (int) Math.ceil(right - left), height = (int) Math.ceil(bottom - top);
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        // MapKit draws the placemark in window pixels; the stock window is halved into the frame.
+        Bitmap bitmap = Bitmap.createBitmap(Math.round(width * iconScale), Math.round(height * iconScale), Bitmap.Config.ARGB_8888);
         Canvas target = new Canvas(bitmap);
+        target.scale(iconScale, iconScale);
         target.translate(-left, -top);
         Path line = new Path(); line.moveTo(0, 0); line.lineTo(ex, ey);
         stroke("#000000", (float) lead.getDouble("halo"), 1); target.drawPath(line, paint);

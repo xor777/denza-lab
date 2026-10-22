@@ -13,14 +13,14 @@ installation is separate from these build/test tools. Detailed evidence belongs 
 The optional `stock-prototype` renderer profile is selected with
 `build.py --renderer-profile stock-prototype`; see the
 [profile and its limits](../../research/yandex-hud-renderer/README.md#stock-like-prototype-2026-10-22).
-`HudMap` reads the theme's optional `camera` object for perspective, focus,
-zoom bounds and MapKit fps; `HudModule` uses that fps for its active tick too.
-Existing themes without `camera` keep 2D, zero tilt and 10 fps. The prototype
-does not implement the stock dynamic camera law.
-The recovered camera core (`StockCameraQueue`, `StockCameraRules`, generated
-defaults and `StockCameraProjection`) is tested independently against original
-native outputs and is not connected to the installed prototype yet. See the
-[implementation status](../../research/yandex-hud-renderer/README.md#stock-camera-implementation-in-progress-2026-10-22).
+`HudMap` reads the theme's optional `camera` object; `HudModule` uses its fps
+for the active tick too. Themes without `camera` keep 2D, zero tilt and 10 fps.
+With `camera.law = "stock"` (the profile's) `HudMap` drives the stock HUD
+camera shared in `libraries/hud-link` (`dev.denza.hudlink.camera`): targets on
+each fresh fix from the route, its highway ranges, the manoeuvres ahead and the
+posted limit, the stock queues every frame, and a 600×540 window whose top
+600×360 is halved into the frame, with MapKit pixel sizes doubled. See the
+[stock camera](../../research/yandex-hud-renderer/README.md#stock-camera-2026-10-22).
 
 - Two small hooks capture application context at MapKit initialization and the
   completed `GuidanceBinding` instance. Deferred work runs on the main thread.

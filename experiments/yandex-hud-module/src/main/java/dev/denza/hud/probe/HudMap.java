@@ -4,6 +4,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PointF;
 import android.util.Log;
+import dev.denza.hudlink.camera.StockCamera;
+import dev.denza.hudlink.camera.StockCameraOptics;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.lang.reflect.Proxy;
@@ -15,7 +17,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Owns only the offscreen map and its route. Never changes the main map or global location provider. */
+/**
+ * Owns only the offscreen map and its route. Never changes the main map or global location provider.
+ *
+ * <p>Two cameras. By default a 300×180 window, 2D or a fixed tilt, zoomed by the distance to the
+ * next manoeuvre. With the theme's {@code camera.law = "stock"} the stock HUD's: the shared
+ * {@link StockCamera} sets zoom and pitch as the car's own navigator would, {@link StockCameraOptics}
+ * turns them into MapKit's zoom, tilt and field of view for a 600×540 window whose top 600×360 is
+ * halved into the frame - the stock HUD's own crop. Everything MapKit draws in window pixels (the
+ * route, its arrows, the roads' width, the event icons) is drawn twice as large there, so the frame
+ * keeps the theme's sizes.
+ */
 final class HudMap implements AutoCloseable {
     /** Map pixels with the event icons MapKit drew, or null while it still shows its light loading grid. */
     static final class Shot {
@@ -37,6 +49,13 @@ final class HudMap implements AutoCloseable {
     private final Reflect api;
     private final JSONObject theme, routeStyle, camera;
     private final Object offscreen, window, map, objects;
+    /** The stock HUD camera, or null for the default one; window pixels per frame pixel. */
+    private final StockCamera stock;
+    private final float pixel;
+    private StockCamera.Route stockRoute;
+    private long stockFixAt = -1;
+    private float fov = Float.NaN;
+    private String cameraKey;
     private Object line, route, geometry, conditionsListener;
     private String routeId;
     private int segmentCount;
@@ -60,19 +79,49 @@ final class HudMap implements AutoCloseable {
         this.theme = theme;
         routeStyle = theme.getJSONObject("route");
         camera = theme.optJSONObject("camera") == null ? new JSONObject() : theme.getJSONObject("camera");
+        stock = "stock".equals(camera.optString("law")) ? new StockCamera(policy(camera.optJSONObject("policy"))) : null;
+        pixel = stock != null ? 1 / StockCameraOptics.SCALE : 1;
         Object kit = api.call(api.type("com.yandex.mapkit.MapKitFactory"), "getInstance");
-        offscreen = api.call(kit, "createOffscreenMapWindow", 300, 180, 1f);
+        offscreen = stock != null ? api.call(kit, "createOffscreenMapWindow", StockCameraOptics.WINDOW_WIDTH, StockCameraOptics.WINDOW_HEIGHT, 1f)
+                : api.call(kit, "createOffscreenMapWindow", 300, 180, 1f);
         window = api.call(offscreen, "getMapWindow");
         map = api.call(window, "getMap");
         objects = api.call(map, "getMapObjects");
         api.call(map, "setNightModeEnabled", true);
-        api.call(map, "set2DMode", camera.optBoolean("twoD", true));
+        api.call(map, "set2DMode", stock == null && camera.optBoolean("twoD", true));
         api.call(map, "setModelsEnabled", false);
         api.call(map, "setIndoorEnabled", false);
-        if (!Boolean.TRUE.equals(api.call(map, "setMapStyle", theme.getJSONArray("mapStyle").toString()))) throw new IllegalStateException("Map style rejected");
+        if (!Boolean.TRUE.equals(api.call(map, "setMapStyle", style(theme.getJSONArray("mapStyle"), pixel).toString()))) throw new IllegalStateException("Map style rejected");
         api.call(window, "setMaxFps", Math.max(1, Math.min(10, camera.optInt("maxFps", 10))));
         JSONArray focus = theme.getJSONObject("size").getJSONArray("focus");
-        api.call(window, "setFocusPoint", api.make("com.yandex.mapkit.ScreenPoint", (float) focus.getDouble(0), (float) focus.getDouble(1)));
+        api.call(window, "setFocusPoint", stock != null ? api.make("com.yandex.mapkit.ScreenPoint", StockCameraOptics.FOCUS_X, StockCameraOptics.FOCUS_Y)
+                : api.make("com.yandex.mapkit.ScreenPoint", (float) focus.getDouble(0), (float) focus.getDouble(1)));
+    }
+
+    /** The theme's choices for what the stock code leaves open; absent keys keep StockCamera's. */
+    private static StockCamera.Policy policy(JSONObject value) {
+        StockCamera.Policy policy = new StockCamera.Policy();
+        if (value == null) return policy;
+        JSONArray rect = value.optJSONArray("displayRect");
+        if (rect != null) {
+            policy.left = (float) rect.optDouble(0, policy.left); policy.top = (float) rect.optDouble(1, policy.top);
+            policy.right = (float) rect.optDouble(2, policy.right); policy.bottom = (float) rect.optDouble(3, policy.bottom);
+        }
+        policy.curvatureWindow = value.optDouble("curvatureWindow", policy.curvatureWindow);
+        policy.freewayLimit = value.optInt("freewayLimit", policy.freewayLimit);
+        policy.mainRoadLimit = value.optInt("mainRoadLimit", policy.mainRoadLimit);
+        return policy;
+    }
+
+    /** The style with every width scale multiplied by {@code k}: roads keep their width in the halved frame. */
+    private static JSONArray style(JSONArray source, float k) throws Exception {
+        if (k == 1) return source;
+        JSONArray result = new JSONArray(source.toString());
+        for (int i = 0; i < result.length(); i++) {
+            JSONObject stylers = result.getJSONObject(i).optJSONObject("stylers");
+            if (stylers != null && stylers.has("scale")) stylers.put("scale", stylers.getDouble("scale") * k);
+        }
+        return result;
     }
 
     Shot capture(NavigatorSource.Frame frame, long now, HudPainter painter) throws Exception {
@@ -94,15 +143,18 @@ final class HudMap implements AutoCloseable {
             Object start = api.make("com.yandex.mapkit.geometry.PolylinePosition", 0, 0d);
             api.call(line, "hide", api.make("com.yandex.mapkit.geometry.Subpolyline", start, frame.position));
         } else hideArrows();
-        double ahead = Math.max(130, Math.min(600, Double.isFinite(frame.cameraDistance) ? frame.cameraDistance * 1.2 : 350));
-        double target = Math.max(camera.optDouble("minZoom", 14.6), Math.min(camera.optDouble("maxZoom", 16.7),
-                Math.log(156543.03392 * Math.cos(Math.toRadians(frame.latitude)) * camera.optDouble("reachPixels", 118) / ahead) / Math.log(2)));
-        double step = Math.min(250, Math.max(0, now - cameraAt)) * camera.optDouble("zoomPerSecond", .8) / 1000;
-        zoom = Double.isNaN(zoom) ? target : zoom + Math.max(-step, Math.min(step, target - zoom));
-        cameraAt = now;
         smoothHeading(frame.heading, now);
-        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) heading,
-                (float) camera.optDouble("tilt", 0)));
+        if (stock != null) moveStock(frame, onRoute, index, fraction, now);
+        else {
+            double ahead = Math.max(130, Math.min(600, Double.isFinite(frame.cameraDistance) ? frame.cameraDistance * 1.2 : 350));
+            double target = Math.max(camera.optDouble("minZoom", 14.6), Math.min(camera.optDouble("maxZoom", 16.7),
+                    Math.log(156543.03392 * Math.cos(Math.toRadians(frame.latitude)) * camera.optDouble("reachPixels", 118) / ahead) / Math.log(2)));
+            double step = Math.min(250, Math.max(0, now - cameraAt)) * camera.optDouble("zoomPerSecond", .8) / 1000;
+            zoom = Double.isNaN(zoom) ? target : zoom + Math.max(-step, Math.min(step, target - zoom));
+            cameraAt = now;
+            api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) heading,
+                    (float) camera.optDouble("tilt", 0)));
+        }
         // Placement reads the camera just set; MapKit draws the placemarks with that same camera.
         int placed = 0;
         if (onRoute && frame.mode.equals("guidance")) {
@@ -122,11 +174,60 @@ final class HudMap implements AutoCloseable {
         } else hidePlacemarks(Collections.<String>emptySet());
         float[] finish = onRoute ? inside(project(segmentCount - 1, 1)) : null;
         Bitmap screenshot = (Bitmap) api.call(offscreen, "captureScreenshot");
+        if (screenshot != null && stock != null) screenshot = frameOf(screenshot);
         if (screenshot != null && loading(screenshot)) {
             screenshot.recycle();
             return new Shot(null, null, 0);
         }
         return new Shot(screenshot, finish, placed);
+    }
+
+    /**
+     * The stock camera: a fresh fix on the route sets its targets - the car's metres along the route,
+     * the manoeuvres ahead, the finish, the posted limit -, every frame advances it. Off the route
+     * (a rebuild, a position from the old route) no targets are set and the pose holds.
+     */
+    private void moveStock(NavigatorSource.Frame frame, boolean onRoute, int index, double fraction, long now) throws Exception {
+        if (onRoute && frame.fixAt != stockFixAt && stockRoute != null) {
+            stockFixAt = frame.fixAt;
+            List<StockCamera.Keypoint> keypoints = new ArrayList<>();
+            if (frame.windshield != null) {
+                for (Object manoeuvre : (List<?>) api.call(frame.windshield, "getManoeuvres")) {
+                    Object annotation = api.call(manoeuvre, "getAnnotation");
+                    Object action = annotation == null ? null : api.call(annotation, "getAction");
+                    if (action == null || "FINISH".equals(action.toString())) continue;
+                    Object position = api.call(api.call(manoeuvre, "getPosition"), "positionOnRoute", routeId);
+                    if (position == null) continue;
+                    keypoints.add(new StockCamera.Keypoint(StockCamera.ACTION,
+                            along((Integer) api.call(position, "getSegmentIndex"), (Double) api.call(position, "getSegmentPosition"))));
+                }
+            }
+            keypoints.add(new StockCamera.Keypoint(StockCamera.END, metres[metres.length - 1]));
+            int limit = frame.hint != null ? frame.hint.speedLimit : 0;
+            stock.locate(stockRoute, keypoints, along(index, fraction), heading, limit, now);
+        }
+        StockCamera.Pose pose = stock.frame(now);
+        StockCameraOptics.Pose mapkit = StockCameraOptics.mapkit(pose.zoom, pose.pitch);
+        if (mapkit.fov != fov) {
+            api.call(window, "setFieldOfViewY", (double) mapkit.fov);
+            fov = mapkit.fov;
+        }
+        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, mapkit.zoom, (float) heading, mapkit.tilt));
+        String key = pose.strategy + ":" + pose.roadClass;
+        if (!key.equals(cameraKey)) {
+            cameraKey = key;
+            Log.i("DenzaYandexHud", "camera " + (pose.strategy == StockCamera.ACTION ? "action" : pose.strategy == StockCamera.END ? "end" : "base")
+                    + " roadClass=" + pose.roadClass + " zoom=" + pose.zoom + " pitch=" + pose.pitch);
+        }
+    }
+
+    /** The window's top 600×360, halved: the stock HUD's crop of its view, the 300×180 frame. */
+    private static Bitmap frameOf(Bitmap window) {
+        Bitmap crop = Bitmap.createBitmap(window, 0, 0, StockCameraOptics.CROP_WIDTH, StockCameraOptics.CROP_HEIGHT);
+        Bitmap frame = Bitmap.createScaledBitmap(crop, 300, 180, true);
+        if (crop != window && crop != frame) crop.recycle();
+        if (window != frame) window.recycle();
+        return frame;
     }
 
     /** Eases the camera's course towards the fix's, the short way round; a stop keeps the last. */
@@ -252,6 +353,11 @@ final class HudMap implements AutoCloseable {
             if (i > 0) metres[i] = metres[i - 1] + metres(latitudes[i - 1], longitudes[i - 1], latitudes[i], longitudes[i]);
         }
         makeLine();
+        if (stock != null) {
+            stockRoute = new StockCamera.Route(latitudes, longitudes, metres, highways(next));
+            stock.reset();
+            stockFixAt = -1;
+        }
         route = next;
         Class<?> listener = api.type("com.yandex.mapkit.directions.driving.ConditionsListener");
         conditionsListener = Proxy.newProxyInstance(listener.getClassLoader(), new Class<?>[]{listener}, (proxy, method, args) -> {
@@ -274,11 +380,11 @@ final class HudMap implements AutoCloseable {
         JSONArray types = theme.getJSONArray("jamTypes");
         for (int i = 0; i < types.length(); i++) api.call(line, "setPaletteColor", i,
                 Color.parseColor(theme.getJSONObject("traffic").getString(types.getString(i))));
-        api.call(line, "setStrokeWidth", (float) routeStyle.getDouble("width"));
+        api.call(line, "setStrokeWidth", (float) routeStyle.getDouble("width") * pixel);
         api.call(line, "setOutlineColor", Color.BLACK);
-        api.call(line, "setOutlineWidth", (float) routeStyle.getDouble("outline"));
-        api.call(line, "setGradientLength", (float) routeStyle.getDouble("gradient"));
-        api.call(line, "setTurnRadius", (float) routeStyle.getDouble("turnRadius"));
+        api.call(line, "setOutlineWidth", (float) routeStyle.getDouble("outline") * pixel);
+        api.call(line, "setGradientLength", (float) routeStyle.getDouble("gradient") * pixel);
+        api.call(line, "setTurnRadius", (float) routeStyle.getDouble("turnRadius") * pixel);
         if (colors != null) api.call(line, "setStrokeColors", colors);
         routeDimmed = false;
         arrows.clear();
@@ -375,10 +481,10 @@ final class HudMap implements AutoCloseable {
         for (Object[] w : wanted) {
             Object arrow = arrows.remove(w[0]);
             if (arrow == null) {
-                arrow = api.call(line, "addArrow", w[1], (float) style.getDouble("length"), Color.parseColor(style.getString("fill")));
+                arrow = api.call(line, "addArrow", w[1], (float) style.getDouble("length") * pixel, Color.parseColor(style.getString("fill")));
                 api.call(arrow, "setOutlineColor", Color.parseColor(style.getString("outline")));
-                api.call(arrow, "setOutlineWidth", (float) style.getDouble("outlineWidth"));
-                api.call(arrow, "setTriangleHeight", (float) style.getDouble("triangleHeight"));
+                api.call(arrow, "setOutlineWidth", (float) style.getDouble("outlineWidth") * pixel);
+                api.call(arrow, "setTriangleHeight", (float) style.getDouble("triangleHeight") * pixel);
                 arrowIndex = (Integer) w[2];
                 arrowFraction = (Double) w[3];
             }
@@ -408,10 +514,31 @@ final class HudMap implements AutoCloseable {
         return api.make("com.yandex.mapkit.geometry.Point", lat, lon);
     }
 
+    /** A route position in frame pixels: window pixels, through the stock crop when there is one. */
     private float[] project(int index, double fraction) {
         Object screen = api.call(window, "worldToScreen", point(index, fraction));
         if (screen == null) return null;
-        return new float[]{(Float) api.call(screen, "getX"), (Float) api.call(screen, "getY")};
+        return new float[]{(Float) api.call(screen, "getX") / pixel, (Float) api.call(screen, "getY") / pixel};
+    }
+
+    /**
+     * Which segments are Yandex highways, for the stock camera's road class: a segment any highway
+     * range touches. A build without highway ranges gives none.
+     */
+    private boolean[] highways(Object next) {
+        boolean[] result = new boolean[segmentCount];
+        try {
+            for (Object highway : (List<?>) api.call(next, "getHighways")) {
+                Object range = api.call(highway, "getPosition");
+                Object begin = api.call(range, "getBegin"), end = api.call(range, "getEnd");
+                int first = (Integer) api.call(begin, "getSegmentIndex"), last = (Integer) api.call(end, "getSegmentIndex");
+                if ((Double) api.call(end, "getSegmentPosition") <= 0 && last > first) last--;
+                for (int i = Math.max(0, first); i <= Math.min(segmentCount - 1, last); i++) result[i] = true;
+            }
+        } catch (RuntimeException unavailable) {
+            Log.w("DenzaYandexHud", "highway ranges unavailable", unavailable);
+        }
+        return result;
     }
 
     private static float[] inside(float[] p) { return p != null && p[0] >= 0 && p[0] <= 300 && p[1] >= 0 && p[1] <= 180 ? p : null; }
@@ -425,6 +552,8 @@ final class HudMap implements AutoCloseable {
             }
             placemarks.clear(); placemarkIcons.clear();
             spots = Collections.emptyList(); arrows.clear(); arrowIndex = -1; latitudes = longitudes = metres = null; geometry = null;
+            stockRoute = null; stockFixAt = -1; cameraKey = null;
+            if (stock != null) stock.reset();
             try { if (line != null) api.call(objects, "remove", line); }
             finally { line = null; zoom = Double.NaN; }
         }

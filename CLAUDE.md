@@ -94,7 +94,7 @@ The default build configures the products and the library they share:
 | --- | --- | --- |
 | `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` and `:hud-link` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
-| `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, compositor and session policy, plain Java 8, also compiled into the YandexHUD module) |
+| `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, compositor and session policy, and the stock HUD camera, plain Java 8, also compiled into the YandexHUD module) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The on-device probes and the frozen legacy app are configured only when the
