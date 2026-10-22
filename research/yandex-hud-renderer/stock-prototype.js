@@ -12,9 +12,23 @@ function shift(op, dy) {
     if (op.ops) moved.ops = op.ops.map(inner => shift(inner, dy));
     return moved;
 }
+/** A #RRGGBB colour at k of its brightness. */
+function dim(colour, k) {
+    const n = parseInt(colour.slice(1), 16);
+    return '#' + [16, 8, 0].map(s => Math.round(((n >> s) & 255) * k).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
 function theme(base) {
     const value = JSON.parse(JSON.stringify(base.theme()));
     value.profile = 'stock-prototype';
+    // The tilted view shows more blocks than ours did, and their grey grid stood out (owner,
+    // 2026-10-22): roads 15 % quieter, about 61 % and 42 % - above the 42 %/22 % that vanished on
+    // the glass on 2026-10-14.
+    for (const key of ['road', 'minor']) value.palette[key] = dim(value.palette[key], .85);
+    for (const rule of value.mapStyle) {
+        const colour = rule.stylers && rule.stylers.color;
+        if (colour === base.PALETTE.road) rule.stylers.color = value.palette.road;
+        else if (colour === base.PALETTE.minor) rule.stylers.color = value.palette.minor;
+    }
     // The stock camera keeps the car at (150,135) of the frame, our design at (150,143): the cursor
     // and the box icons keep off move up with it.
     const dy = 135 - value.size.focus[1];
