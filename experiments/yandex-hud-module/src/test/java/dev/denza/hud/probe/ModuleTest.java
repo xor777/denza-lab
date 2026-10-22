@@ -58,7 +58,9 @@ public final class ModuleTest {
         public long getAbsoluteTimestamp() { return stamp; }
         public Point getPosition() { return new Point(); }
         public Double getHeading() { return 0d; }
+        public Double getSpeed() { return speed; }
         long stamp = 1;
+        Double speed = 5d;
     }
     public static class Classified {
         public Location getLocation() { return location; }
@@ -118,8 +120,10 @@ public final class ModuleTest {
         guidance.route=new Object();guidance.location=new Classified();
         NavigatorSource.Frame held=source.read(guidance,true,100);
         check(held.drawMap()&&held.mode.equals("guidance")&&held.staleMs==0,"fresh guidance draws the map");
+        check(held.speed==5,"a fresh fix carries its speed for the camera");
         held=source.read(guidance,true,3101);
         check(held.mode.equals("guidance")&&held.staleMs==3001&&held.drawMap()&&held.point!=null,"a gap in fixes holds the picture");
+        check(Double.isNaN(held.speed),"a held fix says nothing of the speed now");
         held=source.read(guidance,true,30101);
         check(held.mode.equals("lost")&&held.drawMap(),"a long gap dims the map, never blanks it");
         guidance.location.location.stamp++;

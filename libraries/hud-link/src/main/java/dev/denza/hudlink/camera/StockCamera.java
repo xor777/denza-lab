@@ -60,6 +60,16 @@ public final class StockCamera {
         public int freewayLimit = 100;
         /** Off a highway, a limit at or above this is a main road, below it an ordinary road; km/h. */
         public int mainRoadLimit = 60;
+        /**
+         * Not stock, off by default: the shown zoom is never further out than {@link #closeZoom} at
+         * or under {@link #closeSpeed} km/h, the floor sinking linearly to {@link #minZoom} at
+         * {@link #freeSpeed}. The stock camera backs off up to 1.1 km before a turn or the finish,
+         * and in a jam or at a light it stays backed off for minutes; drivers asked for the map
+         * close when slow (2026-10-22). NaN: no floor.
+         */
+        public float closeZoom = Float.NaN, closeSpeed = 20, freeSpeed = 60;
+        /** Not stock, 0 by default: added to the shown zoom, the whole scale that much closer. */
+        public float zoomOffset = 0;
     }
 
     /** The route: its vertices, metres from its start to each, and whether each segment is a highway. */
@@ -102,11 +112,17 @@ public final class StockCamera {
         public Keypoint(int type, double metres) { this.type = type; this.metres = metres; }
     }
 
-    /** The stock camera's zoom and pitch for a frame, and the strategy that set their targets. */
+    /**
+     * The camera for a frame: {@code zoom} to show - the stock zoom, raised to the slow floor and
+     * moved by the offset when the policy asks for them -, the stock {@code pitch}, and the stock
+     * zoom itself, the strategy and the road class behind them.
+     */
     public static final class Pose {
-        public final float zoom, pitch;
+        public final float zoom, pitch, stockZoom;
         public final int strategy, roadClass;
-        Pose(float zoom, float pitch, int strategy, int roadClass) { this.zoom = zoom; this.pitch = pitch; this.strategy = strategy; this.roadClass = roadClass; }
+        Pose(float zoom, float pitch, float stockZoom, int strategy, int roadClass) {
+            this.zoom = zoom; this.pitch = pitch; this.stockZoom = stockZoom; this.strategy = strategy; this.roadClass = roadClass;
+        }
     }
 
     private final Policy policy;
@@ -117,6 +133,9 @@ public final class StockCamera {
     private int recordType = BASE;
     private double recordEnd = Double.NaN;
     private float recordZoom = Float.NaN;
+    /** The car's speed, km/h, eased over about two seconds: GPS speed jitters at a crawl. */
+    private double speed = Double.NaN;
+    private long speedAt;
 
     public StockCamera(Policy policy) {
         this.policy = policy;
@@ -133,6 +152,7 @@ public final class StockCamera {
         roadClass = -1;
         recordEnd = Double.NaN;
         recordZoom = Float.NaN;
+        speed = Double.NaN;
     }
 
     /**
@@ -190,13 +210,29 @@ public final class StockCamera {
 
     /** The pose for a frame at {@code now}, the queues advanced and the HUD's bounds applied. */
     public Pose frame(long now) {
+        return frame(now, Double.NaN);
+    }
+
+    /** The same with the car's speed in km/h (NaN unknown) for the policy's slow floor. */
+    public Pose frame(long now, double speedKmh) {
         Float nextZoom = zoomQueue.pop(now);
         if (nextZoom != null) zoom = nextZoom;
         zoom = Math.max(policy.minZoom, Math.min(policy.maxZoom, zoom));
         Float nextPitch = pitchQueue.pop(now);
         if (nextPitch != null) pitch = nextPitch;
         pitch = clampPitch(pitch, zoom);
-        return new Pose(zoom, pitch, strategy, roadClass);
+        if (Double.isFinite(speedKmh)) {
+            double dt = Double.isNaN(speed) ? 0 : Math.max(0, Math.min(2000, now - speedAt));
+            speed = Double.isNaN(speed) ? speedKmh : speed + (speedKmh - speed) * (1 - Math.exp(-dt / 2000.0));
+            speedAt = now;
+        }
+        float shown = zoom;
+        if (!Float.isNaN(policy.closeZoom) && Double.isFinite(speed)) {
+            double t = (speed - policy.closeSpeed) / Math.max(1e-3, policy.freeSpeed - policy.closeSpeed);
+            double floor = policy.closeZoom - Math.max(0, Math.min(1, t)) * (policy.closeZoom - policy.minZoom);
+            shown = (float) Math.max(shown, floor);
+        }
+        return new Pose(shown + policy.zoomOffset, pitch, zoom, strategy, roadClass);
     }
 
     int roadClass(boolean highway, int speedLimit) {

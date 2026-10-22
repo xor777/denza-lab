@@ -39,6 +39,8 @@ final class NavigatorSource {
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield, location;
         double heading, latitude, cameraDistance = Double.NaN;
+        /** The fix's speed in m/s, NaN when the fix has none. */
+        double speed = Double.NaN;
         /** When the last fresh fix arrived; the stock camera sets its targets once per fix. */
         long staleMs, fixAt = -1;
         List<Lane> lanes = Collections.emptyList();
@@ -58,7 +60,7 @@ final class NavigatorSource {
     private long lastChanged;
     // The last good fix, held through a gap: satellites drop out under bridges and between towers.
     private Object heldLocation, heldPoint, heldPosition;
-    private double heldHeading, heldLatitude;
+    private double heldHeading, heldLatitude, heldSpeed = Double.NaN;
     private boolean held;
     NavigatorSource(Reflect api) { this.api = api; }
 
@@ -92,6 +94,8 @@ final class NavigatorSource {
                 heldLatitude = (Double) api.call(heldPoint, "getLatitude");
                 Double heading = (Double) api.call(location, "getHeading");
                 if (heading != null) heldHeading = heading;
+                Double speed = (Double) api.call(location, "getSpeed");
+                heldSpeed = speed != null ? speed : Double.NaN;
             }
         }
         if (!held) { frame.mode = "waiting"; return frame; }
@@ -102,6 +106,8 @@ final class NavigatorSource {
         frame.point = heldPoint;
         frame.latitude = heldLatitude;
         frame.heading = heldHeading;
+        // A fix held through a gap says nothing of the car now.
+        frame.speed = frame.staleMs == 0 ? heldSpeed : Double.NaN;
         frame.position = heldPosition;
         if (rerouting) { frame.mode = "rerouting"; return frame; }
         frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";

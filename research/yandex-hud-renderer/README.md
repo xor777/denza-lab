@@ -2,6 +2,11 @@
 
 ## Stock-like prototype (2026-10-22)
 
+> **Superseded 2026-10-22 (evening):** drivers preferred our colours, route
+> and cursor; the profile now keeps the YandexHUD design and only the camera
+> is the stock HUD's, with the car point moved to (150,135) - see
+> [Stock camera](#stock-camera-2026-10-22). The stock fills below are history.
+
 The embedded builder has an explicit `--renderer-profile stock-prototype` option.
 It renders Yandex's actual selected route with a separate perspective camera,
 the recovered BYD HUD traffic fills, no traffic gradients, an approximately
@@ -122,6 +127,13 @@ Put together (new, `StockCamera` and `StockCameraOptics`):
   (60/36/42° → 43/25/29°). MapKit pixel sizes - route and arrow widths, the
   style's road scale, event placemarks - are doubled in that window so the
   frame keeps the theme's sizes.
+
+Not stock, off in `StockCamera.Policy` by default and on in this profile's
+`camera.policy` (drivers, 2026-10-22: the map backed off too far, most of all
+when slow or standing): the shown zoom is never further out than 17 at or under
+20 km/h, the floor sinking linearly to 14 at 60 km/h (speed eased over about
+2 s), and the whole scale is 0.5 closer. The stock zoom and pitch behind them are
+unchanged, and the pose reports both.
 
 Adapter choices, named in `StockCamera.Policy` and overridable from the theme's
 `camera.policy`:

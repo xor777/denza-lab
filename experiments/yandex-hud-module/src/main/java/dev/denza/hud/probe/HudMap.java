@@ -111,6 +111,10 @@ final class HudMap implements AutoCloseable {
         policy.curvatureWindow = value.optDouble("curvatureWindow", policy.curvatureWindow);
         policy.freewayLimit = value.optInt("freewayLimit", policy.freewayLimit);
         policy.mainRoadLimit = value.optInt("mainRoadLimit", policy.mainRoadLimit);
+        policy.closeZoom = (float) value.optDouble("closeZoom", policy.closeZoom);
+        policy.closeSpeed = (float) value.optDouble("closeSpeed", policy.closeSpeed);
+        policy.freeSpeed = (float) value.optDouble("freeSpeed", policy.freeSpeed);
+        policy.zoomOffset = (float) value.optDouble("zoomOffset", policy.zoomOffset);
         return policy;
     }
 
@@ -207,7 +211,7 @@ final class HudMap implements AutoCloseable {
             int limit = frame.hint != null ? frame.hint.speedLimit : 0;
             stock.locate(stockRoute, keypoints, along(index, fraction), heading, limit, now);
         }
-        StockCamera.Pose pose = stock.frame(now);
+        StockCamera.Pose pose = stock.frame(now, frame.speed * 3.6);
         StockCameraOptics.Pose mapkit = StockCameraOptics.mapkit(pose.zoom, pose.pitch);
         if (mapkit.fov != fov) {
             api.call(window, "setFieldOfViewY", (double) mapkit.fov);
@@ -218,7 +222,7 @@ final class HudMap implements AutoCloseable {
         if (!key.equals(cameraKey)) {
             cameraKey = key;
             Log.i("DenzaYandexHud", "camera " + (pose.strategy == StockCamera.ACTION ? "action" : pose.strategy == StockCamera.END ? "end" : "base")
-                    + " roadClass=" + pose.roadClass + " zoom=" + pose.zoom + " pitch=" + pose.pitch);
+                    + " roadClass=" + pose.roadClass + " zoom=" + pose.stockZoom + " shown=" + pose.zoom + " pitch=" + pose.pitch);
         }
     }
 

@@ -151,6 +151,29 @@ public final class StockCameraTest {
         StockCamera.Pose curvy = drive(camera, straight(4000, 10, false), Collections.<StockCamera.Keypoint>emptyList(), 0, 200, 0, 60, clock, null);
         check(Math.abs(curvy.zoom - 17) < 1e-4, "50+ vertices a km is curvature over 35: zoom 17, got " + curvy.zoom);
 
+        // Not stock, off by default: a floor when slow and an offset. Standing on a main road the
+        // stock 16 shows as the close 17, plus the offset; at 80 km/h only the offset; at 40 the
+        // floor 15.5 is under the stock 16.
+        StockCamera.Policy closer = new StockCamera.Policy();
+        closer.closeZoom = 17; closer.zoomOffset = .5f;
+        StockCamera close = new StockCamera(closer);
+        clock[0] = 0;
+        close.locate(city, keypoints, 300, 0, 60, clock[0]);
+        StockCamera.Pose standing = close.frame(clock[0] += 200, 0);
+        check(standing.stockZoom == 16 && Math.abs(standing.zoom - 17.5) < 1e-4, "standing: close floor plus offset, " + standing.zoom);
+        StockCamera.Pose cruising = null;
+        for (int i = 0; i < 60; i++) cruising = close.frame(clock[0] += 200, 80);
+        check(Math.abs(cruising.zoom - 16.5) < 1e-3, "at 80 km/h the stock zoom plus the offset: " + cruising.zoom);
+        StockCamera.Pose city40 = null;
+        for (int i = 0; i < 60; i++) city40 = close.frame(clock[0] += 200, 40);
+        check(Math.abs(city40.zoom - 16.5) < 1e-3, "at 40 km/h the floor 15.5 is under the stock 16: " + city40.zoom);
+        StockCamera.Pose slowing = null;
+        for (int i = 0; i < 5; i++) slowing = close.frame(clock[0] += 200, 0);
+        check(slowing.zoom > city40.zoom + .1 && slowing.zoom < 17.4, "a second after braking the zoom is on its way, not there: " + slowing.zoom);
+        for (int i = 0; i < 25; i++) slowing = close.frame(clock[0] += 200, 0);
+        check(Math.abs(slowing.zoom - 17.5) < 1e-3, "stopped, the close zoom: " + slowing.zoom);
+        check(Math.abs(camera.frame(clock[0]).zoom - camera.frame(clock[0]).stockZoom) < 1e-6, "the default policy shows the stock zoom");
+
         // MapKit optics: the calibration's poses come back exactly.
         String calibration = args.length > 0 ? args[0] : "research/yandex-hud-renderer/stock-camera-mapkit-calibration.csv";
         int rows = 0;
