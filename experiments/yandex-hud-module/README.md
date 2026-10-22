@@ -5,7 +5,7 @@ map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, me
 main and the branch deleted on 2026-10-18.
 This module is embedded into the pinned owner APK by a host build tool; it is
 not an independently installable app or a dependency of Denza Apps. The car
-has not been changed by these build/test tools. Detailed evidence belongs to
+installation is separate from these build/test tools. Detailed evidence belongs to
 [HUD findings](../../docs/hud-projection-findings.md#hud-yandex-embedded).
 
 ## Runtime
@@ -17,6 +17,10 @@ The optional `stock-prototype` renderer profile is selected with
 zoom bounds and MapKit fps; `HudModule` uses that fps for its active tick too.
 Existing themes without `camera` keep 2D, zero tilt and 10 fps. The prototype
 does not implement the stock dynamic camera law.
+The recovered camera core (`StockCameraQueue`, `StockCameraRules`, generated
+defaults and `StockCameraProjection`) is tested independently against original
+native outputs and is not connected to the installed prototype yet. See the
+[implementation status](../../research/yandex-hud-renderer/README.md#stock-camera-implementation-in-progress-2026-10-22).
 
 - Two small hooks capture application context at MapKit initialization and the
   completed `GuidanceBinding` instance. Deferred work runs on the main thread.

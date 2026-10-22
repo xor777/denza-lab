@@ -89,6 +89,7 @@ def main():
     build_tools = sdk / 'build-tools/36.0.0'
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
+    run(['python3', ROOT/'tools/yandex_hud_build/stock_camera_defaults.py', '--check'])
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     # The HUD wire and compositor shared with Denza Apps; the plain-Java part the module's fields
     # pass through (the scene, the placement table, the road packet) runs in the host tests too.
@@ -98,10 +99,16 @@ def main():
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
-         package/'StockHudSymbols.java', package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
+         package/'StockHudSymbols.java', package/'StockCameraQueue.java', package/'StockCameraProjection.java',
+         package/'StockCameraRules.java', package/'StockCameraDefaults.java',
+         package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.CameraTest',
+         ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
+         ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',
+         ROOT/'research/yandex-hud-renderer/stock-camera-rule-oracle.csv'])
     selected = subprocess.check_output([str(java/'bin/java'), '-cp', str(unit_classes),
                                        'dev.denza.hud.probe.ModuleTest', 'assets'], text=True).splitlines()
     for name in selected:

@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-22",
+  "scope": "portable confirmed components; no new runtime camera enabled or APK installed in this phase",
+  "installedApk": {
+    "version": "29.8.1-YandexHUD.3",
+    "sha256": "83d0ba566eaea5d304604a7e145896787cef9239c85dea4c36cf7820b486f225",
+    "camera": "stock-prototype approximations; full behavior pending"
+  },
+  "sources": {
+    "stockApkSha256": "3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793",
+    "libGblSha256": "119695006df3c9f062aaa97a0dc05e7486d43ea19db2d712ed9a57badce0f52b",
+    "libAutoDiceSha256": "a3a0279dec67e158babb0cd84f8501596c4750b00fb04d74136e699aaa02fe5a"
+  },
+  "nativeFunctions": {
+    "queueSetTarget": "0x1260aa4",
+    "queuePop": "0x1262a20",
+    "guideStrategySelector": "0xff8d80",
+    "new3dCalculate": "0xffa72c",
+    "managerFactory": "0xf59150",
+    "managerDeletingDestructor": "0xf59730",
+    "simpleZoom": "0xf80a7c",
+    "simplePitch": "0xf82d78"
+  },
+  "validation": {
+    "cameraAssertions": 1942,
+    "moduleAssertions": 228,
+    "arAssertions": 152,
+    "androidJavaSourcesCompiled": 44,
+    "originalMatcherProbes": 384,
+    "originalManagerEffectTypes": 63,
+    "originalTableRows": 43,
+    "projectionMaxErrorRawPx": 0.12726015581370728,
+    "projectionMaxErrorFinalHudPx": 0.06363007790685364,
+    "projectionMaxPointDistanceM": 500,
+    "nativeQueueScope": "original functions in isolated heap with original lock lifecycle; no live camera output replacement",
+    "initialUntouchedCamera": {
+      "zoom": 16,
+      "pitch": 33.74160385131836,
+      "stableDurationSeconds": 12
+    },
+    "explicitZoom15Pitch": 29,
+    "mapkitProjectionCalibration": "7 native zoom poses matched via independently owned offscreen600x540, optical center300,270, crop600x360 and downsample0.5; calibration only, no route behavior acceptance"
+  },
+  "fixtures": {
+    "stock-camera-projection-oracle.csv": "3d8890bdd89b2621229311c258d2fdaa0ae91b55a305cb0f70f3784884942a1b",
+    "stock-camera-queue-oracle.csv": "9ad99770cc164ff5cedf591caa707079659e3e145af29a5b86544c422898e8fc",
+    "stock-camera-rule-oracle.csv": "95f4a8ee0e466ac9e4d0cc28079986aa472de6402feefbf0f497a77a9c5423d9"
+  },
+  "remaining": [
+    "native route-record selection and priority",
+    "Action/Complex/End geometry and fit",
+    "roll, reset and guide lifecycle transitions",
+    "active playback cadence",
+    "Yandex road-class/formway/curvature input adapter",
+    "full native guided-camera trajectory oracle unavailable without valid PathInfo",
+    "physical-car graphics/driving/background-start acceptance unverified"
+  ],
+  "localEvidence": [
+    "work/stock-camera-runtime/evidence-receipt.json",
+    "work/stock-camera-native/new3d-contract.md",
+    "work/stock-camera-native/portable-contract.md",
+    "work/yandex-camera/projection-center-fit.json",
+    "work/yandex-camera/core-tests.log"
+  ]
+}

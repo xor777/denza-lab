@@ -1,0 +1,1514 @@
+{
+  "source": "work/stock-camera-runtime/config-manager-snapshot-values.json",
+  "scope": "independent original config-manager factory snapshot; not live HUD singleton and not proof active guided strategy",
+  "effectTypes": 63,
+  "nativeElementSize": 104,
+  "selection": "first matching row; every nonempty field condition must match",
+  "floatEpsilon": 1e-06,
+  "tables": {
+    "actionZoom": {
+      "nativeManagerOffset": "0x38",
+      "strategyType": 1,
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 2000,
+          "lowerZoom": 14.0,
+          "upperZoom": 18.33333396911621,
+          "targetZoom": null
+        },
+        {
+          "index": 1,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 2,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 500,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 3,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      3,
+                      4
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1000,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 4,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      3,
+                      4
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 500,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.33333396911621,
+          "targetZoom": null
+        },
+        {
+          "index": 5,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      5,
+                      8,
+                      9,
+                      10
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 500,
+          "lowerZoom": 15.5,
+          "upperZoom": 18.33333396911621,
+          "targetZoom": null
+        },
+        {
+          "index": 6,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      5,
+                      8,
+                      9,
+                      10
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 500,
+          "lowerZoom": 15.5,
+          "upperZoom": 18.33333396911621,
+          "targetZoom": null
+        },
+        {
+          "index": 7,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 2100,
+          "lowerZoom": 14.0,
+          "upperZoom": 17.0,
+          "targetZoom": null
+        },
+        {
+          "index": 8,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        }
+      ]
+    },
+    "endZoom": {
+      "nativeManagerOffset": "0x50",
+      "strategyType": 4,
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 1,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 2,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      3,
+                      4
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 3,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      5,
+                      8,
+                      9,
+                      10
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 4,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        },
+        {
+          "index": 5,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      7
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": 1100,
+          "lowerZoom": 15.0,
+          "upperZoom": 18.0,
+          "targetZoom": null
+        }
+      ]
+    },
+    "complexZoom": {
+      "nativeManagerOffset": "0x68",
+      "strategyType": 2,
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {
+            "formway": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      3
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": 14.0,
+          "upperZoom": 17.799999237060547,
+          "targetZoom": null
+        },
+        {
+          "index": 1,
+          "conditions": {
+            "formway": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      6,
+                      8
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": 14.0,
+          "upperZoom": 17.799999237060547,
+          "targetZoom": null
+        }
+      ]
+    },
+    "baseZoom": {
+      "nativeManagerOffset": "0x80",
+      "strategyType": 16777216,
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 14.0
+        },
+        {
+          "index": 1,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      40.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 15.0
+        },
+        {
+          "index": 2,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      1,
+                      2
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      40.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 16.0
+        },
+        {
+          "index": 3,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      3,
+                      4
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 16.0
+        },
+        {
+          "index": 4,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      3,
+                      4
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 17.0
+        },
+        {
+          "index": 5,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      5,
+                      8,
+                      9,
+                      10
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 17.0
+        },
+        {
+          "index": 6,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      5,
+                      8,
+                      9,
+                      10
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 17.0
+        },
+        {
+          "index": 7,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      6
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      35.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 15.0
+        },
+        {
+          "index": 8,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      6
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      35.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 17.0
+        },
+        {
+          "index": 9,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      7
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "lt",
+                    "nativeOpType": 1,
+                    "values": [
+                      35.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 16.0
+        },
+        {
+          "index": 10,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      7
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      35.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "effectDistanceM": null,
+          "lowerZoom": null,
+          "upperZoom": null,
+          "targetZoom": 17.0
+        }
+      ]
+    },
+    "keypointPitch": {
+      "nativeManagerOffset": "0x98",
+      "strategyType": [
+        1,
+        2,
+        4
+      ],
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {},
+          "targetPitch": 30.0
+        }
+      ]
+    },
+    "basePitch": {
+      "nativeManagerOffset": "0xb0",
+      "strategyType": 16777216,
+      "rows": [
+        {
+          "index": 0,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "in_epsilon",
+                    "nativeOpType": 7,
+                    "values": [
+                      0,
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      35.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 40.0
+        },
+        {
+          "index": 1,
+          "conditions": {
+            "roadClass": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "not_in_epsilon",
+                    "nativeOpType": 8,
+                    "values": [
+                      0,
+                      6,
+                      7
+                    ]
+                  }
+                ]
+              }
+            ],
+            "curvature": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      30.0
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 40.0
+        },
+        {
+          "index": 2,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      3.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      14.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 40.0
+        },
+        {
+          "index": 3,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      14.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      15.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 50.0
+        },
+        {
+          "index": 4,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      15.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      16.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 65.0
+        },
+        {
+          "index": 5,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      16.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      17.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 70.0
+        },
+        {
+          "index": 6,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      17.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      18.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 73.0
+        },
+        {
+          "index": 7,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      18.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      20.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 76.0
+        },
+        {
+          "index": 8,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "ge_epsilon",
+                    "nativeOpType": 6,
+                    "values": [
+                      3.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      14.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 40.0
+        },
+        {
+          "index": 9,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      14.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      15.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 45.0
+        },
+        {
+          "index": 10,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      15.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      16.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 60.0
+        },
+        {
+          "index": 11,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      16.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      17.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 66.0
+        },
+        {
+          "index": 12,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      17.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      18.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 70.0
+        },
+        {
+          "index": 13,
+          "conditions": {
+            "zoomLevel": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "gt",
+                    "nativeOpType": 5,
+                    "values": [
+                      18.0
+                    ]
+                  },
+                  {
+                    "op": "le_epsilon",
+                    "nativeOpType": 2,
+                    "values": [
+                      20.0
+                    ]
+                  }
+                ]
+              }
+            ],
+            "screenType": [
+              {
+                "nativeLogicType": 1,
+                "conditions": [
+                  {
+                    "op": "eq_epsilon",
+                    "nativeOpType": 3,
+                    "values": [
+                      2
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "targetPitch": 74.0
+        }
+      ]
+    }
+  },
+  "sourceLibrarySha256": "119695006df3c9f062aaa97a0dc05e7486d43ea19db2d712ed9a57badce0f52b"
+}

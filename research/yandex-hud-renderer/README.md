@@ -54,6 +54,39 @@ A complete stock HUD road frame remains unavailable
 because that separate OEM SDK rejected data requests as unactivated. Therefore
 this is a prototype for visual comparison, not a claim of pixel equivalence.
 
+## Stock camera implementation in progress (2026-10-22)
+
+The installed YandexHUD.3 still uses the prototype camera described above.
+The next camera's confirmed components are implemented as portable Java, with
+no runtime connection yet to `HudMap`:
+
+- `StockCameraQueue`: original one-second candidate interpolation and signed
+  per-evaluation clamps, sentinel and retarget semantics. Original ARM64 queue
+  traces cover both directions and different evaluation intervals.
+- `StockCameraRules` and generated `StockCameraDefaults`: first-match selection
+  of the 43 recovered new-3D default rules, plus the distinct SimpleZoom and
+  SimplePitch absent-target behavior. The independent original config-manager
+  factory returned mask63; 384 original matcher probes agree exactly. This
+  is not a measurement of the car's cloud-selected live guide singleton.
+- `StockCameraProjection`: measured fa3 zoom scale, FOV, pitch ceiling and full
+  800×800 projection before crop `(100,290,600,360)` and downsample0.5. Native
+  projection samples include fractional zoom, fixed pitch and points500m away.
+  Maximum error is0.1273 raw px, or0.0637 final HUD px, on this corpus.
+
+`CameraTest` passes1942 assertions; the build also checks the generated defaults
+against [`stock-camera-defaults.json`](stock-camera-defaults.json). The three
+`stock-camera-*-oracle.csv` files contain actual outputs of original functions,
+not expectations generated from the Java implementation. Native source hash,
+function addresses, scope and gaps are recorded in
+[`stock-camera-evidence-20261022.json`](stock-camera-evidence-20261022.json).
+
+The original new-3D route-record selection/priority, Action/Complex/End geometry,
+roll/reset behavior and playback cadence still need completion. Public Yandex
+route APIs expose highway ranges but no confirmed one-to-one GBL road-class or
+formway mapping. The guidance-provided ClassifiedLocation is already native
+processed data; it must not be relabeled as raw GPS. These gaps prevent calling
+the current code a complete stock camera or enabling its partial controller.
+
 An independent HUD map **inside the running Navigator process**, using its
 existing MapKit and current Guidance. Full navigation stays in the original
 main-screen Activity. This directory is the original instrumented emulator experiment. The
