@@ -1401,13 +1401,16 @@ result 3 с утра) подтвердили запись кэша как при
 - Compose-раскладка (строки, сетки, прокрутка), а не холст с зонами нажатия, как
   у v1. Порядок работы по `CLAUDE.md`: сначала доски, затем экраны; экран готов,
   когда `compare.py` сводит его снимок с доской до сглаживания. Доски —
-  `tools/design-canvas/luminofor/scanner.*`: 19 `scanner-sys-*` (раздел вокруг систем, 7.2)
-  и семь экранов блока (`scanner-body-dtc`, `-ecu-dtc`, `-ecu-fault`, `-ecu-live`,
+  `tools/design-canvas/luminofor/scanner.*`: `scanner-sys-*` (раздел вокруг систем, 7.2), доски
+  концепта v4 (7.3, с 2026-10-23: `scanner-summary`, `-summary-active`, `-blocks`, `-code`,
+  `-code-plain`, `-sys-pack-health`, `-sys-pack-health-first`, `-sys-engine-graphs`, `-journal`,
+  `-journal-first`, `-report`) и семь экранов блока (`scanner-body-dtc`, `-ecu-dtc`, `-ecu-fault`, `-ecu-live`,
   `-ecu-ident`, `-ecu-ident-updated`, `-esp-dtc`); начало — страница «Сканер (v3)», перенесённая в рисовальщик
   Люминофора (что исправлено при переносе — в README Люминофора, «The scanner»). Доски окна
   v1 (`diagnostics.*`) удалены вместе с ним; полноширинные системные доски v3 (`scanner-scan`,
   `-topology`, `-bms`, `-drives`, `-hv`, `-brakes`, `-adas`) — 2026-10-20 вечером, их сменили
-  `scanner-sys-*`.
+  `scanner-sys-*`; `scanner-sys-scan`, `-sys-topology` и `-sys-pack` — 2026-10-23, их сменили
+  «Сводка», «Блоки» и «Здоровье» (7.3). Экраны Compose с досками v4 ещё не сведены.
 - Язык — диагноста: DTC, PID, NRC, маска, биты статуса, «запрос → ответ».
   Состояния названы словами: «не читали», «нет ответа», «нет адреса». Никаких
   выдуманных расшифровок кодов BYD.
@@ -1907,9 +1910,11 @@ result 3 с утра) подтвердили запись кэша как при
   «Продолжить», возраст обхода и страницы BMS ([6.3](#diag-arch-cells)); «Флаги GB/T 32960» — «Обновить»,
   «1039 · gbacqservice» и «снимок …»; «Потоковые данные» батареи (с 2026-10-21; ~~«Обновить» и «снимок …»~~) и
   систем — «Пауза» / «Продолжить», «Сбросить мин/макс» и «обход N,N с».
-- **Доски** — у каждой вкладки своя: `scanner-sys-scan`, `-topology`, `-engine` (поток),
+- **Доски** — у каждой вкладки своя: ~~`scanner-sys-scan`, `-topology`~~ (с 2026-10-23 — `scanner-summary`,
+  `scanner-blocks`, 7.3), `-engine` (поток), `-engine-graphs` (графики, 7.3),
   `-engine-scheme`, `-engine-dtc`, `-body` (DTC), `-body-state`, `-body-blocks`, `-chassis`,
-  `-adas`, `-adas-compare`, `-drives`, `-drives-compare`, `-safety`, `-hv`, `-pack`, `-pack-cells`,
+  `-adas`, `-adas-compare`, `-drives`, `-drives-compare`, `-safety`, `-hv`, ~~`-pack`~~ `-pack-health`,
+  `-pack-health-first` (7.3), `-pack-cells`,
   `-pack-cells-partial`, `-pack-cells-paused`, `-pack-live`, `-pack-flags`, `-pack-flags-alarm`, `-climate`, `-lv`, `-cabin`,
   `-hv-live`, `-drives-live`, `-chassis-live`, `-safety-live`, `-body-live`, `-climate-live`, `-lv-live`,
   `-cabin-parked` (2026-10-21, с экраном ещё не сверены), `-body-state-lit`, `-safety-trip` (2026-10-21, иллюстрации
