@@ -92,7 +92,10 @@ internal object SystemPagesBuilder {
             }
         }
 
-    /** Active and history records over a system's read memories, as the autoscan's rows count them. */
+    /**
+     * Active and history records over a system's read memories, as the autoscan's rows count them; until the v4
+     * rail draws pending records with a mark of their own they count as history here.
+     */
     private class Codes(val active: Int, val history: Int, val read: Int, val blocks: Int) {
         val any: Boolean get() = read > 0
     }
@@ -101,7 +104,7 @@ internal object SystemPagesBuilder {
         val results = MEMBERS.getValue(system).mapNotNull { s.results[it] }.filter { it.memoryRead }
         return Codes(
             active = results.sumOf { it.active ?: 0 },
-            history = results.sumOf { it.history ?: 0 },
+            history = results.sumOf { (it.history ?: 0) + (it.pending ?: 0) },
             read = results.size,
             blocks = MEMBERS.getValue(system).size,
         )
@@ -295,9 +298,9 @@ internal object SystemPagesBuilder {
             if (!ecu.uds && ecu.obd) {
                 ScanRequests.OBD_LISTS.forEach { (_, uds) -> if (r.read.reply(uds) != null) asked += "Mode $uds" }
             } else {
-                val mask = "%02X".format(ecu.dtcMask)
-                if (r.read.reply(ScanRequests.count(ecu.dtcMask)) != null) asked += "19 01 $mask"
-                if (r.read.reply(ScanRequests.list(ecu.dtcMask)) != null) asked += "19 02 $mask"
+                val mask = "%02X".format(r.memoryMask)
+                if (r.read.reply(ScanRequests.count(r.memoryMask)) != null) asked += "19 01 $mask"
+                if (r.read.reply(ScanRequests.list(r.memoryMask)) != null) asked += "19 02 $mask"
             }
             latest = maxOf(latest ?: r.read.atMillis, r.read.atMillis)
         }
@@ -421,7 +424,7 @@ internal object SystemPagesBuilder {
         )
         val isg = EcuCatalog.byRequest(0x7E6)!!
         val isgResult = s.results[0x7E6]
-        val isgDtc = isgResult?.takeIf { it.memoryRead }?.let { ((it.active ?: 0) + (it.history ?: 0)).toString() } ?: "не читали"
+        val isgDtc = isgResult?.takeIf { it.memoryRead }?.let { ((it.active ?: 0) + (it.pending ?: 0) + (it.history ?: 0)).toString() } ?: "не читали"
         val software = (s.idents[0x7E6]?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.shown
             ?: (isgResult?.identity as? Polled.Got)?.value
             ?: NA

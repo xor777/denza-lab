@@ -15,6 +15,8 @@ import org.junit.Assert.assertEquals
  *   count and the list are the same bytes;
  * - `722`, `726` (`FF`), `7E3`, `7E6`, `7E7` (`FF`, availability `09`) and `7E0`, `7E2` (`08`) counted
  *   zero, and nothing the product's mask holds that theirs did not was ever seen there.
+ * Mask `0D` (asked where the availability has the pending bit) carries the same way: `720`, `747`,
+ * `722`, `726` from their `FF` reads, `782` from its zero count with `09`.
  * OBD lists that counted zero are `43 00`, `47 00`, `4A 00`. Every other request gets what an
  * unanswered address gets on the car, the gateway's 3: the 49 identified modules whose memory the
  * research never read (22 of them the factory-map candidates) answer their gate and nothing else.
@@ -77,6 +79,11 @@ internal object CarNow {
         val frames = research("dtc-20261018.json").getJSONObject("frames")
         bus.on(0x720, "190109").answer(frames.getJSONObject("count").getString("uds_hex"))
         bus.on(0x720, "190209").answer(frames.getJSONObject("list").getString("uds_hex"))
+        // Mask 0D where the availability has the pending bit (architecture, 5.2): 720, 747, 722 and 726 were read
+        // with FF, which holds every record 0D could; 782 counted zero with 09. Their answers carry to 0D.
+        bus.on(0x720, "19010D").answer(frames.getJSONObject("count").getString("uds_hex"))
+        bus.on(0x720, "19020D").answer(frames.getJSONObject("list").getString("uds_hex"))
+        bus.on(0x782, "19010D").answer(payload(0x782, "190109"))
 
         // Run 1: 747 two records, 722/726 none; 7E3/7E6/7E7 none with availability 09.
         val run1 = obd.getJSONArray("run1").objects()
@@ -85,10 +92,13 @@ internal object CarNow {
         assertEquals(2, row("0747", "1901FF").getInt("count"))
         bus.on(0x747, "190109").answer("5901FF0000%02X".format(r747.size))
         bus.on(0x747, "190209").answer("5902FF" + r747.joinToString("") { record(it.getString("code"), it.getString("status")) })
+        bus.on(0x747, "19010D").answer("5901FF0000%02X".format(r747.size))
+        bus.on(0x747, "19020D").answer("5902FF" + r747.joinToString("") { record(it.getString("code"), it.getString("status")) })
         listOf("0722", "0726", "07E3", "07E6", "07E7").forEach { a ->
             val r = row(a, "1901FF")
             assertEquals(0, r.getInt("count"))
             bus.on(a.toInt(16), "190109").answer("5901%s%02X0000".format(r.getString("mask"), r.getInt("format")))
+            if (r.getString("mask") == "FF") bus.on(a.toInt(16), "19010D").answer("5901%s%02X0000".format(r.getString("mask"), r.getInt("format")))
         }
         // Run 2: ECM and VCU counted zero with mask 08 and availability FF.
         val run2 = obd.getJSONArray("run2_detail").objects()

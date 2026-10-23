@@ -1078,7 +1078,7 @@ private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> 
                 ScanText(tag, Type.PACK_TAG, Ink.FAINT, Modifier.endAt(iw, 0f), baseline = tb)
             }
             Spacer(Modifier.height(v.PACK_GAP.dp))
-            val codes = pack?.takeIf { ScannerWords.read(it.status) }?.let { (it.active.toIntOrNull() ?: 0) + (it.history.toIntOrNull() ?: 0) }
+            val codes = pack?.takeIf { ScannerWords.read(it.status) }?.let { (it.active.toIntOrNull() ?: 0) + (ScannerWords.history(it).toIntOrNull() ?: 0) }
             ScanText("${chip.text} · DTC ${codes ?: "—"}", Type.PACK_STATE, ScannerWords.tone(chip.look).ink)
             Spacer(Modifier.height(v.PACK_GAP.dp))
             val rb = maxOf(Type.PACK_KEY.baseline, Type.PACK_VALUE.baseline)

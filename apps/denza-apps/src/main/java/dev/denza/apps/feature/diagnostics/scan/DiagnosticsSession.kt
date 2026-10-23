@@ -5,8 +5,10 @@ import dev.denza.apps.feature.diagnostics.bus.DiagFailure
 import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.DiagRequest
 import dev.denza.apps.feature.diagnostics.bus.DiagnosticBus
+import dev.denza.apps.feature.diagnostics.ecu.Ecu
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
+import dev.denza.apps.feature.diagnostics.protocol.Polled
 import dev.denza.apps.feature.diagnostics.report.ReportBundles
 import dev.denza.apps.feature.diagnostics.report.ReportDesk
 import dev.denza.apps.feature.diagnostics.report.ReportSection
@@ -160,6 +162,8 @@ internal class DiagnosticsSession(
     /** What the scanner remembers of the software codes (5.5): read from [software] once, then kept here. */
     private var codes = SoftwareHistory()
     private var codesLoaded = false
+    /** The memory masks, an opened code's reads, an opened OBD block's freeze frame and tests (5.2, 6). */
+    private val reads = SessionReads()
 
     /** The parameter page: what it reads, its trace, and its own gap. */
     private class ParamState(val spec: ParamSpec) {
@@ -191,6 +195,8 @@ internal class DiagnosticsSession(
         data class Scan(override val request: Int) : Work
         data class Stream(override val request: Int, val ask: DiagRequest) : Work
         data class Param(override val request: Int, val key: ParamKey.Pid, val ask: DiagRequest) : Work
+        data class Code(override val request: Int, val work: SessionReads.CodeWork) : Work
+        data class Obd(override val request: Int, val what: ObdRead) : Work
     }
 
     /** A unit of work ended early because the channel halted; nothing of it is kept. */
@@ -262,6 +268,8 @@ internal class DiagnosticsSession(
 
     override fun setModuleOpen(request: Int, open: Boolean) = act {
         if (EcuCatalog.byRequest(request) == null) return@act
+        // Once per opening: a screen that says it is open again is the same opening.
+        if (open != (request in this.open)) reads.openModule(request, open)
         if (open) {
             this.open += request
             if (request !in idents) identPending += request
@@ -270,6 +278,10 @@ internal class DiagnosticsSession(
             this.open -= request
             identPending -= request
         }
+    }
+
+    override fun openCode(request: Int, code: String?) = act {
+        if (reads.openCode(request, code, results[request])) retryStopped()
     }
 
     override fun setLiveVisible(request: Int, visible: Boolean) = act {
@@ -490,6 +502,8 @@ internal class DiagnosticsSession(
                 // Not fed to the code history: its codes were learned when it was live, and read again
                 // they could only undo a change seen since.
                 stored.reads.forEach { r -> EcuCatalog.byRequest(r.request)?.let { results[r.request] = ModuleResult(it, r) } }
+                results.values.forEach(reads.masks::learn)
+                reads.masks.restore(stored.pendingMaskRefused)
                 finishedAt = stored.finishedAtMillis
                 phase = ScanPhase.DONE
                 scanIndex = EcuCatalog.routed.size
@@ -528,9 +542,11 @@ internal class DiagnosticsSession(
         if (halt != null) return null
         val shown = live
         val job: Work = userReads.firstOrNull()?.let { Work.Read(it) }
+            ?: reads.nextCode()?.let { Work.Code(it.request, it) }
             // The page alone: nothing else, and nothing while paused or for a car signal.
             ?: param?.let { page -> paramWork(page) ?: return null }
             ?: identPending.firstOrNull()?.let { Work.Ident(it) }
+            ?: reads.nextObd()?.let { (request, what) -> Work.Obd(request, what) }
             ?: when {
                 shown != null -> stream(shown)?.next()?.let { Work.Stream(shown, it) } ?: return null
                 phase == ScanPhase.RUNNING && scanIndex < EcuCatalog.routed.size -> Work.Scan(EcuCatalog.routed[scanIndex].request!!)
@@ -567,7 +583,7 @@ internal class DiagnosticsSession(
                     publish()
                 }
                 val read = try {
-                    ModuleProcedure.read(ecu, wallClock, ::ask)
+                    ModuleProcedure.read(ecu, wallClock, synchronized(lock) { plan(ecu) }, ::ask)
                 } finally {
                     synchronized(lock) {
                         polling = null
@@ -578,6 +594,7 @@ internal class DiagnosticsSession(
                 val (save, learned) = synchronized(lock) {
                     val result = ModuleResult(ecu, read)
                     results[job.request] = result
+                    reads.masks.learn(result)
                     val fresh = learn(SoftwareReads.of(result), read.atMillis)
                     var persist = false
                     if (job is Work.Scan) {
@@ -598,6 +615,20 @@ internal class DiagnosticsSession(
                 save?.let { s -> runCatching { store.save(s) }.onFailure { log("diagnostics: last scan not saved: $it") } }
                 if (learned) keep()
                 entry?.let { remember(it) }
+            }
+            is Work.Code -> {
+                val read = CodeReadProcedure.read(ecu, job.work.raw, wallClock, ::ask)
+                synchronized(lock) {
+                    reads.codeRead(job.work, read)
+                    publish()
+                }
+            }
+            is Work.Obd -> {
+                val read = ObdReadProcedure.read(ecu, job.what, wallClock, ::ask)
+                synchronized(lock) {
+                    reads.obdRead(job.request, job.what, read)
+                    publish()
+                }
             }
             is Work.Ident -> {
                 val read = IdentProcedure.read(ecu, wallClock, ::ask)
@@ -633,6 +664,16 @@ internal class DiagnosticsSession(
                 }
             }
         }
+    }
+
+    /**
+     * What the autoscan asks of [ecu] beyond its gate (5.2, 6): its memory mask as the session knows the block,
+     * and the VIN where it is read - at ECM only while its `09 00`, once read, lists type 02. Under [lock].
+     */
+    private fun plan(ecu: Ecu): ScanPlan {
+        val infoTypes = ecu.request?.let { idents[it] }?.infoTypes as? Polled.Got
+        val vin = ScanRequests.vin(ecu) != ScanRequests.VIN_OBD || infoTypes == null || 0x02 in infoTypes.value
+        return ScanPlan(reads.masks.plan(ecu), vin)
     }
 
     /** [reads], made at [atMillis], into the history; whether it learned anything. Under [lock]. */
@@ -786,6 +827,7 @@ internal class DiagnosticsSession(
     private fun stored() = StoredScan(
         finishedAt ?: wallClock(),
         EcuCatalog.routed.mapNotNull { e -> results[e.request]?.read },
+        reads.masks.refused,
     )
 
     // ------------------------------------------------------------------ the car, four times a second
@@ -869,6 +911,8 @@ internal class DiagnosticsSession(
         liveTable = liveShown?.let { liveTables[it] },
         report = desk.outcome,
         reportRecording = desk.recording,
+        codeReads = reads.codeData(),
+        obdReads = reads.obdData(),
     )
 
     private fun publish() {
@@ -912,6 +956,7 @@ internal class DiagnosticsSession(
         cells = null
         cellsJob = null
         cellsStopped = false
+        reads.reset()
     }
 
     companion object {

@@ -174,7 +174,8 @@ class SystemPagesTest {
         assertEquals("Нет сообщения", body.dtc[1].failureName)
         // The 2026-10-18 reads with mask FF carried here keep their 0x28; the car's 19 02 09 reported 0x08.
         assertTrue(body.dtc.all { it.status == "0x28" && it.word == "подтверждённый" && !it.active })
-        assertTrue(body.dtcFootnote, body.dtcFootnote.startsWith("19 01 09 · 19 02 09 · снимок 13:31:"))
+        // The body's read memories all hold the pending bit in their availability: read with 0D (architecture, 5.2).
+        assertTrue(body.dtcFootnote, body.dtcFootnote.startsWith("19 01 0D · 19 02 0D · снимок 13:31:"))
     }
 
     @Test
@@ -183,6 +184,8 @@ class SystemPagesTest {
         val model = scanned(bus = carNow {
             on(0x747, "190109").answer("5901FF000003")
             on(0x747, "190209").answer("5902FF51700928930E012851700929")
+            on(0x747, "19010D").answer("5901FF000003")
+            on(0x747, "19020D").answer("5902FF51700928930E012851700929")
         })
         val block = model.modules.getValue(0x747).dtc
         assertEquals(listOf("C1170-09", "B130E-01", "C1170-09"), block.records.map { it.code })
@@ -480,8 +483,8 @@ class SystemPagesTest {
         ), engine.points)
         assertEquals("1 250", page.counters.first { it.label == "ОБОРОТЫ" }.value)
         assertTrue(page.line, Regex("^7E0 → 7E8 · OBD-II \\(SAE J1979\\) \\+ UDS · Mode 01 · опрос \\d+ Гц$").matches(page.line))
-        // The stream is ECM's: no other module asked while it runs (after ECM's scan step, 6, and its identification, 18).
-        assertTrue(bus.requests.drop(24).all { it.startsWith("7E0 01") })
+        // The stream is ECM's: no other module asked while it runs (after ECM's scan step, 7 with the VIN, and its identification, 18).
+        assertTrue(bus.requests.drop(25).all { it.startsWith("7E0 01") })
 
         // Hidden, it stops, and the scheme keeps the last values it had.
         s.setLiveVisible(0x7E0, false)

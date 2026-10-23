@@ -63,6 +63,10 @@ internal class SessionSnapshot(
     /** What the journal and the further reads add to the report; null while they are not connected (7.4). */
     val reportJournal: ReportJournal? = null,
     val reportReads: ReportReads? = null,
+    /** Each block's opened codes' snapshot and extended data, by code (6). */
+    val codeReads: Map<Int, Map<String, CodeReadsData>> = emptyMap(),
+    /** An opened OBD block's freeze frame and tests (6). */
+    val obdReads: Map<Int, Pair<FreezeFrameData, ObdTestsData>> = emptyMap(),
 )
 
 /**
@@ -137,6 +141,8 @@ internal class ModelBuilder(
             active = if (scanned) results.sumOf { it.active ?: 0 } else null,
             history = if (scanned) results.sumOf { it.history ?: 0 } else null,
             memoryRead = "${results.count { it.memoryRead }}/$answered",
+            pending = if (scanned) results.sumOf { it.pending ?: 0 } else null,
+            vin = VinReads.data(s.results),
             mil = when {
                 mils.any { it } -> MilState.ON
                 mils.isNotEmpty() -> MilState.OFF
@@ -157,8 +163,9 @@ internal class ModelBuilder(
         fun n(vararg st: ModuleStatus) = rows.count { it.status in st }
         val parts = listOfNotNull(
             "${rows.size} бл.",
-            n(ModuleStatus.OK, ModuleStatus.HISTORY, ModuleStatus.ACTIVE).takeIf { it > 0 }?.let { "прочитано $it" },
+            n(ModuleStatus.OK, ModuleStatus.HISTORY, ModuleStatus.PENDING, ModuleStatus.ACTIVE).takeIf { it > 0 }?.let { "прочитано $it" },
             n(ModuleStatus.ACTIVE).takeIf { it > 0 }?.let { "активные $it" },
+            n(ModuleStatus.PENDING).takeIf { it > 0 }?.let { "ожидающие $it" },
             n(ModuleStatus.HISTORY).takeIf { it > 0 }?.let { "история $it" },
             n(ModuleStatus.UNREAD).takeIf { it > 0 }?.let { "DTC не читали $it" },
             n(ModuleStatus.POLLING).takeIf { it > 0 }?.let { "опрос $it" },
@@ -192,6 +199,7 @@ internal class ModelBuilder(
             history = if (read) r?.history?.toString() ?: "—" else "—",
             status = rowStatus(s, ecu),
             target = target(ecu),
+            pending = if (read) r?.pending?.toString() ?: "—" else "—",
         )
     }
 
@@ -211,6 +219,7 @@ internal class ModelBuilder(
             dtc = dtc(s, ecu, r),
             ident = ident(ecu, r, id, s.software),
             obd = if (ecu.obd) obd(s, ecu, r, id) else null,
+            codeReads = s.codeReads[request].orEmpty(),
         )
     }
 
@@ -247,9 +256,11 @@ internal class ModelBuilder(
                 footnote = (asked + listOfNotNull(stamp)).joinToString(" · ").ifEmpty { "не читали" },
             )
         }
-        val mask = "%02X".format(ecu.dtcMask)
-        val countReply = r?.read?.reply(ScanRequests.count(ecu.dtcMask))
-        val listReply = r?.read?.reply(ScanRequests.list(ecu.dtcMask))
+        val maskByte = r?.memoryMask ?: ecu.dtcMask
+        val withPending = maskByte == ScanRequests.PENDING_MASK
+        val mask = "%02X".format(maskByte)
+        val countReply = r?.read?.reply(ScanRequests.count(maskByte))
+        val listReply = r?.read?.reply(ScanRequests.list(maskByte))
         val memory = r?.memory ?: Polled.NotPolled
         val count = countReply?.let { Polled.of(it) { a -> DiagDecoder.dtcCount(a) } }
         val countText = when (count) {
@@ -281,9 +292,11 @@ internal class ModelBuilder(
         val asked = listOfNotNull(countReply?.let { "19 01 $mask" }, listReply?.let { "19 02 $mask" })
         return DtcView(
             asks = listOf(
-                AskRow("Отказ сейчас или подтверждённые", "19 01 $mask", countText, countReply != null),
+                AskRow(if (withPending) "Отказ сейчас, ожидающие или подтверждённые" else "Отказ сейчас или подтверждённые",
+                    "19 01 $mask", countText, countReply != null),
                 listRow,
-                AskRow("Ожидающие", "19 02 04", "не запрашивали", false),
+                if (withPending) AskRow("Ожидающие", "19 02 $mask", r?.pending?.toString() ?: word(memory), listReply != null || countReply != null)
+                else AskRow("Ожидающие", "19 02 04", "не запрашивали", false),
                 AskRow("Все записи, с непроверенными", "19 02 FF", "не запрашивали", false),
             ),
             records = records,
@@ -382,7 +395,7 @@ internal class ModelBuilder(
         val lists = obdAsks(r).toMutableList()
         if (ecu.uds) {
             val m = r?.memory ?: Polled.NotPolled
-            lists += AskRow("Отказ сейчас или подтверждённые, UDS", "19 02 %02X".format(ecu.dtcMask),
+            lists += AskRow("Отказ сейчас или подтверждённые, UDS", "19 02 %02X".format(r?.memoryMask ?: ecu.dtcMask),
                 (m as? Polled.Got)?.value?.records?.size?.toString() ?: word(m), m !is Polled.NotPolled)
         } else {
             lists += AskRow("UDS 19 и 22", "—", "не поддерживает", false)
@@ -405,6 +418,8 @@ internal class ModelBuilder(
                 recording = s.recording == request,
                 engineRunning = s.car.engineRunning,
             ) ?: LiveView(false, "—", emptyList(), emptyList(), s.recording == request),
+            freezeFrame = s.obdReads[request]?.first ?: FreezeFrameData(),
+            tests = s.obdReads[request]?.second ?: ObdTestsData(),
         )
     }
 

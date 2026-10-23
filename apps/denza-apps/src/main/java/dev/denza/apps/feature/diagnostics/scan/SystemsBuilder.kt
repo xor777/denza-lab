@@ -64,7 +64,7 @@ internal object SystemsBuilder {
             val st = status(s, ecu)
             val word = when (st) {
                 ModuleStatus.OK -> "OK"
-                ModuleStatus.HISTORY -> "история"
+                ModuleStatus.HISTORY, ModuleStatus.PENDING -> "история"
                 ModuleStatus.ACTIVE -> "DTC активные"
                 ModuleStatus.UNREAD -> "ошибки не читали"
                 ModuleStatus.POLLING -> "опрос…"
@@ -86,7 +86,7 @@ internal object SystemsBuilder {
         fun dtcs(abbreviation: String): String? {
             val r = EcuCatalog.all.first { it.abbreviation == abbreviation }.request?.let { s.results[it] } ?: return null
             if (!r.memoryRead) return null
-            return "DTC ${(r.active ?: 0) + (r.history ?: 0)}"
+            return "DTC ${(r.active ?: 0) + (r.pending ?: 0) + (r.history ?: 0)}"
         }
         val ecm = s.results[0x7E0]
         val units = listOf(
@@ -207,7 +207,7 @@ internal object SystemsBuilder {
             CompareRow(name, source, unit, values.map { cell(it) })
         fun dtc(ecu: Ecu): String {
             val r = s.results[ecu.request] ?: return "не читали"
-            return if (r.memoryRead) ((r.active ?: 0) + (r.history ?: 0)).toString() else ModelBuilder.word(r.memory)
+            return if (r.memoryRead) ((r.active ?: 0) + (r.pending ?: 0) + (r.history ?: 0)).toString() else ModelBuilder.word(r.memory)
         }
         fun f194(ecu: Ecu) = s.results[ecu.request]?.identity?.let { (it as? Polled.Got)?.value ?: ModelBuilder.word(it) } ?: "не читали"
         fun f195(ecu: Ecu) = s.idents[ecu.request]?.dids?.get(IdentDid.F195)?.let(ModelBuilder::identText) ?: "не читали"

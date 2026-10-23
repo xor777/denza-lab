@@ -134,7 +134,8 @@ class IdentityGateTest {
             answer?.let { bus.on(0x726, "22F194").answer(it) }
             bus.on(0x726, "190109").answer("5901FF000000")
             val r = scan(zcu, bus)
-            assertEquals("$answer", listOf("726 22F194", "726 190109"), bus.requests)
+            // Its availability FF has the pending bit: 0D follows, unanswered here, and 09's zero stands (5.2).
+            assertEquals("$answer", listOf("726 22F194", "726 190109", "726 19010D"), bus.requests)
             assertEquals("$answer", ModuleStatus.OK, r.status)
             assertNull("$answer", r.identified)
         }
