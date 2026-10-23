@@ -101,7 +101,8 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `scanner-sys-engine-rpm`, `-ect`, `scanner-sys-pack-cell` | one parameter on its own page (`sysParam()`), opened from a row of the live data: engine speed with a throttle blip, coolant with its norm as a band, the pack's cell minimum flat at 10 Hz (a signal of the car: no «Запись») |
 | `scanner-sys-drives-compare`, `scanner-sys-adas-compare` | the drives and the seven driver-assistance blocks side by side at the rail's width |
 | `scanner-body-dtc` | a body block's memory: two historical DTC, each status in words; under them the selected code's status byte as one strip from bit 7 to 0 and, beside it, the read with its record picked out |
-| `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
+| `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on. Since 2026-10-23 every ECM board has four tabs, «Тесты» second |
+| `scanner-ecu-tests`, `-ecu-tests-out` | the ECM's «Тесты», Mode 06 (`ecuTests()`), illustrative - no Mode 06 of this car has been read: what was asked and what came on one muted line, then 11 monitors of a 1.5 l petrol engine in two columns balanced by lines - a title «КАТАЛИЗАТОР, РЯД 1 · MID 21», a test a line (TID, the value, its unit, the minimum, a hairline scale with the value's mark, the maximum) and the monitor's exchange under it; the EVAP leak test not run since the codes were cleared («не выполнялся», no scale); the norm says nothing. On `-out` the catalyst's 0,21 under its minimum 0,30: its monitor first, the value, its mark at the scale's end with a point beyond it and «вне нормы» orange, «ВНЕ НОРМЫ 1» in the head. The fixture holds the answers' bytes and the words of each test; the board reads order, pass, side and mark from the bytes. `TestsBoardContractTest` builds both from the bytes through the session's own read |
 | `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs - no «Сверка с F194» since 2026-10-21: the cache is the record the role was proved by, not a reference. F195 and F193 as the car's updater reads them («4.00.10 · 19031900», «1.0.0»); the identification's own side is wider than the DTC screen's (`ecuIdent.left`/`right`) |
 | `scanner-ecu-ident-updated` | a UDS block's identification after an update: the BMS with «ПО обновлено · <дата>» - «был <версия> · <код>» under its F195, the code history's row (illustrative new code, version and day). `SoftwareBoardContractTest` builds it from the session |
 | `scanner-esp-dtc` | ESP/IPB 782 opened from «Шасси»: what was asked, the mask's bits as the status strip from 7 to 0 under its availability, nothing came back |
@@ -351,7 +352,11 @@ Before v4:
   «0,3 МБ» under «Куда» differs, a size the screen cannot know before a save. The new screens:
   «Сводка» 1.99 and 2.04 %, «Блоки» 1.98, the code 1.47 and 1.08, «Здоровье» 1.51 and 1.45,
   «Графики» 1.06, «Журнал» 1.17 and 0.84, its «Сравнение» 0.82 and «Коды» 2.07 (nineteen rows of
-  mono text, as dense as «Блоки»), the HV scheme 1.34.
+  mono text, as dense as «Блоки»), the HV scheme 1.34. «Тесты» of the ECM (2026-10-23, `emulator-5590`, AVD
+  `denza_hu_tests`, API 34): 2.82 % and 2.86 % (mean 2.07 and 2.10 levels) - rows and columns agree within a pixel,
+  the rest is the glyphs of a page that is almost all mono text and white figures; the ECM boards whose tab row got
+  «Тесты» again: `-ecu-dtc` 1.73 %, `-ecu-fault` 1.84, `-ecu-live` 1.58, `-ecu-ident` 1.48, `-ecu-ident-updated`
+  1.09, `-sys-engine-dtc` 1.95, «Отчёт» 3.46 whole and 1.00 without its sheet.
 - Corrected while the system boards were ported: «→» in text had been drawn by the schemes' flow
   arrow, a second function of the same name, so every route on the system boards lost its arrow
   (the flow arrow is `flow()` now); a counter is as wide as its value and a padding's room, rounded
