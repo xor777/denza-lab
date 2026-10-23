@@ -62,8 +62,8 @@ final class ConverterTests {
                 check(highway ? (l.roadClass == 0 || l.roadClass == 6 || l.roadClass == -1) && l.direction == 1 && l.ownership == 0 && !l.hasTrafficLight
                                 : l.roadClass == -1 && l.ownership == -1 && (l.formway == -1 || l.formway == 4) && l.laneNum == 0,
                         name + ": stock NULLs except the profile's highway and roundabout facts");
-                check(l.mainAction == 0 || l == s.links.get(s.links.size() - 1), name + ": only the manoeuvre link carries a MainAction");
-                check(l.linkType == -1 || l.linkType == 1 || l.linkType == 2, name + ": linktype only NULL/ferry/tunnel");
+                check(l.mainAction == 0, name + ": link MainAction 0, as on every stock segment-end link");
+                check(l.linkType == 0 || l.linkType == 1 || l.linkType == 2, name + ": linktype common/ferry/tunnel, never NULL");
                 check(l.pointCount() >= 2, name + ": a link has at least two points");
                 check(l.topoId > 0, name + ": positive link id");
             }
@@ -71,9 +71,10 @@ final class ConverterTests {
             check(lights <= s.trafficLightNum, name + ": segment light count covers its flagged links");
             groupLights += s.trafficLightNum;
             total += s.length;
-            check(Math.abs(s.length - (c.segmentEndM[si] - c.segmentBeginM[si])) <= 0.5 + 1e-9, name + ": segment length is the rounded geometry");
+            double geometry = c.segmentEndM[si] - c.segmentBeginM[si];
+            check(s.length <= geometry + 1e-9 && s.length > geometry - s.links.size(), name + ": segment length is its links' whole metres cut down");
         }
-        check(Math.abs(total - c.totalM) <= p.segments.size() * 0.5, name + ": route length within rounding");
+        check(total <= c.totalM + 1e-9 && total > c.totalM - p.linkCount(), name + ": route length within truncation");
         // F2: every flagged link ends at a light; every light past the start is owned by the link ending at it.
         int link = 0;
         for (StockPath.Segment s : p.segments) for (StockPath.Link l : s.links) {
@@ -140,7 +141,8 @@ final class ConverterTests {
         check(c.path.segments.get(0).mainAction == 1, "synthetic: segment 0 ends with the next section's LEFT (MainAction 1)");
         equal("Первая", c.path.segments.get(0).links.get(0).roadName, "synthetic: road name from the section toponym");
         StockPath.Segment s0 = c.path.segments.get(0);
-        equal(1, s0.links.get(s0.links.size() - 1).mainAction, "synthetic: the link ending at the LEFT carries MainAction 1");
+        equal(0, s0.links.get(s0.links.size() - 1).mainAction, "synthetic: the link ending at the LEFT keeps MainAction 0 (stock)");
+        equal(1, s0.mainAction, "synthetic: the segment carries the LEFT");
         // Highway facts from the factory profile: class by posted limit, divided, one way, public, lane sign width.
         Double[] hwLimits = new Double[20];
         for (int i = 0; i < 20; i++) hwLimits[i] = i < 10 ? 16.6 : 27.8;

@@ -16,6 +16,8 @@ import java.util.Set;
 public final class NavigatorDriver {
     /** A fix older than one fix interval is not a new fix: the stock sends each fix as it comes. */
     public static final long MAX_FIX_AGE_MS = 1000;
+    /** A route that disappears this close to its end has been finished. */
+    public static final double ARRIVAL_M = 50;
     /** Without any observation this long the module is gone: navigation ends as on a stop. */
     public static final long WATCHDOG_MS = 10000;
 
@@ -55,6 +57,9 @@ public final class NavigatorDriver {
     private int lastLimit = Integer.MIN_VALUE;
     private final Set<String> retired = new HashSet<>();
     private RouteConverter.Converted current;
+    private YandexRoute currentRoute;
+    private double lastRemainM = Double.MAX_VALUE;
+    private boolean firstNaviInfo;
     private final Object watchdog = "navigator-watchdog";
 
     public NavigatorDriver(StockFeed feed, Coordinates.Frame frame, Scheduler clock) {
@@ -71,13 +76,21 @@ public final class NavigatorDriver {
         if (o.finished && naving) {
             retired.add(currentRouteId);
             naving = false;
+            feed.onTrafficEvents();
             feed.onNaviArrive();
             feed.onNavStop();
             current = null; currentRouteId = null; currentContent = null;
             active = false;
         }
         if (!active && naving) {
+            // Navigator drops a finished route at once (the emulator run never showed ROUTE_FINISHED):
+            // a route that goes away within ARRIVAL_M of its end has arrived, as Amap's onNaviArrive.
             naving = false;
+            if (lastRemainM <= ARRIVAL_M) {
+                retired.add(currentRouteId);
+                feed.onTrafficEvents();
+                feed.onNaviArrive();
+            }
             feed.onNavStop();
             current = null; currentRouteId = null; currentContent = null;
         }
@@ -88,11 +101,23 @@ public final class NavigatorDriver {
                 catch (RuntimeException e) { converted = null; }
                 if (converted != null && (!converted.contentKey.equals(currentContent) || !o.routeId.equals(currentRouteId))) {
                     int type = !naving ? 1 : sawReroute ? 2 : 5;   // RouteTypeCommon, RouteTypeYaw, RouteTypeTMC
+                    if (!naving) {
+                        // The stock order: guidance starts (101, the resets), then the route data update.
+                        naving = true;
+                        firstNaviInfo = true;
+                        lastRemainM = Double.MAX_VALUE;
+                        feed.onNavStart();
+                    }
                     current = converted;
+                    currentRoute = o.route;
                     currentContent = converted.contentKey;
                     currentRouteId = o.routeId;
                     sawReroute = false;
                     feed.onRouteResult(converted, type);
+                    // Amap guides the new path from its next NaviInfo cycle, not the tick that brought it,
+                    // and its traffic-event update for the new path follows that first NaviInfo.
+                    lastNaviInfo = o.monotonicMs;
+                    firstNaviInfo = true;
                 }
             }
             if (!naving && current != null && o.routeId.equals(currentRouteId)) {
@@ -106,7 +131,15 @@ public final class NavigatorDriver {
             }
         }
         mode = active ? o.mode : "off";
-        int limit = Double.isNaN(o.speedLimitMps) || o.speedLimitMps <= 0 ? 0 : RouteConverter.round(o.speedLimitMps * 3.6);
+        // The legal limit of the road here: Navigator's posted limit, else the route's own per-edge limit.
+        double limitMps = o.speedLimitMps;
+        boolean onCurrent = naving && currentRoute != null && o.routeId != null && o.routeId.equals(currentRouteId)
+                && o.positionOnRoute && !Double.isNaN(o.scalar);
+        if (Double.isNaN(limitMps) && onCurrent && currentRoute.speedLimits != null) {
+            Double edge = currentRoute.speedLimits[Math.min((int) Math.floor(o.scalar), currentRoute.edges() - 1)];
+            if (edge != null) limitMps = edge;
+        }
+        int limit = Double.isNaN(limitMps) || limitMps <= 0 ? 0 : RouteConverter.round(limitMps * 3.6);
         if (limit != lastLimit) { lastLimit = limit; feed.onCurrentRoadSpeed(limit); }
 
         boolean fine = "FINE".equals(o.locationClass) && !Double.isNaN(o.lon) && o.stamp != Long.MIN_VALUE;
@@ -114,8 +147,15 @@ public final class NavigatorDriver {
         lastStamp = o.stamp;
         if (naving && current != null && o.mode.equals("guidance") && o.positionOnRoute && o.routeId.equals(currentRouteId)
                 && !Double.isNaN(o.scalar))
-            if (naviInfoDue(o.monotonicMs)) feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps));
-        feed.onLocation(new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, o.heading,
+            if (naviInfoDue(o.monotonicMs)) {
+                feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps));
+                lastRemainM = current.totalM - current.metres(o.scalar);
+                // Amap's first traffic-event update follows the guidance start by about a second.
+                if (firstNaviInfo) { firstNaviInfo = false; feed.onTrafficEvents(); }
+            }
+        // Amap's matched course is the road's: on the route, the bearing of the polyline edge under the car.
+        double course = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
+        feed.onLocation(new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh));
     }
 

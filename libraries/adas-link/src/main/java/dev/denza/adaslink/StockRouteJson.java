@@ -108,8 +108,15 @@ public final class StockRouteJson {
         List<Object> links = new ArrayList<>(), pnts = new ArrayList<>(), groups = new ArrayList<>();
         int[] counts = {0, 0}; // linkCnt, pntCnt
         int segmentCount = path.segments.size();
-        Map<String, Object> group = group(path, 0, segmentCount, UNNAMED, links, pnts, counts, strings);
-        if (segmentCount > 0) groups.add(group);
+        if (!path.groups.isEmpty()) {
+            // l.q(): one guide group per Amap group segment.
+            for (Object[] g : path.groups)
+                groups.add(group(path, (Integer) g[0], (Integer) g[1], (String) g[2], links, pnts, counts, strings));
+        } else {
+            // l.r(): no group segments, one group over every segment.
+            Map<String, Object> group = group(path, 0, segmentCount, UNNAMED, links, pnts, counts, strings);
+            if (segmentCount > 0) groups.add(group);
+        }
         List<Object> lights = new ArrayList<>();
         for (double[] light : path.trafficLights) {
             Map<String, Object> t = Json.object();

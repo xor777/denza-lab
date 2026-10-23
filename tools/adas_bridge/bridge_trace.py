@@ -16,9 +16,14 @@ Two inputs, always labelled in the trace's provenance:
           of the instrumented Navigator), through capture_replay.
 
     python3 -m tools.adas_bridge.bridge_trace synth --stock-trace RUN/stock-trace.json --out RUN/bridge-trace.json
+    python3 -m tools.adas_bridge.bridge_trace synth --engine java --stock-trace RUN/stock-trace.json --out RUN/bridge-trace.json
     python3 -m tools.adas_bridge.bridge_trace yandex --snapshot S.json --progress DIR --out OUT/bridge-trace.json
 
-Nothing is sent anywhere; LiveBridge and FakeReceiver are local.
+Engines: "java" (default) runs the bridge itself - libraries/adas-link's NavigatorDriver and
+StockFeed on virtual time (ReplayTool) - so every message it would fire is in the trace; "python"
+is the host prototype (LiveBridge, position/TrafficInfo/status only).
+
+Nothing is sent anywhere; LiveBridge and FakeReceiver are local, the Java feed records a dry run.
 """
 import argparse
 import bisect
@@ -26,6 +31,10 @@ import copy
 import glob
 import json
 import math
+import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 from .bridge import read_json
@@ -205,11 +214,114 @@ def bench_events(engine_log):
     return events
 
 
+def java_classes():
+    """Compile libraries/adas-link (plain part) with its host tools; returns the class directory."""
+    home = os.environ.get('JAVA_HOME', '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home')
+    javac = Path(home) / 'bin/javac'
+    if not javac.exists():
+        javac = Path(shutil.which('javac') or 'javac')
+    lib = ROOT / 'libraries/adas-link/src'
+    sources = [p for p in sorted((lib / 'main/java').rglob('*.java')) if p.name not in ('AndroidScheduler.java', 'SomeIpPublisher.java')]
+    sources += [p for p in sorted((lib / 'test/java').rglob('*.java')) if p.parent.name != 'oracle']
+    out = Path(tempfile.mkdtemp(prefix='adas-link-replay-'))
+    subprocess.run([str(javac), '--release', '8', '-encoding', 'UTF-8', '-nowarn', '-Xlint:-options', '-d', str(out),
+                    *map(str, sources)], check=True, capture_output=True)
+    return javac.parent / 'java', out
+
+
+def java_steps(trace, routes):
+    """Navigator observations for the Java driver, one per GNSS tick, idle before the first route
+    and after arrival (the fix keeps coming; the stock map's idle stream continues)."""
+    session = 'synthetic-from-stock'
+    samples, snapshots = synth_samples(trace, routes, session)
+    by_tick = {round(s['t_ms'], 3): s for s in samples}
+    # Navigation ends when the stock's did (its navi stop), arriving only if the stock arrived.
+    marks = {e.get('name'): e['t_ms'] for e in trace['events'] if e.get('kind') == 'context'
+             and e.get('name') in ('adas_navi_arrive', 'adas_navi_stop')}
+    end_t = marks.get('adas_navi_stop', marks.get('adas_navi_arrive'))
+    arrived = 'adas_navi_arrive' in marks
+    steps, seen, finished = [], set(), False
+    for tick in trace['provenance'].get('gnssTicks') or []:
+        t = round(tick['t_ms'], 3)
+        now = int(round(tick['t_ms']))
+        location = {'longitude': tick['sdk'][0], 'latitude': tick['sdk'][1], 'accuracy': 3.0,
+                    'heading': tick.get('course'), 'speed': tick.get('speed_mps'),
+                    'absoluteTimestamp': now, 'relativeTimestamp': now}
+        sample = copy.deepcopy(by_tick.get(t)) or {'schema': 'denza-yandex-guidance-v1', 'mode': 'off', 'routeId': None}
+        if end_t is not None and tick['t_ms'] >= end_t and sample.get('mode') != 'off':
+            sample = {'schema': 'denza-yandex-guidance-v1', 'mode': 'off', 'routeId': None, 'syntheticArrival': arrived}
+        sample.update(capturedUptimeMs=now, capturedAtMs=now, locationClass='FINE', location=location)
+        sample.pop('freshLocation', None)
+        if sample.get('syntheticArrival') and not finished:
+            finished = True
+            sample['routeStatus'] = 'ROUTE_FINISHED'
+        snapshot = None
+        if sample.get('routeId') and sample['routeId'] not in seen:
+            seen.add(sample['routeId'])
+            snapshot = snapshots[sample['routeId']]
+        steps.append({'t_ms': tick['t_ms'], 'sample': sample, 'snapshot': snapshot})
+    if end_t is not None and steps and steps[-1]['t_ms'] < end_t and steps[-1]['sample'].get('mode') != 'off':
+        # The stock's guidance outlived its GNSS ticks (stopped by its own timer): end ours then too.
+        last = copy.deepcopy(steps[-1]['sample'])
+        steps.append({'t_ms': end_t, 'snapshot': None, 'sample': {
+            'schema': 'denza-yandex-guidance-v1', 'mode': 'off', 'routeId': None, 'locationClass': 'FINE',
+            'capturedUptimeMs': last['capturedUptimeMs'], 'location': last['location'],
+            **({'routeStatus': 'ROUTE_FINISHED'} if arrived else {})}})
+    return steps, snapshots
+
+
+def java_events(dry_run_path):
+    """Dry-run JSONL fires -> feed events, decoded with the same decoder as stock fires."""
+    events, assembler = [], RouteAssembler()
+    for order, line in enumerate(Path(dry_run_path).read_text().splitlines()):
+        record = json.loads(line)
+        if record.get('kind') == 'fire':
+            event = decode_event(int(record['topic']), bytes.fromhex(record['payloadHex']), assembler)
+            event.update(t_ms=float(record['monotonicMs']), kind='fire', thread='bridge', order=order)
+            events.append(event)
+        elif record.get('input') == 'ack':
+            events.append(dict(t_ms=float(record['monotonicMs']), kind='answer', fake=True, name='MMTPathSelected', order=order,
+                               fields={'pathIDResp': record.get('pathIDResp'), 'statusCode': 200, 'mock': 'emulated'}))
+        elif record.get('kind') == 'input' and record.get('monotonicMs') is not None:
+            events.append(dict(t_ms=float(record['monotonicMs']), kind='context', name='bridge_' + record['input'], order=order,
+                               fields={k: v for k, v in record.items() if k not in ('kind', 'input', 'monotonicMs')}))
+    return events
+
+
+def cmd_synth_java(args, trace, routes):
+    steps, snapshots = java_steps(trace, routes)
+    java, classes = java_classes()
+    work = Path(tempfile.mkdtemp(prefix='adas-replay-'))
+    try:
+        (work / 'input.json').write_text(json.dumps({'frame': 'wgs84', 'acceptSimulated': True, 'tailMs': 6000,
+                                                     'ackDelayMs': 80, 'steps': steps}))
+        subprocess.run([str(java), '-cp', str(classes), 'dev.denza.adaslink.ReplayTool', str(work / 'input.json'),
+                        str(work / 'dry-run.jsonl')], check=True)
+        events = java_events(work / 'dry-run.jsonl')
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        dry = args.out.with_name(args.out.stem + '.dry-run.jsonl')
+        shutil.copyfile(work / 'dry-run.jsonl', dry)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+        shutil.rmtree(classes, ignore_errors=True)
+    provenance = {'source': 'libraries/adas-link (NavigatorDriver + StockFeed, dry run) on SYNTHETIC Yandex input from the '
+                            'stock trace (geometry, sections, lights, tunnels, way points; positions projected on it; '
+                            'idle fixes before the route and after arrival); identity frame; emulated ADAS answer 80 ms',
+                  'engine': 'java', 'stockTrace': str(args.stock_trace), 'steps': len(steps), 'dryRun': str(dry),
+                  'routes': [{'routeId': k, 'sections': len(v['sections']), 'points': len(v['points']),
+                              'lights': len(v['trafficLights'])} for k, v in snapshots.items()],
+                  'gnssTicks': trace['provenance'].get('gnssTicks')}
+    out = write_trace(args.out, 'bridge', 'java:' + Path(args.stock_trace).parent.name, events, provenance, rebase=False)
+    print(json.dumps(dict(trace=str(args.out), events=len(out['events']), steps=len(steps), routes=len(snapshots))))
+
+
 def cmd_synth(args):
     trace = read_trace(args.stock_trace)
     routes = stock_routes(trace)
     if not routes:
         raise SystemExit('stock trace has no complete route publication')
+    if getattr(args, 'engine', 'java') == 'java':
+        return cmd_synth_java(args, trace, routes)
     session = 'synthetic-from-stock'
     samples, snapshots = synth_samples(trace, routes, session)
     engine = LiveBridge(decode_someip_route(GOLDEN.read_bytes()), 'wgs84')
@@ -272,6 +384,7 @@ def main():
     p = sub.add_parser('synth')
     p.add_argument('--stock-trace', type=Path, required=True)
     p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--engine', choices=('java', 'python'), default='java')
     p.set_defaults(func=cmd_synth)
     p = sub.add_parser('yandex')
     p.add_argument('--snapshot', type=Path, required=True)

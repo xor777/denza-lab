@@ -106,6 +106,7 @@ final class DynamicTests {
         wireBytes();
         chunking();
         sequences(root, m4);
+        vanishing(m4);
     }
 
     /** Idle 100s, route + selection, 101, positions on the path, arrival 110 x3 then 100 and pathId -1. */
@@ -388,6 +389,23 @@ final class DynamicTests {
         check(statuses(rr).stream().skip(1).allMatch(v -> v == 101L), "reroute: 101 throughout");
         List<Map<String, Object>> traffic = rr.fires(Topics.TRAFFIC_INFO);
         check(traffic.stream().anyMatch(t -> Boolean.TRUE.equals(inner(t).get("offCourse"))), "reroute: offCourse once after the yaw");
+    }
+
+    /** Navigator drops a finished route without a ROUTE_FINISHED: near the end it is an arrival, far from it a cancel. */
+    static void vanishing(YandexRoute m4) {
+        for (boolean nearEnd : new boolean[]{true, false}) {
+            Rig rig = new Rig(11_000_000);
+            double end = m4.edges() - 0.05;
+            rig.observe(guidance(11_000_100, m4.routeId, m4, nearEnd ? end - 0.5 : 1.0, 10, 1));
+            rig.observe(guidance(11_001_200, m4.routeId, null, nearEnd ? end : 1.2, 10, 2));
+            NavigatorDriver.Observation gone = new NavigatorDriver.Observation();
+            gone.monotonicMs = 11_002_200;
+            rig.observe(gone);
+            rig.clock.advanceTo(11_007_000);
+            boolean arrived = statuses(rig).contains(110L);
+            equal(nearEnd, arrived, nearEnd ? "route gone within 50 m of its end: arrival, 110" : "route gone mid-way: a stop, no 110");
+            check(rig.fires(Topics.SD_TRAFFIC_INCIDENT).size() >= 3, "incident list at start, at the first NaviInfo and at the stop");
+        }
     }
 
     static YandexRoute renamed(YandexRoute r, String id) {

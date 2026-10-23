@@ -99,44 +99,51 @@ public class GsonOracleTest {
         NaviToEHPData d = new NaviToEHPData();
         d.pathID = path.pathId;
         for (double[] t : path.trafficLights) d.trafficLights.add(new Pnt(t[0], t[1]));
-        GuideGroup g = new GuideGroup();
-        g.groupName = "无名道路";
-        for (int i = 0; i < path.segments.size(); i++) {
-            StockPath.Segment s = path.segments.get(i);
-            g.groupTrafficLightsCount += s.trafficLightNum;
-            g.groupTime += s.travelTime;
-            g.groupLen += s.length;
-            if (i == 0) {
-                g.groupIconType = s.mainAction;
-                if (!s.links.isEmpty() && s.links.get(0).pointCount() > 0)
-                    g.mGroupEnterCoord = new Pnt(s.links.get(0).lon[0] / 3600000.0d, s.links.get(0).lat[0] / 3600000.0d);
+        // l.q() with group segments, else l.r() (one group over all segments).
+        List<Object[]> groups = new ArrayList<>(path.groups);
+        if (groups.isEmpty() && !path.segments.isEmpty()) groups.add(new Object[]{0, path.segments.size(), "无名道路"});
+        for (Object[] grp : groups) {
+            int start = (Integer) grp[0], count = (Integer) grp[1];
+            GuideGroup g = new GuideGroup();
+            g.groupName = (String) grp[2];
+            for (int n = 0; n < count; n++) {
+                int i = start + n;
+                StockPath.Segment s = path.segments.get(i);
+                g.groupTrafficLightsCount += s.trafficLightNum;
+                g.groupTime += s.travelTime;
+                g.groupLen += s.length;
+                if (n == 0) {
+                    g.groupIconType = s.mainAction;
+                    if (!s.links.isEmpty() && s.links.get(0).pointCount() > 0)
+                        g.mGroupEnterCoord = new Pnt(s.links.get(0).lon[0] / 3600000.0d, s.links.get(0).lat[0] / 3600000.0d);
+                }
+                SegmentItem item = new SegmentItem();
+                if (i + 1 < path.segments.size() && !path.segments.get(i + 1).links.isEmpty())
+                    item.navigationNextRoadName = AdasLinkTestAccess.lastRoadName(path.segments.get(i + 1));
+                item.crntSegmLinkCnt = s.links.size();
+                item.description = AdasLinkTestAccess.description(s, item.navigationNextRoadName);
+                item.navigationLen = (int) s.length;
+                item.navigationMainAction = s.mainAction;
+                item.navigationAssitAction = s.assistantAction;
+                item.trafficLightNum = s.trafficLightNum;
+                item.linkBegIdx = d.linkCnt;
+                item.isArriveWayPoint = s.assistantAction == 35 || s.assistantAction == 36;
+                for (StockPath.Link l : s.links) {
+                    d.linkCnt++;
+                    LinkItem li = new LinkItem();
+                    li.linkID = l.topoId; li.roadclass = l.roadClass; li.roadname = l.roadName; li.len = l.length; li.linktype = l.linkType;
+                    li.formway = l.formway; li.hasTrafficLight = l.hasTrafficLight; li.laneNum = l.laneNum; li.hasMultiOut = l.hasMultiOut;
+                    li.mainAction = l.mainAction; li.assistantAction = l.assistantAction; li.adminCode = (int) l.adcode;
+                    li.ownership = l.ownership >= 1 && l.ownership <= 4 ? 1 : l.ownership;
+                    li.hasParallel = l.hasParallel; li.direction = l.direction; li.speedLimit = 0; li.hasMixFork = l.hasMixFork;
+                    li.pntBegIdx = d.pntCnt; li.pntCnt = l.pointCount();
+                    d.links.add(li);
+                    for (int k = 0; k < l.pointCount(); k++) { d.pntCnt++; d.pnts.add(new Pnt(l.lon[k] / 3600000.0d, l.lat[k] / 3600000.0d)); }
+                }
+                g.segments.add(item);
             }
-            SegmentItem item = new SegmentItem();
-            if (i + 1 < path.segments.size() && !path.segments.get(i + 1).links.isEmpty())
-                item.navigationNextRoadName = AdasLinkTestAccess.lastRoadName(path.segments.get(i + 1));
-            item.crntSegmLinkCnt = s.links.size();
-            item.description = AdasLinkTestAccess.description(s, item.navigationNextRoadName);
-            item.navigationLen = (int) s.length;
-            item.navigationMainAction = s.mainAction;
-            item.navigationAssitAction = s.assistantAction;
-            item.trafficLightNum = s.trafficLightNum;
-            item.linkBegIdx = d.linkCnt;
-            item.isArriveWayPoint = s.assistantAction == 35 || s.assistantAction == 36;
-            for (StockPath.Link l : s.links) {
-                d.linkCnt++;
-                LinkItem li = new LinkItem();
-                li.linkID = l.topoId; li.roadclass = l.roadClass; li.roadname = l.roadName; li.len = l.length; li.linktype = l.linkType;
-                li.formway = l.formway; li.hasTrafficLight = l.hasTrafficLight; li.laneNum = l.laneNum; li.hasMultiOut = l.hasMultiOut;
-                li.mainAction = l.mainAction; li.assistantAction = l.assistantAction; li.adminCode = (int) l.adcode;
-                li.ownership = l.ownership >= 1 && l.ownership <= 4 ? 1 : l.ownership;
-                li.hasParallel = l.hasParallel; li.direction = l.direction; li.speedLimit = 0; li.hasMixFork = l.hasMixFork;
-                li.pntBegIdx = d.pntCnt; li.pntCnt = l.pointCount();
-                d.links.add(li);
-                for (int k = 0; k < l.pointCount(); k++) { d.pntCnt++; d.pnts.add(new Pnt(l.lon[k] / 3600000.0d, l.lat[k] / 3600000.0d)); }
-            }
-            g.segments.add(item);
+            d.guideGroups.add(g);
         }
-        if (!path.segments.isEmpty()) d.guideGroups.add(g);
         MessageSend send = new MessageSend();
         send.data.add(d);
         send.routeType = routeType;

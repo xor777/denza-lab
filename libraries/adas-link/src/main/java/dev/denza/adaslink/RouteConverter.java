@@ -153,9 +153,12 @@ public final class RouteConverter {
             if (ranges == null) continue;
             for (double[] r : ranges) for (double s : r) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
         }
-        // A lane sign on a highway ends its link, so the approach carries the sign's lane count.
+        // Junctions Yandex marks: a lane sign (kept like a light, so a highway approach carries its
+        // lane count), a direction sign, a restricted turn or entry. Amap's links run junction to
+        // junction; Yandex names no other junction.
         if (route.laneSigns != null) for (double[] sign : route.laneSigns)
-            if (sign[0] > 0 && sign[0] < edges && inside(route.highways, sign[0] - 1e-9)) candidates.add(new double[]{sign[0], 1});
+            if (sign[0] > 0 && sign[0] < edges) candidates.add(new double[]{sign[0], 1});
+        if (route.junctions != null) for (double s : route.junctions) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
         candidates.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(b[1], a[1]));
 
         StockPath path = new StockPath();
@@ -194,8 +197,11 @@ public final class RouteConverter {
                 points(route, frame, a, c, link);
                 link.topoId = topoId(link);
                 double middle = (a + c) / 2;
+                // Yandex lists tunnels and ferries in full; any other link is the SDK's common link (0).
+                // Bridges and elevated roads are not reported apart, so they are common here too.
                 if (inside(route.tunnels, middle)) link.linkType = StockPath.LINK_TYPE_TUNNEL;
                 else if (inside(route.ferries, middle)) link.linkType = StockPath.LINK_TYPE_FERRY;
+                else link.linkType = StockPath.LINK_TYPE_COMMON;
                 exact[k] = metres(cumulative, c) - metres(cumulative, a);
                 segment.links.add(link);
                 linkSegment.add(si);
@@ -205,7 +211,10 @@ public final class RouteConverter {
                 linkBeginS.add(a);
                 linkEndS.add(c);
             }
-            int[] lengths = wholeMetres(exact);
+            // Amap's link length is whole metres cut down (bench: stock len = haversine - 0.47 m
+            // median over 1 177 factory links); the segment's is their sum, as the stock route.
+            int[] lengths = new int[exact.length];
+            for (int k = 0; k < exact.length; k++) lengths[k] = (int) Math.floor(exact[k]);
             long sum = 0;
             for (int k = 0; k < lengths.length; k++) { segment.links.get(k).length = lengths[k]; sum += lengths[k]; }
             segment.length = sum;
@@ -235,6 +244,7 @@ public final class RouteConverter {
             path.segments.get(linkSegment.get(owner)).trafficLightNum++;
         }
         attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative);
+        groups(sections, path);
         double[] segmentFree = new double[sections.size()];
         for (int i = 0; i < segmentFree.length; i++) segmentFree[i] = sections.get(i).freeFlowKmh;
         double[] lightM = route.trafficLights == null ? null : new double[lights.length];
@@ -262,8 +272,9 @@ public final class RouteConverter {
      * What the factory Beijing profile lets us state from Yandex data alone
      * (research/stock-map-native/factory-beijing-profile-20261023.json):
      * <ul>
-     * <li>the link ending at a manoeuvre carries the segment's MainAction; the others 0 (factory
-     *   transitions: actions sit on segment-boundary links, plain continuations are null);</li>
+     * <li>link MainAction stays 0: on every factory route the stock sent (bench, 1 177 links) the
+     *   link that ends a segment carries 0 and only inner links carry 8/9/10 (continue, merges),
+     *   which Yandex does not report;</li>
      * <li>a Yandex highway link without a light is the factory's controlled-access road: RoadClass 0
      *   (freeway) at a posted limit of 90 km/h or more, 6 (city speedway) below; formway 1 (divided),
      *   direction 1 (one way), ownership 0 (public), as on 100% of factory freeway and city speedway
@@ -277,7 +288,6 @@ public final class RouteConverter {
      */
     static void attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
                            List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative) {
-        for (StockPath.Segment s : path.segments) if (!s.links.isEmpty()) s.links.get(s.links.size() - 1).mainAction = s.mainAction;
         int link = 0;
         for (int si = 0; si < path.segments.size(); si++) {
             boolean roundabout = "ENTER_ROUNDABOUT".equals(sections.get(si).action);
@@ -322,6 +332,35 @@ public final class RouteConverter {
         double lon = route.lon[e] + f * (route.lon[e + 1] - route.lon[e]);
         double lat = route.lat[e] + f * (route.lat[e + 1] - route.lat[e]);
         return Coordinates.toSdk(lon, lat, frame);
+    }
+
+    /**
+     * Amap's group segments are the route's roads: consecutive manoeuvres on one named road. Yandex
+     * names the road each section enters; runs of equal names become groups, an unnamed run is
+     * 无名道路. A route with no name at all has no groups (the stock's {@code l.r()} path).
+     */
+    static void groups(List<YandexRoute.Section> sections, StockPath path) {
+        boolean named = false;
+        for (YandexRoute.Section s : sections) named |= s.toponym != null && !s.toponym.isEmpty();
+        if (!named) return;
+        int start = 0;
+        for (int i = 1; i <= sections.size(); i++) {
+            String a = sections.get(start).toponym, b = i < sections.size() ? sections.get(i).toponym : null;
+            boolean same = i < sections.size() && (a == null ? b == null : a.equals(b));
+            if (same) continue;
+            path.groups.add(new Object[]{start, i - start, a == null || a.isEmpty() ? StockRouteJson.UNNAMED : a});
+            start = i;
+        }
+    }
+
+    /** Initial bearing, degrees [0, 360), of the polyline edge under a position. */
+    public static double bearing(YandexRoute route, double scalar) {
+        int e = Math.min((int) Math.floor(scalar), route.edges() - 1);
+        double p1 = route.lat[e] * Coordinates.DEG, p2 = route.lat[e + 1] * Coordinates.DEG;
+        double dl = (route.lon[e + 1] - route.lon[e]) * Coordinates.DEG;
+        double y = Math.sin(dl) * Math.cos(p2), x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+        double b = Math.toDegrees(Math.atan2(y, x));
+        return b < 0 ? b + 360 : b;
     }
 
     /** WGS-84 point of a polyline position. */

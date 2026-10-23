@@ -52,6 +52,8 @@ public final class YandexRoute {
     public List<double[]> highways;
     /** Junction lane signs: {position, number of lanes}; null when not reported. */
     public List<double[]> laneSigns;
+    /** Other junction positions: direction signs, restricted turns and entries; null when not reported. */
+    public double[] junctions;
 
     public YandexRoute(String routeId, double[] lon, double[] lat, List<Section> sections, Double[] speedLimits, double[] trafficLights,
                        List<double[]> tunnels, List<double[]> ferries, double[] wayPoints, List<Camera> cameras) {
@@ -129,6 +131,17 @@ public final class YandexRoute {
         YandexRoute route = new YandexRoute((String) s.get("routeId"), lon, lat, sections, limits, lights,
                 ranges(s, "tunnels", edges), ranges(s, "ferries", edges), wayPoints, cameras);
         route.highways = ranges(s, "highways", edges);
+        List<Double> junctions = new ArrayList<>();
+        for (String key : new String[]{"directionSigns", "restrictedTurns", "restrictedEntries"}) {
+            if (!known(s, key)) continue;
+            for (Object o : (List<Object>) s.get(key))
+                if (o instanceof Map && ((Map<String, Object>) o).get("position") != null)
+                    junctions.add(position(((Map<String, Object>) o).get("position"), edges));
+        }
+        if (!junctions.isEmpty()) {
+            route.junctions = new double[junctions.size()];
+            for (int i = 0; i < junctions.size(); i++) route.junctions[i] = junctions.get(i);
+        }
         if (known(s, "laneSigns")) {
             route.laneSigns = new ArrayList<>();
             for (Object o : (List<Object>) s.get("laneSigns")) {

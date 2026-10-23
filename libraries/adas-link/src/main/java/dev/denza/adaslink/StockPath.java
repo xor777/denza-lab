@@ -12,6 +12,7 @@ public final class StockPath {
     public static final int ROAD_CLASS_NULL = -1;   // RoadClass.RoadClassNULL
     public static final int FORMWAY_NULL = -1;      // Formway.FormayNULL
     public static final int LINK_TYPE_NULL = -1;    // LinkType.LinkTypeNull
+    public static final int LINK_TYPE_COMMON = 0;   // LinkType.LinkTypeCommon
     public static final int LINK_TYPE_FERRY = 1;
     public static final int LINK_TYPE_TUNNEL = 2;
     /** The stock's own unknown ownership: {@code MmtSomeIpDataManager.P} turns MIN_VALUE into -1. */
@@ -51,6 +52,8 @@ public final class StockPath {
 
     public long pathId;
     public final List<Segment> segments = new ArrayList<>();
+    /** {@code PathInfo.getGroupSegment(i)}: start segment, segment count, road name. Empty: no groups. */
+    public final List<Object[]> groups = new ArrayList<>();
     /** {@code PathInfo.getAllTrafficLights()}: Coord2DDouble lon/lat pairs. */
     public final List<double[]> trafficLights = new ArrayList<>();
 
@@ -78,6 +81,7 @@ public final class StockPath {
             }
         }
         for (double[] light : trafficLights) b.append('T').append(light[0]).append(' ').append(light[1]).append(';');
+        for (Object[] g : groups) b.append('G').append(g[0]).append(',').append(g[1]).append(',').append(g[2]).append(';');
         return b.toString();
     }
 }

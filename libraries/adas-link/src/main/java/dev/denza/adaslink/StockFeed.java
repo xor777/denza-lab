@@ -550,6 +550,18 @@ public final class StockFeed implements BridgeStatus {
             fire(Topics.SD_TRAFFIC_LIGHT, StockMessages.trafficLight(lightExist, lightLon, lightLat, lightState, lightStart, lightEnd, lightDir, lightWaitNum));
     }
 
+    /**
+     * GaoDeSignalManager.onUpdateTREvent -> D0(): the traffic events along the route, sent as the
+     * incident list. Yandex's route events are not mapped to Amap's layer/type codes, so the list is
+     * empty, as the stock sends it when Amap has none.
+     */
+    public void onTrafficEvents() {
+        clock.post(null, 0, () -> {
+            fire(Topics.SD_TRAFFIC_INCIDENT, StockMessages.incidents(new int[0], new int[0], new double[0], new double[0]));
+            resetConstruction();
+        });
+    }
+
     /** GaoDeSignalManager.onCurrentRoadSpeed: the posted limit in km/h. */
     public void onCurrentRoadSpeed(int kmh) {
         int value = config.roadSpeedLimit ? Math.max(kmh, 0) : 0;
