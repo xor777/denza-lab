@@ -29,6 +29,18 @@ internal data class DiagnosticsModel(
     val packCells: PackCellsView? = null,
     /** «Отчёт»: what it can include and what the last [DiagnosticsActions.saveReport] came to (architecture, 7.4). */
     val report: ReportState = ReportState(),
+    /** The rail of 7.3: «Сводка», «Блоки», the systems, «Журнал»; replaces [rail] once the screens follow. */
+    val railLines: List<RailLine> = emptyList(),
+    /** «Сводка», the section's entry (7.3); null before the first scan. */
+    val summary: SummaryView? = null,
+    /** «Блоки»: every catalogued block (7.3); null before the first scan. */
+    val blocks: BlocksView? = null,
+    /** The code's screen asked for with [DiagnosticsActions.openCode]; null when none is open. */
+    val code: CodeView? = null,
+    /** «Тяговая батарея · Здоровье» (7.3); null before the pack was read or a journal exists. */
+    val health: HealthView? = null,
+    /** «Журнал» while [DiagnosticsActions.setJournalVisible] holds it (7.3); null otherwise. */
+    val journal: JournalView? = null,
 )
 
 /**
@@ -517,10 +529,20 @@ internal data class ClimateZone(val label: String, val temp: String, val pm: Str
 
 internal data class Header(
     val link: LinkState,
-    /** «Z9 GT DM · P · 0 км/ч», «Z9 GT DM · P · ДВС работает». */
+    /** «Z9 GT DM · P · 0 км/ч», «Z9 GT DM · P · ДВС работает»; «Z9 GT DM» alone once the screens draw 7.3's head. */
     val car: String,
     /** The car's clock, «16:31:07». */
     val clock: String,
+    /** «13 199 км» from the car's odometer; null before a reading (7.3). */
+    val odometer: String? = null,
+    /** «P», «P · ДВС работает». */
+    val mode: String? = null,
+    /** «13,7»: the 12 V net, volts; null before a reading. */
+    val volts: String? = null,
+    /** [volts] outside its norm: lit. */
+    val voltsOut: Boolean = false,
+    /** «18 мс»: the median exchange of the shown scan; null before one. */
+    val latency: String? = null,
 )
 
 internal enum class LinkState {
@@ -756,6 +778,8 @@ internal data class LiveView(
     val focus: List<Int>,
     val rows: List<LiveRow>,
     val recording: Boolean,
+    /** «Графики» of this stream while [DiagnosticsActions.setGraphs] holds them (7.3); null otherwise. */
+    val graphs: GraphsView? = null,
 )
 
 internal data class LiveRow(
@@ -862,6 +886,8 @@ internal data class SystemLiveView(
     val paused: Boolean = false,
     /** «обход 2,1 с»: how long the last batch took; null before one was measured. */
     val round: String? = null,
+    /** «Графики» of these readings while [DiagnosticsActions.setGraphs] holds them (7.3); null otherwise. */
+    val graphs: GraphsView? = null,
 )
 
 /** ECUs side by side: the drives, the driver-assistance modules. */
@@ -968,4 +994,19 @@ internal interface DiagnosticsActions {
      * [DiagnosticsModel.report] says how it went. A press while a save runs is no second save.
      */
     fun saveReport(sections: Set<ReportSection>) {}
+
+    /** «Журнал» shown or left: [DiagnosticsModel.journal] is built only while it is (7.3). */
+    fun setJournalVisible(visible: Boolean) {}
+
+    /** «Сравнение»: two journal scans by their end; both null - the last against the one before it. */
+    fun compareScans(fromMillis: Long?, toMillis: Long?) {}
+
+    /**
+     * «Графики» of [scope] shown with [keys] (up to four), or left with an empty list: the keys are read
+     * first and their five minutes kept while it is (7.3).
+     */
+    fun setGraphs(scope: GraphScope, keys: List<ParamKey>) {}
+
+    /** «Метка» on the graphs: a mark at the car's now. */
+    fun markGraphs(scope: GraphScope) {}
 }
