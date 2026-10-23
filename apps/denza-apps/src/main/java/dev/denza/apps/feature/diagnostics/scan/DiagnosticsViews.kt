@@ -351,6 +351,28 @@ internal data class JournalView(
     val quantities: List<JournalQuantityLane>,
     /** The panel «СРАВНЕНИЕ», or «СКАН» with one full scan ([ScanCompareView.title] without «→»); null with none. */
     val compare: ScanCompareView?,
+    /** «Журнал · Коды»: a row a code the journal has read. */
+    val codeRows: List<JournalCodeRow> = emptyList(),
+)
+
+/** «Журнал · Коды»: every code the journal has read - the present ones worst first, then the gone ones, newest gone first. */
+internal data class JournalCodeRow(
+    val request: Int,
+    /** «U0121-87». */
+    val code: String,
+    /** «LA_BCM 720». */
+    val block: String,
+    /** Its mark in the newest read of its block; null once it is gone. */
+    val mark: Mark?,
+    /** «18.10 15:42». */
+    val first: String,
+    /** «23.10 08:50». */
+    val last: String,
+    /** «9 из 9»: reads of its block since the first that found it. */
+    val seen: String,
+    /** «есть», «ушёл 22.10». */
+    val now: String,
+    val gone: Boolean,
 )
 
 /** A mark on the axis, 0..1; [atMillis] the scan's end, what [DiagnosticsActions.compareScans] names it by. */

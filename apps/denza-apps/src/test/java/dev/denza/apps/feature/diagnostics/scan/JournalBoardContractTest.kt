@@ -79,6 +79,42 @@ class JournalBoardContractTest {
         check("scanner-journal-first", JournalData().with(first), BoardScan.FINISHED)
     }
 
+    /**
+     * «Журнал · Коды» of the boards' journal: each code of `scanner-summary`, its block's lane of `scanner-journal`
+     * giving its first read, its last and how many reads found it - every one since the first.
+     */
+    @Test
+    fun theCodesTabIsEveryCodeFromItsFirstRead() {
+        val v = view(BoardJournal.data(scan), BoardScan.at("23.10 08:50:31"))
+        val lanes = (SpecJson.fixture("scanner-journal")["codes"] as List<Map<String, Any?>>)
+        val records = BoardScan.records("scanner-summary")
+        val abbr = (SpecJson.fixture("scanner-summary")["systems"] as List<Map<String, Any?>>)
+            .flatMap { it["blocks"] as List<Map<String, Any?>> }.associate { (it["addr"] as String).toInt(16) to it["abbr"] as String }
+        val expected = lanes.flatMap { lane ->
+            val request = (lane["addr"] as String).toInt(16)
+            val seen = lane["seen"] as List<String>
+            records.getValue(request).map { (code, _) ->
+                JournalCodeRow(request, code, "${abbr.getValue(request)} ${lane["addr"]}", Mark.HISTORY, seen.first(), seen.last(),
+                    "${seen.size} из ${seen.size}", "есть", gone = false)
+            }
+        }
+        assertEquals(expected, v.codeRows)
+    }
+
+    @Test
+    fun aCodeAWholeReadingNoLongerHoldsIsGoneAndLast() {
+        val data = BoardJournal.data(scan)
+        val latest = data.latest!!
+        val later = latest.copy(atMillis = BoardScan.at("23.10 18:00"), modules = latest.modules.map { m ->
+            if (m.address == 0x720) m.copy(records = m.records.filter { it.code != "U0229-87" }) else m
+        })
+        val rows = view(data.with(later), BoardScan.at("23.10 18:00")).codeRows
+        val gone = rows.last()
+        assertEquals(JournalCodeRow(0x720, "U0229-87", "LA_BCM 720", null, "18.10 15:42", "23.10 08:50", "8 из 9", "ушёл 23.10", gone = true), gone)
+        assertEquals(17, rows.count { !it.gone })
+        assertEquals("23.10 18:00", rows.first().last)
+    }
+
     @Test
     fun twoScansNamedAreComparedAndThePreviousOneByDefaultOfOne() {
         val data = BoardJournal.data(scan)

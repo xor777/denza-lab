@@ -91,7 +91,47 @@ internal object JournalViewBuilder {
                 to != null -> single(to, clock)
                 else -> null
             },
+            codeRows = codeRows(data, clock),
         )
+    }
+
+    /**
+     * «Журнал · Коды»: every code any journal scan held. One its block's later whole reading no longer holds is
+     * gone - since that reading - and goes after the present ones, the newest gone first; the present ones by
+     * their mark in the newest reading that held them, then by their first read, then the catalog's order.
+     */
+    fun codeRows(data: JournalData, clock: ScanClock): List<JournalCodeRow> {
+        val latest = data.latest ?: return emptyList()
+        val order = EcuCatalog.routed.withIndex().associate { (k, e) -> e.request!! to k }
+        val keys = LinkedHashSet<JournalCodeKey>()
+        data.scans.forEach { s -> s.modules.forEach { m -> m.records.forEach { keys += JournalCodeKey(m.address, it.code) } } }
+        class Row(val row: JournalCodeRow, val firstAt: Long, val goneAt: Long?, val index: Int)
+        val rows = keys.withIndex().mapNotNull { (index, key) ->
+            val life = JournalFacts.life(data, key, latest) ?: return@mapNotNull null
+            val goneAt = data.scans.firstOrNull { it.atMillis > life.lastAtMillis && it.module(key.address)?.memoryRead == true }?.atMillis
+            val r = life.record
+            val mark = r.status?.let { BlockRecords.mark(dev.denza.apps.feature.diagnostics.protocol.DtcStatus(it)) }
+                ?: if (r.source == "07") Mark.PENDING else Mark.ACTIVE
+            Row(
+                JournalCodeRow(
+                    request = key.address,
+                    code = key.code,
+                    block = "${life.abbreviation} ${Figures.address(key.address)}",
+                    mark = mark.takeIf { goneAt == null },
+                    first = clock.dated(life.firstAtMillis),
+                    last = clock.dated(life.lastAtMillis),
+                    seen = "${life.seenIn} из ${life.readIn}",
+                    now = goneAt?.let { "ушёл ${clock.date(it)}" } ?: "есть",
+                    gone = goneAt != null,
+                ),
+                life.firstAtMillis, goneAt, index,
+            )
+        }
+        val present = rows.filter { it.goneAt == null }.sortedWith(compareBy(
+            { it.row.mark!!.ordinal }, { it.firstAt }, { order[it.row.request] ?: Int.MAX_VALUE }, { it.index },
+        ))
+        val gone = rows.filter { it.goneAt != null }.sortedWith(compareBy({ -it.goneAt!! }, { it.index }))
+        return (present + gone).map { it.row }
     }
 
     /** The two scans compared: those named, else the journal's first full scan against its last; one full scan alone. */
