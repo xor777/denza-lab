@@ -48,8 +48,8 @@ internal sealed interface ScannerRoute {
     /** A system's page at one of its [SystemTab]s (null: its first), its live data as a table or as [graphs]. */
     data class System(val system: CarSystem, val tab: SystemTab? = null, val graphs: Boolean = false) : ScannerRoute
 
-    /** One ECU's screen, at a tab of [moduleTabs]. */
-    data class Module(val request: Int, val tab: Int = 0) : ScannerRoute
+    /** One ECU's screen, at a tab of [moduleTabs], its live data as a table or as [graphs]. */
+    data class Module(val request: Int, val tab: Int = 0, val graphs: Boolean = false) : ScannerRoute
 
     /** One parameter on its own page, over the live data it was opened from (architecture, 6.2). */
     data class Param(val key: ParamKey) : ScannerRoute
@@ -265,7 +265,7 @@ internal fun DiagnosticsScreen(
                     if (module == null) {
                         LaunchedEffect(r) { back() }
                     } else {
-                        ModulePage(module, r.tab, header, { retab(r.copy(tab = it)) }, back, actions, sample, backLabel, openParam, openCode)
+                        ModulePage(module, r.tab, r.graphs, header, { tab, graphs -> retab(r.copy(tab = tab, graphs = graphs)) }, back, actions, sample, backLabel, openParam, openCode)
                     }
                 }
                 is ScannerRoute.System -> {

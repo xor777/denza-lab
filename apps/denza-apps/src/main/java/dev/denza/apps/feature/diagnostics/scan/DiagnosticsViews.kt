@@ -299,8 +299,6 @@ internal data class GraphsView(
     val line: String,
     /** The car's clock at the right edge. */
     val nowNanos: Long,
-    /** «Метка» presses on the car's clock. */
-    val marks: List<Long>,
     /** «окно 60 с · 499 точек на сигнал». */
     val footnote: String,
 )
@@ -311,7 +309,7 @@ internal data class GraphLane(
     /** «PID 0C · RPM», «1014 · 44600010». */
     val source: String,
     val unit: String,
-    /** The last 5 minutes, oldest first; a null value is a gap. */
+    /** The last 5 minutes and the sample before them, oldest first; a null value is a gap. */
     val samples: List<Sample>,
     /** The lane's vertical scale: not narrower than the norm or 20 × the resolution. */
     val scale: ClosedFloatingPointRange<Float>,

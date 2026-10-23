@@ -129,17 +129,18 @@ class JournalSessionTest {
         s.openCode(0x720, null)
         assertNull(s.model.value.code)
 
-        // «Графики» of the pack's readings, then left
+        // «Графики» of the pack's readings while its «Потоковые данные» shows, then left
         val scope = GraphScope.System(CarSystem.PACK)
-        s.setGraphs(scope, listOf(ParamKey.Signal("CELL_MIN_MV"), ParamKey.Signal("CELL_MAX_MV")))
+        s.pickGraphs(scope, listOf(ParamKey.Signal("CELL_MIN_MV"), ParamKey.Signal("CELL_MAX_MV")))
+        s.setLiveTab(scope, true)
         advanceTimeBy(DiagnosticsSession.TICK_MS)
         runCurrent()
         val graphs = s.model.value.systems.live.getValue(CarSystem.PACK).graphs!!
         assertEquals(listOf("Ячейка, мин.", "Ячейка, макс."), graphs.lanes.map { it.name })
-        s.markGraphs(scope)
-        assertEquals(1, s.model.value.systems.live.getValue(CarSystem.PACK).graphs!!.marks.size)
-        s.setGraphs(scope, emptyList())
+        s.setLiveTab(scope, false)
         assertNull(s.model.value.systems.live.getValue(CarSystem.PACK).graphs)
+        // the choice outlives the tab
+        assertEquals(listOf(ParamKey.Signal("CELL_MIN_MV"), ParamKey.Signal("CELL_MAX_MV")), s.model.value.systems.live.getValue(CarSystem.PACK).picks)
         s.stop()
     }
 

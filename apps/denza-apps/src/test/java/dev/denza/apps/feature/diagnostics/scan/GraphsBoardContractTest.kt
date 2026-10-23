@@ -4,6 +4,7 @@ import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.hex
 import dev.denza.apps.feature.diagnostics.protocol.hexBytes
+import dev.denza.apps.feature.diagnostics.ui.ScannerWords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,10 +65,39 @@ class GraphsBoardContractTest {
     }
 
     @Test
-    fun aMarkIsOnTheCarsClockAndTheGraphsGoWithTheirTab() {
-        val g = GraphTraces(GraphScope.System(CarSystem.PACK), listOf(ParamKey.Signal("CELL_MIN_MV")))
-        g.mark(5_000_000_000L)
-        assertEquals(listOf(5_000_000_000L), g.snapshot().marks)
-        assertEquals(GraphScope.System(CarSystem.PACK), g.snapshot().scope)
+    fun theFooterRecordsAndSaysForHowLongAndNothingElse() {
+        val f = SpecJson.fixture("scanner-sys-engine-graphs")
+        val footer = f["footer"] as Map<String, Any?>
+        // «Пауза» and «Стоп записи»: no «Метка», no «Сигналы» - the signals are ticked on the table
+        assertEquals(listOf("Пауза", "Стоп записи"), (footer["buttons"] as List<List<Any?>>).map { it[0] })
+        // the recording under way first, its red dot, then the window
+        val rec = (footer["notes"] as List<Any?>).first() as List<Any?>
+        assertEquals(listOf(ScannerWords.recording(42_000), true, "rec"), rec)
+        // each lane's square is the table's: the lanes in the order of the engine's ticked rows
+        val ticked = (SpecJson.fixture("scanner-sys-engine")["rows"] as List<Map<String, Any?>>)
+            .filter { (it["pick"] as Number).toInt() > 0 }.sortedBy { (it["pick"] as Number).toInt() }.map { it["pid"] }
+        assertEquals(ticked, (f["signals"] as List<Map<String, Any?>>).map { it["pid"] })
+        assertEquals(ScannerWords.views(ticked.size), ((f["tabs"] as Map<String, Any?>)["right"] as Map<String, Any?>)["items"])
+    }
+
+    @Test
+    fun theGraphsKeepTheSampleBeforeTheirFiveMinutesAndAKeptKeyItsTrace() {
+        val rpm = ParamKey.Pid(0x7E0, 0x0C)
+        val tps = ParamKey.Pid(0x7E0, 0x11)
+        fun row(key: ParamKey, vararg at: Long) = LiveRow(0, "", "", "", "", "", "", "", false, "PID", at.map { Sample(it * 1_000_000_000L, 1f) }, key)
+        val g = GraphTraces(GraphScope.Block(0x7E0), listOf(rpm))
+        g.take(listOf(row(rpm, 10, 20)))
+        g.take(listOf(row(rpm, 20, 315)))
+        // 10 s is the last before 315 - 300: it starts the line
+        assertEquals(listOf(10_000_000_000L, 20_000_000_000L, 315_000_000_000L), g.snapshot().traces.getValue(rpm).map { it.atNanos })
+        g.take(listOf(row(rpm, 315, 320)))
+        // now 20 s is: 10 s goes
+        assertEquals(listOf(20_000_000_000L, 315_000_000_000L, 320_000_000_000L), g.snapshot().traces.getValue(rpm).map { it.atNanos })
+        // a second key ticked: the first keeps its trace, the new one takes its row's minute
+        val both = g.with(listOf(rpm, tps))
+        both.take(listOf(row(rpm, 320), row(tps, 300, 320)))
+        assertEquals(listOf(20_000_000_000L, 315_000_000_000L, 320_000_000_000L), both.snapshot().traces.getValue(rpm).map { it.atNanos })
+        assertEquals(listOf(300_000_000_000L, 320_000_000_000L), both.snapshot().traces.getValue(tps).map { it.atNanos })
+        assertEquals(GraphScope.Block(0x7E0), both.snapshot().scope)
     }
 }

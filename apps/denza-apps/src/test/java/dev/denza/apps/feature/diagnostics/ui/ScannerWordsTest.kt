@@ -112,7 +112,10 @@ class ScannerWordsTest {
         assertEquals("Скан идёт" to "опрос 12 из 68 блоков", ScannerWords.noSummary(scan(ScanPhase.RUNNING)))
         assertEquals("снимок 19:31:29", ScannerWords.snapshot("19 01 09 · 19 02 09 · снимок 19:31:29"))
         assertEquals(null, ScannerWords.snapshot("не читали"))
-        assertEquals("Сигналы · 4", ScannerWords.signals(4))
+        assertEquals(listOf("Таблица", "Графики · 4"), ScannerWords.views(4))
+        assertEquals("запись 0:42", ScannerWords.recording(42_400))
+        assertEquals("запись 1:24 · войдёт в отчёт", ScannerWords.recorded(84_000))
+        assertEquals("запись 12:05", ScannerWords.recording(725_000))
     }
 
     @Test

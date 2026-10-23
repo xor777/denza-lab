@@ -795,12 +795,19 @@ internal data class LiveView(
     val running: Boolean,
     /** Measured, not set: «4,6 Гц · 120 мс»; «—» before two samples. */
     val rate: String,
-    /** PIDs in focus, polled first and drawn largest. */
-    val focus: List<Int>,
     val rows: List<LiveRow>,
     val recording: Boolean,
-    /** «Графики» of this stream while [DiagnosticsActions.setGraphs] holds them (7.3); null otherwise. */
+    /**
+     * The signals on «Графики», ticked on the table ([GraphPicks]): its squares' numbers and the lanes' order. Their
+     * PIDs are the stream's focus, polled first (6.1).
+     */
+    val picks: List<ParamKey> = emptyList(),
+    /** «Графики» of this stream while its «Потоковые данные» is on screen ([DiagnosticsActions.setLiveTab], 7.3); null otherwise. */
     val graphs: GraphsView? = null,
+    /** How long the recording under way has run, ms; null while none does. */
+    val recordingMs: Long? = null,
+    /** How long the last recording ran, ms, until the tab is left or a new one starts; null otherwise. */
+    val recordedMs: Long? = null,
 )
 
 internal data class LiveRow(
@@ -907,7 +914,9 @@ internal data class SystemLiveView(
     val paused: Boolean = false,
     /** «обход 2,1 с»: how long the last batch took; null before one was measured. */
     val round: String? = null,
-    /** «Графики» of these readings while [DiagnosticsActions.setGraphs] holds them (7.3); null otherwise. */
+    /** The signals on «Графики», ticked on the table ([GraphPicks]): its squares' numbers and the lanes' order. */
+    val picks: List<ParamKey> = emptyList(),
+    /** «Графики» of these readings while their «Потоковые данные» is on screen ([DiagnosticsActions.setLiveTab], 7.3); null otherwise. */
     val graphs: GraphsView? = null,
 )
 
@@ -982,8 +991,6 @@ internal interface DiagnosticsActions {
     fun setModuleOpen(request: Int, open: Boolean)
     /** «Потоковые данные» visible or not: the stream runs only while it is. */
     fun setLiveVisible(request: Int, visible: Boolean)
-    /** «Выбор PID». */
-    fun setFocus(request: Int, pids: List<Int>)
     fun resetMinMax(request: Int)
     /** «Запись»: the stream to `filesDir/diagnostics/stream-<time>.csv`. */
     fun setRecording(request: Int, on: Boolean)
@@ -1054,11 +1061,15 @@ internal interface DiagnosticsActions {
     fun compareScans(fromMillis: Long?, toMillis: Long?) {}
 
     /**
-     * «Графики» of [scope] shown with [keys] (up to four), or left with an empty list: the keys are read
-     * first and their five minutes kept while it is (7.3).
+     * The squares of [scope]'s table: [keys] (up to four, in the lanes' order) on «Графики», the table and the graphs
+     * showing the same choice. Until the first call a scope has [GraphPicks.default]. A block's keys are its stream's
+     * focus, read first (6.1, 7.3).
      */
-    fun setGraphs(scope: GraphScope, keys: List<ParamKey>) {}
+    fun pickGraphs(scope: GraphScope, keys: List<ParamKey>) {}
 
-    /** «Метка» on the graphs: a mark at the car's now. */
-    fun markGraphs(scope: GraphScope) {}
+    /**
+     * [scope]'s «Потоковые данные» shown - as a table or as graphs - or left: while it is, the chosen signals' traces
+     * are kept for «Графики» ([GraphsView]), and a block's last recording says its length ([LiveView.recordedMs]).
+     */
+    fun setLiveTab(scope: GraphScope, shown: Boolean) {}
 }

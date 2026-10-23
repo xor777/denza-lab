@@ -383,7 +383,6 @@ internal object ScannerFixtures {
         override fun readModule(request: Int) {}
         override fun setModuleOpen(request: Int, open: Boolean) {}
         override fun setLiveVisible(request: Int, visible: Boolean) {}
-        override fun setFocus(request: Int, pids: List<Int>) {}
         override fun resetMinMax(request: Int) {}
         override fun setRecording(request: Int, on: Boolean) {}
         override fun setParam(key: ParamKey?) {}
@@ -766,7 +765,6 @@ internal object ScannerFixtures {
             },
             line = f.getJSONObject("block").getString("line"),
             nowNanos = NOW,
-            marks = emptyList(),
             footnote = footnote(f),
         )
     }
@@ -1237,6 +1235,8 @@ internal object ScannerFixtures {
         val liveLine = live.getJSONObject("block").getString("line")
         val rate = Regex("опрос ([^·]+?) ·").find(liveLine)?.groupValues?.get(1) ?: "—"
         val ident = fixture(all, "scanner-ecu-ident")
+        // the graphs' board records: «Стоп записи», and its time after the red dot
+        val recording = if (id == GRAPHS) recordingMs(fixture(all, id)) else null
         val tests = tests(fixture(all, if (id in TESTS_BOARDS) id else "scanner-ecu-tests").getJSONObject("tests"))
         return ModuleView(
             tests = tests,
@@ -1261,7 +1261,10 @@ internal object ScannerFixtures {
                 },
                 lists = lists,
                 live = LiveView(
-                    running = true, rate = rate, focus = emptyList(),
+                    running = true, rate = rate,
+                    picks = picks(objects(live.getJSONArray("rows"))) { ParamKey.Pid(ECM, it.getString("pid").toInt(16)) },
+                    recording = recording != null,
+                    recordingMs = recording,
                     rows = objects(live.getJSONArray("rows")).map { r ->
                         val trace = r.getJSONArray("trace")
                         LiveRow(
@@ -1272,7 +1275,6 @@ internal object ScannerFixtures {
                             key = ParamKey.Pid(ECM, r.getString("pid").toInt(16)),
                         )
                     },
-                    recording = false,
                     graphs = if (id == GRAPHS) graphs(fixture(all, id)) else null,
                 ),
             ),
@@ -1280,6 +1282,18 @@ internal object ScannerFixtures {
     }
 
     private val TESTS_BOARDS = setOf("scanner-ecu-tests", "scanner-ecu-tests-out")
+
+    /** The rows ticked for «Графики» (`pick`, the lane's number), in their lanes' order. */
+    private fun picks(rows: List<JSONObject>, key: (JSONObject) -> ParamKey?): List<ParamKey> =
+        rows.filter { it.optInt("pick") > 0 }.sortedBy { it.getInt("pick") }.mapNotNull(key)
+
+    /** A recording under way on a board: its footer's note marked `rec`, «запись 0:42», as ms. */
+    private fun recordingMs(f: JSONObject): Long? {
+        val notes = f.getJSONObject("footer").optJSONArray("notes") ?: return null
+        val rec = (0 until notes.length()).map { notes.get(it) }.filterIsInstance<JSONArray>().firstOrNull { it.optString(2) == "rec" } ?: return null
+        val (m, sec) = rec.getString(0).removePrefix("запись ").split(":").map(String::toLong)
+        return (m * 60 + sec) * 1000
+    }
 
     /**
      * «Тесты» from its board (`ecuTests()`): the maps and each monitor's answer as the ECM would give them, read
@@ -1352,7 +1366,12 @@ internal object ScannerFixtures {
      */
     private fun systemLive(f: JSONObject): SystemLiveView {
         val footer = f.getJSONObject("footer")
+        fun keyOf(r: JSONObject): ParamKey? {
+            val source = if (r.getString("abbr").isEmpty()) r.getString("pid") else "${r.getString("pid")}·${r.getString("abbr")}"
+            return SystemStreams.ROWS.values.flatten().firstOrNull { it.source == source }?.key?.let(ParamKey::Signal)
+        }
         return SystemLiveView(
+            picks = picks(objects(f.getJSONArray("rows")), ::keyOf),
             rows = objects(f.getJSONArray("rows")).map { r ->
                 val trace = r.getJSONArray("trace")
                 val device = r.getString("pid")

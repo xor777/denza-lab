@@ -52,7 +52,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
     /** Every request the stream cycles through: focus packs, then table packs. */
     val packs: List<List<Int>> get() = focusPacks + tablePacks
 
-    /** «Выбор PID»: up to [MAX_FOCUS] of the streamed PIDs, polled every other exchange. */
+    /** The PIDs ticked for «Графики» ([GraphPicks]): up to [MAX_FOCUS] of the streamed PIDs, polled every other exchange. */
     fun setFocus(pids: List<Int>) {
         focus = pids.filter { it in series }.distinct().take(MAX_FOCUS)
         repack()
@@ -142,7 +142,6 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
     fun view(running: Boolean, recording: Boolean, engineRunning: Boolean?): LiveView = LiveView(
         running = running,
         rate = rate(),
-        focus = focus,
         rows = series.values.map { it.row(engineRunning, ParamKey.Pid(request, it.pid)) } + car.map { (row, s) -> s.carRow(row) },
         recording = recording,
     )
@@ -386,7 +385,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 }
 
 /**
- * One row of a live table (architecture 6.1, 6.3): its last 60 s on the car's clock, its value as
+ * One row of a live table (architecture 6.1, 6.3): its last 60 s on the car's clock and the sample before them, its value as
  * the table words it and its extremes since the table was shown or since «Сбросить мин/макс». The
  * engine's PIDs and fast car signals and the pack's readings keep their rows in it alike; a null
  * value in [samples] is a gap the chart leaves open, nothing is interpolated.
@@ -435,13 +434,18 @@ internal open class LiveSeries(private val signed: Boolean = false, initial: Str
 
     private fun extreme(v: Double?) = v?.let { Figures.number(it, decimals, signed) } ?: "—"
 
+    /**
+     * The newest sample, and the minute behind it with one sample before the minute: the line enters the window
+     * from its left edge at the value it had there, not from the first point inside it.
+     */
     private fun add(sample: Sample) {
         samples.addLast(sample)
-        while (samples.isNotEmpty() && samples.first().atNanos < sample.atNanos - WINDOW_NS) samples.removeFirst()
+        val start = sample.atNanos - WINDOW_NS
+        while (samples.size > 1 && samples[1].atNanos <= start) samples.removeFirst()
     }
 
     companion object {
-        /** A row keeps the last minute. */
+        /** A row keeps the last minute, and the one sample before it. */
         const val WINDOW_NS = 60_000_000_000L
     }
 }

@@ -101,10 +101,14 @@ class LiveStreamTest {
         assertEquals("—", v.row(0x0D).value)
         assertEquals("об/мин", v.row(0x0C).unit)
         assertEquals("PID", v.row(0x0C).source)
-        // Older than 60 s falls off the ring.
+        // Older than 60 s falls off the ring, but for the one sample before the minute: the line's start at its left edge.
         s.accept(answer(r, "410C0FA00D00", at = 62_000_000_000L))
-        assertEquals(62_000_000_000L - 60_000_000_000L <= s.view(true, false, null).row(0x0C).samples.first().atNanos, true)
-        assertEquals(1, s.view(true, false, null).row(0x0C).samples.size)
+        assertEquals(listOf(Sample(1_260_000_000L, 2000f), Sample(62_000_000_000L, 1000f)), s.view(true, false, null).row(0x0C).samples)
+        s.accept(answer(r, "410C0FA00D00", at = 63_000_000_000L))
+        assertEquals(listOf(1_260_000_000L, 62_000_000_000L, 63_000_000_000L), s.view(true, false, null).row(0x0C).samples.map { it.atNanos })
+        s.accept(answer(r, "410C0FA00D00", at = 122_500_000_000L))
+        // 62 is the last before 62,5: kept; 1,26 goes
+        assertEquals(listOf(62_000_000_000L, 63_000_000_000L, 122_500_000_000L), s.view(true, false, null).row(0x0C).samples.map { it.atNanos })
     }
 
     @Test
@@ -235,7 +239,8 @@ class LiveStreamTest {
         runCurrent()
         s.setModuleOpen(0x7E0, true)
         s.setLiveVisible(0x7E0, true)
-        s.setFocus(0x7E0, listOf(0x0C, 0x0D))
+        // the two PIDs ticked for «Графики» are the stream's focus
+        s.pickGraphs(GraphScope.Block(0x7E0), listOf(ParamKey.Pid(0x7E0, 0x0C), ParamKey.Pid(0x7E0, 0x0D)))
         s.setRecording(0x7E0, true)
         advanceTimeBy(10_000)
         runCurrent()
@@ -256,7 +261,7 @@ class LiveStreamTest {
         val live = s.model.value.modules.getValue(0x7E0).obd!!.live
         assertTrue(live.running)
         assertTrue(live.recording)
-        assertEquals(listOf(0x0C, 0x0D), live.focus)
+        assertEquals(listOf(ParamKey.Pid(0x7E0, 0x0C), ParamKey.Pid(0x7E0, 0x0D)), live.picks)
         assertEquals("3,8 Гц · 30 мс", live.rate)
         assertEquals("9", live.rows.first { it.pid == 0x05 }.value)
         // The odometer is read once, never streamed.

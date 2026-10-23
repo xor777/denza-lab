@@ -218,8 +218,19 @@ internal object ScannerWords {
         else -> "Скан не завершён" to (scan.notice ?: "опрос ${scan.done} из ${scan.total} блоков")
     }
 
-    /** «Сигналы · 4». */
-    fun signals(n: Int): String = "Сигналы · $n"
+    /** The live data's two views at the tabs' right end: «Таблица», «Графики · 4» with how many are ticked. */
+    fun views(picked: Int): List<String> = listOf("Таблица", "Графики · $picked")
+
+    /** «запись 0:42»: a recording under way, minutes and seconds; the footer puts the red dot before it. */
+    fun recording(ms: Long): String = "запись " + minutes(ms)
+
+    /** «запись 1:24 · войдёт в отчёт»: the last recording, stopped, which «Отчёт» copies. */
+    fun recorded(ms: Long): String = "запись " + minutes(ms) + " · войдёт в отчёт"
+
+    private fun minutes(ms: Long): String {
+        val s = ms / 1000
+        return "${s / 60}:" + (s % 60).toString().padStart(2, '0')
+    }
 
     /** «снимок 19:31:29» out of a memory read's footnote: when the system's readings were taken. */
     fun snapshot(footnote: String): String? = footnote.split(" · ").lastOrNull { it.startsWith("снимок") }

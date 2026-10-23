@@ -4,14 +4,40 @@ import kotlin.math.abs
 import kotlin.math.pow
 
 /**
- * «Графики» kept by the session while [DiagnosticsActions.setGraphs] holds them (architecture, 7.3): up to four
- * keys of one scope, the last five minutes of each on the car's clock, and «Метка» presses. Fed from the rows
- * the stream or the system's table already keep - a minute each - so nothing more is read than the table
- * reads; the five minutes are this trace's own.
+ * The signals on «Графики» (architecture, 7.3; boards `scanner-sys-engine`, `-sys-engine-graphs`): ticked on
+ * the table, up to four of one scope, the lanes in the order they were ticked. A row can be ticked when it has
+ * a key and a line - a number in its minute: a state in words, a count and a calculation («расч.») cannot.
+ * Until the driver ticks, the scope has the default: the first rows that can, up to four, in the table's order.
+ * The same choice is ECM's focus, read first (6.1). Pure.
  */
-internal class GraphTraces(val scope: GraphScope, val keys: List<ParamKey>) {
-    private val traces: Map<ParamKey, ArrayDeque<Sample>> = keys.associateWith { ArrayDeque() }
-    private val marks = ArrayList<Long>()
+internal object GraphPicks {
+    const val MAX = 4
+
+    /** [row] has a square on the table. */
+    fun pickable(row: LiveRow): Boolean = row.key != null && row.samples.any { it.value != null }
+
+    /** The first rows that can go on the graphs, up to four. */
+    fun default(rows: List<LiveRow>): List<ParamKey> = rows.filter(::pickable).mapNotNull { it.key }.take(MAX)
+
+    /** What the driver ticked on [rows]' table, or the default where nothing was. */
+    fun of(ticked: List<ParamKey>?, rows: List<LiveRow>): List<ParamKey> = ticked ?: default(rows)
+
+    /** A tap on [key]'s square: off when it was on, on as the last lane when there is room, else nothing. */
+    fun toggle(picks: List<ParamKey>, key: ParamKey): List<ParamKey> = when {
+        key in picks -> picks - key
+        picks.size < MAX -> picks + key
+        else -> picks
+    }
+}
+
+/**
+ * «Графики» kept by the session while its scope's «Потоковые данные» is on screen ([DiagnosticsActions.setLiveTab]):
+ * the chosen keys ([GraphPicks]) and the last five minutes of each on the car's clock. Fed from the rows the
+ * stream or the system's table already keep - a minute each, and the sample before it - so nothing more is read
+ * than the table reads, and a signal ticked on the table has its lane's line before the graphs are shown.
+ */
+internal class GraphTraces(val scope: GraphScope, val keys: List<ParamKey>, kept: Map<ParamKey, List<Sample>> = emptyMap()) {
+    private val traces: Map<ParamKey, ArrayDeque<Sample>> = keys.associateWith { ArrayDeque(kept[it].orEmpty()) }
 
     /** What [rows] hold that the traces do not yet: each key's samples after its last. */
     fun take(rows: List<LiveRow>) {
@@ -21,19 +47,17 @@ internal class GraphTraces(val scope: GraphScope, val keys: List<ParamKey>) {
             val last = trace.lastOrNull()?.atNanos ?: Long.MIN_VALUE
             row.samples.filter { it.atNanos > last }.forEach { trace.addLast(it) }
             val newest = trace.lastOrNull()?.atNanos ?: return@forEach
-            while (trace.isNotEmpty() && trace.first().atNanos <= newest - WINDOW_NS) trace.removeFirst()
+            // five minutes, and the sample before them
+            while (trace.size > 1 && trace[1].atNanos <= newest - WINDOW_NS) trace.removeFirst()
         }
     }
 
-    fun mark(atNanos: Long) {
-        marks += atNanos
-        marks.removeAll { it < atNanos - WINDOW_NS }
-    }
+    /** The same scope with [next] chosen: a key kept keeps its trace, a new one starts from its row. */
+    fun with(next: List<ParamKey>): GraphTraces = GraphTraces(scope, next, traces.mapValues { it.value.toList() })
 
-    fun snapshot(): GraphsSnapshot = GraphsSnapshot(scope, keys, keys.associateWith { traces.getValue(it).toList() }, marks.toList())
+    fun snapshot(): GraphsSnapshot = GraphsSnapshot(scope, keys, keys.associateWith { traces.getValue(it).toList() })
 
     companion object {
-        const val MAX_KEYS = 4
         const val WINDOW_NS = 300_000_000_000L
     }
 }
@@ -43,7 +67,6 @@ internal data class GraphsSnapshot(
     val scope: GraphScope,
     val keys: List<ParamKey>,
     val traces: Map<ParamKey, List<Sample>>,
-    val marks: List<Long>,
 )
 
 /** «Графики» (board `scanner-sys-engine-graphs`) out of the traces and the rows they follow. Pure. */
@@ -68,7 +91,6 @@ internal object GraphsBuilder {
             lanes = lanes,
             line = line,
             nowNanos = now,
-            marks = g.marks,
             footnote = "окно ${SHOWN_NS / 1_000_000_000L} с · ${Figures.number(points.toDouble(), 0)} " +
                 Words.plural(points, "точка", "точки", "точек") + " на сигнал",
         )

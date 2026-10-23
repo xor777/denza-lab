@@ -66,6 +66,11 @@ import kotlinx.coroutines.withContext
  * three seconds), so the session asks nothing it can see would be refused: before each exchange it
  * looks at the hub, and a car the hub sees out of P or moving pauses the work without a request.
  *
+ * **«Графики»** (7.3, [pickGraphs], [setLiveTab]): each scope - a block's stream, a system's readings - has
+ * the signals ticked on its table, or [GraphPicks.default] until the driver ticks; a block's are its stream's
+ * focus, read first. While a scope's «Потоковые данные» is on screen, as a table or as graphs, [GraphTraces]
+ * keeps those signals' five minutes from the rows, so the graphs have their lines when they are shown.
+ *
  * **The pack's cells** (6.3, [setCellsVisible]): while «Ячейки» shows, the bus's [DiagnosticBus.batteryPages]
  * is collected beside the work - listening only, so the autoscan, the button and the streams go on -
  * and [PackCells] assembles the pages a sweep at a time. One subscription a showing: a refused or
@@ -146,9 +151,11 @@ internal class DiagnosticsSession(
     private val idents = HashMap<Int, IdentResult>()
     private val open = HashSet<Int>()
     private val streams = HashMap<Int, LiveStream>()
-    private val focus = HashMap<Int, List<Int>>()
     private var live: Int? = null
     private var recording: Pair<Int, StreamSink>? = null
+    /** When [recording] began on the wall clock; the last one's block and length while its tab stands. */
+    private var recordingSince: Long? = null
+    private var recorded: Pair<Int, Long>? = null
     private var readings = CarReadings()
     private var param: ParamState? = null
     /** «Ячейки»: the assembled pages while the tab shows, its subscription (none while paused), and whether that ended. */
@@ -162,7 +169,10 @@ internal class DiagnosticsSession(
     private var compare: Pair<Long?, Long?>? = null
     /** The code whose screen is open: its block and its code. */
     private var codeShown: Pair<Int, String>? = null
-    /** «Графики» of one scope while they are shown. */
+    /** What the driver ticked for «Графики», by scope; a scope not here has [GraphPicks.default]. */
+    private val picks = HashMap<GraphScope, List<ParamKey>>()
+    /** The scope whose «Потоковые данные» is on screen, and its chosen signals' traces. */
+    private var liveTab: GraphScope? = null
     private var graphs: GraphTraces? = null
     /** Each system's «Потоковые данные»: its minute, and which one is in front. */
     private val liveTables = HashMap<CarSystem, SystemLive>()
@@ -246,6 +256,7 @@ internal class DiagnosticsSession(
             bus = null
             recording?.second?.close()
             recording = null
+            recordingSince = null
             live = null
             polling = null
             cells = null
@@ -312,24 +323,18 @@ internal class DiagnosticsSession(
         compare = if (fromMillis == null && toMillis == null) null else fromMillis to toMillis
     }
 
-    override fun setGraphs(scope: GraphScope, keys: List<ParamKey>) = act {
-        val chosen = keys.distinct().take(GraphTraces.MAX_KEYS)
-        if (chosen.isEmpty()) {
-            if (graphs?.scope == scope) graphs = null
-            return@act
-        }
-        if (graphs?.scope == scope && graphs?.keys == chosen) return@act
-        graphs = GraphTraces(scope, chosen)
-        // A block's graphs are its stream's focus: read first, one request where they fit in one.
-        if (scope is GraphScope.Block) {
-            val pids = chosen.mapNotNull { (it as? ParamKey.Pid)?.takeIf { p -> p.request == scope.request }?.pid }
-            focus[scope.request] = pids
-            streams[scope.request]?.setFocus(pids)
-        }
+    override fun pickGraphs(scope: GraphScope, keys: List<ParamKey>) = act {
+        picks[scope] = keys.distinct().take(GraphPicks.MAX)
     }
 
-    override fun markGraphs(scope: GraphScope) = act {
-        graphs?.takeIf { it.scope == scope }?.mark(carNanos())
+    override fun setLiveTab(scope: GraphScope, shown: Boolean) = act {
+        if (shown) {
+            liveTab = scope
+        } else if (liveTab == scope) {
+            liveTab = null
+            graphs = null
+            if (scope is GraphScope.Block && recorded?.first == scope.request) recorded = null
+        }
     }
 
     override fun setLiveVisible(request: Int, visible: Boolean) = act {
@@ -344,21 +349,21 @@ internal class DiagnosticsSession(
         }
     }
 
-    override fun setFocus(request: Int, pids: List<Int>) = act {
-        focus[request] = pids
-        streams[request]?.setFocus(pids)
-    }
-
     override fun resetMinMax(request: Int) = act { streams[request]?.resetMinMax() }
 
     override fun setRecording(request: Int, on: Boolean) = act {
         if (on) {
             if (recording?.first == request) return@act
             recording?.second?.close()
-            recording = sinks.open(wallClock())?.let { request to it }
+            val now = wallClock()
+            recording = sinks.open(now)?.let { request to it }
+            recordingSince = now.takeIf { recording != null }
+            recorded = null
         } else if (recording?.first == request) {
             recording?.second?.close()
             recording = null
+            recorded = recordingSince?.let { request to (wallClock() - it).coerceAtLeast(0L) }
+            recordingSince = null
             scope?.launch { lookRecording() }
         }
     }
@@ -635,8 +640,8 @@ internal class DiagnosticsSession(
     private fun stream(request: Int): LiveStream? = streams[request] ?: idents[request]?.let { id ->
         if (id.offered.none(IdentResult::streamable)) return null
         LiveStream(request, id.offered, carRows = request == ECM).also { s ->
-            focus[request]?.let(s::setFocus)
             streams[request] = s
+            focusOn(request, s)
         }
     }
 
@@ -963,6 +968,32 @@ internal class DiagnosticsSession(
 
     // ------------------------------------------------------------------ the model
 
+    /** A block's chosen PIDs are its stream's focus (6.1): the ticked ones, or the default of its rows. Under [lock]. */
+    private fun focusOn(request: Int, stream: LiveStream) {
+        val rows = stream.view(running = false, recording = false, engineRunning = readings.engineRunning).rows
+        val pids = GraphPicks.of(picks[GraphScope.Block(request)], rows).mapNotNull { (it as? ParamKey.Pid)?.takeIf { p -> p.request == request }?.pid }
+        if (pids != stream.focus) stream.setFocus(pids)
+    }
+
+    /** The streams' focus and the shown scope's traces follow the choice. Under [lock]. */
+    private fun followPicks() {
+        streams.forEach { (request, stream) -> focusOn(request, stream) }
+        val scope = liveTab
+        if (scope == null) {
+            graphs = null
+            return
+        }
+        val rows = graphRows(scope)
+        val keys = GraphPicks.of(picks[scope], rows)
+        val g = graphs
+        graphs = when {
+            g == null || g.scope != scope -> GraphTraces(scope, keys)
+            g.keys != keys -> g.with(keys)
+            else -> g
+        }
+        graphs?.take(rows)
+    }
+
     private fun snapshot() = SessionSnapshot(
         link = link,
         phase = phase,
@@ -991,10 +1022,10 @@ internal class DiagnosticsSession(
         journalVisible = journalVisible,
         compare = compare,
         openCode = codeShown,
-        graphs = graphs?.let { g ->
-            g.take(graphRows(g.scope))
-            g.snapshot()
-        },
+        graphs = graphs?.snapshot(),
+        picks = HashMap(picks),
+        recordingSinceMillis = recordingSince,
+        recorded = recorded,
     )
 
     /** The rows «Графики» follow: the block's stream, or the system's table as it stands. Under [lock]. */
@@ -1008,6 +1039,7 @@ internal class DiagnosticsSession(
     }
 
     private fun publish() {
+        followPicks()
         mutable.value = builder.build(snapshot())
     }
 
@@ -1041,9 +1073,12 @@ internal class DiagnosticsSession(
         idents.clear()
         open.clear()
         streams.clear()
-        focus.clear()
+        picks.clear()
         live = null
         recording = null
+        recordingSince = null
+        recorded = null
+        liveTab = null
         param = null
         cells = null
         cellsJob = null

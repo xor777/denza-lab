@@ -15,19 +15,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
+import dev.denza.apps.feature.diagnostics.scan.GraphPicks
 import dev.denza.apps.feature.diagnostics.scan.GraphScope
 import dev.denza.apps.feature.diagnostics.scan.GraphsView
-import dev.denza.apps.feature.diagnostics.scan.LiveRow
 import dev.denza.apps.feature.diagnostics.scan.Mark
 import dev.denza.apps.feature.diagnostics.scan.ParamKey
 import dev.denza.apps.feature.diagnostics.scan.RailLine
@@ -136,16 +132,6 @@ internal fun ScrollRows(top: Float, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** The live data's two views at the tabs' right end. */
-private val VIEWS = listOf("Таблица", "Графики")
-
-/** The graphs a live tab opens with: its focus first, then the rows in order - up to four that can be read alone. */
-internal fun graphKeys(rows: List<LiveRow>, focus: List<Int> = emptyList()): List<ParamKey> {
-    val keyed = rows.filter { it.key != null }
-    val first = keyed.filter { it.pid in focus }
-    return (first + keyed.filter { it !in first }).mapNotNull { it.key }.take(4)
-}
-
 /**
  * A system's page: its head as a block's (title, aside, mono line, counters), its tabs, and the
  * chosen tab. The engine's stream runs while its scheme or its live data is in front, and ECM's
@@ -209,20 +195,23 @@ internal fun SystemPageScreen(
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }
     }
-    // «Графики»: up to four of the live rows on one axis, read first while they show (7.3)
+    // «Графики»: the signals ticked on the table, on one axis; kept while the tab is on screen (7.3)
     val live = tab == SystemTab.LIVE && (stream != null || obd != null)
-    val showGraphs = live && graphs
-    val liveRows = stream?.rows ?: obd?.live?.rows.orEmpty()
     val scope: GraphScope = if (ecm != null) GraphScope.Block(ecm.request) else GraphScope.System(system)
-    var keys by remember(system) { mutableStateOf<List<ParamKey>?>(null) }
-    val chosen = keys ?: graphKeys(liveRows, obd?.live?.focus.orEmpty())
-    DisposableEffect(scope, showGraphs, chosen, run) {
-        if (showGraphs) current.value.setGraphs(scope, chosen)
-        onDispose { if (showGraphs) current.value.setGraphs(scope, emptyList()) }
+    val picks = (stream?.picks ?: obd?.live?.picks).orEmpty()
+    val showGraphs = live && graphs && picks.isNotEmpty()
+    DisposableEffect(scope, live, run) {
+        if (live) current.value.setLiveTab(scope, true)
+        onDispose { if (live) current.value.setLiveTab(scope, false) }
     }
     val graphsView: GraphsView? = if (showGraphs) (stream?.graphs ?: obd?.live?.graphs) else null
-    var picking by remember { mutableStateOf(false) }
-    var pickingSignals by remember { mutableStateOf(false) }
+    val pick = { key: ParamKey -> actions.pickGraphs(scope, GraphPicks.toggle(picks, key)) }
+    val remove = { key: ParamKey ->
+        val next = picks - key
+        actions.pickGraphs(scope, next)
+        // the last signal off: the table again
+        if (next.isEmpty()) onTab(tab, false)
+    }
     val read = { requests.forEach(actions::readModule) }
     val codes = FooterButton("Прочитать DTC", true) { read() }
     val codesNotes = listOfNotNull(page.dtcFootnote.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) })
@@ -235,21 +224,15 @@ internal fun SystemPageScreen(
 
     RailPage(frame, footer = {
         when {
-            // the graphs: the pause, a mark, the recording of a block's stream, the signals
-            showGraphs -> ScanFooter(
-                listOfNotNull(
-                    pause,
-                    FooterButton("Метка", false) { actions.markGraphs(scope) },
-                    obd?.let { o -> FooterButton(if (o.live.recording) "Стоп записи" else "Запись", false, record = true) { actions.setRecording(ecm.request, !o.live.recording) } },
-                    FooterButton(ScannerWords.signals(chosen.size), false) { pickingSignals = true },
-                ),
-                listOfNotNull(graphsView?.footnote?.let { FooterNote.Words(it, mono = true) }),
+            // the graphs: the pause and, of a block's stream, the recording and its time
+            showGraphs -> GraphsFooter(
+                null, pause, obd?.live, graphsView?.footnote,
+                ecm?.let { e -> { on: Boolean -> actions.setRecording(e.request, on) } },
             )
             // the engine's state and its stream: the stream's own buttons
             streaming && obd != null -> ScanFooter(
                 buttons = listOfNotNull(
                     pause,
-                    FooterButton("Выбор PID", false) { picking = true },
                     if (tab == SystemTab.LIVE) FooterButton("Сбросить мин/макс", false) { actions.resetMinMax(ecm.request) } else null,
                 ),
                 notes = emptyList(),
@@ -294,15 +277,19 @@ internal fun SystemPageScreen(
     }) {
         BlockHead(system.title, page.aside, graphsView?.line ?: page.line, counters = page.counters.map { it.counter() })
         ScanTabs(
-            page.tabs.map { ScannerWords.tabLabel(system, it) }, page.tabs.indexOf(tab).coerceAtLeast(0), { onTab(page.tabs[it], graphs) },
-            right = if (live) Segments(VIEWS, if (graphs) 1 else 0) { onTab(tab, it == 1) } else null,
+            page.tabs.map { ScannerWords.tabLabel(system, it) }, page.tabs.indexOf(tab).coerceAtLeast(0),
+            // «Потоковые данные» tapped over its graphs brings the table back
+            { onTab(page.tabs[it], graphs && !(live && page.tabs[it] == tab)) },
+            right = if (live) graphsSwitch(picks.size, showGraphs) { onTab(tab, it) } else null,
         )
         when (tab) {
             SystemTab.STATE -> if (health) HealthContent(model) else page.scheme?.let { SchemeContent(model, it, onOpen) }
             SystemTab.LIVE -> when {
-                showGraphs -> GraphLanes(graphsView, sample?.graphsCursor, onParam)
-                stream != null -> LiveTable(stream.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true)
-                obd != null -> LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam, scroll = true)
+                showGraphs -> GraphLanes(graphsView, picks, sample?.graphsCursor, onParam, remove)
+                stream != null -> LiveTable(
+                    stream.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true, picks = picks, onPick = pick,
+                )
+                obd != null -> LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam, scroll = true, picks = picks, onPick = pick)
             }
             SystemTab.COMPARE -> if (system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
             SystemTab.GB_FLAGS -> GbFlagTiles(model.systems.gbFlags)
@@ -310,12 +297,6 @@ internal fun SystemPageScreen(
             SystemTab.DTC -> SystemDtcTable(page.dtc) { onCode(it.request, it.code) }
             SystemTab.DTC_READINESS -> if (ecm != null) DtcContent(ecm, Halves.RAIL)
             SystemTab.BLOCKS -> BlocksTable(ScannerWords.systemBlocks(model, page), onOpen)
-        }
-        if (picking && obd != null && ecm != null) {
-            PidPicker(obd.live.rows, obd.live.focus, { actions.setFocus(ecm.request, it); picking = false }) { picking = false }
-        }
-        if (pickingSignals) {
-            SignalPicker(liveRows, chosen, { keys = it; pickingSignals = false }) { pickingSignals = false }
         }
     }
 }

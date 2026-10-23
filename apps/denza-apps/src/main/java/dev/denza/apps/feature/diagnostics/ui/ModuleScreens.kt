@@ -16,9 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -27,12 +28,15 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DtcRow
 import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.Field
+import dev.denza.apps.feature.diagnostics.scan.GraphPicks
+import dev.denza.apps.feature.diagnostics.scan.GraphScope
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.LiveRow
 import dev.denza.apps.feature.diagnostics.scan.Mark
@@ -85,8 +89,10 @@ internal data class ScannerSample(
 internal fun ModulePage(
     module: ModuleView,
     tab: Int,
+    /** «Потоковые данные» as «Графики» rather than the table (7.3). */
+    graphs: Boolean,
     header: @Composable () -> Unit,
-    onTab: (Int) -> Unit,
+    onTab: (Int, Boolean) -> Unit,
     onBack: () -> Unit,
     actions: DiagnosticsActions,
     sample: ScannerSample?,
@@ -103,36 +109,56 @@ internal fun ModulePage(
     val live = obd != null && kind == ModuleTab.LIVE
     val ident = kind == ModuleTab.IDENT
     val tests = module.tests?.takeIf { kind == ModuleTab.TESTS }
-    var picking by remember { mutableStateOf(false) }
+    // «Графики»: the signals ticked on the table, kept while the tab is on screen (7.3)
+    val scope = GraphScope.Block(module.request)
+    val stream = obd?.live
+    val picks = stream?.picks.orEmpty()
+    val showGraphs = live && graphs && picks.isNotEmpty()
+    val current = rememberUpdatedState(actions)
+    val run = LocalScannerRun.current
+    DisposableEffect(scope, live, run) {
+        if (live) current.value.setLiveTab(scope, true)
+        onDispose { if (live) current.value.setLiveTab(scope, false) }
+    }
     val back = FooterButton(backLabel, false, onClick = onBack)
     val footer: @Composable () -> Unit = {
         when {
             ident -> IdentFooter(back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }
             tests != null -> ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { actions.rereadTests(module.request) }), emptyList())
-            live -> ScanFooter(
-                buttons = listOf(
-                    back,
-                    FooterButton(if (obd!!.live.running) "Пауза" else "Продолжить", true) { actions.setLiveVisible(module.request, !obd.live.running) },
-                    FooterButton("Выбор PID", false) { picking = true },
-                    FooterButton("Сбросить мин/макс", false) { actions.resetMinMax(module.request) },
-                ),
-                notes = emptyList(),
-            )
+            live -> {
+                val pause = FooterButton(if (stream!!.running) "Пауза" else "Продолжить", true) { actions.setLiveVisible(module.request, !stream.running) }
+                if (showGraphs) {
+                    GraphsFooter(back, pause, stream, stream.graphs?.footnote) { actions.setRecording(module.request, it) }
+                } else {
+                    ScanFooter(listOf(back, pause, FooterButton("Сбросить мин/макс", false) { actions.resetMinMax(module.request) }), emptyList())
+                }
+            }
             else -> DtcFooter(module, back) { actions.readModule(module.request) }
         }
     }
     ScannerPage(footer = footer) {
         header()
-        ModuleHead(module, if (live) ScannerWords.liveLine(module.request, obd!!.live.rows.size, obd.live.rate) else module.line)
-        ScanTabs(tabs, tab, onTab, alert = if (obd?.mil == MilState.ON) TAB_DTC else null)
+        ModuleHead(module, if (live) ScannerWords.liveLine(module.request, stream!!.rows.size, stream.rate) else module.line)
+        ScanTabs(
+            tabs, tab,
+            // «Потоковые данные» tapped over its graphs brings the table back
+            { onTab(it, graphs && !(live && it == tab)) },
+            alert = if (obd?.mil == MilState.ON) TAB_DTC else null,
+            right = if (live) graphsSwitch(picks.size, showGraphs) { onTab(tab, it) } else null,
+        )
         when {
             ident -> IdentContent(module.ident)
             tests != null -> TestsContent(tests)
-            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam, scroll = true)
+            showGraphs -> GraphLanes(stream!!.graphs, picks, sample?.graphsCursor, onParam ?: {}) { key ->
+                val next = picks - key
+                actions.pickGraphs(scope, next)
+                if (next.isEmpty()) onTab(tab, false)
+            }
+            live -> LiveTable(
+                stream!!.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam, scroll = true,
+                picks = picks, onPick = { actions.pickGraphs(scope, GraphPicks.toggle(picks, it)) },
+            )
             else -> DtcContent(module) { onCode(module.request, it) }
-        }
-        if (picking && obd != null) {
-            PidPicker(obd.live.rows, obd.live.focus, { actions.setFocus(module.request, it); picking = false }) { picking = false }
         }
     }
 }
@@ -460,6 +486,11 @@ private fun Monitors(list: List<MonitorRow>, x: Halves) {
  * A live table (`liveTable()`): an OBD responder's PIDs - the block's columns across the window, the
  * rail's beside it - or the pack's readings, whose [first] column is the device and whose rows
  * [scroll] under the captions between them and the footer. A value outside its norm is orange.
+ *
+ * With [picks] the table chooses «Графики» (7.3): a row that can go on them ([GraphPicks.pickable]) leads with
+ * its square in a column of its own - blue with its lane's number when ticked, an empty frame when not, pale once
+ * four are - and a tap anywhere in that column's height of the row is [onPick]; the rest of the row opens its
+ * parameter.
  */
 @Composable
 internal fun LiveTable(
@@ -469,28 +500,36 @@ internal fun LiveTable(
     onParam: ((ParamKey) -> Unit)? = null,
     first: String = "PID",
     scroll: Boolean = false,
+    picks: List<ParamKey>? = null,
+    onPick: (ParamKey) -> Unit = {},
 ) {
     val e = ScannerSpec.EcuLive
     val w = LocalScanWidth.current - 48f
-    val cols = ScannerSpec.columns(colSpec, 24f, w)
+    val px = if (picks != null) ScannerSpec.Pick.COL else 0f
+    val cols = ScannerSpec.columns(colSpec, 24f + px, w - px)
     HeadRow(
         cols,
         listOf(
-            HeadLabel(first), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = 12f), HeadLabel("ЕД."),
+            HeadLabel(first, pad = if (picks != null) 0f else 12f), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = 12f), HeadLabel("ЕД."),
             HeadLabel("МИН", end = true, pad = 12f), HeadLabel("МАКС", end = true, pad = 12f), HeadLabel("НОРМА"), HeadLabel("ГРАФИК · 60 С"),
         ),
         e.TOP, e.HEAD,
     )
+    if (picks != null) Rule(24f, e.TOP + e.HEAD, px)
     val top = e.TOP + e.HEAD + 1f
+    val pick = picks?.let { PickColumn(it, onPick) }
     if (scroll) {
         // the rows at their board places, scrolling under the captions
         ScrollRows(top) {
-            Box(Modifier.fillMaxWidth().height((rows.size * (e.ROW + 1f)).dp)) { LiveRows(rows, chartRange, cols, w, 0f, onParam) }
+            Box(Modifier.fillMaxWidth().height((rows.size * (e.ROW + 1f)).dp)) { LiveRows(rows, chartRange, cols, w, 0f, onParam, pick) }
         }
     } else {
-        LiveRows(rows, chartRange, cols, w, top, onParam)
+        LiveRows(rows, chartRange, cols, w, top, onParam, pick)
     }
 }
+
+/** The squares' column of a live table: what is ticked, and what a tap on a square does. */
+private class PickColumn(val picks: List<ParamKey>, val onPick: (ParamKey) -> Unit)
 
 @Composable
 private fun LiveRows(
@@ -500,9 +539,12 @@ private fun LiveRows(
     w: Float,
     top: Float,
     onParam: ((ParamKey) -> Unit)?,
+    pick: PickColumn? = null,
 ) {
     val e = ScannerSpec.EcuLive
+    val p = ScannerSpec.Pick
     val width = rememberWidths()
+    val full = pick != null && pick.picks.size >= GraphPicks.MAX
     var y = top
     rows.forEach { r ->
         val h = e.ROW
@@ -510,7 +552,13 @@ private fun LiveRows(
         // a row with a key opens its parameter alone; the row itself draws nothing more
         val key = r.key
         if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
-        ScanText(r.device ?: ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
+        // its square: the whole column at the row's height is the square's target, over the row's own
+        if (pick != null && key != null && (GraphPicks.pickable(r) || key in pick.picks)) {
+            val n = pick.picks.indexOf(key) + 1
+            PickBox(24f + p.INSET, y + (h - p.SIZE) / 2f, n.takeIf { it > 0 }, pale = full && n == 0)
+            Box(Modifier.at(24f, y).size(p.COL.dp, h.dp).tap { pick.onPick(key) })
+        }
+        ScanText(r.device ?: ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + if (pick != null) 0f else 12f, mid(y, h, Type.NORM_MONO)))
         ScanRuns(
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
             Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second,
@@ -531,14 +579,19 @@ private fun LiveRows(
     }
 }
 
-/** The last 60 s on the car's clock: x by time, a gap where a reading is missing, never interpolated. */
+/**
+ * The last 60 s on the car's clock: x by time, a gap where a reading is missing, never interpolated. The sample
+ * before the minute starts the line left of the chart, clipped, so it enters from the left edge without a jump.
+ */
 @Composable
 private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, width: Float, modifier: Modifier) {
     val e = ScannerSpec.EcuLive
+    // the glow reaches past the line: clipped at the chart's ends only, where the line enters and leaves
     Canvas(modifier.size(width.dp, e.SPARK_H.dp)) {
         val last = r.samples.last().atNanos
         val span = 60_000_000_000L
-        val values = r.samples.mapNotNull { it.value }
+        val shown = inWindow(r.samples, last, span)
+        val values = shown.mapNotNull { it.value }
         if (values.isEmpty()) return@Canvas
         val lo = range?.start ?: values.min()
         val hi = range?.endInclusive ?: values.max()
@@ -546,10 +599,10 @@ private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, width: Fl
         val inner = size.height - 2f * two
         val path = Path()
         var open = false
-        r.samples.forEach { s ->
+        shown.forEach { s ->
             val v = s.value
             if (v == null) { open = false; return@forEach }
-            val t = ((s.atNanos - (last - span)).toFloat() / span).coerceIn(0f, 1f)
+            val t = (s.atNanos - (last - span)).toFloat() / span
             val n = if (hi > lo) ((v - lo) / (hi - lo)).coerceIn(0f, 1f) else 0.5f
             val x = t * size.width
             val y = size.height - two - n * inner
@@ -557,44 +610,14 @@ private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, width: Fl
             open = true
         }
         val sw = e.SPARK_STROKE.dp.toPx()
-        glowUnder(Ink.TRACE_GLOW, e.SPARK_GLOW * 2f) { c, p ->
-            p.style = android.graphics.Paint.Style.STROKE
-            p.strokeWidth = sw
-            p.strokeJoin = android.graphics.Paint.Join.ROUND
-            c.drawPath(path.asAndroidPath(), p)
-        }
-        drawPath(path, ink(Ink.BLUE), style = Stroke(sw, join = StrokeJoin.Round))
-    }
-}
-
-/** «Выбор PID»: up to four parameters polled first. No board yet: the scanner's plate and rows. */
-@Composable
-internal fun PidPicker(rows: List<LiveRow>, focus: List<Int>, onDone: (List<Int>) -> Unit, onCancel: () -> Unit) {
-    var chosen by remember { mutableStateOf(focus) }
-    Box(Modifier.fillMaxSize().plate(0xB3000000.toInt()).tap(onCancel), contentAlignment = Alignment.Center) {
-        Column(Modifier.width(520.dp).plate(Ink.BAR, Ink.RULE, 8f).tap {}.padding(16.dp)) {
-            ScanText("ВЫБОР PID · ДО ЧЕТЫРЁХ, ОПРАШИВАЮТСЯ ПЕРВЫМИ", Type.COUNTER_LABEL, Ink.MUTE)
-            Spacer(Modifier.height(8.dp))
-            rows.forEach { r ->
-                val on = r.pid in chosen
-                Box(
-                    Modifier.fillMaxWidth().height(32.dp).plate(if (on) Ink.BLUE_FILL else null, null, 4f).tap {
-                        chosen = if (on) chosen - r.pid else if (chosen.size < 4) chosen + r.pid else chosen
-                    },
-                ) {
-                    ScanText(ScannerWords.pid(r.pid), Type.NORM_MONO, if (on) Ink.BLUE_SOFT else Ink.FAINT, Modifier.at(12f, mid(0f, 32f, Type.NORM_MONO)))
-                    ScanRuns(
-                        listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
-                        Modifier.at(56f, mid(0f, 32f, Type.CELL)),
-                    )
-                }
+        clipRect(0f, -size.height, size.width, 2f * size.height) {
+            glowUnder(Ink.TRACE_GLOW, e.SPARK_GLOW * 2f) { c, p ->
+                p.style = android.graphics.Paint.Style.STROKE
+                p.strokeWidth = sw
+                p.strokeJoin = android.graphics.Paint.Join.ROUND
+                c.drawPath(path.asAndroidPath(), p)
             }
-            Spacer(Modifier.height(12.dp))
-            Row {
-                ScanButton("Готово", true, { onDone(chosen) })
-                Spacer(Modifier.width(10.dp))
-                ScanButton("Отмена", false, onCancel)
-            }
+            drawPath(path, ink(Ink.BLUE), style = Stroke(sw, join = StrokeJoin.Round))
         }
     }
 }

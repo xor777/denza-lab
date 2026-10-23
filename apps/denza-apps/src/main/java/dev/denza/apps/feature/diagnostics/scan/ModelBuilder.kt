@@ -74,8 +74,14 @@ internal class SessionSnapshot(
     val compare: Pair<Long?, Long?>? = null,
     /** The code whose screen is open ([DiagnosticsActions.openCode]): its block and its code as [DtcRow.code] prints it. */
     val openCode: Pair<Int, String>? = null,
-    /** «Графики» while [DiagnosticsActions.setGraphs] holds them (7.3). */
+    /** «Графики» while a scope's «Потоковые данные» is on screen ([DiagnosticsActions.setLiveTab], 7.3). */
     val graphs: GraphsSnapshot? = null,
+    /** What the driver ticked for «Графики», by scope ([DiagnosticsActions.pickGraphs]); a scope not here has the default. */
+    val picks: Map<GraphScope, List<ParamKey>> = emptyMap(),
+    /** When the recording under way began, on [nowMillis]' clock; null while none runs. */
+    val recordingSinceMillis: Long? = null,
+    /** The last recording's block and length in ms, while its tab stands. */
+    val recorded: Pair<Int, Long>? = null,
 )
 
 /**
@@ -129,8 +135,13 @@ internal class ModelBuilder(
         return built.copy(report = report(built, s))
     }
 
-    /** «Графики» into the stream or the system's table they follow (7.3). */
-    private fun graphs(model: DiagnosticsModel, s: SessionSnapshot): DiagnosticsModel {
+    /** The systems' ticked signals on their tables, then «Графики» into the stream or the system's table they follow (7.3). */
+    private fun graphs(built: DiagnosticsModel, s: SessionSnapshot): DiagnosticsModel {
+        val model = built.copy(
+            systems = built.systems.copy(
+                live = built.systems.live.mapValues { (system, t) -> t.copy(picks = GraphPicks.of(s.picks[GraphScope.System(system)], t.rows)) },
+            ),
+        )
         val g = s.graphs ?: return model
         return when (val scope = g.scope) {
             is GraphScope.Block -> {
@@ -480,11 +491,19 @@ internal class ModelBuilder(
             readiness = if (status == null) "—" else "$ready/$supported",
             monitors = monitors,
             lists = lists,
-            live = stream?.view(
-                running = s.live == request && s.streaming,
-                recording = s.recording == request,
-                engineRunning = s.car.engineRunning,
-            ) ?: LiveView(false, "—", emptyList(), emptyList(), s.recording == request),
+            live = (
+                stream?.view(
+                    running = s.live == request && s.streaming,
+                    recording = s.recording == request,
+                    engineRunning = s.car.engineRunning,
+                ) ?: LiveView(false, "—", emptyList(), s.recording == request)
+                ).let { v ->
+                v.copy(
+                    picks = GraphPicks.of(s.picks[GraphScope.Block(request)], v.rows),
+                    recordingMs = s.recordingSinceMillis?.takeIf { s.recording == request }?.let { (s.nowMillis - it).coerceAtLeast(0L) },
+                    recordedMs = s.recorded?.takeIf { it.first == request }?.second,
+                )
+            },
             freezeFrame = s.obdReads[request]?.first ?: FreezeFrameData(),
             tests = s.obdReads[request]?.second ?: ObdTestsData(),
         )

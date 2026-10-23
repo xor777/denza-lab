@@ -58,7 +58,8 @@ internal fun HeadCounter.counter(): Counter = Counter(label, value, on, mark, ou
 internal data class FooterButton(val label: String, val primary: Boolean, val record: Boolean = false, val onClick: () -> Unit)
 
 internal sealed interface FooterNote {
-    data class Words(val text: String, val mono: Boolean = false) : FooterNote
+    /** [rec]: a recording under way - the red dot before its words, which stand a step brighter. */
+    data class Words(val text: String, val mono: Boolean = false, val rec: Boolean = false) : FooterNote
     data object Divider : FooterNote
 }
 
@@ -271,8 +272,8 @@ internal fun BlockHead(
 
 /* ------------------------------------------------------------------- tabs */
 
-/** The view switch at the tabs' right end: its items and the one on. */
-internal data class Segments(val items: List<String>, val active: Int, val onSelect: (Int) -> Unit)
+/** The view switch at the tabs' right end: its items, the one on, and the one that cannot be chosen now ([off]). */
+internal data class Segments(val items: List<String>, val active: Int, val off: Int? = null, val onSelect: (Int) -> Unit)
 
 /** The tab row with its rule; an [alert]ed tab's red dot; a [right] switch at the row's end. */
 @Composable
@@ -313,8 +314,12 @@ internal fun ScanTabs(items: List<String>, active: Int, onSelect: (Int) -> Unit,
             var sx = maxWidth.value - 24f - ws.sum() - (ws.size - 1) * g.GAP
             right.items.forEachIndexed { i, s ->
                 val on = i == right.active
-                Box(Modifier.at(sx, y).size(ws[i].dp, g.H.dp).plate(if (on) Ink.QUIET else null, if (on) Ink.QUIET_LINE else null, g.R).tap { right.onSelect(i) })
-                ScanText(s, Type.SEGMENT, if (on) Ink.WHITE else Ink.MUTE, Modifier.at(sx + g.PAD, y + (g.H - Type.SEGMENT.lh) / 2f))
+                val off = i == right.off
+                Box(
+                    Modifier.at(sx, y).size(ws[i].dp, g.H.dp).plate(if (on) Ink.QUIET else null, if (on) Ink.QUIET_LINE else null, g.R)
+                        .tap(if (off) null else ({ right.onSelect(i) })),
+                )
+                ScanText(s, Type.SEGMENT, if (on) Ink.WHITE else if (off) Ink.FAINT else Ink.MUTE, Modifier.at(sx + g.PAD, y + (g.H - Type.SEGMENT.lh) / 2f))
                 sx += ws[i] + g.GAP
             }
         }
@@ -349,7 +354,12 @@ internal fun ScanFooter(buttons: List<FooterButton>, notes: List<FooterNote>, no
                 is FooterNote.Words -> {
                     val st = if (n.mono) Type.NOTE_MONO else Type.NOTE
                     r -= width(n.text, st)
-                    ScanText(n.text, st, noteInk, Modifier.at(r, top0 + (room - st.lh) / 2f))
+                    ScanText(n.text, st, if (n.rec) Ink.DIM2 else noteInk, Modifier.at(r, top0 + (room - st.lh) / 2f))
+                    if (n.rec) {
+                        r -= ScannerSpec.Rail.MARK_GAP + ScannerSpec.Sign.R
+                        SignAt(Mark.ACTIVE, r, top0 + room / 2f)
+                        r -= ScannerSpec.Sign.R
+                    }
                     r -= f.GAP
                 }
             }
