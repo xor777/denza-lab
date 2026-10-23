@@ -20,10 +20,11 @@
   // one frame at its own pixels, with the overlay (or the probe's old one) drawn over it
   async function render(s, repo) {
     const f = FRAMES[s.frame];
-    const im = await load(f.src, repo);
+    const im = f.src ? await load(f.src, repo) : null;
     const cv = document.createElement('canvas'); cv.width = f.w; cv.height = f.h;
     const c = cv.getContext('2d');
-    if (f.crop) c.drawImage(im, f.crop[0], f.crop[1], f.crop[2], f.crop[3], 0, 0, f.w, f.h);
+    if (!im) { c.fillStyle = '#000'; c.fillRect(0, 0, f.w, f.h); }
+    else if (f.crop) c.drawImage(im, f.crop[0], f.crop[1], f.crop[2], f.crop[3], 0, 0, f.w, f.h);
     else c.drawImage(im, 0, 0, f.w, f.h);
     (f.pastes || []).forEach(p => c.drawImage(im, p.from[0], p.from[1], p.from[2], p.from[3], p.to[0], p.to[1], p.from[2], p.from[3]));
     if (s.old) O.oldOverlay(c, s.old);

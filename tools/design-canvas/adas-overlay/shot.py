@@ -4,6 +4,7 @@ Render the ADAS overlay boards (phase 1: mockups) to captures/adas-overlay-desig
 
     python3 shot.py                  every board
     python3 shot.py full-03-noa-active pair-1-route
+    python3 shot.py bare                every state alone on black, for emulator.py / compare.py
 
 The overlay is drawn by adas.js in Luminofor's verbs and colours (../luminofor/spec.json) over
 real Navigator frames from captures/ (git-ignored); boards.js says which frame, which state and
@@ -26,11 +27,20 @@ def read(*parts):
         return f.read()
 
 
+BARE = ['idle', 'waiting', 'available', 'active', 'iccOnly', 'stockEmpty', 'yandexSilent', 'stale', 'takeover']
+BARE_ONE = ['active', 'stockEmpty', 'takeover', 'stale']
+
+
+def bare_ids():
+    # mirror of the two generated rows in boards.js BOARDS
+    return ['bare-' + k for k in BARE] + ['bare-one-' + k for k in BARE_ONE]
+
+
 def board_ids():
     src = read('boards.js')
     block = src[src.index('const BOARDS'):src.index('const SIZE')]
     return [line.strip()[1:line.strip().index("'", 1)] for line in block.splitlines()
-            if line.strip().startswith("'") and "':" in line]
+            if line.strip().startswith("'") and "':" in line] + bare_ids()
 
 
 def page(bid):
@@ -54,7 +64,7 @@ def page(bid):
 
 def size(bid):
     # mirror of SIZE in boards.js, so the window matches the canvas
-    if bid.startswith(('full-', 'two-')):
+    if bid.startswith(('full-', 'two-', 'bare-')):
         return 2560, 1600
     if bid.startswith('one-'):
         return 832, 1358
@@ -83,5 +93,8 @@ def shoot(bid):
 
 
 if __name__ == '__main__':
-    for bid in (sys.argv[1:] or board_ids()):
+    ids = sys.argv[1:] or board_ids()
+    if ids == ['bare']:
+        ids = bare_ids()
+    for bid in ids:
         shoot(bid)

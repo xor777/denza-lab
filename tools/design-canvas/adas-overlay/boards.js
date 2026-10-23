@@ -22,6 +22,9 @@
     car_one: { src: 'captures/alice-navigator-20261011/product-live/screen-first-key.png', w: 832, h: 1358,
       crop: [880, 112, 832, 1358], pastes: [{ from: [2176, 296, 336, 176], to: [472, 184] }],
       A: { right: 808, bottom: 1194 } },
+    // black, for laying an emulator screenshot of the overlay over its board (compare.py): no
+    // frame, the anchor where the module's emulator fixture puts it
+    bare: { src: null, w: 2560, h: 1600, A: { right: 2512, bottom: 1448 } },
     // Navigator full width with a route, day theme (emulator)
     nav_day: { src: 'captures/yandex-adas-prototype-20261023/hud-acceptance-clean/foreground.png', w: 2560, h: 1600,
       A: { right: 2520, bottom: 1510 }, B: { left: 24, top: 378 } },
@@ -102,6 +105,11 @@
       ['Яндекс молчит', shot('nav_day', 'yandexSilent')],
       ['ADAS молчит', shot('nav_day', 'stale')],
     ] },
+    // every state alone on black at the bare anchor; one-* at one third (narrow)
+    ...Object.fromEntries(['idle', 'waiting', 'available', 'active', 'iccOnly', 'stockEmpty', 'yandexSilent', 'stale', 'takeover']
+      .map(k => ['bare-' + k, { kind: 'full', shot: shot('bare', k) }])),
+    ...Object.fromEntries(['active', 'stockEmpty', 'takeover', 'stale']
+      .map(k => ['bare-one-' + k, { kind: 'full', shot: shot('bare', k, { narrow: true }) }])),
     // the owner's choices
     'choice-1-placement': { kind: 'pair', captions: ['А · справа внизу', 'Б · под манёвром'],
       shots: [shot('nav_day', 'active'), shot('nav_day', 'active', { place: 'B' })] },
