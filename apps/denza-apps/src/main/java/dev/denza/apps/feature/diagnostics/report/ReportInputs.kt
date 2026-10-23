@@ -202,6 +202,7 @@ internal object ReportInputs {
     private fun statusWord(status: ModuleStatus, result: ModuleResult?): String = when (status) {
         ModuleStatus.OK -> "—"
         ModuleStatus.HISTORY -> "история ${result?.history ?: ""}".trim()
+        ModuleStatus.PENDING -> "ожидающие ${result?.pending ?: ""}".trim()
         ModuleStatus.ACTIVE -> "активные ${result?.active ?: ""}".trim()
         ModuleStatus.UNREAD -> "память не читали"
         ModuleStatus.POLLING -> "опрос"
