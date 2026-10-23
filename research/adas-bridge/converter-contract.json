@@ -1,73 +1,68 @@
 {
   "schema": "denza-adas-offline-converter-contract-v1",
-  "status": "local prototype, no real publisher or receiver acceptance",
-  "implementation": "tools/adas_bridge",
+  "status": "stock-equivalent bridge: libraries/adas-link (Java, in Navigator, dry run) and tools/adas_bridge/stock.py (Python oracle), byte-identical; no live publisher",
+  "implementation": [
+    "libraries/adas-link",
+    "tools/adas_bridge/stock.py"
+  ],
   "input": {
     "routeSchema": "denza-yandex-driving-route-v1",
     "guidanceSchema": "denza-yandex-guidance-v1",
     "pointOrder": "lon,lat",
     "sourceFrame": "wgs84",
-    "polylinePosition": ["segmentIndex", "segmentPosition"],
+    "polylinePosition": [
+      "segmentIndex",
+      "segmentPosition"
+    ],
     "unknownPolicy": "absent/null/availability unknown remain unknown; partial availability and issues retained",
-    "processOwnership": ["sourceSessionId", "generation", "sequence", "positionRouteId", "positionMatchesRoute"]
+    "processOwnership": [
+      "sourceSessionId",
+      "generation",
+      "sequence",
+      "positionRouteId",
+      "positionMatchesRoute"
+    ]
   },
   "geometry": {
-    "cuts": ["section boundaries including fractions", "range boundaries", "per-edge speed-limit changes", "per-edge jam changes"],
-    "length": "haversine source geometry; SDK metadata weights may mutate during guidance and are not substituted",
+    "cuts": [
+      "section boundaries",
+      "every known traffic light (the light ends its link)",
+      "per-edge speed-limit changes",
+      "tunnel, ferry and highway range boundaries",
+      "lane signs on highways",
+      "never at jams"
+    ],
+    "length": "haversine on WGS-84; whole metres per link, largest remainder, summing exactly to the segment (int navigationLen/groupLen/groupTime)",
     "points": "separate sequential slices per link with duplicated shared endpoints",
     "progressOffsets": "remaining link and section distances",
     "sectionInstructionPhase": "Yandex BEGIN entry action maps to preceding stock segment END at shared geometry boundary",
-    "trafficLightOwnership": "incoming link begin < signal position <= end; route-start incoming link unavailable",
+    "trafficLightOwnership": "the link ending at the light (within 1 m); a light at the route start belongs to no link but stays in trafficLights",
     "finalArrival": "MainAction 0, AssistantAction 36 only with known endpoint-consistent wayPoints",
-    "coordinates": "explicit inspection WGS84 or existing Moscow-only native-gcj-unrestricted-candidate, transformed once"
+    "coordinates": "transformed once, then rounded to the stock grid 1/3600000 (Coord2DInt32)"
   },
   "ids": {
-    "linkId": "deterministic SHA-256-derived positive signed64 integer",
-    "pathId": "deterministic positive 53-bit integer, exact in JSON/int64 selection and DOUBLE sdVehicleLocation.curSDRouteID",
-    "receiverMeaning": "unverified; no topology-match equivalence claim"
+    "linkId": "SHA-256 of the link's own grid points, positive signed64: same road piece, same id in every route",
+    "pathId": "Amap-style per process: 100002 upward, one id per distinct link table (an identical table keeps its id)",
+    "receiverMeaning": "unverified"
   },
   "candidate": {
     "publicationReady": false,
-    "roadClass": null,
-    "laneCount": null,
-    "ownership": null,
-    "direction": null,
-    "formway": null,
-    "adminCode": null,
-    "linkType": "known tunnel range -> verified enum 2; otherwise unknown",
-    "speedLimit": "0 follows inspected stock exporter; source limits retained separately",
-    "unmappedActions": ["FORK_LEFT", "FORK_RIGHT", "EXIT_LEFT", "EXIT_RIGHT", "BOARD_FERRY", "LEAVE_FERRY", "WAYPOINT", "FINISH"]
-  },
-  "experimentalBenchProfile": {
-    "separateFromCandidate": true,
-    "nativeNullSentinels": {"roadclass": -1, "unknownLinktype": -1},
-    "otherUnknowns": "remain JSON null; real ADAS acceptance of null primitives not established",
-    "envelopeMetadata": "explicit retained stock golden template, not inferred from Yandex",
-    "routeWire": ["Binder protobuf", "captured native SOME/IP framing"],
-    "selectionWire": "Binder protobuf field1 struct, field3 int64 pathIDReq",
-    "dynamicWire": ["sdVehicleLocation Binder protobuf", "TrafficInfo Binder protobuf", "NavigationStatus Binder protobuf"],
-    "dynamicUnknowns": ["vehicleSpeed", "GPSspeed native scaling", "currentRoadOwnership", "jam encoding", "cameras", "offCourse semantics"],
-    "dynamicMissingPolicy": "omit unavailable fields and retain missingAttributes; proto3 defaults are not known values",
-    "locationProvenance": "protocol GPS coordinate slots use Guidance ClassifiedLocation.getLocation; independent raw GNSS not established; matched slots use separate source-route interpolation",
-    "nativeDynamicSomeipFraming": "not implemented; Binder bytes are not claimed identical to native SOME/IP structs"
+    "unknowns": "stock NULL values: roadclass/formway/linktype -1, ownership -1, actions 0; laneNum/direction/adminCode 0; never JSON null",
+    "profileFacts": "factory Beijing profile: MainAction on the manoeuvre link; highway link without light: class 0 (>=90 km/h) or 6, formway 1, direction 1, ownership 0, lane sign width; roundabout formway 4 direction 1; curLinkSpeed = section free-flow speed",
+    "speedLimit": "0 on links (stock); TrafficInfo.SpdLmtSpeedValue = Yandex posted limit (onCurrentRoadSpeed)",
+    "actions": "FORK/EXIT -> SlightLeft/Right 3/4; BOARD/LEAVE_FERRY -> assistant 19/20; WAYPOINT -> 0/35; arrival 0/36"
   },
   "guard": {
-    "sampleMaxAgeMs": 2000,
-    "aggregateFixMaxAgeMs": 2500,
-    "nativeLocationFutureToleranceMs": 250,
-    "poseToleranceM": "min(100,max(25,accuracy+15)); prototype geometry guard, not established ADAS threshold",
-    "maxAccuracyM": 100,
-    "requiredSessionIdentity": "new source sessions require matching route snapshot and route position owner",
-    "legacyCapturePolicy": "missing source session/position owner allowed only as labelled archival diagnostic compatibility",
-    "restart": "new sourceSessionId may reset generation/sequence; retired sessions rejected",
-    "recovery": "cached bytes retransmit, new local publication epoch, new labelled mock ACK",
-    "realAckLimitation": "ADAS ACK has no publication epoch token",
-    "emulatorWatcher": "explicit emulator-N serial plus qemu=1; allowlisted reads and bounded subprocess deadlines only"
+    "fix": "FINE class only, timestamp newer than the last, at most 1000 ms old",
+    "navigation": "Navigator's own guidance state; loss, staleness and NOT_ON_ROUTE never end it",
+    "progress": "never backwards on one pathId",
+    "finished": "a finished routeId is retired for the process",
+    "watchdog": "no observation for 10 s ends navigation"
   },
   "validation": {
     "stockGolden": "captures/stock-map-car-lanes-20261023/reports/route-wire/first-full/route-01.someip.bin",
     "goldenSHA256": "095d37e0e2985baf926d1d44ed95f03ab5f4eca83ac714cf14584e20c4d8c0d2",
-    "claim": "raw framing reconstructed byte for byte with original JSON preserved; fresh Gson formatting unproved",
+    "claim": "the car golden is rebuilt from its PathInfo byte for byte (JSON, NaviDataDetail, native SOME/IP framing); Gson 2.10.1 and protobuf-java 3.25.5 agree",
     "sameCorridorEquivalence": false,
     "realVehicleAcceptance": false
   }

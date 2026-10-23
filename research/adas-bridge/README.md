@@ -23,7 +23,10 @@ Updated 2026-10-23. Local parser acceptance is separate from vehicle acceptance.
 | The wire format is recoverable completely from the stock map (protobuf field numbers, the route JSON, chunking, the 1 Hz cadence, the handshake); what ADAS does with it is only partly known | firmware + car logs | [Contract](#contract) |
 | Navigator 29.8.1 exports complete route geometry, nullable per-edge speed limits, manoeuvres, junction lane signs, traffic signals and live progress; inspected getters have no per-road class/count/access/direction contract | code; actual emulator captures | [Local prototype](#local-prototype-2026-10-23) |
 | Native route archive expands SD geometry into the same public geometry; no additional road-class or lane-count field has been identified | code; byte evidence | [Native archive](#native-route-archive) |
-| Route conversion, byte roundtrip and a mock selection/progress lifecycle are implemented locally; vehicle acceptance remains unverified | code | [Local prototype](#local-prototype-2026-10-23) |
+| ~~Route conversion, byte roundtrip and a mock selection/progress lifecycle are implemented locally~~ superseded by the stock-equivalent bridge below | code | [Local prototype](#local-prototype-2026-10-23) |
+| `libraries/adas-link` mirrors the stock map's feed code (serializer, chunking, every sender, DriveRouteManager, MmtSomeIpDataManager, status loop, ACK resend, gates); the car's own route capture is rebuilt byte for byte, real Gson and protobuf-java agree with it, Python `tools/adas_bridge/stock.py` gives the same bytes | code + golden + oracles | [Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) |
+| Inside Navigator the bridge runs as a dry run: everything the stock map would fire is recorded to a JSONL trace; the SOME/IP publisher is compiled hard-off | code; emulator run | [Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) |
+| A local SOME/IP client can subscribe to the stock map's offered events (HAL client classes, no security section); the overlay subscribes read-only | firmware; car receipt open | [Transport](#transport) |
 | ADAS availability is explicit DNP/ICC/ACC status (0/1/2); NOA family and route ACK are separate. Passive observer receives real car packets and shows an overlay | firmware + car acceptance, 2026-10-23 | [Status observer](#adas-status-observer) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
@@ -31,7 +34,8 @@ Contents: [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
-[Local prototype](#local-prototype-2026-10-23) · [Native archive](#native-route-archive) ·
+[Local prototype](#local-prototype-2026-10-23) ·
+[Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) · [Native archive](#native-route-archive) ·
 [ADAS status observer](#adas-status-observer) ·
 [Safety](#safety) · [Verdict and plan](#verdict-and-plan) ·
 [Evidence](#evidence-and-reproduction)
@@ -97,8 +101,13 @@ event to each subscribed session (`notifySomeIpEvent`, `:235`), so we can read
 PathMatch, MMTPathSelected and pilot status alongside the stock map without
 taking them from it. A third-party HUD app ships a read-only diagnostic that
 subscribes as a client to the IVI's own map services (7, 43, 45, `0x8202`,
-266); whether vsomeip delivers locally offered events to a local client is not
-established here, but it would let a passive probe record both writers' bytes.
+266). The HAL's own `libsomeipimpl.so` carries the client classes for the map's
+services (`CNavigationStatus_LinkInfoServiceClient`, `CSDMapInformServiceClient`)
+and the stack config has no security section, so a local client can subscribe to
+the events the stock map offers: a passive probe can record the idle stock map's
+feed, and the ADAS overlay (`experiments/yandex-hud-module`, `AdasPassiveClient`)
+does so read-only for services 7 and `0x8202`. Live receipt of both writers'
+bytes on the car is still to be shown.
 
 ## One writer
 
@@ -370,7 +379,8 @@ transform once. Yandex annotations describe section entry; stock guide-segment
 actions describe the end, so the action is shifted to the preceding segment.
 Only known semantic enum correspondences are used. Traffic lights on a boundary
 belong to the incoming link. Junction lane-sign width is never extrapolated to
-the whole road. Synthetic path IDs fit 53 bits because `curSDRouteID` is a
+the whole road. (Superseded: the bridge numbers paths as Amap does, 100002 up per
+process, one id per link table, and cuts no link at a jam.) Synthetic path IDs fit 53 bits because `curSDRouteID` is a
 protobuf **double**, whereas route JSON and selection use integers; link IDs
 retain exact signed64 serialization.
 
@@ -398,7 +408,9 @@ Its device commands only read allowlisted evidence. No real publisher is
 implemented. Unknown attributes remain visible, and every draft is marked
 `publicationReady=false`. The byte exercise uses the retained stock envelope as
 an explicit template and native unknown sentinels where verified; remaining
-JSON nulls are **not proved acceptable to the ECU**. Current-road ownership,
+JSON nulls are **not proved acceptable to the ECU** (superseded: the stock's own
+model coerces a JSON null in a primitive to 0, so the bridge sends the stock's NULL
+values and never null; see below). Current-road ownership,
 vehicle speed, GPS-speed unit conversion and several extras remain unencoded.
 The Yandex classified location is not established as independent raw GNSS.
 Selection acknowledgement alone would not validate these semantics.
@@ -413,6 +425,55 @@ or a percentage comparable to Yandex lane signs. There is no proven universal
 winner and no Yandex-to-OSM matcher in this prototype. See the pinned
 [`osmComparison`](yandex-native-route-evidence-20261023.json) for input hashes
 and the limitations of the bbox count.
+
+## Stock-equivalent bridge (adas-link, 2026-10-23)
+
+`libraries/adas-link` (plain Java 8, compiled into Navigator's dex like
+`:hud-link`, and a Gradle library) is the stock map's feed code, ported class by
+class from `LM`, driven by Navigator instead of Amap. `AdasBridge` in the YandexHUD
+module hosts it; the owner's rule is mirrored code, never our own semantics.
+
+| Stock code (`LM`) | adas-link |
+| --- | --- |
+| `l.f/y/r/a/d/o/b`, `l.k/A`, `k.g`, `n.a` | `StockRouteJson`: NaviToEHPData, one group named 无名道路, segment descriptions from the app strings (English or default), `endPOIInfo` PTP 1, NaviDataDetail chunks (count from 524264, cuts at 524288, the stock's own failure past the end) |
+| `f0` senders, `e0.k/l`, `f.h` | `StockMessages` + `Pb`: every message as the generated protobuf-lite classes write it (uint32 as 32 unsigned bits, set sub-messages always present) |
+| `DriveRouteManager`, `k.i` | `StockFeed`: route + selection when the focus path changes and DNP service and switch are on; a foreign or failed MMTPathSelected resends with RouteType 14; DNP switched on resends 300 ms later; no ACK timeout (the stock has none) |
+| `MmtSomeIpDataManager`, `f0.t`, `f` | `StockFeed`: location at most once a second (`c.d()`), region then position, TrafficInfo, tunnel, light; the 1 s stationary loop; NaviInfo bundle (tidal lane, action and camera, speed/intersection) once a second; NavigationStatus every second (101 navigating, 110 three times only after arrival, else the map state); resets on start, stop and yaw; nothing dynamic while ADAS sleeps; noODDRegionDist MAX |
+| Amap PathInfo | `RouteConverter`: one segment per Yandex section, links cut at lights (a light ends its link), limit changes, tunnel, ferry and highway boundaries, never at jams; whole-metre lengths summing to the segment; grid 1/3 600 000; link id = SHA-256 of the link's own grid points |
+| Amap callbacks | `NavigatorDriver`: start/stop/arrive/yaw from Navigator's own state; a fix only when FINE, newer and at most 1 s old; progress never backwards on one path; a finished route is retired |
+
+**Content from Yandex, by field.** Unknowns are the stock's own NULL values
+(`roadclass`, `formway`, `linktype` -1, ownership -1, actions 0), never JSON null.
+Facts taken from the factory Beijing profile
+(`research/stock-map-native/factory-beijing-profile-20261023.json`): the manoeuvre
+link carries the segment's MainAction; a Yandex highway link without a light is
+class 0 at a posted 90 km/h or more, else 6, with formway 1, direction 1, ownership
+0 and the junction lane sign's width as LaneNum (one-way carriageway); a roundabout
+section is formway 4, direction 1; curLinkSpeed (`historySpeed`) is the section's
+free-flow speed, the closest Yandex value to the factory's typical link speed.
+Not taken: z-levels as bridges (most of the M4 fixture sits at level 1), toll (no
+LinkItem field), class, direction, ownership or lanes on ordinary city roads (no
+OSM match yet). FORK/EXIT map to SlightLeft/Right (3/4), ferries and waypoints to
+the AssistantActions 19/20/35, arrival to 0/36. Speed cameras (SPEED_CONTROL with a
+limit) within 2 km are SubCameraExtType 7 in TrafficInfo and `naviActionAndCamera`.
+
+**Still not the stock's.** Vehicle speed (BYDAuto) is GNSS speed until the car
+supplies it; the GPS slot is the platform's passive GNSS fix when fresh, else
+Navigator's location; DNP service, switch and no-sleep are assumed on (Navigator
+cannot read BYDAuto); region codes stay at the stock defaults (no Amap adcodes);
+jams, incidents, lane info (`0x800C`) and 3 km lanes (`0x800E`, sent empty as the
+car did) are not mapped; link granularity is Yandex's (fewer, longer links than
+the factory's); path ids restart per Navigator process; positions come per FINE
+fix, so a tunnel without fixes is silent where Amap would dead-reckon.
+
+**Evidence.** `AdasLinkTest` (build.py and Gradle): the car's first-full and resend
+route captures rebuilt to the byte (JSON, NaviDataDetail, native SOME/IP framing);
+converter invariants on four recorded Navigator routes; the review's dynamic
+sequences; Gradle oracles run real Gson 2.10.1 and protobuf-java 3.25.5 on the
+output. Ten mutants of critical lines are all killed. The Python oracle is equal
+byte for byte on the recorded routes and about 650 encodings
+(`tools/adas_bridge/tests/test_stock_equivalence.py`). The emulator dry run and
+its trace check are in `captures/adas-bridge-device/`.
 
 ## Native route archive
 
