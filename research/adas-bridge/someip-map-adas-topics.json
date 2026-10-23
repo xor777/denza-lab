@@ -1,0 +1,66 @@
+{
+  "scope": "Map and ADAS SOME/IP topics of the stock map; IVI 34.1.33.2605218.1",
+  "corpus": {
+    "BydLaunchermap": "captures/hud-firmware-20260923/jadx/BydLaunchermap",
+    "SomeIpService": "captures/hud-firmware-20260923/jadx/SomeIpService",
+    "someip_stack": "captures/hud-firmware-20260923/system/system/etc/someip/someip_stack.json"
+  },
+  "topicLayout": "64-bit: kind(4) service(16) instance(16) id(16); kind 0x4 event, 0xB service, 0x1 available, 0x2 method",
+  "binder": {
+    "serverService": "com.ts.car.someip.service/.manager.SomeIpServerService",
+    "serverDescriptor": "ts.car.someip.sdk.ISomeIpServerInterface",
+    "serverTx": {"start": 4, "stop": 5, "fire": 6},
+    "clientService": "com.ts.car.someip.service/.manager.SomeIpClientService",
+    "clientTx": {"registerCallback": 1, "startClient": 4, "stopClient": 5, "subscribe": 8, "unsubscribe": 9},
+    "sessionKey": "intent type (caller package); set via SomeIpServerProxyImpl.java:246",
+    "senderChecks": "none on caller, topic or size (SomeIpServerService.java:463, :551); no vsomeip security section in someip_stack.json"
+  },
+  "ivToAdas": [
+    {"service": 7, "serviceHex": "0xB000700070000", "app": "NavigationStatus_LinkInfoService_server", "transport": "UDP 51221",
+     "events": {"0x8001": "NavigationStatus (100/101/104/105/106/110)", "0x8003": "TrafficInfo", "0x8006": "genernalNavigation"},
+     "sender": "f0.java e()/q()/c() (SomeIPMatrixManager)"},
+    {"service": 43, "serviceHex": "0xB002B002B0000", "app": "NavigationSDLink2Service_server", "transport": "TCP 51224",
+     "events": {"0x8002": "naviSDRoute route JSON"},
+     "sender": "e0.java:140 k() (SendSomeIpDataManager) -> n.a() -> l.f()"},
+    {"service": 45, "serviceHex": "0xB002D002D0000", "app": "NaviPathUserSelectStsService_server", "transport": "UDP 52105",
+     "events": {"0x8001": "sendPathSelected pathIDReq"},
+     "sender": "e0.java:145 l()"},
+    {"service": "0x8202", "serviceHex": "0xB820282020000", "app": "SDMapInformService_Server", "transport": "UDP 52103",
+     "events": {"0x8001": "light", "0x8002": "incidents", "0x8003": "serviceArea/toll", "0x8004": "tunnel", "0x8005": "roadFacilities", "0x8006": "intersection", "0x8007": "tidalLane/ramp", "0x8008": "sdVehicleLocation", "0x8009": "region", "0x800A": "speed/intersection historySpeed", "0x800B": "nextAction+camera", "0x800C": "nextIntersectionLanes", "0x800D": "mixFork", "0x800E": "lanes3km"},
+     "sender": "f0.java (SomeIPMatrixManager)"}
+  ],
+  "adasToIv": [
+    {"service": 13, "app": "PilotStatus_AlarmInfoService_client", "events": {"0x8002": "pilotStatus DNP/ICC", "0x8003": "alarms"}, "methods": {"0x0001": "DNP/ICC switch request (control)", "0x0002": "ODD region codes (read)"}},
+    {"service": 44, "app": "NavigationPathMatchStatusService_client", "events": {"0x8001": "PathMatch (never received on car)", "0x8002": "MMTPathSelected confirm", "p2p": "PathP2PMatch"}},
+    {"service": 10, "app": "VehiclePositionInfoService_client", "note": "not needed"},
+    {"service": 14, "app": "PlanningLineInfoService_client", "note": "not needed"},
+    {"service": 12, "app": "Obstacle_LaneLineInfoService_client", "note": "not needed"}
+  ],
+  "startedByStockMap": ["0xB000700070000", "0xB002B002B0000", "0xB002D002D0000", "0xB820282020000"],
+  "startedBy": "k.h.e0.b.d.o() :224-228 after SomeIpServerInitListener fires",
+  "idleStockMapWhileStopped": {
+    "0x8202/0x8008": "pathId -1, segment/link/offsets -1, ownerShip -1, GPS=matched, course",
+    "7/0x8003": "roadClass -1, roadSpeed 0, offCourse false",
+    "7/0x8001": "NavigationStatus 100",
+    "cadence": "~1 s loop; evidence captures/split-signals-live-20260923/logcat.txt pid 27260",
+    "statusCountsAcrossCaptures": {"100": 10053, "101": 742, "105": 753, "104": 195, "106": 42, "110": 21}
+  },
+  "routePayload": {
+    "wrapper": "naviSDRouteNotify{naviSDRouteStruct{navigationSDLink2:string, navigationSDLink2Num:int}}",
+    "string": "Gson NaviDataDetail{time,pathCount,length,currentIndex,payload}; >512KiB split, length=chunkCount (n.java)",
+    "payload": "MessageSend{msg,code=200,data[NaviToEHPData],endPOIInfo,RouteType,mapProvider}",
+    "serializerForAdasType1": "l.f() -> NaviToEHPData (adasType 2 SDRoute, 6 RouteInfo); k.java f()/g()",
+    "LinkItem": "linkID(64-bit topo), roadclass, roadname, len, linktype, formway, hasTrafficLight, laneNum, hasMultiOut, mainAction, assistantAction, adminCode, ownership(1-4->1), hasParallel, direction(raw!=3), speedLimit(hardcoded 0), hasMixFork, pntBegIdx, pntCnt; l.b() :111",
+    "points": "SDK integer / 3600000; SDK (GCJ-style inner) frame, no second datum conversion (l.o() :676)"
+  },
+  "handshake": {
+    "send": "45/0x8001 pathIDReq after route (e0.java:145 l())",
+    "reply": "44/0x8002 MMTPathSelected same pathId -> DriveRouteManager.g() g.java:135; mismatch/error -> onSelectMainPathStatus(.,1) -> resend",
+    "unused": "PathMatchProxy 44/0x8001 EHPToNaviData{segment_id, sd_route_begin/end, odd_type, match_result}; consumer k.h.e0.d.d.k() empty"
+  },
+  "oneWriter": {
+    "offers": "reference-counted per session; HAL offer ends on last stop (SomeIpServerService onUnbind)",
+    "internalGate": "SomeIPMatrixManager.t() f0.java:276 from NOA no-sleep state; DNP switch gates route+handshake+ADAS client subs (d.java:131), not the 1 Hz position/status loop",
+    "silence": "only am force-stop com.byd.launchermap (drops its sessions; restarts on boot/launch); reversible, not always-on"
+  }
+}
