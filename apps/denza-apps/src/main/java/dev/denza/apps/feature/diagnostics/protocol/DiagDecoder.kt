@@ -52,6 +52,52 @@ internal object DiagDecoder {
         }
     }
 
+    /**
+     * `19 04 <DTC> <record>` → `59 04` of that code: its snapshot records ([CodeRecordCodec.snapshots]); the
+     * record `FF` asks for all of them.
+     */
+    fun snapshots(answer: DiagReply.Answer): Decoded<CodeRecords<SnapshotRecord>> =
+        checked(answer, 0x19) { req, uds ->
+            if (req.size != 6 || req[1] != 0x04) return@checked Decoded.Malformed("request is not 19 04 <DTC> <record>")
+            CodeRecordCodec.snapshots(uds, req[2] shl 16 or (req[3] shl 8) or req[4], req[5])
+        }
+
+    /** `19 06 <DTC> <record>` → `59 06` of that code: its extended data records ([CodeRecordCodec.extended]). */
+    fun extendedData(answer: DiagReply.Answer): Decoded<CodeRecords<ExtendedRecord>> =
+        checked(answer, 0x19) { req, uds ->
+            if (req.size != 6 || req[1] != 0x06) return@checked Decoded.Malformed("request is not 19 06 <DTC> <record>")
+            CodeRecordCodec.extended(uds, req[2] shl 16 or (req[3] shl 8) or req[4], req[5])
+        }
+
+    /** `22 F190` → `62 F190` and the VIN ([IdentCodec.vin]). */
+    fun vin(answer: DiagReply.Answer): Decoded<Vin> =
+        checked(answer, 0x22) { req, uds ->
+            if (req.size != 3 || (req[1] shl 8 or req[2]) != IdentCodec.VIN_DID) return@checked Decoded.Malformed("request is not 22 F190")
+            IdentCodec.vin(uds)
+        }
+
+    /**
+     * `02 <PID> <frame>…` → `42 <PID> <frame> <data>…`: the freeze frame ([ObdCodec.frame]). Every pair that came
+     * was asked; a pair the module left out is not in the list.
+     */
+    fun freezeFrame(answer: DiagReply.Answer): Decoded<List<FramePid>> =
+        checked(answer, 0x02) { req, uds ->
+            if (req.size !in setOf(3, 5, 7)) return@checked Decoded.Malformed("request is not 02 with PID and frame pairs")
+            val asked = (1 until req.size step 2).map { req[it] to req[it + 1] }
+            when (val d = ObdCodec.frame(uds)) {
+                is Decoded.Ok -> d.value.firstOrNull { (it.reading.pid to it.frame) !in asked }
+                    ?.let { Decoded.Malformed("PID %02X frame %02X not asked".format(it.reading.pid, it.frame)) } ?: d
+                else -> d
+            }
+        }
+
+    /** `06 <MID>` → `46`: a map of MIDs or one monitor's tests ([ObdTests.decode]). */
+    fun obdTests(answer: DiagReply.Answer): Decoded<ObdTestAnswer> =
+        checked(answer, 0x06) { req, uds ->
+            if (req.size != 2) return@checked Decoded.Malformed("request is not 06 <MID>")
+            ObdTests.decode(uds, req[1])
+        }
+
     /** `22 <did>` → `62 <did> <data>`. */
     fun identification(answer: DiagReply.Answer): Decoded<Identification> =
         checked(answer, 0x22) { req, uds ->

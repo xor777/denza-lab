@@ -299,7 +299,35 @@ internal sealed interface VehicleInfo {
     data class CalibrationIds(val ids: List<String>) : VehicleInfo
     /** `09 0A`: the ECU's own name, 20 ASCII bytes, «ECM-EngineControl» ([ObdCodec.ecuName]). */
     data class EcuName(val name: String) : VehicleInfo
+    /** `09 02`: the VIN ([Vin]); asked since the owner's decision of 2026-10-23. */
+    data class VinNumber(val vin: Vin) : VehicleInfo
 }
+
+/**
+ * A VIN as one module reports it, `22 F190` or OBD `09 02` (architecture, 4): seventeen characters, or
+ * [isEmpty] where the module keeps only filler - NUL, FF or spaces - in the field, an unwritten VIN.
+ */
+internal data class Vin(val text: String) : MaybeEmpty {
+    override val isEmpty: Boolean get() = text.isEmpty()
+
+    companion object {
+        const val LENGTH = 17
+
+        /**
+         * The VIN in [data]: seventeen printable ASCII characters once trailing filler is cut, or empty when
+         * there is nothing but filler. Anything else - another length, a byte that does not print - is not a VIN.
+         */
+        fun of(data: ByteArray): Decoded<Vin> {
+            if (data.all { (it.toInt() and 0xFF).let { b -> b == 0x00 || b == 0xFF || b == 0x20 } }) return Decoded.Ok(Vin(""))
+            val text = Ascii.trimmed(data) ?: return Decoded.Malformed("VIN does not print")
+            if (text.length != LENGTH) return Decoded.Malformed("VIN of ${text.length} characters, not $LENGTH")
+            return Decoded.Ok(Vin(text))
+        }
+    }
+}
+
+/** One PID of a `42` answer: the freeze frame it belongs to and its reading, decoded as Mode 01 decodes it. */
+internal data class FramePid(val frame: Int, val reading: PidReading)
 
 /** Bytes of OBD answers, positive SID included. */
 internal object ObdCodec {
@@ -346,7 +374,7 @@ internal object ObdCodec {
         return Decoded.Ok(ObdDtcs(mode, codes))
     }
 
-    /** `49 00 <bitmap>`, `49 04 <n> <16 bytes>×n`, `49 0A 01 <20 bytes>` ([ecuName]). */
+    /** `49 00 <bitmap>`, `49 02 01 <17 bytes>` ([Vin]), `49 04 <n> <16 bytes>×n`, `49 0A 01 <20 bytes>` ([ecuName]). */
     fun vehicleInfo(uds: ByteArray): Decoded<VehicleInfo> {
         val b = uds.unsigned()
         if (b.size < 2 || b[0] != 0x49) return Decoded.Malformed("not 49")
@@ -362,6 +390,17 @@ internal object ObdCodec {
                     .map { Ascii.trimmed(it) ?: return Decoded.Malformed("49 04 is not ASCII") }
                 Decoded.Ok(VehicleInfo.CalibrationIds(ids))
             }
+            0x02 -> {
+                // ISO 15765-4: one data item, the 17 characters; some modules pad the item with NUL in front.
+                if (b.size < 3 || b[2] != 1) return Decoded.Malformed("49 02 is not one data item")
+                var start = 3
+                while (b.size - start > Vin.LENGTH && b[start] == 0) start++
+                when (val vin = Vin.of(uds.copyOfRange(start, b.size))) {
+                    is Decoded.Ok -> Decoded.Ok(VehicleInfo.VinNumber(vin.value))
+                    is Decoded.Negative -> vin
+                    is Decoded.Malformed -> vin
+                }
+            }
             0x0A -> {
                 if (b.size != 23 || b[2] != 1) return Decoded.Malformed("49 0A is not one 20-byte name")
                 val name = ecuName(uds.copyOfRange(3, 23)) ?: return Decoded.Malformed("49 0A is not ASCII")
@@ -369,6 +408,54 @@ internal object ObdCodec {
             }
             else -> Decoded.Malformed("info type %02X not asked".format(b[1]))
         }
+    }
+
+    /**
+     * `42 <PID> <frame> <data> [<PID> <frame> <data> …]`: Mode 02, the freeze frame (SAE J1979). PID 02 is the
+     * code that stored the frame, two bytes (`0000`: no frame stored); a bitmap PID lists the PIDs the frame
+     * holds; any other PID is read as Mode 01 reads it ([ObdPids]). A PID of unknown length is read only when it
+     * is the answer's one PID, its bytes raw, as in [pids].
+     */
+    fun frame(uds: ByteArray): Decoded<List<FramePid>> {
+        val b = uds.unsigned()
+        if (b.isEmpty() || b[0] != 0x42) return Decoded.Malformed("not 42")
+        if (b.size < 3) return Decoded.Malformed("42 without a PID and a frame")
+        val out = ArrayList<FramePid>()
+        var i = 1
+        while (i < b.size) {
+            if (i + 1 >= b.size) return Decoded.Malformed("42 PID %02X without its frame".format(b[i]))
+            val pid = b[i]
+            val frame = b[i + 1]
+            val def = if (pid == FRAME_DTC) null else ObdPids.of(pid)
+            val length = when {
+                pid == FRAME_DTC -> 2
+                def == null -> {
+                    if (i != 1) return Decoded.Malformed("PID %02X of unknown length inside a multi-PID answer".format(pid))
+                    out += FramePid(frame, PidReading(pid, uds.copyOfRange(i + 2, b.size).hexString(), ObdValue.Raw))
+                    break
+                }
+                // As in Mode 01: PID56 alone may come without its bank-3 byte.
+                pid == 0x56 && i == 1 && b.size == 4 -> 1
+                else -> def.length
+            }
+            val end = i + 2 + length
+            if (end > b.size) return Decoded.Malformed("PID %02X needs %d bytes, %d came".format(pid, length, b.size - i - 2))
+            val data = b.copyOfRange(i + 2, end)
+            val value = if (pid == FRAME_DTC) frameDtc(data) else def!!.decode(data)
+            out += FramePid(frame, PidReading(pid, uds.copyOfRange(i + 2, end).hexString(), value))
+            i = end
+        }
+        if (out.map { it.reading.pid to it.frame }.toSet().size != out.size) return Decoded.Malformed("a PID repeats")
+        return Decoded.Ok(out)
+    }
+
+    /** Mode 02's PID 02: the code that stored the frame. */
+    const val FRAME_DTC = 0x02
+
+    /** PID 02's two bytes as a J2012 code, «P0420»; `0000` is no stored frame. */
+    private fun frameDtc(data: IntArray): ObdValue {
+        val w = data[0] shl 8 or data[1]
+        return if (w == 0) ObdValue.Text("нет", "—", "кадр не сохранён") else ObdValue.Text(J2012.base(w))
     }
 
     /**
