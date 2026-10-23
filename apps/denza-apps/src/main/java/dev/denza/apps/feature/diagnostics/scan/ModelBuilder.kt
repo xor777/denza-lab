@@ -301,7 +301,8 @@ internal class ModelBuilder(
         if (obdOnly) {
             val stored = r?.obdLists?.get(ObdDtcMode.STORED) ?: Polled.NotPolled
             val records = r?.obdLists.orEmpty().flatMap { (mode, p) ->
-                (p as? Polled.Got)?.value?.codes.orEmpty().map { obdRow(it, mode) }
+                val reply = ScanRequests.OBD_LISTS.firstOrNull { it.first == mode }?.second?.let { r?.read?.reply(it) }
+                (p as? Polled.Got)?.value?.codes.orEmpty().map { obdRow(it, mode).copy(reads = listOfNotNull(reply).map { a -> CodeBuilder.rawLine(a, null) }) }
             }
             val asked = ScanRequests.OBD_LISTS.filter { (_, uds) -> r?.read?.reply(uds) != null }.map { "Mode ${it.second}" }
             return DtcView(
@@ -343,6 +344,8 @@ internal class ModelBuilder(
                 availability = m!!.availability.byte,
                 description = CatalogText.description(lookup.candidates),
                 reference = lookup.candidates.map(CatalogText::reference),
+                // «как прочитан» (7.3): the memory's asks and answers, this record's four bytes lit
+                reads = listOfNotNull(countReply, listReply).map { CodeBuilder.rawLine(it, rec.code.rawHex) },
             )
         }
         val asked = listOfNotNull(countReply?.let { "19 01 $mask" }, listReply?.let { "19 02 $mask" })
@@ -360,6 +363,9 @@ internal class ModelBuilder(
             outsideMask = r?.outsideMask ?: false,
             footnote = (asked + listOfNotNull(stamp)).joinToString(" · ").ifEmpty { "не читали" },
             source = CATALOG_SOURCE.takeIf { records.any { it.description != null } },
+            // the strip of «что запрошено»: the block's own availability and the mask it was read with
+            availability = r?.availability?.byte,
+            mask = maskByte.takeIf { countReply != null || listReply != null },
         )
     }
 

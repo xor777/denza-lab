@@ -117,35 +117,30 @@ internal object SystemPagesBuilder {
     private fun page(i: Inputs, system: CarSystem): SystemPage {
         val blocks = blocks(system)
         val members = MEMBERS.getValue(system).map { EcuCatalog.byRequest(it)!! }
-        val c = codes(i.s, system)
         val car = i.s.car
-        val total = if (c.any) (c.active + c.history).toString() else "—"
-        val dtc = HeadCounter("DTC", total, on = c.active > 0)
-        val read = HeadCounter("ПРОЧИТАНО", "${c.read}/${c.blocks}")
-        val generic = listOf(
-            HeadCounter("DTC АКТ.", if (c.any) c.active.toString() else "—", on = c.active > 0),
-            HeadCounter("DTC ИСТ.", if (c.any) c.history.toString() else "—"),
-            read,
-        )
+        // v4 (7.3): the records' count with its kind's sign, only where there are records; values orange outside a norm
+        val records = records(i.s, system)
+        fun with(vararg c: HeadCounter?) = listOfNotNull(*c) + listOfNotNull(records)
         val ecmStream = i.modules[ECM]?.obd?.live?.rows.orEmpty().associateBy { it.pid }
         val (aside, line, counters) = when (system) {
             CarSystem.HV -> Triple(
                 "· ВВБ, привод, мотор-генератор",
                 plainLine(members),
-                listOf(power(car), HeadCounter("U ВВБ", volts(car)), HeadCounter("SOC", percent(car, DiagnosticExtra.SOC)), dtc),
+                with(power(car), HeadCounter("U ВВБ", volts(car)), HeadCounter("ТОК", unit(car.extra(DiagnosticExtra.CHARGE_CURRENT), 1, "А")),
+                    insulation(car)),
             )
             CarSystem.PACK -> Triple(
                 single(members),
                 "напряжение и ток ${VehicleSignal.PACK_VOLT.device} · SOC и SOH ${DiagnosticExtra.SOC.device} · " +
                     "ячейки и модули ${VehicleSignal.CELL_MIN_MV.device} · изоляция ${DiagnosticExtra.INSULATION.device}",
-                listOf(HeadCounter("U", volts(car)), HeadCounter("SOC", percent(car, DiagnosticExtra.SOC)), dtc),
+                with(*packCounters(i.s).toTypedArray()),
             )
             CarSystem.DRIVES -> Triple(
                 count(members),
                 plainLine(members),
-                listOf(HeadCounter("СЕЛЕКТОР", word(car, DiagnosticExtra.GEAR_SELECTOR)),
+                with(HeadCounter("СЕЛЕКТОР", word(car, DiagnosticExtra.GEAR_SELECTOR)),
                     HeadCounter("ШИНА ПЕРЕД", unit(car.extra(DiagnosticExtra.BUS_FRONT), 0, "В")),
-                    HeadCounter("ШИНА ЗАД", unit(car.extra(DiagnosticExtra.BUS_REAR), 0, "В")), dtc),
+                    HeadCounter("ШИНА ЗАД", unit(car.extra(DiagnosticExtra.BUS_REAR), 0, "В"))),
             )
             CarSystem.ENGINE -> {
                 val ecm = EcuCatalog.byRequest(ECM)!!
@@ -156,7 +151,7 @@ internal object SystemPagesBuilder {
                     single(members),
                     listOfNotNull(Figures.route(ECM), ModelBuilder.longProtocol(ecm), "Mode 01",
                         hz?.let { "опрос ${Figures.number(it, 0)} Гц" }).joinToString(" · "),
-                    listOf(
+                    with(
                         HeadCounter("ОБОРОТЫ", rpm?.let { Figures.number(it, 0) } ?: NA),
                         HeadCounter("MIL", when (mil) { true -> "ГОРИТ"; false -> "ВЫКЛ"; null -> NA }, on = mil == true),
                         HeadCounter("ГОТОВН.", i.modules[ECM]?.obd?.readiness?.takeIf { it != "—" } ?: NA),
@@ -167,41 +162,42 @@ internal object SystemPagesBuilder {
                 val pressures = PRESSURES.values.mapNotNull { car.extra(it) }
                 val range = when {
                     pressures.isEmpty() -> NA
-                    pressures.min() == pressures.max() -> bar(pressures.min())
-                    else -> "${bar(pressures.min())}–${bar(pressures.max())}"
+                    pressures.min() == pressures.max() -> "${bar(pressures.min())} бар"
+                    else -> "${bar(pressures.min())}–${bar(pressures.max())} бар"
                 }
                 Triple(
                     count(members),
                     "${tag(0x782)} · ${tag(0x7E5)} · ${tag(0x783)} · RWS ${Figures.address(0x582)} ${Figures.address(0x796)} · ${tag(0x597)} · " +
                         "шины: давление ${DiagnosticExtra.FL_PRESSURE.device}, температура ${DiagnosticExtra.FL_TYRE_TEMP.device}",
-                    listOf(HeadCounter("ДАВЛЕНИЕ", range), dtc, read),
+                    with(HeadCounter("ДАВЛЕНИЕ", range)),
                 )
             }
             CarSystem.ADAS -> Triple(
                 count(members),
                 "${tag(0x712)} · ${tag(0x7F2)} · угловые радары ${listOf(0x760, 0x761, 0x7C2, 0x7D4).joinToString(" ") { Figures.address(it) }} · ${tag(0x701)}",
-                listOf(dtc, read),
+                with(),
             )
             CarSystem.BODY -> Triple(
                 count(members),
                 "${tag(0x720)} · ${tag(0x747)} · ${tag(0x722)} · ${tag(0x726)} · фары ${Figures.address(0x770)} ${Figures.address(0x771)} · " +
                     "UWB-ключ ${Figures.address(0x7F3)} и 4 антенны · радары дверей ${DOOR_RADARS.values.joinToString(" ") { Figures.address(it) }} · " +
                     "${tag(0x754)} · ${tag(0x7D6)} · ${tag(0x595)} · ${tag(0x724)}",
-                generic,
+                with(),
             )
             CarSystem.CLIMATE -> Triple(
                 count(members),
                 plainLine(members) + " · температуры ${DiagnosticExtra.CABIN_TEMP.device} · PM2.5 ${DiagnosticExtra.PM_IN.device}",
-                listOf(HeadCounter("САЛОН", unit(car.extra(DiagnosticExtra.CABIN_TEMP), 0, "°C")),
-                    HeadCounter("УЛИЦА", unit(car.extra(DiagnosticExtra.OUTSIDE_TEMP), 0, "°C")), dtc),
+                with(HeadCounter("САЛОН", unit(car.extra(DiagnosticExtra.CABIN_TEMP), 0, "°C")),
+                    HeadCounter("УЛИЦА", unit(car.extra(DiagnosticExtra.OUTSIDE_TEMP), 0, "°C"))),
             )
             CarSystem.LV -> Triple(
                 single(members),
                 "DC-DC в ${tag(0x7E4)} · АКБ ${tag(0x762)} · напряжение ${DiagnosticExtra.LV.device}",
-                listOf(power(car), HeadCounter("12 В", unit(car.extra(DiagnosticExtra.LV), 1, "В")), dtc),
+                with(power(car), HeadCounter("12 В", unit(car.extra(DiagnosticExtra.LV), 1, "В"),
+                    out = SummaryBuilder.lowVoltageOut(car.extra(DiagnosticExtra.LV)))),
             )
-            CarSystem.CABIN -> Triple(count(members), CABIN_LINE, generic)
-            CarSystem.SAFETY, CarSystem.OTHER -> Triple(count(members), plainLine(members), generic)
+            CarSystem.CABIN -> Triple(count(members), CABIN_LINE, with())
+            CarSystem.SAFETY, CarSystem.OTHER -> Triple(count(members), plainLine(members), with())
         }
         return SystemPage(
             system = system,
@@ -213,6 +209,47 @@ internal object SystemPagesBuilder {
             dtc = blocks.flatMap { dtcRows(i, it) },
             dtcFootnote = footnote(i, blocks),
             scheme = scheme(i, system, ecmStream),
+        )
+    }
+
+    /**
+     * «ЗАПИСИ» «10» with the worst record's sign (red and lit where one fails now): every record of the system's
+     * blocks as [BlockRecords] counts them; null with none, or before any of its memories was read.
+     */
+    private fun records(s: SessionSnapshot, system: CarSystem): HeadCounter? {
+        val read = MEMBERS.getValue(system).mapNotNull { s.results[it] }.filter { it.memoryRead }
+        val all = read.flatMap { BlockRecords.of(it) }
+        val mark = BlockRecords.worst(read.mapNotNull { r -> BlockRecords.blockMark(r, BlockRecords.of(r)) }) ?: return null
+        if (all.isEmpty()) return null
+        return HeadCounter("ЗАПИСИ", all.size.toString(), on = mark == Mark.ACTIVE, mark = mark)
+    }
+
+    /** «ИЗОЛЯЦИЯ» «14,4 МОм»: the weaker channel, orange below its floor. */
+    private fun insulation(car: CarReadings): HeadCounter {
+        val v = listOfNotNull(car.extra(DiagnosticExtra.INSULATION), car.extra(DiagnosticExtra.INSULATION_2)).minOrNull()?.let(Insulation::mohm)
+        return HeadCounter("ИЗОЛЯЦИЯ", v?.let { "${Insulation.text(it)} ${Insulation.UNIT}" } ?: NA,
+            out = Insulation.low(v, car.hub[VehicleSignal.PACK_VOLT]))
+    }
+
+    /**
+     * The pack's head (board `scanner-sys-pack-health`): SOH, the cells' spread and the probes' - the open page's
+     * sweep where it is drawn, else the BMS's GETs - and the insulation.
+     */
+    private fun packCounters(s: SessionSnapshot): List<HeadCounter> {
+        val car = s.car
+        val cells = s.packCells
+        val soh = car.extra(DiagnosticExtra.SOH)
+        val sweepMin = cells?.cellMin?.let { cells.cells[it].value }
+        val sweepMax = cells?.cellMax?.let { cells.cells[it].value }
+        val spread = if (sweepMin != null && sweepMax != null) (sweepMax - sweepMin).toDouble()
+            else car.hub[VehicleSignal.CELL_MAX_MV]?.let { hi -> car.hub[VehicleSignal.CELL_MIN_MV]?.let { hi - it } }
+        val tLo = cells?.probeMin?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MIN)
+        val tHi = cells?.probeMax?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MAX)
+        return listOf(
+            HeadCounter("SOH", unit(soh, 0, "%"), out = soh != null && soh < SummaryBuilder.SOH_FLOOR),
+            HeadCounter("Δ ЯЧЕЕК", unit(spread, 0, "мВ")),
+            insulation(car),
+            HeadCounter("Δ T", unit(if (tLo != null && tHi != null) tHi - tLo else null, 0, "°C")),
         )
     }
 

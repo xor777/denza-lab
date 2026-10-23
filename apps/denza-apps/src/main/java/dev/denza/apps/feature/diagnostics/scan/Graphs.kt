@@ -95,6 +95,7 @@ internal object GraphsBuilder {
             band = band,
             decimals = decimals,
             key = key,
+            signed = key is ParamKey.Pid && LiveStream.signed(key.pid),
         )
     }
 

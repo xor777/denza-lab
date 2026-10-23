@@ -51,6 +51,7 @@ class GraphsBoardContractTest {
             assertEquals(name, "PID ${s["pid"]} · ${s["abbr"]}", lane.source)
             assertEquals(name, s["unit"], lane.unit)
             assertEquals(name, (s["decimals"] as Number).toInt(), lane.decimals)
+            assertEquals(name, s["signed"] == true, lane.signed)
             val norm = (s["norm"] as List<Number>?)?.let { it[0].toFloat()..it[1].toFloat() }
             assertEquals(name, norm, lane.band)
             // five minutes kept, the scale not narrower than the norm or 20 × the resolution

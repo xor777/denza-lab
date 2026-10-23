@@ -59,9 +59,17 @@ internal object SystemsBuilder {
             Field("Температура", "${or(extra(car, DiagnosticExtra.TEMP_MIN))}…${or(extra(car, DiagnosticExtra.TEMP_MAX))} °C"),
             Field("Изоляция", "${insulation.joinToString(" · ")} МОм"),
         )
-        fun unit(abbreviation: String, name: String, detail: (ModuleStatus) -> String?): HvUnit {
+        val packVolts = car.hub[VehicleSignal.PACK_VOLT]
+        fun unit(
+            abbreviation: String,
+            name: String,
+            bus: DiagnosticExtra? = null,
+            reading: String? = null,
+            detail: (ModuleStatus) -> String?,
+        ): HvUnit {
             val ecu = EcuCatalog.all.first { it.abbreviation == abbreviation }
             val st = status(s, ecu)
+            val busVolts = bus?.let(car::extra)
             val word = when (st) {
                 ModuleStatus.OK -> "OK"
                 ModuleStatus.HISTORY, ModuleStatus.PENDING -> "история"
@@ -81,6 +89,9 @@ internal object SystemsBuilder {
                 state = listOfNotNull(word, detail(st)).joinToString(" · ").ifEmpty { "нет адреса · в кэше" },
                 status = st,
                 target = ModelBuilder.target(ecu),
+                busVolts = busVolts?.let { "${Figures.number(it, 0)} В" },
+                busDelta = busVolts?.let { v -> packVolts?.let { delta(v, it) } },
+                reading = reading,
             )
         }
         fun dtcs(abbreviation: String): String? {
@@ -89,18 +100,30 @@ internal object SystemsBuilder {
             return "DTC ${(r.active ?: 0) + (r.pending ?: 0) + (r.history ?: 0)}"
         }
         val ecm = s.results[0x7E0]
-        val units = listOf(
-            unit("FMCU", "Инвертор передний") { car.hub[VehicleSignal.INVERTER_C]?.let { "IPM ${Figures.number(it, 0)} °C" } },
-            unit("ISG", "Мотор-генератор") { dtcs("ISG") },
-            // SMCU drives the left rear motor, SMCU3 the right; the sides' readings are on the machines' lines below.
-            unit("SMCU", "Инвертор задний левый") { dtcs("SMCU") },
-            unit("SMCU3", "Инвертор задний правый") { dtcs("SMCU3") },
-            unit("ECM", "ДВС") { ecm?.mil?.let { if (it) "MIL ГОРИТ" else "MIL ВЫКЛ" } },
-            unit("PTC", "Нагреватель ВВ") { dtcs("PTC") },
-            unit("DCOBC", "Зарядное + DC-DC") { dtcs("DCOBC") },
-            unit("LBMS", "АКБ 12 В" + (extra(car, DiagnosticExtra.LV, 1)?.let { " · $it В" } ?: "")) { dtcs("LBMS") },
-        )
         val running = car.engineRunning
+        fun temp(label: String, v: Double?) = v?.let { "$label ${Figures.number(it, 0)} °C" }
+        // The dark cockpit's third row (7.3, board `scanner-sys-hv`): an inverter's own bus and its difference to
+        // the pack, then what else the unit says; the PTC has no reading of its own on this car and keeps its state.
+        val units = listOf(
+            unit("FMCU", "Инвертор передний", DiagnosticExtra.BUS_FRONT, temp("IPM", car.hub[VehicleSignal.INVERTER_C])) {
+                car.hub[VehicleSignal.INVERTER_C]?.let { "IPM ${Figures.number(it, 0)} °C" }
+            },
+            unit("ISG", "Мотор-генератор", reading = when (running) {
+                false -> "стоит"
+                true -> car.hub[VehicleSignal.GENERATION_KW]?.let { "генерация ${Figures.number(it, 1)} кВт" } ?: "ДВС работает"
+                null -> null
+            }) { dtcs("ISG") },
+            // SMCU drives the left rear motor, SMCU3 the right; the sides' readings are on the machines' lines below.
+            unit("SMCU", "Инвертор задний левый", DiagnosticExtra.BUS_REAR, temp("IGBT", car.extra(DiagnosticExtra.IGBT_REAR_LEFT))) { dtcs("SMCU") },
+            unit("SMCU3", "Инвертор задний правый", DiagnosticExtra.BUS_REAR, temp("IGBT", car.extra(DiagnosticExtra.IGBT_REAR_RIGHT))) { dtcs("SMCU3") },
+            unit("ECM", "ДВС", reading = listOfNotNull(
+                when (running) { true -> "работает"; false -> "не работает"; null -> null },
+                "MIL ГОРИТ".takeIf { ecm?.mil == true },
+            ).joinToString(" · ").ifEmpty { null }) { ecm?.mil?.let { if (it) "MIL ГОРИТ" else "MIL ВЫКЛ" } },
+            unit("PTC", "Нагреватель ВВ") { dtcs("PTC") },
+            unit("DCOBC", "Зарядное + DC-DC", reading = car.word(DiagnosticExtra.DCDC_MODE)?.takeIf { it != NA }?.let { "DC-DC · $it" }) { dtcs("DCOBC") },
+            unit("LBMS", "АКБ 12 В", reading = extra(car, DiagnosticExtra.LV, 1)?.let { "$it В" }) { dtcs("LBMS") },
+        )
         val coolant = s.streams[0x7E0]?.view(false, false, running)?.rows?.firstOrNull { it.pid == 0x05 }?.value?.takeIf { it != "—" }
         fun machine(stator: VehicleSignal, rpm: DiagnosticExtra, torque: DiagnosticExtra, igbt: DiagnosticExtra? = null) =
             listOfNotNull(
@@ -127,6 +150,16 @@ internal object SystemsBuilder {
             ),
             contactorClosed = when (car.extra(DiagnosticExtra.CONTACTOR)?.toInt()) { 1 -> true; 0 -> false; else -> null },
         )
+    }
+
+    /** «+2», «−1», «±0»: an inverter's bus against the pack, whole volts. */
+    fun delta(bus: Double, pack: Double): String {
+        val d = Math.round(bus) - Math.round(pack)
+        return when {
+            d > 0 -> "+$d"
+            d < 0 -> "${Figures.MINUS}${-d}"
+            else -> "±0"
+        }
     }
 
     private fun Map<VehicleSignal, Double>.spread(): Double? {

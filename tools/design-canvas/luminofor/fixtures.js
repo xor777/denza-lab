@@ -869,7 +869,8 @@
       { abbr: 'SMCU', addr: '744', name: 'Инвертор задний левый', kind: 'ok', volts: 556, reading: 'IGBT 5 °C' },
       { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний правый', kind: 'ok', volts: 556, reading: 'IGBT 5 °C' },
       { abbr: 'ECM', addr: '7E0', name: 'ДВС', kind: 'ok', reading: 'не работает' },
-      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'ok', reading: 'выкл', off: true },
+      // the heater's own state is no reading the section has on this car: its tile says its block's state
+      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'ok' },
       { abbr: 'DCOBC', addr: '7E4', name: 'Зарядное + DC-DC', kind: 'ok', reading: 'DC-DC · понижение' },
       { abbr: 'LBMS', addr: '762', name: 'АКБ 12 В', kind: 'ok', reading: '13,7 В' },
     ],

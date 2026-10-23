@@ -140,6 +140,8 @@ internal object JournalViewBuilder {
             scale = lo.toFloat()..hi.toFloat(),
             last = points.lastOrNull()?.let { Figures.number(it.value, decimals) + unit } ?: "—",
             pointsOnly = pointsOnly,
+            // separate snapshots are read one by one, «11 мВ», «12 мВ»; a series by scan says only its last
+            pointLabels = if (pointsOnly) points.map { Figures.number(it.value, decimals) + unit } else emptyList(),
         )
     }
 

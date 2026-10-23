@@ -49656,9 +49656,7 @@
      "abbr": "PTC",
      "addr": "766",
      "name": "Нагреватель ВВ",
-     "kind": "ok",
-     "reading": "выкл",
-     "off": true
+     "kind": "ok"
     },
     {
      "abbr": "DCOBC",

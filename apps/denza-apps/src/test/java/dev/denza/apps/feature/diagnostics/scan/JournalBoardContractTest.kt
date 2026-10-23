@@ -56,6 +56,9 @@ class JournalBoardContractTest {
         assertEquals(fullPoints.size, v.quantities[1].points.size)
         assertEquals(fullPoints.lastOrNull()?.let { "${(it[1] as Number).toInt()} мВ" } ?: "—", v.quantities[1].last)
         assertTrue(v.quantities[1].pointsOnly)
+        // each snapshot at a full charge says its spread by its point; 12 V only its last
+        assertEquals(fullPoints.map { "${(it[1] as Number).toInt()} мВ" }, v.quantities[1].pointLabels)
+        assertTrue(v.quantities[0].pointLabels.isEmpty())
 
         val c = f["compare"] as Map<String, Any?>
         val shown = v.compare!!

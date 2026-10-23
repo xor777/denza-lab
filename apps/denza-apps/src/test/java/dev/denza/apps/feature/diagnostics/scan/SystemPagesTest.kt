@@ -156,8 +156,8 @@ class SystemPagesTest {
         assertEquals("· 19 блоков", body.aside)
         assertEquals("LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · " +
             "радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724", body.line)
-        // «Машина сейчас» read four of the body's memories; the board's own run read the eleven it had then.
-        assertEquals(listOf(HeadCounter("DTC АКТ.", "0"), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/19")), body.counters)
+        // v4 (7.3): the records' count with its kind's sign, only where there are records
+        assertEquals(listOf(HeadCounter("ЗАПИСИ", "10", mark = Mark.HISTORY)), body.counters)
 
         assertEquals(listOf("C1160-06", "U029D-87", "U0121-87", "B2148-02", "B2250-00", "B225B-00", "U0229-87", "U022A-87", "C1170-09", "B130E-01"),
             body.dtc.map { it.code })
@@ -194,7 +194,7 @@ class SystemPagesTest {
         val body = model.page(CarSystem.BODY)
         assertEquals(listOf("C1170-09", "B130E-01", "C1170-09"), body.dtc.filter { it.request == 0x747 }.map { it.code })
         assertEquals(listOf(false, false, true), body.dtc.filter { it.request == 0x747 }.map { it.active })
-        assertEquals(listOf(HeadCounter("DTC АКТ.", "1", on = true), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/19")), body.counters)
+        assertEquals(listOf(HeadCounter("ЗАПИСИ", "11", on = true, mark = Mark.ACTIVE)), body.counters)
         assertEquals(ModuleStatus.ACTIVE, model.row(0x747).status)
         assertEquals("1" to "2", model.row(0x747).active to model.row(0x747).history)
     }
@@ -227,18 +227,18 @@ class SystemPagesTest {
         val hv = model.page(CarSystem.HV)
         assertEquals("· ВВБ, привод, мотор-генератор", hv.aside)
         assertEquals("BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762", hv.line)
-        assertEquals(listOf("ПИТАНИЕ" to "ON", "U ВВБ" to "553 В", "SOC" to "74 %", "DTC" to "0"), counters(CarSystem.HV))
+        assertEquals(listOf("ПИТАНИЕ" to "ON", "U ВВБ" to "553 В", "ТОК" to "−4,5 А", "ИЗОЛЯЦИЯ" to "14,4 МОм"), counters(CarSystem.HV))
         // no charge port in the hub here: «н/д», unlit
         assertEquals(Scheme.Hv("н/д", plugged = false), hv.scheme)
 
         val pack = model.page(CarSystem.PACK)
         assertEquals("· BMS 7E7", pack.aside)
         assertEquals("напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039", pack.line)
-        assertEquals(listOf("U" to "553 В", "SOC" to "74 %", "DTC" to "0"), counters(CarSystem.PACK))
+        assertEquals(listOf("SOH" to "99 %", "Δ ЯЧЕЕК" to "4 мВ", "ИЗОЛЯЦИЯ" to "14,4 МОм", "Δ T" to "5 °C"), counters(CarSystem.PACK))
 
         assertEquals("· 6 блоков", model.page(CarSystem.DRIVES).aside)
         assertEquals("VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6", model.page(CarSystem.DRIVES).line)
-        assertEquals(listOf("СЕЛЕКТОР" to "P", "ШИНА ПЕРЕД" to "555 В", "ШИНА ЗАД" to "556 В", "DTC" to "0"), counters(CarSystem.DRIVES))
+        assertEquals(listOf("СЕЛЕКТОР" to "P", "ШИНА ПЕРЕД" to "555 В", "ШИНА ЗАД" to "556 В"), counters(CarSystem.DRIVES))
 
         assertEquals("· ECM 7E0 · UAES", model.page(CarSystem.ENGINE).aside)
         assertEquals("7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01", model.page(CarSystem.ENGINE).line)
@@ -247,26 +247,26 @@ class SystemPagesTest {
         assertEquals("· 6 блоков", model.page(CarSystem.CHASSIS).aside)
         assertEquals("ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007",
             model.page(CarSystem.CHASSIS).line)
-        assertEquals(listOf("ДАВЛЕНИЕ" to "2,60–2,72", "DTC" to "0", "ПРОЧИТАНО" to "3/6"), counters(CarSystem.CHASSIS))
+        assertEquals(listOf("ДАВЛЕНИЕ" to "2,60–2,72 бар"), counters(CarSystem.CHASSIS))
 
         assertEquals("· 7 блоков", model.page(CarSystem.ADAS).aside)
         assertEquals("ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701", model.page(CarSystem.ADAS).line)
-        // «Машина сейчас» read the controller and the front radar; the board's own run read all seven.
-        assertEquals(listOf("DTC" to "0", "ПРОЧИТАНО" to "2/7"), counters(CarSystem.ADAS))
+        // no records: nothing to say
+        assertEquals(emptyList<Pair<String, String>>(), counters(CarSystem.ADAS))
 
         assertEquals("ACC 7B3 · TMIM 7B4 · PTC 766 · AQDM 590 · температуры 1000 · PM2.5 1008", model.page(CarSystem.CLIMATE).line)
-        // None of the climate's memories was read: no count, not zero.
-        assertEquals(listOf("САЛОН" to "21 °C", "УЛИЦА" to "12 °C", "DTC" to "—"), counters(CarSystem.CLIMATE))
+        // none of the climate's memories holds a record: no count
+        assertEquals(listOf("САЛОН" to "21 °C", "УЛИЦА" to "12 °C"), counters(CarSystem.CLIMATE))
 
         assertEquals("· LBMS 762", model.page(CarSystem.LV).aside)
         assertEquals("DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001", model.page(CarSystem.LV).line)
-        assertEquals(listOf("ПИТАНИЕ" to "ON", "12 В" to "13,7 В", "DTC" to "0"), counters(CarSystem.LV))
+        assertEquals(listOf("ПИТАНИЕ" to "ON", "12 В" to "13,7 В"), counters(CarSystem.LV))
 
         // Without a board: the count, the blocks, the generic counters.
         val safety = model.page(CarSystem.SAFETY)
         assertEquals("· 4 блока", safety.aside)
         assertEquals("SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0", safety.line)
-        assertEquals(listOf("DTC АКТ." to "0", "DTC ИСТ." to "0", "ПРОЧИТАНО" to "1/4"), counters(CarSystem.SAFETY))
+        assertEquals(emptyList<Pair<String, String>>(), counters(CarSystem.SAFETY))
         val cabin = model.page(CarSystem.CABIN)
         assertEquals("· 18 блоков", cabin.aside)
         // every block by what it serves, as the board's head writes it
@@ -275,7 +275,7 @@ class SystemPagesTest {
         assertEquals(cabin.blocks.map { Figures.address(it.request!!) }.toSet(),
             Regex("\\b[0-9A-F]{3}\\b").findAll(cabin.line).map { it.value }.toSet())
         // «Машина сейчас» read none of the cabin's memories: no count, not zero.
-        assertEquals(listOf("DTC АКТ." to "—", "DTC ИСТ." to "—", "ПРОЧИТАНО" to "0/18"), counters(CarSystem.CABIN))
+        assertEquals(emptyList<Pair<String, String>>(), counters(CarSystem.CABIN))
     }
 
     @Test
@@ -366,7 +366,7 @@ class SystemPagesTest {
 
         val chassis = model.page(CarSystem.CHASSIS).scheme as Scheme.Chassis
         assertEquals(Tyre(Corner.FL, "ШИНА ПЛ", "н/д", "н/д"), chassis.tyres[0].copy(states = emptyList()))
-        assertEquals("2,60–2,70", model.page(CarSystem.CHASSIS).counters[0].value)
+        assertEquals("2,60–2,70 бар", model.page(CarSystem.CHASSIS).counters[0].value)
         assertEquals("н/д", (model.page(CarSystem.LV).scheme as Scheme.Lv).lv)
         assertEquals("н/д", model.page(CarSystem.LV).counters.single { it.label == "12 В" }.value)
         val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
