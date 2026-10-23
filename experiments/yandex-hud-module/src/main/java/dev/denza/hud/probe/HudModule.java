@@ -120,6 +120,7 @@ public final class HudModule {
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
                 navigationEvidence.sample(frame, now);
+                AdasBridge.sample(context, api, guidance, frame);
                 AdasOverlay.navigating(frame.drawMap());
                 // Route extraction must not depend on AR eligibility or a manoeuvre being visible.
                 if (frame.active() && frame.route != null) emulator.route(frame.route);

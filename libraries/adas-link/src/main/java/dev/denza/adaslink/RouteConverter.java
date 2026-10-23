@@ -39,15 +39,19 @@ public final class RouteConverter {
         public final List<double[]> tunnelEnds;
         /** Speed cameras ahead: [positionM, limit km/h]. */
         public final List<double[]> speedCameras;
+        /** Per segment: its Yandex section's free-flow speed, km/h (NaN unknown): the factory's typical link speed. */
+        public final double[] segmentFreeFlowKmh;
         public final String contentKey;
 
         Converted(String routeId, StockPath path, double totalM, int[] linkSegment, int[] linkInSegment, double[] linkBeginM, double[] linkEndM,
                   double[] linkBeginScalar, double[] linkEndScalar, double[] segmentBeginM, double[] segmentEndM, double[] lightM,
-                  double[] cumulative, List<double[]> tunnelM, List<double[]> tunnelEnds, List<double[]> speedCameras) {
+                  double[] cumulative, List<double[]> tunnelM, List<double[]> tunnelEnds, List<double[]> speedCameras,
+                  double[] segmentFreeFlowKmh) {
             this.routeId = routeId; this.path = path; this.totalM = totalM; this.linkSegment = linkSegment; this.linkInSegment = linkInSegment;
             this.linkBeginM = linkBeginM; this.linkEndM = linkEndM; this.linkBeginScalar = linkBeginScalar; this.linkEndScalar = linkEndScalar;
             this.segmentBeginM = segmentBeginM; this.segmentEndM = segmentEndM; this.lightM = lightM; this.cumulative = cumulative;
             this.tunnelM = tunnelM; this.tunnelEnds = tunnelEnds; this.speedCameras = speedCameras;
+            this.segmentFreeFlowKmh = segmentFreeFlowKmh;
             this.contentKey = path.contentKey();
         }
 
@@ -145,10 +149,13 @@ public final class RouteConverter {
         for (double s : lights) if (s > 0 && s < edges) candidates.add(new double[]{s, 1});
         if (route.speedLimits != null)
             for (int i = 1; i < edges; i++) if (!Objects.equals(route.speedLimits[i], route.speedLimits[i - 1])) candidates.add(new double[]{i, 0});
-        for (List<double[]> ranges : Arrays.asList(route.tunnels, route.ferries)) {
+        for (List<double[]> ranges : Arrays.asList(route.tunnels, route.ferries, route.highways)) {
             if (ranges == null) continue;
             for (double[] r : ranges) for (double s : r) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
         }
+        // A lane sign on a highway ends its link, so the approach carries the sign's lane count.
+        if (route.laneSigns != null) for (double[] sign : route.laneSigns)
+            if (sign[0] > 0 && sign[0] < edges && inside(route.highways, sign[0] - 1e-9)) candidates.add(new double[]{sign[0], 1});
         candidates.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(b[1], a[1]));
 
         StockPath path = new StockPath();
@@ -227,6 +234,9 @@ public final class RouteConverter {
             all.get(owner).hasTrafficLight = true;
             path.segments.get(linkSegment.get(owner)).trafficLightNum++;
         }
+        attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative);
+        double[] segmentFree = new double[sections.size()];
+        for (int i = 0; i < segmentFree.length; i++) segmentFree[i] = sections.get(i).freeFlowKmh;
         double[] lightM = route.trafficLights == null ? null : new double[lights.length];
         for (int i = 0; i < lights.length; i++) {
             double[] p = sdk(route, frame, lights[i]);
@@ -245,7 +255,47 @@ public final class RouteConverter {
                 cameras.add(new double[]{metres(cumulative, c.position), round(c.speedLimitMps * 3.6)});
         cameras.sort((a, b) -> Double.compare(a[0], b[0]));
         return new Converted(route.routeId, path, total, ints(linkSegment), ints(linkInSegment), doubles(linkBegin), doubles(linkEnd),
-                doubles(linkBeginS), doubles(linkEndS), segBegin, segEnd, lightM, cumulative, tunnelM, tunnelEnds, cameras);
+                doubles(linkBeginS), doubles(linkEndS), segBegin, segEnd, lightM, cumulative, tunnelM, tunnelEnds, cameras, segmentFree);
+    }
+
+    /**
+     * What the factory Beijing profile lets us state from Yandex data alone
+     * (research/stock-map-native/factory-beijing-profile-20261023.json):
+     * <ul>
+     * <li>the link ending at a manoeuvre carries the segment's MainAction; the others 0 (factory
+     *   transitions: actions sit on segment-boundary links, plain continuations are null);</li>
+     * <li>a Yandex highway link without a light is the factory's controlled-access road: RoadClass 0
+     *   (freeway) at a posted limit of 90 km/h or more, 6 (city speedway) below; formway 1 (divided),
+     *   direction 1 (one way), ownership 0 (public), as on 100% of factory freeway and city speedway
+     *   links; its lane count is the width of a junction lane sign that ends the link (one-way
+     *   carriageway: the factory LaneNum equals the array width);</li>
+     * <li>a roundabout section (entered with ENTER_ROUNDABOUT) is formway 4, direction 1 (100% of
+     *   factory roundabout links).</li>
+     * </ul>
+     * Everything else keeps the stock's NULL values: no class, formway, direction or ownership is
+     * inferred for ordinary city roads, and Yandex z-levels are not taken for bridges.
+     */
+    static void attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
+                           List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative) {
+        for (StockPath.Segment s : path.segments) if (!s.links.isEmpty()) s.links.get(s.links.size() - 1).mainAction = s.mainAction;
+        int link = 0;
+        for (int si = 0; si < path.segments.size(); si++) {
+            boolean roundabout = "ENTER_ROUNDABOUT".equals(sections.get(si).action);
+            for (StockPath.Link l : path.segments.get(si).links) {
+                double middle = (beginS.get(link) + endS.get(link)) / 2;
+                if (roundabout) { l.formway = 4; l.direction = 1; }
+                if (inside(route.highways, middle) && !l.hasTrafficLight) {
+                    Double limit = route.speedLimits == null ? null : route.speedLimits[Math.min((int) Math.floor(middle), route.edges() - 1)];
+                    if (limit != null) l.roadClass = limit * 3.6 >= 90 - 1e-6 ? 0 : 6;
+                    l.formway = 1;
+                    l.direction = 1;
+                    l.ownership = 0;
+                    if (route.laneSigns != null) for (double[] sign : route.laneSigns)
+                        if (Math.abs(metres(cumulative, sign[0]) - endM.get(link)) <= MIN_LINK_M) l.laneNum = (int) sign[1];
+                }
+                link++;
+            }
+        }
     }
 
     /** The link's grid points: its begin, every vertex inside, its end; repeated grid points once. */

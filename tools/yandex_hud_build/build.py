@@ -109,6 +109,15 @@ def main():
          # The ADAS status overlay's plain-Java part: wire, observations, rules, figures.
          *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits')],
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
+    # The map-to-ADAS bridge (libraries/adas-link): its plain-Java part and its tests, which read the
+    # car's stock route and the recorded Navigator routes from the git-ignored captures/ corpus.
+    adas = ROOT / 'libraries/adas-link/src/main/java'
+    adas_android = {'AndroidScheduler.java', 'SomeIpPublisher.java'}
+    adas_classes = args.out / 'adas-test-classes'; adas_classes.mkdir()
+    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', adas_classes,
+         *[p for p in sorted((adas/'dev/denza/adaslink').glob('*.java')) if p.name not in adas_android],
+         *sorted((ROOT/'libraries/adas-link/src/test/java/dev/denza/adaslink').glob('*.java'))])
+    run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.AdasLinkTest', ROOT])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.RouteSnapshotTest'])
@@ -130,7 +139,7 @@ def main():
         if 'assets/denza-hud/stock/' + name + '.png' not in artwork:
             raise RuntimeError('Missing mapped stock artwork: ' + name)
     classes = args.out / 'module-classes'; classes.mkdir()
-    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java'))
+    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java')) + sorted(adas.rglob('*.java'))
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
     dex = args.out/'module-dex'; dex.mkdir()

@@ -20,8 +20,13 @@ public final class YandexRoute {
         public final String toponym;
         /** Travel time with traffic (else without), seconds; NaN when unknown. */
         public final double timeS;
+        /** Free-flow speed, km/h: weight distance over weight time without traffic; NaN when unknown. */
+        public final double freeFlowKmh;
         public Section(double begin, double end, String action, String toponym, double timeS) {
-            this.begin = begin; this.end = end; this.action = action; this.toponym = toponym; this.timeS = timeS;
+            this(begin, end, action, toponym, timeS, Double.NaN);
+        }
+        public Section(double begin, double end, String action, String toponym, double timeS, double freeFlowKmh) {
+            this.begin = begin; this.end = end; this.action = action; this.toponym = toponym; this.timeS = timeS; this.freeFlowKmh = freeFlowKmh;
         }
     }
 
@@ -43,6 +48,10 @@ public final class YandexRoute {
     public final List<double[]> tunnels, ferries;
     public final double[] wayPoints;
     public final List<Camera> cameras;
+    /** Yandex highway ranges; null when not reported. */
+    public List<double[]> highways;
+    /** Junction lane signs: {position, number of lanes}; null when not reported. */
+    public List<double[]> laneSigns;
 
     public YandexRoute(String routeId, double[] lon, double[] lat, List<Section> sections, Double[] speedLimits, double[] trafficLights,
                        List<double[]> tunnels, List<double[]> ferries, double[] wayPoints, List<Camera> cameras) {
@@ -76,15 +85,18 @@ public final class YandexRoute {
             Map<String, Object> geometry = (Map<String, Object>) section.get("geometry");
             Map<String, Object> metadata = (Map<String, Object>) section.get("metadata");
             Map<String, Object> annotation = metadata == null ? null : (Map<String, Object>) metadata.get("annotation");
-            double time = Double.NaN;
+            double time = Double.NaN, free = Double.NaN;
             Map<String, Object> weight = metadata == null ? null : (Map<String, Object>) metadata.get("weight");
             if (weight != null) {
                 Map<String, Object> t = (Map<String, Object>) (weight.get("timeWithTraffic") != null ? weight.get("timeWithTraffic") : weight.get("time"));
                 if (t != null && t.get("value") instanceof Number) time = num(t.get("value"));
+                Map<String, Object> d = (Map<String, Object>) weight.get("distance"), f = (Map<String, Object>) weight.get("time");
+                if (d != null && f != null && d.get("value") instanceof Number && f.get("value") instanceof Number && num(f.get("value")) > 0)
+                    free = num(d.get("value")) / num(f.get("value")) * 3.6;
             }
             sections.add(new Section(position(geometry.get("begin"), edges), position(geometry.get("end"), edges),
                     annotation == null ? null : (String) annotation.get("action"),
-                    annotation == null ? null : (String) annotation.get("toponym"), time));
+                    annotation == null ? null : (String) annotation.get("toponym"), time, free));
         }
         Double[] limits = null;
         if (known(s, "speedLimits")) {
@@ -114,8 +126,19 @@ public final class YandexRoute {
             if (e.get("polylinePosition") == null) continue;
             cameras.add(new Camera(position(e.get("polylinePosition"), edges), limit instanceof Number ? num(limit) : Double.NaN, tags));
         }
-        return new YandexRoute((String) s.get("routeId"), lon, lat, sections, limits, lights,
+        YandexRoute route = new YandexRoute((String) s.get("routeId"), lon, lat, sections, limits, lights,
                 ranges(s, "tunnels", edges), ranges(s, "ferries", edges), wayPoints, cameras);
+        route.highways = ranges(s, "highways", edges);
+        if (known(s, "laneSigns")) {
+            route.laneSigns = new ArrayList<>();
+            for (Object o : (List<Object>) s.get("laneSigns")) {
+                Map<String, Object> sign = (Map<String, Object>) o;
+                Object lanes = sign.get("lanes");
+                if (sign.get("position") == null || !(lanes instanceof List) || ((List<Object>) lanes).isEmpty()) continue;
+                route.laneSigns.add(new double[]{position(sign.get("position"), edges), ((List<Object>) lanes).size()});
+            }
+        }
+        return route;
     }
 
     @SuppressWarnings("unchecked")

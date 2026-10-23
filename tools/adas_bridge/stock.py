@@ -255,6 +255,10 @@ def distance(lon1, lat1, lon2, lat2):
 
 # ---------------------------------------------------------------- Yandex route (YandexRoute.java)
 
+def _is_number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
 def _num(v):
     if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
         raise StockError(f"expected finite number, got {v!r}")
@@ -298,16 +302,21 @@ def route_from_snapshot(s):
             geometry = section.get("geometry") or {}
             metadata = section.get("metadata")
             annotation = metadata.get("annotation") if isinstance(metadata, dict) else None
-            time = float("nan")
+            time = free = float("nan")
             weight = metadata.get("weight") if isinstance(metadata, dict) else None
             if isinstance(weight, dict):
                 t = weight.get("timeWithTraffic") if weight.get("timeWithTraffic") is not None else weight.get("time")
-                if isinstance(t, dict) and isinstance(t.get("value"), (int, float)) and not isinstance(t.get("value"), bool):
+                if isinstance(t, dict) and _is_number(t.get("value")):
                     time = _num(t["value"])
+                # Free-flow speed: weight distance over weight time without traffic (Section.freeFlowKmh).
+                d, f = weight.get("distance"), weight.get("time")
+                if (isinstance(d, dict) and isinstance(f, dict) and _is_number(d.get("value")) and _is_number(f.get("value"))
+                        and _num(f["value"]) > 0):
+                    free = _num(d["value"]) / _num(f["value"]) * 3.6
             sections.append({"begin": _position(geometry.get("begin"), edges), "end": _position(geometry.get("end"), edges),
                              "action": annotation.get("action") if isinstance(annotation, dict) else None,
                              "toponym": annotation.get("toponym") if isinstance(annotation, dict) else None,
-                             "timeS": time})
+                             "timeS": time, "freeFlowKmh": free})
     limits = None
     if _known(s, "speedLimits"):
         raw = s["speedLimits"]
@@ -342,9 +351,17 @@ def route_from_snapshot(s):
                 raise StockError(key + ": empty or reversed range")
             out.append((b, e))
         return out
+    lane_signs = None
+    if _known(s, "laneSigns"):
+        lane_signs = []
+        for sign in s["laneSigns"]:
+            lanes = sign.get("lanes")
+            if sign.get("position") is None or not isinstance(lanes, list) or not lanes:
+                continue
+            lane_signs.append((_position(sign["position"], edges), len(lanes)))
     return {"routeId": route_id, "lon": lon, "lat": lat, "sections": sections, "speedLimits": limits,
             "trafficLights": lights, "tunnels": ranges("tunnels"), "ferries": ranges("ferries"),
-            "wayPoints": waypoints, "cameras": cameras}
+            "highways": ranges("highways"), "laneSigns": lane_signs, "wayPoints": waypoints, "cameras": cameras}
 
 
 # ---------------------------------------------------------------- converter (RouteConverter.java)
@@ -438,7 +455,8 @@ def convert(route, frame):
     total = cumulative[edges]
     if not total > 0:
         raise StockError("route geometry has zero length")
-    sections = list(route["sections"]) or [{"begin": 0.0, "end": float(edges), "action": None, "toponym": None, "timeS": float("nan")}]
+    sections = list(route["sections"]) or [{"begin": 0.0, "end": float(edges), "action": None, "toponym": None,
+                                            "timeS": float("nan"), "freeFlowKmh": float("nan")}]
     previous = 0.0
     for s in sections:
         if abs(s["begin"] - previous) > 1e-9 or not s["end"] > s["begin"]:
@@ -452,9 +470,13 @@ def convert(route, frame):
     limits = route["speedLimits"]
     if limits is not None:
         candidates += [(float(i), 0) for i in range(1, edges) if limits[i] != limits[i - 1]]
-    for ranges in (route["tunnels"], route["ferries"]):
+    for ranges in (route["tunnels"], route["ferries"], route.get("highways")):
         for r in ranges or ():
             candidates += [(s, 0) for s in r if 0 < s < edges]
+    # A lane sign on a highway ends its link, so the approach carries the sign's lane count.
+    for sign in route.get("laneSigns") or ():
+        if 0 < sign[0] < edges and _inside(route.get("highways"), sign[0] - 1e-9):
+            candidates.append((sign[0], 1))
     candidates.sort(key=lambda c: (c[0], -c[1]))
 
     segments, link_segment, link_in_segment = [], [], []
@@ -537,6 +559,7 @@ def convert(route, frame):
             continue
         all_links[owner]["hasTrafficLight"] = True
         segments[link_segment[owner]]["trafficLightNum"] += 1
+    _attributes(route, sections, segments, link_begin_s, link_end_s, link_end, cumulative)
     traffic_lights = []
     for s in lights:
         p = _sdk_at(route, frame, s)
@@ -557,7 +580,38 @@ def convert(route, frame):
             "linkBeginM": link_begin, "linkEndM": link_end, "linkBeginScalar": link_begin_s, "linkEndScalar": link_end_s,
             "segmentBeginM": seg_begin, "segmentEndM": seg_end, "lightM": light_m,
             "tunnelM": tunnel_m, "tunnelEnds": tunnel_ends, "speedCameras": cameras,
+            "segmentFreeFlowKmh": [s.get("freeFlowKmh", float("nan")) for s in sections],
             "contentKey": content_key(path)}
+
+
+def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative):
+    """RouteConverter.attributes: what the factory Beijing profile lets Yandex data state.
+
+    The link ending at a manoeuvre carries the segment's MainAction; a roundabout section is formway 4,
+    direction 1; a highway link without a light is RoadClass 0 at a limit >= 90 km/h else 6, formway 1,
+    direction 1, ownership 0, lane count from a lane sign ending it. Everything else stays NULL.
+    """
+    for segment in segments:
+        if segment["links"]:
+            segment["links"][-1]["mainAction"] = segment["mainAction"]
+    edges = len(route["lon"]) - 1
+    index = 0
+    for si, segment in enumerate(segments):
+        roundabout = sections[si]["action"] == "ENTER_ROUNDABOUT"
+        for link in segment["links"]:
+            middle = (begin_s[index] + end_s[index]) / 2
+            if roundabout:
+                link["formway"], link["direction"] = 4, 1
+            if _inside(route.get("highways"), middle) and not link["hasTrafficLight"]:
+                limits = route["speedLimits"]
+                limit = None if limits is None else limits[min(int(math.floor(middle)), edges - 1)]
+                if limit is not None:
+                    link["roadClass"] = 0 if limit * 3.6 >= 90 - 1e-6 else 6
+                link["formway"], link["direction"], link["ownership"] = 1, 1, 0
+                for position, lanes in route.get("laneSigns") or ():
+                    if abs(metres(cumulative, position) - end_m[index]) <= MIN_LINK_M:
+                        link["laneNum"] = int(lanes)
+            index += 1
 
 
 def new_link():

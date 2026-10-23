@@ -343,6 +343,16 @@ final class DynamicTests {
         s5.observe(guidance(6_002_100, m4.routeId, m4b, 1.4, 10, 3));
         equal(2, s5.fires(Topics.ROUTE).size(), "S5: changed table under the same routeId is a new route");
         equal(100003L, field(s5.fires(Topics.PATH_SELECTED).get(1), "pathIDReq"), "S5: and a new pathId");
+        // Back to a table already published (an alternative switched back): its own pathId again.
+        s5.observe(guidance(6_003_100, m4.routeId, m4, 1.6, 10, 4));
+        equal(3, s5.fires(Topics.ROUTE).size(), "S5: switching back resends, as the stock on a focus change");
+        equal(100002L, field(s5.fires(Topics.PATH_SELECTED).get(2), "pathIDReq"), "S5: one table, one pathId: the first id is reused");
+        // CAP-1: an extrapolated location is Navigator's prediction, not a fix.
+        Rig ex = new Rig(6_500_000);
+        NavigatorDriver.Observation predicted = guidance(6_500_100, m4.routeId, m4, 1.0, 10, 1);
+        predicted.locationClass = "EXTRAPOLATED";
+        ex.observe(predicted);
+        equal(0, ex.fires(Topics.SD_VEHICLE_LOCATION).size(), "CAP-1: EXTRAPOLATED is not sent as a position");
         // S6: Navigator idle from start: 100 only.
         Rig s6 = replay(sequence(root, "S6_status_before_any_route.json"), m4, -1);
         check(statuses(s6).stream().allMatch(v -> v == 100L), "S6: idle start is 100 only, never 110 (DYN-09)");

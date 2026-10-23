@@ -29,6 +29,9 @@ project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 include(":hud-link")
 project(":hud-link").projectDir = file("libraries/hud-link")
 
+include(":adas-link")
+project(":adas-link").projectDir = file("libraries/adas-link")
+
 // The disposable on-device probes under experiments/ and the frozen legacy app are configured
 // only on request, so that an ordinary product build does not pay for nine modules it never
 // touches. Ask for them with the `experiments` property:

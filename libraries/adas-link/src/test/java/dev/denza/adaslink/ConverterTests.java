@@ -58,7 +58,11 @@ final class ConverterTests {
             for (StockPath.Link l : s.links) {
                 sum += l.length;
                 if (l.hasTrafficLight) { lights++; flagged++; }
-                check(l.roadClass == -1 && l.formway == -1 && l.ownership == -1, name + ": stock NULLs for unknown class/formway/ownership");
+                boolean highway = l.formway == 1;
+                check(highway ? (l.roadClass == 0 || l.roadClass == 6 || l.roadClass == -1) && l.direction == 1 && l.ownership == 0 && !l.hasTrafficLight
+                                : l.roadClass == -1 && l.ownership == -1 && (l.formway == -1 || l.formway == 4) && l.laneNum == 0,
+                        name + ": stock NULLs except the profile's highway and roundabout facts");
+                check(l.mainAction == 0 || l == s.links.get(s.links.size() - 1), name + ": only the manoeuvre link carries a MainAction");
                 check(l.linkType == -1 || l.linkType == 1 || l.linkType == 2, name + ": linktype only NULL/ferry/tunnel");
                 check(l.pointCount() >= 2, name + ": a link has at least two points");
                 check(l.topoId > 0, name + ": positive link id");
@@ -135,6 +139,36 @@ final class ConverterTests {
         equal(5, c.path.trafficLights.size(), "synthetic: all five lights listed, the start one too");
         check(c.path.segments.get(0).mainAction == 1, "synthetic: segment 0 ends with the next section's LEFT (MainAction 1)");
         equal("Первая", c.path.segments.get(0).links.get(0).roadName, "synthetic: road name from the section toponym");
+        StockPath.Segment s0 = c.path.segments.get(0);
+        equal(1, s0.links.get(s0.links.size() - 1).mainAction, "synthetic: the link ending at the LEFT carries MainAction 1");
+        // Highway facts from the factory profile: class by posted limit, divided, one way, public, lane sign width.
+        Double[] hwLimits = new Double[20];
+        for (int i = 0; i < 20; i++) hwLimits[i] = i < 10 ? 16.6 : 27.8;
+        YandexRoute hw = new YandexRoute("hw", lon, lat, Arrays.asList(new YandexRoute.Section(0, 20, "STRAIGHT", "М4", 600, 95)),
+                hwLimits, new double[]{15.5}, null, null, null, null);
+        hw.highways = Collections.singletonList(new double[]{2, 18});
+        hw.laneSigns = Collections.singletonList(new double[]{4, 3});
+        RouteConverter.Converted h = RouteConverter.convert(hw, Coordinates.Frame.WGS84);
+        invariants("highway", hw, h);
+        int fast = 0, city = 0, lanes = 0, lit = 0;
+        for (StockPath.Link l : h.path.segments.get(0).links) {
+            if (l.roadClass == 0) fast++;
+            if (l.roadClass == 6) city++;
+            if (l.laneNum == 3) lanes++;
+            if (l.hasTrafficLight) { lit++; check(l.roadClass == -1, "highway: a lit link is not a freeway"); }
+        }
+        check(city > 0 && fast > 0, "highway: 59.8 km/h is class 6, 100 km/h is class 0 (" + city + "/" + fast + ")");
+        equal(1, lanes, "highway: the lane sign's width on the link it ends");
+        equal(1, lit, "highway: the light still ends its link");
+        equal(95.0, h.segmentFreeFlowKmh[0], "free-flow speed carried per segment");
+        // Roundabout section.
+        YandexRoute ring = new YandexRoute("ring", lon, lat, Arrays.asList(new YandexRoute.Section(0, 5, "STRAIGHT", null, 10),
+                new YandexRoute.Section(5, 8, "ENTER_ROUNDABOUT", null, 10), new YandexRoute.Section(8, 20, "LEAVE_ROUNDABOUT", null, 10)),
+                null, null, null, null, null, null);
+        RouteConverter.Converted r = RouteConverter.convert(ring, Coordinates.Frame.WGS84);
+        check(r.path.segments.get(1).links.get(0).formway == 4 && r.path.segments.get(1).links.get(0).direction == 1
+                && r.path.segments.get(2).links.get(0).formway == -1, "roundabout section is formway 4, direction 1");
+        equal(11, r.path.segments.get(0).mainAction, "segment before the roundabout ends with EntryRing");
         boolean tunnel = false;
         for (StockPath.Link l : c.path.segments.get(1).links) tunnel |= l.linkType == 2;
         check(tunnel, "synthetic: tunnel range is linktype 2");

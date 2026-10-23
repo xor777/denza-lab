@@ -105,17 +105,69 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(len(converted["candidateNaviToEHPData"]["trafficLights"]), 3)
 
     def test_unknown_attributes_carry_stock_null_values_never_json_null(self):
-        """F4: the stock's own NULL sentinels, nothing inferred from lanes or highway ranges."""
-        source = fixture()
-        source["highways"] = [{"position": {"begin": pos(0), "end": pos(2, 1)}}]
-        converted = route_convert(source, target_frame="wgs84")
+        """F4: off highways the stock's own NULL sentinels; nothing inferred from city roads or lanes."""
+        converted = route_convert(fixture(), target_frame="wgs84")
         self.assertNotIn(":null", converted["messageSendJson"])
         for link in converted["candidateNaviToEHPData"]["links"]:
             self.assertEqual((link["roadclass"], link["formway"], link["ownership"], link["laneNum"],
-                              link["mainAction"], link["speedLimit"]), (-1, -1, -1, 0, 0, 0))
+                              link["direction"], link["speedLimit"]), (-1, -1, -1, 0, 0, 0))
         types = [l["linktype"] for l in converted["candidateNaviToEHPData"]["links"]]
         self.assertEqual(types, [-1, 2, 2, -1, -1])
         self.assertFalse(converted["publicationReady"])
+
+    def test_manoeuvre_action_sits_on_the_link_ending_at_it(self):
+        """Factory profile: the last link of a segment carries its MainAction, the others 0."""
+        links = route_convert(fixture(), target_frame="wgs84")["candidateNaviToEHPData"]["links"]
+        self.assertEqual([l["mainAction"] for l in links], [0, 2, 0, 0, 0])
+
+    def test_highway_links_take_the_factory_controlled_access_attributes(self):
+        """Factory profile: a highway link without a light is class 0 at >= 90 km/h else 6, formway 1,
+        direction 1, ownership 0; no limit keeps class NULL; a light keeps the link NULL."""
+        source = fixture()
+        source["highways"] = [{"position": {"begin": pos(0), "end": pos(2, 1)}}]
+        links = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
+        # The fixture's lane sign at edge 1 lies on the highway: it cuts there and gives its width.
+        self.assertEqual([l["roadclass"] for l in links], [6, 6, -1, 6, 6, -1])
+        self.assertEqual([l["formway"] for l in links], [1, 1, -1, 1, 1, 1])
+        self.assertEqual([l["direction"] for l in links], [1, 1, 0, 1, 1, 1])
+        self.assertEqual([l["ownership"] for l in links], [0, 0, -1, 0, 0, 0])
+        self.assertEqual([l["laneNum"] for l in links], [0, 3, 0, 0, 0, 0])
+        fast = copy.deepcopy(source)
+        fast["speedLimits"] = [25, 25, 25]
+        self.assertEqual(route_convert(fast, target_frame="wgs84")["candidateNaviToEHPData"]["links"][0]["roadclass"], 0)
+
+    def test_lane_sign_on_a_highway_ends_its_link_with_the_lane_count(self):
+        source = fixture()
+        source["highways"] = [{"position": {"begin": pos(1, .5), "end": pos(2, 1)}}]
+        source["laneSigns"] = [{"position": pos(2, .5), "lanes": [{}, {}, {}]},
+                               {"position": pos(0, .25), "lanes": [{}, {}]}]   # off the highway: no cut
+        converted = route_convert(source, target_frame="wgs84")
+        ends = [l["sourceEnd"] for l in converted["intermediate"]["links"]]
+        self.assertIn(2.5, ends)
+        self.assertNotIn(0.25, ends)
+        links = converted["candidateNaviToEHPData"]["links"]
+        self.assertEqual(links[ends.index(2.5)]["laneNum"], 3)
+        self.assertEqual(links[ends.index(2.5) + 1]["laneNum"], 0)
+
+    def test_roundabout_section_is_formway_4_one_way(self):
+        source = fixture()
+        source["sections"][1]["metadata"]["annotation"]["action"] = "ENTER_ROUNDABOUT"
+        links = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
+        self.assertEqual([(l["formway"], l["direction"]) for l in links[2:]], [(4, 1)] * 3)
+        self.assertEqual(links[0]["formway"], -1)
+
+    def test_free_flow_speed_is_distance_over_time_without_traffic(self):
+        source = fixture()
+        source["sections"][0]["metadata"]["weight"] = {"distance": {"value": 100.0}, "time": {"value": 10.0},
+                                                        "timeWithTraffic": {"value": 20.0}}
+        route = stock.route_from_snapshot(source)
+        self.assertAlmostEqual(route["sections"][0]["freeFlowKmh"], 36.0)
+        self.assertTrue(stock.math.isnan(route["sections"][1]["freeFlowKmh"]))
+        self.assertEqual(route["sections"][0]["timeS"], 20.0)
+        source["sections"][0]["metadata"]["weight"]["time"] = {"value": 0}
+        self.assertTrue(stock.math.isnan(stock.route_from_snapshot(source)["sections"][0]["freeFlowKmh"]))
+        converted = stock.convert(route, "wgs84")
+        self.assertAlmostEqual(converted["segmentFreeFlowKmh"][0], 36.0)
 
     def test_lengths_are_whole_metres_summing_to_the_segment(self):
         """F3: navigationLen/groupLen/groupTime are JSON integers; sum(link len) == navigationLen."""
