@@ -1,0 +1,2301 @@
+{
+ "source": "BydLaunchermap jadx someip/* generated protobuf-lite classes",
+ "messages": {
+  "ADASISV2Notify": {
+   "1": [
+    "aDASISV2",
+    "string"
+   ]
+  },
+  "AdvAutoFunInfo": {
+   "1": [
+    "noODDRegionDist",
+    "int32"
+   ]
+  },
+  "AdvAutoFunInfoNotify": {
+   "1": [
+    "advAutoFunInfo",
+    "message:AdvAutoFunInfo"
+   ]
+  },
+  "BroadcastInfoNotify": {
+   "1": [
+    "broadcastInfoNotifyStruct",
+    "message:BroadcastInfoNotifyStruct"
+   ]
+  },
+  "BroadcastInfoNotifyStruct": {
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "dangerousVehicle",
+    "bool"
+   ],
+   "3": [
+    "driverAttention",
+    "bool"
+   ],
+   "4": [
+    "largeVehicles",
+    "bool"
+   ],
+   "6": [
+    "pedestrians",
+    "bool"
+   ]
+  },
+  "ChangeLaneDataNotify": {
+   "1": [
+    "changeLaneDataNotifyStruct",
+    "message:ChangeLaneDataNotifyStruct"
+   ]
+  },
+  "ChangeLaneDataNotifyStruct": {
+   "4": [
+    "changeLaneDirection",
+    "int32"
+   ],
+   "3": [
+    "changeLaneState",
+    "int32"
+   ],
+   "6": [
+    "changeLaneTimestamp",
+    "int32"
+   ],
+   "7": [
+    "changeRatio",
+    "double"
+   ],
+   "8": [
+    "changeTermi",
+    "int32"
+   ],
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "isChangeSafety",
+    "bool"
+   ],
+   "14": [
+    "landingBoxHeight",
+    "double"
+   ],
+   "12": [
+    "landingBoxLength",
+    "double"
+   ],
+   "13": [
+    "landingBoxWidth",
+    "double"
+   ],
+   "9": [
+    "landingCenterX",
+    "double"
+   ],
+   "10": [
+    "landingCenterY",
+    "double"
+   ],
+   "11": [
+    "landingCenterZ",
+    "double"
+   ]
+  },
+  "LinK": {
+   "1": [
+    "linkID",
+    "int64"
+   ]
+  },
+  "LinkItem1": {
+   "4": [
+    "linkItemBegIdx1",
+    "int32"
+   ],
+   "1": [
+    "linkItemFormway1",
+    "int32"
+   ],
+   "7": [
+    "linkItemLen1",
+    "float"
+   ],
+   "2": [
+    "linkItemLinktype1",
+    "int32"
+   ],
+   "5": [
+    "linkItemPntCnt1",
+    "int32"
+   ],
+   "3": [
+    "linkItemRoadclass1",
+    "int32"
+   ],
+   "6": [
+    "linkItemRoadname1",
+    "string"
+   ]
+  },
+  "LinkItem2": {
+   "4": [
+    "linkItemBegIdx2",
+    "int32"
+   ],
+   "1": [
+    "linkItemFormway2",
+    "int32"
+   ],
+   "7": [
+    "linkItemLen2",
+    "float"
+   ],
+   "2": [
+    "linkItemLinktype2",
+    "int32"
+   ],
+   "5": [
+    "linkItemPntCnt2",
+    "int32"
+   ],
+   "3": [
+    "linkItemRoadclass2",
+    "int32"
+   ],
+   "6": [
+    "linkItemRoadname2",
+    "string"
+   ]
+  },
+  "LinkItem3": {
+   "4": [
+    "linkItemBegIdx3",
+    "int32"
+   ],
+   "1": [
+    "linkItemFormway3",
+    "int32"
+   ],
+   "7": [
+    "linkItemLen3",
+    "float"
+   ],
+   "2": [
+    "linkItemLinktype3",
+    "int32"
+   ],
+   "5": [
+    "linkItemPntCnt3",
+    "int32"
+   ],
+   "3": [
+    "linkItemRoadclass3",
+    "int32"
+   ],
+   "6": [
+    "linkItemRoadname3",
+    "string"
+   ]
+  },
+  "NaviPathUserSelectStsConfirmNotify": {
+   "1": [
+    "naviPathUserSelectStsConfirmStruct",
+    "message:NaviPathUserSelectStsConfirmStruct"
+   ]
+  },
+  "NaviPathUserSelectStsConfirmStruct": {
+   "1": [
+    "checksCRC32",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "errorMsg",
+    "string"
+   ],
+   "3": [
+    "pathIDResp",
+    "int64"
+   ],
+   "6": [
+    "reserve1",
+    "int64"
+   ],
+   "7": [
+    "reserve2",
+    "int32"
+   ],
+   "8": [
+    "reserve3",
+    "float"
+   ],
+   "4": [
+    "statusCode",
+    "int32"
+   ]
+  },
+  "NaviPathUserSelectStsNotify": {
+   "1": [
+    "naviPathUserSelectStsStruct",
+    "message:NaviPathUserSelectStsStruct"
+   ]
+  },
+  "NaviPathUserSelectStsStruct": {
+   "1": [
+    "checksCRC32",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "3": [
+    "pathIDReq",
+    "int64"
+   ],
+   "4": [
+    "reserve1",
+    "int64"
+   ],
+   "5": [
+    "reserve2",
+    "int32"
+   ],
+   "6": [
+    "reserve3",
+    "float"
+   ]
+  },
+  "NavigationDataInfo": {
+   "14": [
+    "cameraDist",
+    "int32"
+   ],
+   "13": [
+    "cameraType",
+    "int32"
+   ],
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "7": [
+    "currentRoadSpeed",
+    "int32"
+   ],
+   "28": [
+    "distance",
+    "int32"
+   ],
+   "16": [
+    "facilityDist",
+    "int32"
+   ],
+   "15": [
+    "facilityType",
+    "int32"
+   ],
+   "31": [
+    "formWayDist",
+    "int32"
+   ],
+   "30": [
+    "formWay",
+    "int32"
+   ],
+   "9": [
+    "intervalCameraLimitSpeedDist",
+    "int32"
+   ],
+   "10": [
+    "intervalCameraLimitSpeedRemainDist",
+    "int32"
+   ],
+   "8": [
+    "intervalCameraLimitSpeed",
+    "int32"
+   ],
+   "12": [
+    "naviCameraLimitSpeedDist",
+    "int32"
+   ],
+   "11": [
+    "naviCameraLimitSpeed",
+    "int32"
+   ],
+   "27": [
+    "naviCongestionInfo",
+    "int32"
+   ],
+   "4": [
+    "navigationalState",
+    "int32"
+   ],
+   "18": [
+    "roadClassDistRoadTypeDist",
+    "int32"
+   ],
+   "17": [
+    "roadClassRoadType",
+    "int32"
+   ],
+   "29": [
+    "roadLaneTypeArray",
+    "repeated message:RoadLaneType"
+   ],
+   "20": [
+    "roadPoiDist1",
+    "int32"
+   ],
+   "22": [
+    "roadPoiDist2",
+    "int32"
+   ],
+   "24": [
+    "roadPoiDist3",
+    "int32"
+   ],
+   "26": [
+    "roadPoiDist4",
+    "int32"
+   ],
+   "19": [
+    "roadPoiType1",
+    "int32"
+   ],
+   "21": [
+    "roadPoiType2",
+    "int32"
+   ],
+   "23": [
+    "roadPoiType3",
+    "int32"
+   ],
+   "25": [
+    "roadPoiType4",
+    "int32"
+   ],
+   "3": [
+    "timestamp",
+    "double"
+   ],
+   "6": [
+    "trafficLightDist",
+    "int32"
+   ],
+   "5": [
+    "trafficLightExist",
+    "int32"
+   ]
+  },
+  "NavigationDataInfoNotifiy": {
+   "1": [
+    "navigationDataInfo",
+    "message:NavigationDataInfo"
+   ]
+  },
+  "NavigationHDLink2InfoStruct": {
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "7": [
+    "linkItemArray1",
+    "repeated message:LinkItem1"
+   ],
+   "16": [
+    "linkItemArray2",
+    "repeated message:LinkItem2"
+   ],
+   "25": [
+    "linkItemArray3",
+    "repeated message:LinkItem3"
+   ],
+   "3": [
+    "navigationPathValid1",
+    "int32"
+   ],
+   "12": [
+    "navigationPathValid2",
+    "int32"
+   ],
+   "21": [
+    "navigationPathValid3",
+    "int32"
+   ],
+   "8": [
+    "pointItemArray1",
+    "repeated message:PointItem1"
+   ],
+   "17": [
+    "pointItemArray2",
+    "repeated message:PointItem2"
+   ],
+   "26": [
+    "pointItemArray3",
+    "repeated message:PointItem3"
+   ],
+   "9": [
+    "reserve11",
+    "int64"
+   ],
+   "10": [
+    "reserve12",
+    "int32"
+   ],
+   "11": [
+    "reserve13",
+    "float"
+   ],
+   "18": [
+    "reserve21",
+    "int64"
+   ],
+   "19": [
+    "reserve22",
+    "int32"
+   ],
+   "20": [
+    "reserve23",
+    "float"
+   ],
+   "27": [
+    "reserve31",
+    "int64"
+   ],
+   "28": [
+    "reserve32",
+    "int32"
+   ],
+   "29": [
+    "reserve33",
+    "float"
+   ],
+   "5": [
+    "routeLinkCnt1",
+    "int32"
+   ],
+   "14": [
+    "routeLinkCnt2",
+    "int32"
+   ],
+   "23": [
+    "routeLinkCnt3",
+    "int32"
+   ],
+   "6": [
+    "routePathID1",
+    "int64"
+   ],
+   "15": [
+    "routePathID2",
+    "int64"
+   ],
+   "24": [
+    "routePathID3",
+    "int64"
+   ],
+   "4": [
+    "routePntCnt1",
+    "int32"
+   ],
+   "13": [
+    "routePntCnt2",
+    "int32"
+   ],
+   "22": [
+    "routePntCnt3",
+    "int32"
+   ]
+  },
+  "NavigationHDLink2Notify": {
+   "1": [
+    "navigationHDLink2InfoStruct",
+    "message:NavigationHDLink2InfoStruct"
+   ]
+  },
+  "NavigationPathMatchStatusNotify": {
+   "1": [
+    "navigationPathMatchStatusStruct",
+    "message:NavigationPathMatchStatusStruct"
+   ]
+  },
+  "NavigationPathMatchStatusStruct": {
+   "1": [
+    "checksCRC32",
+    "int32"
+   ],
+   "3": [
+    "code",
+    "int64"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "msg",
+    "string"
+   ],
+   "6": [
+    "reserve1",
+    "int64"
+   ],
+   "7": [
+    "reserve2",
+    "int32"
+   ],
+   "8": [
+    "reserve3",
+    "float"
+   ],
+   "4": [
+    "routeInfoArray",
+    "repeated message:RouteInfo"
+   ]
+  },
+  "NavigationStatus_LinkInfoNotify": {
+   "1": [
+    "navigationStatusLinkInfoNotifyStruct",
+    "message:NavigationStatus_LinkInfoNotifyStruct"
+   ]
+  },
+  "NavigationStatus_LinkInfoNotifyStruct": {
+   "10": [
+    "aNPRoad",
+    "int32"
+   ],
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "9": [
+    "dNPSwitch",
+    "int32"
+   ],
+   "8": [
+    "hDStartDistance",
+    "int32"
+   ],
+   "12": [
+    "linKArray",
+    "repeated message:LinK"
+   ],
+   "11": [
+    "mapVersion",
+    "int32"
+   ],
+   "5": [
+    "matchingTableStatus",
+    "int32"
+   ],
+   "4": [
+    "navigationStatus",
+    "int32"
+   ],
+   "6": [
+    "remainDistance",
+    "int32"
+   ],
+   "3": [
+    "timestamp",
+    "double"
+   ],
+   "7": [
+    "viaPointDistance",
+    "int32"
+   ]
+  },
+  "NewBroadcastInfoNotify": {
+   "1": [
+    "newBroadcastInfoNotifyStruct",
+    "message:NewBroadcastInfoNotifyStruct"
+   ]
+  },
+  "NewBroadcastInfoNotifyStruct": {
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "infoReserved1",
+    "double"
+   ],
+   "6": [
+    "infoReserved2",
+    "double"
+   ],
+   "7": [
+    "infoReserved3",
+    "double"
+   ],
+   "8": [
+    "infoReserved4",
+    "double"
+   ],
+   "9": [
+    "infoReserved5",
+    "double"
+   ],
+   "3": [
+    "noaMode",
+    "int32"
+   ],
+   "4": [
+    "notice",
+    "int32"
+   ]
+  },
+  "ODDRegionCodeInfo": {
+   "1": [
+    "oDDRegionCodeValue",
+    "int32"
+   ]
+  },
+  "ODDRegionCodeReq": {
+   "1": [
+    "oDDRegionCodeReqInfo",
+    "message:ODDRegionCodeReqInfo"
+   ]
+  },
+  "ODDRegionCodeReqInfo": {
+   "1": [
+    "oDDRegionCode",
+    "int32"
+   ]
+  },
+  "ODDRegionCodeResp": {
+   "1": [
+    "oDDRegionCodeRspInfo",
+    "repeated message:ODDRegionCodeInfo"
+   ]
+  },
+  "PilotAlarmAndNoticeInfoNotify": {
+   "1": [
+    "pilotAlarmNoticeInfoNotifyStruct",
+    "message:PilotAlarmNoticeInfoNotifyStruct"
+   ]
+  },
+  "PilotAlarmNoticeInfoNotifyStruct": {
+   "4": [
+    "alarmDistance",
+    "int32"
+   ],
+   "5": [
+    "alarmStage",
+    "int32"
+   ],
+   "6": [
+    "alarmTimestamp",
+    "double"
+   ],
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "8": [
+    "noticeDistance",
+    "int32"
+   ],
+   "9": [
+    "noticeTimestamp",
+    "double"
+   ],
+   "3": [
+    "pilotAlarmReason",
+    "int32"
+   ],
+   "7": [
+    "pilotNotice",
+    "int32"
+   ]
+  },
+  "PilotStatusNotify": {
+   "1": [
+    "pilotStatusNotifyStruct",
+    "message:PilotStatusNotifyStruct"
+   ]
+  },
+  "PilotStatusNotifyStruct": {
+   "3": [
+    "aCCStatus",
+    "int32"
+   ],
+   "1": [
+    "checksum",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "5": [
+    "dNPStatus",
+    "int32"
+   ],
+   "7": [
+    "drivingTime",
+    "int32"
+   ],
+   "4": [
+    "iCCStatus",
+    "int32"
+   ],
+   "6": [
+    "takeoverStatus",
+    "bool"
+   ]
+  },
+  "PointItem1": {
+   "1": [
+    "pntItemX1",
+    "double"
+   ],
+   "2": [
+    "pntItemY1",
+    "double"
+   ]
+  },
+  "PointItem2": {
+   "1": [
+    "pntItemX2",
+    "double"
+   ],
+   "2": [
+    "pntItemY2",
+    "double"
+   ]
+  },
+  "PointItem3": {
+   "1": [
+    "pntItemX3",
+    "double"
+   ],
+   "2": [
+    "pntItemY3",
+    "double"
+   ]
+  },
+  "RoadLaneType": {
+   "1": [
+    "laneType",
+    "int32"
+   ]
+  },
+  "RouteInfo": {
+   "1": [
+    "pathID",
+    "int64"
+   ],
+   "3": [
+    "routeBeginIdx",
+    "int32"
+   ],
+   "4": [
+    "routeEndIdx",
+    "int32"
+   ],
+   "5": [
+    "statusCode",
+    "int32"
+   ],
+   "2": [
+    "totalNOADistance",
+    "int32"
+   ]
+  },
+  "SwitchNotifyReq": {
+   "1": [
+    "switchNotifyStruct",
+    "message:SwitchNotifyStruct"
+   ]
+  },
+  "SwitchNotifyStruct": {
+   "1": [
+    "dNPICCSwithcS",
+    "int32"
+   ]
+  },
+  "TrafficInfo": {
+   "6": [
+    "cnstrctnCrdLatitude",
+    "double"
+   ],
+   "7": [
+    "cnstrctnCrdLongitude",
+    "double"
+   ],
+   "5": [
+    "cnstrctnRmnd",
+    "int32"
+   ],
+   "17": [
+    "distToDsttn",
+    "int32"
+   ],
+   "2": [
+    "distToStartTrafficJam",
+    "int32"
+   ],
+   "14": [
+    "intervalCameraEndPointLat",
+    "double"
+   ],
+   "13": [
+    "intervalCameraEndPointLon",
+    "double"
+   ],
+   "15": [
+    "intervalCameraSpeedValue",
+    "int32"
+   ],
+   "12": [
+    "intervalCameraStartPointLat",
+    "double"
+   ],
+   "11": [
+    "intervalCameraStartPointLon",
+    "double"
+   ],
+   "16": [
+    "offCourse",
+    "bool"
+   ],
+   "4": [
+    "passTime",
+    "int32"
+   ],
+   "19": [
+    "roadClass",
+    "int32"
+   ],
+   "10": [
+    "spdLmtEleEyeDist",
+    "int32"
+   ],
+   "9": [
+    "spdLmtEleEyeSpeedValue",
+    "int32"
+   ],
+   "8": [
+    "spdLmtSpeedValue",
+    "int32"
+   ],
+   "18": [
+    "timeToDsttn",
+    "int32"
+   ],
+   "1": [
+    "trafficJamDist",
+    "int32"
+   ],
+   "3": [
+    "trafficJamStatus",
+    "int32"
+   ]
+  },
+  "TrafficInfoNotify": {
+   "1": [
+    "trafficInfo",
+    "message:TrafficInfo"
+   ]
+  },
+  "aheadIntersectionsLanesInfoNotify": {
+   "1": [
+    "aheadIntersectionsLanesInfo",
+    "string"
+   ]
+  },
+  "drivingJourneyData": {
+   "6": [
+    "awaylargeVehicleFlag",
+    "int32"
+   ],
+   "4": [
+    "bypassFlag",
+    "int32"
+   ],
+   "2": [
+    "crossingFlag",
+    "int32"
+   ],
+   "3": [
+    "importExportFlag",
+    "int32"
+   ],
+   "8": [
+    "journeyReservedArray1",
+    "bytes"
+   ],
+   "9": [
+    "journeyReservedArray2",
+    "repeated int32"
+   ],
+   "10": [
+    "journeyReservedArray3",
+    "repeated int32"
+   ],
+   "11": [
+    "journeyReservedArray4",
+    "repeated double"
+   ],
+   "12": [
+    "journeyReservedArray5",
+    "repeated int64"
+   ],
+   "13": [
+    "journeyReservedArray6",
+    "repeated float"
+   ],
+   "14": [
+    "journeyReservedArray7",
+    "repeated string"
+   ],
+   "1": [
+    "laneChangeFlag",
+    "int32"
+   ],
+   "5": [
+    "queueumpingFlag",
+    "int32"
+   ],
+   "7": [
+    "turnAroundFlag",
+    "int32"
+   ]
+  },
+  "drivingJourneyDataNotify": {
+   "1": [
+    "drivingJourneyData",
+    "message:drivingJourneyData"
+   ]
+  },
+  "genernalNavigation": {
+   "2": [
+    "intervalCameraSpeedDisttoEnd",
+    "int32"
+   ],
+   "1": [
+    "intervalCameraSpeedDisttoStart",
+    "int32"
+   ],
+   "3": [
+    "newNoODDRegionDist",
+    "int32"
+   ],
+   "4": [
+    "reserve1",
+    "int64"
+   ],
+   "5": [
+    "reserve2",
+    "int32"
+   ],
+   "6": [
+    "reserve3",
+    "double"
+   ],
+   "7": [
+    "reserve4",
+    "double"
+   ],
+   "8": [
+    "reserve5",
+    "double"
+   ],
+   "9": [
+    "reserve6",
+    "double"
+   ],
+   "10": [
+    "reserve7",
+    "double"
+   ]
+  },
+  "genernalNavigationNotify": {
+   "1": [
+    "genernalNavigation",
+    "message:genernalNavigation"
+   ]
+  },
+  "intersection": {
+   "3": [
+    "background",
+    "bytes"
+   ],
+   "1": [
+    "distToNextGudc",
+    "int32"
+   ],
+   "2": [
+    "foreground",
+    "bytes"
+   ],
+   "4": [
+    "numOfLaneOfNextIntscn",
+    "int32"
+   ],
+   "5": [
+    "reserve1",
+    "int64"
+   ],
+   "6": [
+    "reserve2",
+    "int32"
+   ],
+   "7": [
+    "reserve3",
+    "float"
+   ]
+  },
+  "intersectionNotify": {
+   "1": [
+    "intersection",
+    "message:intersection"
+   ]
+  },
+  "mNOAPilot": {
+   "1": [
+    "mNOAStatus",
+    "int32"
+   ],
+   "3": [
+    "pilotReservedArray1",
+    "bytes"
+   ],
+   "4": [
+    "pilotReservedArray2",
+    "repeated int32"
+   ],
+   "5": [
+    "pilotReservedArray3",
+    "repeated int32"
+   ],
+   "6": [
+    "pilotReservedArray4",
+    "repeated double"
+   ],
+   "7": [
+    "pilotReservedArray5",
+    "repeated int64"
+   ],
+   "8": [
+    "pilotReservedArray6",
+    "repeated float"
+   ],
+   "9": [
+    "pilotReservedArray7",
+    "repeated string"
+   ],
+   "2": [
+    "reasonMNOASpecState",
+    "int32"
+   ]
+  },
+  "mNOAPilotNotify": {
+   "1": [
+    "mNOAPilot",
+    "message:mNOAPilot"
+   ]
+  },
+  "mNOARouteLearn": {
+   "10": [
+    "recommendRouteIdArray",
+    "repeated message:recommendRouteId"
+   ],
+   "3": [
+    "routeLearnAndManageReservedArray1",
+    "bytes"
+   ],
+   "4": [
+    "routeLearnAndManageReservedArray2",
+    "repeated int32"
+   ],
+   "5": [
+    "routeLearnAndManageReservedArray3",
+    "repeated int32"
+   ],
+   "6": [
+    "routeLearnAndManageReservedArray4",
+    "repeated double"
+   ],
+   "7": [
+    "routeLearnAndManageReservedArray5",
+    "repeated int64"
+   ],
+   "8": [
+    "routeLearnAndManageReservedArray6",
+    "repeated float"
+   ],
+   "9": [
+    "routeLearnAndManageReservedArray7",
+    "repeated string"
+   ],
+   "1": [
+    "routeLearnArray",
+    "repeated message:routeLearn"
+   ],
+   "2": [
+    "routeManageArray",
+    "repeated message:routeManage"
+   ]
+  },
+  "mNOARouteLearnNotify": {
+   "1": [
+    "mNOARouteLearn",
+    "message:mNOARouteLearn"
+   ]
+  },
+  "manage": {
+   "1": [
+    "deleteRouteId",
+    "string"
+   ],
+   "2": [
+    "managereserve1",
+    "int64"
+   ],
+   "3": [
+    "managereserve2",
+    "int32"
+   ],
+   "4": [
+    "managereserve3",
+    "float"
+   ],
+   "5": [
+    "manageReservedArray1",
+    "bytes"
+   ],
+   "6": [
+    "manageReservedArray2",
+    "repeated int32"
+   ],
+   "7": [
+    "manageReservedArray3",
+    "repeated int32"
+   ],
+   "8": [
+    "manageReservedArray4",
+    "repeated double"
+   ],
+   "9": [
+    "manageReservedArray5",
+    "repeated int64"
+   ],
+   "10": [
+    "manageReservedArray6",
+    "repeated float"
+   ],
+   "11": [
+    "manageReservedArray7",
+    "repeated string"
+   ]
+  },
+  "mixForkInfoListNotify": {
+   "1": [
+    "mixForkInfoLins",
+    "string"
+   ]
+  },
+  "naviActionAndCamera": {
+   "3": [
+    "assistantAction",
+    "int32"
+   ],
+   "6": [
+    "cameraDistance",
+    "int32"
+   ],
+   "5": [
+    "cameraType",
+    "int32"
+   ],
+   "4": [
+    "distance",
+    "int32"
+   ],
+   "1": [
+    "iconType",
+    "int32"
+   ],
+   "2": [
+    "mainAction",
+    "int32"
+   ],
+   "7": [
+    "reserve1",
+    "int64"
+   ],
+   "8": [
+    "reserve2",
+    "int64"
+   ],
+   "9": [
+    "reserve3",
+    "double"
+   ]
+  },
+  "naviActionAndCameraNotify": {
+   "1": [
+    "naviActionAndCamera",
+    "message:naviActionAndCamera"
+   ]
+  },
+  "naviMNOAInfo": {
+   "2": [
+    "manageArray",
+    "repeated message:manage"
+   ],
+   "4": [
+    "naviMNOAInfoReservedArray1",
+    "bytes"
+   ],
+   "5": [
+    "naviMNOAInfoReservedArray2",
+    "repeated int32"
+   ],
+   "6": [
+    "naviMNOAInfoReservedArray3",
+    "repeated int32"
+   ],
+   "7": [
+    "naviMNOAInfoReservedArray4",
+    "repeated double"
+   ],
+   "8": [
+    "naviMNOAInfoReservedArray5",
+    "repeated int64"
+   ],
+   "9": [
+    "naviMNOAInfoReservedArray6",
+    "repeated float"
+   ],
+   "10": [
+    "naviMNOAInfoReservedArray7",
+    "repeated string"
+   ],
+   "11": [
+    "naviStatusArray",
+    "repeated message:naviStatus"
+   ],
+   "1": [
+    "routeLearningArray",
+    "repeated message:routeLearning"
+   ],
+   "3": [
+    "routeUseArray",
+    "repeated message:routeUse"
+   ]
+  },
+  "naviMNOAInfoFFReq": {
+   "1": [
+    "naviMNOAInfo",
+    "message:naviMNOAInfo"
+   ]
+  },
+  "naviSDRouteNotify": {
+   "1": [
+    "naviSDRouteStruct",
+    "message:naviSDRouteStruct"
+   ]
+  },
+  "naviSDRouteStruct": {
+   "1": [
+    "checksCRC32",
+    "int32"
+   ],
+   "2": [
+    "counter",
+    "int32"
+   ],
+   "3": [
+    "navigationSDLink2Num",
+    "int32"
+   ],
+   "4": [
+    "navigationSDLink2",
+    "string"
+   ]
+  },
+  "naviStatus": {
+   "11": [
+    "naviStatusReserved10",
+    "int32"
+   ],
+   "2": [
+    "naviStatusReserved1",
+    "int32"
+   ],
+   "3": [
+    "naviStatusReserved2",
+    "int32"
+   ],
+   "4": [
+    "naviStatusReserved3",
+    "int32"
+   ],
+   "5": [
+    "naviStatusReserved4",
+    "int32"
+   ],
+   "6": [
+    "naviStatusReserved5",
+    "int32"
+   ],
+   "7": [
+    "naviStatusReserved6",
+    "int32"
+   ],
+   "8": [
+    "naviStatusReserved7",
+    "int32"
+   ],
+   "9": [
+    "naviStatusReserved8",
+    "int32"
+   ],
+   "10": [
+    "naviStatusReserved9",
+    "int32"
+   ],
+   "1": [
+    "naviStatus",
+    "int32"
+   ]
+  },
+  "navigationPathMatchP2PStatus": {
+   "1": [
+    "navigationPathMathArray",
+    "repeated message:navigationPathMath"
+   ],
+   "2": [
+    "navigationReservedArray1",
+    "bytes"
+   ],
+   "3": [
+    "navigationReservedArray2",
+    "repeated int32"
+   ],
+   "4": [
+    "navigationReservedArray3",
+    "repeated int32"
+   ],
+   "5": [
+    "navigationReservedArray4",
+    "repeated double"
+   ],
+   "6": [
+    "navigationReservedArray5",
+    "repeated float"
+   ],
+   "7": [
+    "navigationReservedArray6",
+    "repeated string"
+   ]
+  },
+  "navigationPathMatchP2PStatusNotify": {
+   "1": [
+    "navigationPathMatchP2PStatus",
+    "message:navigationPathMatchP2PStatus"
+   ]
+  },
+  "navigationPathMath": {
+   "2": [
+    "p2PstatusCode",
+    "int32"
+   ],
+   "1": [
+    "pathID",
+    "int64"
+   ],
+   "3": [
+    "reserve1",
+    "int32"
+   ],
+   "4": [
+    "reserve2",
+    "int32"
+   ],
+   "5": [
+    "reserve3",
+    "int32"
+   ],
+   "6": [
+    "reserve4",
+    "int64"
+   ],
+   "7": [
+    "reserve5",
+    "int32"
+   ]
+  },
+  "nextIntersectionLanesInfo": {
+   "5": [
+    "backLaneType",
+    "bytes"
+   ],
+   "1": [
+    "backLane",
+    "bytes"
+   ],
+   "3": [
+    "extendLane",
+    "bytes"
+   ],
+   "6": [
+    "frontLaneType",
+    "bytes"
+   ],
+   "2": [
+    "frontLane",
+    "bytes"
+   ],
+   "8": [
+    "linkIndex",
+    "int32"
+   ],
+   "4": [
+    "recomendLane",
+    "bytes"
+   ],
+   "10": [
+    "reserve1",
+    "bytes"
+   ],
+   "11": [
+    "reserve2",
+    "repeated int32"
+   ],
+   "12": [
+    "reserve3",
+    "repeated int32"
+   ],
+   "13": [
+    "reserve4",
+    "repeated double"
+   ],
+   "14": [
+    "reserve5",
+    "repeated float"
+   ],
+   "15": [
+    "reserve6",
+    "repeated string"
+   ],
+   "7": [
+    "segmentIndex",
+    "int32"
+   ],
+   "9": [
+    "timestamp",
+    "double"
+   ]
+  },
+  "nextIntersectionLanesInfoNotify": {
+   "1": [
+    "nextIntersectionLanesInfo",
+    "message:nextIntersectionLanesInfo"
+   ]
+  },
+  "parkingPaymentCode": {
+   "1": [
+    "paymentCodInformation",
+    "string"
+   ],
+   "2": [
+    "reservedArray1",
+    "bytes"
+   ],
+   "3": [
+    "reservedArray2",
+    "repeated int32"
+   ],
+   "4": [
+    "reservedArray3",
+    "repeated int32"
+   ],
+   "5": [
+    "reservedArray4",
+    "repeated double"
+   ],
+   "6": [
+    "reservedArray5",
+    "repeated float"
+   ]
+  },
+  "parkingPaymentCodeNotify": {
+   "1": [
+    "parkingPaymentCode",
+    "message:parkingPaymentCode"
+   ]
+  },
+  "recommendRouteId": {
+   "3": [
+    "endPointOffset",
+    "double"
+   ],
+   "4": [
+    "recommendFailedRReason",
+    "int32"
+   ],
+   "5": [
+    "recommendRouteIdReserved1",
+    "int32"
+   ],
+   "6": [
+    "recommendRouteIdReserved2",
+    "int32"
+   ],
+   "7": [
+    "recommendRouteIdReserved3",
+    "double"
+   ],
+   "8": [
+    "recommendRouteIdReserved4",
+    "double"
+   ],
+   "9": [
+    "recommendRouteIdReserved5",
+    "float"
+   ],
+   "10": [
+    "recommendRouteIdReserved6",
+    "float"
+   ],
+   "11": [
+    "recommendRouteIdReserved7",
+    "string"
+   ],
+   "12": [
+    "recommendRouteIdReserved8",
+    "string"
+   ],
+   "13": [
+    "recommendRouteIdReserved9",
+    "string"
+   ],
+   "1": [
+    "recommendRouteId",
+    "string"
+   ],
+   "2": [
+    "startPointOffset",
+    "double"
+   ]
+  },
+  "regionalAndWeather": {
+   "4": [
+    "cityCode",
+    "int64"
+   ],
+   "2": [
+    "countryCode",
+    "int64"
+   ],
+   "3": [
+    "provinceCode",
+    "int64"
+   ],
+   "1": [
+    "regionId",
+    "int64"
+   ],
+   "6": [
+    "reserve1",
+    "int64"
+   ],
+   "7": [
+    "reserve2",
+    "int64"
+   ],
+   "8": [
+    "reserve3",
+    "double"
+   ],
+   "5": [
+    "weatherType",
+    "int32"
+   ]
+  },
+  "regionalAndWeatherNotify": {
+   "1": [
+    "regionalAndWeather",
+    "message:regionalAndWeather"
+   ]
+  },
+  "roadFacilities": {
+   "5": [
+    "boardSignLocationLat",
+    "double"
+   ],
+   "4": [
+    "boardSignLocationLon",
+    "double"
+   ],
+   "2": [
+    "cruiseFacilityType",
+    "int32"
+   ],
+   "3": [
+    "distance",
+    "int32"
+   ],
+   "1": [
+    "naviFacilityType",
+    "int32"
+   ],
+   "6": [
+    "reserve1",
+    "int64"
+   ],
+   "7": [
+    "reserve2",
+    "int32"
+   ],
+   "8": [
+    "reserve3",
+    "float"
+   ]
+  },
+  "roadFacilitiesNotify": {
+   "1": [
+    "roadFacilities",
+    "message:roadFacilities"
+   ]
+  },
+  "routeLearn": {
+   "8": [
+    "learningRouteEndAlt",
+    "double"
+   ],
+   "7": [
+    "learningRouteEndLat",
+    "double"
+   ],
+   "6": [
+    "learningRouteEndLon",
+    "double"
+   ],
+   "2": [
+    "learningRouteIdResp",
+    "string"
+   ],
+   "5": [
+    "learningRouteStartAlt",
+    "double"
+   ],
+   "4": [
+    "learningRouteStartLat",
+    "double"
+   ],
+   "3": [
+    "learningRouteStartLon",
+    "double"
+   ],
+   "1": [
+    "routeBuildingStatus",
+    "int32"
+   ],
+   "10": [
+    "routeLearnReserve1",
+    "int32"
+   ],
+   "11": [
+    "routeLearnReserve2",
+    "int32"
+   ],
+   "12": [
+    "routeLearnReserve3",
+    "int32"
+   ],
+   "13": [
+    "routeLearnReserve4",
+    "int32"
+   ],
+   "14": [
+    "routeLearnReserve5",
+    "double"
+   ],
+   "15": [
+    "routeLearnReserve6",
+    "double"
+   ],
+   "16": [
+    "routeLearnReserve7",
+    "double"
+   ],
+   "17": [
+    "routeLearnReservedArray1",
+    "bytes"
+   ],
+   "18": [
+    "routeLearnReservedArray2",
+    "repeated int32"
+   ],
+   "19": [
+    "routeLearnReservedArray3",
+    "repeated int32"
+   ],
+   "20": [
+    "routeLearnReservedArray4",
+    "repeated double"
+   ],
+   "21": [
+    "routeLearnReservedArray5",
+    "repeated int64"
+   ],
+   "22": [
+    "routeLearnReservedArray6",
+    "repeated float"
+   ],
+   "23": [
+    "routeLearnReservedArray7",
+    "repeated string"
+   ],
+   "9": [
+    "routeSaveFailReason",
+    "int32"
+   ]
+  },
+  "routeLearning": {
+   "3": [
+    "learningExitReason",
+    "int32"
+   ],
+   "5": [
+    "learningReserve1",
+    "int64"
+   ],
+   "6": [
+    "learningReserve2",
+    "int32"
+   ],
+   "7": [
+    "learningReserve3",
+    "float"
+   ],
+   "8": [
+    "learningReservedArray1",
+    "bytes"
+   ],
+   "9": [
+    "learningReservedArray2",
+    "repeated int32"
+   ],
+   "10": [
+    "learningReservedArray3",
+    "repeated int32"
+   ],
+   "11": [
+    "learningReservedArray4",
+    "repeated double"
+   ],
+   "12": [
+    "learningReservedArray5",
+    "repeated int64"
+   ],
+   "13": [
+    "learningReservedArray6",
+    "repeated float"
+   ],
+   "14": [
+    "learningReservedArray7",
+    "repeated string"
+   ],
+   "1": [
+    "learningRouteID",
+    "string"
+   ],
+   "2": [
+    "learningState",
+    "int32"
+   ],
+   "4": [
+    "routeSavingStatus",
+    "int32"
+   ]
+  },
+  "routeManage": {
+   "1": [
+    "deleteRouteIdResp",
+    "string"
+   ],
+   "2": [
+    "routeDeleteStatus",
+    "int32"
+   ],
+   "3": [
+    "routeManageReserve1",
+    "int32"
+   ],
+   "4": [
+    "routeManageReserve2",
+    "int32"
+   ],
+   "5": [
+    "routeManageReserve3",
+    "int32"
+   ],
+   "6": [
+    "routeManageReservedArray1",
+    "bytes"
+   ],
+   "7": [
+    "routeManageReservedArray2",
+    "repeated int32"
+   ],
+   "8": [
+    "routeManageReservedArray3",
+    "repeated int32"
+   ],
+   "9": [
+    "routeManageReservedArray4",
+    "repeated double"
+   ],
+   "10": [
+    "routeManageReservedArray5",
+    "repeated int64"
+   ],
+   "11": [
+    "routeManageReservedArray6",
+    "repeated float"
+   ],
+   "12": [
+    "routeManageReservedArray7",
+    "repeated string"
+   ]
+  },
+  "routeUse": {
+   "5": [
+    "diffSegmentEndLat",
+    "double"
+   ],
+   "4": [
+    "diffSegmentEndLon",
+    "double"
+   ],
+   "6": [
+    "diffSegmentLength",
+    "int32"
+   ],
+   "3": [
+    "diffSegmentStartLat",
+    "double"
+   ],
+   "2": [
+    "diffSegmentStartLon",
+    "double"
+   ],
+   "7": [
+    "routeUsereserve1",
+    "int64"
+   ],
+   "8": [
+    "routeUsereserve2",
+    "int32"
+   ],
+   "9": [
+    "routeUsereserve3",
+    "float"
+   ],
+   "10": [
+    "routeUseReservedArray1",
+    "bytes"
+   ],
+   "11": [
+    "routeUseReservedArray2",
+    "repeated int32"
+   ],
+   "12": [
+    "routeUseReservedArray3",
+    "repeated int32"
+   ],
+   "13": [
+    "routeUseReservedArray4",
+    "repeated double"
+   ],
+   "14": [
+    "routeUseReservedArray5",
+    "repeated int64"
+   ],
+   "15": [
+    "routeUseReservedArray6",
+    "repeated float"
+   ],
+   "16": [
+    "routeUseReservedArray7",
+    "repeated string"
+   ],
+   "1": [
+    "selectRouteId",
+    "string"
+   ]
+  },
+  "sdTraffiIncidentItem": {
+   "3": [
+    "cnstrctnCrdLatitude",
+    "double"
+   ],
+   "4": [
+    "cnstrctnCrdLongitude",
+    "double"
+   ],
+   "5": [
+    "naviCongestionDistLen",
+    "int64"
+   ],
+   "1": [
+    "naviCongestionInfo",
+    "int32"
+   ],
+   "6": [
+    "occupiedLaneDtl",
+    "int32"
+   ],
+   "2": [
+    "occupiedLane",
+    "int32"
+   ],
+   "7": [
+    "reserve3",
+    "float"
+   ]
+  },
+  "sdTraffiIncidentNotify": {
+   "1": [
+    "sdTraffiIncident",
+    "repeated message:sdTraffiIncidentItem"
+   ]
+  },
+  "sdTrafficLight": {
+   "6": [
+    "endTime",
+    "int64"
+   ],
+   "7": [
+    "lightDir",
+    "int32"
+   ],
+   "4": [
+    "lightStateType",
+    "int32"
+   ],
+   "8": [
+    "lightWaitNum",
+    "int32"
+   ],
+   "9": [
+    "reserve1",
+    "int64"
+   ],
+   "11": [
+    "reserve3",
+    "float"
+   ],
+   "5": [
+    "startTime",
+    "int64"
+   ],
+   "10": [
+    "trafficLightDist",
+    "int32"
+   ],
+   "1": [
+    "trafficLightExist",
+    "int32"
+   ],
+   "2": [
+    "trafficLightLat",
+    "double"
+   ],
+   "3": [
+    "trafficLightLon",
+    "double"
+   ]
+  },
+  "sdTrafficLightNotify": {
+   "1": [
+    "sdTrafficLight",
+    "message:sdTrafficLight"
+   ]
+  },
+  "sdVehicleLocation": {
+   "10": [
+    "curLinkId",
+    "int32"
+   ],
+   "13": [
+    "currentRoadOwnership",
+    "int32"
+   ],
+   "7": [
+    "curSDRouteID",
+    "double"
+   ],
+   "9": [
+    "curStepId",
+    "int32"
+   ],
+   "12": [
+    "distanceToNextStep",
+    "int32"
+   ],
+   "6": [
+    "gPSspeed",
+    "int32"
+   ],
+   "11": [
+    "linkOffset",
+    "int32"
+   ],
+   "3": [
+    "locationLatitudeAssociateRoad",
+    "double"
+   ],
+   "1": [
+    "locationLatitude",
+    "double"
+   ],
+   "4": [
+    "locationLongitudeAssociateRoad",
+    "double"
+   ],
+   "2": [
+    "locationLongitude",
+    "double"
+   ],
+   "14": [
+    "reserve2",
+    "int32"
+   ],
+   "15": [
+    "reserve3",
+    "float"
+   ],
+   "8": [
+    "reserve4",
+    "int32"
+   ],
+   "5": [
+    "vehicleSpeed",
+    "int32"
+   ]
+  },
+  "sdVehicleLocationNotify": {
+   "1": [
+    "sdVehicleLocation",
+    "message:sdVehicleLocation"
+   ]
+  },
+  "serviceAreaAndTollStation": {
+   "1": [
+    "hasSrvceStnRmnd",
+    "int32"
+   ],
+   "6": [
+    "hasTollStation",
+    "int32"
+   ],
+   "5": [
+    "nextSapDist",
+    "int32"
+   ],
+   "9": [
+    "reserve1",
+    "int64"
+   ],
+   "10": [
+    "reserve2",
+    "int32"
+   ],
+   "11": [
+    "reserve3",
+    "float"
+   ],
+   "2": [
+    "sapaDist",
+    "int32"
+   ],
+   "3": [
+    "sapaName",
+    "string"
+   ],
+   "4": [
+    "sapaType",
+    "int32"
+   ],
+   "7": [
+    "tollGateLaneTypes",
+    "bytes"
+   ],
+   "8": [
+    "tollStationInfo",
+    "int32"
+   ]
+  },
+  "serviceAreaAndTollStationNotify": {
+   "1": [
+    "serviceAreaAndTollStation",
+    "message:serviceAreaAndTollStation"
+   ]
+  },
+  "speedIntersectionInformation": {
+   "6": [
+    "assistantActionDistance",
+    "int32"
+   ],
+   "5": [
+    "hasLongSolidLane",
+    "int32"
+   ],
+   "4": [
+    "hasMixFork",
+    "int32"
+   ],
+   "3": [
+    "hasParallelRoad",
+    "int32"
+   ],
+   "2": [
+    "historySpeed",
+    "int32"
+   ],
+   "7": [
+    "naviVoiceCommand",
+    "string"
+   ],
+   "8": [
+    "reserve1",
+    "int64"
+   ],
+   "9": [
+    "reserve2",
+    "int64"
+   ],
+   "10": [
+    "reserve3",
+    "double"
+   ],
+   "1": [
+    "trafficFlowSpeed",
+    "int32"
+   ]
+  },
+  "speedIntersectionInformationNotify": {
+   "1": [
+    "speedIntersectionInformation",
+    "message:speedIntersectionInformation"
+   ]
+  },
+  "tidalLane": {
+   "2": [
+    "rampRmnd",
+    "int32"
+   ],
+   "3": [
+    "reserve1",
+    "int64"
+   ],
+   "4": [
+    "reserve2",
+    "int32"
+   ],
+   "5": [
+    "reserve3",
+    "float"
+   ],
+   "1": [
+    "tidalLane",
+    "int32"
+   ]
+  },
+  "tidalLaneNotify": {
+   "1": [
+    "tidalLane",
+    "message:tidalLane"
+   ]
+  },
+  "tunnel": {
+   "7": [
+    "reserve1",
+    "int64"
+   ],
+   "8": [
+    "reserve2",
+    "int32"
+   ],
+   "9": [
+    "reserve3",
+    "float"
+   ],
+   "6": [
+    "toTunnelDist",
+    "int32"
+   ],
+   "4": [
+    "tunnelEndPiointLat",
+    "double"
+   ],
+   "5": [
+    "tunnelEndPiointLon",
+    "double"
+   ],
+   "2": [
+    "tunnelStartPiointLat",
+    "double"
+   ],
+   "3": [
+    "tunnelStartPiointLon",
+    "double"
+   ],
+   "1": [
+    "tunneStates",
+    "int32"
+   ]
+  },
+  "tunnelNotify": {
+   "1": [
+    "tunnel",
+    "message:tunnel"
+   ]
+  }
+ }
+}
