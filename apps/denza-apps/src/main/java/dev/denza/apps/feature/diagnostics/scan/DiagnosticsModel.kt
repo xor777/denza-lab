@@ -326,22 +326,6 @@ internal sealed interface Scheme {
      */
     data class Hv(val chargePort: String = "н/д", val plugged: Boolean = false) : Scheme
 
-    data class Pack(
-        /** The charge's fill, 0..100; null leaves the pack empty. */
-        val soc: Float?,
-        val socText: String,
-        val soh: String,
-        /** «166 ячеек · 14 датчиков». */
-        val cells: String,
-        val volts: String,
-        val current: String,
-        /** «канал BMC» → «14,4 МОм». */
-        val insulation: List<Field>,
-        /** «норма ≥ 500 Ом/В · 0,28 МОм». */
-        val isoNorm: String,
-        val ranges: List<RangeView>,
-    ) : Scheme
-
     data class Drives(
         val vcu: ModuleRowView?,
         val front: Callout,
@@ -503,20 +487,6 @@ internal data class CabinRow(val runs: List<CabinRun>, val small: Boolean) {
 
 /** «ВОДИТЕЛЬ · DUCU 750» over its rows, its leader to [place]. */
 internal data class CabinPlate(val place: CabinPlace, val label: String, val rows: List<CabinRow>)
-
-/** A range on a scale: «ЯЧЕЙКИ, мВ» 3 333–3 337 on 3 000…3 700. */
-internal data class RangeView(
-    val head: String,
-    val value: String,
-    val scale: ClosedFloatingPointRange<Float>,
-    /** What the readings take on the scale; null draws none. */
-    val span: ClosedFloatingPointRange<Float>?,
-    /** A mark across the bar: the modules' mean temperature. */
-    val mark: Float?,
-    val lo: String,
-    val hi: String,
-    val note: String,
-)
 
 internal enum class EnginePlace { INLET, THROTTLE, MANIFOLD, BLOCK_TOP, BLOCK_BOTTOM, CATALYST, OXYGEN }
 

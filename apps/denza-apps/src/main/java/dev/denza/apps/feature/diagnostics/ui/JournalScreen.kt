@@ -3,6 +3,12 @@ package dev.denza.apps.feature.diagnostics.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import dev.denza.apps.feature.diagnostics.scan.Mark
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,8 +35,10 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  * «Журнал» (architecture, 6.4, 7.3; `scanner.js` `journal()`, `journalPanel()`, boards
  * `scanner-journal`, `-journal-first`): the car's time on one day axis - the scans asked for (a block
  * read alone dimmer), the software updates, the cells' snapshots, a full charge named over its dot -
- * every code from its first read, the values by scan; two scans side by side in the panel at the
- * right. «Выбрать сканы» takes two scans off the axis for the panel.
+ * every code from its first read, a block whose codes went muted where its lane ends, the values by scan;
+ * two scans side by side in the panel at the right. «Выбрать сканы» takes two scans off the axis for the
+ * panel. «Сравнение» (`journalCompare()`) lays the comparison across the page, «Коды» (`journalCodes()`)
+ * lists every code read, a row opening its page.
  */
 
 @Composable
@@ -41,6 +49,7 @@ internal fun JournalPage(
     onTab: (Int) -> Unit,
     actions: DiagnosticsActions,
     onReport: () -> Unit,
+    onCode: (Int, String) -> Unit,
 ) {
     val view = model.journal
     // «Выбрать сканы»: the scans tapped on the axis, by their end; two make the comparison
@@ -78,7 +87,7 @@ internal fun JournalPage(
                 view.compare?.let { ComparePanel(it, ScannerSpec.Journal.PANEL_X, LocalScanWidth.current - 24f - ScannerSpec.Journal.PANEL_X) }
             }
             1 -> view.compare?.let { CompareAcross(it) }
-            else -> Records(view)
+            else -> Codes(view, onCode)
         }
     }
 }
@@ -121,44 +130,41 @@ private fun CompareAcross(m: ScanCompareView) {
 }
 
 /**
- * «Записи» (`journalRecords()`): every block with records on the whole width of the day axis - its sign,
- * its records, a line from its first read to its last and a dot each read - and how many reads found them.
+ * «Коды» (`journalCodes()`): every code the journal has read, a row each - the present ones with their sign,
+ * then the gone ones muted and with none. A row opens the code's page.
  */
 @Composable
-private fun Records(view: JournalView) {
+private fun Codes(view: JournalView, onCode: (Int, String) -> Unit) {
     val j = ScannerSpec.Journal
-    val w = LocalScanWidth.current
-    val px = j.RECORDS_PLOT_X
-    val pw = w - 24f - j.RECORDS_COUNT_W - px
-    fun x(at: Float) = px + at * pw
-    val sign = ScannerSpec.Sign.R
-    val width = rememberWidths()
-    DayAxis(px, j.RECORDS_AXIS_Y, pw, view.days)
-    ScanText("БЛОК", Type.COL_HEAD, Ink.MUTE, Modifier.at(24f, j.RECORDS_AXIS_Y - 2f))
-    ScanText("ПРОЧТЕНИЙ", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(w - 24f, j.RECORDS_AXIS_Y - 2f))
-    Canvas(Modifier.fillMaxSize()) {
-        val k = density
-        // the days' lines down to the last block's row
-        val gh = j.RECORDS_TOP + view.codes.size * j.RECORDS_STEP - j.RECORDS_GRID_TOP
-        val n = view.days.size.coerceAtLeast(1)
-        for (i in 0..view.days.size) drawRect(ink(Ink.HAIR), Offset((px + i * pw / n) * k, j.RECORDS_GRID_TOP * k), Size(k, gh * k))
-        view.codes.forEachIndexed { i, c ->
-            val cy = j.RECORDS_TOP + i * j.RECORDS_STEP + j.RECORDS_H / 2f
-            if (c.seen.isNotEmpty()) {
-                val a = x(c.seen.first())
-                val b = x(c.seen.last())
-                drawRect(ink(Ink.ORANGE), Offset(a * k, (cy - 1f) * k), Size((b - a) * k, 2f * k), alpha = ScannerSpec.Code.TIME_BAR_ALPHA)
-                c.seen.forEach { drawCircle(ink(Ink.ORANGE), j.DOT / 2f * k, Offset(x(it) * k, cy * k)) }
+    val w = LocalScanWidth.current - 48f
+    val cols = ScannerSpec.columns(j.TABLE_COLS, 24f, w)
+    HeadRow(
+        cols,
+        listOf(null) + listOf("КОД", "БЛОК", "ВПЕРВЫЕ", "ПОСЛЕДНИЙ РАЗ", "ПРОЧТЕНИЙ", "СЕЙЧАС").map { HeadLabel(it, pad = 0f) } + listOf(null),
+        j.TABLE_TOP, j.TABLE_HEAD,
+    )
+    val rowCols = ScannerSpec.columns(j.TABLE_COLS, 0f, w)
+    val h = j.TABLE_ROW
+    ScrollRows(j.TABLE_LIST_TOP) {
+        Column(Modifier.padding(start = 24.dp).width(w.dp).height((view.codeRows.size * (h + j.TABLE_RULE)).dp)) {
+            view.codeRows.forEach { r ->
+                fun ink(i: Int) = if (r.gone) Ink.MUTE else i
+                Box(Modifier.fillMaxWidth().height((h + j.TABLE_RULE).dp).tap { onCode(r.request, r.code) }) {
+                    r.mark?.let { SignAt(it, rowCols[0].first + rowCols[0].second / 2f, h / 2f) }
+                    ScanRuns(
+                        codeRuns(r.code, Type.CODE_SMALL, if (r.gone) Ink.MUTE else if (r.mark == Mark.ACTIVE) Ink.RED else Ink.WHITE, Type.CELL_MONO),
+                        Modifier.at(rowCols[1].first, mid(0f, h, Type.CODE_SMALL)), base = Type.CODE_SMALL,
+                    )
+                    ScanText(r.block, Type.CELL_MONO, ink(Ink.TEXT), Modifier.at(rowCols[2].first, mid(0f, h, Type.CELL_MONO)))
+                    ScanText(r.first, Type.CELL_MONO, ink(Ink.DIM), Modifier.at(rowCols[3].first, mid(0f, h, Type.CELL_MONO)))
+                    ScanText(r.last, Type.CELL_MONO, ink(Ink.DIM), Modifier.at(rowCols[4].first, mid(0f, h, Type.CELL_MONO)))
+                    ScanText(r.seen, Type.CELL_MONO, ink(Ink.TEXT), Modifier.at(rowCols[5].first, mid(0f, h, Type.CELL_MONO)))
+                    ScanText(r.now, Type.CELL, ink(Ink.TEXT), Modifier.at(rowCols[6].first, mid(0f, h, Type.CELL)))
+                    Chevron(Modifier.at(rowCols[7].first + (rowCols[7].second - ScannerSpec.CHEVRON) / 2f, (h - ScannerSpec.CHEVRON) / 2f))
+                    Box(Modifier.at(0f, h).size(w.dp, 1.dp).plate(Ink.HAIR))
+                }
             }
         }
-    }
-    view.codes.forEachIndexed { i, c ->
-        val y = j.RECORDS_TOP + i * j.RECORDS_STEP
-        SignAt(c.mark, 24f + sign, y + j.RECORDS_H / 2f)
-        ScanText(c.block, Type.CELL_ABBR, Ink.INK3, Modifier.at(24f + 2f * sign + 8f, mid(y, j.RECORDS_H, Type.CELL_ABBR)))
-        ScanText("×${c.count}", Type.SIG, Ink.MUTE, Modifier.at(24f + 2f * sign + 16f + width(c.block, Type.CELL_ABBR), mid(y, j.RECORDS_H, Type.SIG)))
-        ScanText(c.seen.size.toString(), Type.NORM_MONO, Ink.TEXT, Modifier.endAt(w - 24f, mid(y, j.RECORDS_H, Type.NORM_MONO)))
-        Rule(24f, y + j.RECORDS_H + (j.RECORDS_STEP - j.RECORDS_H) / 2f, w - 48f, Ink.HAIR)
     }
 }
 
@@ -198,8 +204,9 @@ private fun Chronology(view: JournalView, picking: List<Long>?, onPick: (Long) -
             if (c.seen.isNotEmpty()) {
                 val a = x(c.seen.first())
                 val b = x(c.seen.last())
-                rect(a, cy - 1f, b - a, 2f, Ink.ORANGE, ScannerSpec.Code.TIME_BAR_ALPHA)
-                c.seen.forEach { drawCircle(ink(Ink.ORANGE), j.DOT / 2f * k, Offset(x(it) * k, cy * k)) }
+                val line = if (c.gone) Ink.MUTE else Ink.ORANGE
+                rect(a, cy - 1f, b - a, 2f, line, ScannerSpec.Code.TIME_BAR_ALPHA)
+                c.seen.forEach { drawCircle(ink(line), j.DOT / 2f * k, Offset(x(it) * k, cy * k)) }
             }
         }
         // values: a line with its points by scan, or points alone on the lane's middle
@@ -235,9 +242,10 @@ private fun Chronology(view: JournalView, picking: List<Long>?, onPick: (Long) -
     ScanText("КОДЫ · С ПЕРВОГО ПРОЧТЕНИЯ", Type.GROUP_TITLE, Ink.MUTE, Modifier.at(24f, j.CODES_LABEL))
     view.codes.forEachIndexed { i, c ->
         val y = j.CODES_TOP + i * j.CODE_STEP
-        SignAt(c.mark, 24f + sign, y + j.CODE_H / 2f)
-        ScanText(c.block, Type.CELL_ABBR, Ink.INK3, Modifier.at(24f + 2f * sign + 8f, mid(y, j.CODE_H, Type.CELL_ABBR)))
-        ScanText("×${c.count}", Type.SIG, Ink.MUTE, Modifier.at(24f + 2f * sign + 16f + width(c.block, Type.CELL_ABBR), mid(y, j.CODE_H, Type.SIG)))
+        if (!c.gone) SignAt(c.mark, 24f + sign, y + j.CODE_H / 2f)
+        ScanText(c.block, Type.CELL_ABBR, if (c.gone) Ink.MUTE else Ink.INK3, Modifier.at(24f + 2f * sign + 8f, mid(y, j.CODE_H, Type.CELL_ABBR)))
+        ScanText("×${c.count}", Type.SIG, if (c.gone) Ink.FAINT else Ink.MUTE,
+            Modifier.at(24f + 2f * sign + 16f + width(c.block, Type.CELL_ABBR), mid(y, j.CODE_H, Type.SIG)))
     }
     if (view.quantities.isNotEmpty()) ScanText("ВЕЛИЧИНЫ", Type.GROUP_TITLE, Ink.MUTE, Modifier.at(24f, j.VALUES_LABEL))
     view.quantities.take(j.VALUES.size).forEachIndexed { i, q ->

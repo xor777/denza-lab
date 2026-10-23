@@ -84,6 +84,7 @@ import dev.denza.apps.feature.diagnostics.scan.HealthRow
 import dev.denza.apps.feature.diagnostics.scan.HealthView
 import dev.denza.apps.feature.diagnostics.scan.JournalCellTick
 import dev.denza.apps.feature.diagnostics.scan.JournalCodeLane
+import dev.denza.apps.feature.diagnostics.scan.JournalCodeRow
 import dev.denza.apps.feature.diagnostics.scan.JournalQuantityLane
 import dev.denza.apps.feature.diagnostics.scan.JournalSoftwareTick
 import dev.denza.apps.feature.diagnostics.scan.JournalTick
@@ -92,7 +93,6 @@ import dev.denza.apps.feature.diagnostics.scan.Mark
 import dev.denza.apps.feature.diagnostics.scan.MarkCount
 import dev.denza.apps.feature.diagnostics.scan.RailLine
 import dev.denza.apps.feature.diagnostics.scan.RailPlace
-import dev.denza.apps.feature.diagnostics.scan.RangeView
 import dev.denza.apps.feature.diagnostics.scan.RawLine
 import dev.denza.apps.feature.diagnostics.scan.ReadSection
 import dev.denza.apps.feature.diagnostics.scan.ReadState
@@ -788,7 +788,19 @@ internal object ScannerFixtures {
                 JournalCellTick(at(s.getString("at")), soc >= 95, if (soc >= 95) "SOC $soc %" else null)
             },
             codes = objects(f.getJSONArray("codes")).map { c ->
-                JournalCodeLane(c.getString("addr").toInt(16), "${c.getString("block")} ${c.getString("addr")}", c.getInt("count"), Mark.HISTORY, strings(c.getJSONArray("seen")).map(::at))
+                JournalCodeLane(
+                    c.getString("addr").toInt(16), "${c.getString("block")} ${c.getString("addr")}", c.getInt("count"), Mark.HISTORY,
+                    strings(c.getJSONArray("seen")).map(::at), gone = c.optBoolean("gone"),
+                )
+            },
+            // «Коды» (`journalCodes()`): a row a code, the gone ones with no mark
+            codeRows = objects(f.getJSONArray("codeRows")).map { r ->
+                val gone = r.optBoolean("gone")
+                JournalCodeRow(
+                    request = r.getString("addr").toInt(16), code = r.getString("code"), block = "${r.getString("block")} ${r.getString("addr")}",
+                    mark = if (gone) null else markOf(r.getInt("status")), first = r.getString("first"), last = r.getString("last"),
+                    seen = r.getString("seen"), now = r.getString("now"), gone = gone,
+                )
             },
             quantities = listOf(
                 JournalQuantityLane(
@@ -977,26 +989,6 @@ internal object ScannerFixtures {
         fun plate(key: String) = f.optJSONArray(key)?.let(::wordPlate)
         return when (system) {
             CarSystem.HV -> f.getJSONObject("charge").let { Scheme.Hv(it.getString("state"), it.optBoolean("plugged")) }
-            CarSystem.PACK -> if (!f.has("pack")) null else {
-                val p = f.getJSONObject("pack")
-                Scheme.Pack(
-                    soc = p.getDouble("soc").toFloat(), socText = p.getString("socText"), soh = p.getString("soh"), cells = p.getString("cells"),
-                    volts = p.getString("volts"), current = p.getString("current"),
-                    insulation = arrays(p.getJSONArray("insulation")).map { Field(it.getString(0), it.getString(1)) },
-                    isoNorm = p.getString("isoNorm"),
-                    ranges = objects(f.getJSONArray("ranges")).map { r ->
-                        val scale = r.getJSONArray("scale")
-                        val span = r.getJSONArray("span")
-                        RangeView(
-                            r.getString("head"), r.getString("value"),
-                            scale.getDouble(0).toFloat()..scale.getDouble(1).toFloat(),
-                            span.getDouble(0).toFloat()..span.getDouble(1).toFloat(),
-                            if (r.has("mark")) r.getDouble("mark").toFloat() else null,
-                            r.getString("lo"), r.getString("hi"), r.optString("note"),
-                        )
-                    },
-                )
-            }
             CarSystem.DRIVES -> Scheme.Drives(
                 vcu = t("vcu"), front = callout(f.getJSONObject("front")), isg = callout(f.getJSONObject("isg")),
                 rearLeft = callout(f.getJSONObject("rearLeft")), rearRight = callout(f.getJSONObject("rearRight")),

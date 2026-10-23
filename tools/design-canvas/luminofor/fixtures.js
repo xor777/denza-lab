@@ -1670,14 +1670,26 @@
   // from its first read; 12 V by scan and the cells' spread at a full charge by snapshot; the first
   // and the last scan compared. Illustrative but for 20.10 19:31.
   const V12 = [13.7, 13.6, 13.7, 13.5, 13.7, 13.6, 13.6];
-  const codeLane = (block, addr, count, seen) => ({ block, addr, count, seen });
+  const codeLane = (block, addr, count, seen, gone) => Object.assign({ block, addr, count, seen }, gone ? { gone: true } : {});
+  // EPS's U0100-87, illustrative: no ECM on the bus when the car woke on 21.10, held by the scans of that
+  // day and no more from 22.10 07:55 - after the first scan, so «Сводка» of 20.10 19:31 and the comparison
+  // of the first scan with the last do not hold it; the chronology's lane ends at its last read
+  const EPS_SEEN = ['21.10 08:05', '21.10 18:40'];
+  const LANES = [codeLane('LA_BCM', '720', 8, ['18.10 15:42', ...FULL]), codeLane('R_ZCU', '747', 2, R_ZCU_READS), codeLane('IDC', '597', 4, FULL),
+    codeLane('INS', '723', 2, FULL), codeLane('Media', '741', 1, FULL), codeLane('CCS/SCPA', '7A7', 1, FULL), codeLane('EPS', '783', 1, EPS_SEEN, true)];
+  // «Коды»: a row a code - the present ones in the lanes' order and their block's, every read of its block
+  // since the first having found it; then the gone, «ушёл» on the day of the first whole reading without it
+  const SUMMARY_CODES = Object.fromEntries(recordsOf().flatMap(s => s.blocks).map(b => [b.addr, b.codes]));
+  const rowsOf = lanes => lanes.filter(k => !k.gone).flatMap(k => SUMMARY_CODES[k.addr].map(d => ({
+    code: d.code, block: k.block, addr: k.addr, status: d.status, first: k.seen[0], last: k.seen[k.seen.length - 1],
+    seen: `${k.seen.length} из ${k.seen.length}`, now: 'есть' })));
+  const codeRows = rowsOf(LANES).concat([{ code: 'U0100-87', block: 'EPS', addr: '783', first: EPS_SEEN[0], last: EPS_SEEN[1], seen: '2 из 6', now: 'ушёл 22.10', gone: true }]);
   const scannerJournal = {
     top: sysTop('Журнал', '08:50:31'), rail: sysRail('Журнал'),
     block: { title: 'Журнал', aside: '· 18.10 — 23.10', line: '9 сканов · 9 снимков ячеек · 1 обновление ПО', counters: [['ПО ИЗМЕНЕНО', '1']] },
-    tabs: { items: ['Хронология', 'Сравнение', 'Записи'], active: 0 },
+    tabs: { items: ['Хронология', 'Сравнение', 'Коды'], active: 0 },
     days: DAYS, scans: SCANS, software: [{ at: '22.10 03:10', block: 'BMS', from: '3.48.06', to: '3.48.07' }], cellShots: CELL_SHOTS,
-    codes: [codeLane('LA_BCM', '720', 8, ['18.10 15:42', ...FULL]), codeLane('R_ZCU', '747', 2, R_ZCU_READS), codeLane('IDC', '597', 4, FULL),
-      codeLane('INS', '723', 2, FULL), codeLane('Media', '741', 1, FULL), codeLane('CCS/SCPA', '7A7', 1, FULL)],
+    codes: LANES, codeRows,
     values: { lv: { name: '12 В', scale: [12.5, 14.5], points: FULL.map((at, i) => [at, V12[i]]) },
       full: { name: 'Δ ячеек, полный заряд', points: full.map(s => [s.at, s.spread]) } },
     compare: { from: '20.10 19:31', to: '23.10 08:50', codes: [['новые', 0], ['ушли', 0], ['без изменений', 18]],
@@ -1695,10 +1707,11 @@
     values: { lv: { name: '12 В', scale: [12.5, 14.5], points: [['20.10 19:31', 13.7]] }, full: { name: 'Δ ячеек, полный заряд', points: [] } },
     compare: { from: null, to: '20.10 19:31', codes: [['в истории', 18]], software: [],
       values: [['12 В', null, '13,7', 'В'], ['Δ ячеек, покой', null, '4', 'мВ'], ['Изоляция', null, '14,4', 'МОм'], ['SOH', null, '99', '%']] },
+    codeRows: rowsOf([2, 0, 1, 3, 4, 5].map(i => Object.assign({}, LANES[i], { seen: ['20.10 19:31'] }))),
     footer: { buttons: [['Экспорт журнала', 'quiet']] },
   });
-  // the journal's other two tabs on the same five days: the comparison across the page, and every
-  // block's records on the whole width of the axis
+  // the journal's other two tabs on the same five days: the comparison across the page, and every code
+  // the journal has read, a row each
   const scannerJournalCompare = Object.assign({}, scannerJournal, { tabs: { items: scannerJournal.tabs.items, active: 1 } });
   const scannerJournalRecords = Object.assign({}, scannerJournal, { tabs: { items: scannerJournal.tabs.items, active: 2 } });
 
@@ -1812,7 +1825,7 @@
     'scanner-journal':  [scanner('journal'), scannerJournal],
     'scanner-journal-first': [scanner('journal'), scannerJournalFirst],
     'scanner-journal-compare': [scanner('journalCompare'), scannerJournalCompare],
-    'scanner-journal-records': [scanner('journalRecords'), scannerJournalRecords],
+    'scanner-journal-records': [scanner('journalCodes'), scannerJournalRecords],
     'scanner-report':   [scanner('report'), scannerReport],
     'scanner-sys-engine': [scanner('sysLive'), scannerSysEngine],
     'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],

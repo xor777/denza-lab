@@ -259,11 +259,14 @@ class ScannerSpecContractTest {
         assertEquals(setOf("top", "head", "cols", "gap"), (at(k, "compare") as Map<*, *>).keys)
         n(j.COMPARE_TOP, k, "compare", "top"); n(j.COMPARE_HEAD, k, "compare", "head"); n(j.COMPARE_COLS.toFloat(), k, "compare", "cols")
         n(j.COMPARE_GAP, k, "compare", "gap")
-        assertEquals(setOf("plotX", "countW", "axisY", "gridTop", "top", "step", "h"), (at(k, "records") as Map<*, *>).keys)
-        n(j.RECORDS_PLOT_X, k, "records", "plotX"); n(j.RECORDS_COUNT_W, k, "records", "countW"); n(j.RECORDS_AXIS_Y, k, "records", "axisY")
-        n(j.RECORDS_GRID_TOP, k, "records", "gridTop"); n(j.RECORDS_TOP, k, "records", "top"); n(j.RECORDS_STEP, k, "records", "step")
-        n(j.RECORDS_H, k, "records", "h")
-        assertTrue(j.RECORDS_H <= j.RECORDS_STEP && j.RECORDS_TOP >= j.RECORDS_GRID_TOP)
+        assertEquals(setOf("cols", "top", "head", "list"), (at(k, "codes") as Map<*, *>).keys)
+        assertEquals(cols(k, "codes", "cols"), j.TABLE_COLS); n(j.TABLE_TOP, k, "codes", "top"); n(j.TABLE_HEAD, k, "codes", "head")
+        n(j.TABLE_LIST_TOP, k, "codes", "list", "top"); n(j.TABLE_LIST_BOTTOM, k, "codes", "list", "bottom")
+        n(j.TABLE_ROW, k, "codes", "list", "row"); n(j.TABLE_RULE, k, "codes", "list", "rule")
+        // the board journal's nineteen codes on the page without a scroll: the gone one last in sight
+        assertTrue(j.TABLE_LIST_TOP + 19 * (j.TABLE_ROW + j.TABLE_RULE) <= j.TABLE_LIST_BOTTOM)
+        // the chronology's seven lanes above the rule under them
+        assertTrue(j.CODES_TOP + 6 * j.CODE_STEP + j.CODE_H <= j.RULES[1])
         // a full charge's label over its dot clears the lane above
         assertTrue(j.LANES[2] + j.LANE_H / 2f - j.DOT / 2f - j.CELL_LABEL - ScannerSpec.Type.TICK.lh >= j.LANES[1] + j.LANE_H - 4f)
         assertTrue(j.PLOT_X + j.PLOT_W < j.PANEL_X)

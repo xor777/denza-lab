@@ -282,17 +282,8 @@ class SystemPagesTest {
     fun theParkedSnapshotDrawsTheBoardsSchemes() = runTest {
         val model = scanned()
 
-        val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
-        assertEquals(74f, pack.soc)
-        assertEquals("74 %", pack.socText)
-        assertEquals("99 %", pack.soh)
-        assertEquals("166 ячеек · 14 датчиков", pack.cells)
-        assertEquals("553 В", pack.volts)
-        assertEquals("${m}4,5 А", pack.current)
-        assertEquals(listOf(Field("канал BMC", "14,4 МОм"), Field("канал 2", "19,7 МОм")), pack.insulation)
-        assertEquals("норма ≥ 500 Ом/В · 0,28 МОм", pack.isoNorm)
-        assertEquals(RangeView("ЯЧЕЙКИ, мВ", "3 333–3 337", 3000f..3700f, 3333f..3337f, null, "3 000", "3 700", "разброс 4 мВ"), pack.ranges[0])
-        assertEquals(RangeView("ТЕМПЕРАТУРА МОДУЛЕЙ, °C", "13–18", -20f..60f, 13f..18f, 14f, "${m}20", "60", "средняя 14"), pack.ranges[1])
+        // the pack's page draws no scheme: «Здоровье» and «Ячейки» are its pages
+        assertNull(model.page(CarSystem.PACK).scheme)
 
         val drives = model.page(CarSystem.DRIVES).scheme as Scheme.Drives
         assertEquals(Callout("ПЕРЕДНИЙ МОТОР · FMCU 7E3", listOf("статор 8 °C · IGBT 9 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.front)
@@ -369,13 +360,7 @@ class SystemPagesTest {
         assertEquals("2,60–2,70 бар", model.page(CarSystem.CHASSIS).counters[0].value)
         assertEquals("н/д", (model.page(CarSystem.LV).scheme as Scheme.Lv).lv)
         assertEquals("н/д", model.page(CarSystem.LV).counters.single { it.label == "12 В" }.value)
-        val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
-        assertNull(pack.soc)
-        assertEquals("н/д", pack.socText)
-        assertEquals(Field("канал 2", "н/д", muted = true), pack.insulation[1])
-        assertEquals("н/д", pack.ranges[0].value)
-        assertNull(pack.ranges[0].span)
-        assertEquals("разброс н/д мВ", pack.ranges[0].note)
+        assertEquals("н/д", model.systems.pack.rows.single { it.name == "Изоляция, канал 2" }.value)
         val door = (model.page(CarSystem.BODY).scheme as Scheme.Body).doors[1]
         assertEquals(Door(Corner.FR, "ДВЕРЬ ПП", "н/д", "замок н/д · окно н/д", open = false), door)
         assertEquals("н/д", (model.page(CarSystem.CLIMATE).scheme as Scheme.Climate).outside.pm)
@@ -402,8 +387,6 @@ class SystemPagesTest {
         ).values
         val model = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.INSULATION + read))
 
-        val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
-        assertEquals(listOf(Field("канал BMC", "н/д", muted = true), Field("канал 2", "19,7 МОм")), pack.insulation)
         assertEquals("н/д · 19,7 МОм", model.systems.hv.pack.single { it.key == "Изоляция" }.value)
         val bmc = model.systems.pack.rows.single { it.name == "Изоляция, канал BMC" }
         assertEquals("н/д", bmc.value)
@@ -416,7 +399,6 @@ class SystemPagesTest {
         // 254 and 255 are not counts.
         val probes = DiagnosticExtraReader.decode("@@extra:probe_count\nResult: Parcel(00000000 000000ff   '........')", 1, 1).values
         val counts = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.PROBE_COUNT + probes))
-        assertEquals("166 ячеек · н/д датчиков", (counts.page(CarSystem.PACK).scheme as Scheme.Pack).cells)
         assertEquals("н/д", counts.systems.pack.rows.single { it.name == "Датчиков температуры" }.value)
     }
 

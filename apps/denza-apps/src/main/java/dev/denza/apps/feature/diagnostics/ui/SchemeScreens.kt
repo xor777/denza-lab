@@ -44,7 +44,6 @@ import dev.denza.apps.feature.diagnostics.scan.HvUnit
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
 import dev.denza.apps.feature.diagnostics.scan.PadState
-import dev.denza.apps.feature.diagnostics.scan.RangeView
 import dev.denza.apps.feature.diagnostics.scan.Scheme
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
@@ -66,8 +65,6 @@ import kotlin.math.sin
 internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Target) -> Unit) {
     when (scheme) {
         is Scheme.Hv -> HvScheme(model, scheme, onOpen)
-        // the pack's first tab is «Здоровье» since 7.3 (HealthScreen.kt), not a scheme
-        is Scheme.Pack -> Unit
         is Scheme.Drives -> DrivesScheme(scheme, onOpen)
         is Scheme.Engine -> EngineScheme(scheme)
         is Scheme.Chassis -> ChassisScheme(scheme, onOpen)

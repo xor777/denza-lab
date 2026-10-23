@@ -61,7 +61,7 @@ internal sealed interface ScannerRoute {
     data object Report : ScannerRoute
 }
 
-internal val JOURNAL_TABS = listOf("Хронология", "Сравнение", "Записи")
+internal val JOURNAL_TABS = listOf("Хронология", "Сравнение", "Коды")
 
 /**
  * Where the driver has been inside the section, «Сводка» at the bottom (architecture, 7.3). The rail
@@ -259,7 +259,7 @@ internal fun DiagnosticsScreen(
                     onReport = openReport,
                 )
                 is ScannerRoute.Blocks -> BlocksPage(model, r.filter, frame, { retab(r.copy(filter = it)) }, open, actions, openReport)
-                is ScannerRoute.Journal -> JournalPage(model, r.tab, frame, { retab(r.copy(tab = it)) }, actions, openReport)
+                is ScannerRoute.Journal -> JournalPage(model, r.tab, frame, { retab(r.copy(tab = it)) }, actions, openReport, openCode)
                 is ScannerRoute.Module -> {
                     val module = moduleOf(model, r.request)
                     if (module == null) {

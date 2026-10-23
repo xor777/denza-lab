@@ -350,7 +350,8 @@ internal object SystemPagesBuilder {
 
     private fun scheme(i: Inputs, system: CarSystem, ecm: Map<Int, LiveRow>): Scheme? = when (system) {
         CarSystem.HV -> hv(i.s.car)
-        CarSystem.PACK -> pack(i.s.car)
+        // the pack draws no scheme: its pages are «Здоровье» and «Ячейки» (7.3)
+        CarSystem.PACK -> null
         CarSystem.DRIVES -> drives(i)
         CarSystem.ENGINE -> engine(ecm)
         CarSystem.CHASSIS -> chassis(i)
@@ -397,8 +398,6 @@ internal object SystemPagesBuilder {
     /** «553 В»: the pack's voltage, as the HV schema's pack box has it. */
     private fun volts(car: CarReadings) = unit(car.hub[VehicleSignal.PACK_VOLT], 0, "В")
 
-    private fun percent(car: CarReadings, e: DiagnosticExtra) = unit(car.extra(e), 0, "%")
-
     /** «553 В», «н/д». */
     private fun unit(v: Double?, decimals: Int, unit: String, signed: Boolean = false): String =
         v?.let { "${Figures.number(it, decimals, signed)} $unit" } ?: NA
@@ -408,48 +407,6 @@ internal object SystemPagesBuilder {
         "${v?.let { Figures.number(it, decimals, signed) } ?: NA} $unit"
 
     private fun bar(v: Double) = Figures.number(v, 2)
-
-    private fun pack(car: CarReadings): Scheme.Pack {
-        val soc = car.extra(DiagnosticExtra.SOC)
-        val volts = car.hub[VehicleSignal.PACK_VOLT]
-        val cellMin = car.hub[VehicleSignal.CELL_MIN_MV]
-        val cellMax = car.hub[VehicleSignal.CELL_MAX_MV]
-        val tMin = car.extra(DiagnosticExtra.TEMP_MIN)
-        val tMax = car.extra(DiagnosticExtra.TEMP_MAX)
-        val tMean = car.hub[VehicleSignal.PACK_TEMP_AVG]
-        val cells = car.extra(DiagnosticExtra.CELL_COUNT)
-        val probes = car.extra(DiagnosticExtra.PROBE_COUNT)
-        fun n(v: Double?) = v?.let { Figures.number(it, 0) } ?: NA
-        fun span(lo: Double?, hi: Double?) = if (lo != null && hi != null) lo.toFloat()..hi.toFloat() else null
-        fun range(lo: Double?, hi: Double?) = if (lo != null && hi != null) "${n(lo)}–${n(hi)}" else NA
-        val insulation = listOf("канал BMC" to DiagnosticExtra.INSULATION, "канал 2" to DiagnosticExtra.INSULATION_2).map { (key, e) ->
-            val v = car.extra(e)
-            Field(key, Insulation.mohm(v)?.let { "${Insulation.text(it)} ${Insulation.UNIT}" } ?: NA, muted = v == null)
-        }
-        return Scheme.Pack(
-            soc = soc?.toFloat(),
-            socText = unit(soc, 0, "%"),
-            soh = percent(car, DiagnosticExtra.SOH),
-            cells = "${n(cells)} ${plural(cells?.toInt() ?: 0, "ячейка", "ячейки", "ячеек")} · " +
-                "${n(probes)} ${plural(probes?.toInt() ?: 0, "датчик", "датчика", "датчиков")}",
-            volts = unit(volts, 0, "В"),
-            current = unit(car.extra(DiagnosticExtra.CHARGE_CURRENT), 1, "А"),
-            insulation = insulation,
-            // 500 Ω per volt of the pack, the floor of SystemsBuilder's pack rows.
-            isoNorm = "норма ≥ 500 Ом/В" + (Insulation.floorMohm(volts)?.let { " · ${Figures.number(it, 2)} ${Insulation.UNIT}" } ?: ""),
-            ranges = listOf(
-                RangeView(
-                    head = "ЯЧЕЙКИ, мВ", value = range(cellMin, cellMax), scale = 3000f..3700f, span = span(cellMin, cellMax),
-                    mark = null, lo = "3 000", hi = "3 700",
-                    note = "разброс ${if (cellMin != null && cellMax != null) Figures.number(cellMax - cellMin, 0) else NA} мВ",
-                ),
-                RangeView(
-                    head = "ТЕМПЕРАТУРА МОДУЛЕЙ, °C", value = range(tMin, tMax), scale = -20f..60f, span = span(tMin, tMax),
-                    mark = tMean?.toFloat(), lo = Figures.number(-20.0, 0), hi = "60", note = "средняя ${n(tMean)}",
-                ),
-            ),
-        )
-    }
 
     private fun drives(i: Inputs): Scheme.Drives {
         val s = i.s

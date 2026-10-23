@@ -2057,13 +2057,13 @@
       // codes: a line from the first read to the last scan that saw them, a dot each read
       text(c, 'КОДЫ · С ПЕРВОГО ПРОЧТЕНИЯ', 24, J.codesLabel, 'groupTitle', 'mute');
       f.codes.forEach((k, i) => {
-        const y = J.codesTop + i * J.codeStep, cy = y + J.codeH / 2;
-        sign(c, k.kind || 'hist', 24 + L.sign.r, cy);
-        const w = text(c, `${k.block} ${k.addr}`, 24 + 2 * L.sign.r + 8, mid(y, J.codeH, 'cellAbbr'), 'cellAbbr', 'ink3');
-        text(c, '×' + k.count, 24 + 2 * L.sign.r + 16 + w, mid(y, J.codeH, 'sig'), 'sig', 'mute');
+        const y = J.codesTop + i * J.codeStep, cy = y + J.codeH / 2, ink = k.gone ? 'mute' : 'orange';
+        if (!k.gone) sign(c, k.kind || 'hist', 24 + L.sign.r, cy);
+        const w = text(c, `${k.block} ${k.addr}`, 24 + 2 * L.sign.r + 8, mid(y, J.codeH, 'cellAbbr'), 'cellAbbr', k.gone ? 'mute' : 'ink3');
+        text(c, '×' + k.count, 24 + 2 * L.sign.r + 16 + w, mid(y, J.codeH, 'sig'), 'sig', k.gone ? 'faint' : 'mute');
         const a = X(k.seen[0]), b = X(k.seen[k.seen.length - 1]);
-        c.save(); c.globalAlpha = L.code.timeline.barAlpha; fill(c, a, cy - 1, b - a, 2, 'orange'); c.restore();
-        k.seen.forEach(s => dot(c, X(s), cy, J.dot / 2, 'orange'));
+        c.save(); c.globalAlpha = L.code.timeline.barAlpha; fill(c, a, cy - 1, b - a, 2, ink); c.restore();
+        k.seen.forEach(s => dot(c, X(s), cy, J.dot / 2, ink));
       });
       // values: 12 V by scan, the cells' spread at a full charge by snapshot
       text(c, 'ВЕЛИЧИНЫ', 24, J.valuesLabel, 'groupTitle', 'mute');
@@ -2142,28 +2142,26 @@
     });
   }
 
-  // «Журнал · Записи»: every block with records on the whole width of the day axis - its sign, its
-  // records and how many reads found them, a line from the first read to the last and a dot each read.
-  function journalRecords(c, f) {
+  // «Журнал · Коды»: every code the journal has read, a row each - the present ones first with their
+  // sign, then the gone ones, muted and with none. A row opens the code's page.
+  function journalCodes(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const J = L.journal, R = J.records, px = R.plotX, pw = W - 24 - R.countW - px;
-      const X = dayAxis(c, px, R.axisY, pw, f.days);
-      // the days' lines down to the last block's row
-      const gh = R.top + f.codes.length * R.step - R.gridTop;
-      for (let i = 0; i <= f.days.length; i++) fill(c, px + i * pw / f.days.length, R.gridTop, 1, gh, 'hair');
-      text(c, 'БЛОК', 24, R.axisY - 2, 'colHead', 'mute');
-      text(c, 'ПРОЧТЕНИЙ', W - 24, R.axisY - 2, 'colHead', 'mute', { align: 'right' });
-      f.codes.forEach((k, i) => {
-        const y = R.top + i * R.step, cy = y + R.h / 2;
-        sign(c, k.kind || 'hist', 24 + L.sign.r, cy);
-        const w = text(c, `${k.block} ${k.addr}`, 24 + 2 * L.sign.r + 8, mid(y, R.h, 'cellAbbr'), 'cellAbbr', 'ink3');
-        text(c, '×' + k.count, 24 + 2 * L.sign.r + 16 + w, mid(y, R.h, 'sig'), 'sig', 'mute');
-        const a = X(k.seen[0]), b = X(k.seen[k.seen.length - 1]);
-        c.save(); c.globalAlpha = L.code.timeline.barAlpha; fill(c, a, cy - 1, b - a, 2, 'orange'); c.restore();
-        k.seen.forEach(s => dot(c, X(s), cy, J.dot / 2, 'orange'));
-        text(c, String(k.seen.length), W - 24, mid(y, R.h, 'normMono'), 'normMono', 'text', { align: 'right' });
-        rule(c, 24, y + R.h + (R.step - R.h) / 2, W - 48, 'hair');
+      const K = L.journal.codes, cols = columns(K.cols, 24, W - 48), Li = K.list;
+      headRow(c, cols, ['', 'КОД', 'БЛОК', 'ВПЕРВЫЕ', 'ПОСЛЕДНИЙ РАЗ', 'ПРОЧТЕНИЙ', 'СЕЙЧАС', ''], K.top, K.head);
+      let y = Li.top;
+      f.codeRows.forEach(r => {
+        const h = Li.row, k = r.gone ? null : kindOf(r.status), ink = t => r.gone ? 'mute' : t;
+        if (k) sign(c, k, cols[0][0] + cols[0][1] / 2, y + h / 2);
+        runs(c, codeRuns(r.code, 'codeSmall', r.gone ? 'mute' : k === 'active' ? 'red' : 'white', 'cellMono'), cols[1][0], base(mid(y, h, 'codeSmall'), 'codeSmall'));
+        text(c, `${r.block} ${r.addr}`, cols[2][0], mid(y, h, 'cellMono'), 'cellMono', ink('text'));
+        text(c, r.first, cols[3][0], mid(y, h, 'cellMono'), 'cellMono', ink('dim'));
+        text(c, r.last, cols[4][0], mid(y, h, 'cellMono'), 'cellMono', ink('dim'));
+        text(c, r.seen, cols[5][0], mid(y, h, 'cellMono'), 'cellMono', ink('text'));
+        text(c, r.now, cols[6][0], mid(y, h, 'cell'), 'cell', ink('text'));
+        chevron(c, cols[7][0] + (cols[7][1] - L.chevron) / 2, y + (h - L.chevron) / 2);
+        rule(c, 24, y + h, W - 48, 'hair');
+        y += h + Li.rule;
       });
     });
   }
@@ -2248,7 +2246,7 @@
     text(c, p.foot, x, fy + 4, 'paperFoot', 'paperGrey', { max: w });
   }
 
-  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, journalCompare, journalRecords, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, journalCompare, journalCodes, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

@@ -555,8 +555,8 @@ internal object ScannerSpec {
         val RULES = listOf(300f, 494f)
         const val CODES_LABEL = 312f
         const val CODES_TOP = 332f
-        const val CODE_STEP = 26f
-        const val CODE_H = 24f
+        const val CODE_STEP = 22f
+        const val CODE_H = 22f
         const val VALUES_LABEL = 506f
         val VALUES = listOf(526f, 564f)
         const val VALUE_H = 30f
@@ -577,14 +577,14 @@ internal object ScannerSpec {
         const val COMPARE_HEAD = 30f
         const val COMPARE_COLS = 3
         const val COMPARE_GAP = 16f
-        /** «Записи» (`journalRecords()`): every block's records on the whole width of the day axis. */
-        const val RECORDS_PLOT_X = 300f
-        const val RECORDS_COUNT_W = 110f
-        const val RECORDS_AXIS_Y = 176f
-        const val RECORDS_GRID_TOP = 190f
-        const val RECORDS_TOP = 200f
-        const val RECORDS_STEP = 36f
-        const val RECORDS_H = 28f
+        /** «Коды» (`journalCodes()`): a row a code - sign, code, block, first and last read, reads, now - and a chevron. */
+        val TABLE_COLS = listOf(18f, 128f, 150f, 150f, 160f, 120f, FR, 36f)
+        const val TABLE_TOP = 168f
+        const val TABLE_HEAD = 30f
+        const val TABLE_LIST_TOP = 199f
+        const val TABLE_LIST_BOTTOM = 620f
+        const val TABLE_ROW = 21f
+        const val TABLE_RULE = 1f
     }
 
     /** «Отчёт» (`report()`): the first page on the left, what goes in and where on the right. */

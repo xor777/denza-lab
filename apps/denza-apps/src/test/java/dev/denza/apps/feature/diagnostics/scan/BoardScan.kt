@@ -187,6 +187,10 @@ internal object BoardJournal {
     const val BMS_OLD = "87F61A011402"
     const val BMS_NEW = "87F71A011402"
     private const val UPDATE = "22.10 03:10"
+    /** EPS's U0100-87, held by the scans of 21.10 and gone from 22.10 07:55: «Коды»'s last row, a lane that ends. */
+    const val EPS = 0x783
+    const val EPS_CODE = "U0100-87"
+    val EPS_SEEN = listOf("21.10 08:05", "21.10 18:40")
 
     val CELL_SHOTS = listOf(
         Triple("18.10 16:02", 81, 4), Triple("20.10 15:50", 78, 4), Triple("20.10 19:35", 74, 4), Triple("21.10 08:10", 72, 5),
@@ -211,7 +215,14 @@ internal object BoardJournal {
                 odometerKm = 13_199.7,
                 vitals = JournalVitals(lvVolts = V12[i], soc = 74.0, soh = 99.0, cellMinMv = 3333.0, cellMaxMv = CELL_MAX[i],
                     insulationMohm = ISO[i], insulation2Mohm = ISO2[i], probeMinC = 13.0, probeMaxC = 18.0, mil = false),
-                modules = scan.modules.map { if (it.address == 0x7E7) it.copy(f195 = f195) else it },
+                modules = scan.modules.map {
+                    when {
+                        it.address == 0x7E7 -> it.copy(f195 = f195)
+                        it.address == EPS && at in EPS_SEEN -> it.copy(records = listOf(JournalRecord(
+                            EPS_CODE, BoardScan.dtcHex(EPS_CODE), scan.modules.first { m -> m.address == 0x720 }.records.first().format, 0x08, "19 02 09")))
+                        else -> it
+                    }
+                },
             ))
         }
         extra.forEach { d = d.with(it) }

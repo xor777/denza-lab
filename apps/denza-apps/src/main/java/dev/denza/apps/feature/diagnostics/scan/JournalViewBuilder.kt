@@ -150,18 +150,42 @@ internal object JournalViewBuilder {
     private fun version(version: String?, code: String): String =
         version?.let { IdentCodec.softwareVersion(it).substringBefore(" · ") } ?: code
 
-    /** A lane a block with records in [latest]: its count and mark there, a dot each journal scan that held any of them. */
+    /**
+     * A lane a block with records in [latest]: its count and mark there, a dot each journal scan that held any of
+     * them; then the blocks a later whole reading found empty, the newest gone first, as their last holding read
+     * left them - the lane ending there, as «Коды» puts the gone codes last.
+     */
     private fun codeLanes(data: JournalData, latest: JournalScan, axis: JournalAxis): List<JournalCodeLane> {
+        val upTo = data.scans.filter { it.atMillis <= latest.atMillis }
+        val present = presentLanes(data, latest, axis)
+        val held = present.map { it.request }.toSet()
+        val gone = upTo.flatMap { s -> s.modules.filter { it.records.isNotEmpty() }.map { it.address } }.distinct()
+            .filter { it !in held }
+            .mapNotNull { address ->
+                val last = upTo.last { s -> s.module(address)?.records?.isNotEmpty() == true }
+                val goneAt = upTo.firstOrNull { it.atMillis > last.atMillis && it.module(address)?.memoryRead == true }?.atMillis
+                    ?: return@mapNotNull null
+                val m = last.module(address)!!
+                val codes = m.records.map { it.code }.toSet()
+                val seen = upTo.filter { s -> s.module(address)?.records?.any { it.code in codes } == true }.map { it.atMillis }
+                goneAt to JournalCodeLane(address, "${m.abbreviation} ${Figures.address(address)}", m.records.size, worst(m), seen.map(axis::at), gone = true)
+            }
+            .sortedByDescending { it.first }.map { it.second }
+        return present + gone
+    }
+
+    private fun worst(m: JournalModule): Mark = BlockRecords.worst(m.records.map { r ->
+        r.status?.let { BlockRecords.mark(dev.denza.apps.feature.diagnostics.protocol.DtcStatus(it)) }
+            ?: if (r.source == "07") Mark.PENDING else Mark.ACTIVE
+    })!!
+
+    private fun presentLanes(data: JournalData, latest: JournalScan, axis: JournalAxis): List<JournalCodeLane> {
         val order = EcuCatalog.routed.withIndex().associate { (k, e) -> e.request!! to k }
         return latest.modules.filter { it.records.isNotEmpty() }.map { m ->
             val codes = m.records.map { it.code }.toSet()
             val seen = data.scans.filter { s -> s.atMillis <= latest.atMillis && s.module(m.address)?.records?.any { it.code in codes } == true }
                 .map { it.atMillis }
-            val mark = BlockRecords.worst(m.records.map { r ->
-                r.status?.let { BlockRecords.mark(dev.denza.apps.feature.diagnostics.protocol.DtcStatus(it)) }
-                    ?: if (r.source == "07") Mark.PENDING else Mark.ACTIVE
-            })!!
-            Triple(m, seen, mark)
+            Triple(m, seen, worst(m))
         }.sortedWith(compareBy({ it.second.first() }, { order[it.first.address] ?: Int.MAX_VALUE })).map { (m, seen, mark) ->
             JournalCodeLane(m.address, "${m.abbreviation} ${Figures.address(m.address)}", m.records.size, mark, seen.map(axis::at))
         }

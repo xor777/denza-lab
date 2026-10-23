@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
+import dev.denza.apps.feature.diagnostics.protocol.DtcStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,7 +10,8 @@ import org.junit.Test
 /**
  * The boards `scanner-journal` and `-journal-first` against [JournalViewBuilder] through [ModelBuilder]: the
  * boards' journal ([BoardJournal]) - or its first scan alone - shown. The head, the days, the scans, the
- * update, the cells' snapshots with the full charges named, every block's records from their first read, the
+ * update, the cells' snapshots with the full charges named, every block's records from their first read - a block
+ * whose records a later reading no longer held ending there - every code a row of «Коды», the
  * values by scan and the comparison of the first scan with the last are what the boards draw of the same
  * journal (scanner.js `journal`). Where the board puts the update - 03:10 on 22.10 - is illustrative: the
  * journal knows it by the first scan that read the new version.
@@ -43,7 +45,19 @@ class JournalBoardContractTest {
         assertEquals(codes.map { "${it["block"]} ${it["addr"]}" }, v.codes.map { it.block })
         assertEquals(codes.map { (it["count"] as Number).toInt() }, v.codes.map { it.count })
         assertEquals(codes.map { (it["seen"] as List<*>).size }, v.codes.map { it.seen.size })
+        assertEquals(codes.map { it["gone"] == true }, v.codes.map { it.gone })
         assertTrue(v.codes.all { it.mark == Mark.HISTORY })
+
+        // «Коды», row by row: the present ones with their sign, then the gone with none
+        val rows = (f["codeRows"] as List<Map<String, Any?>>).map { r ->
+            val gone = r["gone"] == true
+            JournalCodeRow(
+                request = (r["addr"] as String).toInt(16), code = r["code"] as String, block = "${r["block"]} ${r["addr"]}",
+                mark = if (gone) null else BlockRecords.mark(DtcStatus((r["status"] as Number).toInt())),
+                first = r["first"] as String, last = r["last"] as String, seen = r["seen"] as String, now = r["now"] as String, gone = gone,
+            )
+        }
+        assertEquals(rows, v.codeRows)
 
         val values = f["values"] as Map<String, Any?>
         val lv = values["lv"] as Map<String, Any?>
@@ -79,28 +93,6 @@ class JournalBoardContractTest {
         check("scanner-journal-first", JournalData().with(first), BoardScan.FINISHED)
     }
 
-    /**
-     * «Журнал · Коды» of the boards' journal: each code of `scanner-summary`, its block's lane of `scanner-journal`
-     * giving its first read, its last and how many reads found it - every one since the first.
-     */
-    @Test
-    fun theCodesTabIsEveryCodeFromItsFirstRead() {
-        val v = view(BoardJournal.data(scan), BoardScan.at("23.10 08:50:31"))
-        val lanes = (SpecJson.fixture("scanner-journal")["codes"] as List<Map<String, Any?>>)
-        val records = BoardScan.records("scanner-summary")
-        val abbr = (SpecJson.fixture("scanner-summary")["systems"] as List<Map<String, Any?>>)
-            .flatMap { it["blocks"] as List<Map<String, Any?>> }.associate { (it["addr"] as String).toInt(16) to it["abbr"] as String }
-        val expected = lanes.flatMap { lane ->
-            val request = (lane["addr"] as String).toInt(16)
-            val seen = lane["seen"] as List<String>
-            records.getValue(request).map { (code, _) ->
-                JournalCodeRow(request, code, "${abbr.getValue(request)} ${lane["addr"]}", Mark.HISTORY, seen.first(), seen.last(),
-                    "${seen.size} из ${seen.size}", "есть", gone = false)
-            }
-        }
-        assertEquals(expected, v.codeRows)
-    }
-
     @Test
     fun aCodeAWholeReadingNoLongerHoldsIsGoneAndLast() {
         val data = BoardJournal.data(scan)
@@ -109,8 +101,9 @@ class JournalBoardContractTest {
             if (m.address == 0x720) m.copy(records = m.records.filter { it.code != "U0229-87" }) else m
         })
         val rows = view(data.with(later), BoardScan.at("23.10 18:00")).codeRows
-        val gone = rows.last()
-        assertEquals(JournalCodeRow(0x720, "U0229-87", "LA_BCM 720", null, "18.10 15:42", "23.10 08:50", "8 из 9", "ушёл 23.10", gone = true), gone)
+        // the newest gone first: then the board's EPS, gone since 22.10
+        assertEquals(JournalCodeRow(0x720, "U0229-87", "LA_BCM 720", null, "18.10 15:42", "23.10 08:50", "8 из 9", "ушёл 23.10", gone = true), rows[17])
+        assertEquals(listOf("U0229-87", "U0100-87"), rows.filter { it.gone }.map { it.code })
         assertEquals(17, rows.count { !it.gone })
         assertEquals("23.10 18:00", rows.first().last)
     }

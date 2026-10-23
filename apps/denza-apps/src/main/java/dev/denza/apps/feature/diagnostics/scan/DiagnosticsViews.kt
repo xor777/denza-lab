@@ -391,6 +391,8 @@ internal data class JournalCodeLane(
     val mark: Mark,
     /** The reads that found its records, 0..1; its line runs from the first to the last. */
     val seen: List<Float>,
+    /** A later whole reading of the block held none of them: the lane ends at its last read, muted and with no sign. */
+    val gone: Boolean = false,
 )
 
 internal data class JournalQuantityLane(
