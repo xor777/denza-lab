@@ -17,13 +17,17 @@ import dev.denza.adaslink.Coordinates;
 import dev.denza.adaslink.DryRunRecorder;
 import dev.denza.adaslink.Json;
 import dev.denza.adaslink.NavigatorDriver;
+import dev.denza.adaslink.RoadStore;
 import dev.denza.adaslink.StockFeed;
 import dev.denza.adaslink.YandexRoute;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -90,6 +94,7 @@ final class AdasBridge {
             Map<String, Object> f = Json.object();
             f.put("gatesAssumed", "dnpService, dnpSwitch, noSleep on: Navigator cannot read BYDAuto");
             f.put("emulator", emulator);
+            f.put("roads", loadRoads());
             recorder.note("state", f, SystemClock.elapsedRealtime());
             feed.start(true, true, true);
         });
@@ -99,6 +104,34 @@ final class AdasBridge {
         });
         listenRaw();
         Log.i(TAG, "ADAS bridge running: dry-run trace " + new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl"));
+    }
+
+    /** The file tools/adas_bridge/road_store.py builds from our OSM map, pushed next to Navigator's files. */
+    static final String ROADS = "denza-adas-roads.bin";
+
+    /**
+     * Bridge thread: map our OSM road store, when one was put in Navigator's files (internal, else
+     * external), and hand it to the driver: routes are then cut at its junctions and carry its
+     * attributes where they match it (RoadMatcher). Without it the bridge uses Yandex data only.
+     */
+    private String loadRoads() {
+        File[] places = {new File(context.getFilesDir(), ROADS),
+                context.getExternalFilesDir(null) == null ? null : new File(context.getExternalFilesDir(null), ROADS)};
+        for (File file : places) {
+            if (file == null || !file.isFile()) continue;
+            try (FileInputStream in = new FileInputStream(file); FileChannel channel = in.getChannel()) {
+                MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+                RoadStore store = new RoadStore(map);
+                driver.setRoads(store);
+                String said = file + ": " + store.fragmentCount() + " roads, " + channel.size() + " bytes";
+                Log.i(TAG, "OSM roads " + said);
+                return said;
+            } catch (IOException | RuntimeException error) {
+                Log.w(TAG, "OSM roads not loaded from " + file, error);
+                return "failed: " + error;
+            }
+        }
+        return "none";
     }
 
     private void listenRaw() {
