@@ -138,9 +138,14 @@ internal class ModelBuilder(
                 val obd = module.obd ?: return model
                 val stream = s.streams[scope.request]
                 val pids = g.keys.mapNotNull { (it as? ParamKey.Pid)?.pid }
-                val packed = stream?.packs?.any { it.containsAll(pids) } == true
+                // A request is one CAN frame (6.1): four PIDs fit one only where their data does.
+                val requests = stream?.packs?.count { p -> p.any { it in pids } } ?: 0
                 val line = listOfNotNull(
-                    "${pids.size} PID" + if (packed && pids.size > 1) " одним запросом" else "",
+                    "${pids.size} PID" + when {
+                        pids.size < 2 || requests == 0 -> ""
+                        requests == 1 -> " одним запросом"
+                        else -> " в $requests " + Words.plural(requests, "запросе", "запросах", "запросах")
+                    },
                     stream?.hz()?.let { "${Figures.number(it, 1)} Гц" },
                 ).joinToString(" · ")
                 val live = obd.live.copy(graphs = GraphsBuilder.view(g, obd.live.rows, line, s.car))

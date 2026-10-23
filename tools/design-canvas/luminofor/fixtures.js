@@ -1649,7 +1649,8 @@
   })();
   const scannerSysEngineGraphs = {
     top: sysTop('Двигатель', '15:51:02', 'P · ДВС работает', '14,1'), rail: sysRail('Двигатель'),
-    block: Object.assign({}, engineBlock, { line: '7E0 → 7E8 · Mode 01 · 4 PID одним запросом · 8,3 Гц' }),
+    // a request is one CAN frame of six data bytes: 0C with 11 fill one, 0B with 06 a second (6.1)
+    block: Object.assign({}, engineBlock, { line: '7E0 → 7E8 · Mode 01 · 4 PID в 2 запросах · 8,3 Гц' }),
     tabs: engineTabs(1, 1),
     // a lane's scale: never narrower than its norm (a band) or its resolution × 20
     signals: [
@@ -1688,7 +1689,8 @@
     top: sysTop('Журнал', '19:31:29'),
     block: { title: 'Журнал', aside: '· 20.10', line: '1 скан', counters: [] },
     days: ['20.10'], scans: [{ at: '20.10 19:31', kind: 'full' }], software: [], cellShots: [],
-    codes: scannerJournal.codes.map(k => Object.assign({}, k, { seen: ['20.10 19:31'] })),
+    // lanes by their first read, then the catalog's order: one scan read them all at once, IDC (chassis) first
+    codes: [2, 0, 1, 3, 4, 5].map(i => Object.assign({}, scannerJournal.codes[i], { seen: ['20.10 19:31'] })),
     values: { lv: { name: '12 В', scale: [12.5, 14.5], points: [['20.10 19:31', 13.7]] }, full: { name: 'Δ ячеек, полный заряд', points: [] } },
     compare: { from: null, to: '20.10 19:31', codes: [['в истории', 18]], software: [],
       values: [['12 В', null, '13,7', 'В'], ['Δ ячеек, покой', null, '4', 'мВ'], ['Изоляция', null, '14,4', 'МОм'], ['SOH', null, '99', '%']] },

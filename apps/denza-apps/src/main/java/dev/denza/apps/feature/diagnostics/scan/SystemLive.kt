@@ -325,7 +325,10 @@ internal class SystemLive(val system: CarSystem) {
             }
             !r.trace -> s.value = v?.let { Figures.number(it, r.decimals) } ?: NA
             v == null -> s.gap(at, NA)
-            else -> s.number(at, v)
+            else -> {
+                if (r.factor == Insulation.PER_KOHM) s.decimals = Insulation.decimals(v)
+                s.number(at, v)
+            }
         }
     }
 
@@ -382,6 +385,12 @@ internal object Insulation {
     private const val OHM_PER_VOLT = 500.0
 
     fun mohm(kohm: Double?): Double? = kohm?.times(PER_KOHM)
+
+    /** Tenths, and hundredths below 1 MΩ - where the floor is: «14,4», «0,27». */
+    fun decimals(mohm: Double): Int = if (mohm < 1.0) 2 else 1
+
+    /** «14,4», «0,27». */
+    fun text(mohm: Double): String = Figures.number(mohm, decimals(mohm))
 
     /** The floor at [packVolts], MΩ; null without the pack's voltage. */
     fun floorMohm(packVolts: Double?): Double? =

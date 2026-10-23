@@ -58,7 +58,11 @@ internal object GraphsBuilder {
     fun view(g: GraphsSnapshot, rows: List<LiveRow>, line: String, car: CarReadings): GraphsView {
         val lanes = g.keys.mapNotNull { key -> rows.firstOrNull { it.key == key }?.let { lane(key, it, g.traces[key].orEmpty(), car) } }
         val now = g.traces.values.mapNotNull { it.lastOrNull()?.atNanos }.maxOrNull() ?: 0L
-        val points = lanes.firstOrNull()?.samples?.count { it.value != null && it.atNanos > now - SHOWN_NS } ?: 0
+        // a lane's own minute up to its last reading: lanes read in different requests end a request apart
+        val points = lanes.firstOrNull()?.samples?.let { s ->
+            val last = s.lastOrNull()?.atNanos ?: 0L
+            s.count { it.value != null && it.atNanos > last - SHOWN_NS }
+        } ?: 0
         return GraphsView(
             scope = g.scope,
             lanes = lanes,

@@ -387,7 +387,7 @@ internal object SystemPagesBuilder {
         fun range(lo: Double?, hi: Double?) = if (lo != null && hi != null) "${n(lo)}–${n(hi)}" else NA
         val insulation = listOf("канал BMC" to DiagnosticExtra.INSULATION, "канал 2" to DiagnosticExtra.INSULATION_2).map { (key, e) ->
             val v = car.extra(e)
-            Field(key, v?.let { "${Figures.number(it / 1000.0, 1)} МОм" } ?: NA, muted = v == null)
+            Field(key, Insulation.mohm(v)?.let { "${Insulation.text(it)} ${Insulation.UNIT}" } ?: NA, muted = v == null)
         }
         return Scheme.Pack(
             soc = soc?.toFloat(),

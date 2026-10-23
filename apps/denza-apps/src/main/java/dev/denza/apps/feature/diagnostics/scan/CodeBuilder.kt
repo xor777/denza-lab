@@ -184,6 +184,7 @@ internal object CodeBuilder {
             data = data,
             rows = data.records.filter { it.did != null }.map { Field("DID ${it.did}", it.data.ifEmpty { "—" }) },
             raw = data.records.filter { it.did == null }.map { "запись ${it.number} · ${it.identifiers} DID · ${it.data}" },
+            empty = "записи нет",
         )
     }
 
@@ -195,11 +196,12 @@ internal object CodeBuilder {
             data = data,
             rows = data.records.map { Field("запись ${it.number}", it.data.ifEmpty { "—" }) },
             raw = emptyList(),
+            empty = "записей нет",
         )
     }
 
     /** Rows where the records decode, the rest raw; with nothing to show, the word and the exchange as it went. */
-    private fun <T> section(title: String, data: RecordReadData<T>, rows: List<Field>, raw: List<String>): ReadSection {
+    private fun <T> section(title: String, data: RecordReadData<T>, rows: List<Field>, raw: List<String>, empty: String): ReadSection {
         val state = state(data.outcome)
         val rest = listOfNotNull(data.rest?.let { "остаток · $it" })
         val shown = rows.isNotEmpty() || raw.isNotEmpty()
@@ -208,7 +210,7 @@ internal object CodeBuilder {
             state = state,
             rows = rows,
             raw = raw + rest + if (shown) emptyList() else data.exchanges.map(::exchangeLine),
-            word = if (shown) null else word(state, data.why, empty = "записи нет"),
+            word = if (shown) null else word(state, data.why, empty),
         )
     }
 

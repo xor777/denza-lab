@@ -186,7 +186,7 @@ internal object SummaryBuilder {
         val soh = car.extra(DiagnosticExtra.SOH)
         return listOf(
             Vital("12 В", lv?.let { Figures.number(it, 1) } ?: NA, "В", lowVoltageOut(lv)),
-            Vital("ИЗОЛЯЦИЯ", insulation?.let { Figures.number(it, 1) } ?: NA, Insulation.UNIT,
+            Vital("ИЗОЛЯЦИЯ", insulation?.let(Insulation::text) ?: NA, Insulation.UNIT,
                 Insulation.low(insulation, car.hub[VehicleSignal.PACK_VOLT])),
             Vital("Δ ЯЧЕЕК", if (cellMin != null && cellMax != null) Figures.number(cellMax - cellMin, 0) else NA, "мВ"),
             Vital("SOH", soh?.let { Figures.number(it, 0) } ?: NA, "%", soh != null && soh < SOH_FLOOR),

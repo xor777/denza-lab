@@ -78,7 +78,7 @@ internal object HealthBuilder {
     private fun insulation(i: V4Inputs, sub: String, e: DiagnosticExtra, q: JournalQuantity, volts: Double?): HealthRow {
         val v = Insulation.mohm(i.s.car.extra(e))
         val t = trend(i, q)
-        return HealthRow("Изоляция", sub, v?.let { Figures.number(it, 1) } ?: NA, Insulation.UNIT, Insulation.low(v, volts),
+        return HealthRow("Изоляция", sub, v?.let(Insulation::text) ?: NA, Insulation.UNIT, Insulation.low(v, volts),
             HealthReference(Insulation.normText(Insulation.floorMohm(volts)), ReferenceKind.NORM), t,
             t.takeIf { it.isNotEmpty() }?.let { 0f..ceil5(maxOf(2.0, (it.filterNotNull().max() * 1.25))) })
     }

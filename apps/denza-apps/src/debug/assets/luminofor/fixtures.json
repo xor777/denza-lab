@@ -43654,7 +43654,7 @@
    "block": {
     "title": "Двигатель",
     "aside": "· ECM 7E0 · UAES",
-    "line": "7E0 → 7E8 · Mode 01 · 4 PID одним запросом · 8,3 Гц",
+    "line": "7E0 → 7E8 · Mode 01 · 4 PID в 2 запросах · 8,3 Гц",
     "counters": [
      [
       "ОБОРОТЫ",
@@ -46271,6 +46271,14 @@
    "cellShots": [],
    "codes": [
     {
+     "block": "IDC",
+     "addr": "597",
+     "count": 4,
+     "seen": [
+      "20.10 19:31"
+     ]
+    },
+    {
      "block": "LA_BCM",
      "addr": "720",
      "count": 8,
@@ -46282,14 +46290,6 @@
      "block": "R_ZCU",
      "addr": "747",
      "count": 2,
-     "seen": [
-      "20.10 19:31"
-     ]
-    },
-    {
-     "block": "IDC",
-     "addr": "597",
-     "count": 4,
      "seen": [
       "20.10 19:31"
      ]

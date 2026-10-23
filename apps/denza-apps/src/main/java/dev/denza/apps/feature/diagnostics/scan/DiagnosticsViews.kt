@@ -295,7 +295,7 @@ internal sealed interface GraphScope {
 internal data class GraphsView(
     val scope: GraphScope,
     val lanes: List<GraphLane>,
-    /** «4 PID одним запросом · 8,3 Гц». */
+    /** «4 PID в 2 запросах · 8,3 Гц», «3 PID одним запросом · …»; «4 сигнала · обход 0,4 с» for a system's readings. */
     val line: String,
     /** The car's clock at the right edge. */
     val nowNanos: Long,

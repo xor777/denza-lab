@@ -230,7 +230,7 @@ class PackLiveTest {
         live.take(round(4, extras = mapOf(DiagnosticExtra.INSULATION to 100.0)))
         val after = live.view()
         assertFalse(after.paused)
-        assertEquals("0,1", after.row("Изоляция, канал BMC").value)
+        assertEquals("hundredths below 1 MΩ", "0,10", after.row("Изоляция, канал BMC").value)
         assertEquals(2, after.row("Напряжение ВВБ").samples.size)
     }
 
@@ -271,7 +271,7 @@ class PackLiveTest {
         assertFalse(view(extras = mapOf(DiagnosticExtra.SOH to 80.0)).row("Состояние (SOH), BMS").outOfNorm)
         assertTrue(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 279.0)).row("Изоляция, канал 2").outOfNorm)
         assertFalse(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 280.0)).row("Изоляция, канал 2").outOfNorm)
-        assertEquals("0,3", view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 280.0)).row("Изоляция, канал 2").value)
+        assertEquals("0,28", view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 280.0)).row("Изоляция, канал 2").value)
         // no pack voltage: the floor said per volt and nothing judged
         val noVolts = view(extras = mapOf(DiagnosticExtra.INSULATION to 10.0), drop = setOf(VehicleSignal.PACK_VOLT))
         assertEquals("≥ 500 Ом/В", noVolts.row("Изоляция, канал BMC").norm)

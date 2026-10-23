@@ -105,6 +105,44 @@ class JournalSessionTest {
         s.stop()
     }
 
+    @Test
+    fun theScreensAskForTheJournalTheCodeAndTheGraphs() = runTest {
+        val s = session(carNow(), MemoryJournalStore())
+        s.start()
+        runCurrent()
+        val first = s.model.value
+        assertTrue(first.railLines.isNotEmpty())
+        assertEquals("Активных неисправностей нет", first.summary!!.verdict)
+        assertEquals(68, first.blocks!!.groups.sumOf { it.rows.size })
+        // «Журнал» is built only while it shows; the scan that just ended is in it
+        assertNull(first.journal)
+        s.setJournalVisible(true)
+        assertEquals("1 скан", s.model.value.journal!!.line)
+        s.setJournalVisible(false)
+        assertNull(s.model.value.journal)
+
+        // a code's screen: opened and closed
+        s.openCode(0x720, "U0121-87")
+        runCurrent()
+        assertEquals("U0121-87", s.model.value.code!!.code)
+        assertEquals("LA_BCM 720", s.model.value.code!!.sameType.first().block)
+        s.openCode(0x720, null)
+        assertNull(s.model.value.code)
+
+        // «Графики» of the pack's readings, then left
+        val scope = GraphScope.System(CarSystem.PACK)
+        s.setGraphs(scope, listOf(ParamKey.Signal("CELL_MIN_MV"), ParamKey.Signal("CELL_MAX_MV")))
+        advanceTimeBy(DiagnosticsSession.TICK_MS)
+        runCurrent()
+        val graphs = s.model.value.systems.live.getValue(CarSystem.PACK).graphs!!
+        assertEquals(listOf("Ячейка, мин.", "Ячейка, макс."), graphs.lanes.map { it.name })
+        s.markGraphs(scope)
+        assertEquals(1, s.model.value.systems.live.getValue(CarSystem.PACK).graphs!!.marks.size)
+        s.setGraphs(scope, emptyList())
+        assertNull(s.model.value.systems.live.getValue(CarSystem.PACK).graphs)
+        s.stop()
+    }
+
     /** A pack of six cells and six probes: `43A` says so, two pages of cells and one of probes. */
     private fun FakeDiagnosticBus.counts(atMs: Long) = page(BmsPage.COUNTS, "06064C38041B0028", atMs * 1_000_000L)
 
