@@ -36,6 +36,7 @@ PACK = Path('captures/stock-map-beijing-pack/car-01')
 # Survey geography (box, anchor points, explicit second-round pairs, view centre) lives in
 # captures/adas-bench/beijing/geography.json with the other Beijing coordinates.
 GEOGRAPHY = Path('captures/adas-bench/beijing/geography.json')
+PART_SAMPLES = 500  # app run <= 600 s with start-up and arrival dwell
 SPEED = {'expressway': 22.0, 'ramp': 12.0, 'roundabout': 7.0, 'arterial': 14.0, 'secondary': 10.0,
          'ordinary': 8.0, 'minor': 5.0, 'unknown': 8.0}
 
@@ -201,15 +202,23 @@ def cmd_cases(args):
         entry = routes[item['id']]
         points, info = route_polyline(entry['route'])
         samples = trace_along(points, info, entry['route'])
-        case = dict(schema='drive-log-replay-v1', status='SYNTHETIC_ALONG_FACTORY_ROUTE', device_operations=0,
-                    source=dict(survey=str(args.survey), pair=item['id']), frame='SDK',
-                    route_start_sdk=entry['pair']['from'], route_end_sdk=entry['pair']['to'],
-                    transitions=coverage.transitions(entry['route']), samples=samples)
-        name = item['id'].replace(':', '-')
-        path = cases_dir / (name + '.json')
-        path.write_text(json.dumps(case) + '\n')
-        plan.append(dict(build=str(args.build), case=str(path), out=str(args.survey.parent / ('run-' + name)),
-                         onlineWaitMs=0))
+        # online_cache_emulator.py bounds an app run to 600 s: drive a long route in parts, each
+        # starting where the previous one ended (the stock re-plans from there to the same
+        # destination); only the last part arrives.
+        parts = [samples[i:i + PART_SAMPLES] for i in range(0, len(samples), PART_SAMPLES)]
+        if len(parts) > 1 and len(parts[-1]) < 50:
+            parts[-2:] = [parts[-2] + parts[-1]]
+        for k, part in enumerate(parts):
+            start = entry['pair']['from'] if k == 0 else part[0]['sdk']
+            case = dict(schema='drive-log-replay-v1', status='SYNTHETIC_ALONG_FACTORY_ROUTE', device_operations=0,
+                        source=dict(survey=str(args.survey), pair=item['id'], part=k, parts=len(parts)), frame='SDK',
+                        route_start_sdk=start, route_end_sdk=entry['pair']['to'],
+                        transitions=coverage.transitions(entry['route']) if k == 0 else None, samples=part)
+            name = item['id'].replace(':', '-') + ('' if len(parts) == 1 else '-part%d' % (k + 1))
+            path = cases_dir / (name + '.json')
+            path.write_text(json.dumps(case) + '\n')
+            plan.append(dict(build=str(args.build), case=str(path), out=str(args.survey.parent / ('run-' + name)),
+                             onlineWaitMs=0))
     if args.miss and len(selection['chosen']) >= 1:
         plan.extend(miss_cases(routes, selection, cases_dir, args))
     (args.survey / 'plan.json').write_text(json.dumps(plan, indent=1) + '\n')
