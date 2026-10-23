@@ -49,7 +49,7 @@ internal object SystemsBuilder {
         val cellMin = car.hub[VehicleSignal.CELL_MIN_MV]
         val cellMax = car.hub[VehicleSignal.CELL_MAX_MV]
         val insulation = listOf(DiagnosticExtra.INSULATION, DiagnosticExtra.INSULATION_2).map { e ->
-            car.extra(e)?.let { Figures.number(it / 1000.0, 1) } ?: NA
+            Insulation.mohm(car.extra(e))?.let(Insulation::text) ?: NA
         }
         val pack = listOf(
             Field("Напряжение / ток", "${or(hub(car, VehicleSignal.PACK_VOLT))} В · ${or(extra(car, DiagnosticExtra.CHARGE_CURRENT, 1))} А"),

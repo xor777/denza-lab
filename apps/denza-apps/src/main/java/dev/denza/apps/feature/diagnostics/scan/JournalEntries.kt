@@ -104,10 +104,12 @@ internal object JournalEntries {
 
     /**
      * The sweep [pack] has drawn, taken at [atMillis] (the newest drawn page, wall clock), or null
-     * before a whole sweep was drawn: half a sweep is two sweeps' cells side by side (6.3).
+     * before a whole sweep was drawn - one that ended having refreshed every cell the count names: half a
+     * sweep is two sweeps' cells side by side, or a hole (6.3).
      */
     fun cells(pack: PackCells, atMillis: Long, car: CarReadings): JournalCells? {
-        if (pack.cells.snapshots == 0) return null
+        if (pack.cells.snapshots == 0 || pack.cells.count == null) return null
+        if (!pack.cells.refreshed().all { it }) return null
         val cells = pack.cells.codes()
         val probes = pack.probes.codes()
         if (cells.none { it != null }) return null

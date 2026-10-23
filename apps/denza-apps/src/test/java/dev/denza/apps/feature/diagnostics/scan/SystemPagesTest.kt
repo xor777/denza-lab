@@ -290,7 +290,7 @@ class SystemPagesTest {
         assertEquals("553 В", pack.volts)
         assertEquals("${m}4,5 А", pack.current)
         assertEquals(listOf(Field("канал BMC", "14,4 МОм"), Field("канал 2", "19,7 МОм")), pack.insulation)
-        assertEquals("норма ≥ 500 Ом/В · 277 кОм", pack.isoNorm)
+        assertEquals("норма ≥ 500 Ом/В · 0,28 МОм", pack.isoNorm)
         assertEquals(RangeView("ЯЧЕЙКИ, мВ", "3 333–3 337", 3000f..3700f, 3333f..3337f, null, "3 000", "3 700", "разброс 4 мВ"), pack.ranges[0])
         assertEquals(RangeView("ТЕМПЕРАТУРА МОДУЛЕЙ, °C", "13–18", -20f..60f, 13f..18f, 14f, "${m}20", "60", "средняя 14"), pack.ranges[1])
 
@@ -409,8 +409,8 @@ class SystemPagesTest {
         assertEquals("н/д", bmc.value)
         assertFalse("a code is not a resistance: not out of norm", bmc.outOfNorm)
         val second = model.systems.pack.rows.single { it.name == "Изоляция, канал 2" }
-        assertEquals("19 675", second.value)
-        assertEquals("500 Ω/V of 553 V, in kΩ", "≥ 277", second.norm)
+        assertEquals("19,7", second.value)
+        assertEquals("500 Ω/V of 553 V, in MΩ rounded up", "≥ 0,28", second.norm)
         assertFalse(second.outOfNorm)
 
         // 254 and 255 are not counts.

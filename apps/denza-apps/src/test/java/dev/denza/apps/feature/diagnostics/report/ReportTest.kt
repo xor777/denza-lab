@@ -115,7 +115,7 @@ class ReportTest {
         assertEquals(4.0, input.pack.cellSpreadMv!!, 0.0)
         // The exchanges are the scan's, and the services in the order first asked.
         assertEquals(scanned.scan.reads.sumOf { it.replies.size }, input.exchanges.count)
-        assertEquals(listOf("22 F194", "22 F190"), input.exchanges.services.take(2))
+        assertEquals(listOf("22 F194", "22 F190", "19 01 09"), input.exchanges.services.take(3))
         assertEquals("OBD 01/03/07/09/0A", input.exchanges.services.last())
     }
 

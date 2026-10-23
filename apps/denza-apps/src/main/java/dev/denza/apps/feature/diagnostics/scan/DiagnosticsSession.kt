@@ -85,9 +85,10 @@ import kotlinx.coroutines.withContext
  * through [SoftwareHistory], loaded from
  * [software] when the work starts and written back by the worker whenever it learned something.
  *
- * **The journal** (6.4): an autoscan that ends, a module read by hand after it and «Снять ячейки сейчас»
- * ([saveCells]) each add one entry to [journal], loaded from [journalStore] once a process and written
- * by the worker; nothing else does.
+ * **The journal** (6.4): an autoscan that ends, a module read by hand after it, and the first whole sweep of
+ * an opened battery page - one an opening ([setCellsVisible]) and one a «Обновить» ([refreshCells]) - each add
+ * one entry to [journal], loaded from [journalStore] once a process and written by the worker; nothing else
+ * does. The model reads it for «Сводка», «Блоки», the code's screen, «Здоровье», «Журнал» and the report.
  *
  * **The report** (7.4, [saveReport]): one save at a time on the worker's scope, of the model's report
  * input and the shown scan's replies; [ReportDesk] keeps its outcome and the newest recording, looked
@@ -154,6 +155,15 @@ internal class DiagnosticsSession(
     private var cells: PackCells? = null
     private var cellsJob: Job? = null
     private var cellsStopped = false
+    /** This opening of the battery's page - or its «Обновить» - put its snapshot into the journal (6.4). */
+    private var cellsSaved = false
+    /** «Журнал» shown, and the two scans «Сравнение» names (null: the default pair). */
+    private var journalVisible = false
+    private var compare: Pair<Long?, Long?>? = null
+    /** The code whose screen is open: its block and its code. */
+    private var codeShown: Pair<Int, String>? = null
+    /** «Графики» of one scope while they are shown. */
+    private var graphs: GraphTraces? = null
     /** Each system's «Потоковые данные»: its minute, and which one is in front. */
     private val liveTables = HashMap<CarSystem, SystemLive>()
     private var liveShown: CarSystem? = null
@@ -172,13 +182,13 @@ internal class DiagnosticsSession(
         var gap = PARAM_GAP_MS
     }
 
-    private val mutable = MutableStateFlow(builder.build(snapshot()))
-    val model: StateFlow<DiagnosticsModel> = mutable.asStateFlow()
-
     /** The scan journal (6.4): every explicit scan and cell snapshot, as loaded and added to since. */
     private val journalFlow = MutableStateFlow(JournalData())
     val journal: StateFlow<JournalData> = journalFlow.asStateFlow()
     private var journalLoaded = false
+
+    private val mutable = MutableStateFlow(builder.build(snapshot()))
+    val model: StateFlow<DiagnosticsModel> = mutable.asStateFlow()
 
     /** Why the work stands. */
     private sealed interface Halt {
@@ -281,7 +291,41 @@ internal class DiagnosticsSession(
     }
 
     override fun openCode(request: Int, code: String?) = act {
+        codeShown = when {
+            code != null -> request to code
+            codeShown?.first == request -> null
+            else -> codeShown
+        }
         if (reads.openCode(request, code, results[request])) retryStopped()
+    }
+
+    override fun setJournalVisible(visible: Boolean) = act {
+        journalVisible = visible
+        if (!visible) compare = null
+    }
+
+    override fun compareScans(fromMillis: Long?, toMillis: Long?) = act {
+        compare = if (fromMillis == null && toMillis == null) null else fromMillis to toMillis
+    }
+
+    override fun setGraphs(scope: GraphScope, keys: List<ParamKey>) = act {
+        val chosen = keys.distinct().take(GraphTraces.MAX_KEYS)
+        if (chosen.isEmpty()) {
+            if (graphs?.scope == scope) graphs = null
+            return@act
+        }
+        if (graphs?.scope == scope && graphs?.keys == chosen) return@act
+        graphs = GraphTraces(scope, chosen)
+        // A block's graphs are its stream's focus: read first, one request where they fit in one.
+        if (scope is GraphScope.Block) {
+            val pids = chosen.mapNotNull { (it as? ParamKey.Pid)?.takeIf { p -> p.request == scope.request }?.pid }
+            focus[scope.request] = pids
+            streams[scope.request]?.setFocus(pids)
+        }
+    }
+
+    override fun markGraphs(scope: GraphScope) = act {
+        graphs?.takeIf { it.scope == scope }?.mark(carNanos())
     }
 
     override fun setLiveVisible(request: Int, visible: Boolean) = act {
@@ -349,6 +393,7 @@ internal class DiagnosticsSession(
             val s = scope ?: return@act
             cells = PackCells(clock)
             cellsStopped = false
+            cellsSaved = false
             cellsJob = s.launch { listenCells() }
         } else {
             cellsJob?.cancel()
@@ -357,11 +402,26 @@ internal class DiagnosticsSession(
         }
     }
 
-    override fun saveCells() = act {
-        val c = cells ?: return@act
+    override fun refreshCells() = act {
+        if (cells == null) return@act
         val s = scope ?: return@act
-        val drawn = listOfNotNull(c.cells.drawnNanos(), c.probes.drawnNanos()).maxOrNull() ?: return@act
-        val entry = JournalEntries.cells(c, wallClock() - (carNanos() - drawn) / 1_000_000L, readings) ?: return@act
+        cellsJob?.cancel()
+        cells = PackCells(clock)
+        cellsStopped = false
+        cellsSaved = false
+        cellsJob = s.launch { listenCells() }
+    }
+
+    /**
+     * The first whole sweep of this opening into the journal (6.4), with the charge and current now; nothing
+     * before a sweep covered every cell. Under [lock].
+     */
+    private fun snapshotCells(c: PackCells) {
+        if (cellsSaved) return
+        val s = scope ?: return
+        val drawn = listOfNotNull(c.cells.drawnNanos(), c.probes.drawnNanos()).maxOrNull() ?: return
+        val entry = JournalEntries.cells(c, wallClock() - (carNanos() - drawn) / 1_000_000L, readings) ?: return
+        cellsSaved = true
         s.launch { remember(entry) }
     }
 
@@ -453,7 +513,9 @@ internal class DiagnosticsSession(
                     val c = cells?.takeIf { cellsJob === me } ?: return@synchronized
                     val first = c.cells.newestNanos == null && c.probes.newestNanos == null
                     // The tick republishes four times a second; the first page and a new sweep need not wait for it.
-                    if (c.accept(page) || first) publish()
+                    val ended = c.accept(page)
+                    if (ended) snapshotCells(c)
+                    if (ended || first) publish()
                 }
             }
         } catch (cancelled: CancellationException) {
@@ -709,6 +771,7 @@ internal class DiagnosticsSession(
             // An entry added while the files were read stays.
             val added = journalFlow.value
             journalFlow.value = added.cells.fold(added.scans.fold(loaded) { d, scan -> d.with(scan) }) { d, cells -> d.with(cells) }
+            if (scope != null) publish()
         }
     }
 
@@ -719,17 +782,24 @@ internal class DiagnosticsSession(
     private fun journalScan(full: Boolean, request: Int): JournalScan {
         val modules = if (full) EcuCatalog.routed.mapNotNull { results[it.request] } else listOfNotNull(results[request])
         val kind = if (full) JournalScanKind.FULL else JournalScanKind.MODULE
-        return JournalEntries.scan(kind, modules, idents, readings, if (full) finishedAt ?: wallClock() else wallClock())
+        val vin = if (full) VinReads.data(results)?.vin else null
+        return JournalEntries.scan(kind, modules, idents, readings, if (full) finishedAt ?: wallClock() else wallClock(), vin)
     }
 
     /** [entry] into the journal, then its file; off the caller's thread. */
     private fun remember(entry: JournalScan) {
-        synchronized(lock) { journalFlow.value = journalFlow.value.with(entry) }
+        synchronized(lock) {
+            journalFlow.value = journalFlow.value.with(entry)
+            if (scope != null) publish()
+        }
         write { journalStore.add(entry) }
     }
 
     private fun remember(entry: JournalCells) {
-        synchronized(lock) { journalFlow.value = journalFlow.value.with(entry) }
+        synchronized(lock) {
+            journalFlow.value = journalFlow.value.with(entry)
+            if (scope != null) publish()
+        }
         write { journalStore.add(entry) }
     }
 
@@ -913,7 +983,25 @@ internal class DiagnosticsSession(
         reportRecording = desk.recording,
         codeReads = reads.codeData(),
         obdReads = reads.obdData(),
+        journal = journalFlow.value,
+        journalVisible = journalVisible,
+        compare = compare,
+        openCode = codeShown,
+        graphs = graphs?.let { g ->
+            g.take(graphRows(g.scope))
+            g.snapshot()
+        },
     )
+
+    /** The rows «Графики» follow: the block's stream, or the system's table as it stands. Under [lock]. */
+    private fun graphRows(scope: GraphScope): List<LiveRow> = when (scope) {
+        is GraphScope.Block -> streams[scope.request]?.view(
+            running = live == scope.request && halt == null,
+            recording = recording?.first == scope.request,
+            engineRunning = readings.engineRunning,
+        )?.rows.orEmpty()
+        is GraphScope.System -> (liveTables[scope.system]?.view() ?: SystemLive.of(scope.system, readings)).rows
+    }
 
     private fun publish() {
         mutable.value = builder.build(snapshot())
@@ -956,6 +1044,11 @@ internal class DiagnosticsSession(
         cells = null
         cellsJob = null
         cellsStopped = false
+        cellsSaved = false
+        journalVisible = false
+        compare = null
+        codeShown = null
+        graphs = null
         reads.reset()
     }
 

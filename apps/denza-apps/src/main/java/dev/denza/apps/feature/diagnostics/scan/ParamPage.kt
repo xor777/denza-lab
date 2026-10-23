@@ -38,6 +38,8 @@ internal class ParamSpec(
     val get: SignalGet? = null,
     /** A two-state signal said in words: «работает», «P». */
     val text: ((Double) -> String)? = null,
+    /** What a reading is multiplied by into [unit]: the insulation's kΩ to MΩ (7.3). */
+    val factor: Double = 1.0,
 ) {
     companion object {
         /** The spec of [key], or null when nothing with that key can be read alone. */
@@ -70,7 +72,7 @@ internal class ParamSpec(
             // a system's reading, in whichever table: one name in all of them; a state is said in its words
             SystemStreams.reading(key.key)?.let { r ->
                 val text = r.words?.let { w -> { v: Double -> w.word(v) } }
-                return signalSpec(key, r.name, r.source, r.unit, r.decimals, r.extra, r.hub, r.norm ?: { null }, text)
+                return signalSpec(key, r.name, r.source, r.unit, r.decimals, r.extra, r.hub, r.norm ?: { null }, text, r.factor)
             }
             LiveStream.CarRow.entries.firstOrNull { it.signal.name == key.key }?.let { r ->
                 return signalSpec(key, r.title, SystemsBuilder.source(r.signal), r.unit, r.decimals, null, r.signal, { null }, r.text)
@@ -88,6 +90,7 @@ internal class ParamSpec(
             hub: VehicleSignal?,
             norm: (CarReadings) -> SystemsBuilder.SignalNorm?,
             text: ((Double) -> String)?,
+            factor: Double = 1.0,
         ): ParamSpec {
             // A hot hub signal already comes with every sweep; anything slower gets a GET of its own.
             val fromHub = hub?.takeIf { it.poll == VehiclePoll.HOT }
@@ -109,6 +112,7 @@ internal class ParamSpec(
                 hub = fromHub,
                 get = get,
                 text = text,
+                factor = factor,
             )
         }
     }
@@ -171,8 +175,9 @@ internal class ParamTrace(val spec: ParamSpec) {
         }
     }
 
-    /** One reading at [at]; null is a gap. */
-    fun put(at: Long, v: Double?) {
+    /** One reading at [at] as it came, scaled here into the page's unit ([ParamSpec.factor]); null is a gap. */
+    fun put(at: Long, raw: Double?) {
+        val v = raw?.times(spec.factor)
         if (v == null) {
             if (value != NOT_READ) value = "—"
             current = null
@@ -180,7 +185,7 @@ internal class ParamTrace(val spec: ParamSpec) {
             return
         }
         current = v
-        value = spec.text?.invoke(v) ?: Figures.number(v, decimals, signed = spec.signed)
+        value = spec.text?.invoke(raw) ?: Figures.number(v, decimals, signed = spec.signed)
         add(Sample(at, v.toFloat()))
         mark(at)
     }
