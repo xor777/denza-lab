@@ -75,6 +75,15 @@ internal data class DtcLookup(
 internal class OemDtcIndex(val headings: List<OemHeading>) {
     private val bySectionCode: Map<Pair<OemSection, String>, List<OemHeading>> =
         headings.groupBy { it.section to it.displayCode }
+    private val byBase: Map<String, List<OemHeading>> = headings.groupBy { it.displayCode.take(BASE) }
+
+    /**
+     * The Russian headings of a J2012 base code (`U0121`) in any section and with any failure type, each
+     * once, in the index's order: a generic SAE code (`U0xxx`, `P0xxx`, …) means the same in every module,
+     * so the BMS's `U012100` names LA_BCM's `U0121-87` too (architecture, 7.3). A maker's code is not looked
+     * up this way - its meaning is its own module's section's.
+     */
+    fun anySection(base: String): List<String> = byBase[base].orEmpty().map { it.titleRu }.distinct()
 
     fun lookup(request: Int, code: DtcCode): DtcLookup {
         val section = section(request) ?: return DtcLookup(emptyList(), skipped = LookupSkip.NO_SECTION)
@@ -90,6 +99,7 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
 
     companion object {
         val EMPTY = OemDtcIndex(emptyList())
+        private const val BASE = 5
 
         /**
          * The section a module's codes are searched in, by request address; null for a module without one.

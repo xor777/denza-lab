@@ -326,7 +326,7 @@ internal sealed interface Scheme {
         val current: String,
         /** «канал BMC» → «14,4 МОм». */
         val insulation: List<Field>,
-        /** «норма ≥ 500 Ом/В · 277 кОм». */
+        /** «норма ≥ 500 Ом/В · 0,28 МОм». */
         val isoNorm: String,
         val ranges: List<RangeView>,
     ) : Scheme
@@ -989,7 +989,10 @@ internal interface DiagnosticsActions {
     fun setParamPaused(paused: Boolean)
     /** «Сбросить мин/макс» on the parameter page: its windows start over. */
     fun resetParam()
-    /** «Ячейки» shown or left: the pages are listened to only while it is (architecture, 6.3). */
+    /**
+     * «Ячейки» or «Здоровье» shown or left: the pages are listened to only while one is (architecture, 6.3), and
+     * the first whole sweep of a showing goes into the journal (6.4). Moving between the two is one showing.
+     */
     fun setCellsVisible(visible: Boolean)
     /** «Пауза» / «Продолжить» on «Ячейки»: paused, nothing is listened to and the drawn sweep stays; leaving the tab ends it. */
     fun setCellsPaused(paused: Boolean)
@@ -1006,10 +1009,11 @@ internal interface DiagnosticsActions {
     /** «Сбросить мин/макс» there. */
     fun resetSystemLive(system: CarSystem)
     /**
-     * «Снять ячейки сейчас»: the sweep «Ячейки» has drawn goes into the scan journal with the charge
-     * and current now (architecture, 6.4); nothing before a whole sweep was drawn.
+     * «Обновить» on «Здоровье» or «Ячейки»: the cells start over - a new subscription and a new sweep - and the
+     * first whole sweep of it goes into the scan journal, as the first one of an opening does (architecture,
+     * 6.4). Nothing while neither page holds the cells ([setCellsVisible]).
      */
-    fun saveCells() {}
+    fun refreshCells() {}
 
     /**
      * «Сохранить» on «Отчёт»: the PDF, with the JSON of the scan's replies and a copy of the last
@@ -1028,7 +1032,11 @@ internal interface DiagnosticsActions {
     /** «Журнал» shown or left: [DiagnosticsModel.journal] is built only while it is (7.3). */
     fun setJournalVisible(visible: Boolean) {}
 
-    /** «Сравнение»: two journal scans by their end; both null - the last against the one before it. */
+    /**
+     * «Сравнение»: two journal scans by their end ([JournalTick.atMillis]). Both null - the default, the journal's
+     * first full scan against its last (board `scanner-journal`); [fromMillis] null alone - [toMillis] against the
+     * full scan before it («Сравнить с прошлым»).
+     */
     fun compareScans(fromMillis: Long?, toMillis: Long?) {}
 
     /**

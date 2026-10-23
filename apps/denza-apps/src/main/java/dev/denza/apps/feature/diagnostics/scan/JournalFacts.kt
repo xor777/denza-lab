@@ -120,7 +120,11 @@ internal enum class JournalQuantity(val unit: String) {
     /** The spread of every cell snapshot. */
     SNAPSHOT_SPREAD_MV("мВ"),
     /** The spread of the snapshots taken at SOC ≥ 95 % ([JournalCells.fullCharge]). */
-    FULL_CHARGE_SPREAD_MV("мВ");
+    FULL_CHARGE_SPREAD_MV("мВ"),
+    /** The spread of the other snapshots: «Здоровье»'s «в покое», what is usual for this car away from a full charge. */
+    REST_SPREAD_MV("мВ"),
+    /** The probes' spread of every snapshot, max − min of those that are no raw 0. */
+    SNAPSHOT_PROBE_SPREAD_C("°C");
 
     companion object {
         /** The quantities of a scan, in the order a comparison lists them. */
@@ -295,6 +299,13 @@ internal object JournalFacts {
         JournalQuantity.SNAPSHOT_SPREAD_MV -> data.cells.mapNotNull { c -> c.spreadMv?.let { JournalPoint(c.atMillis, it.toDouble()) } }
         JournalQuantity.FULL_CHARGE_SPREAD_MV ->
             data.cells.filter { it.fullCharge }.mapNotNull { c -> c.spreadMv?.let { JournalPoint(c.atMillis, it.toDouble()) } }
+        JournalQuantity.REST_SPREAD_MV ->
+            data.cells.filter { !it.fullCharge }.mapNotNull { c -> c.spreadMv?.let { JournalPoint(c.atMillis, it.toDouble()) } }
+        JournalQuantity.SNAPSHOT_PROBE_SPREAD_C -> data.cells.mapNotNull { c ->
+            val lo = c.minProbe?.let { c.probesC[it - 1] }
+            val hi = c.maxProbe?.let { c.probesC[it - 1] }
+            if (lo != null && hi != null) JournalPoint(c.atMillis, (hi - lo).toDouble()) else null
+        }
         else -> data.scans.mapNotNull { s -> value(s, quantity)?.let { JournalPoint(s.atMillis, it) } }
     }
 
@@ -312,7 +323,8 @@ internal object JournalFacts {
             JournalQuantity.PROBE_SPREAD_C -> probeSpreadC
             JournalQuantity.ODOMETER_KM -> scan.odometerKm
             JournalQuantity.MEDIAN_MS -> scan.medianMs?.toDouble()
-            JournalQuantity.SNAPSHOT_SPREAD_MV, JournalQuantity.FULL_CHARGE_SPREAD_MV -> null
+            JournalQuantity.SNAPSHOT_SPREAD_MV, JournalQuantity.FULL_CHARGE_SPREAD_MV, JournalQuantity.REST_SPREAD_MV,
+            JournalQuantity.SNAPSHOT_PROBE_SPREAD_C -> null
         }
     }
 

@@ -1228,9 +1228,9 @@
       pl('1014', 'Температура модулей, мин.', '44700010', '13', '°C', '13', '13', '—', [0, 0, 0.05]),
       pl('1014', 'Температура модулей, макс.', '44700020', '18', '°C', '18', '18', '—', [0, 0, 0.05]),
       pl('1014', 'Температура модулей, сред.', '44700038', '14', '°C', '14', '14', '—', [0, 0, 0.05]),
-      // still kΩ: the table is SystemLive's, which reads the raw kΩ (PackLiveTest); MΩ waits on the readings
-      pl('1039', 'Изоляция, канал BMC', '43A00018', '14 429', 'кОм', '14 410', '14 450', '≥ 277', [7, 0.08, 0]),
-      pl('1039', 'Изоляция, канал 2', '26200010', '19 675', 'кОм', '19 660', '19 690', '≥ 277', [8, 0.08, 0]),
+      // MΩ, one quantity in one unit (v4, 7.3): the GET's kΩ over 1000, the floor 500 Ω/V of 553 V rounded up
+      pl('1039', 'Изоляция, канал BMC', '43A00018', '14,4', 'МОм', '14,4', '14,5', '≥ 0,28', [7, 0.08, 0]),
+      pl('1039', 'Изоляция, канал 2', '26200010', '19,7', 'МОм', '19,7', '19,7', '≥ 0,28', [8, 0.08, 0]),
       pl('1009', 'Мощность заряда', '32300018', '2,5', 'кВт', '2,5', '2,5', '—', [0, 0, 0]),
       pl('1001', 'Ячеек последовательно', '43A00008', '166', 'шт', '', '', '—', null),
       pl('1039', 'Датчиков температуры', '43A00010', '14', 'шт', '', '', '—', null),
@@ -1512,7 +1512,7 @@
         rec('C12D0-1D', 'ток вне диапазона', null, 0x28), rec('C3200-7B', 'низкий уровень жидкости', null, idcStatus || 0x28)] }] },
     { name: 'Кузов', blocks: [
       { abbr: 'LA_BCM', addr: '720', name: 'Кузовной контроллер левый', since: '18.10', codes: [
-        rec('C1160-06', 'отказ по алгоритму'), rec('U029D-87', 'нет сообщения'), rec('U0121-87', 'нет сообщения', 'нет связи с ABS'),
+        rec('C1160-06', 'отказ по алгоритму'), rec('U029D-87', 'нет сообщения'), rec('U0121-87', 'нет сообщения', 'неисправность связи с ABS'),
         rec('B2148-02', 'общий отказ сигнала'), rec('B2250-00', 'подтип не указан'), rec('B225B-00', 'подтип не указан'),
         rec('U0229-87', 'нет сообщения'), rec('U022A-87', 'нет сообщения')] },
       { abbr: 'R_ZCU', addr: '747', name: 'Кузов, зона справа', since: '20.10', codes: [
@@ -1560,8 +1560,10 @@
   const scannerCode = {
     top: scanTop(['Сводка', 'U0121-87'], '09:12:40'),
     code: 'U0121-87', block: { abbr: 'LA_BCM', addr: '720', name: 'Кузовной контроллер левый' },
-    sae: { standard: 'SAE J2012', parts: ['U — сеть', '0121 — связь с ABS', '87 — нет сообщения'] },
-    meaning: { title: 'Нет связи с блоком ABS', note: 'ABS в этой машине — ESP/IPB 782' },
+    // the meaning is the catalog's heading of U012100 in the BMS's section: a generic SAE code means the
+    // same in every block (7.3)
+    sae: { standard: 'SAE J2012', parts: ['U — сеть', '0121 — неисправность связи с ABS', '87 — нет сообщения'] },
+    meaning: { title: 'Неисправность связи с ABS', note: 'ABS в этой машине — ESP/IPB 782' },
     status: 0x08, availability: 0x09,
     reads: [{ ask: '19 01 09', answer: '59 01 09 00 00 08' },
       { ask: '19 02 09', answer: '59 02 09 51 60 06 08 C2 9D 87 08 C1 21 87 08 A1 48 02 08 A2 50 00 08 A2 5B 00 08 C2 29 87 08 C2 2A 87 08' }],
@@ -1588,7 +1590,7 @@
     reads: [{ ask: '19 01 09', answer: '59 01 09 00 00 02' }, { ask: '19 02 09', answer: '59 02 09 51 70 09 08 93 0E 01 08' }],
     addressee: null, same: [],
     timeline: { days: DAYS, scans: R_ZCU_READS, seen: R_ZCU_READS },
-    snapshot: { ask: '19 04 51 70 09 01', answer: '59 04 51 70 09 08' },
+    snapshot: { ask: '19 04 51 70 09 FF', answer: '59 04 51 70 09 08' },
     counts: { ask: '19 06 51 70 09 FF', answer: '59 06 51 70 09 08' },
     footer: { buttons: [['‹ Сводка', 'quiet'], ['Блок R_ZCU', 'quiet'], ['Прочитать снова', 'primary']], notes: [['скан 23.10 08:50:31', true]] },
   };
@@ -1653,8 +1655,9 @@
     signals: [
       { name: 'Обороты коленвала', pid: '0C', abbr: 'RPM', unit: 'об/мин', scale: [1000, 2200], decimals: 0, values: engineGraphs[0] },
       { name: 'Положение дросселя', pid: '11', abbr: 'TPS', unit: '%', scale: [0, 20], decimals: 1, values: engineGraphs[1] },
-      { name: 'Давление во впуске', pid: '0B', abbr: 'MAP', unit: 'кПа', scale: [20, 70], norm: [25, 45], decimals: 0, values: engineGraphs[2] },
-      { name: 'Краткоср. коррекция B1', pid: '06', abbr: 'STFT', unit: '%', scale: [-15, 15], norm: [-10, 10], decimals: 1, scaleDecimals: 0, signed: true, values: engineGraphs[3] },
+      // the intake pressure's «ХХ 25…45» is said, not judged, and draws no band (6.2)
+      { name: 'Абс. давление во впуске', pid: '0B', abbr: 'MAP', unit: 'кПа', scale: [20, 70], decimals: 0, values: engineGraphs[2] },
+      { name: 'Краткосрочная коррекция B1', pid: '06', abbr: 'STFT', unit: '%', scale: [-15, 15], norm: [-10, 10], decimals: 1, scaleDecimals: 0, signed: true, values: engineGraphs[3] },
     ],
     window: 60, cursor: 37.7,
     footer: { buttons: [['Пауза', 'primary'], ['Метка', 'quiet'], ['Запись', 'quiet', 'rec'], ['Сигналы · 4', 'quiet']],
@@ -1703,9 +1706,10 @@
       { name: 'Сырые ответы', detail: '148 обменов', on: true }, { name: 'Запись потока', detail: '00:42 · 4 сигнала', on: false }],
     dest: { path: 'Download/Denza/scan-20261020-1931.pdf · .json', note: 'PDF — для людей · JSON — сырые ответы', size: '2 файла · 0,3 МБ' },
     paper: {
-      by: 'Denza Apps · сканер', car: 'Denza Z9 GT DM · VIN — · пробег 13 199,7 км', when: '20.10.2026 19:31 · P · 12 В 13,7 В',
+      // the sheet's own words, as ReportDocuments puts them (7.4)
+      by: 'Denza Apps · сканер', car: 'Denza Z9 GT DM · VIN — · пробег 13 199,7 км', when: 'скан 20.10.2026 19:31 · стоянка P · 12 В 13,7 В · только чтение',
       sections: [
-        { head: 'ИТОГ', lines: ['68 из 68 блоков ответили · активных 0 · в истории 18 записей в 6 блоках'] },
+        { head: 'ИТОГ', lines: ['68 из 68 блоков ответили · активных 0 · ожидающих 0 · в истории 18 записей · блоков с записями 6'] },
         { head: 'КОДЫ', codes: [recordsOf()[1].blocks[0], recordsOf()[1].blocks[1], recordsOf()[0].blocks[0], ...recordsOf()[2].blocks] },
         { head: 'ТЯГОВАЯ БАТАРЕЯ', lines: ['SOH 99 % · разброс ячеек 4 мВ (SOC 74 %) · изоляция 14,4 / 19,7 МОм · датчики 13…18 °C'] },
         { head: 'ДВИГАТЕЛЬ', lines: ['MIL выкл · готовность 4 из 9 · ПО 4.00.10 · калибровка Z31L07AB01'] },

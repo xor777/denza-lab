@@ -42,12 +42,23 @@ internal class ScanClock(val zone: ZoneId) {
     private val minutes = DateTimeFormatter.ofPattern("HH:mm")
     private val seconds = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val dated = DateTimeFormatter.ofPattern("dd.MM HH:mm")
+    private val datedSeconds = DateTimeFormatter.ofPattern("dd.MM HH:mm:ss")
+    private val date = DateTimeFormatter.ofPattern("dd.MM")
 
     /** The day [millis] falls on, here: what the code history dates a change by (5.5). */
     fun day(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
 
     /** «16:31:07». */
     fun seconds(millis: Long): String = seconds.format(Instant.ofEpochMilli(millis).atZone(zone))
+
+    /** «20.10». */
+    fun date(millis: Long): String = date.format(Instant.ofEpochMilli(millis).atZone(zone))
+
+    /** «20.10 19:31», whatever the day: a scan in the journal's and the summary's words. */
+    fun dated(millis: Long): String = dated.format(Instant.ofEpochMilli(millis).atZone(zone))
+
+    /** «23.10 09:12:40». */
+    fun datedSeconds(millis: Long): String = datedSeconds.format(Instant.ofEpochMilli(millis).atZone(zone))
 
     /** «16:31» the same day, «18.10 16:31» before it. */
     fun minutes(millis: Long, nowMillis: Long): String {
@@ -66,4 +77,21 @@ internal class ScanClock(val zone: ZoneId) {
             else -> "${m / (24 * 60)} дн."
         }
     }
+}
+
+/** Russian counts, as the boards print them: 1 запись, 2 записи, 5 записей. */
+internal object Words {
+    fun plural(n: Int, one: String, few: String, many: String): String {
+        val tens = Math.floorMod(n, 100)
+        val last = Math.floorMod(n, 10)
+        return when {
+            tens in 11..14 -> many
+            last == 1 -> one
+            last in 2..4 -> few
+            else -> many
+        }
+    }
+
+    /** «18 записей». */
+    fun count(n: Int, one: String, few: String, many: String): String = "$n ${plural(n, one, few, many)}"
 }

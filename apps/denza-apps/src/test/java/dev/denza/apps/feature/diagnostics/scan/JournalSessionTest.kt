@@ -60,7 +60,8 @@ class JournalSessionTest {
         val scan = journal.latest!!
         assertEquals(JournalScanKind.FULL, scan.kind)
         assertEquals(68, scan.modules.size)
-        assertEquals(148, scan.exchanges)
+        // The scan of 2026-10-20 with the reads of 2026-10-23: the VIN at VCU and ECM, mask 0D where it is asked.
+        assertEquals(155, scan.exchanges)
         assertEquals(13_199.7, scan.odometerKm!!, 0.0)
         assertEquals(13.7, scan.vitals.lvVolts!!, 0.0)
         assertEquals(14.4, scan.vitals.insulationMohm!!, 1e-9)
@@ -104,57 +105,87 @@ class JournalSessionTest {
         s.stop()
     }
 
+    /** A pack of six cells and six probes: `43A` says so, two pages of cells and one of probes. */
+    private fun FakeDiagnosticBus.counts(atMs: Long) = page(BmsPage.COUNTS, "06064C38041B0028", atMs * 1_000_000L)
+
+    private fun FakeDiagnosticBus.cells(page: Int, atMs: Long) =
+        page(BmsPage.CELLS, if (page == 0) "00EE0CEF0CEE0C47" else "01E80CF10CEE0C47", atMs * 1_000_000L)
+
+    private fun FakeDiagnosticBus.probes(atMs: Long) = page(BmsPage.PROBES, "0036373839363700".let { p ->
+        val body = p.chunked(2).take(7).map { it.toInt(16) }
+        p.take(14) + "%02X".format((255 - body.sum()).mod(256))
+    }, atMs * 1_000_000L)
+
+    /** Pages 0 and 1 and the probes: a whole sweep, which ends when page 0 comes again. */
     private fun FakeDiagnosticBus.sweep(atMs: Long) {
-        val ns = atMs * 1_000_000L
-        page(BmsPage.COUNTS, "A60ECC38041B0028", ns)
-        page(BmsPage.CELLS, "00EE0CEF0CEE0C47", ns)
-        page(BmsPage.CELLS, "01E80CF10CEE0C47", ns + 100_000_000L)
-        page(BmsPage.PROBES, "0036373839363700".let { p ->
-            val body = p.chunked(2).take(7).map { it.toInt(16) }
-            p.take(14) + "%02X".format((255 - body.sum()).mod(256))
-        }, ns)
+        cells(0, atMs)
+        probes(atMs)
+        cells(1, atMs + 100)
     }
 
     @Test
-    fun theCellsAreSavedOnlyAsAWholeSweepAndOnlyWhenAsked() = runTest {
+    fun theFirstWholeSweepOfAnOpeningIsTheSnapshotAndRefreshTakesAnother() = runTest {
         val bus = carNow()
         val journal = MemoryJournalStore()
         val s = session(bus, journal)
         s.start()
         runCurrent()
-        // Not shown: nothing to save.
-        s.saveCells()
+        // Not shown: nothing is listened to, and «Обновить» does nothing.
+        s.refreshCells()
         runCurrent()
         assertTrue(s.journal.value.cells.isEmpty())
 
         s.setCellsVisible(true)
         runCurrent()
-        bus.sweep(atMs = testScheduler.currentTime)
+        val t = testScheduler.currentTime
+        bus.counts(t)
+        // Joined mid-sweep: page 1, then page 0 ends a sweep that holds half the cells - no snapshot.
+        bus.cells(1, t)
+        bus.sweep(t + 200)
         runCurrent()
-        // The first sweep is still filling: half a sweep is not a snapshot.
-        s.saveCells()
-        runCurrent()
-        assertTrue(s.journal.value.cells.isEmpty())
+        assertTrue("half a sweep is not a snapshot", s.journal.value.cells.isEmpty())
 
-        // The page numbers go back: the sweep ended and is drawn.
-        bus.page(BmsPage.CELLS, "00EE0CEF0CEE0C47", (testScheduler.currentTime + 200) * 1_000_000L)
-        runCurrent()
-        advanceTimeBy(1_000)
-        runCurrent()
-        s.saveCells()
+        // Page 0 again: the sweep 0, 1 ended whole and is drawn - the opening's snapshot, by itself.
+        bus.cells(0, t + 500)
         runCurrent()
         val snap = s.journal.value.cells.single()
         assertEquals(journal.data.cells, listOf(snap))
-        assertEquals(listOf(3310, 3311, 3310, 3304, 3313, 3310), snap.cellsMv.take(6))
-        assertEquals(166, snap.cellsMv.size)
+        assertEquals(listOf(3310, 3311, 3310, 3304, 3313, 3310), snap.cellsMv)
         assertEquals(4, snap.minCell)
         assertEquals(5, snap.maxCell)
         assertEquals(9, snap.spreadMv)
-        assertEquals(listOf(14, 15, 16, 17, 14, 15), snap.probesC.take(6))
+        assertEquals(listOf(14, 15, 16, 17, 14, 15), snap.probesC)
         assertEquals(74.0, snap.soc!!, 0.0)
         assertFalse(snap.fullCharge)
         assertEquals(1, snap.minProbe)
-        // Saving is no scan.
+
+        // More sweeps of the same opening: no second snapshot.
+        bus.sweep(t + 600)
+        bus.cells(0, t + 900)
+        runCurrent()
+        assertEquals(1, s.journal.value.cells.size)
+
+        // «Обновить»: the cells start over, and their first whole sweep is one more.
+        s.refreshCells()
+        runCurrent()
+        bus.counts(t + 1_000)
+        bus.sweep(t + 1_000)
+        bus.cells(0, t + 1_300)
+        runCurrent()
+        assertEquals(2, s.journal.value.cells.size)
+
+        // Left and opened again: one more.
+        s.setCellsVisible(false)
+        s.setCellsVisible(true)
+        runCurrent()
+        bus.counts(t + 2_000)
+        bus.sweep(t + 2_000)
+        bus.cells(0, t + 2_300)
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(3, s.journal.value.cells.size)
+        // A snapshot is no scan.
         assertEquals(1, s.journal.value.scans.size)
         s.stop()
     }

@@ -67,6 +67,15 @@ internal class SessionSnapshot(
     val codeReads: Map<Int, Map<String, CodeReadsData>> = emptyMap(),
     /** An opened OBD block's freeze frame and tests (6). */
     val obdReads: Map<Int, Pair<FreezeFrameData, ObdTestsData>> = emptyMap(),
+    /** The scan journal as loaded and added to (6.4). */
+    val journal: JournalData = JournalData(),
+    /** «Журнал» is shown ([DiagnosticsActions.setJournalVisible]); the scans [DiagnosticsActions.compareScans] named, null the default. */
+    val journalVisible: Boolean = false,
+    val compare: Pair<Long?, Long?>? = null,
+    /** The code whose screen is open ([DiagnosticsActions.openCode]): its block and its code as [DtcRow.code] prints it. */
+    val openCode: Pair<Int, String>? = null,
+    /** «Графики» while [DiagnosticsActions.setGraphs] holds them (7.3). */
+    val graphs: GraphsSnapshot? = null,
 )
 
 /**
@@ -104,7 +113,49 @@ internal class ModelBuilder(
             param = s.param,
             packCells = s.packCells,
         )
-        return model.copy(report = report(model, s))
+        val v4 = V4Inputs(s, modules, catalog(), clock)
+        val built = graphs(
+            model.copy(
+                header = SummaryBuilder.header(v4, model.header),
+                railLines = SummaryBuilder.rail(v4),
+                summary = SummaryBuilder.summary(v4),
+                blocks = SummaryBuilder.blocks(v4),
+                code = s.openCode?.let { (request, code) -> CodeBuilder.code(v4, request, code) },
+                health = HealthBuilder.view(v4),
+                journal = if (s.journalVisible) JournalViewBuilder.view(s.journal, s.software, clock, s.compare) else null,
+            ),
+            s,
+        )
+        return built.copy(report = report(built, s))
+    }
+
+    /** «Графики» into the stream or the system's table they follow (7.3). */
+    private fun graphs(model: DiagnosticsModel, s: SessionSnapshot): DiagnosticsModel {
+        val g = s.graphs ?: return model
+        return when (val scope = g.scope) {
+            is GraphScope.Block -> {
+                val module = model.modules[scope.request] ?: return model
+                val obd = module.obd ?: return model
+                val stream = s.streams[scope.request]
+                val pids = g.keys.mapNotNull { (it as? ParamKey.Pid)?.pid }
+                val packed = stream?.packs?.any { it.containsAll(pids) } == true
+                val line = listOfNotNull(
+                    "${pids.size} PID" + if (packed && pids.size > 1) " одним запросом" else "",
+                    stream?.hz()?.let { "${Figures.number(it, 1)} Гц" },
+                ).joinToString(" · ")
+                val live = obd.live.copy(graphs = GraphsBuilder.view(g, obd.live.rows, line, s.car))
+                model.copy(modules = model.modules + (scope.request to module.copy(obd = obd.copy(live = live))))
+            }
+            is GraphScope.System -> {
+                val table = model.systems.live[scope.system] ?: return model
+                val line = listOfNotNull(
+                    Words.count(g.keys.size, "сигнал", "сигнала", "сигналов"),
+                    table.round,
+                ).joinToString(" · ")
+                val shown = table.copy(graphs = GraphsBuilder.view(g, table.rows, line, s.car))
+                model.copy(systems = model.systems.copy(live = model.systems.live + (scope.system to shown)))
+            }
+        }
     }
 
     /** «Отчёт» (7.4): its input from the model, the scan's replies and the car, once there is a scan to report. */
@@ -119,8 +170,8 @@ internal class ModelBuilder(
             nowMillis = s.nowMillis,
             zone = clock.zone,
             recording = s.reportRecording,
-            journal = s.reportJournal,
-            reads = s.reportReads,
+            journal = s.reportJournal ?: ReportFeeds.journal(s.journal, clock),
+            reads = s.reportReads ?: ReportFeeds.reads(model),
         )
         return ReportState(input, ReportInputs.options(input), s.report)
     }

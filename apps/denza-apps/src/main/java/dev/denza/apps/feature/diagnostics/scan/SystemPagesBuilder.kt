@@ -399,7 +399,7 @@ internal object SystemPagesBuilder {
             current = unit(car.extra(DiagnosticExtra.CHARGE_CURRENT), 1, "А"),
             insulation = insulation,
             // 500 Ω per volt of the pack, the floor of SystemsBuilder's pack rows.
-            isoNorm = "норма ≥ 500 Ом/В" + (volts?.let { " · ${Figures.number(it * 0.5, 0)} кОм" } ?: ""),
+            isoNorm = "норма ≥ 500 Ом/В" + (Insulation.floorMohm(volts)?.let { " · ${Figures.number(it, 2)} ${Insulation.UNIT}" } ?: ""),
             ranges = listOf(
                 RangeView(
                     head = "ЯЧЕЙКИ, мВ", value = range(cellMin, cellMax), scale = 3000f..3700f, span = span(cellMin, cellMax),
