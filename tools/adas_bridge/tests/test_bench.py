@@ -63,7 +63,8 @@ def trace(side, route, *, positions, statuses, extra=()):
 
 class FeedTest(unittest.TestCase):
     def test_position_decodes_by_stock_field_names_and_negative_int32(self):
-        data = encode_struct({'latitude': 40.0, 'longitude': 116.4, 'curSDRouteID': 100002, 'curStepId': -1,
+        # POSITION is the stock sdVehicleLocation: field 1 is locationLatitude, field 2 locationLongitude.
+        data = encode_struct({'locationLatitude': 40.0, 'locationLongitude': 116.4, 'curSDRouteID': 100002, 'curStepId': -1,
                               'linkOffset': 55}, POSITION)
         event = decode_event(NAMES['VehicleLocation'], data)
         self.assertEqual(event['name'], 'VehicleLocation')
@@ -113,7 +114,7 @@ class SyntheticYandexTest(unittest.TestCase):
         snapshot = snapshot_from_stock(route, route_id='r', session='s', generation=1)
         self.assertEqual(len(snapshot['points']), 4)  # boundaries deduplicated
         converted = route_convert(snapshot, target_frame='wgs84')
-        segments = converted['candidateNaviToEHPData']['guideGroups'][0]['segments']
+        segments = [s for g in converted['candidateNaviToEHPData']['guideGroups'] for s in g['segments']]
         self.assertEqual(len(segments), 2)
         self.assertEqual(segments[0]['navigationMainAction'], 2)       # stock segment 0 ends with a right turn
         self.assertEqual(segments[-1]['navigationAssitAction'], 36)     # arrival from the way points

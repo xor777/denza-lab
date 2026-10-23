@@ -32,7 +32,7 @@
       "lane signs on highways",
       "never at jams"
     ],
-    "length": "haversine on WGS-84; whole metres per link, largest remainder, summing exactly to the segment (int navigationLen/groupLen/groupTime)",
+    "length": "haversine on WGS-84; link length cut down to whole metres (as Amap), segment = their sum (int navigationLen/groupLen/groupTime)",
     "points": "separate sequential slices per link with duplicated shared endpoints",
     "progressOffsets": "remaining link and section distances",
     "sectionInstructionPhase": "Yandex BEGIN entry action maps to preceding stock segment END at shared geometry boundary",
@@ -48,7 +48,7 @@
   "candidate": {
     "publicationReady": false,
     "unknowns": "stock NULL values: roadclass/formway/linktype -1, ownership -1, actions 0; laneNum/direction/adminCode 0; never JSON null",
-    "profileFacts": "factory Beijing profile: MainAction on the manoeuvre link; highway link without light: class 0 (>=90 km/h) or 6, formway 1, direction 1, ownership 0, lane sign width; roundabout formway 4 direction 1; curLinkSpeed = section free-flow speed",
+    "profileFacts": "link MainAction 0 and linktype 0 unless tunnel/ferry (stock route payloads); factory Beijing profile: highway link without light: class 0 (>=90 km/h) or 6, formway 1, direction 1, ownership 0, lane sign width; roundabout formway 4 direction 1; curLinkSpeed = section free-flow speed",
     "speedLimit": "0 on links (stock); TrafficInfo.SpdLmtSpeedValue = Yandex posted limit (onCurrentRoadSpeed)",
     "actions": "FORK/EXIT -> SlightLeft/Right 3/4; BOARD/LEAVE_FERRY -> assistant 19/20; WAYPOINT -> 0/35; arrival 0/36"
   },

@@ -34,7 +34,7 @@ EXTRAS = RANGES + ("laneSigns", "trafficLights", "jamSegments", "events",
 # Yandex Action -> Amap MainAction for actions whose assistant action is NULL (stock.actions has all).
 MAIN_ACTION = {k: v[0] for k, v in stock._ACTIONS.items() if v[1] == 0}
 # Attributes Yandex does not give, sent as the stock's own values for "unknown".
-STOCK_UNKNOWN_VALUES = {"roadclass": -1, "formway": -1, "linktype": "-1 except tunnel 2 / ferry 1",
+STOCK_UNKNOWN_VALUES = {"roadclass": -1, "formway": -1, "linktype": "0 (common) except tunnel 2 / ferry 1",
                         "ownership": -1, "laneNum": 0, "direction": 0, "adminCode": 0, "mainAction": 0,
                         "assistantAction": 0, "hasMultiOut": False, "hasParallel": False, "hasMixFork": False,
                         "speedLimit": 0, "viaRoadInfo": []}

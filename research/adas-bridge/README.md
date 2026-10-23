@@ -439,14 +439,17 @@ module hosts it; the owner's rule is mirrored code, never our own semantics.
 | `f0` senders, `e0.k/l`, `f.h` | `StockMessages` + `Pb`: every message as the generated protobuf-lite classes write it (uint32 as 32 unsigned bits, set sub-messages always present) |
 | `DriveRouteManager`, `k.i` | `StockFeed`: route + selection when the focus path changes and DNP service and switch are on; a foreign or failed MMTPathSelected resends with RouteType 14; DNP switched on resends 300 ms later; no ACK timeout (the stock has none) |
 | `MmtSomeIpDataManager`, `f0.t`, `f` | `StockFeed`: location at most once a second (`c.d()`), region then position, TrafficInfo, tunnel, light; the 1 s stationary loop; NaviInfo bundle (tidal lane, action and camera, speed/intersection) once a second; NavigationStatus every second (101 navigating, 110 three times only after arrival, else the map state); resets on start, stop and yaw; nothing dynamic while ADAS sleeps; noODDRegionDist MAX |
-| Amap PathInfo | `RouteConverter`: one segment per Yandex section, links cut at lights (a light ends its link), limit changes, tunnel, ferry and highway boundaries, never at jams; whole-metre lengths summing to the segment; grid 1/3 600 000; link id = SHA-256 of the link's own grid points |
+| Amap PathInfo | `RouteConverter`: one segment per Yandex section; links cut at lights (a light ends its link), lane, direction and restriction signs (junctions), limit changes, tunnel, ferry and highway boundaries, never at jams; link length cut down to whole metres and the segment their sum (as Amap: stock `len` = haversine − 0.47 m median over 1 177 factory links); group segments by road name; grid 1/3 600 000; link id = SHA-256 of the link's own grid points |
 | Amap callbacks | `NavigatorDriver`: start/stop/arrive/yaw from Navigator's own state; a fix only when FINE, newer and at most 1 s old; progress never backwards on one path; a finished route is retired |
 
 **Content from Yandex, by field.** Unknowns are the stock's own NULL values
 (`roadclass`, `formway`, `linktype` -1, ownership -1, actions 0), never JSON null.
 Facts taken from the factory Beijing profile
-(`research/stock-map-native/factory-beijing-profile-20261023.json`): the manoeuvre
-link carries the segment's MainAction; a Yandex highway link without a light is
+(`research/stock-map-native/factory-beijing-profile-20261023.json`): ~~the manoeuvre
+link carries the segment's MainAction~~ (overturned by the stock's own route
+payloads on the bench: every segment-end link carries 0, only inner links 8/9/10,
+so link MainAction stays 0); linktype is common (0) unless Yandex lists a tunnel
+or ferry; a Yandex highway link without a light is
 class 0 at a posted 90 km/h or more, else 6, with formway 1, direction 1, ownership
 0 and the junction lane sign's width as LaneNum (one-way carriageway); a roundabout
 section is formway 4, direction 1; curLinkSpeed (`historySpeed`) is the section's
@@ -465,6 +468,20 @@ jams, incidents, lane info (`0x800C`) and 3 km lanes (`0x800E`, sent empty as th
 car did) are not mapped; link granularity is Yandex's (fewer, longer links than
 the factory's); path ids restart per Navigator process; positions come per FINE
 fix, so a tunnel without fixes is silent where Amap would dead-reckon.
+
+**Bench (Beijing factory runs, `captures/adas-bench/`).** `bridge_trace.py synth
+--engine java` runs the real feed (`ReplayTool`) on synthetic Yandex input made
+from each stock route; `compare.py` against the stock map's own fires. Message
+inventory and cadence now match (1 Hz status, position, TrafficInfo, tunnel,
+light, region, NaviInfo bundle, AdvAutoFunInfo; 100 before any route, 101 through
+reroutes, 110 ×3 then 100 and pathId −1 after arrival; one route and selection per
+pathId, the position on the new path one NaviInfo later). What the comparator
+still lists is the input, not the feed: synthetic geometry is Amap's simplified
+shape (segment lengths 0.6–6 % off), Yandex names no junctions (5–14 links where
+the factory has 16–60, so `curLinkId`/`linkOffset` differ), no merge actions
+(9/10), no lane arrays (`0x800C`, `0x8006` not sent), no limits in the synthetic
+input; the stock sends 3 km lanes on 7 of 18 runs (the bridge always, as the car
+logged), and one extra old-path position after arrival.
 
 **Evidence.** `AdasLinkTest` (build.py and Gradle): the car's first-full and resend
 route captures rebuilt to the byte (JSON, NaviDataDetail, native SOME/IP framing);

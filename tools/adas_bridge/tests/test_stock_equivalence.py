@@ -187,7 +187,8 @@ class StockEquivalenceTests(unittest.TestCase):
         states = [(r["state"], r["count"]) for r in report["statusRuns"]]
         self.assertEqual([s for s, _ in states], [100, 101, 110, 100])       # reroute keeps 101
         self.assertEqual(dict(states)[110], 3)
-        self.assertEqual([p["pathId"] for p in report["positionPaths"]], [100002.0, -1.0])
+        # The stock guides a new path from the next NaviInfo: the first fix still carries -1.
+        self.assertEqual([p["pathId"] for p in report["positionPaths"]], [-1.0, 100002.0, -1.0])
         self.assertGreater(report["interleave"]["secondsBoth101And100"], 50)
         # A mutated trace is caught: the recorder's decoded no longer matches the bytes.
         records = trace_check.read_trace(trace)

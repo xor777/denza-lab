@@ -37,9 +37,14 @@ def fixture():
             "tunnels": [{"position": {"begin": pos(0, .5), "end": pos(1, .5)}}],
             "tollRoads": [], "hdSections": None, "standingSegments": [],
             "trafficLights": [{"position": pos(1, .25), "id": "light-1"}],
-            "laneSigns": [{"position": pos(1), "lanes": [{}, {}, {}]}],
+            "laneSigns": [],
             "events": [], "jamSegments": [], "directionSigns": [], "zlevels": [],
             "speedBumps": [], "railwayCrossings": [], "pedestrianCrossings": []}
+
+
+def segments_of(data):
+    """Every segment in order, across the guide groups (one group per named road)."""
+    return [s for g in data["guideGroups"] for s in g["segments"]]
 
 
 def sample(**patch):
@@ -84,7 +89,7 @@ class GeometryTests(unittest.TestCase):
         links = converted["intermediate"]["links"]
         self.assertTrue(links[1]["hasTrafficLight"])
         self.assertFalse(links[2]["hasTrafficLight"])
-        segments = converted["candidateNaviToEHPData"]["guideGroups"][0]["segments"]
+        segments = segments_of(converted["candidateNaviToEHPData"])
         self.assertEqual(segments[0]["trafficLightNum"], 1)
         self.assertEqual(segments[1]["trafficLightNum"], 0)
 
@@ -100,8 +105,8 @@ class GeometryTests(unittest.TestCase):
         for link in flagged:
             end = link["distanceFromStartM"] + link["lengthM"]
             self.assertLessEqual(min(abs(end - d) for d in light_m), 1.0)
-        group = converted["candidateNaviToEHPData"]["guideGroups"][0]
-        self.assertEqual(group["groupTrafficLightsCount"], sum(s["trafficLightNum"] for s in group["segments"]))
+        for group in converted["candidateNaviToEHPData"]["guideGroups"]:
+            self.assertEqual(group["groupTrafficLightsCount"], sum(s["trafficLightNum"] for s in group["segments"]))
         self.assertEqual(len(converted["candidateNaviToEHPData"]["trafficLights"]), 3)
 
     def test_unknown_attributes_carry_stock_null_values_never_json_null(self):
@@ -112,13 +117,44 @@ class GeometryTests(unittest.TestCase):
             self.assertEqual((link["roadclass"], link["formway"], link["ownership"], link["laneNum"],
                               link["direction"], link["speedLimit"]), (-1, -1, -1, 0, 0, 0))
         types = [l["linktype"] for l in converted["candidateNaviToEHPData"]["links"]]
-        self.assertEqual(types, [-1, 2, 2, -1, -1])
+        self.assertEqual(types, [0, 2, 2, 0, 0])            # LinkTypeCommon unless Yandex lists a tunnel/ferry
         self.assertFalse(converted["publicationReady"])
 
-    def test_manoeuvre_action_sits_on_the_link_ending_at_it(self):
-        """Factory profile: the last link of a segment carries its MainAction, the others 0."""
+    def test_link_main_action_stays_null(self):
+        """Factory bench: every stock segment-end link carries 0; inner continue/merge actions are unknown."""
         links = route_convert(fixture(), target_frame="wgs84")["candidateNaviToEHPData"]["links"]
-        self.assertEqual([l["mainAction"] for l in links], [0, 2, 0, 0, 0])
+        self.assertEqual([l["mainAction"] for l in links], [0, 0, 0, 0, 0])
+
+    def test_guide_groups_follow_the_road_names(self):
+        """l.q(): runs of equal section toponyms are groups; no name at all is the single l.r() group."""
+        source = fixture()
+        source["sections"].append(copy.deepcopy(source["sections"][1]))
+        source["sections"][1]["geometry"]["end"] = pos(2, .5)
+        source["sections"][2]["geometry"]["begin"] = pos(2, .5)
+        source["sections"][2]["metadata"]["annotation"]["action"] = "LEFT"
+        data = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]
+        self.assertEqual([(g["groupName"], len(g["segments"])) for g in data["guideGroups"]], [("A", 1), ("B", 2)])
+        self.assertEqual(data["guideGroups"][1]["segments"][0]["linkBegIdx"], 2)
+        unnamed = fixture()
+        unnamed["sections"][0]["metadata"]["annotation"]["toponym"] = None
+        groups = route_convert(unnamed, target_frame="wgs84")["candidateNaviToEHPData"]["guideGroups"]
+        self.assertEqual([g["groupName"] for g in groups], ["无名道路", "B"])
+        for s in source["sections"]:
+            s["metadata"]["annotation"]["toponym"] = None
+        groups = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["guideGroups"]
+        self.assertEqual([(g["groupName"], len(g["segments"])) for g in groups], [("无名道路", 3)])
+
+    def test_junction_signs_cut_links(self):
+        """Every lane sign, direction sign, restricted turn and entry is a junction: a link boundary."""
+        source = fixture()
+        source["laneSigns"] = [{"position": pos(0, .25), "lanes": [{}, {}]}]
+        source["directionSigns"] = [{"position": pos(2, .5), "direction": "STRAIGHT_AHEAD", "items": []}]
+        source["restrictedTurns"] = [{"position": pos(1, .75)}]
+        ends = [l["sourceEnd"] for l in route_convert(source, target_frame="wgs84")["intermediate"]["links"]]
+        for cut in (.25, 1.75, 2.5):
+            self.assertIn(cut, ends)
+        lanes = [l["laneNum"] for l in route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]]
+        self.assertEqual(set(lanes), {0})               # off a highway no lane count is stated
 
     def test_highway_links_take_the_factory_controlled_access_attributes(self):
         """Factory profile: a highway link without a light is class 0 at >= 90 km/h else 6, formway 1,
@@ -126,12 +162,14 @@ class GeometryTests(unittest.TestCase):
         source = fixture()
         source["highways"] = [{"position": {"begin": pos(0), "end": pos(2, 1)}}]
         links = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
-        # The fixture's lane sign at edge 1 lies on the highway: it cuts there and gives its width.
-        self.assertEqual([l["roadclass"] for l in links], [6, 6, -1, 6, 6, -1])
-        self.assertEqual([l["formway"] for l in links], [1, 1, -1, 1, 1, 1])
-        self.assertEqual([l["direction"] for l in links], [1, 1, 0, 1, 1, 1])
-        self.assertEqual([l["ownership"] for l in links], [0, 0, -1, 0, 0, 0])
-        self.assertEqual([l["laneNum"] for l in links], [0, 3, 0, 0, 0, 0])
+        self.assertEqual([l["roadclass"] for l in links], [6, -1, 6, 6, -1])
+        self.assertEqual([l["formway"] for l in links], [1, -1, 1, 1, 1])
+        self.assertEqual([l["direction"] for l in links], [1, 0, 1, 1, 1])
+        self.assertEqual([l["ownership"] for l in links], [0, -1, 0, 0, 0])
+        signed = copy.deepcopy(source)
+        signed["laneSigns"] = [{"position": pos(1), "lanes": [{}, {}, {}]}]
+        lanes = [l["laneNum"] for l in route_convert(signed, target_frame="wgs84")["candidateNaviToEHPData"]["links"]]
+        self.assertEqual(lanes, [0, 3, 0, 0, 0, 0])     # the sign cuts at edge 1 and gives its width
         fast = copy.deepcopy(source)
         fast["speedLimits"] = [25, 25, 25]
         self.assertEqual(route_convert(fast, target_frame="wgs84")["candidateNaviToEHPData"]["links"][0]["roadclass"], 0)
@@ -140,14 +178,15 @@ class GeometryTests(unittest.TestCase):
         source = fixture()
         source["highways"] = [{"position": {"begin": pos(1, .5), "end": pos(2, 1)}}]
         source["laneSigns"] = [{"position": pos(2, .5), "lanes": [{}, {}, {}]},
-                               {"position": pos(0, .25), "lanes": [{}, {}]}]   # off the highway: no cut
+                               {"position": pos(0, .25), "lanes": [{}, {}]}]   # off the highway: a cut, no count
         converted = route_convert(source, target_frame="wgs84")
         ends = [l["sourceEnd"] for l in converted["intermediate"]["links"]]
         self.assertIn(2.5, ends)
-        self.assertNotIn(0.25, ends)
+        self.assertIn(0.25, ends)
         links = converted["candidateNaviToEHPData"]["links"]
         self.assertEqual(links[ends.index(2.5)]["laneNum"], 3)
         self.assertEqual(links[ends.index(2.5) + 1]["laneNum"], 0)
+        self.assertEqual(links[ends.index(0.25)]["laneNum"], 0)
 
     def test_roundabout_section_is_formway_4_one_way(self):
         source = fixture()
@@ -170,13 +209,16 @@ class GeometryTests(unittest.TestCase):
         self.assertAlmostEqual(converted["segmentFreeFlowKmh"][0], 36.0)
 
     def test_lengths_are_whole_metres_summing_to_the_segment(self):
-        """F3: navigationLen/groupLen/groupTime are JSON integers; sum(link len) == navigationLen."""
+        """F3: navigationLen/groupLen/groupTime are JSON integers; sum(link len) == navigationLen; each
+        link is its exact length cut down to whole metres (the stock: haversine - 0.47 m median)."""
         converted = route_convert(fixture(), target_frame="wgs84")
         data = converted["candidateNaviToEHPData"]
-        group = data["guideGroups"][0]
-        for key in ("groupLen", "groupTime", "groupTrafficLightsCount"):
-            self.assertIs(type(group[key]), int)
-        for segment in group["segments"]:
+        for group in data["guideGroups"]:
+            for key in ("groupLen", "groupTime", "groupTrafficLightsCount"):
+                self.assertIs(type(group[key]), int)
+        for link in converted["intermediate"]["links"]:
+            self.assertEqual(link["wholeMetres"], int(link["lengthM"] // 1))
+        for segment in segments_of(data):
             self.assertIs(type(segment["navigationLen"]), int)
             lens = [l["len"] for l in data["links"][segment["linkBegIdx"]:segment["linkBegIdx"]+segment["crntSegmLinkCnt"]]]
             self.assertTrue(all(float(v).is_integer() for v in lens))
@@ -209,11 +251,11 @@ class GeometryTests(unittest.TestCase):
         source = fixture()
         source["availability"] = {"tunnels": "unknown"}
         types = [l["linktype"] for l in route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]]
-        self.assertEqual(set(types), {-1})
+        self.assertEqual(set(types), {0})
 
     def test_actual_route_action_enum_separate_from_hud(self):
         converted = route_convert(fixture(), target_frame="wgs84")
-        segments = converted["candidateNaviToEHPData"]["guideGroups"][0]["segments"]
+        segments = segments_of(converted["candidateNaviToEHPData"])
         self.assertEqual(segments[0]["navigationMainAction"], 2)
         self.assertEqual((segments[1]["navigationMainAction"], segments[1]["navigationAssitAction"]), (0, 36))
         self.assertTrue(segments[1]["isArriveWayPoint"])
@@ -224,11 +266,11 @@ class GeometryTests(unittest.TestCase):
         source["sections"][1]["metadata"]["annotation"]["action"] = "SOMETHING_NEW"
         result = route_convert(source, target_frame="wgs84")
         self.assertIn("unmapped_route_actions:SOMETHING_NEW", result["exportBlockers"])
-        self.assertEqual(result["candidateNaviToEHPData"]["guideGroups"][0]["segments"][0]["navigationMainAction"], 0)
+        self.assertEqual(segments_of(result["candidateNaviToEHPData"])[0]["navigationMainAction"], 0)
 
     def test_description_is_the_stock_text(self):
         converted = route_convert(fixture(), target_frame="wgs84")
-        segments = converted["candidateNaviToEHPData"]["guideGroups"][0]["segments"]
+        segments = segments_of(converted["candidateNaviToEHPData"])
         self.assertTrue(segments[0]["description"].startswith("travel "))
         self.assertTrue(segments[0]["description"].endswith("Turn right get into B"))
         self.assertEqual(segments[0]["navigationNextRoadName"], "B")
@@ -488,7 +530,7 @@ class WireTests(unittest.TestCase):
         long_name = fixture()
         long_name["sections"][1]["metadata"]["annotation"]["toponym"] = "Ж" * 200000
         oversize = make_bench(route_convert(long_name, target_frame="wgs84"), golden, time_ms=10000)
-        self.assertEqual(len(oversize["binders"]), 2)
+        self.assertGreaterEqual(len(oversize["binders"]), 2)     # the name rides in the group, links and texts
         self.assertEqual(oversize["receiver"].route["candidateNaviToEHPData"]["linkCnt"], 5)
 
     @unittest.skipUnless(GOLDEN.exists(), "untracked local stock golden unavailable")

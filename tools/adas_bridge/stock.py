@@ -359,16 +359,23 @@ def route_from_snapshot(s):
             if sign.get("position") is None or not isinstance(lanes, list) or not lanes:
                 continue
             lane_signs.append((_position(sign["position"], edges), len(lanes)))
+    junctions = []
+    for key in ("directionSigns", "restrictedTurns", "restrictedEntries"):
+        if not _known(s, key):
+            continue
+        for row in s[key]:
+            if isinstance(row, dict) and row.get("position") is not None:
+                junctions.append(_position(row["position"], edges))
     return {"routeId": route_id, "lon": lon, "lat": lat, "sections": sections, "speedLimits": limits,
             "trafficLights": lights, "tunnels": ranges("tunnels"), "ferries": ranges("ferries"),
-            "highways": ranges("highways"), "laneSigns": lane_signs, "wayPoints": waypoints, "cameras": cameras}
+            "highways": ranges("highways"), "laneSigns": lane_signs, "junctions": junctions or None, "wayPoints": waypoints, "cameras": cameras}
 
 
 # ---------------------------------------------------------------- converter (RouteConverter.java)
 
 MIN_LINK_M = 1.0
 ROAD_CLASS_NULL = FORMWAY_NULL = LINK_TYPE_NULL = OWNERSHIP_UNKNOWN = -1
-LINK_TYPE_FERRY, LINK_TYPE_TUNNEL = 1, 2
+LINK_TYPE_COMMON, LINK_TYPE_FERRY, LINK_TYPE_TUNNEL = 0, 1, 2
 
 _ACTIONS = {"STRAIGHT": (8, 0), "LEFT": (1, 0), "RIGHT": (2, 0),
             "SLIGHT_LEFT": (3, 0), "FORK_LEFT": (3, 0), "EXIT_LEFT": (3, 0),
@@ -473,10 +480,12 @@ def convert(route, frame):
     for ranges in (route["tunnels"], route["ferries"], route.get("highways")):
         for r in ranges or ():
             candidates += [(s, 0) for s in r if 0 < s < edges]
-    # A lane sign on a highway ends its link, so the approach carries the sign's lane count.
+    # Junctions Yandex marks: every lane sign (kept like a light), direction signs, restricted turns
+    # and entries; Amap's links run junction to junction.
     for sign in route.get("laneSigns") or ():
-        if 0 < sign[0] < edges and _inside(route.get("highways"), sign[0] - 1e-9):
+        if 0 < sign[0] < edges:
             candidates.append((sign[0], 1))
+    candidates += [(s, 0) for s in route.get("junctions") or () if 0 < s < edges]
     candidates.sort(key=lambda c: (c[0], -c[1]))
 
     segments, link_segment, link_in_segment = [], [], []
@@ -524,6 +533,8 @@ def convert(route, frame):
                 link["linkType"] = LINK_TYPE_TUNNEL
             elif _inside(route["ferries"], middle):
                 link["linkType"] = LINK_TYPE_FERRY
+            else:
+                link["linkType"] = LINK_TYPE_COMMON
             exact.append(metres(cumulative, c) - metres(cumulative, a))
             segment["links"].append(link)
             link_segment.append(si)
@@ -532,7 +543,8 @@ def convert(route, frame):
             link_end.append(metres(cumulative, c))
             link_begin_s.append(a)
             link_end_s.append(c)
-        lengths = whole_metres(exact)
+        # Amap's link length is whole metres cut down; the segment's is their sum.
+        lengths = [int(math.floor(e)) for e in exact]
         for link, length in zip(segment["links"], lengths):
             link["length"] = length
         segment["length"] = sum(lengths)
@@ -560,6 +572,7 @@ def convert(route, frame):
         all_links[owner]["hasTrafficLight"] = True
         segments[link_segment[owner]]["trafficLightNum"] += 1
     _attributes(route, sections, segments, link_begin_s, link_end_s, link_end, cumulative)
+    groups = _groups(sections)
     traffic_lights = []
     for s in lights:
         p = _sdk_at(route, frame, s)
@@ -574,7 +587,7 @@ def convert(route, frame):
                       for c in route["cameras"]
                       if "SPEED_CONTROL" in c["tags"] and math.isfinite(c["speedLimitMps"]) and c["speedLimitMps"] > 0),
                      key=lambda c: c[0])
-    path = {"pathId": 0, "segments": segments, "trafficLights": traffic_lights}
+    path = {"pathId": 0, "segments": segments, "trafficLights": traffic_lights, "groups": groups}
     return {"routeId": route["routeId"], "path": path, "totalM": total, "cumulative": cumulative,
             "linkSegment": link_segment, "linkInSegment": link_in_segment,
             "linkBeginM": link_begin, "linkEndM": link_end, "linkBeginScalar": link_begin_s, "linkEndScalar": link_end_s,
@@ -587,13 +600,10 @@ def convert(route, frame):
 def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative):
     """RouteConverter.attributes: what the factory Beijing profile lets Yandex data state.
 
-    The link ending at a manoeuvre carries the segment's MainAction; a roundabout section is formway 4,
+    Link MainAction stays 0 (factory segment-end links carry 0); a roundabout section is formway 4,
     direction 1; a highway link without a light is RoadClass 0 at a limit >= 90 km/h else 6, formway 1,
     direction 1, ownership 0, lane count from a lane sign ending it. Everything else stays NULL.
     """
-    for segment in segments:
-        if segment["links"]:
-            segment["links"][-1]["mainAction"] = segment["mainAction"]
     edges = len(route["lon"]) - 1
     index = 0
     for si, segment in enumerate(segments):
@@ -614,6 +624,20 @@ def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative):
             index += 1
 
 
+def _groups(sections):
+    """RouteConverter.groups: runs of equal toponyms (None equals None) when any section is named."""
+    if not any(sec["toponym"] for sec in sections):
+        return []
+    out, start = [], 0
+    for i in range(1, len(sections) + 1):
+        a = sections[start]["toponym"]
+        if i < len(sections) and sections[i]["toponym"] == a:
+            continue
+        out.append((start, i - start, a if a else UNNAMED))
+        start = i
+    return out
+
+
 def new_link():
     return {"topoId": 0, "roadClass": ROAD_CLASS_NULL, "roadName": "", "length": 0, "linkType": LINK_TYPE_NULL,
             "formway": FORMWAY_NULL, "hasTrafficLight": False, "laneNum": 0, "hasMultiOut": False,
@@ -629,6 +653,7 @@ def content_key(path):
         for link in s["links"]:
             parts.append(("L", tuple(sorted((k, tuple(v) if isinstance(v, list) else v) for k, v in link.items()))))
     parts.append(("T", tuple(path["trafficLights"])))
+    parts.append(("G", tuple(tuple(g) for g in path.get("groups") or ())))
     return hashlib.sha256(repr(parts).encode()).hexdigest()
 
 
@@ -748,9 +773,15 @@ def navi_to_ehp(path, strings):
     links, pnts, counts = [], [], [0, 0]
     segments = path["segments"]
     groups = []
-    group = _group(path, 0, len(segments), UNNAMED, links, pnts, counts, strings)
-    if segments:
-        groups.append(group)
+    if path.get("groups"):
+        # l.q(): one guide group per Amap group segment.
+        for start, count, name in path["groups"]:
+            groups.append(_group(path, start, count, name, links, pnts, counts, strings))
+    else:
+        # l.r(): no group segments, one group over every segment.
+        group = _group(path, 0, len(segments), UNNAMED, links, pnts, counts, strings)
+        if segments:
+            groups.append(group)
     lights = [{"x": D(x), "y": D(y)} for x, y in path["trafficLights"]]
     return {"guideGroups": groups, "linkCnt": counts[0], "links": links, "pathID": path["pathId"],
             "pntCnt": counts[1], "pnts": pnts, "trafficLights": lights, "viaRoadInfo": []}
