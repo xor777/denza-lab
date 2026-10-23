@@ -77,9 +77,88 @@ internal fun JournalPage(
                 Chronology(view, picking, pick)
                 view.compare?.let { ComparePanel(it, ScannerSpec.Journal.PANEL_X, LocalScanWidth.current - 24f - ScannerSpec.Journal.PANEL_X) }
             }
-            1 -> view.compare?.let { ComparePanel(it, 24f, LocalScanWidth.current - 48f) }
-            else -> Chronology(view.copy(scans = emptyList(), software = emptyList(), cells = emptyList(), quantities = emptyList()), null) {}
+            1 -> view.compare?.let { CompareAcross(it) }
+            else -> Records(view)
         }
+    }
+}
+
+/** «Сравнение» across the page (`journalCompare()`): the two moments, then the codes, the software and the values each on a plate. */
+@Composable
+private fun CompareAcross(m: ScanCompareView) {
+    val j = ScannerSpec.Journal
+    val w = LocalScanWidth.current
+    val width = rememberWidths()
+    val one = "→" !in m.title
+    ScanText(if (one) "СКАН" else "СРАВНЕНИЕ", Type.GROUP_TITLE, Ink.MUTE, Modifier.at(24f, j.COMPARE_TOP))
+    ScanText(m.title, Type.KEY_VALUE, Ink.WHITE, Modifier.at(24f, mid(j.COMPARE_TOP + Type.GROUP_TITLE.lh, j.COMPARE_HEAD, Type.KEY_VALUE)))
+    val pw = (w - 48f - (j.COMPARE_COLS - 1) * j.COMPARE_GAP) / j.COMPARE_COLS
+    val top = j.COMPARE_TOP + Type.GROUP_TITLE.lh + j.COMPARE_HEAD + j.COMPARE_GAP
+    data class Line(val key: String, val value: String, val tag: String? = null)
+    val plates = listOf(
+        "КОДЫ" to m.codes.map { Line(it.key, it.value) },
+        "ПО" to m.software.map { Line(it.key, it.value, "ИЗМ.") }.ifEmpty { listOf(Line("без изменений", "—")) },
+        "ВЕЛИЧИНЫ" to m.quantities.map { Line(it.key, it.value) },
+    )
+    // the plates as tall as the longest: its label and its rows
+    val ph = 2f * j.PANEL_PAD_Y + Type.GROUP_TITLE.lh + 4f + (plates.maxOfOrNull { it.second.size } ?: 0) * (j.PANEL_ROW + 1f + 4f) - 4f
+    plates.forEachIndexed { i, (label, rows) ->
+        val x = 24f + i * (pw + j.COMPARE_GAP)
+        val ix = x + j.PANEL_PAD_X
+        val iw = pw - 2f * j.PANEL_PAD_X
+        Box(Modifier.at(x, top).size(pw.dp, ph.dp).plate(Ink.PLATE, Ink.RULE, j.PANEL_R))
+        var y = top + j.PANEL_PAD_Y
+        ScanText(label, Type.GROUP_TITLE, Ink.MUTE, Modifier.at(ix, y))
+        y += Type.GROUP_TITLE.lh + 4f
+        rows.forEach { r ->
+            ScanText(r.key, Type.UNIT, Ink.INK3, Modifier.at(ix, mid(y, j.PANEL_ROW, Type.UNIT)))
+            ScanText(r.value, Type.NORM_MONO, if (r.value == "—") Ink.FAINT else Ink.TEXT, Modifier.endAt(ix + iw, mid(y, j.PANEL_ROW, Type.NORM_MONO)))
+            r.tag?.let { TagChip(it, ix + iw - width(r.value, Type.NORM_MONO) - 8f, y + j.PANEL_ROW / 2f) }
+            Rule(ix, y + j.PANEL_ROW, iw, Ink.HAIR)
+            y += j.PANEL_ROW + 1f + 4f
+        }
+    }
+}
+
+/**
+ * «Записи» (`journalRecords()`): every block with records on the whole width of the day axis - its sign,
+ * its records, a line from its first read to its last and a dot each read - and how many reads found them.
+ */
+@Composable
+private fun Records(view: JournalView) {
+    val j = ScannerSpec.Journal
+    val w = LocalScanWidth.current
+    val px = j.RECORDS_PLOT_X
+    val pw = w - 24f - j.RECORDS_COUNT_W - px
+    fun x(at: Float) = px + at * pw
+    val sign = ScannerSpec.Sign.R
+    val width = rememberWidths()
+    DayAxis(px, j.RECORDS_AXIS_Y, pw, view.days)
+    ScanText("БЛОК", Type.COL_HEAD, Ink.MUTE, Modifier.at(24f, j.RECORDS_AXIS_Y - 2f))
+    ScanText("ПРОЧТЕНИЙ", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(w - 24f, j.RECORDS_AXIS_Y - 2f))
+    Canvas(Modifier.fillMaxSize()) {
+        val k = density
+        // the days' lines down to the last block's row
+        val gh = j.RECORDS_TOP + view.codes.size * j.RECORDS_STEP - j.RECORDS_GRID_TOP
+        val n = view.days.size.coerceAtLeast(1)
+        for (i in 0..view.days.size) drawRect(ink(Ink.HAIR), Offset((px + i * pw / n) * k, j.RECORDS_GRID_TOP * k), Size(k, gh * k))
+        view.codes.forEachIndexed { i, c ->
+            val cy = j.RECORDS_TOP + i * j.RECORDS_STEP + j.RECORDS_H / 2f
+            if (c.seen.isNotEmpty()) {
+                val a = x(c.seen.first())
+                val b = x(c.seen.last())
+                drawRect(ink(Ink.ORANGE), Offset(a * k, (cy - 1f) * k), Size((b - a) * k, 2f * k), alpha = ScannerSpec.Code.TIME_BAR_ALPHA)
+                c.seen.forEach { drawCircle(ink(Ink.ORANGE), j.DOT / 2f * k, Offset(x(it) * k, cy * k)) }
+            }
+        }
+    }
+    view.codes.forEachIndexed { i, c ->
+        val y = j.RECORDS_TOP + i * j.RECORDS_STEP
+        SignAt(c.mark, 24f + sign, y + j.RECORDS_H / 2f)
+        ScanText(c.block, Type.CELL_ABBR, Ink.INK3, Modifier.at(24f + 2f * sign + 8f, mid(y, j.RECORDS_H, Type.CELL_ABBR)))
+        ScanText("×${c.count}", Type.SIG, Ink.MUTE, Modifier.at(24f + 2f * sign + 16f + width(c.block, Type.CELL_ABBR), mid(y, j.RECORDS_H, Type.SIG)))
+        ScanText(c.seen.size.toString(), Type.NORM_MONO, Ink.TEXT, Modifier.endAt(w - 24f, mid(y, j.RECORDS_H, Type.NORM_MONO)))
+        Rule(24f, y + j.RECORDS_H + (j.RECORDS_STEP - j.RECORDS_H) / 2f, w - 48f, Ink.HAIR)
     }
 }
 

@@ -2109,6 +2109,65 @@
     m.values.forEach(([k, a, b, unit]) => row(k, (a != null ? `${a} → ${b}` : b) + (unit ? ' ' + unit : '')));
   }
 
+  // «Журнал · Сравнение»: the two scans across the page - their moments, then the codes, the software
+  // and the values each on a plate of its own, the panel's rows at the plates' width.
+  function journalCompare(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const J = L.journal, C = J.compare, P = J.panel, m = f.compare;
+      text(c, m.from ? 'СРАВНЕНИЕ' : 'СКАН', 24, C.top, 'groupTitle', 'mute');
+      text(c, m.from ? `${m.from} → ${m.to}` : m.to, 24, mid(C.top + style('groupTitle').lh, C.head, 'keyValue'), 'keyValue', 'white');
+      const pw = (W - 48 - (C.cols - 1) * C.gap) / C.cols, top = C.top + style('groupTitle').lh + C.head + C.gap;
+      const plates = [
+        ['КОДЫ', m.codes.map(([k, v]) => [k, String(v)])],
+        ['ПО', m.software.length ? m.software.map(s => [s.block, `${s.from} → ${s.to}`, 'ИЗМ.']) : [['без изменений', '—']]],
+        ['ВЕЛИЧИНЫ', m.values.map(([k, a, b, unit]) => [k, (a != null ? `${a} → ${b}` : b) + (unit ? ' ' + unit : '')])],
+      ];
+      // the plates as tall as the longest: its label and its rows
+      const ph = 2 * P.padY + style('groupTitle').lh + 4 + Math.max(...plates.map(p => p[1].length)) * (P.row + 1 + 4) - 4;
+      plates.forEach(([label, rows], i) => {
+        const x = 24 + i * (pw + C.gap), ix = x + P.padX, iw = pw - 2 * P.padX;
+        fill(c, x, top, pw, ph, 'plate', P.r); edge(c, x, top, pw, ph, 'rule', P.r);
+        let y = top + P.padY;
+        text(c, label, ix, y, 'groupTitle', 'mute');
+        y += style('groupTitle').lh + 4;
+        rows.forEach(([a, b, tagText]) => {
+          text(c, a, ix, mid(y, P.row, 'unit'), 'unit', 'ink3');
+          const bw = text(c, b, ix + iw, mid(y, P.row, 'normMono'), 'normMono', b === '—' ? 'faint' : 'text', { align: 'right' });
+          if (tagText) tagChip(c, tagText, ix + iw - bw - 8, y + P.row / 2);
+          rule(c, ix, y + P.row, iw, 'hair');
+          y += P.row + 1 + 4;
+        });
+      });
+    });
+  }
+
+  // «Журнал · Записи»: every block with records on the whole width of the day axis - its sign, its
+  // records and how many reads found them, a line from the first read to the last and a dot each read.
+  function journalRecords(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const J = L.journal, R = J.records, px = R.plotX, pw = W - 24 - R.countW - px;
+      const X = dayAxis(c, px, R.axisY, pw, f.days);
+      // the days' lines down to the last block's row
+      const gh = R.top + f.codes.length * R.step - R.gridTop;
+      for (let i = 0; i <= f.days.length; i++) fill(c, px + i * pw / f.days.length, R.gridTop, 1, gh, 'hair');
+      text(c, 'БЛОК', 24, R.axisY - 2, 'colHead', 'mute');
+      text(c, 'ПРОЧТЕНИЙ', W - 24, R.axisY - 2, 'colHead', 'mute', { align: 'right' });
+      f.codes.forEach((k, i) => {
+        const y = R.top + i * R.step, cy = y + R.h / 2;
+        sign(c, k.kind || 'hist', 24 + L.sign.r, cy);
+        const w = text(c, `${k.block} ${k.addr}`, 24 + 2 * L.sign.r + 8, mid(y, R.h, 'cellAbbr'), 'cellAbbr', 'ink3');
+        text(c, '×' + k.count, 24 + 2 * L.sign.r + 16 + w, mid(y, R.h, 'sig'), 'sig', 'mute');
+        const a = X(k.seen[0]), b = X(k.seen[k.seen.length - 1]);
+        c.save(); c.globalAlpha = L.code.timeline.barAlpha; fill(c, a, cy - 1, b - a, 2, 'orange'); c.restore();
+        k.seen.forEach(s => dot(c, X(s), cy, J.dot / 2, 'orange'));
+        text(c, String(k.seen.length), W - 24, mid(y, R.h, 'normMono'), 'normMono', 'text', { align: 'right' });
+        rule(c, 24, y + R.h + (R.step - R.h) / 2, W - 48, 'hair');
+      });
+    });
+  }
+
   /* -------------------------------------------------------------- Отчёт */
   // The report as it will be saved: its first page on the left, what goes in on the right, and where
   // it lands - «Загрузки», a PDF for people and a JSON of the raw answers.
@@ -2189,7 +2248,7 @@
     text(c, p.foot, x, fy + 4, 'paperFoot', 'paperGrey', { max: w });
   }
 
-  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, journalCompare, journalRecords, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
