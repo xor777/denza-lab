@@ -28,6 +28,7 @@ public final class HudModule {
         try {
             Context application = value.getApplicationContext();
             if (Build.VERSION.SDK_INT >= 28 && !application.getPackageName().equals(Application.getProcessName())) return;
+            if (application instanceof Application) AdasOverlay.install((Application) application);
             MAIN.post(() -> {
                 context = application;
                 if (!callbacksRegistered && application instanceof Application) {
@@ -119,6 +120,7 @@ public final class HudModule {
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
                 navigationEvidence.sample(frame, now);
+                AdasOverlay.navigating(frame.drawMap());
                 // Route extraction must not depend on AR eligibility or a manoeuvre being visible.
                 if (frame.active() && frame.route != null) emulator.route(frame.route);
                 String nextOutputKey = frame.mode + (frame.drawMap() ? ":" + api.call(frame.route, "getRouteId") : "");

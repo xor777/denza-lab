@@ -1,10 +1,13 @@
 /*
- * ADAS status overlay - phase 1 mockups (design only, no product code).
+ * ADAS status overlay - the board, normative.
  *
  * The overlay lives inside our Navigator build and is drawn on a Canvas over Navigator's map, so
  * the boards are drawn on a canvas too, in Luminofor's verbs (beam, glowFill, lit words, the wide
  * drawn figures) with Luminofor's colours read from ../luminofor/spec.json. Sizes are the main
- * display's pixels (2560 x 1600, density 2.0).
+ * display's pixels (2560 x 1600, density 2.0). The module's AdasPainter
+ * (experiments/yandex-hud-module, dev.denza.hud.probe) is a line-for-line port of this file and
+ * AdasOverlayState holds the rules; the two move together, and compare.py lays an emulator
+ * screenshot of each state over its bare board (shot.py bare-*, then emulator.py).
  *
  * One state object describes what the overlay knows:
  *   noa, icc     'active' | 'available' | 'off'          (service 13: 1 / 2 / 0)
@@ -367,9 +370,12 @@
         drawDetails(ctx, details, x + K.pad, y + K.h + 42);
       }
     } };
-    const stack = [capsule];
+    // One third of the screen has no room for a stack: an alarm takes the row's place, red first
+    // (owner's decision 4, 2026-10-23). AdasOverlayState.plates() is the same rule in the module.
+    let stack = [capsule];
     if (st.alarm) stack.push(alarmPlate(ctx, st));
     if (st.takeover) stack.push(takeoverPlate(ctx, st));
+    if (st.narrow && stack.length > 1) stack = [stack[stack.length - 1]];
     if (anchor.right != null) {
       let y = anchor.bottom;
       stack.forEach(p => { y -= p.h; p.draw(anchor.right - p.w, y); y -= K.gap; });

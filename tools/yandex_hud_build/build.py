@@ -106,12 +106,17 @@ def main():
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
          package/'StockHudSymbols.java', package/'RouteSnapshot.java', package/'GuidanceSnapshot.java', package/'TrafficSignalSnapshot.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
+         # The ADAS status overlay's plain-Java part: wire, observations, rules, figures.
+         *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits')],
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.RouteSnapshotTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.GuidanceSnapshotTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.TrafficSignalSnapshotTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.AdasOverlayTest',
+         ROOT/'experiments/adas-status-probe/src/test/fixtures/native-status-car-20261023.txt',
+         ROOT/'tools/design-canvas/luminofor/spec.json'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',
@@ -148,6 +153,10 @@ def main():
         changes[extra] = (dex/'classes.dex').read_bytes()
         changes['classes'+str(int(extra[7:-4])+1)+'.dex'] = (args.out/'guidance-hook.dex').read_bytes()
         changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs', args.renderer_profile], cwd=ROOT)
+        # The ADAS overlay sets its words in the board's own Roboto (Apache 2.0, licence alongside),
+        # not the system's: the glass and tools/design-canvas/adas-overlay then measure alike.
+        for name in ('Roboto-400.ttf', 'Roboto-500.ttf', 'Roboto-LICENSE.txt'):
+            changes['assets/denza-hud/fonts/' + name] = (ROOT/'tools/design-canvas/luminofor/fonts'/name).read_bytes()
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w', allowZip64=False) as output:
             for info in original.infolist():
                 if info.filename in excluded:
