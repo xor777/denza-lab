@@ -158,3 +158,51 @@ reordered chunks. It is not claimed identical to stock Java substring chunking
 for non-ASCII data. `diff` reports exact JSON differences including missing vs
 null and integer vs float. The current Yandex and stock captures describe
 different routes; their comparison cannot establish corridor equivalence.
+
+## Differential bench (stock map ↔ bridge)
+
+The acceptance bench records what the original map fires toward ADAS and what
+the bridge would fire for the same route and position trace, in one trace format
+(`feed.py`, decoded with `someip_schema.json`, regenerated from the stock classes
+by `schema_gen.py`), and compares them (`compare.py`). Outputs go under
+`captures/adas-bench/` (git-ignored; Beijing and car coordinates never leave it).
+
+* `stock_feed_observer.js` + `stock_trace.py`: the original app on an owned
+  emulator, a recorded drive (`build_drive_replay_case.py`) or a synthetic trace
+  along a factory route, the car's guidance order (Navi_onCreate → startNavi →
+  route data update; reroute data before setNaviPath; arrival → stopNaviOnArrive →
+  stopNavi → Navi_onDestroy), the car's logged BYDAuto NOA values, and a recorder
+  at `SomeIpServerProxyImpl.fireEvent` playing the bound IVI Binder. `--no-answers`
+  or a scripted MMTPathSelected (status 200, the requested pathId, 80 ms) through
+  `SomeIpClient.onSomeIpEvent`. Nothing leaves the emulator process.
+* `beijing.py`: factory Beijing package (`a1`) on the stock global.db; `survey`
+  plans many O/D pairs and keeps each route's original NOA export
+  (`stock_plan_observer.js`), `merge`/`select` pick the routes that cover the
+  most transition kinds (`coverage.py`, Amap enums), `cases` builds a 1 Hz trace
+  along each (class speeds, slowing into turns, stops at lights, arrival dwell) and
+  a missed-turn splice onto another factory route.
+* `bridge_trace.py synth`: SYNTHETIC Yandex input from each stock route (only what
+  Yandex also has: polyline, sections with actions/next road, light positions,
+  tunnel ranges, way points; identity frame) and the stock run's GNSS ticks
+  projected on it, through `LiveBridge`. `bridge_trace.py yandex`: a REAL Navigator
+  snapshot + guidance ring.
+* `compare.py scenario RUN [--content-reference]` (one command per scenario):
+  message inventory and cadence, route → selection → answer handshake, pathId and
+  NavigationStatus lifecycle, reroutes, after-arrival tail, per-tick position and
+  TrafficInfo semantics, route content field by field with links aligned by
+  along-route distance, Amap-semantics checks on both sides, and the factory
+  route's transitions with what each side sends around them. Classes:
+  `bridge-defect`, `source-data-gap`, `stock-not-modelled`,
+  `reference-not-authoritative` (content vs a stock on OSM-derived data, never a
+  defect by itself), `stock-semantics`, `info`. `compare.py profile` tabulates per
+  road type what goes to ADAS per link and per tick, for any traces.
+
+```sh
+python3 -m tools.adas_bridge.stock_trace run --build captures/stock-map-review-20261023/car/package-e \
+  --case captures/adas-bench/cases/arrival-d02.json --out captures/adas-bench/moscow/arrival-d02-answers
+python3 -m tools.adas_bridge.compare scenario captures/adas-bench/moscow/arrival-d02-answers
+python3 -m tools.adas_bridge.beijing survey --out captures/adas-bench/beijing/survey-01
+python3 -m tools.adas_bridge.stock_trace batch --plan captures/adas-bench/beijing/all/plan.json \
+  --serial emulator-5602 --frida-port 27071
+python3 -m tools.adas_bridge.compare scenario captures/adas-bench/beijing/run-<id> --content-reference
+```
