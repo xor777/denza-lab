@@ -144,24 +144,13 @@ def encode_someip_route(record):
                        header["interface"], header["messageType"], header["returnCode"]) + body
 
 
-def chunk_payload(payload_json, *, time_ms, path_count=1, max_chunk_bytes=512*1024):
-    """Candidate UTF-8 chunks; byte ceiling without splitting codepoints.
-
-    Stock Java substring chunking is not claimed byte-equivalent for non-ASCII.
+def chunk_payload(payload_json, *, time_ms, path_count=1):
+    """NaviDataDetail chunks exactly as the stock n.a(): Java String (UTF-16) lengths, the count
+    from 524264 and the cut at 524288; one chunk while length + 24 < 524288. A cut past the end
+    raises IndexError there, as Java's substring throws (and the stock then sends nothing more).
     """
-    if max_chunk_bytes < 4:
-        raise ContractError("chunk limit must accommodate one UTF-8 character")
-    chunks, current, size = [], [], 0
-    for character in payload_json:
-        width = len(character.encode("utf-8"))
-        if size+width > max_chunk_bytes:
-            chunks.append("".join(current))
-            current, size = [], 0
-        current.append(character)
-        size += width
-    chunks.append("".join(current))
-    return [{"currentIndex": i, "length": len(chunks), "pathCount": path_count,
-             "payload": chunk, "time": time_ms} for i, chunk in enumerate(chunks)]
+    from . import stock
+    return [json.loads(text) for text in stock.chunks(payload_json, path_count, time_ms)]
 
 
 def reassemble_chunks(chunks):
@@ -178,7 +167,8 @@ def reassemble_chunks(chunks):
                 type(chunk.get("currentIndex")) is not int or chunk["currentIndex"] != index or
                 not isinstance(chunk.get("payload"), str)):
             raise ContractError("route chunks must be ordered, complete and share one generation timestamp")
-    text = "".join(chunk["payload"] for chunk in chunks)
+    # Java cuts at UTF-16 units: a surrogate pair split across chunks joins again here.
+    text = "".join(chunk["payload"] for chunk in chunks).encode("utf-16-le", "surrogatepass").decode("utf-16-le")
     if len(text.encode()) > MAX_JSON_BYTES:
         raise ContractError("reassembled JSON too large")
     return text

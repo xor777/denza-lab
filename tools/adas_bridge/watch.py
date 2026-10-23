@@ -19,9 +19,10 @@ import time
 import uuid
 
 from .bench import make_bench
-from .bridge import ContractError, map_progress, route_convert
+from .bridge import ContractError, route_convert
+from .stock import PathIds
 from .receiver import FakeReceiver
-from .wire import decode_binder_route, decode_someip_route
+from .wire import decode_someip_route
 from .dynamic import make_dynamic_packets, status_bytes
 
 MAX_FILE_BYTES = 16 * 1024 * 1024
@@ -83,25 +84,28 @@ class EmulatorReader:
 
 
 class LiveBridge:
-    """Local state only. Source generation and publication epoch stay separate."""
+    """Local state only, following the stock lifecycle: one route publication per pathId, a
+    transient loss or reroute holds the position and never ends navigation (DYN-02/04), the same
+    link table keeps its pathId (DYN-03), a finished route is retired (DYN-13)."""
     def __init__(self, golden_record, target_frame):
         self.golden = golden_record
         self.target_frame = target_frame
         self.receiver = FakeReceiver()
         self.bench = None
         self.converted = None
-        self.last_sequence = None
         self.byte_receipts = 0
         self.source_session = None
         self.retired_sessions = set()
+        self.retired_routes = set()
+        self.path_ids = PathIds()
         self.highest_generation = -1
         self.highest_sequence = -1
         self.dynamic_packets_parsed = 0
 
     def needs_route(self, sample):
-        return (self.converted is None or sample.get("routeId") != self.converted["routeId"] or
-                sample.get("generation") != self.converted.get("generation") or
-                sample.get("sourceSessionId") != self.source_session)
+        return (sample.get("routeId") is not None and (
+            self.converted is None or sample.get("routeId") != self.converted["routeId"] or
+            sample.get("sourceSessionId") != self.source_session))
 
     def tick(self, sample, *, now_ms, snapshot=None):
         receipt = {"offlineOnly": True, "publicationReady": False,
@@ -115,81 +119,69 @@ class LiveBridge:
         if session != self.source_session:
             if self.source_session is not None:
                 self.retired_sessions.add(self.source_session)
+            # A new Navigator process is a new stock process: its own path ids, its own feed.
+            self.receiver.end(now_ms=now_ms)
             old = self.receiver
-            old.end(now_ms=now_ms)
             self.receiver = FakeReceiver()
             self.receiver.trace = old.trace
             self.receiver.publication_epoch = old.publication_epoch
             self.source_session = session
-            self.converted = self.bench = self.last_sequence = None
+            self.converted = self.bench = None
+            self.path_ids = PathIds()
+            self.retired_routes = set()
             self.highest_generation = self.highest_sequence = -1
             receipt["sourceSessionChanged"] = True
         generation, sequence = sample.get("generation"), sample.get("sequence")
         if type(generation) is not int or generation < 0 or type(sequence) is not int or sequence < 0:
             raise ContractError("missing source generation/sequence")
         if generation < self.highest_generation or sequence < self.highest_sequence:
-            return dict(receipt, accepted=False, reason="old_source_generation_or_sequence")
+            return dict(receipt, accepted=False, reason="old_source_generation_or_sequence",
+                        status=self.receiver.status(now_ms=now_ms))
+        if sequence == self.highest_sequence:
+            return dict(receipt, accepted=False, reason="duplicate_read", status=self.receiver.status(now_ms=now_ms))
         self.highest_generation = generation
         self.highest_sequence = sequence
-        active = sample.get("mode") == "guidance" and sample.get("freshLocation") is True
-        if not active or sample.get("routeId") is None:
-            self.receiver.end(now_ms=now_ms)
+        route_id = sample.get("routeId")
+        if sample.get("mode") == "off" or route_id is None:
+            # Navigator stopped guiding: the stock onNavStop (110 only after an arrival).
+            if self.receiver.active:
+                if self.converted is not None:
+                    self.retired_routes.add(self.converted["routeId"])
+                self.receiver.end(now_ms=now_ms, arrived=sample.get("routeStatus") == "ROUTE_FINISHED")
             status = self.receiver.status(now_ms=now_ms)
-            return dict(receipt, accepted=False, reason="cancelled_or_not_fresh_guidance", status=status,
+            return dict(receipt, accepted=False, reason="navigation_stopped", status=status,
                         navigationStatusBinderHex=status_bytes(status).hex())
-        if self.needs_route(sample):
-            if (snapshot is None or snapshot.get("routeId") != sample.get("routeId") or
-                    snapshot.get("sourceSessionId") != session):
-                self.receiver.end(now_ms=now_ms)
-                return dict(receipt, accepted=False, reason="snapshot_progress_route_mismatch")
-            if type(sample.get("generation")) is not int or sample["generation"] <= self.receiver.generation:
-                self.receiver.end(now_ms=now_ms)
-                return dict(receipt, accepted=False, reason="source_generation_regressed_or_reused")
+        if route_id in self.retired_routes:
+            return dict(receipt, accepted=False, reason="retired_route", status=self.receiver.status(now_ms=now_ms))
+        if self.needs_route(sample) or (snapshot is not None and snapshot.get("routeId") == route_id):
+            if snapshot is None or snapshot.get("routeId") != route_id or snapshot.get("sourceSessionId") != session:
+                return dict(receipt, accepted=False, reason="snapshot_progress_route_mismatch",
+                            status=self.receiver.status(now_ms=now_ms))
             source = copy.deepcopy(snapshot)
-            source["generation"] = sample["generation"]
+            source["generation"] = generation
             source["sourceSessionId"] = session
-            converted = route_convert(source, target_frame=self.target_frame)
-            fresh = map_progress(converted, sample, now_ms=now_ms, clock="uptime")
-            if not fresh["accepted"]:
-                self.receiver.end(now_ms=now_ms)
-                return dict(receipt, accepted=False, reason=fresh["reason"])
-            self.bench = make_bench(converted, self.golden, time_ms=sample["capturedAtMs"], receiver=self.receiver)
-            self.receiver = self.bench["receiver"]
+            converted = route_convert(source, target_frame=self.target_frame, path_ids=self.path_ids)
+            same = self.converted is not None and converted["contentKey"] == self.converted["contentKey"] and self.receiver.active
+            if not same:
+                self.bench = make_bench(converted, self.golden, time_ms=sample.get("capturedAtMs", 0), receiver=self.receiver)
+                self.receiver = self.bench["receiver"]
+                self.byte_receipts += 1
+                receipt.update(routeBytesParsed=True, binderBytes=sum(len(b) for b in self.bench["binders"]),
+                               chunks=len(self.bench["binders"]),
+                               binderSHA256=hashlib.sha256(b"".join(self.bench["binders"])).hexdigest(),
+                               links=converted["candidateNaviToEHPData"]["linkCnt"],
+                               pathID=converted["candidateNaviToEHPData"]["pathID"])
             self.converted = converted
-            self.last_sequence = None
-            self.byte_receipts += 1
-            receipt.update(routeBytesParsed=True, binderBytes=len(self.bench["binder"]),
-                           binderSHA256=hashlib.sha256(self.bench["binder"]).hexdigest(),
-                           someipBytes=len(self.bench["someip"]),
-                           links=converted["candidateNaviToEHPData"]["linkCnt"])
-        fresh = map_progress(self.converted, sample, now_ms=now_ms, clock="uptime")
-        if not fresh["accepted"]:
-            self.receiver.end(now_ms=now_ms)
-            status = self.receiver.status(now_ms=now_ms)
-            return dict(receipt, accepted=False, reason=fresh["reason"], status=status,
-                        navigationStatusBinderHex=status_bytes(status).hex())
-        sequence = sample.get("sequence")
-        if type(sequence) is not int or sequence < 0:
-            raise ContractError("missing source sequence")
-        if self.last_sequence is not None and sequence <= self.last_sequence:
-            return dict(receipt, accepted=False, reason="duplicate_or_old_source_sequence", status=self.receiver.status(now_ms=now_ms))
-        if self.receiver.ended_at is not None:
-            # Reparse the actual cached bytes; source generation stays unchanged.
-            decode_binder_route(self.bench["binder"])
-            self.receiver.republish_cached_route(now_ms=sample["capturedUptimeMs"])
-            path = self.converted["candidateNaviToEHPData"]["pathID"]
-            self.receiver.select_binder(self.bench["selection"])
-            self.receiver.confirm(path, publication_epoch=self.receiver.publication_epoch)
-            self.byte_receipts += 1
-            receipt.update(cachedRouteBytesReparsed=True, binderBytes=len(self.bench["binder"]))
+        if self.converted is None:
+            return dict(receipt, accepted=False, reason="no_route_yet", status=self.receiver.status(now_ms=now_ms))
         result = self.receiver.progress(sample, now_ms=now_ms, clock="uptime")
         bundle = None
         if result["accepted"]:
-            bundle = make_dynamic_packets(self.converted, sample, result)
+            bundle = make_dynamic_packets(self.receiver.route, sample, result)
             self.receiver.consume_dynamic(bundle)
             self.dynamic_packets_parsed += len(bundle["packets"])
-            self.last_sequence = sequence
         return dict(receipt, accepted=result["accepted"], reason=result["reason"],
+                    status=self.receiver.status(now_ms=now_ms),
                     publicationEpoch=self.receiver.publication_epoch, positionCandidate=result,
                     dynamicBinderPackets=bundle)
 
@@ -224,25 +216,26 @@ def main():
                 started = time.monotonic()
                 try:
                     sample = reader.json_file("denza-adas-progress.json")
-                    snapshot = reader.json_file("denza-hud-native-route.json") if engine.needs_route(sample) and sample.get("routeId") else None
+                    snapshot = reader.json_file("denza-hud-native-route.json") if engine.needs_route(sample) else None
                     now = reader.uptime_ms()
                     last_device_now = now
                     receipt = engine.tick(sample, now_ms=now, snapshot=snapshot)
                     publication = (engine.source_session, engine.converted.get("generation") if engine.converted else None,
                                    engine.receiver.publication_epoch)
-                    if engine.bench is not None and publication != last_publication and (receipt.get("routeBytesParsed") or receipt.get("cachedRouteBytesReparsed")):
+                    if engine.bench is not None and publication != last_publication and receipt.get("routeBytesParsed"):
                         last_publication = publication
                         session_name = hashlib.sha256(str(engine.source_session).encode()).hexdigest()[:10]
                         prefix = f"run-{run_id}-session-{session_name}-generation-{publication[1]}-epoch-{publication[2]}"
-                        (out / (prefix+".binder.protobuf.bin")).write_bytes(engine.bench["binder"])
-                        (out / (prefix+".someip.bin")).write_bytes(engine.bench["someip"])
+                        for i, (binder, someip) in enumerate(zip(engine.bench["binders"], engine.bench["someips"])):
+                            (out / (prefix+f".route-{i:02d}.binder.protobuf.bin")).write_bytes(binder)
+                            (out / (prefix+f".route-{i:02d}.someip.bin")).write_bytes(someip)
                         (out / (prefix+".selection.binder.protobuf.bin")).write_bytes(engine.bench["selection"])
                         (out / (prefix+".candidate.json")).write_text(json.dumps(engine.converted, ensure_ascii=False, indent=2)+"\n")
                         (out / (prefix+".manifest.json")).write_text(json.dumps(engine.bench["manifest"], ensure_ascii=False, indent=2)+"\n")
                     accepted += bool(receipt.get("accepted"))
                 except (ValueError, TypeError, KeyError, subprocess.TimeoutExpired) as exc:
                     errors += 1
-                    engine.receiver.end(now_ms=last_device_now)
+                    # A failed read is a transient loss, not the end of navigation (DYN-02).
                     receipt = {"accepted": False, "reason": "read_or_contract_error", "error": str(exc)[:500], "offlineOnly": True}
                 receipts.append(receipt)
                 journal.write(json.dumps(receipt, ensure_ascii=False, allow_nan=False)+"\n")

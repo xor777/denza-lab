@@ -1,80 +1,77 @@
 #!/usr/bin/env python3
-"""Actual input → incomplete experimental route bytes → fake local receiver.
+"""Converted route -> the stock route event bytes -> fake local receiver.
 
-Explicit stock-golden envelope template; null primitive fields are intentionally
-retained and are NOT asserted to form a valid ADAS route. No transport exists.
+The MessageSend is the stock oracle's (tools/adas_bridge/stock.py): no JSON null anywhere, the
+stock envelope (endPOIInfo, mapProvider, RouteType) from the stock code itself, NaviDataDetail
+chunks exactly as n.a() cuts them (F7). The captured golden only lends its SOME/IP header for the
+native framing. No transport exists.
 """
 import argparse
-import copy
 import hashlib
 import json
 from pathlib import Path
+import struct
 
-from .bridge import ContractError, read_json, recursive_diff
+from . import stock
+from .bridge import ContractError, read_json
 from .receiver import FakeReceiver
-from .wire import (decode_someip_route, encode_binder_route, encode_someip_route)
-from .dynamic import selection_bytes
+from .wire import decode_someip_route
 
 
 def null_paths(value, prefix="$"):
     if value is None:
         return [prefix]
     if isinstance(value, dict):
-        return [path for key, child in value.items() for path in null_paths(child, prefix+"."+key)]
+        return [path for key, child in value.items() for path in null_paths(child, prefix + "." + key)]
     if isinstance(value, list):
         return [path for i, child in enumerate(value) for path in null_paths(child, f"{prefix}[{i}]")]
     return []
 
 
-def make_bench(converted, golden_record, *, time_ms, receiver=None):
-    route = copy.deepcopy(converted["candidateNaviToEHPData"])
-    # Verified native enum null sentinels only. Remaining nulls remain visible.
-    substitutions = []
-    for index, link in enumerate(route["links"]):
-        for key in ("roadclass", "linktype"):
-            if link[key] is None:
-                link[key] = -1
-                substitutions.append({"path": f"links[{index}].{key}", "value": -1,
-                                      "reason": "native enum NULL sentinel; receiver semantics unverified"})
-    payload = copy.deepcopy(golden_record["payload"])
-    if not isinstance(payload, dict):
-        raise ContractError("bench requires an explicit complete stock golden envelope template")
-    payload["data"] = [route]
-    template = {key: copy.deepcopy(value) for key, value in payload.items() if key != "data"}
-    wrapper = {"currentIndex": 0, "length": 1, "pathCount": 1,
-               "payload": json.dumps(payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False),
-               "time": time_ms}
-    text = json.dumps(wrapper, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
-    binder = encode_binder_route(text)
-    record = copy.deepcopy(golden_record)
-    record.update(wireJson=text, checksCRC32=0, counter=0, navigationSDLink2Num=1)
-    someip = encode_someip_route(record)
-    decoded = decode_someip_route(someip)
-    if recursive_diff(decoded["payload"], payload):
-        raise ContractError("bench SOME/IP JSON roundtrip changed payload")
+def header_bytes(golden_record):
+    h = golden_record["header"]
+    return struct.pack("!HHIHHBBBB", h["service"], h["method"], 0, h["client"], h["session"], h["protocol"],
+                       h["interface"], h["messageType"], h["returnCode"])
+
+
+def make_bench(converted, golden_record, *, time_ms, receiver=None, route_type=1):
+    payload_text = converted["messageSendJson"]
+    if route_type != 1:
+        payload_text = stock.message_send(converted["stockPath"], route_type)
+    payload = json.loads(payload_text)
+    nulls = null_paths(payload)
+    if nulls:
+        raise ContractError("stock payload must not contain JSON null: " + ", ".join(nulls[:5]))
+    try:
+        details = stock.chunks(payload_text, 1, time_ms)
+    except IndexError as exc:
+        raise ContractError("the stock n.a() would throw on this length and send a partial route") from exc
+    header = header_bytes(golden_record)
+    binders = [stock.route(detail, 1) for detail in details]
+    someips = [stock.someip_frame(header, detail, 1) for detail in details]
+    for raw, detail in zip(someips, details):
+        if decode_someip_route(raw)["wireJson"] != detail:
+            raise ContractError("bench SOME/IP framing roundtrip changed the chunk")
     receiver = receiver if receiver is not None else FakeReceiver()
-    receiver.offer_binder_route(binder, converted)
-    path = route["pathID"]
-    selection = selection_bytes(path)
+    receiver.offer_binder_route(binders, converted)
+    path = payload["data"][0]["pathID"]
+    selection = stock.path_selected(path)
     receiver.select_binder(selection)
     receiver.confirm(path, publication_epoch=receiver.publication_epoch)
-    return {"payload": payload, "wrapper": wrapper, "binder": binder, "someip": someip,
-            "selection": selection,
-            "receiver": receiver,
-            "manifest": {"offlineOnly": True, "experimentalIncompleteDraft": True,
-                         "validAdasRouteEstablished": False, "publicationReady": False,
-                         "sourceRouteId": converted["routeId"], "sourceGeneration": converted.get("generation"),
-                         "stockTemplateMetadata": template, "nativeNullSentinelSubstitutions": substitutions,
-                         "remainingNullFields": null_paths(route),
-                         "binderBytes": len(binder), "someipBytes": len(someip),
-                         "selectionBytes": len(selection), "selectionSHA256": hashlib.sha256(selection).hexdigest(),
-                         "binderSHA256": hashlib.sha256(binder).hexdigest(),
-                         "someipSHA256": hashlib.sha256(someip).hexdigest(),
+    return {"payload": payload, "details": details, "binder": binders[0], "binders": binders,
+            "someip": someips[0], "someips": someips, "selection": selection, "receiver": receiver,
+            "manifest": {"offlineOnly": True, "validAdasRouteEstablished": False, "publicationReady": False,
+                         "sourceRouteId": converted["routeId"], "pathID": path, "chunks": len(details),
+                         "payloadJavaChars": stock.java_length(payload_text), "nullFields": nulls,
+                         "unknownAttributePolicy": converted.get("unknownAttributePolicy"),
+                         "binderBytes": [len(b) for b in binders], "someipBytes": [len(s) for s in someips],
+                         "selectionSHA256": hashlib.sha256(selection).hexdigest(),
+                         "binderSHA256": [hashlib.sha256(b).hexdigest() for b in binders],
+                         "someipSHA256": [hashlib.sha256(s).hexdigest() for s in someips],
                          "fakeReceiverTrace": receiver.trace,
-                         "limits": ["JSON null primitives are not proved acceptable to ADAS",
-                                    "stock template metadata is explicit test input, not Yandex-derived",
+                         "limits": ["stock NULL values for unknown attributes are not proved acceptable to ADAS",
                                     "SOME/IP header client/session copied from capture for framing only",
-                                    "mock ACK epochs are local bookkeeping; real ACK has no epoch token"]}}
+                                    "mock ACK is local bookkeeping, never car evidence"]}}
 
 
 def main():
@@ -88,12 +85,13 @@ def main():
         result = make_bench(read_json(args.converted), decode_someip_route(Path(args.golden_someip).read_bytes()), time_ms=args.time_ms)
         out = Path(args.out_dir)
         out.mkdir(parents=True, exist_ok=True)
-        (out / "bench.route.binder.protobuf.bin").write_bytes(result["binder"])
-        (out / "bench.route.someip.bin").write_bytes(result["someip"])
+        for i, (binder, someip) in enumerate(zip(result["binders"], result["someips"])):
+            (out / f"bench.route-{i:02d}.binder.protobuf.bin").write_bytes(binder)
+            (out / f"bench.route-{i:02d}.someip.bin").write_bytes(someip)
         (out / "bench.selection.binder.protobuf.bin").write_bytes(result["selection"])
-        (out / "bench.payload.json").write_text(json.dumps(result["payload"], ensure_ascii=False, indent=2)+"\n")
-        (out / "bench.manifest.json").write_text(json.dumps(result["manifest"], ensure_ascii=False, indent=2)+"\n")
-        print(json.dumps({"out": str(out), "binderBytes": len(result["binder"]), "someipBytes": len(result["someip"]), "publicationReady": False}))
+        (out / "bench.payload.json").write_text(json.dumps(result["payload"], ensure_ascii=False, indent=2) + "\n")
+        (out / "bench.manifest.json").write_text(json.dumps(result["manifest"], ensure_ascii=False, indent=2) + "\n")
+        print(json.dumps({"out": str(out), "chunks": len(result["binders"]), "publicationReady": False}))
     except (ValueError, TypeError, KeyError) as exc:
         parser.exit(2, f"invalid bench input: {exc}\n")
 

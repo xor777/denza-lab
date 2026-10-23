@@ -20,18 +20,19 @@ def replay(events, *, base_dir=Path(".")):
                 receiver.select(event["pathID"])
             elif operation == "fake_confirmation":
                 receiver.confirm(event["pathID"], publication_epoch=event.get("publicationEpoch"))
-            elif operation == "republish_cached_route":
-                receiver.republish_cached_route(now_ms=event["nowMs"])
             elif operation == "progress":
                 results.append({"eventIndex": i, "result": receiver.progress(event["sample"], now_ms=event["nowMs"], clock=event.get("clock", "wall"))})
             elif operation == "end":
-                receiver.end(now_ms=event["nowMs"])
+                receiver.end(now_ms=event["nowMs"], arrived=bool(event.get("arrived")))
             elif operation == "status":
                 results.append({"eventIndex": i, "status": receiver.status(now_ms=event["nowMs"])})
             else:
                 raise ContractError(f"unknown event {operation!r}")
-        except (ContractError, KeyError, TypeError) as exc:
-            raise ContractError(f"event {i}: {exc}") from exc
+        except KeyError as exc:
+            raise ContractError(f"event {i}: malformed event, missing {exc}") from exc
+        except (ContractError, TypeError) as exc:
+            # A rejected event is a result, not the end of the replay (DYN-10).
+            results.append({"eventIndex": i, "rejected": str(exc)})
     return {"fakeReceiverOnly": True, "receiverAcceptanceEstablished": False,
             "results": results, "trace": receiver.trace}
 

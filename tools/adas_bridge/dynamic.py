@@ -1,141 +1,101 @@
-"""Grounded Binder protobuf field encodings for local mock traffic only.
+"""Dynamic Binder payloads for one accepted guidance sample, through the stock oracle encoders.
 
-Field numbers/types: SomeipSdMapInformService.sdVehicleLocation,
-SomeipNavigationStatusLinkInfoService.TrafficInfo/NavigationStatus_LinkInfoNotifyStruct,
-SomeipNaviPathUserSelectStsService.NaviPathUserSelectStsStruct in the retained
-BydLaunchermap corpus. No claim about native SOME/IP binary struct serialization.
+sdVehicleLocation, TrafficInfo and NavigationStatus as SomeIPMatrixManager (f0.s, f0.q, f0.e) fill
+them, written as protobuf-java lite writes them (tools/adas_bridge/stock.py): uint32 fields carry
+the value's 32 bits (-1 is five varint bytes), the stock's unknown ownership is -1 and is sent,
+GPSspeed is km/h as Amap's LocInfo.speed, every distance comes from the one link table. Local mock
+traffic only; no transport.
 """
 import hashlib
 import math
-import struct
 
-from .bridge import ContractError, signed64, transform
-from .wire import protobuf_fields, varint
+from . import stock
+from .bridge import ContractError
 
-POSITION = {"latitude": (1, "double"), "longitude": (2, "double"),
-            "matchedLatitude": (3, "double"), "matchedLongitude": (4, "double"),
-            "vehicleSpeed": (5, "int32"), "GPSspeed": (6, "int32"),
-            "curSDRouteID": (7, "double"), "course": (8, "int32"),
-            "curStepId": (9, "int32"), "curLinkId": (10, "int32"),
-            "linkOffset": (11, "int32"), "distanceToNextStep": (12, "int32"),
-            "currentRoadOwnership": (13, "int32")}
-TRAFFIC = {"SpdLmtSpeedValue": (8, "int32"), "distToDsttn": (17, "int32"),
-           "timeToDsttn": (18, "int32"), "roadClass": (19, "int32")}
-STATUS = {"navigationStatus": (4, "int32")}
-SELECTION = {"pathIDReq": (3, "int64")}
+POSITION = stock.SD_VEHICLE_LOCATION
+TRAFFIC = stock.TRAFFIC_INFO
+STATUS = stock.NAVIGATION_STATUS
+SELECTION = stock.PATH_SELECT
+_NOTIFY = {id(POSITION): stock.SD_VEHICLE_LOCATION_NOTIFY, id(TRAFFIC): stock.TRAFFIC_INFO_NOTIFY,
+           id(STATUS): stock.NAVIGATION_STATUS_NOTIFY, id(SELECTION): stock.PATH_SELECT_NOTIFY}
+_DEFAULTS = {stock.DOUBLE: 0.0, stock.FLOAT: 0.0, stock.INT32: 0, stock.UINT32: 0, stock.UINT64: 0,
+             stock.BOOL: False, stock.STRING: ""}
 
 
 def encode_struct(values, schema):
-    inner = b""
-    for name, (number, kind) in schema.items():
-        value = values.get(name)
-        if value is None or value == 0:
-            continue  # Proto3 primitive defaults omitted, unknowns separately reported.
-        if kind == "double":
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-                raise ContractError(f"{name}: invalid double")
-            inner += varint((number << 3) | 1) + struct.pack("<d", value)
-        else:
-            if type(value) is not int:
-                raise ContractError(f"{name}: expected integer")
-            bits = 32 if kind == "int32" else 64
-            if not -(1 << (bits-1)) <= value < (1 << (bits-1)):
-                raise ContractError(f"{name}: signed {bits}-bit overflow")
-            inner += varint(number << 3) + varint(value & ((1 << 64)-1))
-    return b"\x0a" + varint(len(inner)) + inner
+    """The notify message of an inner struct from a {fieldName: value} dict (missing: unset)."""
+    inner = schema.encode(*[values.get(name) for _, _, name, _ in schema.fields])
+    return _NOTIFY[id(schema)].encode(inner)
 
 
 def decode_struct(data, schema):
-    outer = protobuf_fields(data)
-    if set(outer) != {1} or outer[1][0] != 2:
+    """Inner struct of a notify payload; absent fields at their proto3 default; uint32 unsigned."""
+    try:
+        outer = _NOTIFY[id(schema)].decode(data)
+    except stock.StockError as exc:
+        raise ContractError(str(exc)) from exc
+    if len(outer) != 1:
         raise ContractError("expected one nested notification struct")
-    fields = protobuf_fields(outer[1][1])
-    allowed = {number for number, _ in schema.values()}
-    if set(fields)-allowed:
-        raise ContractError("unexpected dynamic notification fields")
-    result = {}
-    for name, (number, kind) in schema.items():
-        if number not in fields:
-            result[name] = 0.0 if kind == "double" else 0
-            continue
-        wire_kind, value = fields[number]
-        if kind == "double":
-            if wire_kind != 1:
-                raise ContractError(f"{name}: expected protobuf fixed64 double")
-            value = struct.unpack("<d", value)[0]
-            if not math.isfinite(value):
-                raise ContractError(f"{name}: nonfinite protobuf double")
-        else:
-            if wire_kind != 0:
-                raise ContractError(f"{name}: expected protobuf varint")
-            bits = 32 if kind == "int32" else 64
-            value &= (1 << bits)-1
-            if value >= 1 << (bits-1):
-                value -= 1 << bits
-        result[name] = value
-    return result
+    inner = next(iter(outer.values()))
+    return {name: inner.get(name, _DEFAULTS.get(kind)) for _, kind, name, _ in schema.fields if kind in _DEFAULTS}
+
+
+def as_int32(value):
+    """A decoded uint32 read back as the Java int the sender passed."""
+    return stock._int32(value)
 
 
 def selection_bytes(path_id):
-    return encode_struct({"pathIDReq": signed64(path_id)}, SELECTION)
+    return stock.path_selected(path_id)
 
 
 def status_bytes(status):
-    if status not in (100, 101, 110):
-        raise ContractError("unexpected bench navigation status")
-    return encode_struct({"navigationStatus": status}, STATUS)
-
-
-def integer_maybe(value):
-    if value is None:
-        return None
-    if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value) or value < 0:
-        raise ContractError("invalid dynamic nonnegative metric")
-    return int(value)
+    if status not in (100, 101, 102, 104, 105, 106, 110):
+        raise ContractError("unexpected navigation status")
+    return stock.navigation_status(status)
 
 
 def make_dynamic_packets(converted, sample, mapped):
+    """f0.s / f0.q / f0.e for an accepted sample: the stock's own values where Yandex has none."""
     if not mapped.get("accepted"):
         raise ContractError("cannot encode rejected progress")
     path = mapped["curSDRouteID"]
-    if type(path) is not int or not 0 < path <= (1 << 53)-1 or int(float(path)) != path:
+    if type(path) is not int or not 0 < path <= (1 << 53) - 1:
         raise ContractError("pathID not exactly representable by position's protobuf DOUBLE")
     location = sample.get("location") or {}
-    gps = transform([location["longitude"], location["latitude"]], converted["coordinateContract"]["target"])
-    matched = mapped["matchedTarget"]
-    values = {"latitude": gps[1], "longitude": gps[0],
-              "matchedLatitude": matched[1], "matchedLongitude": matched[0],
-              "curSDRouteID": path, "curStepId": mapped["curStepId"],
-              "curLinkId": mapped["curLinkId"], "linkOffset": integer_maybe(mapped["linkOffset"]),
-              "distanceToNextStep": integer_maybe(mapped["distanceToNextStep"])}
+    frame = converted["coordinateContract"]["target"]
+    # As StockFeed.location(): the road slots are Yandex's (route-matched) classified location, the
+    # GPS slots the raw platform fix when the sample carries one, else the same location (F6).
+    raw = sample.get("rawLocation") if isinstance(sample.get("rawLocation"), dict) else location
+    try:
+        road = stock.to_sdk(location["longitude"], location["latitude"], frame)
+        gps = stock.to_sdk(raw["longitude"], raw["latitude"], frame)
+    except stock.StockError as exc:
+        raise ContractError(str(exc)) from exc
+    matched = (stock.grid(road[0]), stock.grid(road[1]))
+    speed = location.get("speed")
+    gps_speed = int(speed * 3.6) if isinstance(speed, (int, float)) and not isinstance(speed, bool) and math.isfinite(speed) else 0
     heading = location.get("heading")
-    if heading is not None:
-        if isinstance(heading, bool) or not isinstance(heading, (int, float)) or not math.isfinite(heading) or not 0 <= heading <= 360:
-            raise ContractError("invalid heading")
-        values["course"] = int(heading) % 360
-    unknown_position = ["vehicleSpeed", "GPSspeed", "currentRoadOwnership"]
-    if heading is None:
-        unknown_position.append("course")
-    traffic = {"SpdLmtSpeedValue": 0, "roadClass": -1,
-               "distToDsttn": integer_maybe(sample.get("distanceToFinishM")),
-               "timeToDsttn": integer_maybe(sample.get("timeToFinishS"))}
+    course = int(heading) if isinstance(heading, (int, float)) and not isinstance(heading, bool) and math.isfinite(heading) else 0
+    position = stock.vehicle_location(stock.grid(gps[0]), stock.grid(gps[1]), matched[0], matched[1],
+                                      gps_speed, gps_speed, course, path, mapped["curStepId"], mapped["curLinkId"],
+                                      mapped["distanceToNextStep"], mapped["linkOffset"], stock.OWNERSHIP_UNKNOWN)
+    limit = sample.get("speedLimitMps")
+    road_speed = stock.half_up(limit * 3.6) if isinstance(limit, (int, float)) and not isinstance(limit, bool) and limit > 0 else 0
+    time = sample.get("timeToFinishS")
+    time_to = max(0, stock.half_up(time)) if isinstance(time, (int, float)) and not isinstance(time, bool) else 0
+    traffic = stock.traffic_info(0, -1, 0, 0, 0, 0.0, 0.0, road_speed, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, False,
+                                 mapped["distanceToDestinationM"], time_to, stock.ROAD_CLASS_NULL)
+    status = stock.navigation_status(101)
     packets = []
-    for name, service, event, values, schema, unknown in (
-            ("sdVehicleLocation", 0x8202, 0x8008, values, POSITION, unknown_position),
-            ("TrafficInfo", 7, 0x8003, traffic, TRAFFIC,
-             [key for key in ("distToDsttn", "timeToDsttn") if traffic[key] is None] + ["jam", "construction", "cameras", "offCourse"]),
-            ("NavigationStatus", 7, 0x8001, {"navigationStatus": 101}, STATUS, [])):
-        data = encode_struct(values, schema)
-        decoded = decode_struct(data, schema)
-        for key, value in values.items():
-            if value is not None and decoded[key] != value:
-                raise ContractError(f"{name}.{key}: protobuf roundtrip changed value")
-        packets.append({"name": name, "service": service, "event": event,
-                        "binderProtobufHex": data.hex(), "bytes": len(data),
-                        "sha256": hashlib.sha256(data).hexdigest(), "decodedProto3Values": decoded,
-                        "missingAttributes": unknown, "incompleteExperimentalProfile": bool(unknown),
-                        "publicationReady": False})
-    return {"packets": packets, "sourceYandexSpeedMps": location.get("speed"),
-            "speedEncodingPolicy": "GPSspeed omitted: native unit/scaling not yet traced; vehicleSpeed unavailable",
-            "coordinatePolicy": "GPS and route-matched coordinates transformed separately, once each",
-            "unknownPrimitivePolicy": "omitted; proto3 decoder defaults are not evidence of known zero values"}
+    for name, service, event, data, schema in (("sdVehicleLocation", 0x8202, 0x8008, position, POSITION),
+                                               ("TrafficInfo", 7, 0x8003, traffic, TRAFFIC),
+                                               ("NavigationStatus", 7, 0x8001, status, STATUS)):
+        packets.append({"name": name, "service": service, "event": event, "binderProtobufHex": data.hex(),
+                        "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                        "decodedProto3Values": decode_struct(data, schema), "publicationReady": False})
+    return {"packets": packets, "sourceYandexSpeedMps": speed,
+            "substitutions": {"vehicleSpeed": "GNSS speed (km/h); the car's own speed is not available to Navigator",
+                              "gpsSlot": "raw platform fix" if raw is not location else "Yandex classified location; raw GNSS not in the sample",
+                              "currentRoadOwnership": "-1, the stock's unknown", "roadClass": "-1, RoadClassNULL"},
+            "distancePolicy": "linkOffset, distanceToNextStep and distToDsttn from the one published link table"}
