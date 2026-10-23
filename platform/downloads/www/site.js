@@ -50,7 +50,7 @@ function row(app, found) {
     <div class="meta">
       <span>${size(found.apk.size)}</span>
       <span>${day(found.release.published_at)}</span>
-      ${sha ? `<button class="sha" type="button" data-sha="${esc(sha)}" title="Скопировать SHA-256">${shortSha(sha)}</button>` : ""}
+      ${sha ? `<button class="sha" type="button" data-copy="${esc(sha)}" title="Скопировать SHA-256">${shortSha(sha)}</button>` : ""}
     </div>
     <div class="ver">${esc(version)}</div>
     <div class="build">${esc(build)}</div>
@@ -75,18 +75,17 @@ function render(releases) {
   document.getElementById("apps").innerHTML = rows.length ? rows.join("") : fallback();
 }
 
+// A hash, a card number or a wallet address: the button copies its data-copy and says so for a moment.
 document.addEventListener("click", event => {
-  const button = event.target.closest(".sha");
+  const button = event.target.closest("[data-copy]");
   if (!button || !navigator.clipboard) return;
-  navigator.clipboard.writeText(button.dataset.sha).then(() => {
-    const label = button.textContent;
-    button.textContent = "SHA-256 скопирован";
+  navigator.clipboard.writeText(button.dataset.copy).then(() => {
+    const label = button.innerHTML;
+    button.textContent = button.classList.contains("sha") ? "SHA-256 скопирован" : "Скопировано";
     button.classList.add("copied");
-    setTimeout(() => { button.textContent = label; button.classList.remove("copied"); }, 1400);
+    setTimeout(() => { button.innerHTML = label; button.classList.remove("copied"); }, 1400);
   });
 });
-
-document.getElementById("host").textContent = location.hostname.toUpperCase();
 
 fetch(`https://api.github.com/repos/${REPO}/releases?per_page=100`, { headers: { Accept: "application/vnd.github+json" } })
   .then(response => (response.ok ? response.json() : null))

@@ -101,6 +101,55 @@ a.name:hover { color: var(--blue-hi); }
 .get:hover { color: var(--blue-hi); text-shadow: 0 0 12px rgba(67, 159, 252, 0.7); }
 .get:hover svg { filter: drop-shadow(0 0 4px var(--blue)); }
 
+.support { margin-top: 88px; }
+.label {
+  font: 500 13px/1 Jura, sans-serif;
+  letter-spacing: 0.36em;
+  color: var(--grey);
+  margin-bottom: 16px;
+}
+.pays { list-style: none; border-top: 1px solid var(--rule); margin-top: 28px; }
+.pay {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name name" "what what" "value copy";
+  column-gap: 24px;
+  padding: 26px 0 24px;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+.pay::before {
+  content: ""; position: absolute; left: -16px; top: 26px; bottom: 24px; width: 2px;
+  background: var(--blue); opacity: 0; transition: opacity .2s;
+  box-shadow: 0 0 10px var(--blue);
+}
+.pay:hover::before { opacity: 1; }
+.pay .name { font-size: 17px; }
+.value {
+  grid-area: value; align-self: end;
+  margin-top: 16px;
+  font: 500 26px/1.1 Jura, sans-serif;
+  letter-spacing: 0.04em;
+  color: #ECF1F7;
+  text-shadow: 0 0 14px rgba(200, 228, 255, 0.28);
+  font-feature-settings: "tnum";
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.value.addr { font-size: 18px; letter-spacing: 0.02em; }
+.copy {
+  grid-area: copy; justify-self: end; align-self: end;
+  font: 500 15px/1.45 Roboto, system-ui, sans-serif;
+  color: var(--blue); background: none; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: color .15s, text-shadow .15s;
+}
+.copy svg { width: 14px; height: 14px; }
+.copy:hover { color: var(--blue-hi); text-shadow: 0 0 12px rgba(67, 159, 252, 0.7); }
+.copy:hover svg { filter: drop-shadow(0 0 4px var(--blue)); }
+.copy.copied { color: var(--blue-hi); }
+.note { color: var(--dim); font-size: 13px; margin-top: 18px; }
+
 footer {
   margin-top: auto;
   padding-top: 72px;
@@ -113,7 +162,6 @@ footer a {
 }
 footer a:hover { color: var(--ink); }
 footer svg { width: 18px; height: 18px; fill: currentColor; }
-.host { font: 500 13px/1 Jura, sans-serif; color: var(--dim); letter-spacing: 0.12em; }
 
 @media (max-width: 560px) {
   main { padding-top: 56px; }
@@ -121,8 +169,13 @@ footer svg { width: 18px; height: 18px; fill: currentColor; }
   .app { grid-template-areas: "name ver" "what build" "meta meta" "get get"; padding: 24px 0 0; }
   .app::before { display: none; }
   .ver { font-size: 24px; }
-  .get {
+  .get, .copy {
     justify-self: stretch; justify-content: space-between;
     margin-top: 18px; height: 52px; border-top: 1px solid var(--rule);
   }
+  .support { margin-top: 64px; }
+  .pay { grid-template-areas: "name" "what" "value" "copy"; grid-template-columns: 1fr; padding: 24px 0 0; }
+  .pay::before { display: none; }
+  .value { font-size: 23px; }
+  .value.addr { font-size: 15.5px; }
 }

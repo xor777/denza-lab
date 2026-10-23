@@ -13,6 +13,10 @@ served by GitHub Pages at <https://xor777.github.io/denza-lab/>.
 
   Drafts and pre-releases are skipped. Colours and the Jura digits follow
   Luminofor.
+
+  Under the list, «Поддержать автора» in `index.html` gives the card and the
+  USDT address from the repository README's "Support the author"; a change to
+  either goes into both.
 - `deploy_pages.sh` publishes the page: `www/` and the fonts from
   `tools/design-canvas/luminofor/fonts/` go to the `gh-pages` branch as one
   orphan commit. Run it only when the page changes. main is not pushed.
