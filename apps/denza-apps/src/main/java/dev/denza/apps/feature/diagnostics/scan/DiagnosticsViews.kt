@@ -323,6 +323,8 @@ internal data class GraphLane(
     val decimals: Int,
     /** What a tap on the lane opens alone. */
     val key: ParamKey?,
+    /** A value read at the cursor carries its sign: «+3,1». */
+    val signed: Boolean = false,
 )
 
 // ------------------------------------------------------------------ «Журнал»
@@ -378,6 +380,8 @@ internal data class JournalQuantityLane(
     val last: String,
     /** Points only, no line between them. */
     val pointsOnly: Boolean,
+    /** Each point's own words where they are worth reading one by one («11 мВ», «12 мВ»); empty - only [last]. */
+    val pointLabels: List<String> = emptyList(),
 )
 
 /** «СРАВНЕНИЕ»: two scans, what came and went. */
@@ -388,6 +392,6 @@ internal data class ScanCompareView(
     val codes: List<Field>,
     /** «BMS 7E7» → «3.48.06 → 3.48.07». */
     val software: List<Field>,
-    /** «12 В» → «13,7 → 13,6». */
+    /** «12 В» → «13,7 → 13,6 В». */
     val quantities: List<Field>,
 )

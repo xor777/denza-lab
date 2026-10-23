@@ -60,13 +60,9 @@ internal object ScannerSpec {
         val BLUE_SOFT = hex(0x8FC6FF)
         val BLUE_INK = hex(0xCFE6FF)
         val BLUE_FILL = rgba(0x439FFC, 0.14f)
-        val BLUE_TINT = rgba(0x439FFC, 0.18f)
-        val BLUE_SHARE = rgba(0x439FFC, 0.09f)
-        val BLUE_EDGE = rgba(0x439FFC, 0.6f)
         val ORANGE = hex(0xFF9F19)
         val ORANGE_INK = hex(0xFFC882)
         val ORANGE_FILL = rgba(0xFF9F19, 0.16f)
-        val ORANGE_ROW = rgba(0xFF9F19, 0.06f)
         val QUIET = hex(0x15191F)
         val QUIET_LINE = hex(0x2A3038)
         val LINE3 = hex(0x343B45)
@@ -74,18 +70,12 @@ internal object ScannerSpec {
         val DIVIDER = hex(0x1F242C)
         val PLATE = hex(0x0B0E12)
         val HIST_FILL = hex(0x222831)
-        val BIT_OFF = hex(0x1C2128)
         val PID_FILL = hex(0x12161C)
-        val TILE_OK = hex(0x0B1118)
-        val TILE_HIST = hex(0x12161C)
-        val TILE_UNREAD = hex(0x05070A)
         val WIRE = rgba(0xDAE1EB, 0.75f)
         val WIRE2 = rgba(0xDAE1EB, 0.6f)
         val WIRE3 = rgba(0xDAE1EB, 0.45f)
         val WIRE4 = rgba(0xDAE1EB, 0.55f)
         val WIRE5 = rgba(0xDAE1EB, 0.85f)
-        val BUS = rgba(0xDAE1EB, 0.28f)
-        val BUS_LIVE = rgba(0x439FFC, 0.55f)
         /** v4 (2026-10-23): red is now - an active record, MIL on; a band is a norm; pick marks a record in a raw answer. */
         val RED = hex(0xFF4046)
         val RED_INK = hex(0xFF8A8D)
@@ -102,10 +92,9 @@ internal object ScannerSpec {
         /** Inks `scanner.js` writes inline rather than in the JSON. */
         val PRIMARY_FILL = rgba(0x439FFC, 0.10f)
         val PRIMARY_EDGE = rgba(0x439FFC, 0.55f)
-        val COUNTER_GLOW = rgba(0xFF9F19, 0.7f)
-        val BIT_GLOW = rgba(0x439FFC, 0.8f)
+        /** A counter that says now - MIL on, a record failing - glows red (`blockHead()`). */
+        val RED_GLOW = rgba(0xFF4046, 0.7f)
         val TRACE_GLOW = rgba(0x439FFC, 0.6f)
-        val RANGE_GLOW = rgba(0x439FFC, 0.7f)
         /** A parameter's page (`sysParam()`): the reading's glow, in norm and out of it; the trace's and its last point's. */
         val PARAM_GLOW = rgba(0x439FFC, 0.45f)
         val PARAM_GLOW_OUT = rgba(0xFF9F19, 0.55f)
@@ -117,13 +106,11 @@ internal object ScannerSpec {
             "ground" to GROUND, "bar" to BAR, "rule" to RULE, "hair" to HAIR, "text" to TEXT, "white" to WHITE,
             "ink2" to INK2, "ink3" to INK3, "ink4" to INK4, "mute" to MUTE, "dim" to DIM, "dim2" to DIM2,
             "faint" to FAINT, "faint2" to FAINT2, "faint3" to FAINT3, "sep" to SEP, "blue" to BLUE,
-            "blueSoft" to BLUE_SOFT, "blueInk" to BLUE_INK, "blueFill" to BLUE_FILL, "blueTint" to BLUE_TINT,
-            "blueShare" to BLUE_SHARE, "blueEdge" to BLUE_EDGE, "orange" to ORANGE, "orangeInk" to ORANGE_INK,
-            "orangeFill" to ORANGE_FILL, "orangeRow" to ORANGE_ROW, "quiet" to QUIET, "quietLine" to QUIET_LINE,
+            "blueSoft" to BLUE_SOFT, "blueInk" to BLUE_INK, "blueFill" to BLUE_FILL, "orange" to ORANGE, "orangeInk" to ORANGE_INK,
+            "orangeFill" to ORANGE_FILL, "quiet" to QUIET, "quietLine" to QUIET_LINE,
             "line3" to LINE3, "line4" to LINE4, "divider" to DIVIDER, "plate" to PLATE, "histFill" to HIST_FILL,
-            "bitOff" to BIT_OFF, "pidFill" to PID_FILL, "tileOk" to TILE_OK, "tileHist" to TILE_HIST,
-            "tileUnread" to TILE_UNREAD, "wire" to WIRE, "wire2" to WIRE2, "wire3" to WIRE3, "wire4" to WIRE4,
-            "wire5" to WIRE5, "bus" to BUS, "busLive" to BUS_LIVE, "red" to RED, "redInk" to RED_INK, "redFill" to RED_FILL,
+            "pidFill" to PID_FILL, "wire" to WIRE, "wire2" to WIRE2, "wire3" to WIRE3, "wire4" to WIRE4,
+            "wire5" to WIRE5, "red" to RED, "redInk" to RED_INK, "redFill" to RED_FILL,
             "redRow" to RED_ROW, "band" to BAND, "pick" to PICK, "paper" to PAPER, "paperInk" to PAPER_INK,
             "paperGrey" to PAPER_GREY, "paperRule" to PAPER_RULE,
         )
@@ -161,7 +148,6 @@ internal object ScannerSpec {
         val COL_HEAD_TIGHT = Style(11f, 13f, track = 0.06f)
         val BIT_HEAD = Style(10f, 12f, track = 0.02f)
         val GROUP_TITLE = Style(11f, 14f, 500, track = 0.08f)
-        val GROUP_SUMMARY = Style(12f, 14f, mono = true)
         val CELL = Style(14.5f, 18f)
         val CELL_SMALL = Style(13.5f, 18f)
         val CELL_MONO = Style(13.5f, 18f, mono = true)
@@ -182,11 +168,8 @@ internal object ScannerSpec {
         val CODE = Style(16f, 20f, 500, mono = true)
         val CODE_FAULT = Style(17f, 20f, 500, mono = true)
         val LEAD = Style(15f, 22f)
-        val BODY = Style(14f, 21f)
         val BODY_STRONG = Style(14.5f, 21f)
         val SMALL = Style(13f, 19f)
-        val LEGEND_KEY = Style(13f, 18f, mono = true)
-        val LEGEND = Style(13f, 18f)
         val PLATE_LINE = Style(14.5f, 18f)
         val PLATE_MONO = Style(12.5f, 16f, mono = true)
         val LIST_COUNT = Style(20f, 22f, mono = true)
@@ -206,24 +189,18 @@ internal object ScannerSpec {
         val TILE_ABBR = Style(13f, 16f, 500, mono = true)
         val TILE_ADDR = Style(11f, 16f, mono = true)
         val TILE_NAME = Style(11f, 14f)
-        val TILE_STATE = Style(10.5f, 15f, 500, track = 0.03f)
         /** The systems down the left: a system's name and its codes' mark. */
         val RAIL_ITEM = Style(15f, 20f)
         val RAIL_MARK = Style(12.5f, 16f, mono = true)
         /** A parameter on its own page: the reading and its unit. */
         val PARAM_VALUE = Style(72f, 80f, 500, mono = true)
         val PARAM_UNIT = Style(18f, 22f)
-        val TOPO_LABEL = Style(11f, 16f, track = 0.07f)
-        val HEAD_UNIT = Style(13f, 16f, 500)
-        val HEAD_UNIT_HOPS = Style(11f, 16f, mono = true)
         val HV_ABBR = Style(13.5f, 16f, 500, mono = true)
         val HV_NAME = Style(12f, 14f)
-        val HV_STATE = Style(11f, 13f, 500, track = 0.03f)
         val HV_LABEL = Style(11.5f, 15f)
         val HV_VOLTS = Style(13f, 18f, mono = true)
         val PACK_TITLE = Style(17f, 20f, 500)
         val PACK_TAG = Style(12f, 16f, mono = true)
-        val PACK_STATE = Style(11f, 13f, 500, track = 0.04f)
         val PACK_KEY = Style(12.5f, 19f)
         val PACK_VALUE = Style(14f, 19f, mono = true)
         val GLYPH = Style(15f, 18f)
@@ -262,21 +239,19 @@ internal object ScannerSpec {
             "counterLabel" to COUNTER_LABEL, "counterBig" to COUNTER_BIG, "counter" to COUNTER, "title" to TITLE,
             "titleAside" to TITLE_ASIDE, "line" to LINE, "tab" to TAB,
             "colHead" to COL_HEAD, "colHeadTight" to COL_HEAD_TIGHT, "bitHead" to BIT_HEAD, "groupTitle" to GROUP_TITLE,
-            "groupSummary" to GROUP_SUMMARY, "cell" to CELL, "cellSmall" to CELL_SMALL,
+            "cell" to CELL, "cellSmall" to CELL_SMALL,
             "cellMono" to CELL_MONO, "cellNum" to CELL_NUM, "cellAbbr" to CELL_ABBR, "cellAside" to CELL_ASIDE,
             "unit" to UNIT, "value" to VALUE, "valueBms" to VALUE_BMS, "sig" to SIG,
             "normMono" to NORM_MONO, "badge" to BADGE, "badgeSmall" to BADGE_SMALL, "badgeBig" to BADGE_BIG,
             "button" to BUTTON, "note" to NOTE, "noteMono" to NOTE_MONO, "code" to CODE, "codeFault" to CODE_FAULT,
-            "lead" to LEAD, "body" to BODY, "bodyStrong" to BODY_STRONG, "small" to SMALL, "legendKey" to LEGEND_KEY,
-            "legend" to LEGEND, "plateLine" to PLATE_LINE, "plateMono" to PLATE_MONO, "listCount" to LIST_COUNT,
+            "lead" to LEAD, "bodyStrong" to BODY_STRONG, "small" to SMALL, "plateLine" to PLATE_LINE, "plateMono" to PLATE_MONO, "listCount" to LIST_COUNT,
             "listService" to LIST_SERVICE, "faultTitle" to FAULT_TITLE, "faultNote" to FAULT_NOTE, "key" to KEY,
             "keyValue" to KEY_VALUE, "pidHead" to PID_HEAD, "pid" to PID, "bit" to BIT, "unitName" to UNIT_NAME,
             "unitTag" to UNIT_TAG, "rowSig" to ROW_SIG, "abbr" to ABBR,
             "abbrName" to ABBR_NAME, "tileAbbr" to TILE_ABBR, "tileAddr" to TILE_ADDR, "tileName" to TILE_NAME,
-            "tileState" to TILE_STATE, "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "paramValue" to PARAM_VALUE, "paramUnit" to PARAM_UNIT, "topoLabel" to TOPO_LABEL, "headUnit" to HEAD_UNIT,
-            "headUnitHops" to HEAD_UNIT_HOPS, "hvAbbr" to HV_ABBR, "hvName" to HV_NAME, "hvState" to HV_STATE,
-            "hvLabel" to HV_LABEL, "hvVolts" to HV_VOLTS, "packTitle" to PACK_TITLE, "packTag" to PACK_TAG,
-            "packState" to PACK_STATE, "packKey" to PACK_KEY, "packValue" to PACK_VALUE,
+            "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "paramValue" to PARAM_VALUE, "paramUnit" to PARAM_UNIT,
+            "hvAbbr" to HV_ABBR, "hvName" to HV_NAME, "hvLabel" to HV_LABEL, "hvVolts" to HV_VOLTS, "packTitle" to PACK_TITLE, "packTag" to PACK_TAG,
+            "packKey" to PACK_KEY, "packValue" to PACK_VALUE,
             "glyph" to GLYPH, "driveCell" to DRIVE_CELL, "driveSmall" to DRIVE_SMALL,
             "count16" to COUNT16, "adas11" to ADAS11, "adas12_5" to ADAS12_5, "adas13" to ADAS13,
             "adas14" to ADAS14, "adas16" to ADAS16, "codeSmall" to CODE_SMALL, "codeTitle" to CODE_TITLE, "tag" to TAG,
@@ -318,6 +293,39 @@ internal object ScannerSpec {
         const val DOT = 7f
         const val DOT_GAP = 7f
         const val DOT_GLOW = 6f
+        /** The car's figures right of the crumbs: a «·» with this room either side, a label this far from its figure. */
+        const val META_GAP = 9f
+        const val VOLTS_GAP = 5f
+    }
+
+    /** A record's sign (`sign()`): ● active, ◌ pending (dashed), ○ in history, a dashed square for no answer. */
+    object Sign {
+        const val R = 4f
+        const val STROKE = 1.5f
+        val DASH = floatArrayOf(3f, 2f)
+        const val SQUARE = 9f
+    }
+
+    /** A row's chevron, its box's side. */
+    const val CHEVRON = 14f
+
+    /** The view switch at the tabs' right end («Таблица / Графики»). */
+    object Segmented {
+        const val H = 26f
+        const val PAD = 12f
+        const val R = 5f
+        const val GAP = 2f
+    }
+
+    /** A status byte as one strip from bit 7 to 0 (`bitStrip()`). */
+    object BitStrip {
+        const val CELL = 44f
+        const val H = 34f
+        const val GAP = 4f
+        const val R = 4f
+        const val CELL_Y = 16f
+        const val NAME_Y = 56f
+        const val NAME_OUT = 4f
     }
 
     object Block {
@@ -349,10 +357,6 @@ internal object ScannerSpec {
         const val BUTTON_R = 6f
         const val DIVIDER_W = 1f
         const val DIVIDER_H = 20f
-        const val LEGEND_W = 16f
-        const val LEGEND_H = 10f
-        const val LEGEND_R = 2f
-        const val LEGEND_GAP = 7f
     }
 
     object Badge {
@@ -365,59 +369,231 @@ internal object ScannerSpec {
         const val BIG_PAD = 10f
     }
 
-    object Scan {
-        const val TABLE_TOP = 168f
-        const val TABLE_HEAD = 30f
-        const val PAD = 12f
-        const val NUM_PAD = 18f
+    /**
+     * «Блоки» (`blocksTable()`): the table's columns - the sign, the block, its name, the route, the
+     * protocol, the records, F194, the median answer, the chevron - its head and its rows.
+     */
+    object Modules {
+        val COLS = listOf(18f, 104f, 268f, 140f, 108f, 76f, 196f, 70f, 36f)
+        const val NUM_PAD = 14f
+        const val GROUP_PAD = 18f
+        const val TOP = 168f
+        const val HEAD = 30f
         const val LIST_TOP = 199f
         const val LIST_BOTTOM = 620f
         const val GROUP = 28f
         const val ROW = 30f
         const val RULE = 1f
-        const val GROUP_GAP = 14f
-        const val CHEVRON = 14f
     }
 
-    object Topology {
-        const val COLUMN = 137f
-        const val LEFT = 24f
-        const val TILE_W = 124f
-        const val TILE_H = 36f
-        const val TILE_R = 5f
-        const val TILE_PAD_X = 7f
-        const val TILE_INSET = 10f
-        const val TILE_PITCH = 40f
-        const val TILE_ROW_GAP = 2f
-        const val HEAD_X = 24f
-        const val HEAD_Y = 170f
-        const val HEAD_W = 168f
-        const val HEAD_H = 28f
-        const val HEAD_R = 5f
-        const val HEAD_PAD = 10f
-        const val FIRST_LABEL = 206f
-        const val LABEL_H = 22f
-        const val GROUP_GAP = 8f
-        const val TRUNK_Y = 184f
-        const val TRUNK_FIRST_Y = 198f
-        const val TAIL_Y = 224f
-        const val BUS_INSET = 4f
+    /** A block on a scheme (`unitTile()`): abbreviation and address over its short name. */
+    object Tile {
+        const val W = 124f
+        const val H = 36f
+        const val R = 5f
+        const val PAD_X = 7f
+        const val PITCH = 40f
+        const val ROW_GAP = 2f
+    }
 
-        /** One group's slice in a column: rows [from] until [to] (null: to the end); [continued] has no label. */
-        data class Part(val id: String, val from: Int = 0, val to: Int? = null, val continued: Boolean = false)
+    /**
+     * «Сводка» (`summary()`): the band of record kinds under the head, then the systems in two columns -
+     * a block's head and a row a record - and the quiet blocks' line under the left one.
+     */
+    object Summary {
+        const val BAND_TOP = 124f
+        const val BAND_H = 36f
+        const val BAND_GAP = 10f
+        const val BAND_ITEM_GAP = 24f
+        const val TOP = 172f
+        const val COL_W = 496f
+        const val COL_GAP = 24f
+        const val LABEL = 18f
+        const val HEAD = 32f
+        const val HEAD_GAP = 10f
+        const val ROW = 24f
+        const val ROW_PAD = 18f
+        val ROW_COLS = listOf(92f, FR, 40f, 14f)
+        const val ROW_GAP = 12f
+        const val BLOCK_GAP = 6f
+        const val SYSTEM_GAP = 12f
+        const val QUIET_GAP = 6f
+        const val QUIET_H = 34f
+        const val QUIET_CHEVRON_GAP = 8f
+        const val TAG_H = 16f
+        const val TAG_PAD = 5f
+        const val TAG_R = 3f
+    }
 
-        /** 9/9/7/19/19/4/1 blocks: body and cabin over three columns each, climate and 12 V under their tails. */
-        val COLUMNS: List<List<Part>> = listOf(
-            listOf(Part("power")),
-            listOf(Part("chassis")),
-            listOf(Part("assist")),
-            listOf(Part("body", 0, 9)),
-            listOf(Part("body", 9, 18, continued = true)),
-            listOf(Part("body", 18, 19, continued = true), Part("climate")),
-            listOf(Part("salon", 0, 9)),
-            listOf(Part("salon", 9, 18, continued = true)),
-            listOf(Part("salon", 18, 19, continued = true), Part("lv")),
-        )
+    /**
+     * A code's screen (`codeScreen()`), over the whole window: three columns under a rule - the
+     * meaning, the status byte and the reads; the addressee and the same failure type; the chronology,
+     * the snapshot and the counters.
+     */
+    object Code {
+        const val RULE = 131f
+        val X = listOf(24f, 448f, 864f)
+        val W = listOf(384f, 392f, 392f)
+        const val LABEL = 148f
+        const val MEANING = 168f
+        const val MEANING_NOTE = 196f
+        const val STATUS_LABEL = 236f
+        const val STRIP = 256f
+        const val WORDS = 334f
+        const val WORDS_NOTE = 358f
+        const val READ_LABEL = 404f
+        const val READS = 424f
+        /** The record's plate in a raw answer: out by [PICK_X], [PICK_Y], its corners [PICK_R]. */
+        const val PICK_X = 3f
+        const val PICK_Y = 1f
+        const val PICK_R = 3f
+        const val CARD_TOP = 168f
+        const val CARD_H = 78f
+        const val CARD_PAD_X = 14f
+        const val CARD_PAD_Y = 12f
+        const val CARD_R = 6f
+        const val CARD_GAP = 8f
+        const val SAME_LABEL = 276f
+        const val SAME = 296f
+        const val SAME_ROW = 28f
+        val SAME_COLS = listOf(104f, FR, 70f, 14f)
+        const val SAME_GAP = 10f
+        const val SAME_NOTE_GAP = 12f
+        const val TIME_TOP = 176f
+        const val TIME_DOT = 8f
+        const val TIME_BAR = 2f
+        const val TIME_BAR_ALPHA = 0.55f
+        const val TIME_AXIS = 30f
+        const val TIME_TICK = 10f
+        const val TIME_LABEL_GAP = 4f
+        const val TIME_CAPTION = 50f
+        const val SNAP_LABEL = 260f
+        const val SNAP = 280f
+        const val SNAP_ROW = 28f
+        const val SNAP_KEY = 180f
+        const val COUNT_GAP = 13f
+        const val COUNT_ROW = 20f
+    }
+
+    /**
+     * «Тяговая батарея · Здоровье» (`packHealth()`): the table of now, the reference and 30 days, its
+     * mini charts, and beside it the cells from their mean and the probes.
+     */
+    object Health {
+        const val TOP = 168f
+        const val W = 600f
+        const val HEAD = 30f
+        const val ROW = 44f
+        val COLS = listOf(236f, 112f, 132f, 120f)
+        const val VALUE_PAD = 20f
+        const val SUB_GAP = 2f
+        const val UNIT_GAP = 5f
+        const val SPARK_W = 104f
+        const val SPARK_H = 22f
+        const val SPARK_STROKE = 1.5f
+        const val SPARK_DOT = 2f
+        const val CELLS_X = 648f
+        const val CELLS_LABEL_Y = 168f
+        const val CELLS_TOP = 196f
+        const val CELLS_W = 392f
+        const val CELLS_H = 150f
+        /** Dots a millivolt. */
+        const val CELLS_MV = 15f
+        val CELLS_GRID = listOf(-4, -2, 2, 4)
+        const val CELLS_SCALE_W = 26f
+        const val CELLS_GAP = 0.7f
+        const val CELLS_STATS_Y = 358f
+        const val PROBES_LABEL_Y = 392f
+        const val PROBES_TOP = 414f
+        const val PROBES_COLS = 7
+        const val PROBE_W = 52f
+        const val PROBE_H = 42f
+        const val PROBE_STEP_X = 56f
+        const val PROBE_STEP_Y = 48f
+        const val PROBE_PAD_X = 7f
+        const val PROBE_PAD_Y = 4f
+        const val PROBE_R = 5f
+        /** The bars' room on the right of the chart, for the sweep and the extremes' words. */
+        const val CELLS_RIGHT = 30f
+        /** A bar not at an extreme is drawn at this much of its light. */
+        const val BAR_ALPHA = 0.75f
+        const val BAR_MIN_W = 1.2f
+    }
+
+    /** «Графики» (`sysGraphs()`): up to four lanes on one axis, the legend at their left. */
+    object Graphs {
+        const val LEGEND_W = 232f
+        const val PLOT_X = 272f
+        val LANES = listOf(172f, 280f, 388f, 496f)
+        const val LANE = 94f
+        const val NAME_GAP = 3f
+        const val VALUE_GAP = 6f
+        const val CURSOR_TOP = 168f
+        const val CURSOR_BOTTOM = 598f
+        const val CURSOR_DOT = 3.5f
+        const val AXIS_Y = 604f
+        const val TAG_Y = 600f
+        const val TAG_W = 68f
+        const val TAG_H = 20f
+        const val TAG_R = 4f
+        const val SCALE_INSET = 4f
+        /** The trace's width; a scale's word stands this far inside its lane. */
+        const val TRACE = 1.5f
+        const val SCALE_PAD = 2f
+    }
+
+    /** «Журнал» (`journal()`): the day axis and its lanes at the left, the comparison's panel at the right. */
+    object Journal {
+        const val PLOT_X = 188f
+        const val PLOT_W = 536f
+        const val AXIS_Y = 176f
+        const val GRID_TOP = 190f
+        const val GRID_H = 418f
+        const val LANE_W = 156f
+        val LANES = listOf(200f, 232f, 264f)
+        const val LANE_H = 28f
+        val RULES = listOf(300f, 494f)
+        const val CODES_LABEL = 312f
+        const val CODES_TOP = 332f
+        const val CODE_STEP = 26f
+        const val CODE_H = 24f
+        const val VALUES_LABEL = 506f
+        val VALUES = listOf(526f, 564f)
+        const val VALUE_H = 30f
+        const val DOT = 6f
+        const val POINT = 2.2f
+        const val CELL_LABEL = 2f
+        const val PANEL_X = 748f
+        const val PANEL_TOP = 176f
+        const val PANEL_H = 432f
+        const val PANEL_PAD_X = 16f
+        const val PANEL_PAD_Y = 14f
+        const val PANEL_R = 6f
+        const val PANEL_ROW = 26f
+        const val PANEL_HEAD = 30f
+        const val PANEL_GAP = 10f
+    }
+
+    /** «Отчёт» (`report()`): the first page on the left, what goes in and where on the right. */
+    object Report {
+        const val PAPER_X = 24f
+        const val PAPER_Y = 64f
+        const val PAPER_W = 390f
+        const val PAPER_H = 552f
+        const val PAPER_R = 3f
+        const val X = 452f
+        const val TITLE_Y = 64f
+        const val LINE_Y = 94f
+        const val LABEL_Y = 128f
+        const val LIST_TOP = 146f
+        const val ROW = 38f
+        const val BOX = 18f
+        const val BOX_R = 4f
+        const val BOX_GAP = 12f
+        const val DEST_LABEL = 400f
+        const val DEST = 420f
+        const val DEST_NOTE = 446f
+        const val DEST_SIZE = 470f
     }
 
     object EcuDtc {
@@ -481,20 +657,15 @@ internal object ScannerSpec {
     object BodyDtc {
         const val TOP = 172f
         const val HEAD = 30f
-        val COLS = listOf(130f, 260f, FR, 80f, 46f, 46f, 46f, 46f, 46f, 46f, 46f, 46f)
+        /** The code, the failure type, the description, the status in words. */
+        val TABLE = listOf(130f, 260f, FR, 440f)
         const val ROW_MIN = 52f
-        const val BIT = 12f
-        const val BIT_R = 3f
         const val BELOW = 328f
-        /** The explanation's distance under the last code when the codes reach past [BELOW]. */
+        /** The selected code's status byte this far under the last code when the codes reach past [BELOW]. */
         const val BELOW_GAP = 19f
-        const val EXPLAIN_W = 600f
         const val EXPLAIN_GAP = 8f
-        const val LEGEND_X = 672f
-        const val LEGEND_W = 584f
-        const val LEGEND_KEY = 70f
-        const val LEGEND_GAP = 12f
-        const val LEGEND_ROW_GAP = 6f
+        /** «КАК ПРОЧИТАН» beside the status byte. */
+        const val READ_X = 672f
     }
 
     object Drives {
@@ -523,9 +694,6 @@ internal object ScannerSpec {
         const val PLATE_PAD_Y = 14f
         const val PLATE_GAP_IN = 10f
         const val PLATE_R = 6f
-        const val BITS_H = 30f
-        const val BITS_GAP = 4f
-        const val BITS_R = 4f
     }
 
     /** The systems down the left (`rail()`), and the screens at the width it leaves. */
@@ -536,14 +704,11 @@ internal object ScannerSpec {
         const val ITEM = 38f
         const val SEP_GAP = 8f
         const val BAR = 3f
-        val SCAN_COLS = listOf(290f, 120f, 150f, 100f, 80f, 80f, 150f, FR)
+        /** A mark's sign this far before its count. */
+        const val MARK_GAP = 7f
         val LIVE_COLS = listOf(50f, 300f, 100f, 64f, 76f, 76f, 100f, FR)
         /** The pack's readings as a live table: the device first, the FID beside the name. */
         val PACK_LIVE_COLS = listOf(58f, 286f, 132f, 50f, 76f, 76f, 100f, FR)
-        const val TOPO_COLUMN = 112f
-        const val TOPO_TILE_W = 100f
-        const val TOPO_TILE_PAD_X = 5f
-        const val TOPO_TILE_INSET = 8f
         val DTC_COLS = listOf(150f, 120f, 250f, FR, 190f, 40f)
         const val DTC_ROW = 34f
         const val ECU_LEFT_X = 24f
@@ -906,7 +1071,6 @@ internal object ScannerSpec {
         const val MACHINE_R = 24f
         const val BUS_LABEL_RIGHT = 568f
         const val BUS_LABEL_Y = 203.5f
-        val VOLTS = listOf(586f to 236f, 586f to 466f)
         /** A unit's place, and its width where it is not [UNIT_W]: the inverters on the bus, wide enough for «Инвертор задний правый». */
         data class Place(val x: Float, val y: Float, val w: Float? = null)
 
@@ -915,32 +1079,6 @@ internal object ScannerSpec {
             "SMCU3" to Place(628f, 512f, 168f), "ECM" to Place(888f, 292f), "PTC" to Place(24f, 232f),
             "DCOBC" to Place(24f, 350f), "LBMS" to Place(24f, 500f),
         )
-    }
-
-    /** A range on a scale (`rangeBar()`). */
-    object RangeBar {
-        const val H = 8f
-        const val HEAD_GAP = 24f
-        const val TICK_GAP = 8f
-        const val MIN_SPAN = 3f
-    }
-
-    object PackScheme {
-        const val X = 60f
-        const val Y = 196f
-        const val W = 230f
-        const val H = 380f
-        const val R = 12f
-        const val PAD = 10f
-        val POLES = 262f to 506f
-        const val BUS_X = 610f
-        const val ISO_X = 380f
-        const val ISO_W = 220f
-        const val ISO_H = 124f
-        const val RANGES_X = 720f
-        const val RANGES_Y = 224f
-        const val RANGES_W = 300f
-        const val RANGES_STEP = 120f
     }
 
     object EngineScheme {

@@ -115,10 +115,10 @@ class ReadsSessionTest {
         assertEquals("19 01 0D", dtc.asks[0].service)
         assertEquals(listOf("Ожидающие", "19 02 0D", "1"), dtc.asks[2].let { listOf(it.name, it.service, it.count) })
         assertTrue(m.groups.first { it.id == "body" }.summary.contains("ожидающие 1"))
-        // The screens before v4 draw it as history, the pending in the history's count.
-        assertEquals(ScannerWords.chip(ModuleStatus.HISTORY), ScannerWords.chip(row.status))
-        assertEquals("2", ScannerWords.history(row))
-        assertEquals("ИСТ 2", ScannerWords.tileState(row))
+        // v4 draws it with the pending sign ◌, its records counted together (7.3)
+        assertEquals(dev.denza.apps.feature.diagnostics.scan.Mark.PENDING, ScannerWords.mark(row.status))
+        assertEquals(2, ScannerWords.records(row))
+        assertEquals(dev.denza.apps.feature.diagnostics.scan.MarkCount(dev.denza.apps.feature.diagnostics.scan.Mark.PENDING, 2), ScannerWords.tileRight(row).mark)
         s.stop()
     }
 

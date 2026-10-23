@@ -56,9 +56,56 @@ import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
 import dev.denza.apps.feature.diagnostics.scan.PackCellsView
 import dev.denza.apps.feature.diagnostics.scan.PadState
-import dev.denza.apps.feature.diagnostics.scan.RailItem
-import dev.denza.apps.feature.diagnostics.scan.RailTone
+import dev.denza.apps.feature.diagnostics.report.ReportBlock
+import dev.denza.apps.feature.diagnostics.report.ReportCode
+import dev.denza.apps.feature.diagnostics.report.ReportCodeKind
+import dev.denza.apps.feature.diagnostics.report.ReportEngine
+import dev.denza.apps.feature.diagnostics.report.ReportExchanges
+import dev.denza.apps.feature.diagnostics.report.ReportInput
+import dev.denza.apps.feature.diagnostics.report.ReportOption
+import dev.denza.apps.feature.diagnostics.report.ReportPack
+import dev.denza.apps.feature.diagnostics.report.ReportRecording
+import dev.denza.apps.feature.diagnostics.report.ReportSection
+import dev.denza.apps.feature.diagnostics.report.ReportState
+import dev.denza.apps.feature.diagnostics.report.ReportSummary
+import dev.denza.apps.feature.diagnostics.scan.AddresseeView
+import dev.denza.apps.feature.diagnostics.scan.BandPart
+import dev.denza.apps.feature.diagnostics.scan.BlockRow
+import dev.denza.apps.feature.diagnostics.scan.BlocksFilter
+import dev.denza.apps.feature.diagnostics.scan.BlocksView
+import dev.denza.apps.feature.diagnostics.scan.CodeRef
+import dev.denza.apps.feature.diagnostics.scan.CodeTimelineView
+import dev.denza.apps.feature.diagnostics.scan.CodeView
+import dev.denza.apps.feature.diagnostics.scan.GraphLane
+import dev.denza.apps.feature.diagnostics.scan.GraphScope
+import dev.denza.apps.feature.diagnostics.scan.GraphsView
+import dev.denza.apps.feature.diagnostics.scan.HealthReference
+import dev.denza.apps.feature.diagnostics.scan.HealthRow
+import dev.denza.apps.feature.diagnostics.scan.HealthView
+import dev.denza.apps.feature.diagnostics.scan.JournalCellTick
+import dev.denza.apps.feature.diagnostics.scan.JournalCodeLane
+import dev.denza.apps.feature.diagnostics.scan.JournalQuantityLane
+import dev.denza.apps.feature.diagnostics.scan.JournalSoftwareTick
+import dev.denza.apps.feature.diagnostics.scan.JournalTick
+import dev.denza.apps.feature.diagnostics.scan.JournalView
+import dev.denza.apps.feature.diagnostics.scan.Mark
+import dev.denza.apps.feature.diagnostics.scan.MarkCount
+import dev.denza.apps.feature.diagnostics.scan.RailLine
+import dev.denza.apps.feature.diagnostics.scan.RailPlace
 import dev.denza.apps.feature.diagnostics.scan.RangeView
+import dev.denza.apps.feature.diagnostics.scan.RawLine
+import dev.denza.apps.feature.diagnostics.scan.ReadSection
+import dev.denza.apps.feature.diagnostics.scan.ReadState
+import dev.denza.apps.feature.diagnostics.scan.ReferenceKind
+import dev.denza.apps.feature.diagnostics.scan.ScanCompareView
+import dev.denza.apps.feature.diagnostics.scan.StatusByteView
+import dev.denza.apps.feature.diagnostics.scan.SummaryBand
+import dev.denza.apps.feature.diagnostics.scan.SummaryBlock
+import dev.denza.apps.feature.diagnostics.scan.SummaryRecord
+import dev.denza.apps.feature.diagnostics.scan.SummarySystem
+import dev.denza.apps.feature.diagnostics.scan.SummaryView
+import dev.denza.apps.feature.diagnostics.scan.Vital
+import dev.denza.apps.feature.diagnostics.ui.ScannerSpec
 import dev.denza.apps.feature.diagnostics.scan.Sample
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
@@ -99,12 +146,20 @@ internal object ScannerFixtures {
     private const val BSCM = 0x7E5
     private const val BMS = 0x7E7
 
-    private val scan = ScannerRoute.Scan()
+    private val summary = ScannerRoute.Summary
+    private val blocks = listOf(summary, ScannerRoute.Blocks())
 
-    /** Where each board's screen is: the stack the section opens with, the autoscan at its bottom. */
+    /** Where each board's screen is: the stack the section opens with, «Сводка» at its bottom. */
     fun route(id: String): List<ScannerRoute> {
-        fun sys(s: CarSystem, tab: SystemTab) = listOf(scan, ScannerRoute.System(s, tab))
+        fun sys(s: CarSystem, tab: SystemTab) = listOf(summary, ScannerRoute.System(s, tab))
         return when (id) {
+            "scanner-summary", "scanner-summary-active" -> listOf(summary)
+            "scanner-blocks" -> blocks
+            "scanner-journal", "scanner-journal-first" -> listOf(summary, ScannerRoute.Journal(0))
+            "scanner-report" -> listOf(summary, ScannerRoute.Report)
+            "scanner-code" -> listOf(summary, ScannerRoute.Code(0x720, "U0121-87"))
+            "scanner-code-plain" -> listOf(summary, ScannerRoute.Code(R_ZCU, "C1170-09"))
+            "scanner-sys-engine-graphs" -> listOf(summary, ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE, graphs = true))
             "scanner-sys-engine" -> sys(CarSystem.ENGINE, SystemTab.LIVE)
             "scanner-sys-engine-rpm", "scanner-sys-engine-ect", "scanner-sys-pack-cell" -> {
                 val key = PARAM_KEYS.getValue(id)
@@ -129,19 +184,23 @@ internal object ScannerFixtures {
             "scanner-sys-climate" -> sys(CarSystem.CLIMATE, SystemTab.STATE)
             "scanner-sys-lv" -> sys(CarSystem.LV, SystemTab.STATE)
             in CABIN_BOARDS -> sys(CarSystem.CABIN, SystemTab.STATE)
-            "scanner-body-dtc" -> listOf(scan, ScannerRoute.Module(R_ZCU, 0))
-            "scanner-ecu-dtc", "scanner-ecu-fault" -> listOf(scan, ScannerRoute.Module(ECM, 0))
-            "scanner-ecu-live" -> listOf(scan, ScannerRoute.Module(ECM, 1))
-            "scanner-ecu-ident" -> listOf(scan, ScannerRoute.Module(ECM, 2))
-            "scanner-ecu-ident-updated" -> listOf(scan, ScannerRoute.Module(BMS, 1))
-            "scanner-esp-dtc" -> listOf(scan, ScannerRoute.System(CarSystem.CHASSIS), ScannerRoute.Module(ESP, 0))
-            else -> listOf(scan)
+            "scanner-body-dtc" -> blocks + ScannerRoute.Module(R_ZCU, 0)
+            "scanner-ecu-dtc", "scanner-ecu-fault" -> blocks + ScannerRoute.Module(ECM, 0)
+            "scanner-ecu-live" -> blocks + ScannerRoute.Module(ECM, 1)
+            "scanner-ecu-ident" -> blocks + ScannerRoute.Module(ECM, 2)
+            "scanner-ecu-ident-updated" -> blocks + ScannerRoute.Module(BMS, 1)
+            "scanner-esp-dtc" -> listOf(summary, ScannerRoute.System(CarSystem.CHASSIS), ScannerRoute.Module(ESP, 0))
+            else -> listOf(summary)
         }
     }
 
-    /** The scenes' live traces are already 0..1 of their own range. */
-    @Suppress("UNUSED_PARAMETER")
-    fun sample(all: JSONObject, id: String): ScannerSample = ScannerSample(chartRange = 0f..1f)
+    /** The scenes' live traces are already 0..1 of their own range; the graphs' cursor is the board's. */
+    fun sample(all: JSONObject, id: String): ScannerSample = ScannerSample(
+        chartRange = 0f..1f,
+        graphsCursor = if (id == GRAPHS) fixture(all, id).getDouble("cursor").toFloat() else null,
+    )
+
+    private const val GRAPHS = "scanner-sys-engine-graphs"
 
     fun model(all: JSONObject, id: String): DiagnosticsModel {
         // the v4 boards (2026-10-23): the blocks and the scan are `scanner-blocks`'; a board's header
@@ -153,11 +212,17 @@ internal object ScannerFixtures {
         val groups = groups(scanBoard.getJSONArray("groups"))
         val ecus = (0 until scanBoard.getJSONArray("groups").length()).flatMap { objects(scanBoard.getJSONArray("groups").getJSONObject(it).getJSONArray("ecus")) }
         val answered = "${scan.getInt("answered")}/${scan.getInt("blocks")}"
+        val summaryBoard = if (id == "scanner-summary-active") id else "scanner-summary"
         return DiagnosticsModel(
             header = Header(
                 link = if (top.has("link")) LinkState.OK else LinkState.LOST,
-                car = listOf(top.getString("car"), top.optString("mode")).filter { it.isNotEmpty() }.joinToString(" · "),
+                car = top.getString("car"),
                 clock = top.getString("time"),
+                odometer = top.optStringOrNull("odo"),
+                mode = top.optStringOrNull("mode"),
+                volts = top.optStringOrNull("volts"),
+                voltsOut = top.optBoolean("voltsOut"),
+                latency = top.optStringOrNull("link"),
             ),
             scan = ScanSummary(
                 phase = ScanPhase.DONE, done = scan.getInt("answered"), total = scan.getInt("blocks"),
@@ -169,10 +234,16 @@ internal object ScannerFixtures {
             groups = groups,
             modules = modules(all, id),
             systems = systems(all, id),
-            rail = rail(board.optJSONObject("rail") ?: fixture(all, "scanner-summary").getJSONObject("rail")),
+            railLines = railLines(board.optJSONObject("rail") ?: fixture(all, summaryBoard).getJSONObject("rail")),
             systemPages = pages(all, groups, id),
             param = PARAM_KEYS[id]?.let { param(fixture(all, id), it) },
             packCells = if (id in CELLS_BOARDS) cells(fixture(all, id)) else null,
+            summary = summary(fixture(all, summaryBoard)),
+            blocks = blocksView(scanBoard),
+            code = CODE_BOARDS[id]?.let { code(fixture(all, it)) },
+            health = health(fixture(all, if (id in HEALTH_BOARDS) id else "scanner-sys-pack-health")),
+            journal = if (id in JOURNAL_BOARDS) journal(fixture(all, id)) else null,
+            report = if (id == "scanner-report") report(fixture(all, id), scanBoard, summary(fixture(all, "scanner-summary"))) else ReportState(),
         )
     }
 
@@ -361,21 +432,427 @@ internal object ScannerFixtures {
 
     /* ---------------------------------------------------------------- rail */
 
-    private fun rail(r: JSONObject): List<RailItem> {
+    /** The board's rail (`sysRail()`): a line's records as the sign of its worst kind and their count; «Блоки» its count. */
+    private fun railLines(r: JSONObject): List<RailLine> {
         val items = r.getJSONArray("items")
         return (0 until items.length()).mapNotNull { i -> items.get(i) as? JSONObject }.map { it ->
             val name = it.getString("name")
-            val active = it.optInt("active")
-            val records = active + it.optInt("pending") + it.optInt("history")
-            val (mark, tone) = when {
-                it.has("count") -> it.getInt("count").toString() to RailTone.COUNT
-                records == 0 -> null to RailTone.NONE
-                active > 0 -> records.toString() to RailTone.ACTIVE
-                else -> records.toString() to RailTone.HISTORY
+            val place = when (name) {
+                "Сводка" -> RailPlace.Summary
+                "Блоки" -> RailPlace.Blocks
+                "Журнал" -> RailPlace.Journal
+                else -> RailPlace.System(CarSystem.entries.first { s -> s.railName == name })
             }
-            RailItem(CarSystem.entries.firstOrNull { s -> s.railName == name }, name, mark, tone)
+            RailLine(place, name, kindOf(it)?.let { k -> MarkCount(k, records(it)) }, plain = if (it.has("count")) it.getInt("count").toString() else null)
         }
     }
+
+    /** A block's or a line's records, whatever their kind (`records()`). */
+    private fun records(o: JSONObject): Int = listOf("active", "pending", "history").sumOf { o.optString(it).toIntOrNull() ?: 0 }
+
+    /** The worst kind of a block's or a line's records (`blockKind()`). */
+    private fun kindOf(o: JSONObject): Mark? = when {
+        (o.optString("active").toIntOrNull() ?: 0) > 0 -> Mark.ACTIVE
+        (o.optString("pending").toIntOrNull() ?: 0) > 0 -> Mark.PENDING
+        (o.optString("history").toIntOrNull() ?: 0) > 0 -> Mark.HISTORY
+        else -> null
+    }
+
+    /** A record's kind from its status byte (`kindOf()`). */
+    private fun markOf(status: Int): Mark = ScannerWords.markOf(status)
+
+    /* ------------------------------------------------------------ «Блоки» */
+
+    /** «Блоки» from its board (`modules()`, `blocksTable()`): the scan's line, the filters with their counts, the groups. */
+    private fun blocksView(f: JSONObject): BlocksView {
+        val sc = f.getJSONObject("scan")
+        val ecus = objects(f.getJSONArray("groups")).flatMap { objects(it.getJSONArray("ecus")) }
+        val rows = ecus.map { e ->
+            val req = e.optStringOrNull("req")?.toInt(16)
+            val n = records(e)
+            val silent = e.has("answered") && !e.getBoolean("answered")
+            val f194 = e.optStringOrNull("f194")
+            BlockRow(
+                request = req, abbreviation = e.getString("abbr"), name = e.getString("name").removePrefix("≈ "),
+                route = ScannerWords.route(req), protocol = e.optStringOrNull("proto") ?: "—",
+                mark = if (silent) Mark.NO_REPLY else kindOf(e), records = if (n > 0) n.toString() else "—",
+                software = f194?.chunked(4)?.joinToString(" ") ?: "—", softwareChanged = e.optBoolean("swChanged"),
+                latency = if (e.has("ms") && !e.isNull("ms")) "${e.getInt("ms")} мс" else "—",
+                filters = setOfNotNull(
+                    BlocksFilter.ALL, BlocksFilter.WITH_RECORDS.takeIf { n > 0 }, BlocksFilter.NO_REPLY.takeIf { silent },
+                    BlocksFilter.SOFTWARE_CHANGED.takeIf { e.optBoolean("swChanged") },
+                ),
+                target = req?.let { Target.Module(it) },
+            )
+        }
+        val silent = rows.count { it.mark == Mark.NO_REPLY }
+        val withRecords = rows.count { BlocksFilter.WITH_RECORDS in it.filters }
+        return BlocksView(
+            aside = "· ${rows.size} · " + if (silent > 0) "не ответили $silent" else "все ответили",
+            line = "скан ${sc.getString("at")} · ${sc.getInt("exchanges")} обменов · ${sc.getString("seconds")} с · маска ${sc.getString("mask")}",
+            filters = listOf(
+                BlocksFilter.ALL to "Все · ${rows.size}", BlocksFilter.WITH_RECORDS to "С записями · $withRecords",
+                BlocksFilter.NO_REPLY to "Без ответа · $silent", BlocksFilter.SOFTWARE_CHANGED to "ПО изменено · ${rows.count { it.softwareChanged }}",
+            ),
+            groups = ScannerWords.groups(rows),
+            footnote = footnote(f),
+        )
+    }
+
+    /* ------------------------------------------------------------ «Сводка» */
+
+    private val RANK = mapOf(Mark.ACTIVE to 0, Mark.PENDING to 1, Mark.HISTORY to 2)
+
+    /** The worst of [marks] (`worst()`). */
+    private fun worst(marks: List<Mark>): Mark = marks.minByOrNull { RANK[it] ?: 3 } ?: Mark.HISTORY
+
+    /** A U-code of the type 87: a message lost between blocks (`netLoss()`). */
+    private fun netLoss(code: String): Boolean = code.startsWith("U") && code.endsWith("-87")
+
+    private fun plural(n: Int, one: String, few: String, many: String) = ScannerWords.plural(n, one, few, many)
+
+    /**
+     * «Сводка» from its board (`summary()`): the verdict, the scan's line, the vitals, the band of kinds and
+     * the systems - most severe first, then the most records - into the shorter of two columns.
+     */
+    private fun summary(f: JSONObject): SummaryView {
+        val s = ScannerSpec.Summary
+        val sc = f.getJSONObject("scan")
+        val systems = objects(f.getJSONArray("systems"))
+        val all = systems.flatMap { sys -> objects(sys.getJSONArray("blocks")).flatMap { b -> objects(b.getJSONArray("codes")).map { markOf(it.getInt("status")) } } }
+        fun count(m: Mark) = all.count { it == m }
+        val act = count(Mark.ACTIVE)
+        val nBlocks = systems.sumOf { it.getJSONArray("blocks").length() }
+        val kinds = listOf(Mark.ACTIVE to "АКТИВНЫЕ", Mark.PENDING to "ОЖИДАЮЩИЕ", Mark.HISTORY to "В ИСТОРИИ").filter { count(it.first) > 0 }
+        val items = kinds.mapIndexed { i, (m, word) ->
+            val n = count(m)
+            BandPart(m, "$word · $n ${plural(n, "ЗАПИСЬ", "ЗАПИСИ", "ЗАПИСЕЙ")}" + if (i == kinds.lastIndex) " · $nBlocks ${plural(nBlocks, "БЛОК", "БЛОКА", "БЛОКОВ")}" else "")
+        }
+        val net = systems.flatMap { sys -> objects(sys.getJSONArray("blocks")).flatMap { b -> objects(b.getJSONArray("codes")) } }.count { netLoss(it.getString("code")) }
+        fun <T> ordered(list: List<T>, marks: (T) -> List<Mark>, n: (T) -> Int): List<T> = list.withIndex()
+            .sortedWith(compareBy({ RANK[worst(marks(it.value))] ?: 3 }, { -n(it.value) }, { it.index })).map { it.value }
+        fun codes(b: JSONObject) = objects(b.getJSONArray("codes"))
+        fun bMarks(b: JSONObject) = codes(b).map { markOf(it.getInt("status")) }
+        val views = ordered(systems, { sys -> objects(sys.getJSONArray("blocks")).flatMap(::bMarks) }, { sys -> objects(sys.getJSONArray("blocks")).sumOf { codes(it).size } })
+            .map { sys ->
+                val bs = ordered(objects(sys.getJSONArray("blocks")), ::bMarks) { codes(it).size }
+                val n = bs.sumOf { codes(it).size }
+                SummarySystem(
+                    "${sys.getString("name").uppercase()} · $n",
+                    bs.map { b ->
+                        val marks = bMarks(b)
+                        SummaryBlock(
+                            request = b.getString("addr").toInt(16), abbreviation = b.getString("abbr"), address = b.getString("addr"),
+                            name = b.getString("name"), mark = worst(marks), count = marks.size, since = "с ${b.getString("since")}",
+                            records = codes(b).map { d ->
+                                val k = markOf(d.getInt("status"))
+                                val meaning = d.optStringOrNull("meaning")
+                                SummaryRecord(d.getString("code"), meaning ?: d.getString("type"), meaning != null, netLoss(d.getString("code")), k.takeIf { it != Mark.HISTORY }, fresh = false)
+                            },
+                        )
+                    },
+                )
+            }
+        // into the shorter column, as the board stacks them
+        val colY = floatArrayOf(s.TOP, s.TOP)
+        val columns = listOf(mutableListOf<SummarySystem>(), mutableListOf())
+        views.forEach { v ->
+            val k = if (colY[1] < colY[0]) 1 else 0
+            var y = colY[k] + if (colY[k] > s.TOP) s.SYSTEM_GAP else 0f
+            y += s.LABEL
+            v.blocks.forEachIndexed { i, b -> if (i > 0) y += s.BLOCK_GAP; y += s.HEAD + 1f + b.records.size * (s.ROW + 1f) }
+            colY[k] = y
+            columns[k] += v
+        }
+        val blocks = sc.getInt("blocks")
+        val answered = sc.getInt("answered")
+        val quiet = blocks - nBlocks
+        return SummaryView(
+            verdict = if (act > 0) "$act " + plural(act, "активная неисправность", "активные неисправности", "активных неисправностей") else "Активных неисправностей нет",
+            verdictMark = Mark.ACTIVE.takeIf { act > 0 },
+            line = "скан ${sc.getString("at")} · $answered из $blocks блоков · маска ${sc.getString("mask")} · ${sc.getString("seconds")} с",
+            vitals = objects(f.getJSONArray("vitals")).map { Vital(it.getString("key"), it.getString("value"), it.optString("unit"), it.optBoolean("out")) },
+            band = items.lastOrNull()?.let {
+                SummaryBand(items.joinToString(" · ") { it.text }, items.first().mark, if (net > 0) "в т. ч. $net — потеря связи между блоками, U…-87" else null, items)
+            },
+            columns = columns,
+            rest = "$quiet ${plural(quiet, "блок", "блока", "блоков")} без записей · " + if (answered == blocks) "все ответили" else "не ответили ${blocks - answered}",
+            restAttention = answered < blocks,
+            footnote = footnote(f),
+        )
+    }
+
+    /* ------------------------------------------------------- a code's screen */
+
+    private val CODE_BOARDS = mapOf("scanner-code" to "scanner-code", "scanner-code-plain" to "scanner-code-plain")
+
+    /** «DD.MM HH:MM» as minutes, for ordering (`when()`). */
+    private fun minutes(s: String): Int {
+        val d = s.substring(0, 2).toInt()
+        val m = s.substring(3, 5).toInt()
+        val hm = if (s.length >= 11) s.substring(6, 8).toInt() * 60 + s.substring(9, 11).toInt() else 0
+        return (m * 31 + d) * 1440 + hm
+    }
+
+    /** Where a moment stands on a day axis of [days], 0..1 (`dayAxis()`'s x). */
+    private fun along(s: String, days: List<String>): Float {
+        val i = days.indexOf(s.take(5))
+        val h = if (s.length >= 11) (s.substring(6, 8).toInt() + s.substring(9, 11).toInt() / 60f) / 24f else 0f
+        return (i + h) / days.size
+    }
+
+    /** A DTC's three bytes: «U0121-87» is C1 21 87 (`dtcBytes()`). */
+    private fun dtcBytes(code: String): List<String>? {
+        val m = Regex("^([PCBU])([0-3])([0-9A-F])([0-9A-F]{2})-([0-9A-F]{2})$").find(code) ?: return null
+        val (letter, d2, d3, b2, b3) = m.destructured
+        val hi = ("PCBU".indexOf(letter) shl 6) or (d2.toInt(16) shl 4) or d3.toInt(16)
+        return listOf("%02X".format(hi), b2, b3)
+    }
+
+    /** A read as it went (`readLine()`): ask, «→», the answer cut to its head and [code]'s record, picked out. */
+    private fun readLine(ask: String, answer: String, code: String?): RawLine {
+        val bytes = answer.split(' ')
+        val rec = code?.let(::dtcBytes)
+        var at = -1
+        if (rec != null) for (i in 2 until bytes.size) if (at < 0 && i + 3 < bytes.size && bytes[i] == rec[0] && bytes[i + 1] == rec[1] && bytes[i + 2] == rec[2]) at = i
+        val lead = "$ask → "
+        if (at < 0) return RawLine(lead + answer)
+        val before = bytes.take(minOf(3, at)).joinToString(" ") + if (at > 3) " · … · " else " "
+        val record = bytes.subList(at, at + 4).joinToString(" ")
+        val after = if (at + 4 < bytes.size) " · …" else ""
+        val start = (lead + before).length
+        return RawLine(lead + before + record + after, start until start + record.length)
+    }
+
+    /** A code's screen from its board (`codeScreen()`). */
+    private fun code(f: JSONObject): CodeView {
+        val code = f.getString("code")
+        val block = f.getJSONObject("block")
+        val status = f.getInt("status")
+        val availability = f.getInt("availability")
+        val active = markOf(status) == Mark.ACTIVE
+        val tl = f.getJSONObject("timeline")
+        val days = strings(tl.getJSONArray("days"))
+        val seen = strings(tl.getJSONArray("seen"))
+        val since = strings(tl.getJSONArray("scans")).filter { minutes(it) >= minutes(seen.first()) }
+        val sae = f.getJSONObject("sae")
+        val ftb = code.substringAfter('-')
+        val same = objects(f.getJSONArray("same"))
+        val sameBlocks = (listOf(block.getString("abbr")) + same.map { it.getString("block") }).toSet().size
+        val n = same.size + 1
+        val what = if (netLoss(code)) "${plural(n, "код", "кода", "кодов")} потери связи" else "${plural(n, "код", "кода", "кодов")} с типом $ftb"
+        val every = seen.size == since.size
+        val scans = plural(since.size, "скана", "сканов", "сканов")
+        fun section(title: String, o: JSONObject, empty: String, rowsKey: String = "rows"): ReadSection = if (o.has(rowsKey)) {
+            val rows = arrays(o.getJSONArray(rowsKey))
+            ReadSection(title, ReadState.READ, rows.map { Field(it.getString(0), it.getString(1)) }, rows.filter { it.optBoolean(2) }.map { it.getString(0) }.toSet())
+        } else {
+            ReadSection(title, ReadState.EMPTY, emptyList(), raw = listOf("${o.getString("ask")} → ${o.getString("answer")}"), word = empty)
+        }
+        val snap = f.getJSONObject("snapshot")
+        return CodeView(
+            request = block.getString("addr").toInt(16), code = code,
+            aside = "· ${block.getString("abbr")} ${block.getString("addr")} · ${block.getString("name")}",
+            line = (listOf(sae.getString("standard")) + strings(sae.getJSONArray("parts"))).joinToString(" · "),
+            counters = listOf(HeadCounter("СТАТУС", ScannerWords.hex2(status), on = active), HeadCounter("ВПЕРВЫЕ", seen.first().take(5)), HeadCounter("В СКАНАХ", "${seen.size} из ${since.size}")),
+            meaning = f.getJSONObject("meaning").getString("title"),
+            meaningNote = f.getJSONObject("meaning").optStringOrNull("note"),
+            status = StatusByteView(
+                "СТАТУС · ${ScannerWords.hex2(status)} = ${ScannerWords.bin8(status)}", status, availability,
+                ScannerWords.statusWords(status, availability), ScannerWords.availabilityNote(availability),
+            ),
+            raw = objects(f.getJSONArray("reads")).map { readLine(it.getString("ask"), it.getString("answer"), code) },
+            addressee = f.optJSONObject("addressee")?.let { a ->
+                val records = a.getInt("records")
+                AddresseeView(
+                    a.getString("label"), a.getString("addr").toInt(16), a.getString("abbr"), a.getString("addr"), a.getString("name"),
+                    listOf(
+                        if (a.getBoolean("answers")) "сейчас отвечает" else "сейчас не отвечает",
+                        if (records > 0) "записей $records" else "записей нет",
+                        if (a.isNull("ms")) "—" else "${a.getInt("ms")} мс",
+                    ).joinToString(" · "),
+                    if (records > 0) Mark.HISTORY else null,
+                )
+            },
+            sameTypeTitle = "ТОТ ЖЕ ТИП ОТКАЗА · $ftb",
+            sameType = same.map { CodeRef(it.getString("addr").toInt(16), it.getString("code"), "${it.getString("block")} ${it.getString("addr")}", "с ${it.getString("since")}") },
+            sameTypeNote = if (same.isEmpty()) null else "$n $what в $sameBlocks ${if (sameBlocks == 1) "блоке" else "блоках"}",
+            timeline = CodeTimelineView(
+                days, seen.map { along(it, days) },
+                "впервые ${seen.first()} · " + if (every) "в каждом из ${since.size} $scans" else "в ${seen.size} из ${since.size} $scans",
+            ),
+            snapshot = section("СТОП-КАДР · 19 04" + (snap.optStringOrNull("record")?.let { " · ЗАПИСЬ $it" } ?: ""), snap, "записи нет"),
+            extended = section("СЧЁТЧИКИ · 19 06", f.getJSONObject("counts"), "записей нет"),
+            footnote = footnote(f),
+        )
+    }
+
+    /* -------------------------------------------- «Тяговая батарея · Здоровье» */
+
+    private val HEALTH_BOARDS = setOf("scanner-sys-pack-health", "scanner-sys-pack-health-first")
+
+    /** «Здоровье» from its board (`packHealth()`): the table's rows, the live cells and probes, the sweep's age. */
+    private fun health(f: JSONObject): HealthView {
+        val cells = f.getJSONArray("cells").let { a -> (0 until a.length()).map { a.getDouble(it).toFloat() } }
+        val probes = f.getJSONArray("probes").let { a -> (0 until a.length()).map { a.getDouble(it).toFloat() } }
+        val ref = f.getInt("cellRef")
+        return HealthView(
+            rows = objects(f.getJSONArray("rows")).map { r ->
+                val trend = r.optJSONObject("trend")
+                HealthRow(
+                    name = r.getString("name"), sub = r.getString("sub"), value = r.getString("value"), unit = r.optString("unit"),
+                    outOfNorm = r.optBoolean("out"),
+                    reference = r.optStringOrNull("norm")?.let { HealthReference(it, ReferenceKind.NORM) }
+                        ?: r.optStringOrNull("usual")?.let { HealthReference(it, ReferenceKind.USUAL) }
+                        ?: r.optStringOrNull("note")?.let { HealthReference(it, ReferenceKind.NOTE) },
+                    trend = trend?.getJSONArray("values")?.let { a -> (0 until a.length()).map { a.getDouble(it).toFloat() } }.orEmpty(),
+                    trendScale = trend?.getJSONArray("scale")?.let { it.getDouble(0).toFloat()..it.getDouble(1).toFloat() },
+                    trendPoints = trend?.optBoolean("points") == true,
+                )
+            },
+            cells = PackCellsView(
+                cells = cells.map { CellReading(it, grouped(it), true) },
+                probes = probes.map { CellReading(it, Math.round(it).toString(), true) },
+                cellStats = emptyList(), probeStats = emptyList(), cellRef = ref, cellGrid = emptyList(), cellGridText = emptyList(),
+                cellMin = cells.indexOf(cells.min()), cellMax = cells.indexOf(cells.max()),
+                probeMin = probes.indexOf(probes.min()), probeMax = probes.indexOf(probes.max()),
+                sweep = if (f.isNull("sweep")) null else f.getDouble("sweep").toFloat(), paused = false,
+                age = firstNote(f),
+                cellsHead = "", probesHead = "",
+            ),
+            age = firstNote(f),
+        )
+    }
+
+    /* ------------------------------------------------------------- «Графики» */
+
+    /** The board's `numText()`: decimals, a comma, «−», a sign where the signal has one, thousands apart. */
+    private fun numText(v: Double, decimals: Int, signed: Boolean) = ScannerWords.number(v.toFloat(), decimals, signed)
+
+    /** «Графики» from its board (`sysGraphs()`): four lanes, each value at its own moment of the 60 s window. */
+    private fun graphs(f: JSONObject): GraphsView {
+        val window = f.getInt("window")
+        return GraphsView(
+            scope = GraphScope.Block(ECM),
+            lanes = objects(f.getJSONArray("signals")).map { s ->
+                val values = s.getJSONArray("values")
+                val n = values.length()
+                val scale = s.getJSONArray("scale")
+                val lo = scale.getDouble(0)
+                val hi = scale.getDouble(1)
+                val decimals = s.optInt("decimals")
+                val scaleDecimals = if (s.has("scaleDecimals")) s.getInt("scaleDecimals") else decimals
+                val signed = s.optBoolean("signed")
+                GraphLane(
+                    name = s.getString("name"), source = "PID ${s.getString("pid")} · ${s.getString("abbr")}", unit = s.getString("unit"),
+                    samples = (0 until n).map { i -> Sample(NOW - ((window - i * window.toDouble() / (n - 1)) * 1e9).toLong(), values.getDouble(i).toFloat()) },
+                    scale = lo.toFloat()..hi.toFloat(),
+                    scaleText = numText(hi, scaleDecimals, signed) to numText(lo, scaleDecimals, signed),
+                    band = s.optJSONArray("norm")?.let { it.getDouble(0).toFloat()..it.getDouble(1).toFloat() },
+                    decimals = decimals, key = ParamKey.Pid(ECM, s.getString("pid").toInt(16)), signed = signed,
+                )
+            },
+            line = f.getJSONObject("block").getString("line"),
+            nowNanos = NOW,
+            marks = emptyList(),
+            footnote = footnote(f),
+        )
+    }
+
+    /* -------------------------------------------------------------- «Журнал» */
+
+    private val JOURNAL_BOARDS = setOf("scanner-journal", "scanner-journal-first")
+
+    /** «Журнал» from its board (`journal()`, `journalPanel()`): every moment on the day axis, as a fraction of it. */
+    private fun journal(f: JSONObject): JournalView {
+        val days = strings(f.getJSONArray("days"))
+        fun at(s: String) = along(s, days)
+        val block = f.getJSONObject("block")
+        val values = f.getJSONObject("values")
+        val lv = values.getJSONObject("lv")
+        val full = values.getJSONObject("full")
+        val lvPoints = arrays(lv.getJSONArray("points")).map { at(it.getString(0)) to it.getDouble(1).toFloat() }
+        val fullPoints = arrays(full.getJSONArray("points"))
+        val m = f.getJSONObject("compare")
+        val from = m.optStringOrNull("from")
+        return JournalView(
+            aside = block.getString("aside"), line = block.getString("line"),
+            counters = arrays(block.getJSONArray("counters")).map { HeadCounter(it.getString(0), it.getString(1)) },
+            days = days,
+            scans = objects(f.getJSONArray("scans")).mapIndexed { i, s -> JournalTick(at(s.getString("at")), s.getString("kind") != "block", NOW_MILLIS + i) },
+            software = objects(f.getJSONArray("software")).map { JournalSoftwareTick(at(it.getString("at")), "${it.getString("block")} ${it.getString("from")} → ${it.getString("to")}") },
+            cells = objects(f.getJSONArray("cellShots")).map { s ->
+                val soc = s.getInt("soc")
+                JournalCellTick(at(s.getString("at")), soc >= 95, if (soc >= 95) "SOC $soc %" else null)
+            },
+            codes = objects(f.getJSONArray("codes")).map { c ->
+                JournalCodeLane(c.getString("addr").toInt(16), "${c.getString("block")} ${c.getString("addr")}", c.getInt("count"), Mark.HISTORY, strings(c.getJSONArray("seen")).map(::at))
+            },
+            quantities = listOf(
+                JournalQuantityLane(
+                    lv.getString("name"), lvPoints, lv.getJSONArray("scale").let { it.getDouble(0).toFloat()..it.getDouble(1).toFloat() },
+                    lvPoints.lastOrNull()?.second?.let { numText(it.toDouble(), 1, false) } ?: "—", pointsOnly = false,
+                ),
+                JournalQuantityLane(
+                    full.getString("name"), fullPoints.map { at(it.getString(0)) to it.getDouble(1).toFloat() }, 0f..20f,
+                    fullPoints.lastOrNull()?.let { "${it.getInt(1)} мВ" } ?: "—", pointsOnly = true,
+                    pointLabels = fullPoints.map { "${it.getInt(1)} мВ" },
+                ),
+            ),
+            compare = ScanCompareView(
+                title = if (from != null) "$from → ${m.getString("to")}" else m.getString("to"),
+                codes = arrays(m.getJSONArray("codes")).map { Field(it.getString(0), it.get(1).toString()) },
+                software = objects(m.getJSONArray("software")).map { Field(it.getString("block"), "${it.getString("from")} → ${it.getString("to")}") },
+                quantities = arrays(m.getJSONArray("values")).map { v ->
+                    val unit = v.optString(3)
+                    Field(v.getString(0), (if (v.isNull(1)) v.getString(2) else "${v.getString(1)} → ${v.getString(2)}") + if (unit.isNotEmpty()) " $unit" else "")
+                },
+            ),
+        )
+    }
+
+    /* --------------------------------------------------------------- «Отчёт» */
+
+    /**
+     * «Отчёт» from its board (`report()`): the scan of 20.10 19:31 as a report's input - its codes are
+     * «Сводка»'s, its blocks «Блоки»' - and what goes in as the board ticks it.
+     */
+    private fun report(f: JSONObject, scanBoard: JSONObject, view: SummaryView): ReportState {
+        val zone = java.time.ZoneId.of("Europe/Moscow")
+        val at = java.time.ZonedDateTime.of(2026, 10, 20, 19, 31, 29, 0, zone)
+        val ecus = objects(scanBoard.getJSONArray("groups")).flatMap { objects(it.getJSONArray("ecus")) }
+        val records = view.columns.flatten().flatMap { sys -> sys.blocks.flatMap { b -> b.records.map { b to it } } }
+        val input = ReportInput(
+            car = "Denza Z9 GT DM", vin = null, odometerKm = 13199.7, scanAt = at, madeAt = at, parked = true, lowVoltage = 13.7,
+            summary = ReportSummary(68, 68, 68, 0, 0, 18, 6),
+            codes = records.map { (b, r) ->
+                ReportCode(b.request, b.abbreviation, b.address, r.code, r.code.substringAfter('-'), r.words, null, 0x08, ReportCodeKind.HISTORY)
+            },
+            pack = ReportPack(99.0, 74.0, 3333.0, 3337.0, 14429.0, 19675.0, 13.0, 18.0),
+            engine = ReportEngine(mil = false, ready = 4, supported = 9, software = "4.00.10 · 19031900", calibration = "Z31L07AB01"),
+            blocks = ecus.map { e ->
+                val req = e.optStringOrNull("req")?.toInt(16)
+                val n = records(e)
+                ReportBlock(req, e.getString("abbr"), e.optStringOrNull("req") ?: "—", e.optStringOrNull("f194"), null, if (n > 0) "история $n" else "—", if (n > 0) "HISTORY" else "OK")
+            },
+            exchanges = ReportExchanges(listOf("22 F194", "19 01 09", "19 02 09", "OBD 01/03/07/09/0A"), 148, 19_900),
+            recording = ReportRecording("/data/stream-20261020-1925.csv", 42_000, 4),
+        )
+        val sections = ReportSection.entries
+        return ReportState(
+            input = input,
+            options = objects(f.getJSONArray("include")).mapIndexed { i, o -> ReportOption(sections[i], true, o.getString("detail"), o.getBoolean("on")) },
+        )
+    }
+
+    /** The footer's first mono note: the sweep's age. */
+    private fun firstNote(f: JSONObject): String {
+        val notes = f.getJSONObject("footer").optJSONArray("notes") ?: JSONArray()
+        return (0 until notes.length()).map { notes.get(it) }.filterIsInstance<JSONArray>().firstOrNull()?.getString(0) ?: ""
+    }
+
+    /** The journal's scans by their end, for «Выбрать сканы»: any distinct moments do. */
+    private const val NOW_MILLIS = 1_792_000_000_000L
 
     /* ------------------------------------------------------------- systems */
 
@@ -421,7 +898,8 @@ internal object ScannerFixtures {
         return STATE_BOARD.mapValues { (system, stateBoard) ->
             val board = if ((system == CarSystem.CABIN && id in CABIN_BOARDS) || LIT_BOARDS[system] == id) id else stateBoard
             val f = fixture(all, board)
-            val block = (if (system == CarSystem.PACK && id in CELLS_BOARDS) fixture(all, id) else f).getJSONObject("block")
+            // the head of the board shown when it is this system's page (its moment, its counters), else its «Состояние»'s
+            val block = fixture(all, id).optJSONObject("block")?.takeIf { it.optString("title") == system.title } ?: f.getJSONObject("block")
             val blocks = when (system) {
                 CarSystem.BODY -> groups.first { it.id == "body" }.rows
                 CarSystem.CABIN -> groups.first { it.id == "salon" }.rows.filter { it.request != CPD }
@@ -431,7 +909,7 @@ internal object ScannerFixtures {
                 system = system,
                 aside = block.getString("aside"),
                 line = block.getString("line"),
-                counters = arrays(block.getJSONArray("counters")).map { HeadCounter(it.getString(0), it.getString(1), on = it.optString(2) == "on") },
+                counters = arrays(block.getJSONArray("counters")).map(::headCounter),
                 tabs = strings(f.getJSONObject("tabs").getJSONArray("items")).mapNotNull { label ->
                     SystemTab.entries.firstOrNull { it.label == label } ?: SystemTab.STATE.takeIf { label == "Здоровье" }
                 },
@@ -446,6 +924,18 @@ internal object ScannerFixtures {
                 scheme = scheme(system, f, rows),
             )
         }
+    }
+
+    /** A head's counter `[label, value, tone]`: 'on' red, 'out' orange, a record kind its sign (`blockHead()`). */
+    private fun headCounter(a: JSONArray): HeadCounter {
+        val tone = a.optString(2)
+        val mark = when (tone) {
+            "active" -> Mark.ACTIVE
+            "pending" -> Mark.PENDING
+            "hist" -> Mark.HISTORY
+            else -> null
+        }
+        return HeadCounter(a.getString(0), a.getString(1), on = tone == "on", mark = mark, out = tone == "out")
     }
 
     private fun bodyCodes(f: JSONObject): List<SystemDtcRow> = objects(f.getJSONArray("codes")).map { c ->
@@ -675,10 +1165,12 @@ internal object ScannerFixtures {
                     records = objects(body.getJSONArray("codes")).map { c ->
                         DtcRow(
                             c.getString("code"), c.getString("ftb"), c.getString("ftbName"), c.getString("group"), c.optString("note"),
-                            c.getInt("status"), 0xFF, description = c.optString("desc").ifEmpty { null },
+                            c.getInt("status"), body.getInt("availability"), description = c.optString("desc").ifEmpty { null },
+                            reads = objects(body.getJSONArray("reads")).map { readLine(it.getString("ask"), it.getString("answer"), c.getString("code")) },
                         )
                     },
                     quality = DataQuality.COMPLETE, outsideMask = false, footnote = footnote(body), source = source(body),
+                    availability = body.getInt("availability"),
                 ),
             ),
             ECM to ecm(all, id),
@@ -687,6 +1179,7 @@ internal object ScannerFixtures {
                 dtc = DtcView(
                     asks = arrays(esp.getJSONArray("asks")).map { a -> ask(a.getString(0), a.getString(1), a.getString(2)) },
                     records = emptyList(), quality = DataQuality.COMPLETE_EMPTY, outsideMask = false, footnote = footnote(esp),
+                    availability = esp.getJSONObject("mask").getInt("availability"), mask = esp.getJSONObject("mask").getInt("value"),
                 ),
             ),
         )
@@ -742,7 +1235,7 @@ internal object ScannerFixtures {
         val ident = fixture(all, "scanner-ecu-ident")
         return ModuleView(
             request = ECM, name = block.getString("title"), unit = block.getString("aside").removePrefix("· "),
-            inferred = false, line = block.getString("line"), status = ModuleStatus.OK,
+            inferred = false, line = block.getString("line"), status = if (fault) ModuleStatus.ACTIVE else ModuleStatus.OK,
             dtc = DtcView(emptyList(), records, if (fault) DataQuality.COMPLETE else DataQuality.COMPLETE_EMPTY, false, "", source = source),
             ident = IdentView(
                 own = fields(ident.getJSONArray("own")),
@@ -774,6 +1267,7 @@ internal object ScannerFixtures {
                         )
                     },
                     recording = false,
+                    graphs = if (id == GRAPHS) graphs(fixture(all, id)) else null,
                 ),
             ),
         )
@@ -793,8 +1287,14 @@ internal object ScannerFixtures {
                 busVoltages = objects(hv.getJSONArray("units")).filter { it.has("volts") }.map { "${it.getInt("volts")} В" }.distinct(),
                 units = objects(hv.getJSONArray("units")).map { u ->
                     val addr = u.getString("addr")
-                    val state = listOfNotNull(u.optInt("volts").takeIf { u.has("volts") }?.let { "$it В" }, u.optString("reading").ifEmpty { null }).joinToString(" · ")
-                    HvUnit(u.getString("abbr"), addr, u.getString("name"), state, status(u.getString("kind")), addr.toIntOrNull(16)?.let { Target.Module(it) })
+                    val volts = if (u.has("volts")) u.getInt("volts") else null
+                    val state = listOfNotNull(volts?.let { "$it В" }, u.optString("reading").ifEmpty { null }).joinToString(" · ")
+                    // an inverter's bus voltage and its difference to the pack's (`hvBody()`)
+                    val delta = volts?.let { it - packBox.getInt("u") }?.let { d -> (if (d > 0) "+" else if (d < 0) "−" else "±") + kotlin.math.abs(d) }
+                    HvUnit(
+                        u.getString("abbr"), addr, u.getString("name"), state, status(u.getString("kind")), addr.toIntOrNull(16)?.let { Target.Module(it) },
+                        busVolts = volts?.let { "$it В" }, busDelta = delta, reading = u.optString("reading").ifEmpty { null }, off = u.optBoolean("off"),
+                    )
                 },
                 machines = objects(hv.getJSONArray("machines")).map { m -> Field(m.getString("name"), m.getString("values"), muted = !m.optBoolean("live")) },
                 contactorClosed = if (hv.has("contactorClosed")) hv.getBoolean("contactorClosed") else null,

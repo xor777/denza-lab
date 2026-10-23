@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -64,7 +66,8 @@ import kotlin.math.sin
 internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Target) -> Unit) {
     when (scheme) {
         is Scheme.Hv -> HvScheme(model, scheme, onOpen)
-        is Scheme.Pack -> PackScheme(scheme)
+        // the pack's first tab is «Здоровье» since 7.3 (HealthScreen.kt), not a scheme
+        is Scheme.Pack -> Unit
         is Scheme.Drives -> DrivesScheme(scheme, onOpen)
         is Scheme.Engine -> EngineScheme(scheme)
         is Scheme.Chassis -> ChassisScheme(scheme, onOpen)
@@ -218,7 +221,7 @@ private fun DrawScope.leader(x: Float, y: Float, w: Float, h: Float, tx: Float, 
 @Composable
 private fun Plate(x: Float, y: Float, w: Float, lines: List<Line>) {
     val o = ScannerSpec.Callout
-    Box(Modifier.at(x, y).size(w.dp, calloutH(lines).dp).plate(Ink.TILE_OK, Ink.BLUE_EDGE, o.R)) {
+    Box(Modifier.at(x, y).size(w.dp, calloutH(lines).dp).plate(Ink.GROUND, Ink.QUIET_LINE, o.R)) {
         var ty = o.PAD_Y
         lines.forEach { l ->
             when (l) {
@@ -260,11 +263,11 @@ private fun SaidRow(r: CabinRow, x: Float, y: Float, align: Align = Align.START)
 /** A scheme's tile: the topology's full size; nothing where the catalog has no such block. */
 @Composable
 private fun SchemeTile(row: ModuleRowView?, x: Float, y: Float, onOpen: (Target) -> Unit) {
-    if (row != null) Tile(row, x, y, TileSize.SCHEME, onOpen)
+    if (row != null) Tile(row, x, y, onOpen)
 }
 
-private val TILE_W = ScannerSpec.Topology.TILE_W
-private val TILE_H = ScannerSpec.Topology.TILE_H
+private val TILE_W = ScannerSpec.Tile.W
+private val TILE_H = ScannerSpec.Tile.H
 
 /** A tile hung on the car (`hang()`): where it stands and the point on the car its leader ends at. */
 private data class Hung(val row: ModuleRowView?, val x: Float, val y: Float, val to: Offset)
@@ -326,7 +329,7 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
                 val y = k.rear - cs.CALIPER_H / 2
                 when (look) {
                     EpbLook.HELD, EpbLook.FAULT ->
-                        box(x, y, cs.CALIPER_W, cs.CALIPER_H, if (look == EpbLook.HELD) Ink.BLUE else Ink.ORANGE, cs.CALIPER_R)
+                        box(x, y, cs.CALIPER_W, cs.CALIPER_H, if (look == EpbLook.HELD) Ink.TEXT else Ink.ORANGE, cs.CALIPER_R)
                     EpbLook.FREE -> frame(x, y, cs.CALIPER_W, cs.CALIPER_H, Ink.WIRE3, cs.CALIPER_R)
                 }
             }
@@ -417,14 +420,14 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
     SchemeCanvas {
         car(k)
         doors.forEach { d ->
-            wire("M${d.side} ${k.y0 + d.a}V${k.y0 + d.b}", if (d.open) Ink.ORANGE else Ink.BLUE_SOFT, 3f)
+            wire("M${d.side} ${k.y0 + d.a}V${k.y0 + d.b}", if (d.open) Ink.ORANGE else Ink.TEXT, 3f)
             leader(d.x, d.y, o.W, calloutH(d.lines), d.side, k.y0 + (d.a + d.b) / 2f)
         }
         bodyLights(k, s)
         anchors.forEachIndexed { i, p ->
             wire("M${p.x} ${p.y}L$cx ${k.mid}", Ink.LINE3, 1f, floatArrayOf(3f, 3f))
             val st = s.anchors.getOrNull(i)
-            dot(p.x, p.y, 4f, if (st == ModuleStatus.NO_ROUTE || st == ModuleStatus.NO_REPLY) Ink.LINE4 else Ink.BLUE)
+            dot(p.x, p.y, 4f, if (st == ModuleStatus.NO_ROUTE || st == ModuleStatus.NO_REPLY) Ink.LINE4 else Ink.WIRE5)
         }
         sides.forEach { sd ->
             if (sd.row == null) return@forEach
@@ -437,9 +440,9 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
     }
     doors.forEach { Plate(it.x, it.y, o.W, it.lines) }
     val uy = k.mid - TILE_H / 2
-    SchemeTile(s.keyReceiver, cx - TILE_W / 2, uy - ScannerSpec.Topology.TILE_PITCH, onOpen)
+    SchemeTile(s.keyReceiver, cx - TILE_W / 2, uy - ScannerSpec.Tile.PITCH, onOpen)
     SchemeTile(s.uwb, cx - TILE_W / 2, uy, onOpen)
-    SchemeTile(s.smartEntry, cx - TILE_W / 2, uy + ScannerSpec.Topology.TILE_PITCH, onOpen)
+    SchemeTile(s.smartEntry, cx - TILE_W / 2, uy + ScannerSpec.Tile.PITCH, onOpen)
     SchemeTile(s.front, cx - TILE_W / 2, k.y0 + 22f, onOpen)
     SchemeTile(s.back, cx - TILE_W / 2, k.y0 + k.h - 22f - TILE_H, onOpen)
     // the hood's word under the front zone, the tailgate's over the rear one
@@ -472,7 +475,7 @@ private fun DrawScope.bodyLights(k: CarGeom, s: Scheme.Body) {
     val b = ScannerSpec.BodyScheme
     val nr = ScannerSpec.Car.NOSE_R
     val tr = ScannerSpec.Car.TAIL_R
-    fun lid(open: Boolean?) = when (open) { true -> Ink.ORANGE; false -> Ink.BLUE_SOFT; null -> Ink.LINE4 }
+    fun lid(open: Boolean?) = when (open) { true -> Ink.ORANGE; false -> Ink.TEXT; null -> Ink.LINE4 }
     s.hood?.let { h ->
         val p = arcPath(k.x0 + nr, k.y0 + nr, nr, 270f - b.HOOD, 270f).apply {
             lineTo(k.x0 + k.w - nr, k.y0)
@@ -487,15 +490,15 @@ private fun DrawScope.bodyLights(k: CarGeom, s: Scheme.Body) {
     listOf(k.x0 + nr to true, k.x0 + k.w - nr to false).forEach { (x, left) ->
         val (a0, a1) = span(b.LAMP_HEAD, left)
         val p = arcPath(x, k.y0 + nr, nr, a0, a1)
-        if (m.high == true) drawPath(p, ink(Ink.BLUE), alpha = b.HALO_ALPHA, style = Stroke(2 * b.LAMP_HALO, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        lamp(p, m.low == true || m.high == true, Ink.BLUE)
+        if (m.high == true) drawPath(p, ink(Ink.WHITE), alpha = b.HALO_ALPHA, style = Stroke(2 * b.LAMP_HALO, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        lamp(p, m.low == true || m.high == true, Ink.WHITE)
     }
     listOf(k.x0 + tr to true, k.x0 + k.w - tr to false).forEach { (x, left) ->
         val y = k.y0 + k.h - tr
         val (s0, s1) = span(b.LAMP_STOP, left)
         lamp(arcPath(x, y, tr, s0, s1), m.stop == true, Ink.ORANGE)
         val (r0, r1) = span(b.LAMP_REVERSE, left)
-        lamp(arcPath(x, y, tr, r0, r1), m.reverse == true, Ink.BLUE_SOFT)
+        lamp(arcPath(x, y, tr, r0, r1), m.reverse == true, Ink.WHITE)
     }
     listOf(
         Triple(-1f, k.y0 + b.TURN_Y, m.turnLeft), Triple(-1f, k.y0 + k.h - b.TURN_Y, m.turnLeft),
@@ -537,9 +540,9 @@ private fun AdasScheme(s: Scheme.Adas, onOpen: (Target) -> Unit) {
                 arcTo(Rect(x - len, y - len, x + len, y + len), angle - spread / 2f, spread, false)
                 close()
             }
-            drawPath(p, ink(Ink.BLUE_SHARE))
-            drawPath(p, ink(Ink.BLUE_EDGE), style = Stroke(1f))
-            dot(x, y, 4f, Ink.BLUE)
+            drawPath(p, ink(Ink.BAND))
+            drawPath(p, ink(Ink.LINE4), style = Stroke(1f))
+            dot(x, y, 4f, Ink.WIRE5)
         }
         wedge(cx, k.y0 + 2f, -90f, a.FRONT_SPREAD, a.FRONT_LEN)
         pts.values.forEach { (x, y, ang) -> wedge(x, y, ang, a.CORNERS_SPREAD, a.CORNERS_LEN) }
@@ -597,8 +600,8 @@ private fun DrivesScheme(s: Scheme.Drives, onOpen: (Target) -> Unit) {
         // shafts: front motor to the front wheels, rear motors each to its wheel, engine to generator
         wire("M${k.x0} ${k.front}H${gx - 22}M${mx + 22} ${k.front}H${k.x0 + k.w}M${gx + 22} ${k.front}H${mx - 22}", Ink.WIRE3, 1.6f)
         wire("M${k.x0} ${k.rear}H${cx - d.PAIR - 22}M${cx + d.PAIR + 22} ${k.rear}H${k.x0 + k.w}", Ink.WIRE3, 1.6f)
-        box(cx - d.ENGINE_W / 2, k.y0 + d.ENGINE_Y, d.ENGINE_W, d.ENGINE_H, Ink.TILE_OK, 5f)
-        frame(cx - d.ENGINE_W / 2, k.y0 + d.ENGINE_Y, d.ENGINE_W, d.ENGINE_H, Ink.LINE4, 5f)
+        box(cx - d.ENGINE_W / 2, k.y0 + d.ENGINE_Y, d.ENGINE_W, d.ENGINE_H, Ink.GROUND, 5f)
+        frame(cx - d.ENGINE_W / 2, k.y0 + d.ENGINE_Y, d.ENGINE_W, d.ENGINE_H, Ink.QUIET_LINE, 5f)
         wire("M$gx ${k.y0 + d.ENGINE_Y + d.ENGINE_H}V${k.front - 22}", Ink.WIRE3, 1.6f)
         // the VCU in the middle, its commands as dashed lines
         machines.forEach { (x, y, _) ->
@@ -613,96 +616,6 @@ private fun DrivesScheme(s: Scheme.Drives, onOpen: (Target) -> Unit) {
     SchemeTile(s.vcu, cx - TILE_W / 2, vy, onOpen)
     machines.forEach { (x, y, g) -> MachineGlyph(x, y, g, true) }
     boxes.forEach { Plate(it.x, it.y, d.BOX_W, it.lines) }
-}
-
-/* -------------------------------------------------------------------- pack */
-
-/**
- * Тяговая батарея: the pack with its charge, its two poles to the DC bus, the insulation measured
- * from them to the body; the cells' and modules' ranges beside it (`sysPack()`, `rangeBar()`).
- */
-@Composable
-private fun PackScheme(s: Scheme.Pack) {
-    val p = ScannerSpec.PackScheme
-    val ih = p.H - 2f * p.PAD
-    val fh = ih * (s.soc ?: 0f).coerceIn(0f, 100f) / 100f
-    val tx = p.X + p.PAD + 14f
-    val px = p.X + p.W
-    val (yp, ym) = p.POLES
-    val bx = p.BUS_X
-    val ix = p.ISO_X
-    val iy = (yp + ym) / 2f - p.ISO_H / 2f
-    val mx = ix + p.ISO_W / 2f
-    val gx = ix + p.ISO_W + 30f
-    val gy = iy + p.ISO_H / 2f
-    SchemeCanvas {
-        box(p.X, p.Y, p.W, p.H, Ink.PLATE, p.R)
-        frame(p.X, p.Y, p.W, p.H, Ink.BLUE_EDGE, p.R)
-        if (fh > 0f) {
-            box(p.X + p.PAD, p.Y + p.PAD + ih - fh, p.W - 2f * p.PAD, fh, Ink.BLUE_SHARE, 4f)
-            box(p.X + p.PAD, p.Y + p.PAD + ih - fh, p.W - 2f * p.PAD, 1.5f, Ink.BLUE_EDGE)
-        }
-        box(px, yp - 8f, 8f, 16f, Ink.LINE4, 2f)
-        box(px, ym - 8f, 8f, 16f, Ink.LINE4, 2f)
-        wire("M${px + 8} ${yp}H${bx}M${px + 8} ${ym}H$bx", Ink.WIRE, 2.4f)
-        // insulation: from both poles to the body
-        wire("M$mx ${yp}V${iy}M$mx ${ym}V${iy + p.ISO_H}", Ink.WIRE3, 1.6f)
-        dot(mx, yp, 3f, Ink.WIRE5)
-        dot(mx, ym, 3f, Ink.WIRE5)
-        box(ix, iy, p.ISO_W, p.ISO_H, Ink.TILE_OK, 6f)
-        frame(ix, iy, p.ISO_W, p.ISO_H, Ink.BLUE_EDGE, 6f)
-        wire(
-            "M${ix + p.ISO_W} ${gy}H${gx}V${gy + 8}M${gx - 12} ${gy + 8}H${gx + 12}M${gx - 8} ${gy + 13}H${gx + 8}M${gx - 4} ${gy + 18}H${gx + 4}",
-            Ink.WIRE3, 1.6f,
-        )
-    }
-    ScanText("SOC", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(tx, p.Y + p.PAD + 14f))
-    ScanText(s.socText, Type.COUNTER_BIG, Ink.WHITE, Modifier.at(tx, p.Y + p.PAD + 32f))
-    // SOC in the empty part above the charge, SOH and the cells at the bottom, inside it
-    ScanText("SOH", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(tx, p.Y + p.H - p.PAD - 100f))
-    ScanText(s.soh, Type.COUNTER, Ink.TEXT, Modifier.at(tx, p.Y + p.H - p.PAD - 82f))
-    ScanText(s.cells, Type.CELL_SMALL, Ink.DIM, Modifier.at(tx, p.Y + p.H - p.PAD - 32f))
-    ScanText("HV+", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(px + 18f, yp - 22f))
-    ScanText("HV−", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(px + 18f, ym + 8f))
-    ScanText("ШИНА DC", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(bx, yp - 22f))
-    ScanText(s.volts, Type.HV_VOLTS, Ink.TEXT, Modifier.endAt(bx, yp + 10f))
-    ScanText(s.current, Type.CELL_MONO, Ink.DIM, Modifier.endAt(bx, yp + 32f))
-    var y = iy + 12f
-    ScanText("ИЗОЛЯЦИЯ НА КОРПУС", Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(ix + 14f, y))
-    y += 22f
-    s.insulation.forEach { f ->
-        ScanText(f.key, Type.CELL_SMALL, Ink.DIM, Modifier.at(ix + 14f, y))
-        ScanText(f.value, Type.CELL_MONO, Ink.WHITE, Modifier.endAt(ix + p.ISO_W - 14f, y))
-        y += 22f
-    }
-    ScanText(s.isoNorm, Type.SIG, Ink.FAINT, Modifier.at(ix + 14f, y + 4f))
-    ScanText("корпус", Type.SIG, Ink.FAINT, Modifier.centreAt(gx, gy + 26f))
-    s.ranges.forEachIndexed { i, r -> RangeBarView(p.RANGES_X, p.RANGES_Y + i * p.RANGES_STEP, p.RANGES_W, r) }
-}
-
-/** A range on a scale: the bar, the span the readings take on it, the scale's ends under it. */
-@Composable
-private fun RangeBarView(x: Float, y: Float, w: Float, r: RangeView) {
-    val g = ScannerSpec.RangeBar
-    fun at(v: Float) = x + (v - r.scale.start) / (r.scale.endInclusive - r.scale.start) * w
-    val by = y + g.HEAD_GAP
-    Canvas(Modifier.fillMaxSize()) {
-        val k = density
-        drawRoundRect(ink(Ink.BIT_OFF), Offset(x * k, by * k), Size(w * k, g.H * k), CornerRadius(g.H / 2 * k))
-        r.span?.let { span ->
-            val a = at(span.start)
-            val b = maxOf(at(span.endInclusive), a + g.MIN_SPAN)
-            val rr = 2f * k
-            glowUnder(Ink.RANGE_GLOW, 6f) { c, paint -> c.drawRoundRect(a * k, (by - 2f) * k, b * k, (by + g.H + 2f) * k, rr, rr, paint) }
-            drawRoundRect(ink(Ink.BLUE), Offset(a * k, (by - 2f) * k), Size((b - a) * k, (g.H + 4f) * k), CornerRadius(rr))
-        }
-        r.mark?.let { m -> drawRect(ink(Ink.WHITE), Offset((at(m) - 0.75f) * k, (by - 5f) * k), Size(1.5f * k, (g.H + 10f) * k)) }
-    }
-    ScanText(r.head, Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(x, y))
-    ScanText(r.value, Type.VALUE_BMS, Ink.WHITE, Modifier.endAt(x + w, y - 3f))
-    ScanText(r.lo, Type.SIG, Ink.FAINT, Modifier.at(x, by + g.H + g.TICK_GAP))
-    ScanText(r.hi, Type.SIG, Ink.FAINT, Modifier.endAt(x + w, by + g.H + g.TICK_GAP))
-    if (r.note.isNotEmpty()) ScanText(r.note, Type.SIG, Ink.DIM2, Modifier.centreAt(x + w / 2f, by + g.H + g.TICK_GAP))
 }
 
 /* ------------------------------------------------------------------ engine */
@@ -737,8 +650,8 @@ private fun EngineScheme(s: Scheme.Engine) {
         flow(e.X1 + 6f, y, e.X1 + 34f, y)
         wire("M${e.THROTTLE - 9} ${y + hw - 3}L${e.THROTTLE + 9} ${y - hw + 3}", Ink.WIRE5, 2.4f)
         dot(e.THROTTLE, y, 2.6f, Ink.WIRE5)
-        box(e.BLOCK_X, e.BLOCK_Y, e.BLOCK_W, e.BLOCK_H, Ink.TILE_OK, 8f)
-        frame(e.BLOCK_X, e.BLOCK_Y, e.BLOCK_W, e.BLOCK_H, Ink.BLUE_EDGE, 8f)
+        box(e.BLOCK_X, e.BLOCK_Y, e.BLOCK_W, e.BLOCK_H, Ink.GROUND, 8f)
+        frame(e.BLOCK_X, e.BLOCK_Y, e.BLOCK_W, e.BLOCK_H, Ink.QUIET_LINE, 8f)
         for (i in 0 until 4) {
             drawCircle(ink(Ink.WIRE4), e.CYL, Offset(e.BLOCK_X + e.BLOCK_W * (i + 0.5f) / 4f, e.BLOCK_Y + e.BLOCK_H / 2f), style = Stroke(1.4f))
         }
@@ -773,8 +686,8 @@ private fun ClimateScheme(s: Scheme.Climate, onOpen: (Target) -> Unit) {
     val ax = w - c.LEFT_X - c.ZONE_W / 2f
     SchemeCanvas {
         zones.forEach { (z, x) ->
-            box(x, c.ZONE_Y, c.ZONE_W, c.ZONE_H, if (z.inside) Ink.TILE_OK else Ink.PLATE, 10f)
-            frame(x, c.ZONE_Y, c.ZONE_W, c.ZONE_H, if (z.inside) Ink.BLUE_EDGE else Ink.LINE4, 10f)
+            box(x, c.ZONE_Y, c.ZONE_W, c.ZONE_H, Ink.GROUND, 10f)
+            frame(x, c.ZONE_Y, c.ZONE_W, c.ZONE_H, Ink.QUIET_LINE, 10f)
         }
         flow(c.LEFT_X + c.ZONE_W, uy + TILE_H / 2, ux - 4f, uy + TILE_H / 2)
         flow(ux + TILE_W, uy + TILE_H / 2, w - c.LEFT_X - c.ZONE_W - 4f, uy + TILE_H / 2)
@@ -835,10 +748,10 @@ private fun SafetyScheme(s: Scheme.Safety, onOpen: (Target) -> Unit) {
         val cs = ScannerSpec.CabinScheme
         seats.forEach { p ->
             val occupied = p.seat.seat.occupied == true
-            if (occupied) box(p.gx, p.gy, z.SEAT_W, z.SEAT_H, Ink.BLUE_SHARE, z.SEAT_R)
-            frame(p.gx, p.gy, z.SEAT_W, z.SEAT_H, if (occupied) Ink.BLUE_EDGE else Ink.LINE3, z.SEAT_R)
+            if (occupied) box(p.gx, p.gy, z.SEAT_W, z.SEAT_H, Ink.HIST_FILL, z.SEAT_R)
+            frame(p.gx, p.gy, z.SEAT_W, z.SEAT_H, if (occupied) Ink.WIRE4 else Ink.LINE3, z.SEAT_R)
             val strap = "M${p.gx + z.SEAT_W - z.STRAP_IN} ${p.gy + z.STRAP_TOP}L${p.gx + z.STRAP_IN} ${p.gy + z.SEAT_H - z.STRAP_FOOT}"
-            if (p.seat.seat.belt == true) wire(strap, Ink.BLUE, cs.STRAP)
+            if (p.seat.seat.belt == true) wire(strap, Ink.TEXT, cs.STRAP)
             else if (occupied && p.seat.seat.belt == false) wire(strap, Ink.ORANGE, cs.STRAP, cs.STRAP_DASH)
         }
     }
@@ -900,10 +813,10 @@ private fun cabinLines(p: CabinPlate): List<Line> = plateLines(p.label, p.rows)
  */
 private fun DrawScope.seat(x: Float, y: Float, w: Float, h: Float, r: Float, s: CabinSeat, outer: Int) {
     val c = ScannerSpec.CabinScheme
-    if (s.occupied == true) box(x, y, w, h, Ink.BLUE_SHARE, r)
-    frame(x, y, w, h, if (s.occupied == true) Ink.BLUE_EDGE else Ink.LINE3, r)
+    if (s.occupied == true) box(x, y, w, h, Ink.HIST_FILL, r)
+    frame(x, y, w, h, if (s.occupied == true) Ink.WIRE4 else Ink.LINE3, r)
     val strap = "M${x + w - c.STRAP_IN} ${y + c.STRAP_TOP}L${x + c.STRAP_IN} ${y + h - c.STRAP_FOOT}"
-    if (s.belt == true) wire(strap, Ink.BLUE, c.STRAP)
+    if (s.belt == true) wire(strap, Ink.TEXT, c.STRAP)
     else if (s.occupied == true && s.belt == false) wire(strap, Ink.ORANGE, c.STRAP, c.STRAP_DASH)
     val py = y + h - c.PIP_PAD - c.PIP
     listOf(Triple(s.heat, Ink.ORANGE, x + c.PIP_PAD to 1f), Triple(s.vent, Ink.BLUE, x + w - c.PIP_PAD - c.PIP to -1f)).forEach { (level, on, from) ->
@@ -971,9 +884,9 @@ private fun CabinScheme(s: Scheme.Cabin) {
         listOf(cx - c.PAD_GAP - c.PAD_W to s.padLeft, cx + c.PAD_GAP to s.padRight).forEach { (x, state) ->
             val y = k.y0 + c.PAD_Y
             if (state == PadState.CHARGING || state == PadState.FULL) {
-                box(x, y, c.PAD_W, c.PAD_H, if (state == PadState.CHARGING) Ink.BLUE else Ink.BLUE_SOFT, c.PAD_R)
+                box(x, y, c.PAD_W, c.PAD_H, if (state == PadState.CHARGING) Ink.BLUE else Ink.TEXT, c.PAD_R)
             }
-            frame(x, y, c.PAD_W, c.PAD_H, when (state) { PadState.FAULT -> Ink.ORANGE; null -> Ink.LINE3; else -> Ink.BLUE_EDGE }, c.PAD_R)
+            frame(x, y, c.PAD_W, c.PAD_H, when (state) { PadState.FAULT -> Ink.ORANGE; null -> Ink.LINE3; else -> Ink.WIRE3 }, c.PAD_R)
         }
         listOf(Triple(c.FRIDGE_Y, c.FRIDGE_H, s.fridgeFront), Triple(c.REAR_FRIDGE_Y, c.REAR_FRIDGE_H, s.fridgeRear)).forEach { (y, h, mode) ->
             val fill = when (mode) { FridgeMode.COLD -> Ink.BLUE; FridgeMode.FRESH -> Ink.BLUE_SOFT; FridgeMode.HOT -> Ink.ORANGE; else -> null }
@@ -1019,17 +932,11 @@ private fun LvScheme(s: Scheme.Lv, onOpen: (Target) -> Unit) {
 
 /* ---------------------------------------------------------------------- hv */
 
-private data class UnitLook(val fill: Int, val line: Int, val dash: Boolean, val ink: Int, val sub: Int, val state: Int)
-
-private fun unitLook(status: ModuleStatus): UnitLook = when (ScannerWords.chip(status).look) {
-    ScannerWords.Look.OK -> UnitLook(Ink.TILE_OK, Ink.BLUE_EDGE, false, Ink.WHITE, Ink.DIM, Ink.BLUE_SOFT)
-    ScannerWords.Look.HIST -> UnitLook(Ink.TILE_HIST, Ink.SEP, false, Ink.WHITE, Ink.DIM, Ink.INK4)
-    ScannerWords.Look.ON -> UnitLook(Ink.TILE_HIST, Ink.ORANGE, false, Ink.WHITE, Ink.DIM, Ink.ORANGE_INK)
-    ScannerWords.Look.UNREAD -> UnitLook(Ink.TILE_UNREAD, Ink.LINE3, false, Ink.INK2, Ink.DIM, Ink.DIM2)
-    ScannerWords.Look.NONE -> UnitLook(Ink.GROUND, Ink.LINE4, true, Ink.DIM, Ink.MUTE, Ink.FAINT)
-}
-
-/** Высоковольтная система: the HV schema at the rail's width (`hvBody()` on `hvRail`); the pack opens «Тяговая батарея». */
+/**
+ * Высоковольтная система: the HV schema at the rail's width in the dark cockpit (`hvBody()` on
+ * `hvRail`): quiet frames, white values, an inverter's bus voltage with its difference to the pack's
+ * («555 В +2»), what is off at half its light; the pack opens «Тяговая батарея».
+ */
 @Composable
 private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> Unit) {
     val v = ScannerSpec.Hv
@@ -1053,20 +960,18 @@ private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> 
         // its state on the line under the label
         ScannerWords.contactor(hv.contactorClosed)?.let { ScanText(it, Type.HV_LABEL, Ink.TEXT) }
     }
-    // the charge port under the charger, as the contactor's label: its word blue while a plug is in
+    // the charge port under the charger, as the contactor's label
     val (chx, chy, chw) = v.CHARGE_LABEL
     Column(Modifier.at(chx, chy)) {
         ScanParagraph("зарядный разъём", Type.HV_LABEL, Ink.MUTE, chw)
-        ScanText(s.chargePort, Type.HV_LABEL, if (s.plugged) Ink.BLUE_SOFT else Ink.TEXT)
+        ScanText(s.chargePort, Type.HV_LABEL, Ink.TEXT)
     }
     ScanText("ШИНА DC", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(v.BUS_LABEL_RIGHT, v.BUS_LABEL_Y))
-    hv.busVoltages.take(v.VOLTS.size).forEachIndexed { i, t -> ScanText(t, Type.HV_VOLTS, Ink.TEXT, Modifier.at(v.VOLTS[i].first, v.VOLTS[i].second)) }
 
     // the pack
     val pack = model.systemPages[CarSystem.PACK]?.blocks?.firstOrNull { it.request != null }
-    val chip = ScannerWords.chip(hv.packStatus)
     Box(
-        Modifier.at(v.PACK_X, v.PACK_Y).size(v.PACK_W.dp, v.PACK_H.dp).plate(Ink.TILE_OK, Ink.BLUE_EDGE, v.PACK_R)
+        Modifier.at(v.PACK_X, v.PACK_Y).size(v.PACK_W.dp, v.PACK_H.dp).plate(Ink.GROUND, Ink.QUIET_LINE, v.PACK_R)
             .tap { onOpen(Target.System(CarSystem.PACK)) },
     ) {
         val iw = v.PACK_W - 2f * v.PACK_PAD_X
@@ -1077,10 +982,7 @@ private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> 
                 val tag = pack?.let { "${it.abbreviation} · ${ScannerWords.hex(it.request!!)}" } ?: ""
                 ScanText(tag, Type.PACK_TAG, Ink.FAINT, Modifier.endAt(iw, 0f), baseline = tb)
             }
-            Spacer(Modifier.height(v.PACK_GAP.dp))
-            val codes = pack?.takeIf { ScannerWords.read(it.status) }?.let { (it.active.toIntOrNull() ?: 0) + (ScannerWords.history(it).toIntOrNull() ?: 0) }
-            ScanText("${chip.text} · DTC ${codes ?: "—"}", Type.PACK_STATE, ScannerWords.tone(chip.look).ink)
-            Spacer(Modifier.height(v.PACK_GAP.dp))
+            Spacer(Modifier.height((2f * v.PACK_GAP).dp))
             val rb = maxOf(Type.PACK_KEY.baseline, Type.PACK_VALUE.baseline)
             hv.pack.forEach { f ->
                 Row(Modifier.width(iw.dp).height(Type.PACK_VALUE.lh.dp)) {
@@ -1094,17 +996,80 @@ private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> 
     hv.units.forEach { u -> v.UNITS[u.abbreviation]?.let { p -> HvUnitBox(u, p.w ?: v.UNIT_W, Modifier.at(p.x, p.y), onOpen) } }
 }
 
+/** A unit on the HV schema: its abbreviation and address, its name, then its bus voltage and what else it says. */
 @Composable
 private fun HvUnitBox(u: HvUnit, w: Float, modifier: Modifier, onOpen: (Target) -> Unit) {
     val v = ScannerSpec.Hv
-    val k = unitLook(u.status)
-    Box(modifier.size(w.dp, v.UNIT_H.dp).plate(k.fill, k.line, v.UNIT_R, k.dash).tap(u.target?.let { { onOpen(it) } })) {
+    val none = u.status == ModuleStatus.NO_ROUTE
+    Box(
+        modifier.size(w.dp, v.UNIT_H.dp).alpha(if (u.off) HALF else 1f)
+            .plate(Ink.GROUND, if (none) Ink.LINE4 else Ink.QUIET_LINE, v.UNIT_R, dash = none).tap(u.target?.let { { onOpen(it) } }),
+    ) {
         val ux = 1f + v.UNIT_PAD_X
         val uw = w - 2f - 2f * v.UNIT_PAD_X
-        val top = (v.UNIT_H - Type.HV_ABBR.lh - Type.HV_NAME.lh - Type.HV_STATE.lh - 2f * v.UNIT_ROW_GAP) / 2f
-        ScanText(u.abbreviation, Type.HV_ABBR, k.ink, Modifier.at(ux, top))
+        val top = (v.UNIT_H - Type.HV_ABBR.lh - Type.HV_NAME.lh - Type.SIG.lh - 2f * v.UNIT_ROW_GAP) / 2f
+        ScanText(u.abbreviation, Type.HV_ABBR, Ink.WHITE, Modifier.at(ux, top))
         ScanText(u.address, Type.TILE_ADDR, Ink.FAINT, Modifier.endAt(ux + uw, top))
-        ScanText(u.name, Type.HV_NAME, k.sub, Modifier.at(ux, top + Type.HV_ABBR.lh + v.UNIT_ROW_GAP), maxWidth = uw)
-        ScanText(u.state, Type.HV_STATE, k.state, Modifier.at(ux, top + Type.HV_ABBR.lh + Type.HV_NAME.lh + 2f * v.UNIT_ROW_GAP), maxWidth = uw)
+        ScanText(u.name, Type.HV_NAME, Ink.DIM, Modifier.at(ux, top + Type.HV_ABBR.lh + v.UNIT_ROW_GAP), maxWidth = uw)
+        // the reading: a bus voltage and its difference to the pack's, then the rest
+        val volts = u.busVolts
+        val reading = u.reading ?: u.state.takeIf { volts == null && it.isNotEmpty() }
+        val runs = listOfNotNull(
+            volts?.let { Triple(it, Type.SIG, Ink.WHITE) },
+            volts?.let { u.busDelta?.let { d -> Triple(" $d", Type.SIG, Ink.FAINT) } },
+            reading?.let { Triple((if (volts != null) " · " else "") + it, Type.SIG, if (volts != null) Ink.DIM else Ink.TEXT) },
+        )
+        if (runs.isNotEmpty()) ScanRuns(runs, Modifier.at(ux, top + Type.HV_ABBR.lh + Type.HV_NAME.lh + 2f * v.UNIT_ROW_GAP), maxWidth = uw)
+    }
+}
+
+/** What is off is drawn at this much of its light. */
+private const val HALF = 0.45f
+
+/* -------------------------------------------------------------------- tiles */
+
+/**
+ * A block on a scheme (`unitTile()`), in the dark cockpit: a quiet frame and white words for a block
+ * that answered, dim for one not read, dashed for one with no address; its records - the sign and the
+ * count - in place of its address where it has any, a word where the look cannot say what went wrong.
+ */
+@Composable
+internal fun Tile(r: ModuleRowView, x: Float, y: Float, onOpen: (Target) -> Unit) {
+    val t = ScannerSpec.Tile
+    val dashed = r.status == ModuleStatus.NO_ROUTE || r.status == ModuleStatus.NO_REPLY
+    val unread = !dashed && !ScannerWords.read(r.status)
+    val width = rememberWidths()
+    Box(
+        Modifier.at(x, y).size(t.W.dp, t.H.dp)
+            .plate(if (dashed) null else Ink.GROUND, if (dashed) Ink.LINE4 else Ink.QUIET_LINE, t.R, dashed)
+            .tap(r.target?.let { { onOpen(it) } }),
+    ) {
+        val ix = 1f + t.PAD_X
+        val iw = t.W - 2f - 2f * t.PAD_X
+        val top = (t.H - Type.TILE_ABBR.lh - t.ROW_GAP - Type.TILE_NAME.lh) / 2f
+        val right = ScannerWords.tileRight(r)
+        val mark = right.mark
+        val rw = if (mark != null) {
+            val n = mark.count.toString()
+            ScanText(n, Type.TILE_ADDR, Ink.INK3, Modifier.endAt(ix + iw, top))
+            val nw = width(n, Type.TILE_ADDR)
+            SignAt(mark.mark, ix + iw - nw - ScannerSpec.Rail.MARK_GAP + 2f - ScannerSpec.Sign.R, top + Type.TILE_ABBR.lh / 2f)
+            nw + ScannerSpec.Rail.MARK_GAP - 2f + 2f * ScannerSpec.Sign.R
+        } else {
+            ScanText(right.word, Type.TILE_ADDR, if (dashed) Ink.FAINT2 else Ink.FAINT, Modifier.endAt(ix + iw, top))
+            width(right.word, Type.TILE_ADDR)
+        }
+        val ink = when {
+            dashed -> Ink.FAINT
+            unread -> Ink.DIM
+            else -> Ink.WHITE
+        }
+        val sub = when {
+            dashed -> Ink.FAINT2
+            unread -> Ink.MUTE
+            else -> Ink.DIM
+        }
+        ScanText(r.abbreviation, Type.TILE_ABBR, ink, Modifier.at(ix, top), maxWidth = iw - rw - 6f)
+        ScanText(r.short, Type.TILE_NAME, sub, Modifier.at(ix, top + Type.TILE_ABBR.lh + t.ROW_GAP), maxWidth = iw)
     }
 }

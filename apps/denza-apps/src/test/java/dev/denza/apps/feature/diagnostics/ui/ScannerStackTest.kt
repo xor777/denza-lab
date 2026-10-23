@@ -1,7 +1,9 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.feature.diagnostics.scan.BlocksFilter
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.ParamKey
+import dev.denza.apps.feature.diagnostics.scan.RailPlace
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.scan.Target
 import org.junit.Assert.assertEquals
@@ -10,28 +12,38 @@ import org.junit.Test
 
 /**
  * Back goes where the driver came from (on the car 2026-10-20 it always went to the list), and the
- * rail picks a system as a tab of the section, not a step (architecture, 7.2).
+ * rail picks a place - «Сводка», «Блоки», a system, «Журнал» - as a tab of the section, not a step
+ * (architecture, 7.2, 7.3).
  */
 class ScannerStackTest {
 
     private val names = mapOf(0x720 to "Кузовной контроллер левый", 0x7E3 to "Контроллер переднего мотора")
     private fun name(request: Int) = names[request]
+    private val start = ScannerStack.START
 
     @Test
-    fun aModuleOpenedFromTheTopologyGoesBackToTheTopology() {
-        val topology = listOf<ScannerRoute>(ScannerRoute.Scan(topology = true))
-        val opened = ScannerStack.open(topology, Target.Module(0x720))
-        assertEquals("‹ Автоскан", ScannerStack.backLabel(opened, ::name))
-        assertEquals(topology, ScannerStack.back(opened))
-        assertNull(ScannerStack.back(topology))
+    fun theSectionOpensOnTheSummaryAndBackFromItCloses() {
+        assertEquals(listOf<ScannerRoute>(ScannerRoute.Summary), start)
+        assertNull(ScannerStack.back(start))
+        assertEquals(RailPlace.Summary, ScannerStack.railPlace(start))
+        assertEquals(listOf("Сводка"), ScannerStack.crumbs(start).map { ScannerStack.title(it.second, ::name) })
+    }
+
+    @Test
+    fun aModuleOpenedFromTheBlocksGoesBackToTheBlocksAtTheirFilter() {
+        val blocks = ScannerStack.retab(ScannerStack.rail(start, RailPlace.Blocks), ScannerRoute.Blocks(BlocksFilter.WITH_RECORDS))
+        val opened = ScannerStack.open(blocks, Target.Module(0x720))
+        assertEquals("‹ Блоки", ScannerStack.backLabel(opened, ::name))
+        assertEquals(blocks, ScannerStack.back(opened))
+        // «Блоки» stands in «Сводка»'s place in the crumbs, as the board has it
+        assertEquals(listOf("Блоки", "Кузовной контроллер левый"), ScannerStack.crumbs(opened).map { ScannerStack.title(it.second, ::name) })
+        assertEquals(RailPlace.Blocks, ScannerStack.railPlace(opened))
+        assertEquals(start, ScannerStack.back(blocks))
     }
 
     @Test
     fun aModuleOpenedFromASystemGoesBackToTheSystemAndItsTab() {
-        val drives = ScannerStack.retab(
-            ScannerStack.rail(listOf(ScannerRoute.Scan()), CarSystem.DRIVES),
-            ScannerRoute.System(CarSystem.DRIVES, SystemTab.COMPARE),
-        )
+        val drives = ScannerStack.retab(ScannerStack.rail(start, RailPlace.System(CarSystem.DRIVES)), ScannerRoute.System(CarSystem.DRIVES, SystemTab.COMPARE))
         val module = ScannerStack.open(drives, Target.Module(0x7E3))
         assertEquals("‹ Электропривод", ScannerStack.backLabel(module, ::name))
         assertEquals(drives, ScannerStack.back(module))
@@ -41,54 +53,63 @@ class ScannerStackTest {
     }
 
     @Test
-    fun theRailMakesTheAutoscanOrOneSystemOverIt() {
-        val topology = ScannerRoute.Scan(topology = true)
-        val deep = ScannerStack.open(ScannerStack.rail(listOf(topology), CarSystem.HV), Target.Module(0x7E3))
-        // a system from the rail replaces whatever stood over the autoscan, whose tab is kept
-        assertEquals(listOf(topology, ScannerRoute.System(CarSystem.BODY)), ScannerStack.rail(deep, CarSystem.BODY))
-        assertEquals(listOf(topology), ScannerStack.rail(deep, null))
+    fun theRailMakesTheSummaryOrOnePlaceOverIt() {
+        val deep = ScannerStack.open(ScannerStack.rail(start, RailPlace.System(CarSystem.HV)), Target.Module(0x7E3))
+        // a place from the rail replaces whatever stood over «Сводка»
+        assertEquals(start + ScannerRoute.System(CarSystem.BODY), ScannerStack.rail(deep, RailPlace.System(CarSystem.BODY)))
+        assertEquals(start, ScannerStack.rail(deep, RailPlace.Summary))
+        assertEquals(start + ScannerRoute.Journal(), ScannerStack.rail(deep, RailPlace.Journal))
         // a box that leads to another system is the rail's tap, not a step
-        val hv = ScannerStack.rail(listOf(topology), CarSystem.HV)
-        assertEquals(listOf(topology, ScannerRoute.System(CarSystem.PACK)), ScannerStack.open(hv, Target.System(CarSystem.PACK)))
-        assertEquals(CarSystem.HV, ScannerStack.railSystem(hv))
-        assertEquals(CarSystem.HV, ScannerStack.railSystem(deep))
-        assertNull(ScannerStack.railSystem(listOf(topology)))
-        // Back from a system goes to the autoscan, and from the autoscan out
-        assertEquals(listOf(topology), ScannerStack.back(hv))
+        val hv = ScannerStack.rail(start, RailPlace.System(CarSystem.HV))
+        assertEquals(start + ScannerRoute.System(CarSystem.PACK), ScannerStack.open(hv, Target.System(CarSystem.PACK)))
+        assertEquals(RailPlace.System(CarSystem.HV), ScannerStack.railPlace(hv))
+        assertEquals(RailPlace.System(CarSystem.HV), ScannerStack.railPlace(deep))
+        // Back from a place goes to «Сводка», and from «Сводка» out
+        assertEquals(start, ScannerStack.back(hv))
+    }
+
+    @Test
+    fun aCodeIsAStepOverTheScreenItWasPickedOn() {
+        val code = ScannerStack.code(start, 0x720, "U0121-87")
+        assertEquals(ScannerRoute.Code(0x720, "U0121-87"), code.last())
+        assertEquals("‹ Сводка", ScannerStack.backLabel(code, ::name))
+        assertEquals(listOf("Сводка", "U0121-87"), ScannerStack.crumbs(code).map { ScannerStack.title(it.second, ::name) })
+        // its block opens over it and goes back to it
+        val block = ScannerStack.open(code, Target.Module(0x720))
+        assertEquals("‹ U0121-87", ScannerStack.backLabel(block, ::name))
+        assertEquals(code, ScannerStack.back(block))
+        // the report stands alone in the crumbs
+        val report = ScannerStack.report(start)
+        assertEquals(listOf("Отчёт"), ScannerStack.crumbs(report).map { ScannerStack.title(it.second, ::name) })
+        assertEquals(start, ScannerStack.back(report))
     }
 
     @Test
     fun aParameterIsAStepOverTheLiveDataItWasOpenedFrom() {
         val rpm = ParamKey.Pid(0x7E0, 0x0C)
-        val live = ScannerStack.retab(
-            ScannerStack.rail(listOf(ScannerRoute.Scan()), CarSystem.ENGINE),
-            ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE),
-        )
+        val live = ScannerStack.retab(ScannerStack.rail(start, RailPlace.System(CarSystem.ENGINE)), ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE))
         val page = ScannerStack.param(live, rpm)
         assertEquals(ScannerRoute.Param(rpm), page.last())
         assertEquals(ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE), ScannerStack.under(page))
         // Back and «‹ Потоковые данные» return to the live tab, the rail keeps the system lit
         assertEquals("‹ Потоковые данные", ScannerStack.backLabel(page, ::name))
         assertEquals(live, ScannerStack.back(page))
-        assertEquals(CarSystem.ENGINE, ScannerStack.railSystem(page))
+        assertEquals(RailPlace.System(CarSystem.ENGINE), ScannerStack.railPlace(page))
         // the head names the parameter, so the crumbs end at the system, which takes the page off
         assertEquals(listOf("Двигатель"), ScannerStack.crumbs(page).map { ScannerStack.title(it.second, ::name) })
         assertEquals(live, ScannerStack.toLevel(page, ScannerStack.crumbs(page).last().first))
         // the rail picks another system: the page goes with the system under it
-        assertEquals(listOf(ScannerRoute.Scan(), ScannerRoute.System(CarSystem.PACK)), ScannerStack.rail(page, CarSystem.PACK))
+        assertEquals(start + ScannerRoute.System(CarSystem.PACK), ScannerStack.rail(page, RailPlace.System(CarSystem.PACK)))
+        // the graphs are the live tab's other view, not a step
+        val graphs = ScannerStack.retab(live, ScannerRoute.System(CarSystem.ENGINE, SystemTab.LIVE, graphs = true))
+        assertEquals(graphs, ScannerStack.back(ScannerStack.param(graphs, rpm)))
+        assertEquals(ScannerStack.back(live), ScannerStack.back(graphs))
 
         // on a block's live tab the block stays under the page
-        val block = ScannerStack.retab(ScannerStack.open(listOf(ScannerRoute.Scan()), Target.Module(0x7E0)), ScannerRoute.Module(0x7E0, tab = 1))
+        val block = ScannerStack.retab(ScannerStack.open(ScannerStack.rail(start, RailPlace.Blocks), Target.Module(0x7E0)), ScannerRoute.Module(0x7E0, tab = 1))
         val overBlock = ScannerStack.param(block, rpm)
         assertEquals(ScannerRoute.Module(0x7E0, tab = 1), ScannerStack.under(overBlock))
         assertEquals(block, ScannerStack.back(overBlock))
-        assertNull(ScannerStack.railSystem(overBlock))
-
-        // a pack signal the same way
-        val cell = ParamKey.Signal("1014·44600010")
-        val pack = ScannerStack.retab(ScannerStack.rail(listOf(ScannerRoute.Scan()), CarSystem.PACK), ScannerRoute.System(CarSystem.PACK, SystemTab.LIVE))
-        assertEquals(pack, ScannerStack.back(ScannerStack.param(pack, cell)))
-        assertEquals(ScannerRoute.System(CarSystem.PACK, SystemTab.LIVE), ScannerStack.under(pack))
     }
 
     @Test
@@ -103,15 +124,11 @@ class ScannerStackTest {
     }
 
     @Test
-    fun theCrumbsNameTheSystemInTheAutoscansPlace() {
-        val stack = ScannerStack.open(ScannerStack.rail(listOf(ScannerRoute.Scan(topology = true)), CarSystem.HV), Target.Module(0x7E3))
-        assertEquals(listOf("ВВ-система", "Контроллер переднего мотора"),
-            ScannerStack.crumbs(stack).map { ScannerStack.title(it.second, ::name) })
+    fun theCrumbsNameThePlaceInTheSummarysPlace() {
+        val stack = ScannerStack.open(ScannerStack.rail(start, RailPlace.System(CarSystem.HV)), Target.Module(0x7E3))
+        assertEquals(listOf("ВВ-система", "Контроллер переднего мотора"), ScannerStack.crumbs(stack).map { ScannerStack.title(it.second, ::name) })
         assertEquals(listOf(1, 2), ScannerStack.crumbs(stack).map { it.first })
         assertEquals(stack.take(2), ScannerStack.toLevel(stack, 1))
-        assertEquals(listOf(ScannerRoute.Scan(topology = true)), ScannerStack.toScan(stack))
-        // from the autoscan the crumbs keep «Автоскан»
-        val fromScan = ScannerStack.open(listOf(ScannerRoute.Scan()), Target.Module(0x720))
-        assertEquals(listOf("Автоскан", "Кузовной контроллер левый"), ScannerStack.crumbs(fromScan).map { ScannerStack.title(it.second, ::name) })
+        assertEquals(start, ScannerStack.toSummary(stack))
     }
 }

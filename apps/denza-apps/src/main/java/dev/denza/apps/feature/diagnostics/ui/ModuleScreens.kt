@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asAndroidPath
@@ -36,6 +35,7 @@ import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.Field
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.LiveRow
+import dev.denza.apps.feature.diagnostics.scan.Mark
 import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
 import dev.denza.apps.feature.diagnostics.scan.MonitorRow
@@ -47,7 +47,8 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
 /*
  * One ECU's screen: «Ошибки DTC» or, for an OBD responder, «DTC и готовность» (`bodyDtc()`,
- * `ecuDtc()`, `ecuFault()`), «Потоковые данные» (`ecuLive()`) and «Идентификация» (`ecuIdent()`).
+ * `ecuDtc()`, `ecuFault()`, `blockMask()`), «Потоковые данные» (`ecuLive()`) and «Идентификация»
+ * (`ecuIdent()`).
  */
 
 internal const val TAB_DTC = 0
@@ -58,10 +59,12 @@ internal fun moduleTabs(module: ModuleView): List<String> =
 /** A block by its name; a role read from an abbreviation is the catalog's business, not the screen's. */
 internal fun moduleTitle(module: ModuleView): String = module.name
 
-/** What a fixture adds that the session does not have: its charts' scale. */
+/** What a fixture adds that the session does not have: its charts' scale, the graphs' cursor. */
 internal data class ScannerSample(
     /** The live charts' range; null scales each chart to its own last 60 s. */
     val chartRange: ClosedFloatingPointRange<Float>? = null,
+    /** «Графики»' cursor, seconds back, as if the driver had put it there; null - none until a tap. */
+    val graphsCursor: Float? = null,
 )
 
 @Composable
@@ -73,29 +76,28 @@ internal fun ModulePage(
     onBack: () -> Unit,
     actions: DiagnosticsActions,
     sample: ScannerSample?,
-    /** «‹ Автоскан», or the screen the module was opened from. */
-    backLabel: String = ScannerStack.BACK_TO_SCAN,
+    /** «‹ Блоки», or the screen the module was opened from. */
+    backLabel: String = ScannerStack.BACK_TO_SUMMARY,
     /** A live row with a key opens its parameter alone. */
     onParam: ((ParamKey) -> Unit)? = null,
+    /** A record opens on its own screen. */
+    onCode: (Int, String) -> Unit = { _, _ -> },
 ) {
     val obd = module.obd
     val tabs = moduleTabs(module)
     val live = obd != null && tab == 1
     val ident = tab == tabs.lastIndex
     var picking by remember { mutableStateOf(false) }
-    val back = FooterButton(backLabel, false, onBack)
+    val back = FooterButton(backLabel, false, onClick = onBack)
     val footer: @Composable () -> Unit = {
         when {
-            ident -> IdentFooter(module.ident, back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }
+            ident -> IdentFooter(back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }
             live -> ScanFooter(
                 buttons = listOf(
                     back,
                     FooterButton(if (obd!!.live.running) "Пауза" else "Продолжить", true) { actions.setLiveVisible(module.request, !obd.live.running) },
                     FooterButton("Выбор PID", false) { picking = true },
                     FooterButton("Сбросить мин/макс", false) { actions.resetMinMax(module.request) },
-                    FooterButton(if (obd.live.recording) "Стоп записи" else "Запись", obd.live.recording) {
-                        actions.setRecording(module.request, !obd.live.recording)
-                    },
                 ),
                 notes = emptyList(),
             )
@@ -109,7 +111,7 @@ internal fun ModulePage(
         when {
             ident -> IdentContent(module.ident)
             live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam, scroll = true)
-            else -> DtcContent(module)
+            else -> DtcContent(module) { onCode(module.request, it) }
         }
         if (picking && obd != null) {
             PidPicker(obd.live.rows, obd.live.focus, { actions.setFocus(module.request, it); picking = false }) { picking = false }
@@ -117,32 +119,28 @@ internal fun ModulePage(
     }
 }
 
-/** The head of an ECU: its counters when it speaks OBD, its chip and DTC count otherwise. */
+/**
+ * The head of an ECU: MIL and readiness when it speaks OBD; its records - their worst kind's sign and
+ * their count - when it has any. A block with nothing to say has no figure.
+ */
 @Composable
 internal fun ModuleHead(module: ModuleView, line: String) {
     val obd = module.obd
-    if (obd != null) {
-        BlockHead(
-            moduleTitle(module), "· ${module.unit}", line,
-            counters = listOf(
-                Counter("MIL", ScannerWords.mil(obd.mil), on = obd.mil == MilState.ON),
-                Counter("DTC", module.dtc.records.size.toString()),
-                Counter("ГОТОВН.", obd.readiness),
-            ),
-        )
+    val n = module.dtc.records.size
+    val records = Counter("ЗАПИСИ", n.toString(), mark = ScannerWords.mark(module.status)?.takeIf { it != Mark.NO_REPLY } ?: Mark.HISTORY)
+        .takeIf { n > 0 }
+    val counters = if (obd != null) {
+        listOfNotNull(Counter("MIL", ScannerWords.mil(obd.mil), on = obd.mil == MilState.ON), records, Counter("ГОТОВН.", obd.readiness))
     } else {
-        val chip = ScannerWords.chip(module.status)
-        BlockHead(
-            moduleTitle(module), "· ${module.unit}", line,
-            badge = chip.text to ScannerWords.tone(chip.look), dtc = module.dtc.records.size.toString(),
-        )
+        listOfNotNull(records)
     }
+    BlockHead(moduleTitle(module), "· ${module.unit}", line, counters = counters)
 }
 
 @Composable
 private fun DtcFooter(module: ModuleView, back: FooterButton, read: () -> Unit) {
     val notes = if (module.obd != null) listOfNotNull(module.dtc.source?.let { FooterNote.Words(it) }) else dtcNotes(module.dtc)
-    ScanFooter(listOf(back, FooterButton("Прочитать DTC", true, read)), notes)
+    ScanFooter(listOf(back, FooterButton("Прочитать DTC", true, onClick = read)), notes)
 }
 
 /**
@@ -159,8 +157,8 @@ internal fun dtcNotes(dtc: DtcView): List<FooterNote> {
 }
 
 @Composable
-private fun IdentFooter(ident: IdentView, back: FooterButton, reread: () -> Unit) {
-    ScanFooter(listOf(back, FooterButton("Прочитать снова", true, reread)), listOf(FooterNote.Words("22 F18A · F193 · F194 · F195", mono = true)))
+private fun IdentFooter(back: FooterButton, reread: () -> Unit) {
+    ScanFooter(listOf(back, FooterButton("Прочитать снова", true, onClick = reread)), listOf(FooterNote.Words("22 F18A · F193 · F194 · F195", mono = true)))
 }
 
 /* ------------------------------------------------------------------ DTC */
@@ -180,50 +178,54 @@ internal data class Halves(
 }
 
 @Composable
-internal fun DtcContent(module: ModuleView, halves: Halves = Halves.FULL) {
+internal fun DtcContent(module: ModuleView, halves: Halves = Halves.FULL, onCode: (String) -> Unit = {}) {
     val obd = module.obd
     when {
         obd != null && module.dtc.records.isEmpty() -> { ObdLists(obd, halves); Monitors(obd.monitors, halves) }
-        obd != null -> { ObdFault(module.dtc.records, obd, halves); Monitors(obd.monitors, halves) }
-        module.dtc.records.isNotEmpty() -> CodesWithStatus(module.dtc.records)
+        obd != null -> { ObdFault(module.dtc.records, obd, halves, onCode); Monitors(obd.monitors, halves) }
+        module.dtc.records.isNotEmpty() -> CodesWithStatus(module.dtc, onCode)
         else -> MaskAsks(module.dtc, halves.leftX, halves.leftW)
     }
 }
 
 /**
- * A body block's records: code, failure type, the group, the status byte and its eight bits; the
- * chosen record's status explained under the last one, the bits' legend beside it. The column
- * heads stay; the rows and what is under them scroll between the heads and the footer, so a block
- * with eight codes reads as one with two (on the car 2026-10-20 the explanation stood over them).
+ * A UDS block's records (`bodyDtc()`): code, failure type, the description or the group, the status byte
+ * and its words; under them the picked record's status byte as one strip from bit 7 to 0 and, beside
+ * it, how the memory was read with the record picked out. A row picks its record; the picked row opens
+ * it on its own screen. The column heads stay; the rows and what is under them scroll between the heads
+ * and the footer, so a block with eight codes reads as one with two.
  */
 @Composable
-private fun CodesWithStatus(records: List<DtcRow>) {
+private fun CodesWithStatus(dtc: DtcView, onCode: (String) -> Unit) {
     val b = ScannerSpec.BodyDtc
+    val records = dtc.records
     var chosen by remember { mutableIntStateOf(0) }
     val width = rememberWidths()
     val w = LocalScanWidth.current - 48f
-    val cols = ScannerSpec.columns(b.COLS, 24f, w)
+    val cols = ScannerSpec.columns(b.TABLE, 24f, w)
     val rowsTop = b.TOP + b.HEAD + 1f
     val rowsH = records.size * (b.ROW_MIN + 1f)
     val below = maxOf(b.BELOW, rowsTop + rowsH + b.BELOW_GAP)
+    val picked = records[chosen.coerceIn(0, records.lastIndex)]
+    val sy = below + Type.GROUP_TITLE.lh + b.EXPLAIN_GAP
+    val wy = sy + ScannerSpec.BitStrip.NAME_Y + Type.BIT_HEAD.lh + b.EXPLAIN_GAP + 4f
     Box(Modifier.fillMaxSize()) {
         HeadRow(cols, listOf(HeadLabel("КОД"), HeadLabel("ТИП ОТКАЗА (FTB)"), HeadLabel("ОПИСАНИЕ"), HeadLabel("СТАТУС")), b.TOP, b.HEAD, Type.COL_HEAD_TIGHT)
-        ScannerWords.BITS.forEachIndexed { i, bit ->
-            val (x, cw) = cols[4 + i]
-            ScanText(bit, Type.BIT_HEAD, Ink.MUTE, Modifier.centreAt(x + cw / 2f, mid(b.TOP, b.HEAD, Type.BIT_HEAD)))
-        }
         Column(
             Modifier.fillMaxSize()
                 .padding(top = rowsTop.dp, bottom = ScannerSpec.Footer.HEIGHT.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            // rows at their board offsets under the heads: y counts from the first row
-            Box(Modifier.fillMaxWidth().height(rowsH.dp)) {
+            // the page's offsets kept: y counts from the first row
+            val total = maxOf(wy + Type.LEAD.lh + Type.SMALL12.lh, sy + picked.reads.size * Type.RAW.lh) - rowsTop + b.BELOW_GAP
+            Box(Modifier.fillMaxWidth().height(total.dp)) {
                 records.forEachIndexed { r, d ->
                     val y = r * (b.ROW_MIN + 1f)
                     val h = b.ROW_MIN
-                    Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { chosen = r })
-                    ScanText(d.code, Type.CODE, Ink.WHITE, Modifier.at(cols[0].first + 12f, mid(y, h, Type.CODE)))
+                    val active = ScannerWords.markOf(d.status) == Mark.ACTIVE
+                    val availability = d.availability
+                    Box(Modifier.at(24f, y).size(w.dp, h.dp).plate(if (r == chosen) Ink.BAND else null).tap { if (r == chosen) onCode(d.code) else chosen = r })
+                    ScanText(d.code, Type.CODE, if (active) Ink.RED else Ink.WHITE, Modifier.at(cols[0].first + 12f, mid(y, h, Type.CODE)))
                     ScanRuns(
                         listOf(Triple(d.failureType, Type.CELL_NUM, Ink.DIM), Triple(" · ${d.failureName}", Type.CELL, Ink.WHITE)),
                         Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second, base = Type.CELL,
@@ -240,54 +242,38 @@ private fun CodesWithStatus(records: List<DtcRow>) {
                         ScanText(d.group, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt), maxWidth = room)
                         if (d.note.isNotEmpty()) ScanText(d.note, Type.NOTE, Ink.FAINT, Modifier.at(cols[2].first, dt + Type.CELL.lh + 2f), maxWidth = room)
                     }
-                    ScanText(ScannerWords.hex2(d.status), Type.CELL_NUM, Ink.TEXT, Modifier.at(cols[3].first, mid(y, h, Type.CELL_NUM)))
-                    ScannerWords.BITS.indices.forEach { i ->
-                        val (x, cw) = cols[4 + i]
-                        StatusBit(on = (d.status shr i) and 1 == 1, supported = (d.availability shr i) and 1 == 1, Modifier.at(x + (cw - b.BIT) / 2f, y + (h - b.BIT) / 2f))
-                    }
+                    ScanRuns(
+                        listOf(
+                            Triple(ScannerWords.hex2(d.status) + "  ", Type.CELL_NUM, Ink.TEXT),
+                            Triple(ScannerWords.statusWords(d.status, availability), Type.CELL_SMALL, if (active) Ink.RED else Ink.DIM),
+                        ),
+                        Modifier.at(cols[3].first, mid(y, h, Type.CELL)), maxWidth = cols[3].second, base = Type.CELL,
+                    )
                     Rule(24f, y + h, w, Ink.HAIR)
                 }
-            }
-            Spacer(Modifier.height((below - rowsTop - rowsH).dp))
-            val e = ScannerWords.explain(records[chosen.coerceIn(0, records.lastIndex)].status)
-            // as tall as the taller of the two: the legend's rows are placed, not stacked
-            Box(Modifier.fillMaxWidth().heightIn(min = (ScannerWords.BITS.size * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)).dp)) {
-                Column(Modifier.at(24f, 0f)) {
-                    ScanText(e.head, Type.COUNTER_LABEL, Ink.MUTE)
-                    Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
-                    ScanParagraph(e.lead, Type.LEAD, Ink.WHITE, b.EXPLAIN_W)
-                    Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
-                    ScanParagraph(e.body, Type.BODY, Ink.DIM, b.EXPLAIN_W)
-                }
-                ScannerWords.BITS.forEachIndexed { i, bit ->
-                    val ly = i * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)
-                    ScanText(bit, Type.LEGEND_KEY, Ink.DIM, Modifier.at(b.LEGEND_X, ly))
-                    ScanText("бит $i · ${ScannerWords.BIT_WORDS[i]}", Type.LEGEND, Ink.MUTE, Modifier.at(b.LEGEND_X + b.LEGEND_KEY + b.LEGEND_GAP, ly))
+                // the picked record's status byte and its read, at the page's offsets less the rows' top
+                val dy = -rowsTop
+                ScanText(
+                    "СТАТУС ${picked.code} · ${ScannerWords.hex2(picked.status)} = ${ScannerWords.bin8(picked.status)}",
+                    Type.GROUP_TITLE, Ink.MUTE, Modifier.at(24f, below + dy),
+                )
+                BitStrip(24f, sy + dy, picked.status, picked.availability)
+                ScanText(ScannerWords.statusWords(picked.status, picked.availability), Type.LEAD, Ink.WHITE, Modifier.at(24f, wy + dy))
+                ScanText(ScannerWords.availabilityNote(picked.availability), Type.SMALL12, Ink.FAINT, Modifier.at(24f, wy + Type.LEAD.lh + dy))
+                if (picked.reads.isNotEmpty()) {
+                    ScanText("КАК ПРОЧИТАН", Type.GROUP_TITLE, Ink.MUTE, Modifier.at(b.READ_X, below + dy))
+                    picked.reads.forEachIndexed { i, r -> RawRead(r, b.READ_X, sy + dy + i * Type.RAW.lh) }
                 }
             }
-            Spacer(Modifier.height(b.BELOW_GAP.dp))
         }
     }
 }
 
-/** One status bit: lit and glowing, dark, or only outlined where the ECU does not report it. */
-@Composable
-private fun StatusBit(on: Boolean, supported: Boolean, modifier: Modifier) {
-    val b = ScannerSpec.BodyDtc
-    Canvas(modifier.size(b.BIT.dp)) {
-        val r = b.BIT_R.dp.toPx()
-        when {
-            !supported -> edge(Ink.LINE4, b.BIT_R)
-            on -> {
-                glowUnder(Ink.BIT_GLOW, 6f) { c, p -> c.drawRoundRect(0f, 0f, size.width, size.height, r, r, p) }
-                drawRoundRect(ink(Ink.BLUE), cornerRadius = CornerRadius(r, r))
-            }
-            else -> drawRoundRect(ink(Ink.BIT_OFF), cornerRadius = CornerRadius(r, r))
-        }
-    }
-}
-
-/** What was asked of the memory and with which mask, when nothing came back (`brakes()` left). */
+/**
+ * What was asked of the memory and with which mask, when nothing came back (`blockMask()`): the asks,
+ * then a plate with the mask's bits from 7 to 0 under its hex and binary - «·» where the block's
+ * availability has no bit - and what came back.
+ */
 @Composable
 internal fun MaskAsks(dtc: DtcView, x: Float, w: Float) {
     val k = ScannerSpec.Brakes
@@ -306,35 +292,28 @@ internal fun MaskAsks(dtc: DtcView, x: Float, w: Float) {
     val iw = w - 2f * k.PLATE_PAD_X
     val result = when {
         dtc.records.isNotEmpty() -> "Записей: ${dtc.records.size}"
-        dtc.quality == DataQuality.COMPLETE_EMPTY ->
-            "Записей нет"
+        dtc.quality == DataQuality.COMPLETE_EMPTY -> "Записей нет"
         else -> dtc.quality.label.replaceFirstChar { it.uppercase() }
     }
+    val mask = dtc.mask ?: MASK
+    val availability = dtc.availability ?: 0xFF
     Column(
         Modifier.at(x, y + k.PLATE_GAP).width(w.dp).plate(Ink.PLATE, Ink.RULE, k.PLATE_R)
             .padding(horizontal = k.PLATE_PAD_X.dp, vertical = k.PLATE_PAD_Y.dp),
     ) {
-        ScanText("МАСКА ${String.format("%02X", MASK)} · БИТЫ СТАТУСА", Type.COUNTER_LABEL, Ink.MUTE)
+        ScanText(
+            "МАСКА ${ScannerWords.hex2(mask)} = ${ScannerWords.bin8(mask)} · ДОСТУПНОСТЬ ${ScannerWords.hex2(availability)}",
+            Type.COUNTER_LABEL, Ink.MUTE,
+        )
         Spacer(Modifier.height(k.PLATE_GAP_IN.dp))
-        Row(Modifier.width(iw.dp).height(k.BITS_H.dp)) {
-            ScannerWords.BITS.forEachIndexed { i, bit ->
-                if (i > 0) Spacer(Modifier.width(k.BITS_GAP.dp))
-                val on = (MASK shr i) and 1 == 1
-                Box(
-                    Modifier.weight(1f).height(k.BITS_H.dp).plate(if (on) Ink.BLUE_TINT else Ink.PID_FILL, if (on) Ink.BLUE_EDGE else null, k.BITS_R),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    ScanText(bit, Type.BIT, if (on) Ink.BLUE_INK else Ink.FAINT2, Modifier.padding(top = ((k.BITS_H - Type.BIT.lh) / 2f).dp))
-                }
-            }
-        }
+        Box(Modifier.width(iw.dp).height((ScannerSpec.BitStrip.NAME_Y + Type.BIT_HEAD.lh).dp)) { BitStrip(0f, 0f, mask, availability, plain = true) }
         Spacer(Modifier.height(k.PLATE_GAP_IN.dp))
         ScanParagraph(result, Type.BODY_STRONG, Ink.WHITE, iw)
     }
 }
 
-/** The mask the product reads memories with: failed now or confirmed (architecture, 5.2). */
-private const val MASK = 0x09
+/** The mask the product reads memories with when the session has not said (architecture, 5.2, 7.3): now, pending or confirmed. */
+private const val MASK = 0x0D
 
 /* ---------------------------------------------------------------- OBD */
 
@@ -347,10 +326,11 @@ private fun ObdLists(obd: ObdView, x: Halves) {
     obd.lists.forEach { a ->
         val h = d.LIST_ROW
         val num = a.count.all { it.isDigit() } && a.count.isNotEmpty()
+        val none = a.count == "0"
         ScanText(a.name, Type.CELL, Ink.WHITE, Modifier.at(cols[0].first + 12f, mid(y, h, Type.CELL)), maxWidth = cols[0].second - 12f)
         ScanText(a.service, Type.CELL_MONO, Ink.DIM, Modifier.at(cols[1].first, mid(y, h, Type.CELL_MONO)))
         val st = if (num) Type.CELL_NUM else Type.NORM_MONO
-        ScanText(a.count, st, if (num) Ink.WHITE else Ink.FAINT, Modifier.endAt(cols[2].first + cols[2].second - 12f, mid(y, h, st)))
+        ScanText(if (none) "—" else a.count, st, if (num && !none) Ink.WHITE else Ink.FAINT, Modifier.endAt(cols[2].first + cols[2].second - 12f, mid(y, h, st)))
         Rule(x.leftX, y + h, x.leftW, Ink.HAIR)
         y += h + 1f
     }
@@ -372,7 +352,7 @@ private fun Pid01Plate(obd: ObdView, modifier: Modifier, w: Float) {
 
 /** The OBD responder with records: each code over its sentence, then the four lists' counts. */
 @Composable
-private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves) {
+private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves, onCode: (String) -> Unit) {
     val d = ScannerSpec.EcuDtc
     val f = ScannerSpec.EcuFault
     val cols = ScannerSpec.columns(f.COLS, x.leftX, x.leftW)
@@ -383,12 +363,12 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves) {
             val failed = r.status and 1 == 1
             val hot = lamp || failed
             Row(
-                Modifier.fillMaxWidth().heightIn(min = f.ROW_MIN.dp).plate(if (hot) Ink.ORANGE_ROW else null)
+                Modifier.fillMaxWidth().heightIn(min = f.ROW_MIN.dp).plate(if (hot) Ink.RED_ROW else null).tap { onCode(r.code) }
                     .padding(vertical = f.ROW_PAD.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.width(cols[0].second.dp).padding(start = 12.dp)) {
-                    ScanText(r.code, Type.CODE_FAULT, if (hot) Ink.ORANGE_INK else Ink.WHITE)
+                    ScanText(r.code, Type.CODE_FAULT, if (hot) Ink.RED else Ink.WHITE)
                 }
                 val (title, under) = ScannerWords.faultLines(r)
                 Column(Modifier.width(cols[1].second.dp)) {
@@ -413,7 +393,7 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves) {
                     Column(Modifier.padding(start = ((if (i > 0) 1f else 0f) + f.LIST_PAD_X).dp, top = f.LIST_PAD_Y.dp)) {
                         ScanText(caption, Type.COL_HEAD_TIGHT, Ink.MUTE)
                         Spacer(Modifier.height((Type.COUNTER_LABEL.lh - Type.COL_HEAD_TIGHT.lh + f.LIST_GAP_IN).dp))
-                        ScanText(a.count, Type.LIST_COUNT, if (a.count == "0") Ink.DIM2 else Ink.ORANGE_INK)
+                        ScanText(if (a.count == "0") "—" else a.count, Type.LIST_COUNT, if (a.count == "0") Ink.FAINT else Ink.RED_INK)
                         Spacer(Modifier.height(f.LIST_GAP_IN.dp))
                         ScanText(a.service, Type.LIST_SERVICE, Ink.FAINT)
                     }
@@ -426,10 +406,11 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves) {
     }
 }
 
+/** A monitor's readiness in words, no chip: ready is the quiet case. */
 private val MONITOR = mapOf(
-    MonitorState.READY to ("ГОТОВ" to ScannerSpec.Tones.READY),
-    MonitorState.NOT_READY to ("НЕ ГОТОВ" to ScannerSpec.Tones.WAITING),
-    MonitorState.UNSUPPORTED to ("НЕ ПОДДЕРЖ." to ScannerSpec.Tones.ABSENT),
+    MonitorState.READY to ("готов" to Ink.DIM2),
+    MonitorState.NOT_READY to ("не готов" to Ink.WHITE),
+    MonitorState.UNSUPPORTED to ("не поддерж." to Ink.FAINT),
 )
 
 @Composable
@@ -446,8 +427,8 @@ private fun Monitors(list: List<MonitorRow>, x: Halves) {
             Modifier.at(cols[0].first + 12f, mid(y, h, Type.CELL)), maxWidth = cols[0].second - 12f,
         )
         ScanText(m.kind, Type.UNIT, if (off) Ink.SEP else Ink.DIM2, Modifier.at(cols[1].first, mid(y, h, Type.UNIT)))
-        val (label, tone) = MONITOR.getValue(m.state)
-        Badge(label, tone, modifier = Modifier.at(cols[2].first, y + (h - ScannerSpec.Badge.H) / 2f))
+        val (word, inkW) = MONITOR.getValue(m.state)
+        ScanText(word, Type.CELL_SMALL, inkW, Modifier.at(cols[2].first, mid(y, h, Type.CELL_SMALL)), maxWidth = cols[2].second)
         Rule(x.rightX, y + h, x.rightW, Ink.HAIR)
         y += h + 1f
     }
@@ -522,7 +503,8 @@ private fun LiveRows(
         ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
         ScanText(r.min, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(4), mid(y, h, Type.CELL_MONO)))
         ScanText(r.max, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(5), mid(y, h, Type.CELL_MONO)))
-        ScanText(r.norm, Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[6].first, mid(y, h, Type.NORM_MONO)), maxWidth = cols[6].second - 8f)
+        // a state's norm in words («замкн. петля») runs on where the row draws no trace, as the board's
+        ScanText(r.norm, Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[6].first, mid(y, h, Type.NORM_MONO)), maxWidth = if (r.samples.isNotEmpty()) cols[6].second - 8f else null)
         if (r.samples.isNotEmpty()) Spark(r, chartRange, minOf(e.SPARK_W, cols[7].second - 8f), Modifier.at(cols[7].first, y + (h - e.SPARK_H) / 2f))
         Rule(24f, y + h, w, Ink.HAIR)
         y += h + 1f
