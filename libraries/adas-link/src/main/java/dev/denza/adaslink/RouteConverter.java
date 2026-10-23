@@ -41,6 +41,12 @@ public final class RouteConverter {
         public final List<double[]> speedCameras;
         /** Per segment: its Yandex section's free-flow speed, km/h (NaN unknown): the factory's typical link speed. */
         public final double[] segmentFreeFlowKmh;
+        /** Per link: the ERAT 0x4269 speed of the OSM road it matched, km/h; NaN where unmatched. */
+        public double[] linkSpeedKmh;
+        /** Per link: the matched OSM road's legal limit in the direction travelled, km/h; 0 none or unmatched. */
+        public int[] linkLegalKmh;
+        /** The route on our OSM roads, or null when converted without a road network or outside it. */
+        public RoadMatcher.Match roadMatch;
         public final String contentKey;
 
         Converted(String routeId, StockPath path, double totalM, int[] linkSegment, int[] linkInSegment, double[] linkBeginM, double[] linkEndM,
@@ -127,6 +133,15 @@ public final class RouteConverter {
     }
 
     public static Converted convert(YandexRoute route, Coordinates.Frame frame) {
+        return convert(route, frame, null);
+    }
+
+    /**
+     * As {@link #convert(YandexRoute, Coordinates.Frame)}; where the route matches {@code roads}
+     * ({@link RoadMatcher}), links are also cut at the network's junction nodes and attribute
+     * changes and carry its attributes. {@code roads} null: Yandex data only.
+     */
+    public static Converted convert(YandexRoute route, Coordinates.Frame frame, RoadNetwork roads) {
         int edges = route.edges();
         double[] cumulative = new double[edges + 1];
         for (int i = 0; i < edges; i++)
@@ -159,6 +174,9 @@ public final class RouteConverter {
         if (route.laneSigns != null) for (double[] sign : route.laneSigns)
             if (sign[0] > 0 && sign[0] < edges) candidates.add(new double[]{sign[0], 1});
         if (route.junctions != null) for (double s : route.junctions) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
+        // Junction nodes and attribute changes of the OSM roads the route matched (Amap's road records).
+        RoadMatcher.Match match = roads == null ? null : RoadMatcher.match(route, cumulative, roads);
+        if (match != null) for (double s : match.cuts) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
         candidates.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(b[1], a[1]));
 
         StockPath path = new StockPath();
@@ -243,7 +261,7 @@ public final class RouteConverter {
             all.get(owner).hasTrafficLight = true;
             path.segments.get(linkSegment.get(owner)).trafficLightNum++;
         }
-        attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative);
+        double[] linkSpeed = attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative, match);
         groups(sections, path);
         double[] segmentFree = new double[sections.size()];
         for (int i = 0; i < segmentFree.length; i++) segmentFree[i] = sections.get(i).freeFlowKmh;
@@ -264,12 +282,22 @@ public final class RouteConverter {
             if (c.tags.contains("SPEED_CONTROL") && Double.isFinite(c.speedLimitMps) && c.speedLimitMps > 0)
                 cameras.add(new double[]{metres(cumulative, c.position), round(c.speedLimitMps * 3.6)});
         cameras.sort((a, b) -> Double.compare(a[0], b[0]));
-        return new Converted(route.routeId, path, total, ints(linkSegment), ints(linkInSegment), doubles(linkBegin), doubles(linkEnd),
+        Converted converted = new Converted(route.routeId, path, total, ints(linkSegment), ints(linkInSegment), doubles(linkBegin), doubles(linkEnd),
                 doubles(linkBeginS), doubles(linkEndS), segBegin, segEnd, lightM, cumulative, tunnelM, tunnelEnds, cameras, segmentFree);
+        converted.linkSpeedKmh = linkSpeed;
+        converted.linkLegalKmh = new int[linkSpeed.length];
+        if (match != null)
+            for (int k = 0; k < linkSpeed.length; k++)
+                if (!Double.isNaN(linkSpeed[k])) converted.linkLegalKmh[k] = match.legalKmhAt((linkBeginS.get(k) + linkEndS.get(k)) / 2);
+        converted.roadMatch = match;
+        return converted;
     }
 
     /**
-     * What the factory Beijing profile lets us state from Yandex data alone
+     * A link the route matched onto our OSM roads carries its road's attributes as the stock map
+     * exports them (class, formway, link type, LaneNum, direction, ownership, name), and its ERAT
+     * 0x4269 speed is the link's speed (returned per link, NaN elsewhere). Any other link keeps
+     * what the factory Beijing profile lets us state from Yandex data alone
      * (research/stock-map-native/factory-beijing-profile-20261023.json):
      * <ul>
      * <li>link MainAction stays 0: on every factory route the stock sent (bench, 1 177 links) the
@@ -286,13 +314,23 @@ public final class RouteConverter {
      * Everything else keeps the stock's NULL values: no class, formway, direction or ownership is
      * inferred for ordinary city roads, and Yandex z-levels are not taken for bridges.
      */
-    static void attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
-                           List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative) {
+    static double[] attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
+                               List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative, RoadMatcher.Match match) {
         int link = 0;
+        double[] speeds = new double[beginS.size()];
         for (int si = 0; si < path.segments.size(); si++) {
             boolean roundabout = "ENTER_ROUNDABOUT".equals(sections.get(si).action);
             for (StockPath.Link l : path.segments.get(si).links) {
                 double middle = (beginS.get(link) + endS.get(link)) / 2;
+                RoadNetwork.Fragment road = match == null ? null : match.fragmentAt(middle);
+                speeds[link] = road == null ? Double.NaN : road.speedKmh;
+                if (road != null) {
+                    l.roadClass = road.roadClass; l.formway = road.formway; l.linkType = road.linkType;
+                    l.laneNum = road.laneNum; l.direction = road.direction; l.ownership = road.ownership;
+                    l.roadName = road.name;
+                    link++;
+                    continue;
+                }
                 if (roundabout) { l.formway = 4; l.direction = 1; }
                 if (inside(route.highways, middle) && !l.hasTrafficLight) {
                     Double limit = route.speedLimits == null ? null : route.speedLimits[Math.min((int) Math.floor(middle), route.edges() - 1)];
@@ -306,6 +344,7 @@ public final class RouteConverter {
                 link++;
             }
         }
+        return speeds;
     }
 
     /** The link's grid points: its begin, every vertex inside, its end; repeated grid points once. */

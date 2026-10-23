@@ -42,6 +42,8 @@ public final class StockFeed implements BridgeStatus {
         public final boolean simulated;
         public final long ageMs;
         public final Double vehicleSpeedKmh;
+        /** Amap LocMatchInfo of the road under the car: its class and ownership; the stock's NULL values when unmatched. */
+        public int roadClass = StockPath.ROAD_CLASS_NULL, ownership = StockPath.OWNERSHIP_UNKNOWN;
         public Fix(double matchedLon, double matchedLat, double rawLon, double rawLat, double speedMps, double heading, boolean simulated,
                    long ageMs, Double vehicleSpeedKmh) {
             this.matchedLon = matchedLon; this.matchedLat = matchedLat; this.rawLon = rawLon; this.rawLat = rawLat; this.speedMps = speedMps;
@@ -368,9 +370,9 @@ public final class StockFeed implements BridgeStatus {
         timeToDest = Double.isNaN(timeToFinish) ? 0 : (int) Math.max(0, RouteConverter.round(timeToFinish));
         solidLaneDistance();
         setLightLocation(0, light[0], light[1]);
-        // curLinkSpeed: the factory's typical link speed (ERAT 0x4269), not live traffic; the closest
-        // Yandex value is the section's free-flow speed (distance over time without traffic).
-        double free = c.segmentFreeFlowKmh[seg];
+        // curLinkSpeed: the factory's typical link speed (ERAT 0x4269), not live traffic: the matched OSM
+        // road's, else the closest Yandex value, the section's free-flow speed (distance over time without traffic).
+        double free = c.linkSpeedKmh != null && !Double.isNaN(c.linkSpeedKmh[ni[2]]) ? c.linkSpeedKmh[ni[2]] : c.segmentFreeFlowKmh[seg];
         historySpeed = Double.isNaN(free) ? 0 : RouteConverter.round(free);
         icon = cross;
         tunnels(c, passed);
@@ -507,8 +509,8 @@ public final class StockFeed implements BridgeStatus {
         double rLon = Coordinates.grid(matched[0]), rLat = Coordinates.grid(matched[1]);
         double gLon = Coordinates.grid(raw[0]), gLat = Coordinates.grid(raw[1]);
         int course = Double.isNaN(fix.heading) ? 0 : (int) fix.heading;
-        niOwnership = StockPath.OWNERSHIP_UNKNOWN;
-        roadClass = StockPath.ROAD_CLASS_NULL;
+        niOwnership = fix.ownership;                                 // locMatchInfo.ownership (MIN_VALUE -> -1)
+        roadClass = fix.roadClass;                                   // locMatchInfo.roadClass
         if (throttle()) {
             sendRegion();
             weather = 0;

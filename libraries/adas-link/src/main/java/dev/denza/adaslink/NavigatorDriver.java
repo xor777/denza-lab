@@ -66,6 +66,11 @@ public final class NavigatorDriver {
         this.feed = feed; this.frame = frame; this.clock = clock;
     }
 
+    private volatile RoadNetwork roads;
+
+    /** Our OSM roads to match each new route onto (cuts and attributes, {@link RoadMatcher}); null: Yandex only. */
+    public void setRoads(RoadNetwork roads) { this.roads = roads; }
+
     public void observe(Observation o) {
         lastObservation = o.monotonicMs;
         clock.cancel(watchdog);
@@ -97,7 +102,7 @@ public final class NavigatorDriver {
         if (active) {
             if (o.route != null && o.route.routeId.equals(o.routeId)) {
                 RouteConverter.Converted converted;
-                try { converted = RouteConverter.convert(o.route, frame); }
+                try { converted = RouteConverter.convert(o.route, frame, roads); }
                 catch (RuntimeException e) { converted = null; }
                 if (converted != null && (!converted.contentKey.equals(currentContent) || !o.routeId.equals(currentRouteId))) {
                     int type = !naving ? 1 : sawReroute ? 2 : 5;   // RouteTypeCommon, RouteTypeYaw, RouteTypeTMC
@@ -139,6 +144,11 @@ public final class NavigatorDriver {
             Double edge = currentRoute.speedLimits[Math.min((int) Math.floor(o.scalar), currentRoute.edges() - 1)];
             if (edge != null) limitMps = edge;
         }
+        // Where Yandex names no limit, the matched OSM road's speed-limit sign in the direction travelled.
+        if ((Double.isNaN(limitMps) || limitMps <= 0) && onCurrent && current != null && current.roadMatch != null) {
+            int osm = current.roadMatch.legalKmhAt(o.scalar);
+            if (osm > 0) limitMps = osm / 3.6;
+        }
         int limit = Double.isNaN(limitMps) || limitMps <= 0 ? 0 : RouteConverter.round(limitMps * 3.6);
         if (limit != lastLimit) { lastLimit = limit; feed.onCurrentRoadSpeed(limit); }
 
@@ -155,8 +165,12 @@ public final class NavigatorDriver {
             }
         // Amap's matched course is the road's: on the route, the bearing of the polyline edge under the car.
         double course = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
-        feed.onLocation(new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
-                o.simulated, o.fixAgeMs, o.vehicleSpeedKmh));
+        StockFeed.Fix fix = new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
+                o.simulated, o.fixAgeMs, o.vehicleSpeedKmh);
+        // Amap's LocMatchInfo: on the route, the OSM road the route matched under the car, if any.
+        RoadNetwork.Fragment road = onCurrent && current != null && current.roadMatch != null ? current.roadMatch.fragmentAt(o.scalar) : null;
+        if (road != null) { fix.roadClass = road.roadClass; fix.ownership = road.ownership; }
+        feed.onLocation(fix);
     }
 
     public boolean naving() { return naving; }

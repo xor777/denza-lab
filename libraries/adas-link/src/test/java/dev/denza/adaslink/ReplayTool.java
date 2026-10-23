@@ -14,7 +14,7 @@ import java.util.Map;
  * NavigatorDriver + StockFeed on virtual time over recorded or synthetic Navigator observations and
  * writes the dry-run JSONL of every message the feed would fire.
  *
- * Input JSON: {"frame": "wgs84"|"gcj", "acceptSimulated": bool, "tailMs": n,
+ * Input JSON: {"frame": "wgs84"|"gcj", "acceptSimulated": bool, "tailMs": n, "roads": "store.bin" (optional),
  *              "steps": [{"t_ms": n, "sample": {denza-yandex-guidance-v1}, "snapshot": {route}|null}]}
  * Usage: ReplayTool input.json out.jsonl
  */
@@ -32,6 +32,8 @@ public final class ReplayTool {
             DryRunRecorder recorder = new DryRunRecorder(out, false);
             StockFeed feed = new StockFeed(clock, recorder, config);
             NavigatorDriver driver = new NavigatorDriver(feed, config.frame, clock);
+            if (input.get("roads") instanceof String)
+                driver.setRoads(new RoadStore(java.nio.ByteBuffer.wrap(Files.readAllBytes(new File((String) input.get("roads")).toPath()))));
             long start = input.get("startMs") instanceof Number ? ((Number) input.get("startMs")).longValue() : 0;
             clock.advanceTo(start);
             feed.start(true, true, true);

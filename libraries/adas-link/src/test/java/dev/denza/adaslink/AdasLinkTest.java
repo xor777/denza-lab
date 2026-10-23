@@ -41,5 +41,6 @@ public final class AdasLinkTest {
         GoldenRouteTests.run(root);
         ConverterTests.run(root);
         DynamicTests.run(root);
+        RoadTests.run();
     }
 }
