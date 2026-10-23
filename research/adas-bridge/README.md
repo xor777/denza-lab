@@ -28,6 +28,7 @@ Updated 2026-10-23. Local parser acceptance is separate from vehicle acceptance.
 | Inside Navigator the bridge runs as a dry run: everything the stock map would fire is recorded to a JSONL trace; the SOME/IP publisher is compiled hard-off | code; emulator run | [Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) |
 | A local SOME/IP client can subscribe to the stock map's offered events (HAL client classes, no security section); the overlay subscribes read-only | firmware; car receipt open | [Transport](#transport) |
 | ADAS availability is explicit DNP/ICC/ACC status (0/1/2); NOA family and route ACK are separate. Passive observer receives real car packets and shows an overlay | firmware + car acceptance, 2026-10-23 | [Status observer](#adas-status-observer) |
+| With our OSM road store (`tools/adas_bridge/road_store.py`, from a `build_map.py` build) the bridge matches the Yandex route onto our network (adas-link `RoadMatcher`, HMM): links end at OSM junctions and attribute changes and carry the producers' class, formway, link type, LaneNum, direction, ownership, name, link speed and legal limit; 99.4–100 % of four recorded Moscow routes matched, 28–48 → 119–176 links per route; Java and the Python oracle agree to the byte | code + bench, 2026-10-24; car not run | [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Transport](#transport) · [One writer](#one-writer) ·
@@ -35,7 +36,7 @@ Contents: [Transport](#transport) · [One writer](#one-writer) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
 [Local prototype](#local-prototype-2026-10-23) ·
-[Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) · [Native archive](#native-route-archive) ·
+[Stock-equivalent bridge](#stock-equivalent-bridge-adas-link-2026-10-23) · [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24) · [Native archive](#native-route-archive) ·
 [ADAS status observer](#adas-status-observer) ·
 [Safety](#safety) · [Verdict and plan](#verdict-and-plan) ·
 [Evidence](#evidence-and-reproduction)
@@ -308,8 +309,10 @@ only start routes; there is no route export.
 
 The original product architecture below is a proposal. The implemented boundary
 is emulator private evidence files → host Python → a local mock receiver,
-described under [Local prototype](#local-prototype-2026-10-23). There is no
-Yandex-to-OSM matcher or Denza Apps ADAS publisher yet.
+described under [Local prototype](#local-prototype-2026-10-23). ~~There is no
+Yandex-to-OSM matcher~~ (the matcher exists since 2026-10-24, inside Navigator:
+[OSM roads](#osm-roads-under-the-yandex-route-2026-10-24)); there is no Denza Apps
+ADAS publisher yet.
 
 Proposed product architecture, in two places:
 
@@ -455,8 +458,10 @@ class 0 at a posted 90 km/h or more, else 6, with formway 1, direction 1, owners
 section is formway 4, direction 1; curLinkSpeed (`historySpeed`) is the section's
 free-flow speed, the closest Yandex value to the factory's typical link speed.
 Not taken: z-levels as bridges (most of the M4 fixture sits at level 1), toll (no
-LinkItem field), class, direction, ownership or lanes on ordinary city roads (no
-OSM match yet). FORK/EXIT map to SlightLeft/Right (3/4), ferries and waypoints to
+LinkItem field), ~~class, direction, ownership or lanes on ordinary city roads (no
+OSM match yet)~~ (with the road store they come from OSM wherever the route matches:
+[OSM roads](#osm-roads-under-the-yandex-route-2026-10-24); the rules above remain for
+unmatched stretches). FORK/EXIT map to SlightLeft/Right (3/4), ferries and waypoints to
 the AssistantActions 19/20/35, arrival to 0/36. Speed cameras (SPEED_CONTROL with a
 limit) within 2 km are SubCameraExtType 7 in TrafficInfo and `naviActionAndCamera`.
 
@@ -465,7 +470,8 @@ supplies it; the GPS slot is the platform's passive GNSS fix when fresh, else
 Navigator's location; DNP service, switch and no-sleep are assumed on (Navigator
 cannot read BYDAuto); region codes stay at the stock defaults (no Amap adcodes);
 jams, incidents, lane info (`0x800C`) and 3 km lanes (`0x800E`, sent empty as the
-car did) are not mapped; link granularity is Yandex's (fewer, longer links than
+car did) are not mapped; ~~link granularity is Yandex's~~ (with the road store links
+also end at OSM junctions: [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24)) (fewer, longer links than
 the factory's); path ids restart per Navigator process; positions come per FINE
 fix, so a tunnel without fixes is silent where Amap would dead-reckon.
 
@@ -491,6 +497,69 @@ output. Ten mutants of critical lines are all killed. The Python oracle is equal
 byte for byte on the recorded routes and about 650 encodings
 (`tools/adas_bridge/tests/test_stock_equivalence.py`). The emulator dry run and
 its trace check are in `captures/adas-bridge-device/`.
+
+## OSM roads under the Yandex route (2026-10-24)
+
+Yandex's route has no road graph: the bridge could cut links only where Yandex
+marks something (lights, lane and direction signs, limits, ranges) and knew no class,
+form, lanes, direction or ownership of ordinary roads. Our OSM map has both, encoded
+in factory conventions by the `build_map.py` producers; the bridge now places the
+Yandex route on it inside Navigator. The geometry stays Yandex's; only cuts and
+attributes come from OSM.
+
+**Store.** `tools/adas_bridge/road_store.py` reads a `build_map.py` output — the staging
+fragments (one DRT road each, in the stock frame), the delivered m2 records of the
+final routing stage (decoded with the field-coverage gate's readers) and the
+factory speed-limit signs — and writes a flat big-endian file: nodes, adjacency,
+25-byte fragment records (class, formway, link type, LaneNum, direction as exported
+(raw≠3 → 1), ownership as exported (1..4 → 1), ERAT 0x4269 speed, legal limit per
+direction, name), varint geometry on the stock grid, a 200 m cell index, names.
+Fragments meeting only each other with equal attributes are joined. For the region
+of the four recorded routes (about 45 × 34 km including central Moscow): 318,977
+records → 257,782 fragments, 205,038 nodes (138,682 junctions), 15.7 MB (9.0 MB
+gzip), 99,109 fragments with a legal limit. `RoadStore` (adas-link, plain Java) reads
+it from a `ByteBuffer`; the module maps `denza-adas-roads.bin` from Navigator's files.
+
+**Matcher.** `RoadMatcher` (mirrored by `tools/adas_bridge/roads.py`, same doubles and
+choices): samples every 12 m; states are fragments within 30 m in an allowed
+direction heading within 60° of the route, cost (d/7 m)² + 10(1 − cos); a step costs
+|network − route distance| / 3 m with the network distance from a bounded Dijkstra
+over allowed directions; a no-road state (9 per sample, 15 to enter or leave) carries
+the route over roads OSM lacks; Viterbi; runs under 30 m or farther than 12 m on
+average are dropped; past a dead end only 5 m. Where matched, `RouteConverter` adds a
+cut at every junction node (degree ≥ 3) and every attribute change the route
+passes, and a link whose middle lies on a matched road takes that road's values;
+elsewhere the Yandex-only rules above stand. Per tick, `NavigatorDriver` hands the
+road under the car to `StockFeed` as Amap's LocMatchInfo (TrafficInfo `roadClass`,
+position ownership); `historySpeed` is the road's ERAT speed; where Yandex names no
+legal limit, the road's sign in the direction travelled.
+
+**Bench** (`road_bench.py`, `bridge_trace.py yandex --engine java --roads`,
+`compare.py profile --roads`; outputs in `captures/adas-bridge-osm/`):
+
+| Route | Length | Matched | Links before → after | Median link |
+| --- | --- | --- | --- | --- |
+| `route-01` (city) | 7.1 km | 100 % | 28 → 119 | 180 → 38 m |
+| `route-final-city` | 7.4 km | 99.4 % | 30 → 134 | 108 → 34 m |
+| `route-final-m4` (highway) | 29.9 km | 99.5 % | 48 → 176 | 189 → 73 m |
+| `highway-02` | 15.9 km | 100 % | 48 → 149 | 228 → 70 m |
+
+Links carrying class, formway, LaneNum, direction and ownership: 0–19 % before,
+99.3–100 % after; names 40–93 % → 64–94 % (OSM leaves service roads unnamed, as the
+factory sends ""). Median link by road group against the factory's road length:
+expressway 140 m (freeway 141), arterial 43–71 m (main road 50, provincial 68),
+secondary 31–102 m (44), ordinary 20–49 m (52). Per tick on the recorded progress:
+TrafficInfo `roadClass` 7 on arterials and 9 on ordinary roads (−1 before; the factory
+sends its class on 100 %), ownership 0/1 (−1 before), `historySpeed` 46–60 on
+arterials and 10–29 on ordinary roads (factory 46–64 and 10–21). Sections Yandex
+names land on the same streets, Yandex tunnels on OSM tunnels (98 %), Yandex highway
+ranges on classes 0/1. Not matched: short stretches where OSM has no connection
+Yandex drives (19–70 m on M4, a turn on the city route) and parking-lot starts.
+
+Not done: no car run; the store must be pushed next to Navigator; the region build
+needs the producers' `lanes` stage, which fails on this region ("Duplicate
+directed-road lane record"), so the bench store took the `factory` stage run by hand
+on the `toll` output (lanes and signals change no field the store reads).
 
 ## Native route archive
 
