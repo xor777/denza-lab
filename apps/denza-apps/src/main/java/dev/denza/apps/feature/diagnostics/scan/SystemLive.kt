@@ -21,6 +21,8 @@ internal class StreamReading(
     val count: Boolean = false,
     /** Computed here from each hub sweep: the cells' spread. */
     val calc: ((Map<VehicleSignal, Double>) -> Double?)? = null,
+    /** What a reading is multiplied by into [unit]: the insulation's kΩ to MΩ (7.3). */
+    val factor: Double = 1.0,
 ) {
     init {
         require(listOfNotNull(extra, hub, calc).size == 1) { "$name: one source" }
@@ -54,17 +56,12 @@ internal class StreamReading(
  */
 internal object SystemStreams {
 
-    // 500 Ω per volt of the pack, the usual floor for an isolated HV system. kΩ is the closest known
-    // unit - the GB/T 32960 field the stock collector fills from this FID - and is not proved on this
-    // car (owner's decision 2026-10-21: keep kΩ and this floor; architecture 7.2). A code above 60000
-    // never reaches here: DiagnosticExtra refuses it, so it is «н/д» and not judged.
+    // 500 Ω per volt of the pack, the usual floor for an isolated HV system (owner's decision 2026-10-21),
+    // in MΩ since v4 - one quantity, one unit (7.3; [Insulation]). A code above 60000 never reaches here:
+    // DiagnosticExtra refuses it, so it is «н/д» and not judged.
     private val insulation: (CarReadings) -> SystemsBuilder.SignalNorm = { car ->
-        val floorKOhm = car.hub[VehicleSignal.PACK_VOLT]?.let { it * 0.5 }
-        if (floorKOhm == null) {
-            SystemsBuilder.SignalNorm("≥ 500 Ом/В", null, null)
-        } else {
-            SystemsBuilder.SignalNorm("≥ ${Figures.number(floorKOhm, 0)}", null) { it < floorKOhm }
-        }
+        val floor = Insulation.floorMohm(car.hub[VehicleSignal.PACK_VOLT])
+        SystemsBuilder.SignalNorm(Insulation.normText(floor), null, floor?.let { f -> { v: Double -> v < f } })
     }
 
     // The readings two tables share, named once. A hub signal the engine's stream shows beside its PIDs
@@ -108,8 +105,8 @@ internal object SystemStreams {
         StreamReading("Температура модулей, мин.", "°C", extra = DiagnosticExtra.TEMP_MIN),
         StreamReading("Температура модулей, макс.", "°C", extra = DiagnosticExtra.TEMP_MAX),
         StreamReading("Температура модулей, сред.", "°C", hub = VehicleSignal.PACK_TEMP_AVG),
-        StreamReading("Изоляция, канал BMC", "кОм", extra = DiagnosticExtra.INSULATION, norm = insulation),
-        StreamReading("Изоляция, канал 2", "кОм", extra = DiagnosticExtra.INSULATION_2, norm = insulation),
+        StreamReading("Изоляция, канал BMC", Insulation.UNIT, 1, extra = DiagnosticExtra.INSULATION, norm = insulation, factor = Insulation.PER_KOHM),
+        StreamReading("Изоляция, канал 2", Insulation.UNIT, 1, extra = DiagnosticExtra.INSULATION_2, norm = insulation, factor = Insulation.PER_KOHM),
         chargePower,
         StreamReading("Ячеек последовательно", "шт", extra = DiagnosticExtra.CELL_COUNT, count = true),
         StreamReading("Датчиков температуры", "шт", extra = DiagnosticExtra.PROBE_COUNT, count = true),
@@ -318,16 +315,20 @@ internal class SystemLive(val system: CarSystem) {
     }
 
     /** A state says its word, a count its number; a reading takes a point, a gap where nothing came. */
-    private fun put(r: StreamReading, s: LiveSeries, at: Long, v: Double?) {
+    private fun put(r: StreamReading, s: LiveSeries, at: Long, raw: Double?) {
         val words = r.words
+        val v = raw?.times(r.factor)
         when {
             words != null -> {
-                s.value = words.word(v)
-                codes[r] = v
+                s.value = words.word(raw)
+                codes[r] = raw
             }
             !r.trace -> s.value = v?.let { Figures.number(it, r.decimals) } ?: NA
             v == null -> s.gap(at, NA)
-            else -> s.number(at, v)
+            else -> {
+                if (r.factor == Insulation.PER_KOHM) s.decimals = Insulation.decimals(v)
+                s.number(at, v)
+            }
         }
     }
 
@@ -369,5 +370,38 @@ internal class SystemLive(val system: CarSystem) {
 
         /** The table as one look at [car] makes it: what the tab shows before it keeps a minute. */
         fun of(system: CarSystem, car: CarReadings): SystemLiveView = SystemLive(system).also { it.take(car) }.view()
+    }
+}
+
+/**
+ * The pack's insulation in one unit, MΩ (architecture 7.3): the GET's value, read as kΩ by the GB/T 32960
+ * field the stock collector fills, over 1000. The floor is 500 Ω per volt of the pack (owner's decision
+ * 2026-10-21), in MΩ rounded up to hundredths - «≥ 0,28» at 553 V - so its words are never looser than the
+ * rule, and a value is judged against the words.
+ */
+internal object Insulation {
+    const val UNIT = "МОм"
+    const val PER_KOHM = 0.001
+    private const val OHM_PER_VOLT = 500.0
+
+    fun mohm(kohm: Double?): Double? = kohm?.times(PER_KOHM)
+
+    /** Tenths, and hundredths below 1 MΩ - where the floor is: «14,4», «0,27». */
+    fun decimals(mohm: Double): Int = if (mohm < 1.0) 2 else 1
+
+    /** «14,4», «0,27». */
+    fun text(mohm: Double): String = Figures.number(mohm, decimals(mohm))
+
+    /** The floor at [packVolts], MΩ; null without the pack's voltage. */
+    fun floorMohm(packVolts: Double?): Double? =
+        packVolts?.let { kotlin.math.ceil(it * OHM_PER_VOLT / 1e6 * 100 - 1e-9) / 100 }
+
+    /** «≥ 0,28»; «≥ 500 Ом/В» without the pack's voltage, and then not judged. */
+    fun normText(floor: Double?): String = floor?.let { "≥ ${Figures.number(it, 2)}" } ?: "≥ 500 Ом/В"
+
+    /** Below the floor at the pack's voltage now; false where either is not known. */
+    fun low(mohm: Double?, packVolts: Double?): Boolean {
+        val floor = floorMohm(packVolts) ?: return false
+        return mohm != null && mohm < floor
     }
 }

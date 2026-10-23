@@ -70,18 +70,17 @@ internal data class SummaryView(
 )
 
 internal data class SummaryBand(
+    /** [parts]' words in one line. */
     val text: String,
+    /** The worst of [parts]. */
     val mark: Mark,
     /** «в т. ч. 5 — потеря связи между блоками, U…-87»; null when there is none. */
     val note: String?,
-    /**
-     * One item a kind present, most severe first, the last with the blocks (board `scanner-summary-active`):
-     * «АКТИВНЫЕ · 1 ЗАПИСЬ», «ОЖИДАЮЩИЕ · 1 ЗАПИСЬ», «В ИСТОРИИ · 16 ЗАПИСЕЙ · 6 БЛОКОВ». By default [text] alone.
-     */
-    val items: List<BandItem> = listOf(BandItem(mark, text)),
+    /** One a kind present, worst first, each with its own mark: «АКТИВНЫЕ · 1 ЗАПИСЬ», … «В ИСТОРИИ · 16 ЗАПИСЕЙ · 6 БЛОКОВ». */
+    val parts: List<BandPart> = emptyList(),
 )
 
-internal data class BandItem(val mark: Mark, val text: String)
+internal data class BandPart(val mark: Mark, val text: String)
 
 /** «КУЗОВ · 10» over its blocks with records. */
 internal data class SummarySystem(val title: String, val blocks: List<SummaryBlock>)
@@ -200,7 +199,7 @@ internal data class StatusByteView(
     val availability: Int,
     /** «подтверждён · сейчас не активен». */
     val words: String,
-    /** ««·» — блок этот бит не сообщает · доступность 0x09»; null when every bit is reported. */
+    /** ««·» — блок этот бит не сообщает · доступность 0x09»; «доступность 0xFF» when every bit is reported; null for an OBD list's code. */
     val legend: String?,
 )
 
@@ -233,7 +232,8 @@ internal data class CodeTimelineView(
     val line: String,
 )
 
-internal enum class ReadState { NOT_READ, READING, EMPTY, READ, REFUSED, NO_REPLY }
+/** A read's state as [ReadOutcome] has it; [INCONSISTENT] an answer that did not hold together, shown raw. */
+internal enum class ReadState { NOT_READ, READING, EMPTY, READ, REFUSED, NO_REPLY, INCONSISTENT }
 
 /** A read shown as a section: decoded rows where it decodes, the raw where it does not. */
 internal data class ReadSection(
@@ -295,7 +295,7 @@ internal sealed interface GraphScope {
 internal data class GraphsView(
     val scope: GraphScope,
     val lanes: List<GraphLane>,
-    /** «4 PID одним запросом · 8,3 Гц». */
+    /** «4 PID в 2 запросах · 8,3 Гц», «3 PID одним запросом · …»; «4 сигнала · обход 0,4 с» for a system's readings. */
     val line: String,
     /** The car's clock at the right edge. */
     val nowNanos: Long,
@@ -335,7 +335,7 @@ internal data class JournalView(
     val aside: String,
     /** «7 сканов · 2 снимка ячеек · 1 обновление ПО». */
     val line: String,
-    /** «НОВЫХ КОДОВ», «УШЛО», «ПО ИЗМЕНЕНО»: the last scan against the one before it. */
+    /** «НОВЫХ КОДОВ», «УШЛО», «ПО ИЗМЕНЕНО» of [compare], each only where it is not zero. */
     val counters: List<HeadCounter>,
     /** A label a day under the axis. */
     val days: List<String>,
@@ -349,12 +349,12 @@ internal data class JournalView(
     val codes: List<JournalCodeLane>,
     /** «12 В на стоянке», «Δ ячеек, полный заряд»: a lane a quantity. */
     val quantities: List<JournalQuantityLane>,
-    /** The panel «СРАВНЕНИЕ», or «СКАН» with one scan ([ScanCompareView.label]); null with none. */
+    /** The panel «СРАВНЕНИЕ», or «СКАН» with one full scan ([ScanCompareView.title] without «→»); null with none. */
     val compare: ScanCompareView?,
 )
 
-/** A mark on the axis, 0..1; [millis] the scan's end, what «Выбрать сканы» hands [DiagnosticsActions.compareScans]. */
-internal data class JournalTick(val at: Float, val full: Boolean, val millis: Long? = null)
+/** A mark on the axis, 0..1; [atMillis] the scan's end, what [DiagnosticsActions.compareScans] names it by. */
+internal data class JournalTick(val at: Float, val full: Boolean, val atMillis: Long = 0)
 
 internal data class JournalSoftwareTick(val at: Float, val text: String)
 
@@ -394,9 +394,4 @@ internal data class ScanCompareView(
     val software: List<Field>,
     /** «12 В» → «13,7 → 13,6 В». */
     val quantities: List<Field>,
-    /**
-     * The panel's caption: «СРАВНЕНИЕ» over two scans; «СКАН» over the one scan a first journal has (board
-     * `scanner-journal-first`: [title] «20.10 19:31», codes «в истории» → «18», values alone).
-     */
-    val label: String = "СРАВНЕНИЕ",
 )

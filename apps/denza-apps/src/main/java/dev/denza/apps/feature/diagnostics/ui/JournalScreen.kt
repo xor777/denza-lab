@@ -55,7 +55,7 @@ internal fun JournalPage(
             picking = next
         }
     }
-    val choosable = (view?.scans?.count { it.millis != null } ?: 0) >= 2
+    val choosable = (view?.scans?.count { it.full && it.atMillis > 0 } ?: 0) >= 2
     RailPage(frame, footer = {
         ScanFooter(
             listOfNotNull(
@@ -103,7 +103,7 @@ private fun Chronology(view: JournalView, picking: List<Long>?, onPick: (Long) -
         for (i in 0..view.days.size) rect(px + i * pw / n, j.GRID_TOP, 1f, j.GRID_H, Ink.HAIR)
         // scans: a bar each, a full scan taller and white, a block read again dimmer; a picked one blue
         view.scans.forEach { s ->
-            val picked = s.millis != null && picking?.contains(s.millis) == true
+            val picked = s.atMillis > 0 && picking?.contains(s.atMillis) == true
             rect(x(s.at) - 1f, ys + if (s.full) 6f else 7f, 2f, if (s.full) 16f else 14f, if (picked) Ink.BLUE else if (s.full) Ink.TEXT else Ink.DIM)
         }
         view.software.forEach { u ->
@@ -146,7 +146,7 @@ private fun Chronology(view: JournalView, picking: List<Long>?, onPick: (Long) -
         lane("Снимки ячеек", yc, j.LANE_H)
     }
     if (picking != null) {
-        view.scans.forEach { s -> s.millis?.let { m -> Box(Modifier.at(x(s.at) - 8f, ys).size(16.dp, j.LANE_H.dp).tap { onPick(m) }) } }
+        view.scans.filter { it.atMillis > 0 }.forEach { s -> Box(Modifier.at(x(s.at) - 8f, ys).size(16.dp, j.LANE_H.dp).tap { onPick(s.atMillis) }) }
     }
     view.software.forEach { u -> ScanText(u.text, Type.SIG, Ink.DIM, Modifier.at(x(u.at) + 12f, mid(yw, j.LANE_H, Type.SIG))) }
     // a full charge named over its dot, where no neighbour stands
@@ -204,7 +204,7 @@ private fun ComparePanel(m: ScanCompareView, x: Float, w: Float) {
         Rule(ix, y + p.PANEL_ROW, iw, Ink.HAIR)
         y += p.PANEL_ROW + 1f + 4f
     }
-    label(m.label)
+    label(if ("→" in m.title) "СРАВНЕНИЕ" else "СКАН")
     ScanText(m.title, Type.NORM_MONO, Ink.WHITE, Modifier.at(ix, mid(y, p.PANEL_HEAD, Type.NORM_MONO)))
     y += p.PANEL_HEAD + 4f
     label("КОДЫ", 6f)

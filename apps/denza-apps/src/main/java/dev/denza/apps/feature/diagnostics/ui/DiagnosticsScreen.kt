@@ -252,7 +252,8 @@ internal fun DiagnosticsScreen(
                     model, frame, actions, onCode = openCode,
                     onBlocks = { stack = ScannerStack.rail(stack, RailPlace.Blocks) },
                     onCompare = {
-                        actions.compareScans(null, null)
+                        // the newest scan against the full one before it
+                        actions.compareScans(null, Long.MAX_VALUE)
                         stack = ScannerStack.rail(stack, RailPlace.Journal).let { s -> ScannerStack.retab(s, ScannerRoute.Journal(1)) }
                     },
                     onReport = openReport,

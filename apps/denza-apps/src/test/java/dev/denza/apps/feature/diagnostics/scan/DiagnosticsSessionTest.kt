@@ -475,7 +475,7 @@ class DiagnosticsSessionTest {
         assertEquals("≥ 80", soh.norm)
         assertFalse(soh.outOfNorm)
         val insulation = sys.pack.rows.first { it.name.endsWith("канал BMC") }
-        assertEquals("≥ 277", insulation.norm)
+        assertEquals("≥ 0,28", insulation.norm)
         assertFalse(insulation.outOfNorm)
         assertEquals(listOf(0x782, 0x7E5), sys.brakeModules)
         // The four corner radars answered one F194: one band.

@@ -230,7 +230,7 @@ class PackLiveTest {
         live.take(round(4, extras = mapOf(DiagnosticExtra.INSULATION to 100.0)))
         val after = live.view()
         assertFalse(after.paused)
-        assertEquals("100", after.row("Изоляция, канал BMC").value)
+        assertEquals("hundredths below 1 MΩ", "0,10", after.row("Изоляция, канал BMC").value)
         assertEquals(2, after.row("Напряжение ВВБ").samples.size)
     }
 
@@ -262,15 +262,16 @@ class PackLiveTest {
         val parked = view()
         assertTrue(parked.rows.none { it.outOfNorm })
         assertEquals("≥ 80", parked.row("Состояние (SOH), BMS").norm)
-        // 500 Ω/V of the pack's 553 V: 276,5 kΩ, said as the board says it
-        assertEquals("≥ 277", parked.row("Изоляция, канал BMC").norm)
-        assertEquals("≥ 277", parked.row("Изоляция, канал 2").norm)
+        // 500 Ω/V of the pack's 553 V: 0,2765 MΩ, said - and judged - rounded up to hundredths (7.3)
+        assertEquals("≥ 0,28", parked.row("Изоляция, канал BMC").norm)
+        assertEquals("≥ 0,28", parked.row("Изоляция, канал 2").norm)
         assertTrue(parked.rows.filter { it.name !in setOf("Состояние (SOH), BMS", "Изоляция, канал BMC", "Изоляция, канал 2") }.all { it.norm == "—" })
 
         assertTrue(view(extras = mapOf(DiagnosticExtra.SOH to 79.0)).row("Состояние (SOH), BMS").outOfNorm)
         assertFalse(view(extras = mapOf(DiagnosticExtra.SOH to 80.0)).row("Состояние (SOH), BMS").outOfNorm)
-        assertTrue(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 276.0)).row("Изоляция, канал 2").outOfNorm)
-        assertFalse(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 277.0)).row("Изоляция, канал 2").outOfNorm)
+        assertTrue(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 279.0)).row("Изоляция, канал 2").outOfNorm)
+        assertFalse(view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 280.0)).row("Изоляция, канал 2").outOfNorm)
+        assertEquals("0,28", view(extras = mapOf(DiagnosticExtra.INSULATION_2 to 280.0)).row("Изоляция, канал 2").value)
         // no pack voltage: the floor said per volt and nothing judged
         val noVolts = view(extras = mapOf(DiagnosticExtra.INSULATION to 10.0), drop = setOf(VehicleSignal.PACK_VOLT))
         assertEquals("≥ 500 Ом/В", noVolts.row("Изоляция, канал BMC").norm)
@@ -300,7 +301,7 @@ class PackLiveTest {
             v.rows.map { it.device to it.abbreviation },
         )
         assertEquals(
-            listOf("В", "А", "кВт", "%", "%", "%", "мВ", "мВ", "мВ", "°C", "°C", "°C", "кОм", "кОм", "кВт", "шт", "шт", "", "", "", "", ""),
+            listOf("В", "А", "кВт", "%", "%", "%", "мВ", "мВ", "мВ", "°C", "°C", "°C", "МОм", "МОм", "кВт", "шт", "шт", "", "", "", "", ""),
             v.rows.map { it.unit },
         )
         // the keys the rows had before they were a stream: the parameter pages open as they did; the

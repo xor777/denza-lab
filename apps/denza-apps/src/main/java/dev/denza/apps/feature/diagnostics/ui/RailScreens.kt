@@ -190,8 +190,7 @@ internal fun SystemPageScreen(
     // the BMS's pages are listened to only while «Здоровье» or «Ячейки» is in front (6.3, 7.3)
     val health = system == CarSystem.PACK && tab == SystemTab.STATE
     val cells = tab == SystemTab.CELLS || health
-    var listen by remember { mutableStateOf(0) }
-    DisposableEffect(cells, run, listen) {
+    DisposableEffect(cells, run) {
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
@@ -262,7 +261,7 @@ internal fun SystemPageScreen(
             )
             // «Здоровье»: the read again, the battery's report; the sweep's age and where the cells come from
             health -> ScanFooter(
-                listOf(FooterButton("Обновить", true) { listen++ }, FooterButton("Отчёт о батарее", false, onClick = onReport)),
+                listOf(FooterButton("Обновить", true, onClick = actions::refreshCells), FooterButton("Отчёт о батарее", false, onClick = onReport)),
                 listOfNotNull(
                     (model.health?.age ?: model.packCells?.age)?.let { FooterNote.Words(it, mono = true) }, FooterNote.Divider,
                     FooterNote.Words(ScannerWords.CELLS_SOURCE, mono = true),

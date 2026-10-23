@@ -69,7 +69,7 @@ import dev.denza.apps.feature.diagnostics.report.ReportSection
 import dev.denza.apps.feature.diagnostics.report.ReportState
 import dev.denza.apps.feature.diagnostics.report.ReportSummary
 import dev.denza.apps.feature.diagnostics.scan.AddresseeView
-import dev.denza.apps.feature.diagnostics.scan.BandItem
+import dev.denza.apps.feature.diagnostics.scan.BandPart
 import dev.denza.apps.feature.diagnostics.scan.BlockRow
 import dev.denza.apps.feature.diagnostics.scan.BlocksFilter
 import dev.denza.apps.feature.diagnostics.scan.BlocksView
@@ -526,7 +526,7 @@ internal object ScannerFixtures {
         val kinds = listOf(Mark.ACTIVE to "АКТИВНЫЕ", Mark.PENDING to "ОЖИДАЮЩИЕ", Mark.HISTORY to "В ИСТОРИИ").filter { count(it.first) > 0 }
         val items = kinds.mapIndexed { i, (m, word) ->
             val n = count(m)
-            BandItem(m, "$word · $n ${plural(n, "ЗАПИСЬ", "ЗАПИСИ", "ЗАПИСЕЙ")}" + if (i == kinds.lastIndex) " · $nBlocks ${plural(nBlocks, "БЛОК", "БЛОКА", "БЛОКОВ")}" else "")
+            BandPart(m, "$word · $n ${plural(n, "ЗАПИСЬ", "ЗАПИСИ", "ЗАПИСЕЙ")}" + if (i == kinds.lastIndex) " · $nBlocks ${plural(nBlocks, "БЛОК", "БЛОКА", "БЛОКОВ")}" else "")
         }
         val net = systems.flatMap { sys -> objects(sys.getJSONArray("blocks")).flatMap { b -> objects(b.getJSONArray("codes")) } }.count { netLoss(it.getString("code")) }
         fun <T> ordered(list: List<T>, marks: (T) -> List<Mark>, n: (T) -> Int): List<T> = list.withIndex()
@@ -572,8 +572,8 @@ internal object ScannerFixtures {
             verdictMark = Mark.ACTIVE.takeIf { act > 0 },
             line = "скан ${sc.getString("at")} · $answered из $blocks блоков · маска ${sc.getString("mask")} · ${sc.getString("seconds")} с",
             vitals = objects(f.getJSONArray("vitals")).map { Vital(it.getString("key"), it.getString("value"), it.optString("unit"), it.optBoolean("out")) },
-            band = items.lastOrNull()?.let { last ->
-                SummaryBand(last.text, last.mark, if (net > 0) "в т. ч. $net — потеря связи между блоками, U…-87" else null, items)
+            band = items.lastOrNull()?.let {
+                SummaryBand(items.joinToString(" · ") { it.text }, items.first().mark, if (net > 0) "в т. ч. $net — потеря связи между блоками, U…-87" else null, items)
             },
             columns = columns,
             rest = "$quiet ${plural(quiet, "блок", "блока", "блоков")} без записей · " + if (answered == blocks) "все ответили" else "не ответили ${blocks - answered}",
@@ -807,7 +807,6 @@ internal object ScannerFixtures {
                     val unit = v.optString(3)
                     Field(v.getString(0), (if (v.isNull(1)) v.getString(2) else "${v.getString(1)} → ${v.getString(2)}") + if (unit.isNotEmpty()) " $unit" else "")
                 },
-                label = if (from != null) "СРАВНЕНИЕ" else "СКАН",
             ),
         )
     }

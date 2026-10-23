@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.feature.diagnostics.scan.BandPart
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.Mark
@@ -75,7 +76,7 @@ private fun Band(view: SummaryView) {
     val band = view.band
     if (band != null) {
         var x = 24f
-        band.items.forEach { item ->
+        band.parts.ifEmpty { listOf(BandPart(band.mark, band.text)) }.forEach { item ->
             SignAt(item.mark, x + ScannerSpec.Sign.R, s.BAND_TOP + s.BAND_H / 2f)
             x += 2f * ScannerSpec.Sign.R + s.BAND_GAP
             ScanText(item.text, Type.GROUP_TITLE, Ink.DIM, Modifier.at(x, mid(s.BAND_TOP, s.BAND_H, Type.GROUP_TITLE)))
