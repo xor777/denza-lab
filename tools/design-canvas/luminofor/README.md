@@ -85,7 +85,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `scanner-code`, `-code-plain` | a record opened from «Сводка» (`codeScreen()`), full width: the meaning, the status byte from bit 7 to 0 with «·» on the bits the block does not report, how it was read with the record picked out of the raw answer; the block a lost message names and how it stands now; the same failure type elsewhere; the chronology by the journal, the snapshot (19 04) and the counters (19 06). U0121-87 of LA_BCM, its snapshot and counters illustrative; C1170-09 of R_ZCU with no addressee, its meaning its failure type alone, 19 04 and 19 06 answered with no record |
 | `scanner-sys-pack-health`, `-health-first` | «Тяговая батарея · Здоровье», the pack's first tab: a table of now, the reference (the norm, or «обычно» - this car's p10-p90 over the journal's 30 days from five values) and 30 days of mini charts whose scale is never narrower than the norm or the resolution × 20; the spread at a full charge from the snapshots at SOC ≥ 95 %; beside it the live cells from their mean, the sweep under way, and the probes (`packHealth()`); the journal illustrative. On the first scan «обычно» and «30 ДНЕЙ» are empty and the full charge «—» |
 | `scanner-sys-engine-graphs` | «Потоковые данные · Графики»: four PIDs, one lane and scale each on one 60 s axis, the norm as a band, a cursor reading all four at one moment (`sysGraphs()`); «Таблица / Графики» at the tabs' right end, «Метка» and «Запись» in the footer; illustrative idle with a blip |
-| `scanner-journal`, `-journal-first` | «Журнал»: the scans asked for (a block read alone dimmer), the software updates and the cells' snapshots on one day axis, every code from its first read, 12 V by scan and the cells' spread at a full charge by snapshot, the first and the last scan compared in the panel (`journal()`); illustrative, and one scan with nothing to compare |
+| `scanner-journal`, `-journal-first` | «Журнал»: the scans asked for (a block read alone dimmer), the software updates and the cells' snapshots on one day axis, every code from its first read, 12 V by scan and the cells' spread at a full charge by snapshot, the first and the last scan compared in the panel (`journal()`); a full charge's «SOC 97 %» over its dot in the small mono, where no neighbour stands (beside it, until 2026-10-23, the label ran over the next snapshots); illustrative, and one scan with nothing to compare |
 | `scanner-report` | «Отчёт» of the scan of 20.10 19:31: its PDF's first page, what goes in, and where it lands - «Сохранить в Загрузки», `Download/Denza/scan-20261020-1931.pdf · .json`; no QR (`report()`) |
 | `scanner-sys-chassis`, `-body-state`, `-adas`, `-drives`, `-safety` | «Состояние» on the car from above: tyres, the brake and steering blocks, the rear-wheel steering and the motion controller; doors, zones, lamps, the key's three modules, the door radars, the right NFC reader and the tailgate projection; every sensor and its field; the engine, generator and three motors with their readings, each rear callout naming its side and block, the generator's callout ending with the energy system's generation state (parked: «н/д»), PDC-VCU beside the VCU; the airbags, the belt pretensioners at the B-pillars and the child-presence radar. Since 2026-10-21 the car's readings of the parked sweep in their words and as light (`said()`, `lamp()`): each tyre's pressure judgement and leak, TPMS quiet at the top right, «ПОДВЕСКА» to the motion controller, the parking brake's calipers in the rear wheels; the hood and tailgate on the nose's and tail's line, headlamps, stop and reversing lamps on the corners' arcs, the indicators as marks off the corners, «СВЕТ» and «ЗАДНИЕ ФОНАРИ»; «СЕЛЕКТОР» at the drives' head; the seats beside the belts' tiles as the cabin draws them |
 | `scanner-sys-body-state-lit`, `scanner-sys-safety-trip` | the same schemes lit, illustrative: both beams, the hazard lights, stop and reversing lamps and the tailgate open; the cabin trip's seats, the driver buckled and the second row's left sitting unbuckled. `SchemeReadingsTest` holds these and the parked boards to what the builder makes of their codes |
@@ -261,9 +261,11 @@ corrections below.
 Concept v4 «прибор для диагноста» ([architecture](../../../docs/vehicle-diagnostics-architecture.md), 7.3),
 approved 2026-10-23, came over on 2026-10-23: «Сводка», «Блоки», the code, the pack's «Здоровье»,
 «Графики», «Журнал» and «Отчёт» are new boards; `scanner-sys-scan`, `-sys-topology` and `-sys-pack`
-went (their drawing too: the autoscan's rows, the topology, the pack scheme and its range bars; the
-JSON's `scan`, `topology`, `packScheme`, `rangeBar`, `bodyDtc.cols` and `.legend` stay for the screens
-until they follow). Its rules on every board:
+went (their drawing too: the autoscan's rows, the topology, the pack scheme and its range bars). The
+JSON's `scan`, `topology`, `packScheme`, `rangeBar`, `bodyDtc.cols` and `.legend`, the footer's legend
+and the colours and styles nothing draws went with the screens on 2026-10-23: what «Блоки» and the
+schemes' tiles still need of them is `modules` (its `top`, `head`, `list`) and `tile`, and
+`bodyDtc.readX` is where «КАК ПРОЧИТАН» stands. Its rules on every board:
 
 - The rail: «Сводка», «Блоки», the eleven systems, «Журнал». A mark is the count of records after
   the sign of the most severe kind - ● active (red), ◌ pending, ○ in history (orange rings, `sign()`)
@@ -341,6 +343,11 @@ Before v4:
   (mean 0.40–1.36 levels); the topology's 68 small tiles are the most, the schemes 0.65–1.19 %.
   The three parameter pages (`ParamScreen.kt`) compared on 2026-10-21 at 0.73–0.79 % (mean
   0.49–0.56 levels); the live tables they open from, their rows now tappable, at 1.60–1.73 %.
+  After v4, on 2026-10-23 (`emulator-5590`, AVD `denza_hu_scanner`): all 53 `scanner-*` boards at
+  0.73–2.14 % (mean 0.47–1.40 levels) but «Отчёт» at 3.45 %: its sheet on the board is the board's
+  sketch, on the screen the report's real first page by `ReportPainter`, and «Куда» says no size
+  before a save. The new screens: «Сводка» 1.99 and 2.04 %, «Блоки» 1.98, the code 1.47 and 1.08,
+  «Здоровье» 1.51 and 1.45, «Графики» 1.06, «Журнал» 1.16 and 0.84.
 - Corrected while the system boards were ported: «→» in text had been drawn by the schemes' flow
   arrow, a second function of the same name, so every route on the system boards lost its arrow
   (the flow arrow is `flow()` now); a counter is as wide as its value and a padding's room, rounded
