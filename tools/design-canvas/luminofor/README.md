@@ -317,7 +317,7 @@ Before v4:
 - The blocks are `ecu/EcuCatalog.kt`'s 68, in its order and words: 741 and 5E7 are the head
   unit's and the passenger computer's MCUs, and 22 factory-map candidates that answered F194 join
   «Кузов» (the UWB key and its four anchors), «Салон» (ASSY, HUD, ETC, CPD) and the unassigned 25.
-  `scanner-sys-topology` lays them in nine columns of 112 dp beside the rail - Силовая | Шасси + Климат |
+  `scanner-sys-topology` (gone with concept v4, 2026-10-23) laid them in nine columns of 112 dp beside the rail - Силовая | Шасси + Климат |
   Ассистенты | Кузов 9 | Кузов 2 + 12 В | Салон | Прочие 9 / 8 / 8 - of 100 x 36 tiles at a 40 dp pitch
   (the full-width board had 137 dp and 124 x 36): the
   abbreviation and address over the short name in 11 dp. A tile's state is its look alone; a block
