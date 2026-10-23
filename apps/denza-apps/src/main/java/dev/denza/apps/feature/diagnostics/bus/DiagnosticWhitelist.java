@@ -5,10 +5,11 @@ package dev.denza.apps.feature.diagnostics.bus;
  *
  * <p>One class for both sides: the app refuses a request when it is made ({@code DiagRequest}),
  * and the shell-UID helper, which has this file packed beside it, refuses it again before the
- * bus. Every allowed shape only reads - identification, DTC memory, OBD data. No session,
- * reset, clear, security access, communication control, write, I/O control, routine,
- * tester-present, DTC setting, functional request or VIN read
- * (docs/vehicle-diagnostics-architecture.md, 3.4).
+ * bus. Every allowed shape only reads - identification and the VIN, DTC memory, a code's snapshot
+ * and extended data, OBD data, freeze frame and test results. No session, reset, clear, security
+ * access, communication control, write, I/O control, routine, tester-present, DTC setting or
+ * functional request (docs/vehicle-diagnostics-architecture.md, 3.4). The VIN, `19 04`, `19 06`,
+ * OBD `02`, `06` and `09 02` are read since the owner's decision of 2026-10-23 (7.3).
  */
 public final class DiagnosticWhitelist {
     private DiagnosticWhitelist() {}
@@ -59,21 +60,26 @@ public final class DiagnosticWhitelist {
             case 0x22: {
                 if (uds.length != 3) return "22 reads one DID";
                 int did = ((uds[1] & 0xFF) << 8) | (uds[2] & 0xFF);
-                return identification(did) || pair(CHILD_IDENTITIES, address, did) || pair(OWN_IDENTITIES, address, did)
-                        ? null : "22 only F193, F194, F195, F18A, F197, the child codes at their parent and 5E7's F294, F295";
+                return identification(did) || did == VIN || pair(CHILD_IDENTITIES, address, did) || pair(OWN_IDENTITIES, address, did)
+                        ? null : "22 only F190, F193, F194, F195, F18A, F197, the child codes at their parent and 5E7's F294, F295";
             }
             case 0x19:
-                return uds.length == 3 && (uds[1] == 0x01 || uds[1] == 0x02)
-                        ? null : "19 only 01 or 02 with a status mask";
+                return memory(uds) || codeRecord(uds)
+                        ? null : "19 only 01 or 02 with a status mask, 04 or 06 with a code and a record number";
             case 0x01:
                 return uds.length >= 2 ? null : "OBD 01 needs 1..6 PIDs";
+            case 0x02:
+                // Freeze frame: PID and frame number in pairs, one to three of them.
+                return uds.length == 3 || uds.length == 5 || uds.length == 7 ? null : "OBD 02 takes 1..3 PID and frame pairs";
             case 0x03:
             case 0x07:
             case 0x0A:
                 return uds.length == 1 ? null : "OBD 03, 07 and 0A take no parameter";
+            case 0x06:
+                return uds.length == 2 ? null : "OBD 06 takes one MID";
             case 0x09:
-                return uds.length == 2 && (uds[1] == 0x00 || uds[1] == 0x04 || uds[1] == 0x0A)
-                        ? null : "OBD 09 only 00, 04, 0A";
+                return uds.length == 2 && (uds[1] == 0x00 || uds[1] == 0x02 || uds[1] == 0x04 || uds[1] == 0x0A)
+                        ? null : "OBD 09 only 00, 02, 04, 0A";
             default:
                 return String.format("service %02X not allowed", sid);
         }
@@ -95,6 +101,22 @@ public final class DiagnosticWhitelist {
      */
     private static boolean identification(int did) {
         return did == 0xF193 || did == 0xF194 || did == 0xF195 || did == 0xF18A || did == 0xF197;
+    }
+
+    /** ISO 14229's VIN DID, read at every block the list lets through (owner's decision 2026-10-23). */
+    private static final int VIN = 0xF190;
+
+    /** {@code 19 01 <mask>} and {@code 19 02 <mask>}: the number and the list of the DTCs a status mask matches. */
+    private static boolean memory(byte[] uds) {
+        return uds.length == 3 && (uds[1] == 0x01 || uds[1] == 0x02);
+    }
+
+    /**
+     * {@code 19 04 <DTC> <record>} and {@code 19 06 <DTC> <record>}: one code's snapshot and extended data,
+     * a record number or FF for all of them. Six bytes, one CAN frame; {@code 19 03} is not needed.
+     */
+    private static boolean codeRecord(byte[] uds) {
+        return uds.length == 6 && (uds[1] == 0x04 || uds[1] == 0x06);
     }
 
     private static boolean pair(int[][] pairs, int address, int did) {

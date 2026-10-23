@@ -46,7 +46,7 @@ private fun ScanHead(model: DiagnosticsModel) {
         counters = listOf(
             Counter("ОТВЕТИЛО", s.answered),
             Counter("DTC АКТ.", s.active?.toString() ?: "—", on = (s.active ?: 0) > 0),
-            Counter("DTC ИСТ.", s.history?.toString() ?: "—"),
+            Counter("DTC ИСТ.", s.history?.let { it + (s.pending ?: 0) }?.toString() ?: "—"),
             Counter("ПРОЧИТАНО", s.memoryRead),
         ),
     )
@@ -146,7 +146,7 @@ internal fun ScanRow(row: ModuleRowView, cols: List<Pair<Float, Float>>, onClick
         ScanText(row.route, Type.CELL_MONO, Ink.DIM, Modifier.at(cols[2].first, mid(0f, h, Type.CELL_MONO)))
         ScanText(row.protocol, Type.CELL_SMALL, Ink.DIM, Modifier.at(cols[3].first, mid(0f, h, Type.CELL_SMALL)))
         ScanText(row.active, Type.CELL_NUM, nameInk, Modifier.endAt(cols[4].first + cols[4].second - s.NUM_PAD, mid(0f, h, Type.CELL_NUM)))
-        ScanText(row.history, Type.CELL_NUM, nameInk, Modifier.endAt(cols[5].first + cols[5].second - s.NUM_PAD, mid(0f, h, Type.CELL_NUM)))
+        ScanText(ScannerWords.history(row), Type.CELL_NUM, nameInk, Modifier.endAt(cols[5].first + cols[5].second - s.NUM_PAD, mid(0f, h, Type.CELL_NUM)))
         Badge(chip.text, ScannerWords.tone(chip.look), modifier = Modifier.at(cols[6].first, (h - ScannerSpec.Badge.H) / 2f))
         if (row.target != null) Chevron(Modifier.at(cols[7].first + (cols[7].second - s.CHEVRON) / 2f, (h - s.CHEVRON) / 2f))
         Rule(0f, h, 10000f, Ink.HAIR)

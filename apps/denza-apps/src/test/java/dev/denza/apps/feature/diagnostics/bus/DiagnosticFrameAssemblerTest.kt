@@ -96,6 +96,21 @@ class DiagnosticFrameAssemblerTest {
     }
 
     @Test
+    fun theVinComesWholeInOneFrameOrInSeveral() {
+        // The gateway joins ISO-TP itself: ECM's 23-byte `49 0A` came as one frame (2026-10-21); a VIN's 20 bytes
+        // the same way, or split by the gateway's own frames - either is one answer.
+        val vin = "LC0C76C40N0000001".toByteArray().joinToString("") { "%02X".format(it) }
+        val obd = "490201$vin"
+        assertAnswer(obd, 1, opened(0x7E0, "0902").feed("0A07E8%02X010101%s".format(obd.length / 2, obd)))
+        assertAnswer("490A0145434D002D456E67696E65436F6E74726F6C0000", 1,
+            opened(0x7E0, "090A").feed("0A07E817010101490A0145434D002D456E67696E65436F6E74726F6C0000"))
+        val uds = "62F190$vin"
+        val bus = opened(0x7E2, "22F190")
+        assertEquals(Kind.WAITING, bus.feed("0A07EA0A020101" + uds.take(20)).kind)
+        assertAnswer(uds, 2, bus.feed("0A07EA%02X0202%s".format(uds.drop(20).length / 2, uds.drop(20))))
+    }
+
+    @Test
     fun aBrokenSequenceIsABrokenAnswer() {
         val skipped = opened(0x7E0, "190209")
         skipped.feed("0A07E8070301015902FF51600628")

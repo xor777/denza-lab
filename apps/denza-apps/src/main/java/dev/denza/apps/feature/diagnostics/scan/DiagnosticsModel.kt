@@ -570,13 +570,20 @@ internal data class ScanSummary(
     val answered: String,
     /** Records with testFailed set, over every memory read; null before a scan. */
     val active: Int?,
-    /** Confirmed records without testFailed. */
+    /** Confirmed records with neither testFailed nor the pending bit. */
     val history: Int?,
     /** «16/43»: memories read of answered. */
     val memoryRead: String,
     val mil: MilState,
     /** One sentence for the band above the list when the scan stopped for a reason. */
     val notice: String?,
+    /**
+     * Pending records without testFailed, over every memory read, and the OBD Mode 07 codes the memory does
+     * not hold (architecture, 5.2); null before a scan.
+     */
+    val pending: Int? = null,
+    /** The VIN as the scan read it (`22 F190` at VCU, `09 02` at ECM); null before the scan asked it (architecture, 6). */
+    val vin: VinData? = null,
 )
 
 internal enum class ScanPhase { NEVER, RUNNING, PAUSED, STOPPED, DONE }
@@ -616,12 +623,19 @@ internal data class ModuleRowView(
     val status: ModuleStatus,
     /** Where a tap leads; null when nowhere. */
     val target: Target?,
+    /** Pending records, as [ScanSummary.pending] counts them: «0», «1», «—» where the memory was not read. */
+    val pending: String = "—",
 )
 
 internal enum class ModuleStatus {
     OK,
     /** Only confirmed records without testFailed. */
     HISTORY,
+    /**
+     * A pending record (the pending bit without testFailed) or an OBD Mode 07 code, none active (architecture,
+     * 5.2): worse than history, better than active. The screens before v4 draw it as [HISTORY].
+     */
+    PENDING,
     /** At least one record with testFailed, or MIL on. */
     ACTIVE,
     /** Answered identification, its memory not read. */
@@ -659,6 +673,11 @@ internal data class ModuleView(
     val dtc: DtcView,
     val ident: IdentView,
     val obd: ObdView?,
+    /**
+     * Each opened code's snapshot and extended data ([DiagnosticsActions.openCode]), by [DtcRow.code]; the code
+     * open now is [ReadOutcome.READING] until its answers come.
+     */
+    val codeReads: Map<String, CodeReadsData> = emptyMap(),
 )
 
 internal data class DtcView(
@@ -757,6 +776,10 @@ internal data class ObdView(
     /** Mode 03, 07, 0A and the UDS reads. */
     val lists: List<AskRow>,
     val live: LiveView,
+    /** Mode 02, frame 0: read once each time the module's screen is opened (ECM); [ReadOutcome.NOT_READ] elsewhere. */
+    val freezeFrame: FreezeFrameData = FreezeFrameData(),
+    /** Mode 06: read with the freeze frame. */
+    val tests: ObdTestsData = ObdTestsData(),
 )
 
 internal data class MonitorRow(
@@ -994,6 +1017,13 @@ internal interface DiagnosticsActions {
      * [DiagnosticsModel.report] says how it went. A press while a save runs is no second save.
      */
     fun saveReport(sections: Set<ReportSection>) {}
+
+    /**
+     * A code's screen opened ([code] as [DtcRow.code] shows it, or its six raw hex digits) or closed (null): on
+     * opening its snapshots (`19 04 <DTC> FF`) and extended data (`19 06 <DTC> FF`) are read once, into
+     * [ModuleView.codeReads] (architecture, 6).
+     */
+    fun openCode(request: Int, code: String?) {}
 
     /** «Журнал» shown or left: [DiagnosticsModel.journal] is built only while it is (7.3). */
     fun setJournalVisible(visible: Boolean) {}

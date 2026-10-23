@@ -241,14 +241,17 @@ class LiveStreamTest {
         runCurrent()
 
         val r = bus.requests
-        // ECM's scan step ends, its identification runs, then only the stream: no other module is asked.
-        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), r.take(6))
+        // ECM's scan step ends, its identification runs, its freeze frame and tests (the opened screen's, 6), then
+        // only the stream: no other module is asked.
+        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A", "7E0 0902"), r.take(7))
         // The maps as far as they point (80 lists A0, A0 lists the odometer), the static PIDs, then Mode 09
         // as 09 00 lists it: calibration and name.
         assertEquals(listOf("7E0 22F194", "7E0 22F195", "7E0 22F193", "7E0 22F18A", "7E0 22F197", "7E0 0100", "7E0 0120", "7E0 0140",
             "7E0 0160", "7E0 0180", "7E0 01A0", "7E0 011C", "7E0 0101", "7E0 0141", "7E0 01A6",
-            "7E0 0900", "7E0 0904", "7E0 090A"), r.subList(6, 24))
-        assertEquals("7E0 010C0D", r[24])
+            "7E0 0900", "7E0 0904", "7E0 090A"), r.subList(7, 25))
+        // No frame and no tests answered here: one exchange each.
+        assertEquals(listOf("7E0 020200", "7E0 0600"), r.subList(25, 27))
+        assertEquals("7E0 010C0D", r[27])
         assertTrue(r.all { it.startsWith("7E0 ") })
         val live = s.model.value.modules.getValue(0x7E0).obd!!.live
         assertTrue(live.running)

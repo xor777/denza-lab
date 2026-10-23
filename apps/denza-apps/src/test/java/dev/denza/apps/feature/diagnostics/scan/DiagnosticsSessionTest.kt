@@ -34,20 +34,27 @@ class DiagnosticsSessionTest {
         // Modules in catalog order, ECM first, each asked once.
         val order = bus.exchanges.map { it.request.address }.distinct()
         assertEquals(EcuCatalog.routed.map { it.request }, order)
-        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), bus.requests.take(6))
+        // ECM: its memory with 09 (no 0D there, 5.2), the OBD lists, then the VIN by OBD 09 02.
+        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A", "7E0 0902"), bus.requests.take(7))
         // A stock-route module has no gate: where the cache keeps its code, F194 is asked and the memory
-        // follows whatever it says; LBMS keeps none. The brake interface's gate is its OBD name.
-        assertEquals(listOf("720 22F194", "720 190109", "720 190209"), bus.requests.filter { it.startsWith("720 ") })
-        assertEquals(listOf("726 22F194", "726 190109"), bus.requests.filter { it.startsWith("726 ") })
+        // follows whatever it says; LBMS keeps none. The brake interface's gate is its OBD name. Nothing is known
+        // of the masks yet: 19 01 09 first, and where its availability has the pending bit, the memory is 0D's.
+        assertEquals(listOf("720 22F194", "720 190109", "720 19010D", "720 19020D"), bus.requests.filter { it.startsWith("720 ") })
+        assertEquals(listOf("726 22F194", "726 190109", "726 19010D"), bus.requests.filter { it.startsWith("726 ") })
         assertEquals(listOf("762 190109"), bus.requests.filter { it.startsWith("762 ") })
         assertEquals(listOf("7E5 090A", "7E5 0101", "7E5 03", "7E5 07", "7E5 0A"), bus.requests.filter { it.startsWith("7E5 ") })
         // DCOBC's 19 01 never answers: its list alone, at once.
         assertEquals(listOf("7E4 22F194", "7E4 190209"), bus.requests.filter { it.startsWith("7E4 ") })
-        // 63 gates (62 F194 and one 09 0A), 4 ungated F194, 66 counts, 3 lists, 12 OBD reads.
+        // 63 gates (62 F194 and one 09 0A), 4 ungated F194, 66 counts, 5 counts with 0D (720, 747, 782, 722, 726:
+        // availability FF), 3 lists (DCOBC's with 09, 720's and 747's with 0D), 12 OBD reads, 2 VIN reads.
         assertEquals(63 + 4, bus.requests.count { it.endsWith(" 22F194") || it.endsWith(" 090A") })
         assertEquals(66, bus.requests.count { it.endsWith(" 190109") })
-        assertEquals(listOf("7E4 190209", "720 190209", "747 190209"), bus.requests.filter { it.endsWith(" 190209") })
-        assertEquals(148, bus.requests.size)
+        assertEquals(listOf("720 19010D", "722 19010D", "726 19010D", "747 19010D", "782 19010D"),
+            bus.requests.filter { it.endsWith(" 19010D") }.sorted())
+        assertEquals(listOf("7E4 190209"), bus.requests.filter { it.endsWith(" 190209") })
+        assertEquals(listOf("720 19020D", "747 19020D"), bus.requests.filter { it.endsWith(" 19020D") })
+        assertEquals(listOf("7E2 22F190", "7E0 0902").sorted(), bus.requests.filter { it.endsWith(" 22F190") || it.endsWith(" 0902") }.sorted())
+        assertEquals(148 + 5 + 2, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertEquals(LinkState.OK, s.model.value.header.link)
         s.stop()
@@ -201,6 +208,8 @@ class DiagnosticsSessionTest {
         val bus = carNow {
             on(0x747, "190109").answer("5901FF000001")
             on(0x747, "190209").answer("5902FF51700950")
+            on(0x747, "19010D").answer("5901FF000001")
+            on(0x747, "19020D").answer("5902FF51700950")
         }
         val s = session(bus)
         s.start()
@@ -245,7 +254,7 @@ class DiagnosticsSessionTest {
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertNull(s.model.value.scan.notice)
         assertEquals(2, bus.requests.count { it == "7E2 22F194" })
-        assertEquals(149, bus.requests.size)
+        assertEquals(156, bus.requests.size)
         s.stop()
     }
 
@@ -265,7 +274,7 @@ class DiagnosticsSessionTest {
         car.readings = FakeCar.parked()
         advanceTimeBy(500)
         runCurrent()
-        assertEquals(148, bus.requests.size)
+        assertEquals(155, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         s.stop()
     }
@@ -302,7 +311,8 @@ class DiagnosticsSessionTest {
         s.rescan()
         runCurrent()
         assertEquals("7E0 22F194", bus.requests[done])
-        assertEquals(done + 148, bus.requests.size)
+        // The masks are known now: 0D at once where the availability has the pending bit, no probe (5.2).
+        assertEquals(done + 148 + 2, bus.requests.size)
         s.stop()
     }
 
@@ -367,10 +377,10 @@ class DiagnosticsSessionTest {
 
         val r = bus.requests
         // The autoscan finishes the module it is in, then yields: the button, the identification, then VCU.
-        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), r.take(6))
-        assertEquals("762 190109", r[6])
-        assertEquals(listOf("7E3 22F194", "7E3 22F195", "7E3 22F193", "7E3 22F18A", "7E3 22F197"), r.subList(7, 12))
-        assertEquals("7E2 22F194", r[12])
+        assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A", "7E0 0902"), r.take(7))
+        assertEquals("762 190109", r[7])
+        assertEquals(listOf("7E3 22F194", "7E3 22F195", "7E3 22F193", "7E3 22F18A", "7E3 22F197"), r.subList(8, 13))
+        assertEquals("7E2 22F194", r[13])
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         // The identification is read once per opening, not again when the scan reaches the module.
         assertEquals(1, r.count { it == "7E3 22F195" })
@@ -409,7 +419,8 @@ class DiagnosticsSessionTest {
         val c = session(again, store = MemoryStore(scan), epoch = scan.finishedAtMillis + 11 * 60_000L)
         c.start()
         runCurrent()
-        assertEquals(148, again.requests.size)
+        // The stored scan told the masks: 0D at once where it may be asked, no probe (5.2); the VIN, 2.
+        assertEquals(148 + 2, again.requests.size)
         c.stop()
     }
 

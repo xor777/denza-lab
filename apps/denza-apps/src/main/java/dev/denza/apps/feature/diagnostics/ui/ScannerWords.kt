@@ -42,7 +42,8 @@ internal object ScannerWords {
 
     fun chip(status: ModuleStatus): Chip = when (status) {
         ModuleStatus.OK -> Chip("OK", Look.OK)
-        ModuleStatus.HISTORY -> Chip("ИСТОРИЯ", Look.HIST)
+        // A pending block looks like history until the v4 screens give it a look of its own.
+        ModuleStatus.HISTORY, ModuleStatus.PENDING -> Chip("ИСТОРИЯ", Look.HIST)
         ModuleStatus.ACTIVE -> Chip("АКТИВНЫЕ DTC", Look.ON)
         ModuleStatus.UNREAD -> Chip("DTC НЕ ЧИТАЛИ", Look.UNREAD)
         ModuleStatus.POLLING -> Chip("ОПРОС", Look.UNREAD)
@@ -62,7 +63,15 @@ internal object ScannerWords {
     }
 
     /** A memory that was read: its counts mean something. */
-    fun read(status: ModuleStatus): Boolean = status == ModuleStatus.OK || status == ModuleStatus.HISTORY || status == ModuleStatus.ACTIVE
+    fun read(status: ModuleStatus): Boolean =
+        status == ModuleStatus.OK || status == ModuleStatus.HISTORY || status == ModuleStatus.PENDING || status == ModuleStatus.ACTIVE
+
+    /** The history column until the v4 screens: confirmed and pending records together, «—» where neither was read. */
+    fun history(row: ModuleRowView): String {
+        val h = row.history.toIntOrNull()
+        val p = row.pending.toIntOrNull()
+        return if (h == null && p == null) row.history else ((h ?: 0) + (p ?: 0)).toString()
+    }
 
     /**
      * The word a topology tile shows in place of its address: how many codes where the look says only
@@ -70,7 +79,7 @@ internal object ScannerWords {
      * says the rest (OK, not read, no address).
      */
     fun tileState(row: ModuleRowView): String = when (row.status) {
-        ModuleStatus.HISTORY -> "ИСТ ${row.history}"
+        ModuleStatus.HISTORY, ModuleStatus.PENDING -> "ИСТ ${history(row)}"
         ModuleStatus.ACTIVE -> "АКТ ${row.active}"
         ModuleStatus.POLLING -> "опрос"
         ModuleStatus.NO_REPLY -> "нет ответа"
@@ -136,8 +145,8 @@ internal object ScannerWords {
 
     /** «Только с DTC»: a row whose memory holds a record, active or in history. */
     fun hasDtc(row: ModuleRowView): Boolean =
-        row.status == ModuleStatus.ACTIVE || row.status == ModuleStatus.HISTORY ||
-            (row.active.toIntOrNull() ?: 0) > 0 || (row.history.toIntOrNull() ?: 0) > 0
+        row.status == ModuleStatus.ACTIVE || row.status == ModuleStatus.HISTORY || row.status == ModuleStatus.PENDING ||
+            (row.active.toIntOrNull() ?: 0) > 0 || (history(row).toIntOrNull() ?: 0) > 0
 
     fun filter(groups: List<ModuleGroupView>, onlyDtc: Boolean): List<ModuleGroupView> =
         if (!onlyDtc) groups else groups.map { g -> g.copy(rows = g.rows.filter(::hasDtc)) }.filter { it.rows.isNotEmpty() }

@@ -10,8 +10,15 @@ import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** A finished autoscan: when it ended and every module's replies, in catalog order. */
-internal data class StoredScan(val finishedAtMillis: Long, val reads: List<ModuleRead>)
+/**
+ * A finished autoscan: when it ended and every module's replies, in catalog order, and the blocks that gave no
+ * memory to mask `0D`, read with `09` from then on (architecture, 5.2).
+ */
+internal data class StoredScan(
+    val finishedAtMillis: Long,
+    val reads: List<ModuleRead>,
+    val pendingMaskRefused: Set<Int> = emptySet(),
+)
 
 /** Where the last scan lives between openings (architecture, 6). */
 internal interface ScanStore {
@@ -39,6 +46,7 @@ internal object ScanJson {
                 put("status", result?.status?.name ?: "")
                 result?.active?.let { put("active", it) }
                 result?.history?.let { put("history", it) }
+                result?.pending?.let { put("pending", it) }
                 put("atMillis", read.atMillis)
                 put("exchanges", JSONArray().apply { read.replies.forEach { put(reply(it)) } })
             })
@@ -47,6 +55,7 @@ internal object ScanJson {
             put("format", FORMAT)
             put("finishedAtMillis", scan.finishedAtMillis)
             put("modules", modules)
+            put("pendingMaskRefused", JSONArray().apply { scan.pendingMaskRefused.sorted().forEach { put(Figures.address(it)) } })
         }.toString(1)
     }
 
@@ -60,7 +69,12 @@ internal object ScanJson {
             val exchanges = m.getJSONArray("exchanges")
             ModuleRead(address, m.getLong("atMillis"), (0 until exchanges.length()).map { reply(address, exchanges.getJSONObject(it)) })
         }
-        StoredScan(root.getLong("finishedAtMillis"), reads)
+        val refused = root.optJSONArray("pendingMaskRefused")
+        StoredScan(
+            root.getLong("finishedAtMillis"),
+            reads,
+            (0 until (refused?.length() ?: 0)).map { refused!!.getString(it).toInt(16) }.toSet(),
+        )
     }.getOrNull()
 
     private fun reply(r: DiagReply): JSONObject = JSONObject().apply {

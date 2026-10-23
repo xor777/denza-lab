@@ -61,6 +61,18 @@ internal object IdentCodec {
         return Decoded.Ok(uds.copyOfRange(3, uds.size).hexString())
     }
 
+    /** ISO 14229's VIN DID, read since the owner's decision of 2026-10-23 (architecture, 3.4). */
+    const val VIN_DID = 0xF190
+
+    /** `62 F190` and the VIN ([Vin.of]): seventeen characters, or empty where the module keeps filler. */
+    fun vin(uds: ByteArray): Decoded<Vin> {
+        val b = uds.unsigned()
+        if (b.isEmpty() || b[0] != 0x62) return Decoded.Malformed("not 62")
+        if (b.size < 3 || (b[1] shl 8 or b[2]) != VIN_DID) return Decoded.Malformed("not DID F190")
+        if (b.size == 3) return Decoded.Malformed("62 F190 without data")
+        return Vin.of(uds.copyOfRange(3, uds.size))
+    }
+
     /** Every F194 this car returned, and every child code, is nine bytes (research/vehicle-diagnostics/). */
     const val SOFTWARE_CODE_BYTES = 9
 
