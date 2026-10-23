@@ -74,7 +74,14 @@ internal data class SummaryBand(
     val mark: Mark,
     /** «в т. ч. 5 — потеря связи между блоками, U…-87»; null when there is none. */
     val note: String?,
+    /**
+     * One item a kind present, most severe first, the last with the blocks (board `scanner-summary-active`):
+     * «АКТИВНЫЕ · 1 ЗАПИСЬ», «ОЖИДАЮЩИЕ · 1 ЗАПИСЬ», «В ИСТОРИИ · 16 ЗАПИСЕЙ · 6 БЛОКОВ». By default [text] alone.
+     */
+    val items: List<BandItem> = listOf(BandItem(mark, text)),
 )
+
+internal data class BandItem(val mark: Mark, val text: String)
 
 /** «КУЗОВ · 10» over its blocks with records. */
 internal data class SummarySystem(val title: String, val blocks: List<SummaryBlock>)
@@ -316,6 +323,8 @@ internal data class GraphLane(
     val decimals: Int,
     /** What a tap on the lane opens alone. */
     val key: ParamKey?,
+    /** A value read at the cursor carries its sign: «+3,1». */
+    val signed: Boolean = false,
 )
 
 // ------------------------------------------------------------------ «Журнал»
@@ -340,12 +349,12 @@ internal data class JournalView(
     val codes: List<JournalCodeLane>,
     /** «12 В на стоянке», «Δ ячеек, полный заряд»: a lane a quantity. */
     val quantities: List<JournalQuantityLane>,
-    /** The panel «СРАВНЕНИЕ»; null with fewer than two scans. */
+    /** The panel «СРАВНЕНИЕ», or «СКАН» with one scan ([ScanCompareView.label]); null with none. */
     val compare: ScanCompareView?,
 )
 
-/** A mark on the axis, 0..1. */
-internal data class JournalTick(val at: Float, val full: Boolean)
+/** A mark on the axis, 0..1; [millis] the scan's end, what «Выбрать сканы» hands [DiagnosticsActions.compareScans]. */
+internal data class JournalTick(val at: Float, val full: Boolean, val millis: Long? = null)
 
 internal data class JournalSoftwareTick(val at: Float, val text: String)
 
@@ -371,6 +380,8 @@ internal data class JournalQuantityLane(
     val last: String,
     /** Points only, no line between them. */
     val pointsOnly: Boolean,
+    /** Each point's own words where they are worth reading one by one («11 мВ», «12 мВ»); empty - only [last]. */
+    val pointLabels: List<String> = emptyList(),
 )
 
 /** «СРАВНЕНИЕ»: two scans, what came and went. */
@@ -381,6 +392,11 @@ internal data class ScanCompareView(
     val codes: List<Field>,
     /** «BMS 7E7» → «3.48.06 → 3.48.07». */
     val software: List<Field>,
-    /** «12 В» → «13,7 → 13,6». */
+    /** «12 В» → «13,7 → 13,6 В». */
     val quantities: List<Field>,
+    /**
+     * The panel's caption: «СРАВНЕНИЕ» over two scans; «СКАН» over the one scan a first journal has (board
+     * `scanner-journal-first`: [title] «20.10 19:31», codes «в истории» → «18», values alone).
+     */
+    val label: String = "СРАВНЕНИЕ",
 )

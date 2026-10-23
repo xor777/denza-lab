@@ -64,7 +64,7 @@ private fun adasLook(row: String, cell: CompareCell): Pair<ScannerSpec.Style, In
         cell.muted -> Ink.FAINT2
         cell.warn -> Ink.ORANGE_INK
         row.startsWith("Запрос") -> Ink.DIM
-        cell.shared && "F194" in row -> Ink.BLUE_INK
+        cell.shared && "F194" in row -> Ink.WHITE
         cell.shared && "Идентификатор" in row -> Ink.DIM
         else -> Ink.WHITE
     }
@@ -91,7 +91,7 @@ internal fun AdasTable(model: DiagnosticsModel, view: CompareView) {
         ScanText(r.name, Type.KEY, Ink.DIM2, Modifier.at(cols[0].first + 12f, mid(y, h, Type.KEY)))
         r.cells.take(cols.size - 1).forEachIndexed { i, v ->
             val (x, cw) = cols[1 + i]
-            if (v.shared) Box(Modifier.at(x, y).size(cw.dp, h.dp).plate(Ink.BLUE_SHARE))
+            if (v.shared) Box(Modifier.at(x, y).size(cw.dp, h.dp).plate(Ink.BAND))
             val (st, color) = adasLook(r.name, v)
             ScanText(v.text, st, color, Modifier.at(x + a.PAD, mid(y, h, st)), maxWidth = cw - a.PAD)
         }

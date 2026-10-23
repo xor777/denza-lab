@@ -42,8 +42,8 @@ private fun FlagTile(f: GbFlagView, x: Float, y: Float, tw: Float) {
     val g = ScannerSpec.GbFlags
     val (fill, line, word) = when (f.state) {
         GbFlagState.ALARM -> Triple(Ink.ORANGE_FILL, Ink.ORANGE, Ink.ORANGE)
-        GbFlagState.NONE -> Triple(Ink.TILE_UNREAD, Ink.LINE3, Ink.FAINT)
-        GbFlagState.OK -> Triple(Ink.TILE_OK, Ink.BLUE_EDGE, Ink.DIM2)
+        GbFlagState.NONE -> Triple(Ink.GROUND, Ink.LINE3, Ink.FAINT)
+        GbFlagState.OK -> Triple(Ink.GROUND, Ink.QUIET_LINE, Ink.DIM2)
     }
     Box(Modifier.at(x, y).size(tw.dp, g.TILE_H.dp).plate(fill, line, g.TILE_R)) {
         ScanText(ScannerWords.gbBit(f.bit), Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(g.PAD_X, g.PAD_Y))

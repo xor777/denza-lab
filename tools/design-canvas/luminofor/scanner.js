@@ -521,9 +521,9 @@
   // Every block on one table: those with records first, the most severe and the most records first,
   // then the rest in the catalog's order; F194 and the block's median answer. A row opens the block.
   function blocksTable(c, blocks) {
-    const S = L.scan, M = L.modules, cols = columns(M.cols, 24, W - 48), P = M.numPad, Li = S.list;
+    const M = L.modules, cols = columns(M.cols, 24, W - 48), P = M.numPad, Li = M.list;
     headRow(c, cols, ['', 'БЛОК', 'НАЗНАЧЕНИЕ', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['ЗАПИСИ', 'right', P], 'НОМЕР ПО · F194', ['ОТВЕТ', 'right', P], ''],
-      S.table.top, S.table.head);
+      M.top, M.head);
     const withRec = blocks.map((b, i) => [b, i]).filter(([b]) => records(b) > 0)
       .sort((a, b) => (RANK[blockKind(a[0])] - RANK[blockKind(b[0])]) || (records(b[0]) - records(a[0])) || (a[1] - b[1])).map(p => p[0]);
     const without = blocks.filter(b => !records(b));
@@ -721,7 +721,7 @@
   // when the point is level with the tile's middle, bent half way otherwise - a dot at the end.
   function hang(c, e, x, y, to, cx) {
     if (!e) return;
-    const T = L.topology.tile, near = x < cx ? x + T.w : x, my = y + T.h / 2;
+    const T = L.tile, near = x < cx ? x + T.w : x, my = y + T.h / 2;
     stroke(c, to[1] === my ? `M${near} ${my}H${to[0]}` : `M${near} ${my}H${(near + to[0]) / 2}V${to[1]}H${to[0]}`, 'wire4', 1.2);
     dot(c, to[0], to[1], L.callout.dot, 'wire5');
     unitTile(c, x, y, e);
@@ -756,7 +756,7 @@
   function sysChassis(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = (W) / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, S = L.chassisScheme, T = L.topology.tile;
+      const cx = (W) / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, S = L.chassisScheme, T = L.tile;
       stroke(c, `M${K.x0} ${K.front}H${K.x0 + K.w}M${K.x0} ${K.rear}H${K.x0 + K.w}`, 'wire3', 1.4);
       const lx = O.leftX, rx = W - O.leftX - O.w;
       // each tyre: its pressure and temperature, then the TPMS's judgement of its pressure and its leak
@@ -802,7 +802,7 @@
   function sysBodyState(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, T = L.topology.tile, B = L.bodyScheme;
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, T = L.tile, B = L.bodyScheme;
       const D = L.car.doors, lx = B.x, rx = W - B.x - O.w;
       // the doors as heavy strokes on the sides: closed lies on the body, open would swing out
       f.doors.forEach(d => {
@@ -978,7 +978,7 @@
   function sysAdas(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const A = L.adasCar, cx = W / 2, K = car(c, cx, A.top, A.h), T = L.topology.tile;
+      const A = L.adasCar, cx = W / 2, K = car(c, cx, A.top, A.h), T = L.tile;
       const wedge = (x, y, angle, spread, len) => {
         const a0 = angle - spread / 2, a1 = angle + spread / 2;
         c.save(); c.beginPath(); c.moveTo(x, y); c.arc(x, y, len, a0, a1); c.closePath();
@@ -1015,7 +1015,7 @@
   function sysDrives(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, D = L.drivesCar, T = L.topology.tile;
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, D = L.drivesCar, T = L.tile;
       const gx = cx - D.pair, mx = cx + D.pair;
       // shafts: front motor to the front wheels, rear motors each to its wheel, engine to generator
       stroke(c, `M${K.x0} ${K.front}H${gx - 22}M${mx + 22} ${K.front}H${K.x0 + K.w}M${gx + 22} ${K.front}H${mx - 22}`, 'wire3', 1.6);
@@ -1099,7 +1099,7 @@
   function sysClimate(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const C = L.climateScheme, T = L.topology.tile;
+      const C = L.climateScheme, T = L.tile;
       const zone = (z, x) => {
         fill(c, x, C.zoneY, C.zoneW, C.zoneH, 'ground', 10);
         edge(c, x, C.zoneY, C.zoneW, C.zoneH, 'quietLine', 10);
@@ -1133,7 +1133,7 @@
   function sysSafety(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), T = L.topology.tile, D = L.car.doors, G = L.safetyScheme.gap;
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), T = L.tile, D = L.car.doors, G = L.safetyScheme.gap;
       const pillar = K.y0 + (D.front[1] + D.rear[0]) / 2;
       hang(c, f.units.driverBelt, K.x0 - G - T.w, pillar - T.h / 2, [K.x0, pillar], cx);
       hang(c, f.units.passengerBelt, K.x0 + K.w + G, pillar - T.h / 2, [K.x0 + K.w, pillar], cx);
@@ -1166,7 +1166,7 @@
   function sysLv(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const N = L.lvScheme, T = L.topology.tile, y = N.busY;
+      const N = L.lvScheme, T = L.tile, y = N.busY;
       text(c, 'ШИНА DC', N.x0, y - 44, 'colHead', 'mute');
       text(c, f.hv, N.x0, y - 26, 'hvVolts', 'text');
       stroke(c, `M${N.x0} ${y}H${N.dcdcX}`, 'wire', 2.4);
@@ -1314,7 +1314,7 @@
   // A block on a scheme: abbreviation and address over the short name, its state its look, its
   // records - the sign and the count - in place of the address where it has any.
   function unitTile(c, x, y, e, tile) {
-    const Ti = tile || L.topology.tile, k = TILE[e.kind];
+    const Ti = tile || L.tile, k = TILE[e.kind];
     if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
     else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
     const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
@@ -1369,9 +1369,8 @@
     text(c, statusWords(d.status, f.availability), 24, wy, 'lead', 'white');
     const unreported = (~f.availability) & 0xFF;
     text(c, (unreported ? '«·» — блок этот бит не сообщает · ' : '') + 'доступность ' + hexByte(f.availability), 24, wy + style('lead').lh, 'small12', 'faint');
-    const G = B.legend;
-    text(c, 'КАК ПРОЧИТАН', G.x, below, 'groupTitle', 'mute');
-    f.reads.forEach((r, i) => readLine(c, G.x, sy + i * style('raw').lh, r, d.code));
+    text(c, 'КАК ПРОЧИТАН', B.readX, below, 'groupTitle', 'mute');
+    f.reads.forEach((r, i) => readLine(c, B.readX, sy + i * style('raw').lh, r, d.code));
     footer(c, f.footer);
   }
 
@@ -2048,10 +2047,11 @@
       });
       lane('Снимки ячеек', yc, J.laneH);
       // a snapshot each dot; those at a full charge (SOC ≥ 95 %), which «Здоровье» judges by, white and named
+      // over the dot, where no neighbour stands: beside it the label ran over the next snapshots
       f.cellShots.forEach(s => {
         const sx = X(s.at), sy = yc + J.laneH / 2, full = s.soc >= 95;
         dot(c, sx, sy, J.dot / 2, full ? 'text' : 'sep');
-        if (full) text(c, `SOC ${s.soc} %`, sx + 7, mid(yc, J.laneH, 'sig'), 'sig', 'dim');
+        if (full) text(c, `SOC ${s.soc} %`, sx, sy - J.dot / 2 - J.cellLabel - style('tick').lh, 'tick', 'dim', { align: 'center' });
       });
       J.rules.forEach(ry => fill(c, 24, ry, px + pw - 24, 1, 'rule'));
       // codes: a line from the first read to the last scan that saw them, a dot each read

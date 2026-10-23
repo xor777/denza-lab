@@ -132,7 +132,7 @@ class ScannerSpecContractTest {
         n(h.GAP, "header", "gap"); n(h.CLOSE_W, "header", "close", "w"); n(h.CLOSE_H, "header", "close", "h")
         n(h.CLOSE_R, "header", "close", "r"); n(h.CLOSE_ICON, "header", "close", "icon")
         n(h.CLOSE_STROKE, "header", "close", "stroke"); n(h.DOT, "header", "dot"); n(h.DOT_GAP, "header", "dotGap")
-        n(h.DOT_GLOW, "header", "dotGlow")
+        n(h.DOT_GLOW, "header", "dotGlow"); n(h.META_GAP, "header", "metaGap"); n(h.VOLTS_GAP, "header", "voltsGap")
         val b = ScannerSpec.Block
         n(b.TOP, "block", "top"); n(b.HEIGHT, "block", "height"); n(b.TITLE_GAP, "block", "titleGap")
         n(b.COUNTER_W, "block", "counterW"); n(b.COUNTER_STEP, "block", "counterStep"); n(b.COUNTER_PAD, "block", "counterPad")
@@ -144,8 +144,7 @@ class ScannerSpecContractTest {
         n(f.TOP, "footer", "top"); n(f.HEIGHT, "footer", "height"); n(f.GAP, "footer", "gap")
         n(f.BUTTON_H, "footer", "button", "h"); n(f.BUTTON_PAD, "footer", "button", "pad"); n(f.BUTTON_R, "footer", "button", "r")
         n(f.DIVIDER_W, "footer", "divider", "0"); n(f.DIVIDER_H, "footer", "divider", "1")
-        n(f.LEGEND_W, "footer", "legend", "w"); n(f.LEGEND_H, "footer", "legend", "h")
-        n(f.LEGEND_R, "footer", "legend", "r"); n(f.LEGEND_GAP, "footer", "legend", "gap")
+        assertEquals(setOf("top", "height", "gap", "button", "divider"), (at("footer") as Map<*, *>).keys)
         val g = ScannerSpec.Badge
         n(g.H, "badge", "h"); n(g.PAD, "badge", "pad"); n(g.R, "badge", "r")
         n(g.SMALL_H, "badge", "small", "h"); n(g.SMALL_PAD, "badge", "small", "pad")
@@ -153,60 +152,121 @@ class ScannerSpecContractTest {
     }
 
     @Test
-    fun autoscanAndTopology() {
-        val s = ScannerSpec.Scan
-        n(s.TABLE_TOP, "scan", "table", "top"); n(s.TABLE_HEAD, "scan", "table", "head")
-        n(s.PAD, "scan", "table", "pad"); n(s.NUM_PAD, "scan", "table", "numPad")
-        n(s.LIST_TOP, "scan", "list", "top"); n(s.LIST_BOTTOM, "scan", "list", "bottom")
-        n(s.GROUP, "scan", "list", "group"); n(s.ROW, "scan", "list", "row"); n(s.RULE, "scan", "list", "rule")
-        n(s.GROUP_GAP, "scan", "list", "groupGap"); n(s.CHEVRON, "scan", "list", "chevron")
-
-        val p = ScannerSpec.Topology
-        n(p.COLUMN, "topology", "column"); n(p.LEFT, "topology", "left")
-        n(p.TILE_W, "topology", "tile", "w"); n(p.TILE_H, "topology", "tile", "h"); n(p.TILE_R, "topology", "tile", "r")
-        n(p.TILE_PAD_X, "topology", "tile", "padX"); n(p.TILE_INSET, "topology", "tile", "inset")
-        n(p.TILE_PITCH, "topology", "tile", "pitch"); n(p.TILE_ROW_GAP, "topology", "tile", "rowGap")
-        n(p.HEAD_X, "topology", "head", "x"); n(p.HEAD_Y, "topology", "head", "y"); n(p.HEAD_W, "topology", "head", "w")
-        n(p.HEAD_H, "topology", "head", "h"); n(p.HEAD_R, "topology", "head", "r"); n(p.HEAD_PAD, "topology", "head", "pad")
-        n(p.FIRST_LABEL, "topology", "firstLabel"); n(p.LABEL_H, "topology", "labelH"); n(p.GROUP_GAP, "topology", "groupGap")
-        n(p.TRUNK_Y, "topology", "trunkY"); n(p.TRUNK_FIRST_Y, "topology", "trunkFirstY"); n(p.TAIL_Y, "topology", "tailY")
-        n(p.BUS_INSET, "topology", "busInset")
-        val columns = (at("topology", "columns") as List<*>).map { column ->
-            (column as List<*>).map { part ->
-                val a = part as List<*>
-                ScannerSpec.Topology.Part(
-                    a[0] as String,
-                    (a.getOrNull(1) as? Number)?.toInt() ?: 0,
-                    (a.getOrNull(2) as? Number)?.toInt(),
-                    a.getOrNull(3) == "continued",
-                )
-            }
-        }
-        assertEquals(columns, p.COLUMNS)
+    fun theBlocksTableAndTheTile() {
+        val m = ScannerSpec.Modules
+        val k = "modules"
+        assertEquals(setOf("cols", "numPad", "groupPad", "top", "head", "list"), (at(k) as Map<*, *>).keys)
+        assertEquals(cols(k, "cols"), m.COLS)
+        n(m.NUM_PAD, k, "numPad"); n(m.GROUP_PAD, k, "groupPad"); n(m.TOP, k, "top"); n(m.HEAD, k, "head")
+        n(m.LIST_TOP, k, "list", "top"); n(m.LIST_BOTTOM, k, "list", "bottom"); n(m.GROUP, k, "list", "group")
+        n(m.ROW, k, "list", "row"); n(m.RULE, k, "list", "rule")
+        // the table fills the width the rail leaves, less its margins
+        assertEquals(ScannerSpec.W - ScannerSpec.Rail.W - 48f, m.COLS.sum(), 1e-4f)
+        val t = ScannerSpec.Tile
+        assertEquals(setOf("w", "h", "r", "padX", "pitch", "rowGap"), (at("tile") as Map<*, *>).keys)
+        n(t.W, "tile", "w"); n(t.H, "tile", "h"); n(t.R, "tile", "r"); n(t.PAD_X, "tile", "padX"); n(t.PITCH, "tile", "pitch")
+        n(t.ROW_GAP, "tile", "rowGap")
+        // the JSON's keys of the autoscan and its topology are gone with them (7.3)
+        listOf("scan", "topology", "packScheme", "rangeBar").forEach { assertEquals(it, null, at(it)) }
     }
 
     @Test
-    fun theTopologyHoldsEveryBlockAtTheRailsWidth() {
-        // the catalog's groups after the roles of 2026-10-21: 9/9/7/19/19/4/1
-        val sizes = mapOf("power" to 9, "chassis" to 9, "assist" to 7, "body" to 19, "salon" to 19, "climate" to 4, "lv" to 1)
-        val p = ScannerSpec.Topology
-        val r = ScannerSpec.Rail
-        val placed = mutableMapOf<String, Int>()
-        p.COLUMNS.forEachIndexed { k, parts ->
-            var y = p.FIRST_LABEL
-            var bottom = 0f
-            parts.forEachIndexed { gi, part ->
-                val n = (part.to ?: sizes.getValue(part.id)) - part.from
-                if (gi > 0) y += p.GROUP_GAP
-                y += p.LABEL_H
-                bottom = y + (n - 1) * p.TILE_PITCH + p.TILE_H
-                y += n * p.TILE_PITCH
-                placed[part.id] = (placed[part.id] ?: 0) + n
-            }
-            assertTrue("column $k ends at $bottom", bottom <= ScannerSpec.Content.BOTTOM)
-            assertTrue("column $k", p.LEFT + k * r.TOPO_COLUMN + r.TOPO_TILE_INSET + r.TOPO_TILE_W <= ScannerSpec.W - r.W - 24f)
-        }
-        assertEquals(sizes, placed.toMap())
+    fun theSignsTheStripAndTheSwitch() {
+        val g = ScannerSpec.Sign
+        n(g.R, "sign", "r"); n(g.STROKE, "sign", "stroke"); n(g.SQUARE, "sign", "square")
+        assertEquals(cols("sign", "dash"), g.DASH.toList())
+        n(ScannerSpec.CHEVRON, "chevron")
+        val v = ScannerSpec.Segmented
+        n(v.H, "segmented", "h"); n(v.PAD, "segmented", "pad"); n(v.R, "segmented", "r"); n(v.GAP, "segmented", "gap")
+        val b = ScannerSpec.BitStrip
+        n(b.CELL, "bitStrip", "cell"); n(b.H, "bitStrip", "h"); n(b.GAP, "bitStrip", "gap"); n(b.R, "bitStrip", "r")
+        n(b.CELL_Y, "bitStrip", "cellY"); n(b.NAME_Y, "bitStrip", "nameY"); n(b.NAME_OUT, "bitStrip", "nameOut")
+        // the switch fits in the tabs' row
+        assertTrue(v.H <= ScannerSpec.Tabs.HEIGHT)
+    }
+
+    @Test
+    fun theSummary() {
+        val s = ScannerSpec.Summary
+        val k = "summary"
+        n(s.BAND_TOP, k, "band", "top"); n(s.BAND_H, k, "band", "h"); n(s.BAND_GAP, k, "band", "gap"); n(s.BAND_ITEM_GAP, k, "band", "itemGap")
+        n(s.TOP, k, "top"); n(s.COL_W, k, "colW"); n(s.COL_GAP, k, "colGap"); n(s.LABEL, k, "label"); n(s.HEAD, k, "head")
+        n(s.HEAD_GAP, k, "headGap"); n(s.ROW, k, "row"); n(s.ROW_PAD, k, "rowPad"); assertEquals(cols(k, "rowCols"), s.ROW_COLS)
+        n(s.ROW_GAP, k, "rowGap"); n(s.BLOCK_GAP, k, "blockGap"); n(s.SYSTEM_GAP, k, "systemGap")
+        n(s.QUIET_GAP, k, "quiet", "gap"); n(s.QUIET_H, k, "quiet", "h"); n(s.QUIET_CHEVRON_GAP, k, "quiet", "chevronGap")
+        n(s.TAG_H, k, "tag", "h"); n(s.TAG_PAD, k, "tag", "pad"); n(s.TAG_R, k, "tag", "r")
+        // two columns in the width the rail leaves
+        assertEquals(ScannerSpec.W - ScannerSpec.Rail.W - 48f, 2 * s.COL_W + s.COL_GAP, 1e-4f)
+        assertTrue(s.BAND_TOP >= ScannerSpec.Block.TOP + ScannerSpec.Block.HEIGHT && s.BAND_TOP + s.BAND_H < s.TOP)
+    }
+
+    @Test
+    fun theCodesScreen() {
+        val c = ScannerSpec.Code
+        val k = "code"
+        n(c.RULE, k, "rule"); assertEquals(cols(k, "x"), c.X); assertEquals(cols(k, "w"), c.W)
+        n(c.LABEL, k, "label"); n(c.MEANING, k, "meaning"); n(c.MEANING_NOTE, k, "meaningNote"); n(c.STATUS_LABEL, k, "statusLabel")
+        n(c.STRIP, k, "strip"); n(c.WORDS, k, "words"); n(c.WORDS_NOTE, k, "wordsNote"); n(c.READ_LABEL, k, "readLabel"); n(c.READS, k, "reads")
+        n(c.PICK_X, k, "pick", "0"); n(c.PICK_Y, k, "pick", "1"); n(c.PICK_R, k, "pick", "2")
+        n(c.CARD_TOP, k, "card", "top"); n(c.CARD_H, k, "card", "h"); n(c.CARD_PAD_X, k, "card", "padX"); n(c.CARD_PAD_Y, k, "card", "padY")
+        n(c.CARD_R, k, "card", "r"); n(c.CARD_GAP, k, "card", "gap")
+        n(c.SAME_LABEL, k, "sameLabel"); n(c.SAME, k, "same"); n(c.SAME_ROW, k, "sameRow"); assertEquals(cols(k, "sameCols"), c.SAME_COLS)
+        n(c.SAME_GAP, k, "sameGap"); n(c.SAME_NOTE_GAP, k, "sameNoteGap")
+        n(c.TIME_TOP, k, "timeline", "top"); n(c.TIME_DOT, k, "timeline", "dot"); n(c.TIME_BAR, k, "timeline", "bar")
+        n(c.TIME_BAR_ALPHA, k, "timeline", "barAlpha"); n(c.TIME_AXIS, k, "timeline", "axis"); n(c.TIME_TICK, k, "timeline", "tick")
+        n(c.TIME_LABEL_GAP, k, "timeline", "labelGap"); n(c.TIME_CAPTION, k, "timeline", "caption")
+        n(c.SNAP_LABEL, k, "snapLabel"); n(c.SNAP, k, "snap"); n(c.SNAP_ROW, k, "snapRow"); n(c.SNAP_KEY, k, "snapKey")
+        n(c.COUNT_GAP, k, "countGap"); n(c.COUNT_ROW, k, "countRow")
+        // the strip of eight cells fits the first column
+        val b = ScannerSpec.BitStrip
+        assertTrue(8 * b.CELL + 7 * b.GAP <= c.W[0])
+        assertEquals(ScannerSpec.W - 24f, c.X.last() + c.W.last(), 1e-4f)
+    }
+
+    @Test
+    fun theHealthGraphsJournalAndReport() {
+        val h = ScannerSpec.Health
+        n(h.TOP, "health", "table", "top"); n(h.W, "health", "table", "w"); n(h.HEAD, "health", "table", "head"); n(h.ROW, "health", "table", "row")
+        assertEquals(cols("health", "table", "cols"), h.COLS); n(h.VALUE_PAD, "health", "table", "valuePad")
+        n(h.SUB_GAP, "health", "table", "subGap"); n(h.UNIT_GAP, "health", "table", "unitGap")
+        n(h.SPARK_W, "health", "spark", "w"); n(h.SPARK_H, "health", "spark", "h"); n(h.SPARK_STROKE, "health", "spark", "stroke"); n(h.SPARK_DOT, "health", "spark", "dot")
+        n(h.CELLS_X, "health", "cells", "x"); n(h.CELLS_LABEL_Y, "health", "cells", "labelY"); n(h.CELLS_TOP, "health", "cells", "top")
+        n(h.CELLS_W, "health", "cells", "w"); n(h.CELLS_H, "health", "cells", "h"); n(h.CELLS_MV, "health", "cells", "mv")
+        assertEquals(cols("health", "cells", "grid").map { it.toInt() }, h.CELLS_GRID)
+        n(h.CELLS_SCALE_W, "health", "cells", "scaleW"); n(h.CELLS_GAP, "health", "cells", "gap"); n(h.CELLS_STATS_Y, "health", "cells", "statsY")
+        n(h.PROBES_LABEL_Y, "health", "probes", "labelY"); n(h.PROBES_TOP, "health", "probes", "top"); n(h.PROBES_COLS.toFloat(), "health", "probes", "cols")
+        n(h.PROBE_W, "health", "probes", "w"); n(h.PROBE_H, "health", "probes", "h"); n(h.PROBE_STEP_X, "health", "probes", "stepX")
+        n(h.PROBE_STEP_Y, "health", "probes", "stepY"); n(h.PROBE_PAD_X, "health", "probes", "padX"); n(h.PROBE_PAD_Y, "health", "probes", "padY")
+        n(h.PROBE_R, "health", "probes", "r")
+        val g = ScannerSpec.Graphs
+        n(g.LEGEND_W, "graphs", "legendW"); n(g.PLOT_X, "graphs", "plotX"); assertEquals(cols("graphs", "lanes"), g.LANES); n(g.LANE, "graphs", "lane")
+        n(g.NAME_GAP, "graphs", "nameGap"); n(g.VALUE_GAP, "graphs", "valueGap"); n(g.CURSOR_TOP, "graphs", "cursor", "top")
+        n(g.CURSOR_BOTTOM, "graphs", "cursor", "bottom"); n(g.CURSOR_DOT, "graphs", "cursor", "dot"); n(g.AXIS_Y, "graphs", "axisY")
+        n(g.TAG_Y, "graphs", "tag", "y"); n(g.TAG_W, "graphs", "tag", "w"); n(g.TAG_H, "graphs", "tag", "h"); n(g.TAG_R, "graphs", "tag", "r")
+        n(g.SCALE_INSET, "graphs", "scaleInset")
+        // the four lanes under the tabs, over the axis
+        assertTrue(g.LANES.first() >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT && g.LANES.last() + g.LANE <= g.AXIS_Y)
+        val j = ScannerSpec.Journal
+        val k = "journal"
+        n(j.PLOT_X, k, "plotX"); n(j.PLOT_W, k, "plotW"); n(j.AXIS_Y, k, "axisY"); n(j.GRID_TOP, k, "gridTop"); n(j.GRID_H, k, "gridH")
+        n(j.LANE_W, k, "laneW"); assertEquals(cols(k, "lanes"), j.LANES); n(j.LANE_H, k, "laneH"); assertEquals(cols(k, "rules"), j.RULES)
+        n(j.CODES_LABEL, k, "codesLabel"); n(j.CODES_TOP, k, "codesTop"); n(j.CODE_STEP, k, "codeStep"); n(j.CODE_H, k, "codeH")
+        n(j.VALUES_LABEL, k, "valuesLabel"); assertEquals(cols(k, "values"), j.VALUES); n(j.VALUE_H, k, "valueH"); n(j.DOT, k, "dot")
+        n(j.POINT, k, "point"); n(j.CELL_LABEL, k, "cellLabel")
+        n(j.PANEL_X, k, "panel", "x"); n(j.PANEL_TOP, k, "panel", "top"); n(j.PANEL_H, k, "panel", "h"); n(j.PANEL_PAD_X, k, "panel", "padX")
+        n(j.PANEL_PAD_Y, k, "panel", "padY"); n(j.PANEL_R, k, "panel", "r"); n(j.PANEL_ROW, k, "panel", "row"); n(j.PANEL_HEAD, k, "panel", "head")
+        n(j.PANEL_GAP, k, "panel", "gap")
+        // a full charge's label over its dot clears the lane above
+        assertTrue(j.LANES[2] + j.LANE_H / 2f - j.DOT / 2f - j.CELL_LABEL - ScannerSpec.Type.TICK.lh >= j.LANES[1] + j.LANE_H - 4f)
+        assertTrue(j.PLOT_X + j.PLOT_W < j.PANEL_X)
+        val r = ScannerSpec.Report
+        n(r.PAPER_X, "report", "paper", "x"); n(r.PAPER_Y, "report", "paper", "y"); n(r.PAPER_W, "report", "paper", "w"); n(r.PAPER_H, "report", "paper", "h")
+        n(r.PAPER_R, "report", "paper", "r"); n(r.X, "report", "x"); n(r.TITLE_Y, "report", "titleY"); n(r.LINE_Y, "report", "lineY")
+        n(r.LABEL_Y, "report", "labelY"); n(r.LIST_TOP, "report", "listTop"); n(r.ROW, "report", "row"); n(r.BOX, "report", "box")
+        n(r.BOX_R, "report", "boxR"); n(r.BOX_GAP, "report", "boxGap"); n(r.DEST_LABEL, "report", "destLabel"); n(r.DEST, "report", "dest")
+        n(r.DEST_NOTE, "report", "destNote"); n(r.DEST_SIZE, "report", "destSize")
+        // the page is A4: the painter's sheet scaled into it to the point
+        assertEquals(842f / 595f, r.PAPER_H / r.PAPER_W, 2e-3f)
     }
 
     @Test
@@ -243,12 +303,10 @@ class ScannerSpecContractTest {
 
         val b = ScannerSpec.BodyDtc
         n(b.TOP, "bodyDtc", "top"); n(b.HEAD, "bodyDtc", "head")
-        assertEquals(cols("bodyDtc", "cols"), b.COLS)
-        n(b.ROW_MIN, "bodyDtc", "rowMin"); n(b.BIT, "bodyDtc", "bit"); n(b.BIT_R, "bodyDtc", "bitR"); n(b.BELOW, "bodyDtc", "below")
-        n(b.BELOW_GAP, "bodyDtc", "belowGap")
-        n(b.EXPLAIN_W, "bodyDtc", "explainW"); n(b.EXPLAIN_GAP, "bodyDtc", "explainGap")
-        n(b.LEGEND_X, "bodyDtc", "legend", "x"); n(b.LEGEND_W, "bodyDtc", "legend", "w"); n(b.LEGEND_KEY, "bodyDtc", "legend", "key")
-        n(b.LEGEND_GAP, "bodyDtc", "legend", "gap"); n(b.LEGEND_ROW_GAP, "bodyDtc", "legend", "rowGap")
+        assertEquals(setOf("top", "head", "table", "rowMin", "below", "belowGap", "explainGap", "readX"), (at("bodyDtc") as Map<*, *>).keys)
+        assertEquals(cols("bodyDtc", "table"), b.TABLE)
+        n(b.ROW_MIN, "bodyDtc", "rowMin"); n(b.BELOW, "bodyDtc", "below"); n(b.BELOW_GAP, "bodyDtc", "belowGap")
+        n(b.EXPLAIN_GAP, "bodyDtc", "explainGap"); n(b.READ_X, "bodyDtc", "readX")
     }
 
     @Test
@@ -266,7 +324,7 @@ class ScannerSpecContractTest {
         assertEquals(cols("brakes", "askCols"), b.ASK_COLS)
         n(b.PLATE_GAP, "brakes", "plateGap"); n(b.PLATE_PAD_X, "brakes", "plate", "padX"); n(b.PLATE_PAD_Y, "brakes", "plate", "padY")
         n(b.PLATE_GAP_IN, "brakes", "plate", "gap"); n(b.PLATE_R, "brakes", "plate", "r")
-        n(b.BITS_H, "brakes", "bits", "h"); n(b.BITS_GAP, "brakes", "bits", "gap"); n(b.BITS_R, "brakes", "bits", "r")
+        assertEquals(setOf("top", "head", "askRow", "askCols", "plateGap", "plate"), (at("brakes") as Map<*, *>).keys)
     }
 
     private fun pair(vararg path: String): Pair<Float, Float> = (at(*path) as List<*>).let { (it[0] as Number).toFloat() to (it[1] as Number).toFloat() }
@@ -300,7 +358,7 @@ class ScannerSpecContractTest {
         assertEquals(machines, v.MACHINES)
         n(v.MACHINE_R, h, "machineR")
         n(v.BUS_LABEL_RIGHT, h, "busLabel", "right"); n(v.BUS_LABEL_Y, h, "busLabel", "y")
-        assertEquals((at(h, "volts") as List<*>).indices.map { pair(h, "volts", "$it") }, v.VOLTS)
+        assertEquals(null, at(h, "volts"))
         val units = (at(h, "units") as Map<*, *>).entries.associate { (k, p) ->
             val a = p as List<*>
             k as String to ScannerSpec.Hv.Place((a[0] as Number).toFloat(), (a[1] as Number).toFloat(), (a.getOrNull(2) as? Number)?.toFloat())
@@ -312,12 +370,9 @@ class ScannerSpecContractTest {
     fun theRailAndTheWidthItLeaves() {
         val r = ScannerSpec.Rail
         n(r.W, "rail", "w"); n(r.PAD_X, "rail", "padX"); n(r.PAD_TOP, "rail", "padTop"); n(r.ITEM, "rail", "item")
-        n(r.SEP_GAP, "rail", "sepGap"); n(r.BAR, "rail", "bar")
-        assertEquals(cols("rail", "scanCols"), r.SCAN_COLS)
+        n(r.SEP_GAP, "rail", "sepGap"); n(r.BAR, "rail", "bar"); n(r.MARK_GAP, "rail", "mark", "gap")
         assertEquals(cols("rail", "liveCols"), r.LIVE_COLS)
         assertEquals(cols("rail", "packLiveCols"), r.PACK_LIVE_COLS)
-        n(r.TOPO_COLUMN, "rail", "topology", "column"); n(r.TOPO_TILE_W, "rail", "topology", "tile", "w")
-        n(r.TOPO_TILE_PAD_X, "rail", "topology", "tile", "padX"); n(r.TOPO_TILE_INSET, "rail", "topology", "tile", "inset")
         assertEquals(cols("rail", "dtc", "cols"), r.DTC_COLS)
         n(r.DTC_ROW, "rail", "dtc", "row")
         n(r.ECU_LEFT_X, "rail", "ecuDtc", "left", "x"); n(r.ECU_LEFT_W, "rail", "ecuDtc", "left", "w")
@@ -431,7 +486,7 @@ class ScannerSpecContractTest {
         n(c.CALIPER_IN, "chassisScheme", "caliper", "in"); n(c.CALIPER_W, "chassisScheme", "caliper", "w")
         n(c.CALIPER_H, "chassisScheme", "caliper", "h"); n(c.CALIPER_R, "chassisScheme", "caliper", "r"); n(c.EPB_Y, "chassisScheme", "epbY")
         // the rear-wheel steering's tiles over the footer
-        assertTrue(ScannerSpec.Car.TOP + ScannerSpec.Car.H - ScannerSpec.Car.AXLE + c.STEER_DROP + ScannerSpec.Topology.TILE_H <= ScannerSpec.Content.BOTTOM)
+        assertTrue(ScannerSpec.Car.TOP + ScannerSpec.Car.H - ScannerSpec.Car.AXLE + c.STEER_DROP + ScannerSpec.Tile.H <= ScannerSpec.Content.BOTTOM)
         val s = ScannerSpec.SafetyScheme
         assertEquals(setOf("gap", "rows", "step", "pad", "seat"), (at("safetyScheme") as Map<*, *>).keys)
         assertEquals(pair("safetyScheme", "rows"), s.ROWS)
@@ -443,8 +498,8 @@ class ScannerSpecContractTest {
         val car = ScannerSpec.Car
         val pillar = (car.DOORS_FRONT.second + car.DOORS_REAR.first) / 2f
         val seatH = ScannerSpec.Type.COUNTER_LABEL.lh + ScannerSpec.Callout.GAP + ScannerSpec.Type.CELL.lh
-        assertTrue(s.ROWS.first + seatH < pillar - ScannerSpec.Topology.TILE_H / 2)
-        assertTrue(s.ROWS.second > pillar + ScannerSpec.Topology.TILE_H / 2)
+        assertTrue(s.ROWS.first + seatH < pillar - ScannerSpec.Tile.H / 2)
+        assertTrue(s.ROWS.second > pillar + ScannerSpec.Tile.H / 2)
         n(ScannerSpec.LvScheme.MODE_Y, "lvScheme", "modeY")
         val (cx, cy, cw) = ScannerSpec.Hv.CHARGE_LABEL
         n(cx, "hvRail", "charge", "0"); n(cy, "hvRail", "charge", "1"); n(cw, "hvRail", "charge", "2")
@@ -502,14 +557,6 @@ class ScannerSpecContractTest {
 
     @Test
     fun theSchemes() {
-        val r = ScannerSpec.RangeBar
-        n(r.H, "rangeBar", "h"); n(r.HEAD_GAP, "rangeBar", "headGap"); n(r.TICK_GAP, "rangeBar", "tickGap"); n(r.MIN_SPAN, "rangeBar", "minSpan")
-        val p = ScannerSpec.PackScheme
-        n(p.X, "packScheme", "x"); n(p.Y, "packScheme", "y"); n(p.W, "packScheme", "w"); n(p.H, "packScheme", "h")
-        n(p.R, "packScheme", "r"); n(p.PAD, "packScheme", "pad"); assertEquals(pair("packScheme", "poles"), p.POLES)
-        n(p.BUS_X, "packScheme", "busX"); n(p.ISO_X, "packScheme", "iso", "x"); n(p.ISO_W, "packScheme", "iso", "w")
-        n(p.ISO_H, "packScheme", "iso", "h"); n(p.RANGES_X, "packScheme", "ranges", "x"); n(p.RANGES_Y, "packScheme", "ranges", "y")
-        n(p.RANGES_W, "packScheme", "ranges", "w"); n(p.RANGES_STEP, "packScheme", "ranges", "step")
         val e = ScannerSpec.EngineScheme
         val k = "engineScheme"
         n(e.X0, k, "x0"); n(e.X1, k, "x1"); n(e.PIPE_Y, k, "pipeY"); n(e.PIPE, k, "pipe"); n(e.THROTTLE, k, "throttle")
@@ -532,10 +579,10 @@ class ScannerSpecContractTest {
 
     @Test
     fun columnsShareWhatIsLeftAsTheBoardDoes() {
-        // beside the rail the autoscan's last column takes 1016 - 970
-        val c = ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 24f, ScannerSpec.W - ScannerSpec.Rail.W - 48f)
-        assertEquals(994f, c[7].first, 1e-4f)
-        assertEquals(46f, c[7].second, 1e-4f)
+        // beside the rail a live table's last column takes 1016 - 766
+        val c = ScannerSpec.columns(ScannerSpec.Rail.LIVE_COLS, 24f, ScannerSpec.W - ScannerSpec.Rail.W - 48f)
+        assertEquals(790f, c[7].first, 1e-4f)
+        assertEquals(250f, c[7].second, 1e-4f)
         val g = ScannerSpec.columns(listOf(ScannerSpec.FR, ScannerSpec.FR), 0f, 100f, 10f)
         assertEquals(listOf(0f to 45f, 55f to 45f), g)
         assertTrue(ScannerSpec.columns(ScannerSpec.Adas.COLS, 24f, 1016f).all { it.second > 0f })

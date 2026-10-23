@@ -266,8 +266,16 @@ internal fun rememberWidths(): (String, Style) -> Float {
     val density = LocalDensity.current
     return remember(measurer, density) {
         { text, style ->
-            val r = measurer.measure(AnnotatedString(text), style.text(0), softWrap = false, maxLines = 1, density = density)
-            (r.getLineRight(0) - r.getLineLeft(0)) / density.density + style.track * style.size
+            // «→» is the board's drawn arrow, as wide as its `arrowW`; the words between are measured
+            val parts = text.split(ARROW)
+            parts.sumOf { p ->
+                if (p.isEmpty()) {
+                    0.0
+                } else {
+                    val r = measurer.measure(AnnotatedString(p), style.text(0), softWrap = false, maxLines = 1, density = density)
+                    ((r.getLineRight(0) - r.getLineLeft(0)) / density.density + style.track * style.size).toDouble()
+                }
+            }.toFloat() + (parts.size - 1) * style.arrowWidth
         }
     }
 }

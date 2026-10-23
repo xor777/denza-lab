@@ -48,7 +48,7 @@ internal fun ParamPage(view: ParamView, frame: RailFrame?, header: @Composable (
     val footer: @Composable () -> Unit = {
         ScanFooter(
             buttons = listOfNotNull(
-                FooterButton(ScannerStack.BACK_TO_LIVE, false, onBack),
+                FooterButton(ScannerStack.BACK_TO_LIVE, false, onClick = onBack),
                 FooterButton(if (view.running) "Пауза" else "Продолжить", true) { actions.setParamPaused(view.running) },
                 FooterButton("Сбросить мин/макс", false) { actions.resetParam() },
                 if (view.recordable && pid != null) {
@@ -119,7 +119,7 @@ private fun BoxScope.ParamChart(view: ParamView, stats: ParamStats, window: Int)
         view.norm?.let { n ->
             val top = yv(n.endInclusive).coerceIn(y0, y1)
             val bottom = yv(n.start).coerceIn(y0, y1)
-            if (bottom > top) drawRect(ink(Ink.BLUE_SHARE), Offset(x0 * d, top * d), Size((x1 - x0) * d, (bottom - top) * d))
+            if (bottom > top) drawRect(ink(Ink.BAND), Offset(x0 * d, top * d), Size((x1 - x0) * d, (bottom - top) * d))
         }
         stats.grid.forEach { v -> drawRect(ink(Ink.HAIR), Offset(x0 * d, yv(v) * d), Size((x1 - x0) * d, d)) }
         ticks.forEach { (t, _) -> drawRect(ink(Ink.HAIR), Offset(xt(t) * d, y0 * d), Size(d, (y1 - y0) * d)) }

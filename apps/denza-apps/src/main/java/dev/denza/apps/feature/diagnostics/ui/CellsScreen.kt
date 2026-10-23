@@ -112,7 +112,7 @@ internal fun BoxScope.PackCells(view: PackCellsView) {
         val old = !c.fresh
         Box(
             Modifier.at(x, p.PROBES_TOP).size(tw.dp, p.PROBE_H.dp)
-                .plate(if (old) Ink.TILE_UNREAD else Ink.TILE_OK, if (ext) Ink.WHITE else if (old) Ink.LINE3 else Ink.BLUE_EDGE, p.PROBE_R),
+                .plate(Ink.GROUND, if (ext) Ink.INK3 else if (old) Ink.LINE3 else Ink.QUIET_LINE, p.PROBE_R),
         ) {
             ScanText(ScannerWords.probe(i), Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(p.PROBE_PAD_X, p.PROBE_PAD_Y))
             ScanText(c.text, Type.COUNTER, if (old || c.value == null) Ink.FAINT else Ink.WHITE, Modifier.at(p.PROBE_PAD_X, p.PROBE_PAD_Y + p.PROBE_VALUE_Y))

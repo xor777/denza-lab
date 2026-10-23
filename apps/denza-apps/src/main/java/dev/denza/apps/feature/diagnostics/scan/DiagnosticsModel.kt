@@ -244,7 +244,18 @@ internal data class SystemPage(
     val scheme: Scheme?,
 )
 
-internal data class HeadCounter(val label: String, val value: String, val on: Boolean = false)
+/**
+ * A head's figure. [on] is MIL on or a record failing now (red, glowing); [out] a value outside its norm
+ * (orange); [mark] draws a record kind's sign before a count of records («○ 10», 7.3). A unit after the
+ * last space («553 В») is drawn small beside the figure.
+ */
+internal data class HeadCounter(
+    val label: String,
+    val value: String,
+    val on: Boolean = false,
+    val mark: Mark? = null,
+    val out: Boolean = false,
+)
 
 /** One record on a system's «DTC»: the block named on its first row, the row opening the block. */
 internal data class SystemDtcRow(
@@ -694,6 +705,13 @@ internal data class DtcView(
      * [DtcRow.description]; the source of every description on the screen, said once. Null otherwise.
      */
     val source: String? = null,
+    /**
+     * The status availability mask the block answered `19 01`/`19 02` with; a bit outside it is drawn «·» on the
+     * status strips (7.3). Null when it did not say: every bit is drawn as reported.
+     */
+    val availability: Int? = null,
+    /** The status mask the memory was read with, «0D»; null before a read (the strip of «что запрошено» then says 0D). */
+    val mask: Int? = null,
 )
 
 internal data class AskRow(
@@ -734,6 +752,11 @@ internal data class DtcRow(
     val description: String? = null,
     /** What [description] is made of, with the Chinese original; not drawn on the row. */
     val reference: List<DtcReference> = emptyList(),
+    /**
+     * «Как прочитан» under the codes when this row is picked (board `scanner-body-dtc`, 7.3): each read of the
+     * memory as ask and answer, «19 02 FF → 59 02 FF 51 70 09 28 · …», this record's four bytes [RawLine.lit].
+     */
+    val reads: List<RawLine> = emptyList(),
 )
 
 /** One heading of the public catalog behind a [DtcRow.description]. */
@@ -963,6 +986,15 @@ internal data class HvUnit(
     val state: String,
     val status: ModuleStatus,
     val target: Target?,
+    /**
+     * The dark cockpit's third row (7.3, board `scanner-sys-hv`): an inverter's own bus voltage «555 В» and its
+     * difference to the pack's «+2» (null where the unit has no bus reading), then [reading] - «IPM 9 °C»,
+     * «стоит», «выкл»; [off] draws the unit at half its light. With none of them the row is [state].
+     */
+    val busVolts: String? = null,
+    val busDelta: String? = null,
+    val reading: String? = null,
+    val off: Boolean = false,
 )
 
 /** What the screens may ask of the session; everything else is the session's own business. */
