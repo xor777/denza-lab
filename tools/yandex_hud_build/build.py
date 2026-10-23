@@ -104,11 +104,14 @@ def main():
          *sorted((link/'dev/denza/hudlink/camera').glob('*.java')),
          camera_tests/'CameraTest.java', camera_tests/'StockCameraTest.java',
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
-         package/'StockHudSymbols.java',
+         package/'StockHudSymbols.java', package/'RouteSnapshot.java', package/'GuidanceSnapshot.java', package/'TrafficSignalSnapshot.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.RouteSnapshotTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.GuidanceSnapshotTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.TrafficSignalSnapshotTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',

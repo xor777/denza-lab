@@ -1,29 +1,38 @@
-# Map → ADAS feed from Yandex (feasibility, 2026-10-23)
+# Map → ADAS feed from Yandex (local prototype, 2026-10-23)
 
 Can our app publish the navigation route and the rest of the map's feed to the
 car's ADAS (Momenta, `getAdasType` 1) in place of the stock map
 (`com.byd.launchermap`, Amap AutoSDK), with the route coming from Yandex
-Navigator and the stock map left installed and unmodified? Firmware and code
-research only: nothing was built, installed or sent to the car or an emulator.
+Navigator and the stock map left installed and unmodified? The initial firmware
+feasibility study is now followed by an instrumented Navigator build, a host
+converter and a local mock receiver. The prototype runs on a disposable emulator;
+no new ADAS sender has been installed or used on the car.
 
 ## Current state
+
+Updated 2026-10-23. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
-| There is no owner or exclusive writer: offers are reference-counted per session, fires are unconditional, the last write wins and ADAS sees both writers' events interleaved | firmware | [One writer](#one-writer) |
+| There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
 | The stock map, alive but not navigating, still fires position (pathId −1), TrafficInfo (roadClass −1) and NavigationStatus 100 about once a second; this is the main conflict with our feed | firmware + car logs | [Idle stock map](#what-the-idle-stock-map-still-sends) |
 | While the stock map navigates, ADAS's path-selected answer for any other pathId makes it resend its own route and selection: no coexistence during stock guidance | firmware | [One writer](#one-writer) |
 | No official third-party navigation provider path to ADAS exists: the ADAS feed lives inside the stock map; `byd_map_package` and `BydProjectionService` concern the cluster projection only | firmware | [Provider path](#no-official-provider-path) |
 | The wire format is recoverable completely from the stock map (protobuf field numbers, the route JSON, chunking, the 1 Hz cadence, the handshake); what ADAS does with it is only partly known | firmware + car logs | [Contract](#contract) |
-| Navigator 29.8.1's `DrivingRoute` and `Guidance` give geometry, per-segment speed limits, highway, tunnel, toll and HD ranges, traffic lights (with signal state ahead), lane signs, manoeuvres, jams with speed, road name and route position; functional class, formway, link type, per-link lane count, direction and ownership are not exposed | dex + module code | [Yandex data](#what-yandex-gives-us) |
+| Navigator 29.8.1 exports complete route geometry, nullable per-edge speed limits, manoeuvres, junction lane signs, traffic signals and live progress; inspected getters have no per-road class/count/access/direction contract | code; actual emulator captures | [Local prototype](#local-prototype-2026-10-23) |
+| Native route archive expands SD geometry into the same public geometry; no additional road-class or lane-count field has been identified | code; byte evidence | [Native archive](#native-route-archive) |
+| Route conversion, byte roundtrip and a mock selection/progress lifecycle are implemented locally; vehicle acceptance remains unverified | code | [Local prototype](#local-prototype-2026-10-23) |
+| ADAS availability is explicit DNP/ICC/ACC status (0/1/2); NOA family and route ACK are separate. Passive observer receives real car packets and shows an overlay | firmware + car acceptance, 2026-10-23 | [Status observer](#adas-status-observer) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
+[Local prototype](#local-prototype-2026-10-23) · [Native archive](#native-route-archive) ·
+[ADAS status observer](#adas-status-observer) ·
 [Safety](#safety) · [Verdict and plan](#verdict-and-plan) ·
 [Evidence](#evidence-and-reproduction)
 
@@ -59,7 +68,7 @@ with SOME/IP-SD on `224.0.2.4:30490`
 | IVI → ADAS | 45 `NaviPathUserSelectStsService_server` (UDP 52105) | `0x8001` sendPathSelected (`pathIDReq`) |
 | IVI → ADAS | `0x8202` `SDMapInformService_Server` (UDP 52103) | `0x8001` light, `…02` incidents, `…03` service area/toll, `…04` tunnel, `…05` road facilities, `…06` intersection, `…07` tidal lane/ramp, `…08` vehicle location, `…09` region, `…0A` speed/intersection (`historySpeed`), `…0B` next action + camera, `…0C` next-intersection lanes, `…0D` mixed fork, `…0E` lanes 3 km ahead |
 | ADAS → IVI | 44 PathMatchStatus | `0x8001` PathMatch, `0x8002` user-select confirm (`MMTPathSelected`), P2P match |
-| ADAS → IVI | 13 PilotStatus_AlarmInfo | `0x8002` pilot status (DNP/ICC), `0x8003` alarms; methods `0x0001` DNP/ICC switch request, `0x0002` ODD region codes |
+| ADAS → IVI | 13 PilotStatus_AlarmInfo | `0x8002` pilot status (DNP/ICC/ACC), `0x8003` alarms, `0x8005` NOA family; methods `0x0001` DNP/ICC switch request, `0x0002` ODD region codes |
 | ADAS → IVI | 10 VehiclePositionInfo, 14 PlanningLine, 12 Obstacle/LaneLine | not needed for the feed |
 
 Topic constants: `LM/com/autosdk/bussiness/pilot/someip/SomeIpId.java`;
@@ -111,13 +120,19 @@ established here, but it would let a passive probe record both writers' bytes.
      "no-sleep" state from BYDAuto, not a setting we own. The DNP switch only
      gates the route/handshake and the ADAS client subscriptions
      (`LM/k/h/e0/b/d.java:131-145`), not the position/TrafficInfo/status loop.
-  2. *Stop the process* (`am force-stop com.byd.launchermap` from our shell):
-     its sessions are dropped on unbind and its sends stop. It starts again on
-     boot (`BOOT_COMPLETED` receiver) and whenever a launcher card, the
-     cluster projection service, AutoVoice or a map entrypoint binds or opens
-     it; the stock map card, cluster Map scene and voice navigation go with
-     it. Reversible, but not an always-on design.
-  3. *Do not touch* the caller-supplied session key: binding with the stock
+  2. *Stop the process* is not reliable isolation. In the retained deployment
+     receipt (`captures/stock-map-route-graph-20261022/car-graph-deployment-03/receipt.json`),
+     `force-stop` completed at 14:01:36.204 UTC and a new PID was already recorded
+     at .382, about 178 ms later. The stock map card, cluster Map scene and
+     voice navigation also depend on the package.
+  3. *Disable the whole package for user 0* (`pm disable-user`) is a reversible
+     candidate, not tested here. The exact firmware PackageManagerService permits
+     shell whole-package enabled states 0/1/3, subject to protected-package
+     checks; shell component disabling for a non-testOnly APK is rejected.
+     Record the original enabled state before any separate car trial. Blocking
+     the map UID's network cannot silence Binder calls through the shared SOME/IP
+     daemon; blocking that daemon would affect our sender and HUD too.
+  4. *Do not touch* the caller-supplied session key: binding with the stock
      map's package as the intent type would merge into its session and can tear
      down its offer on unbind. That is impersonation, not a lever.
 - **ADAS type and nav-provider selection** do not switch the feed off:
@@ -192,10 +207,12 @@ binder is ready (`LM/k/h/e0/b/d.java:224-228`), not per route.
 **Selection handshake.** `45/0x8001 pathIDReq=pathId` after the route;
 ADAS answers `44/0x8002` (MMTPathSelected, same pathId: seen for all 35
 routes of drive-01). A different pathId or an error makes the stock map resend
-(`g.java:135-140, 242`). `PathMatchProxy` (`44/0x8001`, `EHPToNaviData`:
-`segment_id`, `sd_route_begin/end`, `odd_type`, `match_result[rc_id, offset, length]`)
-and `PathP2PMatchProxy` were never received on this car, and the stock map
-ignores them (`k.h.e0.d.d.k()` empty).
+(`g.java:135-140, 242`). `PathMatchProxy` (`44/0x8001`) decodes `NavigationPathMatchStatusStruct`
+with `checksCRC32`, `counter`, `code`, `routeInfoArray` and `msg`; each
+`RouteInfo` has `pathID`, `totalNOADistance`, `routeBeginIdx`, `routeEndIdx`,
+`statusCode`. The earlier EHPToNaviData field list was not this build's wire
+schema. Neither this reply nor `PathP2PMatchProxy` was observed in the retained
+car drives, and the stock consumer is empty (`k.h.e0.d.d.k()`).
 
 **Position, 1 Hz (`0x8202/0x8008`).** `sdVehicleLocation{ 1 lat, 2 lon, 3/4 matched lat/lon, 5 vehicleSpeed, 6 GPSspeed, 7 curSDRouteID=pathId, 8 reserve4=course, 9 curStepId=segment, 10 curLinkId=link in segment, 11 linkOffset (remaining in link), 12 distanceToNextStep (segment distance), 13 currentRoadOwnership }`
 (`f0.java:230-239`). Sent with TrafficInfo, tunnel and incidents
@@ -264,23 +281,28 @@ only start routes; there is no route export.
 | `pathID` | hash of Yandex `routeId` (new id → new route + selection) |
 | `pnts`, `len`, `pntBegIdx/pntCnt` | polyline cut into links; GCJ transform |
 | `links[].linkID` | synthetic, stable per OSM way fragment or polyline cut (receiver semantics unknown) |
-| `roadclass` | **not in Yandex.** OSM lookup (our `enrich_noa_road_classes.py` policy); fallback highway range + limit, never above class 1 without OSM access-control proof |
-| `formway` | **not in Yandex.** OSM (ramps, roundabouts, side roads); fallback roundabout from manoeuvre `ENTER_ROUNDABOUT`, else 15 |
-| `linktype` | tunnel ranges → tunnel; `getZlevels`/OSM bridge → bridge; else 0 |
-| `laneNum` | **not in Yandex** per road; OSM `lanes` per direction, else lane sign width near junctions, else 1 (never 0) |
-| `direction` | **not in Yandex.** OSM `oneway` (the stock exporter writes raw≠3) |
-| `ownership` | **not in Yandex.** OSM access → 1, else 0 |
-| `adminCode` | synthetic URID 372 / adcode `990001`, as in our package and inside the car's ODD list |
+| `roadclass` | Not exposed by inspected route getters; opaque native route data remains under investigation. Existing OSM enrichment starts with known OSM IDs and is not a Yandex-to-OSM matcher. Unknown class remains unknown |
+| `formway` | No proven getter or archive mapping. Remains unknown; no default 15 or inferred ramp classification |
+| `linktype` | Explicit tunnel ranges map to the inspected tunnel enum. Z-level alone does not prove a bridge; other types remain unknown |
+| `laneNum` | No confirmed per-road source yet. Junction lane signs include special lanes and do not establish counts along the entire route. Missing counts must not become fabricated laneNum1 |
+| `direction` | No proven source for road-level one-way semantics; the direction of the selected route alone is insufficient |
+| `ownership` | No proven source or cross-provider access-to-ownership mapping; remains unknown |
+| `adminCode` | Unknown; do not turn the Moscow package's synthetic region into an eligibility claim for Yandex |
 | `hasTrafficLight`, `trafficLights[]` | `getTrafficLights()` positions |
-| `mainAction`, `assistantAction`, guide groups, segments | manoeuvre annotations → Amap actions (our field-28 table), section lengths and times |
+| `mainAction`, `assistantAction`, guide groups, segments | Translate semantic annotations with the route MainAction/AssistantAction enums. HUD field-28 IDs are different; per-link and guide-segment actions must also stay distinct |
 | `roadname`, `navigationNextRoadName` | annotation toponyms, `getRoadName()` |
 | `speedLimit` | `getSpeedLimits()` — stock always sends 0; keep 0 until tested |
-| `hasParallel`, `hasMixFork`, `hasMultiOut` | not available → false |
+| `hasParallel`, `hasMixFork`, `hasMultiOut` | Unknown, not silently false |
 | `viaRoadInfo` | derivable (class, lanes, limits per named road) |
 
 ## The converter
 
-On the fly, in two places:
+The original product architecture below is a proposal. The implemented boundary
+is emulator private evidence files → host Python → a local mock receiver,
+described under [Local prototype](#local-prototype-2026-10-23). There is no
+Yandex-to-OSM matcher or Denza Apps ADAS publisher yet.
+
+Proposed product architecture, in two places:
 
 1. **In Navigator (module):** on each new `routeId`, a route snapshot
    (polyline, ranges, limits, lights, lane signs, manoeuvres, toponyms); at
@@ -301,16 +323,170 @@ On the fly, in two places:
    unmatched state; route end or Yandex gone: status 110 for 3 s, then 100
    and pathId −1, then stop.
 
-Outside the OSM-covered region the converter must degrade to class ≤ 1/9,
-formway 15, laneNum 1 — the values that give ICC and nothing more.
+Unknown attributes stay explicit in the offline draft and block publication
+acceptance. Class values are enums, not a numeric safety ranking. No fallback
+combination has been shown to guarantee ICC-only behavior.
+
+## Local prototype (2026-10-23)
+
+Evidence index: [`prototype-evidence-20261023.json`](prototype-evidence-20261023.json).
+
+Implementation: [`tools/adas_bridge`](../../tools/adas_bridge/README.md),
+[`converter-contract.json`](converter-contract.json), and the diagnostic readers
+inside [`yandex-hud-module`](../../experiments/yandex-hud-module/README.md).
+The APK keeps the existing two hooks and HUD transport; new route evidence is
+emulator-only (`ranchu` / `goldfish`). It does not send ADAS events.
+
+`RouteSnapshot` copies the selected route independently of AR and manoeuvre
+visibility: complete WGS84 geometry, sections, nullable edge speed limits, lane
+signs with special lanes and recommendations, traffic lights, event/camera data,
+range annotations, signposts with styles, metadata and opaque descriptors.
+`GuidanceSnapshot` copies the original guidance before visual HUD holding, with
+source route ownership, source edge/fraction, native timestamps, actual fix age,
+location, ETA, next manoeuvre and upcoming traffic-light signals. The recorder
+writes at most once a second into an atomic latest file and a 120-file ring.
+Every process has a common UUID across route, progress and native archive files.
+
+Actual fixtures, not just getter signatures:
+
+| Fixture | Geometry points | Non-null speed limits / edges | Lane signs | Traffic lights | Highway ranges |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Initial central Moscow route | 402 | 401 / 401 | 12 | 15 | 0 |
+| Southwest Moscow → Vnukovo | 637 | 636 / 636 | 21 | 17 | 0 |
+| M4 corridor request | 975 | 884 / 974 | 4 | 6 | 1 |
+
+The southwest fixture also contains a runtime `GREEN`, `LEFT`, `MAIN` signal
+with seven seconds left. That source API supplies no independent signal age,
+so its current value is not a validated traffic-control input. Null speed
+limits on the M4 fixture remain null. Its explicit highway annotation is
+preserved; it does not by itself assign stock road class 0/6. Final rich copies
+reported no extraction issues; observed copy times were 20 ms for the final
+city route and 38 ms for M4. `complete` means the queried API fields were copied
+without errors, not that all ADAS-required map attributes exist.
+
+The host cuts geometry at fractional section/range/limit boundaries, maps
+source progress back to those cuts, and applies the selected coordinate
+transform once. Yandex annotations describe section entry; stock guide-segment
+actions describe the end, so the action is shifted to the preceding segment.
+Only known semantic enum correspondences are used. Traffic lights on a boundary
+belong to the incoming link. Junction lane-sign width is never extrapolated to
+the whole road. Synthetic path IDs fit 53 bits because `curSDRouteID` is a
+protobuf **double**, whereas route JSON and selection use integers; link IDs
+retain exact signed64 serialization.
+
+Local transport exercise: route bytes → decode → selection bytes → local mock
+confirmation → position/TrafficInfo/status protobuf bytes → decode. A 180-second
+watch of the actual emulator processed **two Navigator process sessions and two
+routes, 64 fresh position samples and 192 dynamic packets with no read errors**.
+Cancellation stops the mock feed; restarting Navigator requires a new session,
+route and mock selection even when counters restart. Tests also reject stale,
+misowned and out-of-order positions and verify recovery after an input gap.
+The original 32,608-byte stock SOME/IP message roundtrips byte for byte. The
+host's test suite has 32 tests; these are structural/lifecycle checks, not an
+ADAS ECU simulation.
+
+```sh
+python3 -m tools.adas_bridge.watch --serial emulator-5592 --duration-s 60 \
+  --golden-someip captures/stock-map-car-lanes-20261023/reports/route-wire/first-full/route-01.someip.bin \
+  --target-frame native-gcj-unrestricted-candidate \
+  --out-dir captures/yandex-adas-prototype-20261023/new-watch
+python3 -m unittest discover -s tools/adas_bridge/tests -v
+```
+
+The watcher requires an explicit emulator serial and verifies `ro.kernel.qemu`.
+Its device commands only read allowlisted evidence. No real publisher is
+implemented. Unknown attributes remain visible, and every draft is marked
+`publicationReady=false`. The byte exercise uses the retained stock envelope as
+an explicit template and native unknown sentinels where verified; remaining
+JSON nulls are **not proved acceptable to the ECU**. Current-road ownership,
+vehicle speed, GPS-speed unit conversion and several extras remain unencoded.
+The Yandex classified location is not established as independent raw GNSS.
+Selection acknowledgement alone would not validate these semantics.
+
+**Yandex versus OSM.** The actual snapshots contain rich route-specific
+information: selected lane arrows, per-edge limits, traffic and live progress.
+The existing OSM graph independently contains road category, one-way, explicit
+per-way lane counts, access and structure tags in the same covered areas. For
+example, the central route bbox contains 1,588 non-service ways, 1,562 with
+explicit lanes. These are candidate coverage counts, not an exact route match
+or a percentage comparable to Yandex lane signs. There is no proven universal
+winner and no Yandex-to-OSM matcher in this prototype. See the pinned
+[`osmComparison`](yandex-native-route-evidence-20261023.json) for input hashes
+and the limitations of the bbox count.
+
+## Native route archive
+
+`DrivingRouter.routeSerializer().save(route)` yielded an 11,847-byte native
+archive for the initial city fixture. The envelope contains version 20, the
+route UUID, an 11,496-byte protobuf body and a 303-byte unclassified tail.
+Descriptor and traits bytes occur verbatim inside it. All 22 decoded HD lines
+are exact contiguous spans of public geometry; the archive's 286 SD edges
+expand to the public 401 edges. Thus these HD lines do not establish separate
+lane geometry. The 1,400-byte opaque descriptor block remains unidentified.
+No road-class, per-road lane-count or access semantics were assigned by guessing
+a numeric tag. Exact hashes, offsets and reproduction are retained in
+[`yandex-native-route-evidence-20261023.json`](yandex-native-route-evidence-20261023.json).
+
+## ADAS status observer
+
+The car does report availability separately from route acknowledgement:
+
+| Source | Observed meaning | Limitation |
+| --- | --- | --- |
+| `13/0x8002 PilotStatus`, DNP/ICC/ACC | `0` off/not offered, `1` active, `2` available | Unknown enum values stay unknown; a value is not a reason for refusal |
+| `13/0x8005 NewBroadcastInfo.noaMode` | `1` highway NOA, `2` city NOA | Family only, never proof of availability |
+| `44/0x8002 MMTPathSelected` | Stock callback fires on status 200, matching path confirms selection | Does not validate lanes, map completeness or NOA eligibility |
+| `44/0x8001 PathMatch` | Route ID, reported NOA distance/range and status code | Not observed in retained drives; exact receiver semantics unresolved |
+| `13/0x8003` and stock TOR notices | Raw alarm/notice codes and known notification text | Display only; do not synthesize pilot state from a notice |
+
+`tools/adas_bridge/status.py` decodes saved stock logs or an explicitly selected
+ADB logcat stream. The live path only executes `adb -s SERIAL logcat`, without
+clearing buffers or modifying the car. It prints an initial unknown state,
+keeps source PIDs separate, preserves raw values and reports the age of the last
+observation. A silence timeout is the observer's display policy, not a proven
+ECU heartbeat interval. FID values are a different enum: the recorded
+`ADAS_DNP_STATE` 3/6 accompanies SOME/IP DNP 2/1; they are not interchangeable.
+
+```sh
+python3 -m tools.adas_bridge.status --adb-serial 127.0.0.1:5555 --seconds 60
+python3 -m tools.adas_bridge.status --input path/to/saved.log --jsonl
+```
+
+The saved drive-02 decoder found ten availability observations, ten active
+observations and fifteen route confirmations. The live read-only 25-second
+logcat check on 2026-10-23 produced no new matching lines; this establishes no
+current pilot state. The standalone [`adas-status-probe`](../../experiments/adas-status-probe/README.md)
+subscribes directly instead of relying on the stock application's logging. It
+uses a unique own client session, events from services 13/44 only, and no server
+or driving-control interface. Binder callbacks enqueue bounded work and return
+immediately; receipt time is captured before queueing. Main-thread rendering
+ages an immutable snapshot even if decode/journal work is delayed. Reconnects
+invalidate the previous connection's observation. A compact Russian overlay
+shows fresh NOA state, last family, ICC, last route ACK and response age. The
+detailed Activity retains raw values. Missing/stale data never becomes a negative
+availability claim. Demo injection is accepted only on emulator hardware and
+visibly marked. The Stop button removes the overlay and releases only its own
+subscriptions. Raw logs rotate at two 4-MiB files; a separate two-file 512-KiB
+change journal records semantic transitions without counter/timestamp noise.
+
+Direct car acceptance then succeeded: build-05 decoded 1371 real packets over
+45.6 seconds (457 each of pilot, alarm, NOA mode), zero decoding errors and zero
+queue drops. DNP/ICC/ACC were 0, mode 2; no service-44 response arrived in that
+window. The overlay remained visible over the normal launcher. Installed APK
+hash matched the build, and the crash buffer was unchanged. Initial build-04
+alarm failures were traced to fields 6/9 being doubles; all 384 retained native
+packets now pass replay. Build-06 enlarges the overlay to 40-pixel text and
+720-pixel width with five short Russian lines. Receipt and final installation
+identity: [`observer-evidence-20261023.json`](observer-evidence-20261023.json).
 
 ## Safety
 
 - NOA plans lane changes and exits from the route. A misaligned route (frame,
   link order, cut errors) can make the car change lane or take a ramp wrongly.
   Every live step is supervised, stationary first, then a known road.
-- Class 0/6 enables highway NOA. Only OSM-proven access-controlled roads may
-  carry it; Yandex highway ranges alone must never upgrade a road.
+- Class 0/6 correlates with highway NOA in the retained drives; it is not
+  established as a sufficient activation condition. Road class must describe
+  the actual road. Yandex highway ranges alone do not establish an Amap class.
 - `SpdLmtSpeedValue` and link `speedLimit` may feed speed assistance; send 0
   (stock behaviour) until a separate test.
 - Stale data: process death, route cancel, GNSS loss must end the feed within
@@ -321,35 +497,17 @@ formway 15, laneNum 1 — the values that give ICC and nothing more.
 
 ## Verdict and plan
 
-**Feasible with conditions.** The transport is open and already proven from
-our UIDs; the format is fully recoverable; Yandex has more than enough data
-for the route if OSM fills the classes and lanes. Conditions: (1) the idle
-stock map's 1 Hz `100 / pathId −1` stream must be tolerated by ADAS or the
-stock process stopped for the session; (2) the coordinate frame and link-ID
-semantics must hold as on 2026-10-23; (3) no publication while the stock map
-navigates.
+**A local converter prototype is feasible and implemented.** Rich Yandex data
+is now captured directly instead of inferred from public documentation. It does
+not yet establish a complete ADAS map or NOA availability. Per-road attributes,
+ID semantics, receiver datum and exclusive writer ownership remain material
+unknowns.
 
-1. **Passive, stationary (1–2 days).** P, no route. Record the stock map's
-   `SomeIPMatrixManager`/`SendSomeIpDataManager`/`DriveRouteManager` logs
-   (`tools/stock-map/noa_car_log_capture.py`) and, as a candidate, a
-   read-only client subscription to services 7/43/45/`0x8202` and 13/44, to get
-   the exact idle bytes and rates. Read ADAS FIDs (DNP/ICC availability).
-2. **Offline converter (1 week).** Host/JUnit: Yandex route snapshots
-   recorded by the module → `NaviToEHPData`; diff against the stock JSON of
-   the same corridor (our OSM package on the emulator) field by field;
-   protobuf bytes against the stock builders.
-3. **Stationary publish (1–2 days).** P, stock map idle, our route of a short
-   known corridor: one route + selection, then position at 1 Hz with the car
-   standing on the route start. Observe `MMTPathSelected`, any PathMatch,
-   DNP/ICC FIDs, TORs, and whether the stock map's −1 stream disturbs the
-   selection. A/B with the stock process stopped. End with status 110 → 100.
-4. **Supervised drive (days).** Known road, ICC-level classes first (no 0/6),
-   then the М-1/ЦКАД stretches with OSM class 6/0, compared with the
-   stock-map drives of 2026-10-23.
-5. **Product (2–3 weeks).** Converter in Denza Apps, IPC from the module,
-   expiry, one-writer gate with the stock map's guidance state.
-
-Rough total: 4–6 weeks of work, most of it validation.
+Next validation must compare the same corridor in Yandex and the stock map,
+resolve every missing field from an observed source, then test a single writer
+on a stationary car. An `MMTPathSelected` response proves selection only, not
+correct interpretation of lanes, class or driving-function eligibility. No
+calendar estimate or assumed ICC-only fallback follows from the current data.
 
 ## Evidence and reproduction
 

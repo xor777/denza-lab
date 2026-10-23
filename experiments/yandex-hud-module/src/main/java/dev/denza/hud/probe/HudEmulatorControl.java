@@ -16,6 +16,9 @@ final class HudEmulatorControl {
     private long pollAt, themeAt, themeStamp, sequence, recorded, recordEvery, recordLimit;
     private String lastCommand = "";
     private String recordedRoute;
+    private String attemptedRoute;
+    private long routeAttemptAt = -10_000, recordedRouteAt = -10_000, identityFailureAt = -10_000;
+    private Object identityFailureRoute;
     private boolean iconSheet;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
@@ -96,20 +99,36 @@ final class HudEmulatorControl {
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator theme rejected", error); return null; }
     }
 
-    /** Independent native geometry export for checking received AR against the original route. Emulator only. */
+    /** Rich diagnostic route copy; routeId/points retain the existing AR evidence contract. Emulator only. */
     void route(Object route) {
-        if (!enabled) return;
+        if (!enabled || route == null) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (route == identityFailureRoute && now - identityFailureAt < 10_000) return;
+        String id;
         try {
-            String id = (String) api.call(route, "getRouteId");
-            if (id.equals(recordedRoute)) return;
-            org.json.JSONArray points = new org.json.JSONArray();
-            for (Object point : (java.util.List<?>) api.call(api.call(route, "getGeometry"), "getPoints"))
-                points.put(new org.json.JSONArray().put(api.call(point, "getLongitude")).put(api.call(point, "getLatitude")));
-            JSONObject reference = new JSONObject().put("routeId", id).put("points", points);
-            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "denza-hud-native-route.json"))) {
-                out.write(reference.toString().getBytes(StandardCharsets.UTF_8));
-            }
-            recordedRoute = id;
+            id = (String) api.call(route, "getRouteId");
+            if (id == null) throw new IllegalStateException("Missing route identity");
+            identityFailureRoute = null;
+        } catch (Exception error) {
+            identityFailureRoute = route; identityFailureAt = now;
+            Log.w("DenzaYandexHud", "native route identity failed", error);
+            return;
+        }
+        // Conditions may populate after the first route result. Refresh diagnostic evidence every
+        // ten seconds, including after a failed read/write; a different route id bypasses the wait.
+        if (id.equals(recordedRoute) && now - recordedRouteAt < 10_000) return;
+        if (id.equals(attemptedRoute) && now - routeAttemptAt < 10_000) return;
+        attemptedRoute = id; routeAttemptAt = now;
+        try {
+            long wallAt = System.currentTimeMillis();
+            java.util.Map<String, Object> reference = new RouteSnapshot(api).read(route);
+            reference.put("sourceSessionId", NavigationEvidence.SOURCE_SESSION_ID);
+            reference.put("capturedAtUnixMs", wallAt);
+            reference.put("capturedAtElapsedRealtimeMs", now);
+            reference.put("readDurationMs", android.os.SystemClock.elapsedRealtime() - now);
+            RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-hud-native-route.json"), reference);
+            recordedRoute = (String) reference.get("routeId");
+            recordedRouteAt = android.os.SystemClock.elapsedRealtime();
         } catch (Exception error) { Log.w("DenzaYandexHud", "native route evidence failed", error); }
     }
 

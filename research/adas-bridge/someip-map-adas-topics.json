@@ -30,7 +30,7 @@
      "sender": "f0.java (SomeIPMatrixManager)"}
   ],
   "adasToIv": [
-    {"service": 13, "app": "PilotStatus_AlarmInfoService_client", "events": {"0x8002": "pilotStatus DNP/ICC", "0x8003": "alarms"}, "methods": {"0x0001": "DNP/ICC switch request (control)", "0x0002": "ODD region codes (read)"}},
+    {"service": 13, "app": "PilotStatus_AlarmInfoService_client", "events": {"0x8002": "pilotStatus DNP/ICC", "0x8003": "alarms", "0x8005": "NewBroadcastInfo.noaMode: 1 highway / 2 city; separate from availability"}, "methods": {"0x0001": "DNP/ICC switch request (control)", "0x0002": "ODD region codes (read)"}},
     {"service": 44, "app": "NavigationPathMatchStatusService_client", "events": {"0x8001": "PathMatch (never received on car)", "0x8002": "MMTPathSelected confirm", "p2p": "PathP2PMatch"}},
     {"service": 10, "app": "VehiclePositionInfoService_client", "note": "not needed"},
     {"service": 14, "app": "PlanningLineInfoService_client", "note": "not needed"},
@@ -56,7 +56,7 @@
   "handshake": {
     "send": "45/0x8001 pathIDReq after route (e0.java:145 l())",
     "reply": "44/0x8002 MMTPathSelected same pathId -> DriveRouteManager.g() g.java:135; mismatch/error -> onSelectMainPathStatus(.,1) -> resend",
-    "unused": "PathMatchProxy 44/0x8001 EHPToNaviData{segment_id, sd_route_begin/end, odd_type, match_result}; consumer k.h.e0.d.d.k() empty"
+    "unused": "PathMatchProxy 44/0x8001 NavigationPathMatchStatusStruct{checksCRC32,counter,code,routeInfoArray:[RouteInfo{pathID,totalNOADistance,routeBeginIdx,routeEndIdx,statusCode}],msg,reserve1..3}; consumer k.h.e0.d.d.k() empty; previous EHPToNaviData field list was not this build's wire schema"
   },
   "oneWriter": {
     "offers": "reference-counted per session; HAL offer ends on last stop (SomeIpServerService onUnbind)",

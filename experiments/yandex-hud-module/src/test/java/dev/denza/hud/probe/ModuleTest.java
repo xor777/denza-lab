@@ -51,7 +51,11 @@ public final class ModuleTest {
         List<Object> lanes = java.util.Collections.emptyList();
         List<Manoeuvre> manoeuvres = java.util.Collections.emptyList();
     }
-    public static class Route { public Position getRoutePosition() { return new Position(1000); } }
+    public static class Route {
+        String id = "route-a";
+        public String getRouteId() { return id; }
+        public Position getRoutePosition() { return new Position(1000); }
+    }
     public static class Navigation { public Automotive getGuidance() { return automotive; } final Automotive automotive = new Automotive(); }
     public static class Point { public double getLatitude() { return 55.7; } }
     public static class Location {
@@ -188,7 +192,35 @@ public final class ModuleTest {
         guidance.navigation.automotive.status="ROUTE_LOST";
         check(source.read(guidance,true,7200).lanes.isEmpty(),"rerouting clears lanes");
         roles();
+        positionOwnership();
         System.out.println(assertions+" native module assertions passed");
+    }
+
+    /** Route replacement must not relabel the visual hold as a fresh pose on the new route. */
+    private static void positionOwnership() {
+        NavigatorSource source=new NavigatorSource(new Reflect());
+        Guidance guidance=new Guidance(); guidance.location=new Classified(); guidance.route=new Route();
+        NavigatorSource.Frame first=source.read(guidance,true,1000);
+        check("route-a".equals(first.positionRouteId),"fresh position records its route owner");
+        Route next=new Route(); next.id="route-b"; guidance.route=next;
+        NavigatorSource.Frame retained=source.read(guidance,true,1100);
+        check("route-a".equals(retained.positionRouteId),"route change without a new fix retains original position owner");
+        check(retained.position==first.position && retained.point==first.point && retained.drawMap()
+                && "guidance".equals(retained.mode),"ownership tagging preserves the existing HUD visual hold");
+        guidance.location.location.stamp++;
+        NavigatorSource.Frame fresh=source.read(guidance,true,1200);
+        check("route-b".equals(fresh.positionRouteId) && fresh.position!=first.position,"next fresh fix attaches to replacement route");
+        next=new Route(); next.id="route-c"; guidance.route=next;
+        guidance.location.accuracy="COARSE"; guidance.location.location.stamp++;
+        retained=source.read(guidance,true,1300);
+        check("route-b".equals(retained.positionRouteId) && retained.position==fresh.position,"coarse fix cannot relabel retained position");
+        guidance.route=null;
+        check(source.read(guidance,true,1400).positionRouteId==null,"cancellation clears held position ownership");
+        guidance.route=next; guidance.location.accuracy="FINE";
+        check("route-c".equals(source.read(guidance,true,1500).positionRouteId),"resumed route starts from newly accepted fix");
+        guidance.route=new Object(); guidance.location.location.stamp++;
+        NavigatorSource.Frame unknown=source.read(guidance,true,1600);
+        check(unknown.positionRouteId==null && unknown.drawMap(),"unavailable diagnostic owner does not suppress HUD");
     }
     /** What a frame publishes and withdraws through HudLink, and what the compositor makes of it. */
     private static void roles() {

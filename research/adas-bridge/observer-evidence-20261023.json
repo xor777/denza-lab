@@ -1,0 +1,255 @@
+{
+  "schema": "denza-adas-status-observer-evidence-v1",
+  "date": "2026-10-23",
+  "package": "dev.denza.adasstatus.probe",
+  "appLabel": "Статус ADAS",
+  "apk": {
+    "path": "captures/yandex-adas-prototype-20261023/observer-build-06/adas-status-probe.apk",
+    "sha256": "7b8a5da77bd66023fa6544bbd3edbe1a49e648760fd7825e47b4615c03a0a595",
+    "bytes": 53651
+  },
+  "buildManifest": {
+    "path": "captures/yandex-adas-prototype-20261023/observer-build-06/manifest.json",
+    "sha256": "e768096ed2bfc68c1d73c32e5dca670f8f367c26a556999712224d21c17c5493",
+    "bytes": 2619
+  },
+  "sourceHashesMatch": true,
+  "hostChecks": 46,
+  "nativeRegressionPackets": 384,
+  "carAcceptance": {
+    "path": "captures/yandex-adas-prototype-20261023/status-car/acceptance-06.json",
+    "sha256": "5969eafac30e399a3e4640735808a6556e3bbcc8241d431fab4bad4cd16eb06f",
+    "bytes": 1271
+  },
+  "carNativeEvents": 267,
+  "carDecodedCounts": {
+    "pilotStatus": 89,
+    "alarm": 89,
+    "noaMode": 89
+  },
+  "carDecodeErrors": 0,
+  "carQueueDrops": 0,
+  "priorLongerAcceptance": {
+    "path": "captures/yandex-adas-prototype-20261023/status-car/acceptance-05.json",
+    "sha256": "9c9cb701ba0c945e984e4d5f4d838a5bb0702987dd810b63f226df37bd7706d8",
+    "bytes": 2375
+  },
+  "priorLongerNativeEvents": 1371,
+  "priorLongerDurationMs": 45597,
+  "currentObserved": {
+    "dnp": 0,
+    "icc": 0,
+    "acc": 0,
+    "noaMode": 2,
+    "routeAckObserved": false
+  },
+  "observerLeftRunning": true,
+  "overlay": {
+    "textPx": 40,
+    "widthPx": 720,
+    "lines": [
+      "NOA",
+      "ICC",
+      "Режим",
+      "Маршрут",
+      "Ответ"
+    ],
+    "screenshot": {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/overlay-home-06.png",
+      "sha256": "1e0dedd9b801746c83b8d147d477b5371f5667f1517f1f6b4d1df71384b4a797",
+      "bytes": 1652642
+    },
+    "visuallyInspected": true
+  },
+  "journal": {
+    "raw": "files/adas-status.jsonl",
+    "rawRotatedFiles": 2,
+    "rawMaxBytesPerFile": 4194304,
+    "changes": "files/adas-status-changes.jsonl",
+    "changesRotatedFiles": 2,
+    "changesMaxBytesPerFile": 524288,
+    "logcatChangeTag": "DenzaAdasChange"
+  },
+  "retainedEvidence": [
+    {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/accepted-build05.jsonl",
+      "sha256": "c81e524083e429b2c664ca69d35167c9f07a52dee5d7784c7a388b697feff95d",
+      "bytes": 599768
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/accepted-build06.jsonl",
+      "sha256": "cead45848b3274598d5ae3e140f54d09ebbd7d14805922671e92eafcfcf8839f",
+      "bytes": 118498
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/adas-status-changes-06.jsonl",
+      "sha256": "3f605a4fa2f56500c58539095864894f548f9632be617d5079e9f099e3e0d2d1",
+      "bytes": 1544
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-emulator/build05-acceptance.json",
+      "sha256": "474d370684631c36bf2d0488ec53bd55635f8b9a6def7f22b8ab9bcded8bef22",
+      "bytes": 376
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/crash-before-06.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/status-car/crash-after-06.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "noNewCrashBufferContent": true,
+  "ownedEmulatorStopped": "emulator-5592",
+  "otherDevicesPreserved": true,
+  "vehiclePublisher": false,
+  "stockMapChanged": false,
+  "fixturesUsedOnCar": false,
+  "liveAvailableOrActiveTransitionTested": false,
+  "removedIntermediateArtifacts": [
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-01/classes",
+      "bytes": 55971
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-01/dex",
+      "bytes": 0
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/adas-status-probe.apk",
+      "bytes": 49555
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/unsigned.apk",
+      "bytes": 39965
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/classes",
+      "bytes": 52018
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/adas-status-probe.apk.idsig",
+      "bytes": 5522
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/classes.jar",
+      "bytes": 28669
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/aligned.apk",
+      "bytes": 39968
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-02/dex",
+      "bytes": 38600
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/adas-status-probe.apk",
+      "bytes": 49555
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/unsigned.apk",
+      "bytes": 42009
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/classes",
+      "bytes": 54416
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/adas-status-probe.apk.idsig",
+      "bytes": 5522
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/classes.jar",
+      "bytes": 29967
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/aligned.apk",
+      "bytes": 42012
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-03/dex",
+      "bytes": 40644
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/adas-status-probe.apk",
+      "bytes": 49555
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/unsigned.apk",
+      "bytes": 42505
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/classes",
+      "bytes": 55294
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/adas-status-probe.apk.idsig",
+      "bytes": 5522
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/classes.jar",
+      "bytes": 30320
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/aligned.apk",
+      "bytes": 42508
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-04/dex",
+      "bytes": 41140
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/adas-status-probe.apk",
+      "bytes": 53651
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/unsigned.apk",
+      "bytes": 45237
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/classes",
+      "bytes": 59471
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/adas-status-probe.apk.idsig",
+      "bytes": 5522
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/classes.jar",
+      "bytes": 32519
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/aligned.apk",
+      "bytes": 45240
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-05/dex",
+      "bytes": 43872
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-06/unsigned.apk",
+      "bytes": 44661
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-06/classes",
+      "bytes": 58842
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-06/classes.jar",
+      "bytes": 32178
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-06/aligned.apk",
+      "bytes": 44664
+    },
+    {
+      "path": "captures/yandex-adas-prototype-20261023/observer-build-06/dex",
+      "bytes": 43296
+    }
+  ],
+  "removedBytes": 1350390
+}

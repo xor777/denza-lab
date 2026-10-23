@@ -70,6 +70,7 @@ public final class HudModule {
         final Handler worker;
         final AtomicLong epoch = new AtomicLong();
         final HudEmulatorControl emulator;
+        final NavigationEvidence navigationEvidence;
         Object guidance;
         HudMap map;
         HudPainter painter;
@@ -98,6 +99,7 @@ public final class HudModule {
             emulator = new HudEmulatorControl(context, api);
             thread.start();
             worker = new Handler(thread.getLooper());
+            navigationEvidence = new NavigationEvidence(context, api, worker);
             final JSONObject laneArt = theme.getJSONObject("laneArt");
             worker.post(() -> {
                 stockArt = new StockHudArt(context.getAssets(), laneArt);
@@ -116,6 +118,9 @@ public final class HudModule {
                 JSONObject override = busy ? null : emulator.theme(now);
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
+                navigationEvidence.sample(frame, now);
+                // Route extraction must not depend on AR eligibility or a manoeuvre being visible.
+                if (frame.active() && frame.route != null) emulator.route(frame.route);
                 String nextOutputKey = frame.mode + (frame.drawMap() ? ":" + api.call(frame.route, "getRouteId") : "");
                 if (!nextOutputKey.equals(outputKey)) {
                     outputKey = nextOutputKey;
@@ -155,7 +160,6 @@ public final class HudModule {
                 final NavigatorSource.Hint hint = hold.apply(frame, now);
                 final HudAr.Frame ar = arSource.read(frame, now, System.currentTimeMillis());
                 final int arBuilds = arSource.geometryBuilds;
-                if (ar != null) emulator.route(frame.route);
                 if (!java.util.Objects.equals(arFailure, arSource.failure)) {
                     arFailure = arSource.failure;
                     if (arFailure != null) Log.w(TAG, "AR unavailable: " + arFailure);

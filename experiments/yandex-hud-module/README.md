@@ -8,6 +8,22 @@ not an independently installable app or a dependency of Denza Apps. The car
 installation is separate from these build/test tools. Detailed evidence belongs to
 [HUD findings](../../docs/hud-projection-findings.md#hud-yandex-embedded).
 
+## Local route evidence for ADAS research
+
+The emulator-only recorder now exports the rich selected route to
+`files/denza-hud-native-route.json`, one-second progress to
+`files/denza-adas-progress.json` plus a 120-sample ring, and the opaque native
+serializer output to `files/denza-adas-route-archive.bin` with a hash manifest.
+A per-process `sourceSessionId` binds all three. Held positions retain their
+original route identity and native timestamps; a reroute cannot turn an old
+HUD pose into fresh navigation data. Optional unavailable fields remain null
+with explicit issues. Route export does not depend on an AR frame being drawn.
+Archive failures retry after ten seconds; failed saves do not poison the cache.
+
+This export is gated to `ranchu`/`goldfish` and introduces no ADAS publisher or
+new vehicle permission. See [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
+for actual city/M4 captures, the offline byte receiver and unresolved map fields.
+
 ## Runtime
 
 The optional `stock-prototype` renderer profile is selected with

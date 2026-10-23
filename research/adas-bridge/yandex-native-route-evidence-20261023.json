@@ -1,0 +1,976 @@
+{
+  "schema": "denza-yandex-native-route-evidence-v1",
+  "date": "2026-10-23",
+  "status": "partial-offline-decode",
+  "vehicleOperations": 0,
+  "deviceOperations": 0,
+  "inputDirectory": "captures/yandex-adas-prototype-20261023/native-analysis/input-route-01",
+  "inputs": {
+    "denza-adas-route-archive.bin": {
+      "bytes": 11847,
+      "sha256": "54165441f99f977d21dd8f9c1d90e0c1c366370028b0bb72ddf2fcbdb35291cd"
+    },
+    "denza-hud-native-route.json": {
+      "bytes": 115666,
+      "sha256": "f857e41c5d36d52dd312e476dfbddfbbe3e8d302d0503e53a4b02fbe268f6361"
+    },
+    "denza-adas-route-archive.json": {
+      "bytes": 281,
+      "sha256": "f6699140be5ce09588e630ef08e81c8b0c0f687b64f13c9312084a2772b0e214"
+    }
+  },
+  "routeId": "01a169f9-e3e7-7f7f-aab4-144f39e86283",
+  "framing": {
+    "observedFirstU32": 20,
+    "uuidLength": 36,
+    "uuidOffset": 8,
+    "protobufLength": 11496,
+    "protobufOffset": 48,
+    "protobufEnd": 11544,
+    "unparsedTailBytes": 303,
+    "wholeBodyParsesAsProtobuf": true,
+    "limit": "20 is observed; native serializer version semantics not decompiled."
+  },
+  "metadata": {
+    "descriptor": {
+      "bytes": 1493,
+      "sha256": "6f6da273f835549eaed7d255c265c7760f7520e1226ecf66334e6f7ffb554e02",
+      "archiveOffset": 120
+    },
+    "traits": {
+      "bytes": 66,
+      "sha256": "932e341c38da3e8c4d2da11c0432bce550cbb5f7b7dbb0dc654a2d7764d93fd6",
+      "archiveOffset": 1658
+    },
+    "descriptorOpaqueBlock": {
+      "bytes": 1400,
+      "sha256": "841d302896568d5cd1ed9639d66e2711d57ecb4f5823815886554291dcefaae2",
+      "numericPath": "descriptor.2.6.1",
+      "adjacentField4": 175,
+      "scalarAtDescriptor2Field7": 286,
+      "byteLengthEqualsAdjacentScalarTimes8": true,
+      "semantics": "unknown; not labelled edge IDs, road classes or compressed data",
+      "codecTrials": {
+        "zlib": {
+          "result": "rejected",
+          "errorType": "error"
+        },
+        "rawDeflate": {
+          "result": "rejected",
+          "errorType": "error"
+        },
+        "gzip": {
+          "result": "rejected",
+          "errorType": "BadGzipFile"
+        },
+        "bzip2": {
+          "result": "rejected",
+          "errorType": "OSError"
+        },
+        "xz": {
+          "result": "rejected",
+          "errorType": "LZMAError"
+        }
+      }
+    },
+    "traitsScalars": [
+      {
+        "field": 4,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 5,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 6,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 8,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 10,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 11,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 12,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 13,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 15,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 16,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 17,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 18,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 19,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 20,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 21,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 22,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 23,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 24,
+        "unsignedVarint": 0
+      },
+      {
+        "field": 25,
+        "unsignedVarint": 1
+      },
+      {
+        "field": 26,
+        "unsignedVarint": 0
+      }
+    ],
+    "traitsInterpretation": "Unknown numeric tags. Do not equate field25=1 with a named road flag from one sample."
+  },
+  "geometry": {
+    "publicPoints": 402,
+    "publicEdges": 401,
+    "archiveSdSections": 9,
+    "archiveSdEdges": 286,
+    "archiveSdPointCounts": [
+      4,
+      10,
+      34,
+      14,
+      116,
+      18,
+      74,
+      18,
+      7
+    ],
+    "archiveHdParts": 22,
+    "archiveHdPointReferences": 326,
+    "allHdPartsExactlyAppearInPublicGeometry": true,
+    "matches": [
+      {
+        "section": 0,
+        "points": 4,
+        "publicPointStarts": [
+          0
+        ]
+      },
+      {
+        "section": 1,
+        "points": 11,
+        "publicPointStarts": [
+          3
+        ]
+      },
+      {
+        "section": 2,
+        "points": 6,
+        "publicPointStarts": [
+          13
+        ]
+      },
+      {
+        "section": 2,
+        "points": 8,
+        "publicPointStarts": [
+          20
+        ]
+      },
+      {
+        "section": 2,
+        "points": 11,
+        "publicPointStarts": [
+          33
+        ]
+      },
+      {
+        "section": 2,
+        "points": 11,
+        "publicPointStarts": [
+          50
+        ]
+      },
+      {
+        "section": 3,
+        "points": 13,
+        "publicPointStarts": [
+          60
+        ]
+      },
+      {
+        "section": 3,
+        "points": 3,
+        "publicPointStarts": [
+          76
+        ]
+      },
+      {
+        "section": 4,
+        "points": 13,
+        "publicPointStarts": [
+          78
+        ]
+      },
+      {
+        "section": 4,
+        "points": 5,
+        "publicPointStarts": [
+          93
+        ]
+      },
+      {
+        "section": 4,
+        "points": 13,
+        "publicPointStarts": [
+          102
+        ]
+      },
+      {
+        "section": 4,
+        "points": 19,
+        "publicPointStarts": [
+          122
+        ]
+      },
+      {
+        "section": 4,
+        "points": 51,
+        "publicPointStarts": [
+          142
+        ]
+      },
+      {
+        "section": 4,
+        "points": 13,
+        "publicPointStarts": [
+          197
+        ]
+      },
+      {
+        "section": 5,
+        "points": 8,
+        "publicPointStarts": [
+          209
+        ]
+      },
+      {
+        "section": 5,
+        "points": 19,
+        "publicPointStarts": [
+          221
+        ]
+      },
+      {
+        "section": 6,
+        "points": 13,
+        "publicPointStarts": [
+          239
+        ]
+      },
+      {
+        "section": 6,
+        "points": 5,
+        "publicPointStarts": [
+          253
+        ]
+      },
+      {
+        "section": 6,
+        "points": 17,
+        "publicPointStarts": [
+          278
+        ]
+      },
+      {
+        "section": 6,
+        "points": 26,
+        "publicPointStarts": [
+          321
+        ]
+      },
+      {
+        "section": 7,
+        "points": 40,
+        "publicPointStarts": [
+          346
+        ]
+      },
+      {
+        "section": 8,
+        "points": 17,
+        "publicPointStarts": [
+          385
+        ]
+      }
+    ],
+    "speedRunCount": 10,
+    "speedRunEdgeCount": 286,
+    "interpretation": "SD/HD decomposition and run-length representation are additional structure; all recovered HD lines already occur in getGeometry. HD does not establish lane-level geometry."
+  },
+  "publicCounts": {
+    "points": 402,
+    "sections": 9,
+    "speedLimits": 401,
+    "laneSigns": 12,
+    "trafficLights": 15,
+    "highways": 0,
+    "tunnels": 1,
+    "tollRoads": 0,
+    "hdSections": 22,
+    "standingSegments": 9,
+    "ferries": 0,
+    "fordCrossings": 0,
+    "ruggedRoads": 0,
+    "zoneCrossings": 0,
+    "jamSegments": 401,
+    "events": 17,
+    "speedBumps": 0,
+    "pedestrianCrossings": 15,
+    "checkpoints": 0,
+    "restrictedEntries": 0,
+    "restrictedTurns": 0,
+    "railwayCrossings": 0,
+    "directionSigns": 0,
+    "zlevels": 18,
+    "zlevelBreakpoints": 16,
+    "wayPoints": 2,
+    "notExported": 8
+  },
+  "sourceAnchors": [
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:916378 getHdSubGeometry",
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:916394 getSdSubpolyline",
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:918706 getCount",
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:918722 getSpeed",
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:913804 DrivingRouteBinding",
+    "captures/adas-bridge-scout/yandex-dex/classes10.txt:912624 DrivingRawSectionMetadata"
+  ],
+  "nativeSearch": {
+    "path": "captures/yandex-adas-prototype-20261023/native-analysis/native-schema-search.json",
+    "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/resources/lib/arm64-v8a/libmaps-mobile.so",
+    "sourceBytes": 62862384,
+    "sourceSha256": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f",
+    "observed": "RoadGraph and road_graph_layer tile type names exist; no associated Yandex .proto filename/field schema recovered by bounded printable-string scan.",
+    "limit": "Type-name existence and absence of named strings cannot establish private struct layout or prove data absence."
+  },
+  "conclusion": {
+    "provedAdditionalStructure": [
+      "SD versus HD geometry decomposition",
+      "run-length per-SD-edge speed-limit representation",
+      "opaque native route descriptor and traits retained byte-identically"
+    ],
+    "newProvenPerRoadAttributes": [],
+    "notEstablished": [
+      "functional road class",
+      "per-road lane count",
+      "oneway/direction flag",
+      "ownership/access class",
+      "current-link ramp/bridge type",
+      "descriptor block semantics",
+      "receiver link-ID requirements"
+    ],
+    "scope": "One actual emulator route, not a comparison over the regional OSM graph and not an ADAS acceptance test."
+  },
+  "reproduction": "python3 captures/yandex-adas-prototype-20261023/native-analysis/analyze_route_archive.py",
+  "analysisDirectory": "captures/yandex-adas-prototype-20261023/native-analysis",
+  "osmComparison": {
+    "schema": "denza-yandex-osm-bbox-comparison-v1",
+    "method": "Candidate ways with at least one stored OSM node inside each exact WGS84 route bounding box. No padding, nearest-road search, heading/grade matching or attributes transferred.",
+    "network": {
+      "path": "captures/stock-map-routing-region-20261022/network-v2/network.sqlite",
+      "bytes": 370520064,
+      "sha256": "8a4fa09e68f2f93639c96c195b35d32cc571252c926bff4ef3e84428a78acbaa",
+      "coverage": {
+        "bbox_south_west_north_east": [
+          55.11,
+          36.55,
+          56.37,
+          38.66
+        ],
+        "contains_vehicle_position": null,
+        "coordinate_source": "Public OSM geometry; vehicle GPS not used",
+        "coverage": "All administrative Moscow, including New Moscow; approximately 50 km outside MKAD, rectangular coverage",
+        "geometry_input_sha256": "0388f6cdafed847ba4c1dcd3b1e05860cb11cbe40bbcd754470efd41c441183b",
+        "mkad_buffer_km": 50,
+        "region_plan_provisional_geodesic_audit_pending": true,
+        "source": "Retained OpenStreetMap Moscow relation 102269 and 624 main MKAD ways"
+      }
+    },
+    "limits": [
+      "A bounding box contains unrelated roads, parking/service roads and parallel carriageways. Counts are candidate availability, never selected-route completeness.",
+      "A way intersecting the box only between exterior nodes may be omitted by this node-based candidate selection.",
+      "OSM highway is a source category; mapping it to OEM roadClass/formway is a separate policy and acceptance question.",
+      "OSM access tags are restrictions, not a proven encoding of the OEM ownership field.",
+      "A missing tag is unknown. Default/implicit one-way interpretations are counted separately from explicit tags.",
+      "Yandex segment/sign counts and OSM way counts use different units and cannot be compared as percentages of the same route."
+    ],
+    "fixtures": {
+      "route-01": {
+        "input": {
+          "path": "captures/yandex-adas-prototype-20261023/native-analysis/input-route-01/denza-hud-native-route.json",
+          "sha256": "f857e41c5d36d52dd312e476dfbddfbbe3e8d302d0503e53a4b02fbe268f6361",
+          "routeId": "01a169f9-e3e7-7f7f-aab4-144f39e86283"
+        },
+        "bboxLonLat": [
+          37.583698,
+          55.752412,
+          37.629299,
+          55.784315
+        ],
+        "allYandexPointsInsideNetworkCoverage": true,
+        "yandex": {
+          "counts": {
+            "points": 402,
+            "sections": 9,
+            "speedLimits": 401,
+            "laneSigns": 12,
+            "trafficLights": 15,
+            "highways": 0,
+            "tunnels": 1,
+            "events": 17,
+            "hdSections": 22,
+            "jamSegments": 401
+          },
+          "nonNullSpeedLimits": 401,
+          "nullSpeedLimits": 0,
+          "highwayRanges": [],
+          "speedLimitsMpsHistogram": {
+            "5.5555553": 3,
+            "13.888889": 24,
+            "16.666666": 374
+          },
+          "laneSignWidthHistogram": {
+            "3": 6,
+            "5": 3,
+            "6": 1,
+            "4": 1,
+            "2": 1
+          },
+          "laneSignsWithHighlight": 12,
+          "laneKinds": {
+            "PLAIN_LANE": 44,
+            "BUS_LANE": 1
+          },
+          "jamTypes": {
+            "UNKNOWN": 3,
+            "FREE": 272,
+            "LIGHT": 117,
+            "HARD": 9
+          },
+          "nonNullJamSpeeds": 401,
+          "notExported": [
+            "roadClass",
+            "formway",
+            "linkType",
+            "perLinkLaneCount",
+            "roadOwnership",
+            "globallyMeaningfulLinkIds",
+            "trafficLightSignalState",
+            "liveProgress"
+          ],
+          "limit": "Lane-sign width is at a manoeuvre/sign location, not per-road lane count. Jam speed is present; UNKNOWN jamType must remain unknown."
+        },
+        "osmAllCandidateWays": {
+          "candidateWays": 7235,
+          "sourceHighwayClasses": {
+            "primary": 258,
+            "unclassified": 293,
+            "secondary": 279,
+            "service": 5647,
+            "tertiary": 339,
+            "residential": 385,
+            "primary_link": 9,
+            "secondary_link": 18,
+            "pedestrian": 2,
+            "tertiary_link": 4,
+            "living_street": 1
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1346,
+            "default": 5889
+          },
+          "bareLanesTag": 2858,
+          "bareLanesPositiveInteger": 2858,
+          "directionalLanesTag": 135,
+          "anyLaneRelatedTag": 2861,
+          "turnLanesTag": 285,
+          "bareMaxspeedTag": 1494,
+          "bareMaxspeedNumeric": 954,
+          "anyMaxspeedRelatedTag": 1504,
+          "explicitAccessRelatedTag": 1620,
+          "explicitOnewayRelatedTag": 1346,
+          "bridgeTagNonNo": 2,
+          "tunnelTagNonNo": 780,
+          "slipRoadHighwayTag": 31,
+          "roundaboutOrCircular": 0
+        },
+        "osmExcludingHighwayService": {
+          "candidateWays": 1588,
+          "sourceHighwayClasses": {
+            "primary": 258,
+            "unclassified": 293,
+            "secondary": 279,
+            "tertiary": 339,
+            "residential": 385,
+            "primary_link": 9,
+            "secondary_link": 18,
+            "pedestrian": 2,
+            "tertiary_link": 4,
+            "living_street": 1
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1175,
+            "default": 413
+          },
+          "bareLanesTag": 1562,
+          "bareLanesPositiveInteger": 1562,
+          "directionalLanesTag": 132,
+          "anyLaneRelatedTag": 1565,
+          "turnLanesTag": 285,
+          "bareMaxspeedTag": 1450,
+          "bareMaxspeedNumeric": 926,
+          "anyMaxspeedRelatedTag": 1460,
+          "explicitAccessRelatedTag": 62,
+          "explicitOnewayRelatedTag": 1175,
+          "bridgeTagNonNo": 2,
+          "tunnelTagNonNo": 15,
+          "slipRoadHighwayTag": 31,
+          "roundaboutOrCircular": 0
+        },
+        "osmExampleCandidateWaysNotMatchedToRoute": [
+          {
+            "wayId": 9019216,
+            "tags": {
+              "highway": "primary",
+              "lanes": "4",
+              "maxspeed": "RU:urban",
+              "name": "Триумфальная площадь",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 427579334,
+            "tags": {
+              "highway": "primary",
+              "lanes": "4",
+              "maxspeed": "50",
+              "name": "Тверская улица",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 497681043,
+            "tags": {
+              "highway": "primary",
+              "lanes": "2",
+              "maxspeed": "RU:urban"
+            }
+          }
+        ]
+      },
+      "highway-02": {
+        "input": {
+          "path": "captures/yandex-adas-prototype-20261023/native-analysis/input-highway-02/denza-hud-native-route.json",
+          "sha256": "212fe8ef04b672eb30737b08b400fa8a630542b1865bd849a59d1100b975667b",
+          "routeId": "01a16a01-541d-7289-b608-9aca40ddafc8"
+        },
+        "bboxLonLat": [
+          37.282888,
+          55.60597700013343,
+          37.470634,
+          55.679315
+        ],
+        "allYandexPointsInsideNetworkCoverage": true,
+        "yandex": {
+          "counts": {
+            "points": 637,
+            "sections": 9,
+            "speedLimits": 636,
+            "laneSigns": 21,
+            "trafficLights": 17,
+            "highways": 0,
+            "tunnels": 1,
+            "events": 22,
+            "hdSections": 21,
+            "jamSegments": 636
+          },
+          "nonNullSpeedLimits": 636,
+          "nullSpeedLimits": 0,
+          "highwayRanges": [],
+          "speedLimitsMpsHistogram": {
+            "5.5555553": 12,
+            "16.666666": 432,
+            "11.111111": 18,
+            "25.0": 174
+          },
+          "laneSignWidthHistogram": {
+            "3": 6,
+            "5": 7,
+            "4": 7,
+            "2": 1
+          },
+          "laneSignsWithHighlight": 21,
+          "laneKinds": {
+            "PLAIN_LANE": 71,
+            "BUS_LANE": 12
+          },
+          "jamTypes": {
+            "UNKNOWN": 8,
+            "FREE": 542,
+            "LIGHT": 60,
+            "HARD": 25,
+            "VERY_HARD": 1
+          },
+          "nonNullJamSpeeds": 636,
+          "notExported": [
+            "roadClass",
+            "formway",
+            "linkType",
+            "perLinkLaneCount",
+            "roadOwnership",
+            "globallyMeaningfulLinkIds",
+            "trafficLightSignalState",
+            "liveProgress"
+          ],
+          "limit": "Lane-sign width is at a manoeuvre/sign location, not per-road lane count. Jam speed is present; UNKNOWN jamType must remain unknown."
+        },
+        "osmAllCandidateWays": {
+          "candidateWays": 8175,
+          "sourceHighwayClasses": {
+            "trunk": 115,
+            "primary_link": 56,
+            "primary": 156,
+            "secondary": 336,
+            "service": 5924,
+            "residential": 576,
+            "tertiary": 554,
+            "tertiary_link": 47,
+            "unclassified": 167,
+            "secondary_link": 98,
+            "track": 78,
+            "trunk_link": 22,
+            "living_street": 43,
+            "footway": 3
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1614,
+            "default": 6554,
+            "implicit:roundabout": 7
+          },
+          "bareLanesTag": 1503,
+          "bareLanesPositiveInteger": 1503,
+          "directionalLanesTag": 107,
+          "anyLaneRelatedTag": 1510,
+          "turnLanesTag": 188,
+          "bareMaxspeedTag": 2191,
+          "bareMaxspeedNumeric": 1274,
+          "anyMaxspeedRelatedTag": 2233,
+          "explicitAccessRelatedTag": 643,
+          "explicitOnewayRelatedTag": 1614,
+          "bridgeTagNonNo": 60,
+          "tunnelTagNonNo": 53,
+          "slipRoadHighwayTag": 223,
+          "roundaboutOrCircular": 26
+        },
+        "osmExcludingHighwayService": {
+          "candidateWays": 2251,
+          "sourceHighwayClasses": {
+            "trunk": 115,
+            "primary_link": 56,
+            "primary": 156,
+            "secondary": 336,
+            "residential": 576,
+            "tertiary": 554,
+            "tertiary_link": 47,
+            "unclassified": 167,
+            "secondary_link": 98,
+            "track": 78,
+            "trunk_link": 22,
+            "living_street": 43,
+            "footway": 3
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1069,
+            "default": 1178,
+            "implicit:roundabout": 4
+          },
+          "bareLanesTag": 1399,
+          "bareLanesPositiveInteger": 1399,
+          "directionalLanesTag": 105,
+          "anyLaneRelatedTag": 1406,
+          "turnLanesTag": 185,
+          "bareMaxspeedTag": 1285,
+          "bareMaxspeedNumeric": 710,
+          "anyMaxspeedRelatedTag": 1325,
+          "explicitAccessRelatedTag": 35,
+          "explicitOnewayRelatedTag": 1069,
+          "bridgeTagNonNo": 57,
+          "tunnelTagNonNo": 14,
+          "slipRoadHighwayTag": 223,
+          "roundaboutOrCircular": 21
+        },
+        "osmExampleCandidateWaysNotMatchedToRoute": [
+          {
+            "wayId": 27586011,
+            "tags": {
+              "highway": "trunk",
+              "lanes": "6",
+              "maxspeed": "100",
+              "name": "МКАД, 49-й километр",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 27593352,
+            "tags": {
+              "bridge": "yes",
+              "highway": "trunk",
+              "lanes": "6",
+              "maxspeed": "100",
+              "name": "МКАД, 49-й километр",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 321648844,
+            "tags": {
+              "highway": "trunk",
+              "lanes": "6",
+              "maxspeed": "100",
+              "name": "МКАД, 49-й километр",
+              "oneway": "yes"
+            }
+          }
+        ]
+      },
+      "route-final-m4": {
+        "input": {
+          "path": "captures/yandex-adas-prototype-20261023/native-analysis/input-route-final-m4/denza-hud-native-route.json",
+          "sha256": "916a0e05f32761a2e42c09cf8e57c5d5069b302f1c491eb9c5e6095d4183bad9",
+          "routeId": "01a16a06-8de6-7c98-98e1-6c2291b9b06a"
+        },
+        "bboxLonLat": [
+          37.665786,
+          55.392537,
+          37.79891,
+          55.59942
+        ],
+        "allYandexPointsInsideNetworkCoverage": true,
+        "yandex": {
+          "counts": {
+            "points": 975,
+            "sections": 24,
+            "speedLimits": 974,
+            "laneSigns": 4,
+            "trafficLights": 6,
+            "highways": 1,
+            "tunnels": 0,
+            "events": 13,
+            "hdSections": 10,
+            "jamSegments": 974
+          },
+          "nonNullSpeedLimits": 884,
+          "nullSpeedLimits": 90,
+          "highwayRanges": [
+            {
+              "position": {
+                "begin": {
+                  "segmentIndex": 210,
+                  "segmentPosition": 0.0
+                },
+                "end": {
+                  "segmentIndex": 734,
+                  "segmentPosition": 1.0
+                }
+              }
+            }
+          ],
+          "speedLimitsMpsHistogram": {
+            "5.5555553": 98,
+            "16.666666": 188,
+            "11.111111": 60,
+            "19.444445": 61,
+            "25.0": 45,
+            "30.555555": 432,
+            "null": 90
+          },
+          "laneSignWidthHistogram": {
+            "5": 2,
+            "3": 1,
+            "4": 1
+          },
+          "laneSignsWithHighlight": 4,
+          "laneKinds": {
+            "PLAIN_LANE": 16,
+            "BUS_LANE": 1
+          },
+          "jamTypes": {
+            "UNKNOWN": 143,
+            "FREE": 826,
+            "LIGHT": 5
+          },
+          "nonNullJamSpeeds": 974,
+          "notExported": [
+            "roadClass",
+            "formway",
+            "linkType",
+            "perLinkLaneCount",
+            "roadOwnership",
+            "globallyMeaningfulLinkIds",
+            "trafficLightSignalState",
+            "liveProgress"
+          ],
+          "limit": "Lane-sign width is at a manoeuvre/sign location, not per-road lane count. Jam speed is present; UNKNOWN jamType must remain unknown."
+        },
+        "osmAllCandidateWays": {
+          "candidateWays": 8655,
+          "sourceHighwayClasses": {
+            "trunk": 85,
+            "service": 5145,
+            "primary_link": 66,
+            "primary": 258,
+            "trunk_link": 35,
+            "motorway": 114,
+            "unclassified": 305,
+            "secondary_link": 25,
+            "residential": 1418,
+            "secondary": 241,
+            "tertiary": 364,
+            "track": 533,
+            "tertiary_link": 23,
+            "living_street": 43
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1501,
+            "default": 7148,
+            "implicit:roundabout": 6
+          },
+          "bareLanesTag": 1055,
+          "bareLanesPositiveInteger": 1055,
+          "directionalLanesTag": 77,
+          "anyLaneRelatedTag": 1071,
+          "turnLanesTag": 119,
+          "bareMaxspeedTag": 890,
+          "bareMaxspeedNumeric": 385,
+          "anyMaxspeedRelatedTag": 964,
+          "explicitAccessRelatedTag": 332,
+          "explicitOnewayRelatedTag": 1501,
+          "bridgeTagNonNo": 98,
+          "tunnelTagNonNo": 45,
+          "slipRoadHighwayTag": 149,
+          "roundaboutOrCircular": 24
+        },
+        "osmExcludingHighwayService": {
+          "candidateWays": 3510,
+          "sourceHighwayClasses": {
+            "trunk": 85,
+            "primary_link": 66,
+            "primary": 258,
+            "trunk_link": 35,
+            "motorway": 114,
+            "unclassified": 305,
+            "secondary_link": 25,
+            "residential": 1418,
+            "secondary": 241,
+            "tertiary": 364,
+            "track": 533,
+            "tertiary_link": 23,
+            "living_street": 43
+          },
+          "onewayInterpretationSources": {
+            "oneway": 1074,
+            "default": 2431,
+            "implicit:roundabout": 5
+          },
+          "bareLanesTag": 1006,
+          "bareLanesPositiveInteger": 1006,
+          "directionalLanesTag": 77,
+          "anyLaneRelatedTag": 1020,
+          "turnLanesTag": 118,
+          "bareMaxspeedTag": 705,
+          "bareMaxspeedNumeric": 219,
+          "anyMaxspeedRelatedTag": 776,
+          "explicitAccessRelatedTag": 84,
+          "explicitOnewayRelatedTag": 1074,
+          "bridgeTagNonNo": 93,
+          "tunnelTagNonNo": 13,
+          "slipRoadHighwayTag": 149,
+          "roundaboutOrCircular": 20
+        },
+        "osmExampleCandidateWaysNotMatchedToRoute": [
+          {
+            "wayId": 30131166,
+            "tags": {
+              "highway": "trunk",
+              "lanes": "6",
+              "maxspeed": "100",
+              "name": "МКАД, 26-й километр",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 93477171,
+            "tags": {
+              "highway": "trunk",
+              "lanes": "6",
+              "maxspeed": "100",
+              "name": "МКАД, 26-й километр",
+              "oneway": "yes"
+            }
+          },
+          {
+            "wayId": 15071294,
+            "tags": {
+              "highway": "primary_link",
+              "lanes": "2",
+              "maxspeed": "RU:urban",
+              "oneway": "yes"
+            }
+          }
+        ]
+      }
+    },
+    "assessment": {
+      "yandexStrengthsObserved": [
+        "Complete current route geometry/progress model and manoeuvre annotations",
+        "Non-null speed limits on every segment in route-01 and highway-02; route-final-m4 separately has 884 non-null and 90 unknown values",
+        "Per-lane direction/recommendation at all exported signs, including bus-lane kind",
+        "Per-segment speed estimates, ETA, events and current guidance"
+      ],
+      "osmStrengthsObserved": [
+        "Persistent graph node/way IDs, connectivity and source highway category",
+        "Explicit one-way, lane count, turn lanes and access tags on substantial bbox candidate sets",
+        "Source bridge/tunnel, slip-road and junction tags with independent provenance"
+      ],
+      "verdict": "Sources are complementary. These captures do not establish that Yandex replaces OSM structural attributes or that OSM is complete on the selected Yandex routes."
+    }
+  }
+}

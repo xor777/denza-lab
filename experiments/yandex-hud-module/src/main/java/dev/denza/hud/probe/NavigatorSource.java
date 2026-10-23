@@ -38,6 +38,8 @@ final class NavigatorSource {
         String mode = "off";
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield, location;
+        /** Route selected when this fix/position was accepted, even if the picture is held later. */
+        String positionRouteId;
         double heading, latitude, cameraDistance = Double.NaN;
         /** The fix's speed in m/s, NaN when the fix has none. */
         double speed = Double.NaN;
@@ -60,6 +62,7 @@ final class NavigatorSource {
     private long lastChanged;
     // The last good fix, held through a gap: satellites drop out under bridges and between towers.
     private Object heldLocation, heldPoint, heldPosition;
+    private String heldPositionRouteId;
     private double heldHeading, heldLatitude, heldSpeed = Double.NaN;
     private boolean held;
     NavigatorSource(Reflect api) { this.api = api; }
@@ -90,6 +93,13 @@ final class NavigatorSource {
             if (!stamp.equals(lastStamp)) {
                 lastStamp = stamp; lastChanged = now; held = true;
                 heldLocation = location; heldPosition = position;
+                heldPositionRouteId = null;
+                try {
+                    Object id = api.call(frame.route, "getRouteId");
+                    if (id instanceof String && !((String) id).isEmpty()) heldPositionRouteId = (String) id;
+                } catch (RuntimeException ignored) {
+                    // Diagnostic ownership must not change the HUD's existing hold/render behavior.
+                }
                 heldPoint = api.call(location, "getPosition");
                 heldLatitude = (Double) api.call(heldPoint, "getLatitude");
                 Double heading = (Double) api.call(location, "getHeading");
@@ -109,6 +119,7 @@ final class NavigatorSource {
         // A fix held through a gap says nothing of the car now.
         frame.speed = frame.staleMs == 0 ? heldSpeed : Double.NaN;
         frame.position = heldPosition;
+        frame.positionRouteId = heldPositionRouteId;
         if (rerouting) { frame.mode = "rerouting"; return frame; }
         frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";
         Object next = api.call(guidance, "getNextManeuver");
@@ -148,6 +159,7 @@ final class NavigatorSource {
     private void forget() {
         lastStamp = null; held = false;
         heldLocation = heldPoint = heldPosition = null;
+        heldPositionRouteId = null;
     }
 
     private Hint hint(Object route, Object automotive, Object windshield) {

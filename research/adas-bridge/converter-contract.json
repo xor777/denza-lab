@@ -1,0 +1,74 @@
+{
+  "schema": "denza-adas-offline-converter-contract-v1",
+  "status": "local prototype, no real publisher or receiver acceptance",
+  "implementation": "tools/adas_bridge",
+  "input": {
+    "routeSchema": "denza-yandex-driving-route-v1",
+    "guidanceSchema": "denza-yandex-guidance-v1",
+    "pointOrder": "lon,lat",
+    "sourceFrame": "wgs84",
+    "polylinePosition": ["segmentIndex", "segmentPosition"],
+    "unknownPolicy": "absent/null/availability unknown remain unknown; partial availability and issues retained",
+    "processOwnership": ["sourceSessionId", "generation", "sequence", "positionRouteId", "positionMatchesRoute"]
+  },
+  "geometry": {
+    "cuts": ["section boundaries including fractions", "range boundaries", "per-edge speed-limit changes", "per-edge jam changes"],
+    "length": "haversine source geometry; SDK metadata weights may mutate during guidance and are not substituted",
+    "points": "separate sequential slices per link with duplicated shared endpoints",
+    "progressOffsets": "remaining link and section distances",
+    "sectionInstructionPhase": "Yandex BEGIN entry action maps to preceding stock segment END at shared geometry boundary",
+    "trafficLightOwnership": "incoming link begin < signal position <= end; route-start incoming link unavailable",
+    "finalArrival": "MainAction 0, AssistantAction 36 only with known endpoint-consistent wayPoints",
+    "coordinates": "explicit inspection WGS84 or existing Moscow-only native-gcj-unrestricted-candidate, transformed once"
+  },
+  "ids": {
+    "linkId": "deterministic SHA-256-derived positive signed64 integer",
+    "pathId": "deterministic positive 53-bit integer, exact in JSON/int64 selection and DOUBLE sdVehicleLocation.curSDRouteID",
+    "receiverMeaning": "unverified; no topology-match equivalence claim"
+  },
+  "candidate": {
+    "publicationReady": false,
+    "roadClass": null,
+    "laneCount": null,
+    "ownership": null,
+    "direction": null,
+    "formway": null,
+    "adminCode": null,
+    "linkType": "known tunnel range -> verified enum 2; otherwise unknown",
+    "speedLimit": "0 follows inspected stock exporter; source limits retained separately",
+    "unmappedActions": ["FORK_LEFT", "FORK_RIGHT", "EXIT_LEFT", "EXIT_RIGHT", "BOARD_FERRY", "LEAVE_FERRY", "WAYPOINT", "FINISH"]
+  },
+  "experimentalBenchProfile": {
+    "separateFromCandidate": true,
+    "nativeNullSentinels": {"roadclass": -1, "unknownLinktype": -1},
+    "otherUnknowns": "remain JSON null; real ADAS acceptance of null primitives not established",
+    "envelopeMetadata": "explicit retained stock golden template, not inferred from Yandex",
+    "routeWire": ["Binder protobuf", "captured native SOME/IP framing"],
+    "selectionWire": "Binder protobuf field1 struct, field3 int64 pathIDReq",
+    "dynamicWire": ["sdVehicleLocation Binder protobuf", "TrafficInfo Binder protobuf", "NavigationStatus Binder protobuf"],
+    "dynamicUnknowns": ["vehicleSpeed", "GPSspeed native scaling", "currentRoadOwnership", "jam encoding", "cameras", "offCourse semantics"],
+    "dynamicMissingPolicy": "omit unavailable fields and retain missingAttributes; proto3 defaults are not known values",
+    "locationProvenance": "protocol GPS coordinate slots use Guidance ClassifiedLocation.getLocation; independent raw GNSS not established; matched slots use separate source-route interpolation",
+    "nativeDynamicSomeipFraming": "not implemented; Binder bytes are not claimed identical to native SOME/IP structs"
+  },
+  "guard": {
+    "sampleMaxAgeMs": 2000,
+    "aggregateFixMaxAgeMs": 2500,
+    "nativeLocationFutureToleranceMs": 250,
+    "poseToleranceM": "min(100,max(25,accuracy+15)); prototype geometry guard, not established ADAS threshold",
+    "maxAccuracyM": 100,
+    "requiredSessionIdentity": "new source sessions require matching route snapshot and route position owner",
+    "legacyCapturePolicy": "missing source session/position owner allowed only as labelled archival diagnostic compatibility",
+    "restart": "new sourceSessionId may reset generation/sequence; retired sessions rejected",
+    "recovery": "cached bytes retransmit, new local publication epoch, new labelled mock ACK",
+    "realAckLimitation": "ADAS ACK has no publication epoch token",
+    "emulatorWatcher": "explicit emulator-N serial plus qemu=1; allowlisted reads and bounded subprocess deadlines only"
+  },
+  "validation": {
+    "stockGolden": "captures/stock-map-car-lanes-20261023/reports/route-wire/first-full/route-01.someip.bin",
+    "goldenSHA256": "095d37e0e2985baf926d1d44ed95f03ab5f4eca83ac714cf14584e20c4d8c0d2",
+    "claim": "raw framing reconstructed byte for byte with original JSON preserved; fresh Gson formatting unproved",
+    "sameCorridorEquivalence": false,
+    "realVehicleAcceptance": false
+  }
+}

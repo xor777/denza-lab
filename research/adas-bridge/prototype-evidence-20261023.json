@@ -1,0 +1,244 @@
+{
+  "schema": "denza-yandex-adas-prototype-evidence-v1",
+  "date": "2026-10-23",
+  "scope": "local emulator input + host converter + local mock byte receiver; no vehicle publisher",
+  "apk": {
+    "path": "captures/yandex-adas-prototype-20261023/build-03/YandexHUD-4-arm64-debug.apk",
+    "sha256": "f62a7274f2aa48ff3287caa5b0e3e78da72a27427bfbaf6ecc8898c831d7afb0",
+    "bytes": 219828151
+  },
+  "buildReport": {
+    "path": "captures/yandex-adas-prototype-20261023/build-03/build-report.json",
+    "sha256": "eadf38d1ba520431674cc910ddf687e8e6804c27a92f55b015e76cba4a2b5f80",
+    "bytes": 26956
+  },
+  "sourceHashesStillMatchBuild": true,
+  "installedProof": {
+    "path": "captures/yandex-adas-prototype-20261023/installed-final.json",
+    "sha256": "4e795fb177e8e0e4e0c00a693105e27b97be58d9aaf35924046bba5edf958a3b",
+    "bytes": 244
+  },
+  "sourceInputApkSHA256": "3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3",
+  "fixtures": [
+    {
+      "name": "route-01",
+      "input": {
+        "path": "captures/yandex-adas-prototype-20261023/route-01/denza-hud-native-route.json",
+        "sha256": "f857e41c5d36d52dd312e476dfbddfbbe3e8d302d0503e53a4b02fbe268f6361",
+        "bytes": 115666
+      },
+      "routeId": "01a169f9-e3e7-7f7f-aab4-144f39e86283",
+      "sourceSessionId": null,
+      "points": 402,
+      "sections": 9,
+      "speedLimitEntries": 401,
+      "nonNullSpeedLimits": 401,
+      "laneSigns": 12,
+      "trafficLights": 15,
+      "highways": 0,
+      "extractionIssues": {
+        "sections[3].metadata.annotation.annotationLanes.lanes[0].placement": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "sections[3].metadata.annotation.annotationLanes.lanes[1].placement": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "sections[6].metadata.annotation.annotationLanes.lanes[2].placement": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "sections[7].metadata.annotation.annotationLanes.lanes[0].placement": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "sections[7].metadata.annotation.annotationLanes.lanes[1].placement": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        }
+      }
+    },
+    {
+      "name": "highway-02",
+      "input": {
+        "path": "captures/yandex-adas-prototype-20261023/highway-02/denza-hud-native-route.json",
+        "sha256": "212fe8ef04b672eb30737b08b400fa8a630542b1865bd849a59d1100b975667b",
+        "bytes": 174094
+      },
+      "routeId": "01a16a01-541d-7289-b608-9aca40ddafc8",
+      "sourceSessionId": null,
+      "points": 637,
+      "sections": 9,
+      "speedLimitEntries": 636,
+      "nonNullSpeedLimits": 636,
+      "laneSigns": 21,
+      "trafficLights": 17,
+      "highways": 0,
+      "extractionIssues": {
+        "directionSigns[0].items[0].toponym.style": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[1].items[0].icon": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[1].items[1].toponym.style": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[2].items[0].icon": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[2].items[1].toponym.style": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[3].items[0].icon": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[3].items[1].toponym.style": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[4].items[0].icon": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "directionSigns[4].items[1].toponym.style": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        },
+        "zlevelBreakpoints[53]": {
+          "kind": "read_or_validation_error",
+          "exception": "java.lang.IllegalArgumentException"
+        }
+      }
+    },
+    {
+      "name": "route-final-city",
+      "input": {
+        "path": "captures/yandex-adas-prototype-20261023/route-final-city/denza-hud-native-route.json",
+        "sha256": "96b9d31b91fe2f4723bcf95a930a2deb356f1175c9e4d6459045d7f3414886d0",
+        "bytes": 114522
+      },
+      "routeId": "01a16a04-6744-7d3d-8b6d-ce7598fcc05b",
+      "sourceSessionId": "88f2d659-2d2d-44c8-99cd-59d89f7a7db7",
+      "points": 360,
+      "sections": 10,
+      "speedLimitEntries": 359,
+      "nonNullSpeedLimits": 359,
+      "laneSigns": 10,
+      "trafficLights": 11,
+      "highways": 0,
+      "extractionIssues": {}
+    },
+    {
+      "name": "route-final-m4",
+      "input": {
+        "path": "captures/yandex-adas-prototype-20261023/route-final-m4/denza-hud-native-route.json",
+        "sha256": "916a0e05f32761a2e42c09cf8e57c5d5069b302f1c491eb9c5e6095d4183bad9",
+        "bytes": 218919
+      },
+      "routeId": "01a16a06-8de6-7c98-98e1-6c2291b9b06a",
+      "sourceSessionId": "dad4d58c-bf08-40a4-a9f6-c9a408a54b6d",
+      "points": 975,
+      "sections": 24,
+      "speedLimitEntries": 974,
+      "nonNullSpeedLimits": 884,
+      "laneSigns": 4,
+      "trafficLights": 6,
+      "highways": 1,
+      "extractionIssues": {}
+    }
+  ],
+  "liveWatch": {
+    "schema": "denza-adas-emulator-watch-v1",
+    "serial": "emulator-5592",
+    "qemuVerified": true,
+    "watchRunId": "7c3d585bdb59",
+    "offlineMockOnly": true,
+    "publicationReady": false,
+    "realAdasAcceptanceEstablished": false,
+    "durationRequestedS": 180.0,
+    "iterations": 180,
+    "acceptedOfflineGeometrySamples": 64,
+    "byteReceipts": 2,
+    "dynamicBinderPacketsParsed": 192,
+    "readErrors": 0,
+    "deviceCommands": "read-only allowlisted diagnostics"
+  },
+  "liveWatchSummary": {
+    "path": "captures/yandex-adas-prototype-20261023/live-final/summary.json",
+    "sha256": "cbdbcd61384fd93d42f9ddea3881bb8bca574e04ce50c499bf4ef72a6e94d046",
+    "bytes": 178311
+  },
+  "hudAcceptance": {
+    "passed": true,
+    "checks": {
+      "foreground_frames": 80,
+      "foreground_unique_png": 60,
+      "hint_packets": 30,
+      "limit_packets": 30,
+      "foreground_ar_packets": 30,
+      "foreground_ar_geometry": {
+        "samples": 50,
+        "max_deviation_m": 0.005625403672253306
+      },
+      "background_frames": 120,
+      "background_unique_png": 59,
+      "hidden": true,
+      "background_lane_packets": 49,
+      "lane_packets": 69,
+      "active_lane_clears": 0,
+      "background_ar_packets": 49,
+      "background_ar_geometry": {
+        "samples": 60,
+        "max_deviation_m": 0.005497531390893349
+      },
+      "ar_geometry_cached": true,
+      "reconnected": true,
+      "background_disabled_clears": true,
+      "ar_cleared": true,
+      "background_disabled_stops_frames": true,
+      "wire_errors": 0,
+      "clear_frames": 3,
+      "process_survived_cleanup": true
+    },
+    "report": {
+      "path": "captures/yandex-adas-prototype-20261023/hud-acceptance-clean/report.json",
+      "sha256": "c1bc41eef4367160c9c2b03c68e264a5275a6e5664e4e21a62ec53dcd231ce22",
+      "bytes": 276493
+    },
+    "previousAttempt": "hud-acceptance failed because fake receiver retained AR files from earlier Vnukovo route; only own emulator receiver data reset, documented in hud-receiver-reset.json; clean isolated rerun passed"
+  },
+  "nativeArchiveAudit": "research/adas-bridge/yandex-native-route-evidence-20261023.json",
+  "carReadOnlyLogAttempt": {
+    "seconds": 25,
+    "newMatchingEvents": 0,
+    "note": "does not establish current ADAS state; no writes",
+    "evidence": {
+      "path": "captures/yandex-adas-prototype-20261023/car-status-readonly.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "publicationReady": false,
+  "realAdasAcceptanceEstablished": false,
+  "limitations": [
+    "per-road class/lane count/access/direction not established from Yandex",
+    "no Yandex-to-OSM matching implementation",
+    "coordinate transform/ID semantics not validated at ADAS receiver",
+    "mock confirmation is not real route acceptance",
+    "some dynamic primitive fields intentionally missing",
+    "native route full geometry does not establish per-lane geometry"
+  ],
+  "cleanup": {
+    "path": "captures/yandex-adas-prototype-20261023/cleanup-builds.json",
+    "sha256": "fe3d333b16dbe39f8d3971d9cdd7a9d7490e835d9060b2c532ea84fb8eb72203",
+    "bytes": 3393
+  }
+}
