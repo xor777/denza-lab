@@ -4,6 +4,10 @@ Lay a screenshot of the app over its Luminofor board and say where they differ.
 
     python3 compare.py main-sound app.png              the board's own size, from the top-left
     python3 compare.py cluster-city app.png --at 0,0   where the board sits in the screenshot
+    python3 compare.py scanner-report app.png --skip 24,64,414,616
+                                                       a region left out (board units x0,y0,x1,y1):
+                                                       where the board only sketches what the app
+                                                       draws for real - the report's first page
 
 The screenshot comes from the debug fixture activity, which draws a board's fixture at the
 board's exact pixel size in the top-left corner of the display, so the two images are the same
@@ -32,7 +36,7 @@ def unit_scale(bid):
     return 720 / 424 if bid.startswith('cluster') else 2.0
 
 
-def main(bid, shot, at=(0, 0)):
+def main(bid, shot, at=(0, 0), skip=None):
     # a cluster is compared with its bare board: the hatching is the board's, not the app's
     bare = os.path.join(SHOTS, bid + '.bare.png')
     board = Image.open(bare if os.path.exists(bare) else os.path.join(SHOTS, bid + '.png')).convert('RGB')
@@ -42,11 +46,16 @@ def main(bid, shot, at=(0, 0)):
     diff = ImageChops.difference(board, app)
     px = diff.load()
     w, h = board.size
+    s = unit_scale(bid)
+    # a region left out counts neither as moved nor at all
+    sx0, sy0, sx1, sy1 = [round(v * s) for v in skip] if skip else (0, 0, 0, 0)
     moved = 0
     total = 0
     cells = {}
     for yy in range(h):
         for xx in range(w):
+            if sx0 <= xx < sx1 and sy0 <= yy < sy1:
+                continue
             r, g, b = px[xx, yy]
             m = max(r, g, b)
             total += m
@@ -54,7 +63,7 @@ def main(bid, shot, at=(0, 0)):
                 moved += 1
                 key = (xx // CELL, yy // CELL)
                 cells[key] = cells.get(key, 0) + 1
-    n = w * h
+    n = w * h - (sx1 - sx0) * (sy1 - sy0)
     heat = diff.point(lambda v: min(255, v * 4))
     os.makedirs(OUT, exist_ok=True)
     stack = Image.new('RGB', (w, h * 3))
@@ -63,7 +72,6 @@ def main(bid, shot, at=(0, 0)):
     stack.paste(heat, (0, 2 * h))
     out = os.path.join(OUT, bid + '.png')
     stack.save(out)
-    s = unit_scale(bid)
     print(f'{bid}: {moved / n * 100:.2f}% pixels moved, mean {total / n:.2f} levels  ->  {out}')
     worst = sorted(cells.items(), key=lambda kv: -kv[1])[:12]
     for (cx, cy), count in worst:
@@ -77,4 +85,9 @@ if __name__ == '__main__':
         i = args.index('--at')
         at = tuple(int(v) for v in args[i + 1].split(','))
         del args[i:i + 2]
-    main(args[0], args[1], at)
+    skip = None
+    if '--skip' in args:
+        i = args.index('--skip')
+        skip = tuple(float(v) for v in args[i + 1].split(','))
+        del args[i:i + 2]
+    main(args[0], args[1], at, skip)
