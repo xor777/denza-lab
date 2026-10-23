@@ -86,6 +86,18 @@ internal object ScannerSpec {
         val WIRE5 = rgba(0xDAE1EB, 0.85f)
         val BUS = rgba(0xDAE1EB, 0.28f)
         val BUS_LIVE = rgba(0x439FFC, 0.55f)
+        /** v4 (2026-10-23): red is now - an active record, MIL on; a band is a norm; pick marks a record in a raw answer. */
+        val RED = hex(0xFF4046)
+        val RED_INK = hex(0xFF8A8D)
+        val RED_FILL = rgba(0xFF4046, 0.16f)
+        val RED_ROW = rgba(0xFF4046, 0.07f)
+        val BAND = rgba(0xDAE1EB, 0.05f)
+        val PICK = rgba(0xDAE1EB, 0.1f)
+        /** The report's first page: a sheet of paper and its inks. */
+        val PAPER = hex(0xF4F6F8)
+        val PAPER_INK = hex(0x1B1F24)
+        val PAPER_GREY = hex(0x5F6773)
+        val PAPER_RULE = hex(0xD5DAE0)
 
         /** Inks `scanner.js` writes inline rather than in the JSON. */
         val PRIMARY_FILL = rgba(0x439FFC, 0.10f)
@@ -111,7 +123,9 @@ internal object ScannerSpec {
             "line3" to LINE3, "line4" to LINE4, "divider" to DIVIDER, "plate" to PLATE, "histFill" to HIST_FILL,
             "bitOff" to BIT_OFF, "pidFill" to PID_FILL, "tileOk" to TILE_OK, "tileHist" to TILE_HIST,
             "tileUnread" to TILE_UNREAD, "wire" to WIRE, "wire2" to WIRE2, "wire3" to WIRE3, "wire4" to WIRE4,
-            "wire5" to WIRE5, "bus" to BUS, "busLive" to BUS_LIVE,
+            "wire5" to WIRE5, "bus" to BUS, "busLive" to BUS_LIVE, "red" to RED, "redInk" to RED_INK, "redFill" to RED_FILL,
+            "redRow" to RED_ROW, "band" to BAND, "pick" to PICK, "paper" to PAPER, "paperInk" to PAPER_INK,
+            "paperGrey" to PAPER_GREY, "paperRule" to PAPER_RULE,
         )
     }
 
@@ -195,7 +209,7 @@ internal object ScannerSpec {
         val TILE_STATE = Style(10.5f, 15f, 500, track = 0.03f)
         /** The systems down the left: a system's name and its codes' mark. */
         val RAIL_ITEM = Style(15f, 20f)
-        val RAIL_MARK = Style(11f, 16f, mono = true)
+        val RAIL_MARK = Style(12.5f, 16f, mono = true)
         /** A parameter on its own page: the reading and its unit. */
         val PARAM_VALUE = Style(72f, 80f, 500, mono = true)
         val PARAM_UNIT = Style(18f, 22f)
@@ -221,6 +235,26 @@ internal object ScannerSpec {
         val ADAS13 = Style(13f, 18f, mono = true)
         val ADAS14 = Style(14f, 18f, mono = true)
         val ADAS16 = Style(16f, 18f, mono = true)
+        /** v4 (2026-10-23): a code in a row, a code as a title, a chip's letters, a code's meaning. */
+        val CODE_SMALL = Style(13.5f, 18f, 500, mono = true)
+        val CODE_TITLE = Style(22f, 24f, 500, mono = true)
+        val TAG = Style(10f, 14f, track = 0.06f)
+        val MEANING = Style(19f, 24f, 500)
+        val SMALL12 = Style(12f, 16f)
+        /** A raw ask and answer, a chart's tick and a lane's scale, the view switch, a checklist's item. */
+        val RAW = Style(12.5f, 22f, mono = true)
+        val TICK = Style(10f, 12f, mono = true)
+        val SCALE = Style(10.5f, 13f, mono = true)
+        val SEGMENT = Style(13f, 16f)
+        val ITEM = Style(15f, 18f)
+        /** The report's first page in its own small type. */
+        val PAPER_TITLE = Style(9.5f, 12f, 500, track = 0.06f)
+        val PAPER = Style(7.5f, 10.5f)
+        val PAPER_SMALL = Style(6.5f, 9.5f)
+        val PAPER_MONO = Style(6.5f, 9.5f, mono = true)
+        val PAPER_CODE = Style(6.5f, 9.5f, 500, mono = true)
+        val PAPER_HEAD = Style(6.5f, 9f, 500, track = 0.08f)
+        val PAPER_FOOT = Style(6f, 9f)
 
         /** The JSON's names, for the contract test. */
         val byName: Map<String, Style> = mapOf(
@@ -245,7 +279,10 @@ internal object ScannerSpec {
             "packState" to PACK_STATE, "packKey" to PACK_KEY, "packValue" to PACK_VALUE,
             "glyph" to GLYPH, "driveCell" to DRIVE_CELL, "driveSmall" to DRIVE_SMALL,
             "count16" to COUNT16, "adas11" to ADAS11, "adas12_5" to ADAS12_5, "adas13" to ADAS13,
-            "adas14" to ADAS14, "adas16" to ADAS16,
+            "adas14" to ADAS14, "adas16" to ADAS16, "codeSmall" to CODE_SMALL, "codeTitle" to CODE_TITLE, "tag" to TAG,
+            "meaning" to MEANING, "small12" to SMALL12, "raw" to RAW, "tick" to TICK, "scale" to SCALE, "segment" to SEGMENT,
+            "item" to ITEM, "paperTitle" to PAPER_TITLE, "paper" to PAPER, "paperSmall" to PAPER_SMALL, "paperMono" to PAPER_MONO,
+            "paperCode" to PAPER_CODE, "paperHead" to PAPER_HEAD, "paperFoot" to PAPER_FOOT,
         )
     }
 
@@ -260,7 +297,7 @@ internal object ScannerSpec {
         val READY = Tone(Ink.BLUE_SOFT, fill = Ink.BLUE_FILL)
         val WAITING = Tone(Ink.INK3, line = Ink.LINE4)
         val ABSENT = Tone(Ink.FAINT2)
-        val ON = Tone(Ink.ORANGE_INK, fill = Ink.ORANGE_FILL)
+        val ON = Tone(Ink.RED_INK, fill = Ink.RED_FILL)
 
         val byName: Map<String, Tone> = mapOf(
             "ok" to OK, "hist" to HIST, "unread" to UNREAD, "none" to NONE,
@@ -495,8 +532,8 @@ internal object ScannerSpec {
     object Rail {
         const val W = 216f
         const val PAD_X = 20f
-        const val PAD_TOP = 10f
-        const val ITEM = 40f
+        const val PAD_TOP = 8f
+        const val ITEM = 38f
         const val SEP_GAP = 8f
         const val BAR = 3f
         val SCAN_COLS = listOf(290f, 120f, 150f, 100f, 80f, 80f, 150f, FR)

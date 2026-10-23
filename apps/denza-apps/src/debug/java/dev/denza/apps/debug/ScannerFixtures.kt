@@ -87,7 +87,7 @@ import org.json.JSONObject
  *
  * A scene is data, not strings laid out: an ECU is its name, unit, request address, protocol and
  * kind, and the screens derive the rest - the reply address, the chips, the summaries - as the
- * board does. Every board shares the autoscan and the rail of `scanner-sys-scan` and every
+ * board does. Every board shares the blocks of `scanner-blocks`, its own rail and every
  * system's page from the `scanner-sys-*` scenes; each adds its own header. What a scene draws that
  * a session would never say (its values are illustrative) comes back as a [ScannerSample].
  */
@@ -105,7 +105,6 @@ internal object ScannerFixtures {
     fun route(id: String): List<ScannerRoute> {
         fun sys(s: CarSystem, tab: SystemTab) = listOf(scan, ScannerRoute.System(s, tab))
         return when (id) {
-            "scanner-sys-topology" -> listOf(ScannerRoute.Scan(topology = true))
             "scanner-sys-engine" -> sys(CarSystem.ENGINE, SystemTab.LIVE)
             "scanner-sys-engine-rpm", "scanner-sys-engine-ect", "scanner-sys-pack-cell" -> {
                 val key = PARAM_KEYS.getValue(id)
@@ -123,7 +122,7 @@ internal object ScannerFixtures {
             "scanner-sys-drives-compare" -> sys(CarSystem.DRIVES, SystemTab.COMPARE)
             "scanner-sys-safety", "scanner-sys-safety-trip" -> sys(CarSystem.SAFETY, SystemTab.STATE)
             "scanner-sys-hv" -> sys(CarSystem.HV, SystemTab.STATE)
-            "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
+            "scanner-sys-pack-health", "scanner-sys-pack-health-first" -> sys(CarSystem.PACK, SystemTab.STATE)
             in LIVE_BOARDS -> sys(LIVE_BOARDS.getValue(id), SystemTab.LIVE)
             in FLAGS_BOARDS -> sys(CarSystem.PACK, SystemTab.GB_FLAGS)
             in CELLS_BOARDS -> sys(CarSystem.PACK, SystemTab.CELLS)
@@ -145,27 +144,32 @@ internal object ScannerFixtures {
     fun sample(all: JSONObject, id: String): ScannerSample = ScannerSample(chartRange = 0f..1f)
 
     fun model(all: JSONObject, id: String): DiagnosticsModel {
-        val scanBoard = fixture(all, "scanner-sys-scan")
-        val top = fixture(all, id).getJSONObject("top")
-        val counters = arrays(scanBoard.getJSONObject("block").getJSONArray("counters")).associate { it.getString(0) to it.getString(1) }
+        // the v4 boards (2026-10-23): the blocks and the scan are `scanner-blocks`'; a board's header
+        // is the car, its mileage and mode, 12 V and the link's median exchange
+        val scanBoard = fixture(all, "scanner-blocks")
+        val board = fixture(all, id)
+        val top = board.getJSONObject("top")
+        val scan = scanBoard.getJSONObject("scan")
         val groups = groups(scanBoard.getJSONArray("groups"))
+        val ecus = (0 until scanBoard.getJSONArray("groups").length()).flatMap { objects(scanBoard.getJSONArray("groups").getJSONObject(it).getJSONArray("ecus")) }
+        val answered = "${scan.getInt("answered")}/${scan.getInt("blocks")}"
         return DiagnosticsModel(
             header = Header(
-                link = if (top.getString("link") == "Связь OK") LinkState.OK else LinkState.LOST,
-                car = top.getString("car"),
+                link = if (top.has("link")) LinkState.OK else LinkState.LOST,
+                car = listOf(top.getString("car"), top.optString("mode")).filter { it.isNotEmpty() }.joinToString(" · "),
                 clock = top.getString("time"),
             ),
             scan = ScanSummary(
-                phase = ScanPhase.DONE, done = 68, total = 68,
-                finishedAt = Regex("опрос (\\d\\d:\\d\\d)").find(scanBoard.getJSONObject("block").getString("line"))?.groupValues?.get(1),
-                answered = counters.getValue("ОТВЕТИЛО"), active = counters.getValue("DTC АКТ.").toIntOrNull(),
-                history = counters.getValue("DTC ИСТ.").toIntOrNull(), memoryRead = counters.getValue("ПРОЧИТАНО"),
+                phase = ScanPhase.DONE, done = scan.getInt("answered"), total = scan.getInt("blocks"),
+                finishedAt = scan.getString("at").substringAfter(' '),
+                answered = answered, active = ecus.sumOf { it.optString("active").toIntOrNull() ?: 0 },
+                history = ecus.sumOf { it.optString("history").toIntOrNull() ?: 0 }, memoryRead = answered,
                 mil = MilState.OFF, notice = null,
             ),
             groups = groups,
             modules = modules(all, id),
             systems = systems(all, id),
-            rail = rail(scanBoard.getJSONObject("rail")),
+            rail = rail(board.optJSONObject("rail") ?: fixture(all, "scanner-summary").getJSONObject("rail")),
             systemPages = pages(all, groups, id),
             param = PARAM_KEYS[id]?.let { param(fixture(all, id), it) },
             packCells = if (id in CELLS_BOARDS) cells(fixture(all, id)) else null,
@@ -361,14 +365,15 @@ internal object ScannerFixtures {
         val items = r.getJSONArray("items")
         return (0 until items.length()).mapNotNull { i -> items.get(i) as? JSONObject }.map { it ->
             val name = it.getString("name")
-            val mark = it.optJSONArray("mark")
-            val tone = when (mark?.getString(1)) {
-                null -> RailTone.NONE
-                "faint" -> RailTone.COUNT
-                "ink4" -> RailTone.HISTORY
-                else -> RailTone.ACTIVE
+            val active = it.optInt("active")
+            val records = active + it.optInt("pending") + it.optInt("history")
+            val (mark, tone) = when {
+                it.has("count") -> it.getInt("count").toString() to RailTone.COUNT
+                records == 0 -> null to RailTone.NONE
+                active > 0 -> records.toString() to RailTone.ACTIVE
+                else -> records.toString() to RailTone.HISTORY
             }
-            RailItem(CarSystem.entries.firstOrNull { s -> s.railName == name }, name, mark?.getString(0), tone)
+            RailItem(CarSystem.entries.firstOrNull { s -> s.railName == name }, name, mark, tone)
         }
     }
 
@@ -398,7 +403,7 @@ internal object ScannerFixtures {
      * one of [CABIN_BOARDS], the body's and the safety's their [LIT_BOARDS] when shown.
      */
     private val STATE_BOARD = mapOf(
-        CarSystem.HV to "scanner-sys-hv", CarSystem.PACK to "scanner-sys-pack", CarSystem.DRIVES to "scanner-sys-drives",
+        CarSystem.HV to "scanner-sys-hv", CarSystem.PACK to "scanner-sys-pack-health", CarSystem.DRIVES to "scanner-sys-drives",
         CarSystem.ENGINE to "scanner-sys-engine-scheme", CarSystem.CHASSIS to "scanner-sys-chassis", CarSystem.SAFETY to "scanner-sys-safety",
         CarSystem.BODY to "scanner-sys-body-state", CarSystem.ADAS to "scanner-sys-adas",
         CarSystem.CLIMATE to "scanner-sys-climate", CarSystem.LV to "scanner-sys-lv", CarSystem.CABIN to "scanner-sys-cabin",
@@ -427,7 +432,9 @@ internal object ScannerFixtures {
                 aside = block.getString("aside"),
                 line = block.getString("line"),
                 counters = arrays(block.getJSONArray("counters")).map { HeadCounter(it.getString(0), it.getString(1), on = it.optString(2) == "on") },
-                tabs = strings(f.getJSONObject("tabs").getJSONArray("items")).map { label -> SystemTab.entries.first { it.label == label } },
+                tabs = strings(f.getJSONObject("tabs").getJSONArray("items")).mapNotNull { label ->
+                    SystemTab.entries.firstOrNull { it.label == label } ?: SystemTab.STATE.takeIf { label == "Здоровье" }
+                },
                 blocks = blocks.map(::opened),
                 dtc = if (system == CarSystem.BODY) bodyCodes(fixture(all, "scanner-sys-body")) else emptyList(),
                 dtcFootnote = when (system) {
@@ -478,7 +485,7 @@ internal object ScannerFixtures {
         fun plate(key: String) = f.optJSONArray(key)?.let(::wordPlate)
         return when (system) {
             CarSystem.HV -> f.getJSONObject("charge").let { Scheme.Hv(it.getString("state"), it.optBoolean("plugged")) }
-            CarSystem.PACK -> {
+            CarSystem.PACK -> if (!f.has("pack")) null else {
                 val p = f.getJSONObject("pack")
                 Scheme.Pack(
                     soc = p.getDouble("soc").toFloat(), socText = p.getString("socText"), soh = p.getString("soh"), cells = p.getString("cells"),
@@ -783,10 +790,11 @@ internal object ScannerFixtures {
             hv = HvView(
                 pack = arrays(packBox.getJSONArray("rows")).map { Field(it.getString(0), it.getString(1)) },
                 packStatus = ModuleStatus.OK,
-                busVoltages = strings(hv.getJSONArray("volts")),
+                busVoltages = objects(hv.getJSONArray("units")).filter { it.has("volts") }.map { "${it.getInt("volts")} В" }.distinct(),
                 units = objects(hv.getJSONArray("units")).map { u ->
                     val addr = u.getString("addr")
-                    HvUnit(u.getString("abbr"), addr, u.getString("name"), u.getString("state"), status(u.getString("kind")), addr.toIntOrNull(16)?.let { Target.Module(it) })
+                    val state = listOfNotNull(u.optInt("volts").takeIf { u.has("volts") }?.let { "$it В" }, u.optString("reading").ifEmpty { null }).joinToString(" · ")
+                    HvUnit(u.getString("abbr"), addr, u.getString("name"), state, status(u.getString("kind")), addr.toIntOrNull(16)?.let { Target.Module(it) })
                 },
                 machines = objects(hv.getJSONArray("machines")).map { m -> Field(m.getString("name"), m.getString("values"), muted = !m.optBoolean("live")) },
                 contactorClosed = if (hv.has("contactorClosed")) hv.getBoolean("contactorClosed") else null,

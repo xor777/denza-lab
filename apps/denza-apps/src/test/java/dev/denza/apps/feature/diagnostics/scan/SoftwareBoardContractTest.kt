@@ -58,7 +58,9 @@ class SoftwareBoardContractTest {
         val block = board["block"] as Map<*, *>
         assertEquals(block["line"], module.line)
         assertEquals(block["title"], module.name)
-        assertEquals((block["dtc"] as List<*>)[1], module.dtc.records.size.toString())
+        // since v4 (2026-10-23) a head says records only where there are some: no counter, no records
+        assertEquals(null, block["counters"])
+        assertEquals(0, module.dtc.records.size)
         assertEquals(ModuleStatus.OK, module.status)
         val tabs = board["tabs"] as Map<*, *>
         assertEquals(tabs["items"], moduleTabs(module))

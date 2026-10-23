@@ -585,7 +585,10 @@
    * sweep of 2026-10-20); the ECM's live data and its fault are illustrative and say so in their
    * footers. ≈ marks a role read from the update cache's abbreviation, not from the block itself.
    */
-  const scanTop = (crumbs, time, car) => ({ crumbs: ['Диагностика'].concat(crumbs), link: 'Связь OK', car: car || 'Z9 GT DM · P · 0 км/ч', time });
+  // the header since v4: the car, its mileage, the mode, 12 V, the link's median exchange (its dot the
+  // link), the time; the parked scan of 2026-10-20 unless a board says otherwise
+  const scanTop = (crumbs, time, mode, volts, voltsOut) => Object.assign({ crumbs: ['Диагностика'].concat(crumbs), car: 'Z9 GT DM', odo: '13 199 км',
+    mode: mode || 'P', volts: volts || '13,7', link: '18 мс', time }, voltsOut ? { voltsOut: true } : {});
   // [name, unit, abbr, short, request address, protocol, kind, active, history]; a block with an
   // address opens its own screen
   const ecu = (name, unit, abbr, short, req, proto, kind, active, history) => {
@@ -599,14 +602,10 @@
   // after the roles of 2026-10-21 (findings, «ECU roles and reverse catalog crosswalk»).
   const uds = (name, unit, abbr, short, req, history) => ecu(name, unit, abbr, short, req, 'UDS', history ? 'hist' : 'ok', 0, history || 0);
   const autoscan = {
-    top: scanTop(['Автоскан'], '19:31:29'),
-    counters: [['ОТВЕТИЛО', '68/68', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '18', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '68/68', 'text'], ['MIL', 'ВЫКЛ', 'text']],
-    tabs: ['Список', 'Топология'],
-    headUnit: ['ГУ · диагностика', '+8'],
     groups: [
       { id: 'power', title: 'СИЛОВАЯ УСТАНОВКА', short: 'Силовая', topo: 'СИЛОВАЯ', ecus: [
-        ecu('ЭБУ двигателя', 'ECM · UAES', 'ECM', 'Двигатель', '7E0', 'OBD-II, UDS', 'ok', 0, 0),
-        ecu('Контроллер силовой установки', 'VCU', 'VCU', 'Силовая уст.', '7E2', 'OBD-II, UDS', 'ok', 0, 0),
+        ecu('ЭБУ двигателя', 'ECM · UAES', 'ECM', 'Двигатель', '7E0', 'OBD + UDS', 'ok', 0, 0),
+        ecu('Контроллер силовой установки', 'VCU', 'VCU', 'Силовая уст.', '7E2', 'OBD + UDS', 'ok', 0, 0),
         uds('Контроллер силового домена', 'PDC-VCU', 'PDC-VCU', 'Силовой домен', '743'),
         uds('Контроллер переднего мотора', 'FMCU', 'FMCU', 'Перед. мотор', '7E3'),
         uds('Контроллер мотор-генератора', 'ISG', 'ISG', 'Мотор-генер.', '7E6'),
@@ -618,7 +617,7 @@
       ] },
       { id: 'chassis', title: 'ШАССИ И БЕЗОПАСНОСТЬ', short: 'Шасси', topo: 'ШАССИ', ecus: [
         uds('Тормозная система, стабилизация', 'ESP/IPB · Bosch', 'ESP/IPB', 'Тормоза, ESP', '782'),
-        ecu('Тормозная система · интерфейс OBD', 'BSCM', 'BSCM', 'Тормоза · OBD', '7E5', 'OBD-II', 'ok', 0, '—'),
+        ecu('Тормозная система · интерфейс OBD', 'BSCM', 'BSCM', 'Тормоза · OBD', '7E5', 'OBD', 'ok', 0, '—'),
         uds('Электроусилитель руля', 'EPS', 'EPS', 'Рулевое', '783'),
         uds('Подруливание задних колёс, левое', 'RWS-L', 'RWS-L', 'Задн. руль Л', '582'),
         uds('Подруливание задних колёс, правое', 'RWS-R', 'RWS-R', 'Задн. руль П', '796'),
@@ -691,8 +690,8 @@
     ],
   };
 
-  const back = ['‹ Автоскан', 'quiet'];
-  const ecmCounters = [['MIL', 'ВЫКЛ'], ['DTC', '0'], ['ГОТОВН.', '4/9']];
+  const back = ['‹ Блоки', 'quiet'];
+  const ecmCounters = [['MIL', 'ВЫКЛ'], ['ГОТОВН.', '4/9']];
   const ecmTabs = active => ({ items: ['DTC и готовность', 'Потоковые данные', 'Идентификация'], active });
   const ecmBlock = (line, counters) => ({ title: 'ЭБУ двигателя', aside: '· ECM · UAES', line, counters: counters || ecmCounters });
   // F195 as the car's updater reads it: bytes 0-1 as D.DD.DD, the other four as they came (architecture 5.5)
@@ -706,8 +705,8 @@
   const at = names => names.map(n => MONITORS.find(m => m[1] === n));
 
   const scannerBodyDtc = {
-    top: scanTop(['Автоскан', 'Кузов, зона справа'], '15:42:08'),
-    block: { title: 'Кузов, зона справа', aside: '· R_ZCU', badge: ['hist', 'ИСТОРИЯ'], dtc: ['DTC', '2'],
+    top: scanTop(['Блоки', 'Кузов, зона справа'], '15:42:08'),
+    block: { title: 'Кузов, зона справа', aside: '· R_ZCU', counters: [['ЗАПИСИ', '2', 'hist']],
       line: '747 → 74F · UDS · маска доступности FF · формат DTC 00 (SAE J2012)' },
     tabs: { items: ['Ошибки DTC', 'Идентификация'], active: 0 },
     // live read 2026-10-20: 19 02 FF from 747 -> 517009/28, 930E01/28
@@ -715,17 +714,14 @@
       { code: 'C1170-09', ftb: '09', ftbName: 'Отказ компонента', group: 'Шасси · код производителя (C1xxx)', status: 0x28 },
       { code: 'B130E-01', ftb: '01', ftbName: 'Общий электрический отказ', group: 'Кузов · код производителя (B1xxx)', status: 0x28 },
     ],
-    explain: {
-      head: 'СТАТУС 0x28 = 0010 1000',
-      lead: 'Подтверждённый, неактивный (исторический).',
-      body: 'CDTC = 1 и TFSLC = 1: отказ был зафиксирован после последнего сброса. TF = 0, TFTOC = 0 и TNCTOC = 0: в текущем цикле тест выполнен, отказа нет. WIR = 0: лампу не запрашивает.'
-    },
-    bits: ['отказ сейчас', 'отказ в текущем цикле', 'ожидающий', 'подтверждённый', 'тест не выполнен после сброса', 'отказ после сброса', 'тест не выполнен в текущем цикле', 'запрос лампы'],
+    // the availability the block answered with, the selected row whose byte stands under the table
+    availability: 0xFF, selected: 0,
+    reads: [{ ask: '19 02 FF', answer: '59 02 FF 51 70 09 28 93 0E 01 28' }],
     footer: { buttons: [back, ['Прочитать DTC', 'primary']], notes: [['19 02 FF · снимок 15:42:08', true]] },
   };
 
   const scannerEcuDtc = {
-    top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:47:31', 'Z9 GT DM · P · ДВС не запущен'),
+    top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:47:31', 'P'),
     block: ecmBlock(ecmLine),
     tabs: ecmTabs(0),
     // ECM 7E0, read 2026-10-20
@@ -738,8 +734,8 @@
 
   // An illustrative fault, not a reading of this car.
   const scannerEcuFault = {
-    top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:52:44', 'Z9 GT DM · P · ДВС работает'),
-    block: ecmBlock('7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 4.00.10 · 19031900', [['MIL', 'ВКЛ', 'on'], ['DTC', '1'], ['ГОТОВН.', '7/9']]),
+    top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:52:44', 'P · ДВС работает', '14,1'),
+    block: ecmBlock('7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 4.00.10 · 19031900', [['MIL', 'ВКЛ', 'on'], ['ЗАПИСИ', '1', 'active'], ['ГОТОВН.', '7/9']]),
     tabs: Object.assign(ecmTabs(0), { alert: 0 }),
     // title: the catalog's heading of P042000 (engine_ecm), as the screen draws a description
     fault: { code: 'P0420', title: 'Старение трёхкомпонентного катализатора: снижена кислородная ёмкость', mil: 'ВКЛ',
@@ -761,9 +757,22 @@
     }
     return out;
   };
-  const live = (pid, name, abbr, value, unit, min, max, norm, t) => ({ pid, name, abbr, value, unit, min, max, norm, trace: t ? trace(...t) : [] });
+  // A mini chart's scale is never narrower than its norm or its resolution × 20 (v4, 2026-10-23): a
+  // minute's own span takes its share of that scale about the middle, so a tenth of noise draws flat.
+  const figure = s => { const t = String(s).replace(/\s/g, '').replace('−', '-').replace(',', '.'); return /^[-+]?\d+(\.\d+)?$/.test(t) ? +t : null; };
+  const live = (pid, name, abbr, value, unit, min, max, norm, t) => {
+    let tr = [];
+    if (t) {
+      const lo = figure(min), hi = figure(max), dec = (String(value).split(',')[1] || '').length;
+      const band = /(−?[\d,]+)…(−?[\d,]+)/.exec(norm || ''), nw = band ? figure(band[2]) - figure(band[1]) : /^±/.test(norm || '') ? 2 * figure(norm.slice(1)) : 0;
+      const own = lo != null && hi != null ? hi - lo : 0, scale = Math.max(own, nw, 20 * Math.pow(10, -dec));
+      const k = scale ? own / scale : 1;
+      tr = trace(t[0], t[1] * k, t[2] * k);
+    }
+    return { pid, name, abbr, value, unit, min, max, norm, trace: tr };
+  };
   const scannerEcuLive = {
-    top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:51:02', 'Z9 GT DM · P · ДВС работает'),
+    top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:51:02', 'P · ДВС работает', '14,1'),
     block: ecmBlock('7E0 → 7E8 · Mode 01 · 13 PID · опрос 4 Гц · график за 60 с'),
     tabs: ecmTabs(1),
     rows: [
@@ -785,7 +794,7 @@
   };
 
   const scannerEcuIdent = {
-    top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:48:02', 'Z9 GT DM · P · ДВС не запущен'),
+    top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:48:02', 'P'),
     block: ecmBlock(ecmLine),
     tabs: ecmTabs(2),
     // [key, value, tone: '' white | 'dim']
@@ -811,8 +820,8 @@
   // up; the old version and code are what the BMS answered on 2026-10-20 and the update cache kept on
   // 2026-10-18, F18A and F197 as it answered them then.
   const scannerEcuIdentUpdated = {
-    top: scanTop(['Автоскан', 'Система управления ВВБ'], '10:14:05'),
-    block: { title: 'Система управления ВВБ', aside: '· BMS', badge: ['ok', 'OK'], dtc: ['DTC', '0'],
+    top: scanTop(['Блоки', 'Система управления ВВБ'], '10:14:05'),
+    block: { title: 'Система управления ВВБ', aside: '· BMS',
       line: '7E7 → 7EF · UDS · маска доступности 09 · формат DTC 00 (SAE J2012) · ПО (F195) 3.48.07 · 1A0B0C03' },
     tabs: { items: ['Ошибки DTC', 'Идентификация'], active: 1 },
     // [key, value, tone: '' white | 'dim']
@@ -845,23 +854,24 @@
 
   // the HV schema
   const hvSchema = {
-    block: { title: 'Высоковольтная система', aside: '· ВВБ, привод, мотор-генератор', counters: [['U ВВБ', '553 В'], ['SOC', '74 %'], ['DTC', '0']] },
+    block: { title: 'Высоковольтная система', aside: '· ВВБ, привод, мотор-генератор', counters: [['U ВВБ', '553 В'], ['ТОК', '−4,5 А']] },
     // the main contactor as the BMS reports it (1032·34400010): 1, closed; its word under the label
     contactor: 'главный контактор', contactorClosed: true, contactorState: 'замкнут',
     busLabel: 'ШИНА DC',
-    volts: ['555 В', '556 В'],
-    pack: { title: 'ВВБ', tag: 'BMS · 7E7', state: 'OK · DTC 0', rows: [['Напряжение / ток', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'],
+    pack: { title: 'ВВБ', tag: 'BMS · 7E7', u: 553, rows: [['Напряжение / ток', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'],
       ['Ячейки, мин–макс', '3 333–3 337 мВ'], ['Разброс', '4 мВ'], ['Температура', '13…18 °C'], ['Изоляция', '14,4 · 19,7 МОм']] },
     // 766 answered F194 as PTC_HGTECH; DCOBC is one cached unit with no route found
+    // volts: the inverter's own bus voltage (1039·46407020 front, 46407010 rear), said with its
+    // difference to the pack's; reading: what else the unit says; off: drawn at half its light
     units: [
-      { abbr: 'FMCU', addr: '7E3', name: 'Инвертор передний', kind: 'ok', state: 'OK · IPM 9 °C' },
-      { abbr: 'ISG', addr: '7E6', name: 'Мотор-генератор', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'SMCU', addr: '744', name: 'Инвертор задний левый', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний правый', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'ECM', addr: '7E0', name: 'ДВС', kind: 'ok', state: 'OK · MIL ВЫКЛ' },
-      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'DCOBC', addr: '7E4', name: 'Зарядное + DC-DC', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'LBMS', addr: '762', name: 'АКБ 12 В · 13,7 В', kind: 'ok', state: 'OK · DTC 0' },
+      { abbr: 'FMCU', addr: '7E3', name: 'Инвертор передний', kind: 'ok', volts: 555, reading: 'IPM 9 °C' },
+      { abbr: 'ISG', addr: '7E6', name: 'Мотор-генератор', kind: 'ok', reading: 'стоит' },
+      { abbr: 'SMCU', addr: '744', name: 'Инвертор задний левый', kind: 'ok', volts: 556, reading: 'IGBT 5 °C' },
+      { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний правый', kind: 'ok', volts: 556, reading: 'IGBT 5 °C' },
+      { abbr: 'ECM', addr: '7E0', name: 'ДВС', kind: 'ok', reading: 'не работает' },
+      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'ok', reading: 'выкл', off: true },
+      { abbr: 'DCOBC', addr: '7E4', name: 'Зарядное + DC-DC', kind: 'ok', reading: 'DC-DC · понижение' },
+      { abbr: 'LBMS', addr: '762', name: 'АКБ 12 В', kind: 'ok', reading: '13,7 В' },
     ],
     machines: [
       { name: 'Передний мотор', values: 'статор 8 °C · 0 об/мин · 0 Н·м', live: true },
@@ -874,12 +884,12 @@
   // 782 read 2026-10-20: a UDS block whose memory gave nothing back, opened from «Шасси»
   const scannerEspDtc = {
     top: scanTop(['Шасси', 'Тормозная система, стабилизация'], '16:31:52'),
-    block: { title: 'Тормозная система, стабилизация', aside: '· ESP/IPB · Bosch', badge: ['ok', 'OK'], dtc: ['DTC', '0'],
+    block: { title: 'Тормозная система, стабилизация', aside: '· ESP/IPB · Bosch',
       line: '782 → 78A · UDS · доступность DTC FF · формат 00 (SAE J2012) · F194 32330011DF0B000101' },
     tabs: { items: ['Ошибки DTC', 'Идентификация'], active: 0 },
     asks: [['Отказ сейчас или подтверждённые', '19 02 09', '0'], ['Счётчик по той же маске', '19 01 09', '0'],
       ['Ожидающие', '19 02 04', 'не запрашивали'], ['Все записи, с непроверенными', '19 02 FF', 'не запрашивали']],
-    mask: { label: 'МАСКА 09 · БИТЫ СТАТУСА', value: 0x09, result: 'Записей нет' },
+    mask: { value: 0x09, availability: 0xFF, result: 'Записей нет' },
     footer: { buttons: [['‹ Шасси', 'quiet'], ['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09', true]] },
   };
 
@@ -893,7 +903,7 @@
     rows: [
       { name: 'Запрос → ответ', cells: ['712 → 71A', '7F2 → 7FA', '760 → 768', '761 → 769', '7C2 → 7CA', '7D4 → 7DC', '701 → 709'].map(t => cellA(t, { ink: 'dim', size: 13 })) },
       { name: 'Номер ПО · F194', cells: [cellA('48450011DF83000000', { size: 11 }), cellA('474E0011DF70000000', { size: 11 }),
-        ...four('474E0011DF82000000', { size: 11, shared: true, ink: 'blueInk' }), cellA('32330011DF42000000', { size: 11 })] },
+        ...four('474E0011DF82000000', { size: 11, shared: true }), cellA('32330011DF42000000', { size: 11 })] },
       { name: 'Идентификатор BYD', cells: [cellA('ADC_BYD', { size: 12.5 }), cellA('MRR · 3 вар.', { size: 12.5 }),
         ...four('12 вариантов', { size: 12.5, shared: true, ink: 'dim' }), cellA('IPA_BOSCH', { size: 12.5 })] },
       { name: 'Положение', cells: ['—', 'перед', 'ПЛ', 'ПП', 'ЗП', 'ЗЛ', '—'].map(t => cellA(t)) },
@@ -906,37 +916,26 @@
   const scanner = screen => ({ kind: 'scanner', mode: 'full', screen });
 
   // board id -> [board, fixture]; px sizes are the displays' own
-  // The systems down the left (Tesla's service mode): the autoscan first, then one system a tab.
-  // A mark only where codes are: «ИСТ n» history, «АКТ n» active.
-  const sysRail = active => ({ active, items: [
-    { name: 'Автоскан', mark: ['68/68', 'faint'] }, '|',
-    { name: 'ВВ-система' }, { name: 'Тяговая батарея' }, { name: 'Электропривод' }, { name: 'Двигатель' },
-    { name: 'Шасси', mark: ['ИСТ 4', 'ink4'] }, { name: 'Безопасность' }, { name: 'Ассистенты' },
-    { name: 'Кузов', mark: ['ИСТ 10', 'ink4'] }, { name: 'Салон', mark: ['ИСТ 4', 'ink4'] }, { name: 'Климат' }, { name: 'Сеть 12 В' },
-  ] });
-  const sysTop = (crumb, time, car) => scanTop([crumb], time, car);
-
-  const scannerSysScan = Object.assign({}, autoscan, {
-    top: sysTop('Автоскан', '19:31:29'),
-    rail: sysRail('Автоскан'),
-    block: { title: 'Автоскан', aside: '· 68 блоков', line: 'опрос 19:31 · маска DTC 09',
-      counters: [['ОТВЕТИЛО', '68/68'], ['DTC АКТ.', '0'], ['DTC ИСТ.', '18'], ['ПРОЧИТАНО', '68/68']] },
-    tabs: { items: ['Список', 'Топология'], active: 0 },
-    footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']] },
-  });
-
-  const scannerSysTopology = Object.assign({}, scannerSysScan, {
-    tabs: { items: ['Список', 'Топология'], active: 1 },
-    footer: { buttons: [['Опросить снова', 'primary']], legendGap: 16,
-      legend: [['ok', 'OK'], ['hist', 'DTC в истории'], ['unread', 'ответил, ошибки не читали'], ['none', 'адрес не найден']] },
-  });
+  // The systems down the left (Tesla's service mode): «Сводка» and «Блоки» first, then one system a
+  // tab, «Журнал» last (v4, 2026-10-23).
+  // «Блоки» says how many there are; the others their records of the last scan by kind - the parked
+  // scan of 2026-10-20: history only, 18 in six blocks
+  const RAIL_RECORDS = { 'Сводка': { history: 18 }, 'Шасси': { history: 4 }, 'Кузов': { history: 10 }, 'Салон': { history: 4 } };
+  const sysRail = (active, records) => {
+    const r = name => Object.assign({ name }, (records || RAIL_RECORDS)[name] || {});
+    return { active, items: [r('Сводка'), { name: 'Блоки', count: 68 }, '|',
+      r('ВВ-система'), r('Тяговая батарея'), r('Электропривод'), r('Двигатель'), r('Шасси'), r('Безопасность'), r('Ассистенты'),
+      r('Кузов'), r('Салон'), r('Климат'), r('Сеть 12 В'), '|', r('Журнал')] };
+  };
+  const sysTop = (crumb, ...rest) => scanTop([crumb], ...rest);
 
   // The engine's page: one head on every tab. «Состояние» and «Потоковые данные» are the
   // illustrative warm idle; «DTC и готовность» is ECM as read 2026-10-20.
-  const engineTop = sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает');
+  const engineTop = sysTop('Двигатель', '15:51:02', 'P · ДВС работает', '14,1');
   const engineBlock = { title: 'Двигатель', aside: '· ECM 7E0 · UAES', line: '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · опрос 4 Гц',
     counters: [['ОБОРОТЫ', '1 250'], ['MIL', 'ВЫКЛ'], ['ГОТОВН.', '4/9']] };
-  const engineTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'DTC и готовность', 'Блоки'], active });
+  const engineTabs = (active, view) => Object.assign({ items: ['Состояние', 'Потоковые данные', 'DTC и готовность', 'Блоки'], active },
+    active === 1 ? { right: { items: ['Таблица', 'Графики'], active: view || 0 } } : {});
   const scannerSysEngine = {
     top: engineTop, rail: sysRail('Двигатель'), block: engineBlock, tabs: engineTabs(1),
     rows: scannerEcuLive.rows,
@@ -955,7 +954,7 @@
     rail: sysRail('Кузов'),
     block: { title: 'Кузов', aside: '· 19 блоков', line: 'LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · ' +
       'радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724',
-      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '19/19']] },
+      counters: [['ЗАПИСИ', '10', 'hist']] },
     tabs: { items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active: 2 },
     codes: [
       bodyCode('LA_BCM', '720', 'C1160-06', '06', 'Отказ по алгоритму', 'Шасси · код производителя (C1xxx)'),
@@ -975,8 +974,10 @@
   // The systems' «Состояние» as schemes, the parked snapshot of 2026-10-20 (sweep and autoscan).
   const u = (abbr, req, short, kind, history) => ({ abbr, req, short, kind: kind || 'ok', history });
   // «Потоковые данные» after «Состояние» wherever the system has readings to stream (the cabin has none)
-  const sysTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active });
-  const drivesTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active });
+  // on «Потоковые данные» the switch between the table and the graphs at the tabs' right end
+  const VIEW = { items: ['Таблица', 'Графики'], active: 0 };
+  const sysTabs = active => Object.assign({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active }, active === 1 ? { right: VIEW } : {});
+  const drivesTabs = active => Object.assign({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active }, active === 1 ? { right: VIEW } : {});
   // a plate's rows under its label, and a row in the first row's style or a smaller one under it
   const P = (label, rows) => [[label, 'counterLabel', 'mute'], ...rows];
   const st = (t, ink) => [t, 'cell', ink || 'white'], sm = (t, ink) => [t, 'cellSmall', ink || 'dim'];
@@ -987,7 +988,7 @@
   const scannerSysChassis = {
     top: sysTop('Шасси', '19:31:29'), rail: sysRail('Шасси'),
     block: { title: 'Шасси', aside: '· 6 блоков', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007',
-      counters: [['ДАВЛЕНИЕ', '2,60–2,72'], ['DTC', '4'], ['ПРОЧИТАНО', '6/6']] },
+      counters: [['ДАВЛЕНИЕ', '2,60–2,72 бар'], ['ЗАПИСИ', '4', 'hist']] },
     tabs: sysTabs(0),
     tyres: [
       { side: 'L', axle: 'F', label: 'ШИНА ПЛ', pressure: '2,72', temp: '19 °C', states: tyreStates },
@@ -1040,7 +1041,7 @@
   // the left pad charges, the front fridge cools to 0 °C; the parked board is the sweep of 2026-10-20.
   const cabinBlock = { title: 'Салон', aside: '· 18 блоков', line: 'приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · ' +
     'сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790',
-    counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '4'], ['ПРОЧИТАНО', '18/18']] };
+    counters: [['ЗАПИСИ', '4', 'hist']] };
   const scannerSysCabin = {
     top: sysTop('Салон', '19:31:29'), rail: sysRail('Салон'), block: cabinBlock, tabs: { items: ['Состояние', 'DTC', 'Блоки'], active: 0 },
     seats: {
@@ -1089,7 +1090,7 @@
   const scannerSysAdas = {
     top: sysTop('Ассистенты', '19:31:29'), rail: sysRail('Ассистенты'),
     block: { title: 'Ассистенты', aside: '· 7 блоков', line: 'ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701',
-      counters: [['DTC', '0'], ['ПРОЧИТАНО', '7/7']] },
+      counters: [] },
     tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
     units: {
       mrr: u('MRR', '7F2', 'Радар передний'), fl: u('LFCR', '760', 'Угловой ПЛ'), fr: u('RFCR', '761', 'Угловой ПП'),
@@ -1101,7 +1102,7 @@
     top: sysTop('Электропривод', '19:31:29'), rail: sysRail('Электропривод'),
     block: { title: 'Электропривод', aside: '· 6 блоков', line: 'VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
       // the selector as the sweep of 2026-10-20 read it: P
-      counters: [['СЕЛЕКТОР', 'P'], ['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
+      counters: [['СЕЛЕКТОР', 'P'], ['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В']] },
     tabs: drivesTabs(0),
     units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
@@ -1116,25 +1117,24 @@
   const scannerSysHv = Object.assign({}, hvSchema, {
     top: sysTop('ВВ-система', '19:31:29'), rail: sysRail('ВВ-система'),
     block: Object.assign({}, hvSchema.block, { line: 'BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762',
-      counters: [['ПИТАНИЕ', 'ON'], ['U ВВБ', '553 В'], ['SOC', '74 %'], ['DTC', '0']] }),
+      counters: [['ПИТАНИЕ', 'ON'], ['U ВВБ', '553 В'], ['ТОК', '−4,5 А'], ['ИЗОЛЯЦИЯ', '14,4 МОм']] }),
     charge: { state: 'AC', plugged: true },
     pack: Object.assign({}, hvSchema.pack, { rows: [['U / I', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'], ['Ячейки', '3 333–3 337 мВ'],
       ['Разброс', '4 мВ'], ['Температура', '13…18 °C'], ['Изоляция', '14,4 · 19,7 МОм']] }),
     tabs: sysTabs(0),
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   });
+  // The pack's head on every tab: SOC, the pack's voltage, at rest, the sweep's moment; SOH, the cells'
+  // spread, insulation in MΩ, the probes' spread. «Состояние» of the pack went on 2026-10-23: «Здоровье»
+  // is its first tab.
+  const packBlock = (time, volts, spread, dt) => ({ title: 'Тяговая батарея', aside: '· BMS 7E7 · 166 ячеек · 14 датчиков',
+    line: `SOC 74 % · ${volts} В · покой · обход ${time}`,
+    counters: [['SOH', '99 %'], ['Δ ЯЧЕЕК', spread + ' мВ'], ['ИЗОЛЯЦИЯ', '14,4 МОм'], ['Δ T', dt + ' °C']] });
+  const PACK_HEALTH_BLOCK = packBlock('07:36:12', 545, 5, 6);
   const scannerSysPack = {
     top: sysTop('Тяговая батарея', '19:31:29'), rail: sysRail('Тяговая батарея'),
-    block: { title: 'Тяговая батарея', aside: '· BMS 7E7', line: 'напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039',
-      counters: [['U', '553 В'], ['SOC', '74 %'], ['DTC', '0']] },
-    tabs: { items: ['Состояние', 'Ячейки', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 0 },
-    pack: { soc: 74, socText: '74 %', soh: '99 %', cells: '166 ячеек · 14 датчиков', volts: '553 В', current: '−4,5 А',
-      insulation: [['канал BMC', '14,4 МОм'], ['канал 2', '19,7 МОм']], isoNorm: 'норма ≥ 500 Ом/В · 277 кОм' },
-    ranges: [
-      { head: 'ЯЧЕЙКИ, мВ', value: '3 333–3 337', scale: [3000, 3700], span: [3333, 3337], lo: '3 000', hi: '3 700', note: 'разброс 4 мВ' },
-      { head: 'ТЕМПЕРАТУРА МОДУЛЕЙ, °C', value: '13–18', scale: [-20, 60], span: [13, 18], mark: 14, lo: '−20', hi: '60', note: 'средняя 14' },
-    ],
-    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+    block: packBlock('19:31:29', 553, 4, 5),
+    tabs: { items: ['Здоровье', 'Ячейки', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 0 },
   };
   // the illustrative warm idle of «Потоковые данные», at its places on the air's way
   const pt = (place, label, rows) => ({ place, label, rows });
@@ -1154,7 +1154,7 @@
   const scannerSysClimate = {
     top: sysTop('Климат', '19:31:29'), rail: sysRail('Климат'),
     block: { title: 'Климат', aside: '· 4 блока', line: 'ACC 7B3 · TMIM 7B4 · PTC 766 · AQDM 590 · температуры 1000 · PM2.5 1008',
-      counters: [['САЛОН', '21 °C'], ['УЛИЦА', '12 °C'], ['DTC', '0']] },
+      counters: [['САЛОН', '21 °C'], ['УЛИЦА', '12 °C']] },
     tabs: sysTabs(0),
     outside: { label: 'УЛИЦА', temp: '12 °C', pm: '18' },
     cabin: { label: 'САЛОН', temp: '21 °C', pm: '5', inside: true },
@@ -1166,7 +1166,7 @@
     top: sysTop('Сеть 12 В', '19:31:29'), rail: sysRail('Сеть 12 В'),
     block: { title: 'Сеть 12 В', aside: '· LBMS 762', line: 'DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001',
       // the power mode and the converter's mode as the sweep of 2026-10-20 read them: ON, stepping down
-      counters: [['ПИТАНИЕ', 'ON'], ['12 В', '13,7 В'], ['DTC', '0']] },
+      counters: [['ПИТАНИЕ', 'ON'], ['12 В', '13,7 В']] },
     tabs: sysTabs(0),
     hv: '553 В', lv: '13,7 В', dcdcMode: 'понижение',
     units: { dcdc: u('DCOBC', '7E4', 'DC-DC'), lbms: u('LBMS', '762', 'АКБ 12 В'),
@@ -1183,7 +1183,7 @@
   const scannerSysSafety = {
     top: sysTop('Безопасность', '19:31:29'), rail: sysRail('Безопасность'),
     block: { title: 'Безопасность', aside: '· 4 блока', line: 'SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0',
-      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '0'], ['ПРОЧИТАНО', '4/4']] },
+      counters: [] },
     tabs: sysTabs(0),
     units: { srs: u('SRS', '7F1', 'Подушки'), driverBelt: u('MSRZ', '742', 'Ремень вод.'), passengerBelt: u('MSRF', '713', 'Ремень пасс.'),
       cpd: u('CPD', '5E0', 'Радар детей') },
@@ -1214,7 +1214,7 @@
   const pl = (dev, name, fid, value, unit, min, max, norm, t, out) => Object.assign(live(dev, name, fid, value, unit, min, max, norm, t), { out: !!out });
   const scannerSysPackLive = {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }),
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2, right: VIEW }),
     rows: [
       pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '552', '554', '—', [2, 0.06, 0.1]),
       pl('1009', 'Ток ВВБ', 'C4400018', '−4,5', 'А', '−6,1', '−3,2', '—', [5, 0.22, 0]),
@@ -1228,6 +1228,7 @@
       pl('1014', 'Температура модулей, мин.', '44700010', '13', '°C', '13', '13', '—', [0, 0, 0.05]),
       pl('1014', 'Температура модулей, макс.', '44700020', '18', '°C', '18', '18', '—', [0, 0, 0.05]),
       pl('1014', 'Температура модулей, сред.', '44700038', '14', '°C', '14', '14', '—', [0, 0, 0.05]),
+      // still kΩ: the table is SystemLive's, which reads the raw kΩ (PackLiveTest); MΩ waits on the readings
       pl('1039', 'Изоляция, канал BMC', '43A00018', '14 429', 'кОм', '14 410', '14 450', '≥ 277', [7, 0.08, 0]),
       pl('1039', 'Изоляция, канал 2', '26200010', '19 675', 'кОм', '19 660', '19 690', '≥ 277', [8, 0.08, 0]),
       pl('1009', 'Мощность заряда', '32300018', '2,5', 'кВт', '2,5', '2,5', '—', [0, 0, 0]),
@@ -1408,7 +1409,7 @@
   const paramTabs = { items: ['10 с', '60 с', '5 мин'], active: 1 };
   const num = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const scannerSysEngineRpm = {
-    top: sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает'), rail: sysRail('Двигатель'),
+    top: sysTop('Двигатель', '15:51:02', 'P · ДВС работает', '14,1'), rail: sysRail('Двигатель'),
     block: { title: 'Обороты коленвала', aside: '· PID 0C · RPM', line: '7E0 → 7E8 · Mode 01 · только 0C · 24,1 Гц · обмен 18 мс',
       counters: [['МИН', num(Math.min(...idleRpm.map(p => p[1])))], ['МАКС', num(Math.max(...idleRpm.map(p => p[1])))],
         ['СРЕДН.', num(idleRpm.reduce((a, p) => a + p[1], 0) / idleRpm.length)]] },
@@ -1456,7 +1457,7 @@
   const scannerSysPackCells = {
     top: sysTop('Тяговая батарея', '07:36:12'), rail: sysRail('Тяговая батарея'),
     // the pack's head as on its other tabs, its counters at the sweep's moment
-    block: Object.assign({}, scannerSysPack.block, { counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] }),
+    block: PACK_HEALTH_BLOCK,
     tabs: Object.assign({}, scannerSysPack.tabs, { active: 1 }),
     // the chart: mV from the reference 3 282 (the mean held to a whole millivolt), ±2 steps of 2 mV
     cells: packCells, cellRef: 3282, cellGrid: [-4, -2, 0, 2, 4], cellGridText: ['−4', '−2', '3 282', '+2', '+4'],
@@ -1485,6 +1486,235 @@
     sweep: null, cellsAge: 'пауза · снимок 07:36:12',
     footer: { buttons: [['Продолжить', 'primary']], notes: [['пауза · снимок 07:36:12', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   });
+
+  /*
+   * The scanner as a diagnostician's instrument, concept v4 (architecture 7.3, the owner's decisions of
+   * 2026-10-23): «Сводка», «Блоки», a code, the pack's «Здоровье», «Графики», «Журнал», «Отчёт». The
+   * last scan is the parked scan of 2026-10-20 19:31 (captures/diagnostics-scanner-20261020/
+   * last-scan-1931.json): 68 blocks, 148 exchanges in 19,9 s, the median 18 ms, F194 and each block's
+   * median answer. What only a journal would know - first reads before 20.10, later scans, snapshots,
+   * the update - is illustrative, and one journal serves every board that shows it.
+   */
+  const SCAN = { at: '20.10 19:31', blocks: 68, answered: 68, mask: '09', seconds: '19,9', exchanges: 148, median: 18 };
+  // F194 and the median answer in ms of every block, by request address, as the scan read them
+  const READ_1931 = { '7E0': ['32440011E004000000', 20], '7E2': ['32440011E07E007841', 20], '7E3': ['48370011E075000000', 14], '7E6': ['48370011E0EA000000', 14], '7E7': ['4A520011E00D00047B', 25], '744': ['48370011E086001100', 29], '745': ['48370011E088001100', 21], '7E4': ['48350011E04D000100', 26], '782': ['32330011DF0B000101', 262], '7E5': [null, 9], '783': ['43430011DE6F000000', 19], '7F1': ['54500011E011000012', 20], '712': ['48450011DF83000000', 53], '7F2': ['474E0011DF70000000', 21], '760': ['474E0011DF82000000', 22], '761': ['474E0011DF82000000', 22], '7C2': ['474E0011DF82000000', 20], '7D4': ['474E0011DF82000000', 26], '701': ['32330011DF42000000', 183], '720': [null, 85], '747': [null, 67], '722': [null, 57], '726': [null, 38], '770': ['48330011DF2B000201', 15], '771': ['48330011DF2C000202', 11], '7F3': ['3244001182C7000000', 17], '7F4': ['3244001183C8002000', 20], '7F5': ['3244001183C8002000', 23], '7F6': ['3244001183C8002000', 21], '7F7': ['3244001183C8002000', 22], '723': ['4B450011E0250037B1', 16], '751': ['5A4A0011DE4A000000', 20], '733': ['47370011DE06000000', 146], '711': ['4D540011DE1E000000', 16], '741': ['4B450011E0930034E2', 14], '5E7': ['4B450011DF990042E2', 12], '7B0': ['48330011DE80000103', 14], '790': ['4B580011AD01990000', 23], '5E0': ['52420011DF9E000000', 19], '7B3': ['48440012AD14004501', 15], '7B4': ['344E0011E001620101', 22], '766': ['59340011E015000000', 17], '762': [null, 29], '743': ['48370011E002066441', 80], '724': ['4A440011DF01510001', 22], '725': ['48490011DF1D000000', 18], '713': ['48430011AD30000202', 22], '742': ['48430011AD1A000201', 22], '750': ['4B310011DF016A0001', 24], '7B5': ['4B310011DF016B0001', 29], '7D2': ['4B310011DF016C0001', 28], '754': ['48490011AD0C000004', 19], '7A7': ['48490011DF55000100', 14], '7C6': ['48580011DF02220000', 27], '7D6': ['484900118C0A001000', 25], '582': ['484B0011DF02030100', 14], '796': ['484B0011DF02020100', 16], '590': ['4A440011DE014A0101', 9], '595': ['48490011A401162104', 19], '597': ['4B4D0011DE01140600', 25], '5A0': ['4A500011DE01130000', 15], '5A7': ['48490011DF01050000', 12], '5B0': ['48490011DF01040000', 9], '5B1': ['48490011DF01030000', 15], '5B2': ['48490011DF01020000', 16], '5E4': ['514A0011DE7B000000', 19], '5F4': ['48580011DF01750000', 11], '772': ['48330011DEE3000000', 11] };
+  // the catalog's groups, every block with what the scan read: F194 (null where it gives none) and ms
+  const BLOCK_GROUPS = autoscan.groups.map(g => Object.assign({}, g, { ecus: g.ecus.map(e => Object.assign({}, e, { f194: READ_1931[e.req][0], ms: READ_1931[e.req][1] })) }));
+
+  // The records of the scan by system and block, as «Сводка» shows them: a code, its failure type in
+  // words, its meaning where SAE or the catalog gives one, its status byte - 08 masked by 09, IDC's
+  // 28 by its own 29. since: the day the journal first read the block's records.
+  const rec = (code, type, meaning, status) => ({ code, type, meaning: meaning || null, status: status == null ? 0x08 : status });
+  const recordsOf = (idcStatus, rzcuStatus) => [
+    { name: 'Шасси', blocks: [
+      { abbr: 'IDC', addr: '597', name: 'Контроллер движения кузова', since: '20.10', codes: [
+        rec('C1E20-49', 'внутренний электронный отказ', null, 0x28), rec('C12D0-1C', 'напряжение вне диапазона', null, 0x28),
+        rec('C12D0-1D', 'ток вне диапазона', null, 0x28), rec('C3200-7B', 'низкий уровень жидкости', null, idcStatus || 0x28)] }] },
+    { name: 'Кузов', blocks: [
+      { abbr: 'LA_BCM', addr: '720', name: 'Кузовной контроллер левый', since: '18.10', codes: [
+        rec('C1160-06', 'отказ по алгоритму'), rec('U029D-87', 'нет сообщения'), rec('U0121-87', 'нет сообщения', 'нет связи с ABS'),
+        rec('B2148-02', 'общий отказ сигнала'), rec('B2250-00', 'подтип не указан'), rec('B225B-00', 'подтип не указан'),
+        rec('U0229-87', 'нет сообщения'), rec('U022A-87', 'нет сообщения')] },
+      { abbr: 'R_ZCU', addr: '747', name: 'Кузов, зона справа', since: '20.10', codes: [
+        rec('C1170-09', 'отказ компонента'), rec('B130E-01', 'общий электрический отказ', null, rzcuStatus)] }] },
+    { name: 'Салон', blocks: [
+      { abbr: 'INS', addr: '723', name: 'Комбинация приборов', since: '20.10', codes: [rec('B23D9-02', 'общий отказ сигнала'), rec('U0266-87', 'нет сообщения')] },
+      { abbr: 'Media', addr: '741', name: 'Головное устройство (MCU)', since: '20.10', codes: [rec('B1AC8-00', 'подтип не указан')] },
+      { abbr: 'CCS/SCPA', addr: '7A7', name: 'Панель селектора передач', since: '20.10', codes: [rec('P230E-07', 'механический отказ')] }] },
+  ];
+  // the four values on «Сводка»: 12 V, insulation (channel BMS), the cells' spread, SOH
+  const vitals = volts => [{ key: '12 В', value: volts || '13,7', unit: 'В', out: !!volts }, { key: 'ИЗОЛЯЦИЯ', value: '14,4', unit: 'МОм' },
+    { key: 'Δ ЯЧЕЕК', value: '4', unit: 'мВ' }, { key: 'SOH', value: '99', unit: '%' }];
+  const scanFooter = { buttons: [['Опросить снова', 'primary'], ['Сравнить с прошлым', 'quiet'], ['Отчёт', 'quiet']],
+    notes: [['148 обменов · медиана 18 мс · снимок 19:31:29', true]] };
+  const scannerSummary = {
+    top: sysTop('Сводка', '19:31:29'), rail: sysRail('Сводка'), scan: SCAN, vitals: vitals(), systems: recordsOf(), footer: scanFooter,
+  };
+  // the same scan with one record now and one pending, illustrative: IDC's fluid level failing now
+  // (TF and CDTC, 0x09), R_ZCU's B130E failed this cycle, not yet confirmed (PDTC, 0x04); 12 V low
+  const scannerSummaryActive = {
+    top: sysTop('Сводка', '19:31:29', 'P', '11,9', true),
+    rail: sysRail('Сводка', { 'Сводка': { active: 1, pending: 1, history: 16 }, 'Шасси': { active: 1, history: 3 },
+      'Кузов': { pending: 1, history: 9 }, 'Салон': { history: 4 } }),
+    scan: SCAN, vitals: vitals('11,9'), systems: recordsOf(0x09, 0x04), footer: scanFooter,
+  };
+  const scannerBlocks = {
+    top: sysTop('Блоки', '19:31:29'), rail: sysRail('Блоки'), scan: SCAN, groups: BLOCK_GROUPS, filter: 0,
+    footer: { buttons: [['Опросить снова', 'primary'], ['Отчёт', 'quiet']], notes: [['порядок: записи, затем система', true]] },
+  };
+
+  // The journal's moments (illustrative but for the scan of 20.10 19:31): two blocks read alone before
+  // the first scan - LA_BCM on 18.10, R_ZCU at 15:42 on 20.10 (scanner-body-dtc) - then seven scans
+  // asked for; the cells' snapshot the journal keeps from the first whole sweep while the pack's page
+  // is open; one update of the BMS.
+  const DAYS = ['18.10', '19.10', '20.10', '21.10', '22.10', '23.10'];
+  const FULL = ['20.10 19:31', '21.10 08:05', '21.10 18:40', '22.10 07:55', '22.10 14:27', '22.10 19:12', '23.10 08:50'];
+  const SCANS = [{ at: '18.10 15:42', kind: 'block' }, { at: '20.10 15:42', kind: 'block' }, ...FULL.map(at => ({ at, kind: 'full' }))];
+  const CELL_SHOTS = [['18.10 16:02', 81, 4], ['20.10 15:50', 78, 4], ['20.10 19:35', 74, 4], ['21.10 08:10', 72, 5], ['21.10 18:44', 96, 11],
+    ['22.10 07:58', 69, 4], ['22.10 14:30', 64, 5], ['22.10 23:40', 97, 12], ['23.10 07:36', 74, 5]].map(([at, soc, spread]) => ({ at, soc, spread }));
+
+  // U0121-87 opened from «Сводка» and read again on 23.10 at 09:12, illustrative: the status, the
+  // reads and the block it names are the scan's; the snapshot and the counters a read of 19 04 / 19 06
+  // would bring.
+  const LA_BCM_READS = ['18.10 15:42', ...FULL, '23.10 09:12'];
+  const scannerCode = {
+    top: scanTop(['Сводка', 'U0121-87'], '09:12:40'),
+    code: 'U0121-87', block: { abbr: 'LA_BCM', addr: '720', name: 'Кузовной контроллер левый' },
+    sae: { standard: 'SAE J2012', parts: ['U — сеть', '0121 — связь с ABS', '87 — нет сообщения'] },
+    meaning: { title: 'Нет связи с блоком ABS', note: 'ABS в этой машине — ESP/IPB 782' },
+    status: 0x08, availability: 0x09,
+    reads: [{ ask: '19 01 09', answer: '59 01 09 00 00 08' },
+      { ask: '19 02 09', answer: '59 02 09 51 60 06 08 C2 9D 87 08 C1 21 87 08 A1 48 02 08 A2 50 00 08 A2 5B 00 08 C2 29 87 08 C2 2A 87 08' }],
+    addressee: { label: 'ABS', abbr: 'ESP/IPB', addr: '782', name: 'Тормозная система, стабилизация', answers: true, records: 0, ms: 262 },
+    same: [{ code: 'U029D-87', block: 'LA_BCM', addr: '720', since: '18.10' }, { code: 'U0229-87', block: 'LA_BCM', addr: '720', since: '18.10' },
+      { code: 'U022A-87', block: 'LA_BCM', addr: '720', since: '18.10' }, { code: 'U0266-87', block: 'INS', addr: '723', since: '20.10' }],
+    // the scans that read the block, and those of them that saw the code
+    timeline: { days: DAYS, scans: LA_BCM_READS, seen: LA_BCM_READS },
+    snapshot: { record: '01', rows: [['Пробег', '12 874 км'], ['Напряжение 12 В', '11,6 В', true], ['Скорость', '0 км/ч'],
+      ['Режим питания', 'OFF → ON'], ['Дата и время', '14.10 07:58']] },
+    counts: { rows: [['случаев', '3'], ['циклов без отказа', '12']] },
+    footer: { buttons: [['‹ Сводка', 'quiet'], ['Блок LA_BCM', 'quiet'], ['Прочитать снова', 'primary']], notes: [['скан 23.10 09:12:40', true]] },
+  };
+  // C1170-09 of R_ZCU: a maker's code with no meaning in the catalog - only its failure type says
+  // what it is - and no block it names; 19 04 and 19 06 answered with the code and its status and no
+  // record, the way the BMS answered 19 04 on 2026-10-21
+  const R_ZCU_READS = ['20.10 15:42', ...FULL];
+  const scannerCodePlain = {
+    top: scanTop(['Сводка', 'C1170-09'], '08:51:06'),
+    code: 'C1170-09', block: { abbr: 'R_ZCU', addr: '747', name: 'Кузов, зона справа' },
+    sae: { standard: 'SAE J2012', parts: ['C — шасси', '1170 — код производителя', '09 — отказ компонента'] },
+    meaning: { title: 'Отказ компонента', note: 'Шасси · код производителя (C1xxx)' },
+    status: 0x08, availability: 0x09,
+    reads: [{ ask: '19 01 09', answer: '59 01 09 00 00 02' }, { ask: '19 02 09', answer: '59 02 09 51 70 09 08 93 0E 01 08' }],
+    addressee: null, same: [],
+    timeline: { days: DAYS, scans: R_ZCU_READS, seen: R_ZCU_READS },
+    snapshot: { ask: '19 04 51 70 09 01', answer: '59 04 51 70 09 08' },
+    counts: { ask: '19 06 51 70 09 FF', answer: '59 06 51 70 09 08' },
+    footer: { buttons: [['‹ Сводка', 'quiet'], ['Блок R_ZCU', 'quiet'], ['Прочитать снова', 'primary']], notes: [['скан 23.10 08:50:31', true]] },
+  };
+
+  // «Тяговая батарея · Здоровье» on 23.10 at 07:36, the sweep of «Ячейки» (live as there): now, the
+  // reference - the norm, or «обычно» this car's p10-p90 over the journal's 30 days from five values -
+  // and the 30 days. Spread at rest from the snapshots below 95 %, at a full charge from those at 95 %
+  // and above (two: no «обычно» yet), the weakest cell the most often lowest; insulation in MΩ.
+  const shots = CELL_SHOTS, rest = shots.filter(s => s.soc < 95), full = shots.filter(s => s.soc >= 95);
+  const healthRows = first => [
+    { name: 'Состояние, SOH', sub: 'по BMS', value: '99', unit: '%', norm: '≥ 80 %', trend: first ? null : { values: FULL.map(() => 99), scale: [80, 100] } },
+    { name: 'Разброс ячеек', sub: 'в покое · SOC 74 %', value: '5', unit: 'мВ', usual: first ? null : '4–5',
+      trend: first ? null : { values: rest.map(s => s.spread), scale: [0, 20], points: true } },
+    first ? { name: 'Разброс ячеек', sub: 'при полном заряде · снимков нет', value: '—', unit: 'мВ' }
+      : { name: 'Разброс ячеек', sub: 'при полном заряде · ' + full[full.length - 1].at, value: String(full[full.length - 1].spread), unit: 'мВ',
+        trend: { values: full.map(s => s.spread), scale: [0, 20], points: true } },
+    first ? { name: 'Слабейшая ячейка', sub: 'минимальная в этом обходе', value: '№ 9', unit: '' }
+      : { name: 'Слабейшая ячейка', sub: 'чаще всех минимальная', value: '№ 9', unit: '', note: `7 из ${shots.length} снимков` },
+    { name: 'Изоляция', sub: 'канал BMS', value: '14,4', unit: 'МОм', norm: '≥ 0,28',
+      trend: first ? null : { values: [14.4, 14.4, 14.3, 14.5, 14.4, 14.2, 14.4], scale: [0, 20] } },
+    { name: 'Изоляция', sub: 'канал 2', value: '19,7', unit: 'МОм', norm: '≥ 0,28',
+      trend: first ? null : { values: [19.7, 19.6, 19.7, 19.8, 19.7, 19.7, 19.5], scale: [0, 25] } },
+    { name: 'Температуры', sub: '14 датчиков', value: '10…16', unit: '°C', usual: first ? null : 'Δ 4–7' },
+    { name: 'Флаги GB/T 32960', sub: 'общие тревоги', value: '0', unit: 'из 14' },
+    { name: 'Записи BMS', sub: '19 02 09', value: '0', unit: '' },
+  ];
+  const healthFooter = { buttons: [['Обновить', 'primary'], ['Отчёт о батарее', 'quiet']],
+    notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] };
+  const scannerSysPackHealth = {
+    top: sysTop('Тяговая батарея', '07:36:12'), rail: sysRail('Тяговая батарея'), block: PACK_HEALTH_BLOCK, tabs: scannerSysPack.tabs,
+    rows: healthRows(false), cells: packCells, cellRef: 3282, sweep: 34 / 56, probes: packProbes, footer: healthFooter,
+  };
+  // the first scan: no journal - «30 ДНЕЙ» and «обычно» empty, no snapshot at a full charge
+  const scannerSysPackHealthFirst = Object.assign({}, scannerSysPackHealth, { rows: healthRows(true) });
+
+  // «Потоковые данные · Графики»: four PIDs on one 60 s axis, one request at 8,3 Hz, the cursor at
+  // −37,7 s on the throttle's blip - the warm idle of the engine's other boards, illustrative.
+  const engineGraphs = (() => {
+    const hz = 8.3, n = Math.floor(60 * hz) + 1, out = [[], [], [], []];
+    for (let i = 0; i < n; i++) {
+      const t = 60 - i / hz, k = i * 24 / hz;
+      const blip = t > 30 && t < 38 ? 890 * Math.exp(-(38 - t) * 0.55) * Math.min(1, (38 - t) * 3) : 0;
+      const rpm = 1250 + 18 * Math.sin(k * 0.21) + 9 * Math.sin(k * 0.77 + 1) + 6 * Math.sin(k * 2.3) + blip;
+      let tps;
+      if (t > 38.35) tps = 6.3 + 0.08 * Math.sin(i * 1.7);
+      else if (t > 38.1) tps = 6.3 + (38.35 - t) / 0.25 * 11.7;
+      else if (t > 37.45) tps = 18.0 + 0.1 * Math.sin(i);
+      else if (t > 37.2) tps = 18.0 - (37.45 - t) / 0.25 * 12.9;
+      else if (t > 35.0) tps = 6.3 - 1.2 * Math.exp(-(37.2 - t) * 2.2);
+      else tps = 6.3 + 0.08 * Math.sin(i * 1.7);
+      const map = 38 + 1.2 * Math.sin(k * 0.33) + 0.8 * Math.sin(k * 1.9) + 26 * Math.exp(-(((t - 37.85) / 0.42) ** 2)) - 7.5 * Math.exp(-(((t - 36.7) / 0.55) ** 2));
+      const ft = 1.0 + 3.2 * Math.sin(2 * Math.PI * t / 1.7) + 0.6 * Math.sin(k * 1.3) - 5.2 * Math.exp(-(((t - 36.3) / 0.8) ** 2));
+      [rpm, tps, map, Math.max(-4.7, Math.min(5.5, ft))].forEach((v, j) => out[j].push(+v.toFixed(2)));
+    }
+    return out;
+  })();
+  const scannerSysEngineGraphs = {
+    top: sysTop('Двигатель', '15:51:02', 'P · ДВС работает', '14,1'), rail: sysRail('Двигатель'),
+    block: Object.assign({}, engineBlock, { line: '7E0 → 7E8 · Mode 01 · 4 PID одним запросом · 8,3 Гц' }),
+    tabs: engineTabs(1, 1),
+    // a lane's scale: never narrower than its norm (a band) or its resolution × 20
+    signals: [
+      { name: 'Обороты коленвала', pid: '0C', abbr: 'RPM', unit: 'об/мин', scale: [1000, 2200], decimals: 0, values: engineGraphs[0] },
+      { name: 'Положение дросселя', pid: '11', abbr: 'TPS', unit: '%', scale: [0, 20], decimals: 1, values: engineGraphs[1] },
+      { name: 'Давление во впуске', pid: '0B', abbr: 'MAP', unit: 'кПа', scale: [20, 70], norm: [25, 45], decimals: 0, values: engineGraphs[2] },
+      { name: 'Краткоср. коррекция B1', pid: '06', abbr: 'STFT', unit: '%', scale: [-15, 15], norm: [-10, 10], decimals: 1, scaleDecimals: 0, signed: true, values: engineGraphs[3] },
+    ],
+    window: 60, cursor: 37.7,
+    footer: { buttons: [['Пауза', 'primary'], ['Метка', 'quiet'], ['Запись', 'quiet', 'rec'], ['Сигналы · 4', 'quiet']],
+      notes: [['окно 60 с · 499 точек на сигнал', true]] },
+  };
+
+  // «Журнал»: the scans asked for, the updates and the cells' snapshots of 18.10-23.10; every code
+  // from its first read; 12 V by scan and the cells' spread at a full charge by snapshot; the first
+  // and the last scan compared. Illustrative but for 20.10 19:31.
+  const V12 = [13.7, 13.6, 13.7, 13.5, 13.7, 13.6, 13.6];
+  const codeLane = (block, addr, count, seen) => ({ block, addr, count, seen });
+  const scannerJournal = {
+    top: sysTop('Журнал', '08:50:31'), rail: sysRail('Журнал'),
+    block: { title: 'Журнал', aside: '· 18.10 — 23.10', line: '9 сканов · 9 снимков ячеек · 1 обновление ПО', counters: [['ПО ИЗМЕНЕНО', '1']] },
+    tabs: { items: ['Хронология', 'Сравнение', 'Записи'], active: 0 },
+    days: DAYS, scans: SCANS, software: [{ at: '22.10 03:10', block: 'BMS', from: '3.48.06', to: '3.48.07' }], cellShots: CELL_SHOTS,
+    codes: [codeLane('LA_BCM', '720', 8, ['18.10 15:42', ...FULL]), codeLane('R_ZCU', '747', 2, R_ZCU_READS), codeLane('IDC', '597', 4, FULL),
+      codeLane('INS', '723', 2, FULL), codeLane('Media', '741', 1, FULL), codeLane('CCS/SCPA', '7A7', 1, FULL)],
+    values: { lv: { name: '12 В', scale: [12.5, 14.5], points: FULL.map((at, i) => [at, V12[i]]) },
+      full: { name: 'Δ ячеек, полный заряд', points: full.map(s => [s.at, s.spread]) } },
+    compare: { from: '20.10 19:31', to: '23.10 08:50', codes: [['новые', 0], ['ушли', 0], ['без изменений', 18]],
+      software: [{ block: 'BMS 7E7', from: '3.48.06', to: '3.48.07' }],
+      values: [['12 В', '13,7', '13,6', 'В'], ['Δ ячеек, покой', '4', '5', 'мВ'], ['Изоляция', '14,4', '14,2', 'МОм'], ['SOH', '99', '99', '%']] },
+    footer: { buttons: [['Выбрать сканы', 'primary'], ['Экспорт журнала', 'quiet']] },
+  };
+  // one scan: the journal's first page, nothing to compare
+  const scannerJournalFirst = Object.assign({}, scannerJournal, {
+    top: sysTop('Журнал', '19:31:29'),
+    block: { title: 'Журнал', aside: '· 20.10', line: '1 скан', counters: [] },
+    days: ['20.10'], scans: [{ at: '20.10 19:31', kind: 'full' }], software: [], cellShots: [],
+    codes: scannerJournal.codes.map(k => Object.assign({}, k, { seen: ['20.10 19:31'] })),
+    values: { lv: { name: '12 В', scale: [12.5, 14.5], points: [['20.10 19:31', 13.7]] }, full: { name: 'Δ ячеек, полный заряд', points: [] } },
+    compare: { from: null, to: '20.10 19:31', codes: [['в истории', 18]], software: [],
+      values: [['12 В', null, '13,7', 'В'], ['Δ ячеек, покой', null, '4', 'мВ'], ['Изоляция', null, '14,4', 'МОм'], ['SOH', null, '99', '%']] },
+    footer: { buttons: [['Экспорт журнала', 'quiet']] },
+  });
+
+  // «Отчёт» of the scan of 20.10 19:31: no QR and no choice of where - «Сохранить в Загрузки» puts a
+  // PDF for people and a JSON of the raw answers into Download/Denza. The page is the PDF's first.
+  const flatBlocks = BLOCK_GROUPS.flatMap(g => g.ecus);
+  const scannerReport = {
+    top: scanTop(['Отчёт'], '19:31:29'),
+    line: 'скан 20.10 19:31 · 13 199,7 км · 68 блоков · 3 страницы',
+    include: [{ name: 'Коды и статусы', detail: '18 записей · 6 блоков', on: true }, { name: 'Блоки и номера ПО', detail: '68', on: true },
+      { name: 'Тяговая батарея', detail: 'SOH · ячейки · изоляция · датчики', on: true }, { name: 'Двигатель', detail: 'MIL · готовность · калибровка', on: true },
+      { name: 'Сырые ответы', detail: '148 обменов', on: true }, { name: 'Запись потока', detail: '00:42 · 4 сигнала', on: false }],
+    dest: { path: 'Download/Denza/scan-20261020-1931.pdf · .json', note: 'PDF — для людей · JSON — сырые ответы', size: '2 файла · 0,3 МБ' },
+    paper: {
+      by: 'Denza Apps · сканер', car: 'Denza Z9 GT DM · VIN — · пробег 13 199,7 км', when: '20.10.2026 19:31 · P · 12 В 13,7 В',
+      sections: [
+        { head: 'ИТОГ', lines: ['68 из 68 блоков ответили · активных 0 · в истории 18 записей в 6 блоках'] },
+        { head: 'КОДЫ', codes: [recordsOf()[1].blocks[0], recordsOf()[1].blocks[1], recordsOf()[0].blocks[0], ...recordsOf()[2].blocks] },
+        { head: 'ТЯГОВАЯ БАТАРЕЯ', lines: ['SOH 99 % · разброс ячеек 4 мВ (SOC 74 %) · изоляция 14,4 / 19,7 МОм · датчики 13…18 °C'] },
+        { head: 'ДВИГАТЕЛЬ', lines: ['MIL выкл · готовность 4 из 9 · ПО 4.00.10 · калибровка Z31L07AB01'] },
+        { head: 'БЛОКИ И НОМЕРА ПО · 68', blocks: flatBlocks.slice(0, 7), more: flatBlocks.length - 7 },
+      ],
+      foot: 'Запросы: 22 F194 · 19 01 09 · 19 02 09 · OBD 01/03/07/09/0A — 148 обменов за 19,9 с. Стр. 1 из 3',
+    },
+    footer: { buttons: [['Отмена', 'quiet'], ['Сохранить в Загрузки', 'primary']], notes: [['22 F194 · 19 01/02 · OBD 01/03/07/09/0A', true]] },
+  };
 
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -1560,8 +1790,17 @@
     'sheet-hud-yandexhud-alone': [{ kind: 'sheet', mode: 'full' }, sheets.hudYandexHudAlone],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
-    'scanner-sys-scan':  [scanner('sysScan'), scannerSysScan],
-    'scanner-sys-topology': [scanner('sysTopology'), scannerSysTopology],
+    'scanner-summary':  [scanner('summary'), scannerSummary],
+    'scanner-summary-active': [scanner('summary'), scannerSummaryActive],
+    'scanner-blocks':   [scanner('modules'), scannerBlocks],
+    'scanner-code':     [scanner('codeScreen'), scannerCode],
+    'scanner-code-plain': [scanner('codeScreen'), scannerCodePlain],
+    'scanner-sys-pack-health': [scanner('packHealth'), scannerSysPackHealth],
+    'scanner-sys-pack-health-first': [scanner('packHealth'), scannerSysPackHealthFirst],
+    'scanner-sys-engine-graphs': [scanner('sysGraphs'), scannerSysEngineGraphs],
+    'scanner-journal':  [scanner('journal'), scannerJournal],
+    'scanner-journal-first': [scanner('journal'), scannerJournalFirst],
+    'scanner-report':   [scanner('report'), scannerReport],
     'scanner-sys-engine': [scanner('sysLive'), scannerSysEngine],
     'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],
     'scanner-sys-chassis': [scanner('sysChassis'), scannerSysChassis],
@@ -1572,7 +1811,6 @@
     'scanner-sys-safety': [scanner('sysSafety'), scannerSysSafety],
     'scanner-sys-safety-trip': [scanner('sysSafety'), scannerSysSafetyTrip],
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
-    'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-pack-cells': [scanner('sysPackCells'), scannerSysPackCells],
     'scanner-sys-pack-cells-partial': [scanner('sysPackCells'), scannerSysPackCellsPartial],
     'scanner-sys-pack-cells-paused': [scanner('sysPackCells'), scannerSysPackCellsPaused],
@@ -1585,7 +1823,7 @@
     'scanner-sys-cabin': [scanner('sysCabin'), scannerSysCabin],
     'scanner-sys-cabin-parked': [scanner('sysCabin'), scannerSysCabinParked],
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
-    'scanner-sys-body-blocks': [scanner('sysBlocks'), scannerSysBodyBlocks],
+    'scanner-sys-body-blocks': [scanner('sysBlocks'), Object.assign({}, scannerSysBodyBlocks, { ecus: BLOCK_GROUPS.find(g => g.id === 'body').ecus })],
     'scanner-sys-pack-live': [scanner('sysStream'), scannerSysPackLive],
     'scanner-sys-hv-live': [scanner('sysStream'), scannerSysHvLive],
     'scanner-sys-drives-live': [scanner('sysStream'), scannerSysDrivesLive],

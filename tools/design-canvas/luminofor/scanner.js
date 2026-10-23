@@ -1,6 +1,7 @@
 /*
- * «Сервис → Диагностика», the scanner - the twelve boards of the owner's canvas «Диагностика ·
- * инженерное меню», page «Сканер (v3)» (approved 2026-10-20), made deterministic.
+ * «Сервис → Диагностика», the scanner - the boards of the owner's canvas «Диагностика · инженерное
+ * меню», pages «Сканер (v3)» (approved 2026-10-20) and «Концепт для диагноста (v4)» (approved
+ * 2026-10-23), made deterministic.
  *
  * The approved page was HTML laid out by a browser; this draws the same page on a canvas from
  * scanner.json (every number: colours, the text styles with their line heights, the chrome, each
@@ -178,28 +179,18 @@
     text(c, str, x + g.pad, top + (g.h - style(sn).lh) / 2, sn, t.ink);
     return w;
   }
-  function button(c, str, x, kind) {
+  // A footer button; icon 'rec' is the recording's red dot before the label.
+  function button(c, str, x, kind, icon) {
     const F = L.footer, b = F.button, top = F.top + 1 + (F.height - 1 - b.h) / 2;
-    const w = measure(c, str, 'button') + 2 * b.pad + 2;
+    const iw = icon ? 2 * L.sign.r + L.rail.mark.gap : 0;
+    const w = measure(c, str, 'button') + 2 * b.pad + 2 + iw;
     const primary = kind === 'primary';
     fill(c, x, top, w, b.h, primary ? 'rgba(67,159,252,0.10)' : 'quiet', b.r);
     edge(c, x, top, w, b.h, primary ? 'rgba(67,159,252,0.55)' : 'quietLine', b.r);
-    text(c, str, x + 1 + b.pad, top + (b.h - style('button').lh) / 2, 'button', primary ? 'blueInk' : 'text');
+    if (icon) sign(c, 'active', x + 1 + b.pad + L.sign.r, top + b.h / 2);
+    text(c, str, x + 1 + b.pad + iw, top + (b.h - style('button').lh) / 2, 'button', primary ? 'blueInk' : 'text');
     return w;
   }
-  const SWATCH = {
-    ok: c => ['tileOk', 'blueEdge'], hist: () => ['tileHist', 'sep'], unread: () => ['tileUnread', 'line3'],
-  };
-  function swatch(c, kind, x, y) {
-    const S = L.footer.legend;
-    if (kind === 'none') { edge(c, x, y, S.w, S.h, 'line4', S.r, [3, 3]); return; }
-    if (kind === 'mech') {
-      c.fillStyle = col('dim2'); c.fillRect(x, y + 2, S.w, 1.4); c.fillRect(x, y + 6.6, S.w, 1.4); return;
-    }
-    const [f, e] = SWATCH[kind](c);
-    fill(c, x, y, S.w, S.h, f, S.r); edge(c, x, y, S.w, S.h, e, S.r);
-  }
-
   function header(c, h) {
     const Hd = L.header, room = Hd.height - 1;
     fill(c, 0, 0, W, Hd.height, 'bar');
@@ -211,30 +202,67 @@
       x += text(c, t, x, (room - style(sn).lh) / 2, sn, now ? 'white' : 'mute') + Hd.gap;
       if (!now) x += text(c, '›', x, (room - style('crumb').lh) / 2, 'crumb', 'sep') + Hd.gap;
     });
-    // the close button, then right to left: the time, the car, the link
+    // the close button, then right to left the car: name · mileage · mode · 12 V · the link's median
+    // exchange after its dot · the time, a «·» between them
     const K = Hd.close, kx = W - Hd.padRight - K.w, ky = (room - K.h) / 2;
     fill(c, kx, ky, K.w, K.h, 'quiet', K.r);
     const ix = kx + (K.w - K.icon) / 2, iy = ky + (K.h - K.icon) / 2, a = K.icon / 8, b = K.icon - a;
     stroke(c, `M${ix + a} ${iy + a}L${ix + b} ${iy + b}M${ix + b} ${iy + a}L${ix + a} ${iy + b}`, 'text', K.stroke, null, 'round');
-    let r = kx - Hd.gap;
-    r -= text(c, h.time, r, (room - style('metaMono').lh) / 2, 'metaMono', 'mute', { align: 'right' }) + Hd.gap;
-    r -= text(c, h.car, r, (room - style('meta').lh) / 2, 'meta', 'mute', { align: 'right' }) + Hd.gap;
-    r -= text(c, h.link, r, (room - style('meta').lh) / 2, 'meta', 'dim', { align: 'right' }) + Hd.dotGap;
-    glow(c, Hd.dotGlow, 'blue', () => fill(c, r - Hd.dot, (room - Hd.dot) / 2, Hd.dot, Hd.dot, 'blue', Hd.dot / 2));
+    const by = base((room - style('meta').lh) / 2, 'meta');
+    const items = [
+      [[h.car, 'meta', 'mute']],
+      h.odo && [[h.odo, 'metaMono', 'dim']],
+      h.mode && [[h.mode, 'meta', 'dim']],
+      h.volts && [['12 В', 'meta', 'mute'], [h.volts, 'metaMono', h.voltsOut ? 'orange' : 'dim']],
+      h.link && [['dot'], [h.link, 'metaMono', 'dim']],
+      [[h.time, 'metaMono', 'mute']],
+    ].filter(Boolean);
+    const partW = p => p[0] === 'dot' ? Hd.dot + Hd.dotGap - Hd.voltsGap : measure(c, p[0], p[1]);
+    const itemW = it => it.reduce((s, p, i) => s + partW(p) + (i ? Hd.voltsGap : 0), 0);
+    const sepW = measure(c, '·', 'meta');
+    let mx = kx - Hd.gap - items.reduce((s, it) => s + itemW(it), 0) - (items.length - 1) * (2 * Hd.metaGap + sepW);
+    items.forEach((it, k) => {
+      if (k) { glyphs(c, '·', mx + Hd.metaGap, by, style('meta'), 'sep'); mx += 2 * Hd.metaGap + sepW; }
+      it.forEach((p, i) => {
+        if (i) mx += Hd.voltsGap;
+        if (p[0] === 'dot') {
+          glow(c, Hd.dotGlow, 'blue', () => fill(c, mx, (room - Hd.dot) / 2, Hd.dot, Hd.dot, 'blue', Hd.dot / 2));
+          mx += Hd.dot + Hd.dotGap - Hd.voltsGap;
+          return;
+        }
+        mx += glyphs(c, p[0], mx, by, style(p[1]), p[2]);
+      });
+    });
   }
 
   // A block's or a system's head: title and its aside over the mono line; counters at the right.
   // A counter is as wide as the block's 112 dp, or as its widest value and a padding's room after
   // it, rounded up to 8 dp.
+  // A counter's value is its figure and, after the last space, its unit when that has no digit in it:
+  // «553 В» is 553 in the figure's style and «В» smaller beside it, «1 250» stays whole.
+  function splitUnit(v) {
+    const i = String(v).lastIndexOf(' ');
+    return i > 0 && !/\d/.test(v.slice(i + 1)) ? [v.slice(0, i), v.slice(i + 1)] : [String(v), ''];
+  }
+  function counterValueW(c, v) {
+    const [n, u] = splitUnit(v);
+    return measure(c, n, 'counterBig') + (u ? L.header.voltsGap + measure(c, u, 'unit') : 0);
+  }
+  // A counter is as wide as the block's 112 dp, or as its widest value - a sign before it, where it
+  // has one - and a padding's room after it, rounded up to 8 dp.
   function counterWidth(c, counters) {
-    const B = L.block, widest = Math.max(0, ...(counters || []).map(([, v]) => measure(c, v, 'counter')));
+    const B = L.block, widest = Math.max(0, ...(counters || []).map(([, v, tone]) => counterValueW(c, v) + (SIGNED[tone] ? signW() : 0)));
     return Math.max(B.counterW, Math.ceil((widest + B.counterPad) / B.counterStep) * B.counterStep);
   }
+  // A counter's tone: 'out' outside its norm (orange), 'on' MIL on (red, with a glow), 'hist' / 'pending'
+  // / 'active' a count of records after its sign.
+  const SIGNED = { hist: 'hist', pending: 'pending', active: 'active' };
+  const signW = () => 2 * L.sign.r + L.rail.mark.gap;
   function blockHead(c, b) {
     const B = L.block, cw = counterWidth(c, b.counters);
-    const lab = style('counterLabel'), val = style('counter');
+    const lab = style('counterLabel'), val = style('counterBig');
     let right = W - 24;
-    if (b.counters) {
+    if (b.counters && b.counters.length) {
       const n = b.counters.length, top = B.top + (B.height - lab.lh - B.counterGap - val.lh) / 2;
       const box = cw + B.counterPad + 1;
       right = W - 24 - n * box;
@@ -242,29 +270,54 @@
         const x = right + i * box;
         vrule(c, x, top, lab.lh + B.counterGap + val.lh);
         text(c, label, x + 1 + B.counterPad, top, 'counterLabel', 'mute');
-        const ink = tone === 'on' ? 'orangeInk' : 'white';
-        const draw = () => text(c, value, x + 1 + B.counterPad, top + lab.lh + B.counterGap, 'counter', ink);
-        if (tone === 'on') glow(c, 10, 'rgba(255,159,25,0.7)', draw);
-        draw();
+        let vx = x + 1 + B.counterPad;
+        const vt = top + lab.lh + B.counterGap, by = base(vt, val);
+        if (SIGNED[tone]) { sign(c, tone, vx + L.sign.r, vt + val.lh / 2); vx += signW(); }
+        const [num, unit] = splitUnit(value);
+        const ink = tone === 'on' ? 'red' : tone === 'out' ? 'orange' : 'white';
+        const draw = () => glyphs(c, num, vx, by, val, ink);
+        if (tone === 'on') glow(c, 10, 'rgba(255,64,70,0.7)', draw);
+        const w = draw();
+        if (unit) glyphs(c, unit, vx + w + L.header.voltsGap, by, style('unit'), tone === 'out' ? 'orange' : 'dim');
       });
-    }
-    if (b.dtc) {
-      // a body block: its history badge, then the DTC count right-aligned
-      const big = style('counterBig'), top = B.top + (B.height - lab.lh - 2 - big.lh) / 2;
-      const wl = Math.max(measure(c, b.dtc[0], lab), measure(c, b.dtc[1], big));
-      text(c, b.dtc[0], W - 24, top, 'counterLabel', 'mute', { align: 'right' });
-      text(c, b.dtc[1], W - 24, top + lab.lh + 2, 'counterBig', 'white', { align: 'right' });
-      right = W - 24 - wl - B.badgeGap;
-      const bw = measure(c, b.badge[1], 'badgeBig') + 2 * L.badge.big.pad;
-      right -= bw;
-      badge(c, b.badge[1], right, B.top + (B.height - L.badge.big.h) / 2, b.badge[0], 'big');
-      right -= B.badgeGap;
     }
     const t = style('title'), ln = style('line');
     const top = B.top + (B.height - t.lh - B.titleGap - ln.lh) / 2;
     const room = right - 24;
-    runs(c, [[b.title + ' ', 'title', 'white'], [b.aside, 'titleAside', 'mute']], 24, base(top, t), room);
+    // the title: a word, or runs - a code is its letters in white and its failure type in grey
+    const title = Array.isArray(b.title) ? b.title : [[b.title, 'title', b.titleInk || 'white']];
+    runs(c, [...title, [' ', 'title', 'white'], [b.aside || '', 'titleAside', 'mute']], 24, base(top, t), room);
     text(c, b.line, 24, top + t.lh + B.titleGap, 'line', 'dim2', { max: room });
+  }
+
+  // The signs of a record's kind, drawn: ● active (red), ◌ pending and ○ in history (orange rings,
+  // the pending one dashed), a dashed square for a block that did not answer. cx, cy: the middle.
+  function sign(c, kind, cx, cy) {
+    const S = L.sign;
+    if (kind === 'active') { dot(c, cx, cy, S.r, 'red'); return; }
+    if (kind === 'none') { const q = S.square; edge(c, cx - q / 2, cy - q / 2, q, q, 'faint', 2, S.dash); return; }
+    const p = new Path2D(); p.arc(cx, cy, S.r - S.stroke / 2, 0, 2 * Math.PI);
+    stroke(c, p, 'orange', S.stroke, kind === 'pending' ? S.dash : null);
+  }
+  // A record's kind from its status byte: TF active, else PDTC pending, else in history.
+  const kindOf = s => (s & 1) ? 'active' : (s & 4) ? 'pending' : 'hist';
+  const RANK = { active: 0, pending: 1, hist: 2 };
+  // The most severe kind of [kinds], or null.
+  const worst = kinds => kinds.reduce((a, k) => a == null || RANK[k] < RANK[a] ? k : a, null);
+  // A chevron in a box of L.chevron at x, y.
+  function chevron(c, x, y) {
+    const ch = L.chevron, k = ch / 24;
+    stroke(c, `M${x + 9 * k} ${y + 5 * k}L${x + 16 * k} ${y + 12 * k}L${x + 9 * k} ${y + 19 * k}`, 'faint', 2 * k, null, 'round');
+  }
+  // Russian counts: 1 запись, 2 записи, 5 записей.
+  function plural(n, one, few, many) {
+    const a = Math.abs(n) % 100, b = a % 10;
+    return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many;
+  }
+  // A code in runs: its letters in [ink], its failure type («-87») in grey.
+  function codeRuns(code, sn, ink, typeSn) {
+    const i = code.indexOf('-');
+    return i < 0 ? [[code, sn, ink]] : [[code.slice(0, i), sn, ink], [code.slice(i), typeSn || sn, 'mute']];
   }
 
   function tabs(c, t) {
@@ -282,26 +335,28 @@
       x += w + N.gap;
     });
     rule(c, 24, N.top + N.height, W - 48);
+    // a view switch at the row's right end: «Таблица | Графики»
+    if (t.right) {
+      const G = L.segmented, y = N.top + (N.height - G.h) / 2;
+      const ws = t.right.items.map(s => measure(c, s, 'segment') + 2 * G.pad);
+      let sx = W - 24 - ws.reduce((a, v) => a + v, 0) - (ws.length - 1) * G.gap;
+      t.right.items.forEach((s, i) => {
+        const on = i === t.right.active;
+        if (on) { fill(c, sx, y, ws[i], G.h, 'quiet', G.r); edge(c, sx, y, ws[i], G.h, 'quietLine', G.r); }
+        text(c, s, sx + G.pad, y + (G.h - style('segment').lh) / 2, 'segment', on ? 'white' : 'mute');
+        sx += ws[i] + G.gap;
+      });
+    }
   }
 
-  // The footer: buttons from the left, then a legend; notes from the right, '|' a divider.
-  // present: the tile kinds the board draws - a legend entry for a kind nobody shows is left out.
-  const TILE_KINDS = ['ok', 'hist', 'unread', 'none'];
-  function footer(c, f, present) {
+  // The footer: buttons from the left; notes from the right, '|' a divider.
+  function footer(c, f) {
     const F = L.footer;
     fill(c, 0, F.top, W, F.height, 'bar');
     rule(c, 0, F.top, W);
     const room = F.height - 1, top0 = F.top + 1;
     let x = 24;
-    (f.buttons || []).forEach(([label, kind]) => { x += button(c, label, x, kind) + F.gap; });
-    const gap = f.legendGap || F.gap;
-    if (f.legend) x += gap - F.gap;
-    (f.legend || []).filter(([kind]) => !present || !TILE_KINDS.includes(kind) || present.has(kind)).forEach(([kind, label]) => {
-      const S = F.legend;
-      swatch(c, kind, x, top0 + (room - S.h) / 2);
-      x += S.w + S.gap;
-      x += text(c, label, x, top0 + (room - style('note').lh) / 2, 'note', 'dim2') + gap;
-    });
+    (f.buttons || []).forEach(([label, kind, icon]) => { x += button(c, label, x, kind, icon) + F.gap; });
     let r = W - 24;
     for (let i = (f.notes || []).length - 1; i >= 0; i--) {
       const n = f.notes[i];
@@ -329,66 +384,20 @@
   const mid = (top, h, sn) => top + (h - style(sn).lh) / 2;
 
   /* ============================================================== screens */
-  const KIND_BADGE = { ok: 'OK', hist: 'ИСТОРИЯ', unread: 'DTC НЕ ЧИТАЛИ', none: 'НЕТ АДРЕСА' };
   const reply = req => req ? req + ' → ' + (parseInt(req, 16) + 8).toString(16).toUpperCase() : '—';
-  const read = e => e.kind === 'ok' || e.kind === 'hist';
-  function groupSummary(g) {
-    const n = k => g.ecus.filter(e => e.kind === k).length;
-    const parts = [g.ecus.length + ' бл.'];
-    if (n('ok') + n('hist')) parts.push('прочитано ' + (n('ok') + n('hist')));
-    if (n('hist')) parts.push('история ' + n('hist'));
-    if (n('unread')) parts.push('DTC не читали ' + n('unread'));
-    if (n('none')) parts.push('нет адреса ' + n('none'));
-    return parts.join(' · ');
-  }
-
-  function scanTable(c, f, colSpec) {
-    const S = L.scan, cols = columns(colSpec, 24, W - 48);
-    const P = S.table.pad, NP = S.table.numPad;
-    headRow(c, cols, ['СИСТЕМА', 'БЛОК', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['DTC АКТ.', 'right', NP], ['DTC ИСТ.', 'right', NP], 'СТАТУС'],
-      S.table.top, S.table.head);
-    const Li = S.list;
-    c.save();
-    c.beginPath(); c.rect(24, Li.top, W - 48, Li.bottom - Li.top); c.clip();
-    let y = Li.top;
-    for (const g of f.groups) {
-      if (y >= Li.bottom) break;
-      const gt = style('groupTitle');
-      const w = text(c, g.title, 24 + P, mid(y, Li.group - 1, 'groupTitle'), 'groupTitle', 'dim');
-      text(c, groupSummary(g), 24 + P + w + Li.groupGap, mid(y, Li.group - 1, 'groupSummary'), 'groupSummary', 'faint2');
-      rule(c, 24, y + Li.group - 1, W - 48);
-      y += Li.group;
-      for (const e of g.ecus) {
-        if (y >= Li.bottom) break;
-        y = scanRow(c, e, cols, y);
-      }
-    }
-    c.restore();
-  }
-
-  // The autoscan's row of one block: name, unit, route, protocol, both counts, the chip, a chevron.
-  function scanRow(c, e, cols, y) {
-    const S = L.scan, P = S.table.pad, NP = S.table.numPad, Li = S.list, h = Li.row;
-    const ink = e.kind === 'none' ? 'faint' : e.kind === 'unread' ? 'ink3' : 'white';
-    text(c, e.name, cols[0][0] + P, mid(y, h, 'cell'), 'cell', ink, { max: cols[0][1] - P });
-    text(c, e.unit, cols[1][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim', { max: cols[1][1] });
-    text(c, reply(e.req), cols[2][0], mid(y, h, 'cellMono'), 'cellMono', 'dim');
-    text(c, e.proto || '—', cols[3][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim');
-    text(c, read(e) ? e.active : '—', cols[4][0] + cols[4][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
-    text(c, read(e) ? e.history : '—', cols[5][0] + cols[5][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
-    badge(c, KIND_BADGE[e.kind], cols[6][0], y + (h - L.badge.h) / 2, e.kind);
-    if (e.opens) {
-      const k = Li.chevron / 24, cx = cols[7][0] + (cols[7][1] - Li.chevron) / 2, cy = y + (h - Li.chevron) / 2;
-      stroke(c, `M${cx + 9 * k} ${cy + 5 * k}L${cx + 16 * k} ${cy + 12 * k}L${cx + 9 * k} ${cy + 19 * k}`, 'faint', 2 * k, null, 'round');
-    }
-    rule(c, 24, y + h, W - 48, 'hair');
-    return y + h + Li.rule;
-  }
+  // A block's records, whatever their kind: numbers or the counts' strings
+  const records = b => ['active', 'pending', 'history'].reduce((a, k) => a + (Number(b[k]) || 0), 0);
+  const blockKind = b => Number(b.active) ? 'active' : Number(b.pending) ? 'pending' : Number(b.history) ? 'hist' : null;
+  // F194 in groups of four: «4B4D 0011 DE01 1406 00»
+  const f194 = s => s ? s.replace(/(.{4})/g, '$1 ').trim() : '—';
+  // A U-code of the type 87: a message lost between blocks
+  const netLoss = code => /^U/.test(code) && /-87$/.test(code);
 
   /* --------------------------------------------- systems down the left */
-  // The section built around the car's systems, as Tesla's service mode is: the systems down the
-  // left, one system a tab, the autoscan of every block first; the rest of the screen is the
-  // chosen one's, its own tabs inside it. A system's mark says only what its look cannot: codes.
+  // The section built around the car's systems: «Сводка» and «Блоки» first, the systems, «Журнал»
+  // last; the rest of the screen is the chosen one's, its own tabs inside it. A mark says only what
+  // the item's look cannot: its records - the count after the sign of the most severe kind - or, on
+  // «Блоки», how many there are. Nothing is written while all is well.
   function rail(c, R) {
     const S = L.rail, top = L.header.height, bottom = L.footer.top;
     fill(c, 0, top, S.w, bottom - top, 'bar');
@@ -397,29 +406,166 @@
     R.items.forEach(it => {
       if (it === '|') { y += S.sepGap; rule(c, S.padX, y, S.w - 2 * S.padX); y += S.sepGap + 1; return; }
       const on = it.name === R.active;
-      if (on) { fill(c, 0, y, S.w - 1, S.item, 'pidFill'); fill(c, 0, y, S.bar, S.item, 'blue'); }
+      if (on) { fill(c, 0, y, S.w - 1, S.item, 'quiet'); fill(c, 0, y, S.bar, S.item, 'blue'); }
       let r = S.w - S.padX;
-      if (it.mark) {
-        const [t, ink] = it.mark;
-        r -= text(c, t, r, mid(y, S.item, 'railMark'), 'railMark', ink, { align: 'right' }) + 8;
+      const kind = blockKind(it), n = it.count != null ? it.count : records(it);
+      if (kind || it.count != null) {
+        r -= text(c, String(n), r, mid(y, S.item, 'railMark'), 'railMark', kind === 'active' ? 'redInk' : kind ? 'ink3' : 'faint', { align: 'right' });
+        if (kind) { r -= S.mark.gap + L.sign.r; sign(c, kind, r, y + S.item / 2); r -= L.sign.r; }
+        r -= 8;
       }
-      text(c, it.name, S.padX, mid(y, S.item, 'railItem'), 'railItem', on ? 'white' : 'dim', { max: r - S.padX });
+      text(c, it.name, S.padX, mid(y, S.item, 'railItem'), 'railItem', on ? 'white' : 'ink3', { max: r - S.padX });
       y += S.item;
     });
   }
 
-  function shell(c, f, body, present) {
+  function shell(c, f, body) {
     header(c, f.top);
     rail(c, f.rail);
     const full = W;
     W = full - L.rail.w;
     c.save(); c.translate(L.rail.w, 0);
     try { body(); } finally { c.restore(); W = full; }
-    footer(c, f.footer, present && present());
+    footer(c, f.footer);
   }
 
-  function sysScan(c, f) {
-    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); scanTable(c, f, L.rail.scanCols); });
+  // A chip of letters in a thin frame, ending at xr: «СЕТЬ».
+  function tagChip(c, str, xr, cy) {
+    const G = L.summary.tag, w = measure(c, str, 'tag') + 2 * G.pad;
+    edge(c, xr - w, cy - G.h / 2, w, G.h, 'line3', G.r);
+    text(c, str, xr - w + G.pad, cy - style('tag').lh / 2, 'tag', 'dim');
+    return w;
+  }
+
+  /* ------------------------------------------------------------ Сводка */
+  // The section's entry: the verdict, the scan, the four values a diagnostician checks first and every
+  // record of the last scan by system and block - systems and blocks most severe first, then by how
+  // many records; the systems in two columns, each into the shorter one.
+  function summary(c, f) {
+    shell(c, f, () => {
+      const S = L.summary, sc = f.scan;
+      const all = f.systems.flatMap(s => s.blocks.flatMap(b => b.codes.map(d => kindOf(d.status))));
+      const count = k => all.filter(x => x === k).length, act = count('active');
+      blockHead(c, {
+        title: act ? act + ' ' + plural(act, 'активная неисправность', 'активные неисправности', 'активных неисправностей') : 'Активных неисправностей нет',
+        titleInk: act ? 'red' : 'white',
+        line: `скан ${sc.at} · ${sc.answered} из ${sc.blocks} блоков · маска ${sc.mask} · ${sc.seconds} с`,
+        counters: f.vitals.map(v => [v.key, v.value + (v.unit ? ' ' + v.unit : ''), v.out ? 'out' : undefined]),
+      });
+      // the band: one item a kind present, the last with the blocks
+      const B = S.band, cy = B.top + B.h / 2, nBlocks = f.systems.reduce((a, s) => a + s.blocks.length, 0);
+      const kinds = [['active', 'АКТИВНЫЕ'], ['pending', 'ОЖИДАЮЩИЕ'], ['hist', 'В ИСТОРИИ']].filter(([k]) => count(k));
+      let x = 24;
+      kinds.forEach(([k, word], i) => {
+        sign(c, k, x + L.sign.r, cy); x += 2 * L.sign.r + B.gap;
+        const n = count(k);
+        let t = `${word} · ${n} ${plural(n, 'ЗАПИСЬ', 'ЗАПИСИ', 'ЗАПИСЕЙ')}`;
+        if (i === kinds.length - 1) t += ` · ${nBlocks} ${plural(nBlocks, 'БЛОК', 'БЛОКА', 'БЛОКОВ')}`;
+        x += text(c, t, x, mid(B.top, B.h, 'groupTitle'), 'groupTitle', 'dim') + B.itemGap;
+      });
+      const net = f.systems.flatMap(s => s.blocks.flatMap(b => b.codes)).filter(d => netLoss(d.code)).length;
+      if (net) text(c, `в т. ч. ${net} — потеря связи между блоками, U…-87`, W - 24, mid(B.top, B.h, 'note'), 'note', 'mute', { align: 'right' });
+      rule(c, 24, B.top + B.h, W - 48);
+      // the order: most severe first, then the most records, then the catalog's
+      const order = (list, kindsOf, n) => list.map((v, i) => [v, i]).sort((a, b) =>
+        (RANK[worst(kindsOf(a[0]))] - RANK[worst(kindsOf(b[0]))]) || (n(b[0]) - n(a[0])) || (a[1] - b[1])).map(p => p[0]);
+      const bKinds = b => b.codes.map(d => kindOf(d.status));
+      const systems = order(f.systems, s => s.blocks.flatMap(bKinds), s => s.blocks.reduce((a, b) => a + b.codes.length, 0))
+        .map(s => Object.assign({}, s, { blocks: order(s.blocks, bKinds, b => b.codes.length) }));
+      const colY = [S.top, S.top], colX = [24, 24 + S.colW + S.colGap];
+      systems.forEach(s => {
+        const k = colY[1] < colY[0] ? 1 : 0, x0 = colX[k];
+        let y = colY[k] + (colY[k] > S.top ? S.systemGap : 0);
+        const n = s.blocks.reduce((a, b) => a + b.codes.length, 0);
+        text(c, `${s.name.toUpperCase()} · ${n}`, x0, y, 'groupTitle', 'mute');
+        y += S.label;
+        s.blocks.forEach((b, i) => { if (i) y += S.blockGap; y = blockGroup(c, b, x0, y, S.colW); });
+        colY[k] = y;
+      });
+      // the blocks with nothing to say, under the left column
+      const quiet = sc.blocks - f.systems.reduce((a, s) => a + s.blocks.length, 0), Q = S.quiet;
+      const qt = `${quiet} ${plural(quiet, 'блок', 'блока', 'блоков')} без записей · ` +
+        (sc.answered === sc.blocks ? 'все ответили' : `не ответили ${sc.blocks - sc.answered}`);
+      const qy = colY[0] + Q.gap, qw = text(c, qt, 24, mid(qy, Q.h, 'unit'), 'unit', 'mute');
+      chevron(c, 24 + qw + Q.chevronGap, qy + (Q.h - L.chevron) / 2);
+    });
+  }
+
+  // A block's records on «Сводка»: the block's head - its sign, abbreviation, address, name, then how
+  // many records and since when - and a row a record. A row's sign only where it is not in history.
+  function blockGroup(c, b, x, y, w) {
+    const S = L.summary, h = S.head, kinds = b.codes.map(d => kindOf(d.status)), kind = worst(kinds);
+    sign(c, kind, x + L.sign.r, y + h / 2);
+    let tx = x + 2 * L.sign.r + S.headGap;
+    tx += text(c, b.abbr, tx, mid(y, h, 'codeSmall'), 'codeSmall', 'white') + 8;
+    tx += text(c, b.addr, tx, mid(y, h, 'cellAbbr'), 'cellAbbr', 'faint') + S.headGap;
+    const rw = text(c, `${b.codes.length} · с ${b.since}`, x + w, mid(y, h, 'note'), 'note', 'mute', { align: 'right' });
+    text(c, b.name, tx, mid(y, h, 'titleAside'), 'titleAside', 'ink3', { max: x + w - rw - S.headGap - tx });
+    rule(c, x, y + h, w);
+    y += h + 1;
+    const cols = columns(S.rowCols, x + S.rowPad, w - S.rowPad, S.rowGap);
+    b.codes.forEach((d, i) => {
+      const k = kinds[i], rh = S.row;
+      if (k !== 'hist') sign(c, k, x + S.rowPad / 2, y + rh / 2);
+      runs(c, codeRuns(d.code, 'codeSmall', k === 'active' ? 'red' : 'white', 'cellMono'), cols[0][0], base(mid(y, rh, 'codeSmall'), 'codeSmall'));
+      text(c, d.meaning || d.type, cols[1][0], mid(y, rh, 'cellSmall'), 'cellSmall', d.meaning ? 'text' : 'dim', { max: cols[1][1] });
+      if (netLoss(d.code)) tagChip(c, 'СЕТЬ', cols[2][0] + cols[2][1], y + rh / 2);
+      chevron(c, cols[3][0], y + (rh - L.chevron) / 2);
+      rule(c, x, y + rh, w, 'hair');
+      y += rh + 1;
+    });
+    return y;
+  }
+
+  /* ------------------------------------------------------------- Блоки */
+  // Every block on one table: those with records first, the most severe and the most records first,
+  // then the rest in the catalog's order; F194 and the block's median answer. A row opens the block.
+  function blocksTable(c, blocks) {
+    const S = L.scan, M = L.modules, cols = columns(M.cols, 24, W - 48), P = M.numPad, Li = S.list;
+    headRow(c, cols, ['', 'БЛОК', 'НАЗНАЧЕНИЕ', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['ЗАПИСИ', 'right', P], 'НОМЕР ПО · F194', ['ОТВЕТ', 'right', P], ''],
+      S.table.top, S.table.head);
+    const withRec = blocks.map((b, i) => [b, i]).filter(([b]) => records(b) > 0)
+      .sort((a, b) => (RANK[blockKind(a[0])] - RANK[blockKind(b[0])]) || (records(b[0]) - records(a[0])) || (a[1] - b[1])).map(p => p[0]);
+    const without = blocks.filter(b => !records(b));
+    c.save();
+    c.beginPath(); c.rect(24, Li.top, W - 48, Li.bottom - Li.top); c.clip();
+    let y = Li.top;
+    const group = t => {
+      text(c, t, 24 + M.groupPad, mid(y, Li.group - 1, 'groupTitle'), 'groupTitle', 'dim');
+      rule(c, 24, y + Li.group - 1, W - 48);
+      y += Li.group;
+    };
+    const row = b => {
+      const h = Li.row, k = blockKind(b), n = records(b), silent = b.answered === false;
+      if (k || silent) sign(c, silent ? 'none' : k, cols[0][0] + cols[0][1] / 2, y + h / 2);
+      text(c, b.abbr, cols[1][0], mid(y, h, 'codeSmall'), 'codeSmall', silent ? 'dim' : 'white', { max: cols[1][1] - 8 });
+      text(c, b.name, cols[2][0], mid(y, h, 'cell'), 'cell', silent ? 'dim' : 'text', { max: cols[2][1] - 12 });
+      text(c, reply(b.req), cols[3][0], mid(y, h, 'cellMono'), 'cellMono', 'dim');
+      text(c, b.proto || '—', cols[4][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim');
+      text(c, n ? String(n) : '—', cols[5][0] + cols[5][1] - P, mid(y, h, 'cellNum'), 'cellNum', n ? 'text' : 'faint3', { align: 'right' });
+      text(c, f194(b.f194), cols[6][0], mid(y, h, 'sig'), 'sig', b.f194 ? 'dim' : 'faint3');
+      text(c, b.ms != null ? b.ms + ' мс' : '—', cols[7][0] + cols[7][1] - P, mid(y, h, 'noteMono'), 'noteMono', b.ms != null ? 'mute' : 'faint3', { align: 'right' });
+      if (b.req) chevron(c, cols[8][0] + (cols[8][1] - L.chevron) / 2, y + (h - L.chevron) / 2);
+      rule(c, 24, y + h, W - 48, 'hair');
+      y += h + Li.rule;
+    };
+    if (withRec.length) { group(`С ЗАПИСЯМИ · ${withRec.length}`); withRec.forEach(row); }
+    if (without.length) { group(`БЕЗ ЗАПИСЕЙ · ${without.length}`); without.forEach(row); }
+    c.restore();
+  }
+
+  function modules(c, f) {
+    shell(c, f, () => {
+      const sc = f.scan, blocks = f.groups.flatMap(g => g.ecus);
+      const silent = blocks.filter(b => b.answered === false).length, changed = blocks.filter(b => b.swChanged).length;
+      const withRec = blocks.filter(b => records(b) > 0).length;
+      blockHead(c, { title: 'Блоки', aside: `· ${blocks.length} · ` + (silent ? `не ответили ${silent}` : 'все ответили'),
+        line: `скан ${sc.at} · ${sc.exchanges} обменов · ${sc.seconds} с · маска ${sc.mask}` });
+      const filter = f.filter || 0;
+      tabs(c, { items: [`Все · ${blocks.length}`, `С записями · ${withRec}`, `Без ответа · ${silent}`, `ПО изменено · ${changed}`], active: filter });
+      const shown = [() => true, b => records(b) > 0, b => b.answered === false, b => b.swChanged][filter];
+      blocksTable(c, blocks.filter(shown));
+    });
   }
 
   function sysLive(c, f) {
@@ -427,7 +573,7 @@
   }
 
   // A system's codes, every block's on one table: the block named on its first row, a rule
-  // between blocks; a row opens the block with its status bits.
+  // between blocks; a row opens the block with its status byte. An active code is red.
   function sysDtc(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block);
@@ -438,33 +584,26 @@
       for (const r of f.codes) {
         const h = D.row;
         if (r.block !== last && last !== null) rule(c, 24, y - 1, W - 48);
-        if (r.active) fill(c, 24, y, W - 48, h, 'orangeRow');
+        if (r.active) fill(c, 24, y, W - 48, h, 'redRow');
         if (r.block !== last) {
           text(c, r.block, cols[0][0] + P, mid(y, h, 'cell'), 'cell', 'white');
           text(c, r.addr, cols[0][0] + P + measure(c, r.block, 'cell') + 8, mid(y, h, 'cellMono'), 'cellMono', 'faint');
         }
         last = r.block;
-        text(c, r.code, cols[1][0], mid(y, h, 'code'), 'code', r.active ? 'orangeInk' : 'white');
+        text(c, r.code, cols[1][0], mid(y, h, 'code'), 'code', r.active ? 'red' : 'white');
         runs(c, [[r.ftb, 'cellNum', 'dim'], [' · ' + r.ftbName, 'cell', 'text']], cols[2][0], base(mid(y, h, 'cell'), 'cell'), cols[2][1] - 12);
         text(c, r.desc, cols[3][0], mid(y, h, 'cell'), 'cell', 'text', { max: cols[3][1] - 16 });
         runs(c, [[r.status, 'cellMono', 'text'], ['  ' + r.word, 'cellSmall', 'dim']], cols[4][0], base(mid(y, h, 'cell'), 'cell'), cols[4][1]);
-        const ch = L.scan.list.chevron, k = ch / 24, cx = cols[5][0] + (cols[5][1] - ch) / 2, cy = y + (h - ch) / 2;
-        stroke(c, `M${cx + 9 * k} ${cy + 5 * k}L${cx + 16 * k} ${cy + 12 * k}L${cx + 9 * k} ${cy + 19 * k}`, 'faint', 2 * k, null, 'round');
+        chevron(c, cols[5][0] + (cols[5][1] - L.chevron) / 2, y + (h - L.chevron) / 2);
         rule(c, 24, y + h, W - 48, 'hair');
         y += h + 1;
       }
     });
   }
 
-  // A system's «Блоки»: its blocks as the autoscan's rows, each opening the block.
+  // A system's «Блоки»: its blocks on the table of «Блоки».
   function sysBlocks(c, f) {
-    shell(c, f, () => {
-      blockHead(c, f.block); tabs(c, f.tabs);
-      const S = L.scan, cols = columns(L.rail.scanCols, 24, W - 48), NP = S.table.numPad;
-      let y = headRow(c, cols, ['БЛОК', '', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['DTC АКТ.', 'right', NP], ['DTC ИСТ.', 'right', NP], 'СТАТУС'],
-        S.table.top, S.table.head);
-      for (const e of f.ecus) y = scanRow(c, e, cols, y);
-    });
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); blocksTable(c, f.ecus); });
   }
 
   // A tab with nothing to show yet: one sentence where the table would stand.
@@ -494,8 +633,8 @@
         g.flags.forEach((fl, i) => {
           const row = gi === 0 ? Math.floor(i / G.cols) : 2, col = i % G.cols;
           const x = 24 + col * (tw + G.gap), y = G.rowY[row], alarm = fl.state === 'alarm';
-          fill(c, x, y, tw, T.h, alarm ? 'orangeFill' : fl.state === 'none' ? 'tileUnread' : 'tileOk', T.r);
-          edge(c, x, y, tw, T.h, alarm ? 'orange' : fl.state === 'none' ? 'line3' : 'blueEdge', T.r);
+          fill(c, x, y, tw, T.h, alarm ? 'orangeFill' : 'ground', T.r);
+          edge(c, x, y, tw, T.h, alarm ? 'orange' : fl.state === 'none' ? 'line3' : 'quietLine', T.r);
           text(c, 'бит ' + fl.bit, x + T.padX, y + T.padY, 'counterLabel', 'mute');
           text(c, fl.fid, x + tw - T.padX, y + T.padY, 'tileAddr', 'faint', { align: 'right' });
           text(c, fl.name, x + T.padX, y + T.nameY + T.padY - 4, 'cellSmall', 'white', { max: tw - 2 * T.padX });
@@ -647,7 +786,7 @@
         const P = S.caliper;
         [K.x0 + P.in, K.x0 + K.w - P.in - P.w].forEach(x => {
           const y = K.rear - P.h / 2;
-          if (f.epb.look === 'held' || f.epb.look === 'fault') fill(c, x, y, P.w, P.h, f.epb.look === 'held' ? 'blue' : 'orange', P.r);
+          if (f.epb.look === 'held' || f.epb.look === 'fault') fill(c, x, y, P.w, P.h, f.epb.look === 'held' ? 'text' : 'orange', P.r);
           else if (f.epb.look === 'free') edge(c, x, y, P.w, P.h, 'wire3', P.r);
         });
         said(c, f.epb.row, cx, K.rear + S.epbY, 'center');
@@ -669,7 +808,7 @@
       f.doors.forEach(d => {
         const left = d.side === 'L', x = left ? K.x0 : K.x0 + K.w;
         const [a, b] = d.axle === 'F' ? D.front : D.rear;
-        stroke(c, `M${x} ${K.y0 + a}V${K.y0 + b}`, d.open ? 'orange' : 'blueSoft', 3);
+        stroke(c, `M${x} ${K.y0 + a}V${K.y0 + b}`, d.open ? 'orange' : 'text', 3);
         const rows = [[d.label, 'counterLabel', 'mute'], [d.state, 'cell', 'white'], [d.detail, 'cellSmall', 'dim']];
         const h = 2 * O.padY + style('counterLabel').lh + style('cell').lh + style('cellSmall').lh + 2 * O.gap;
         callout(c, left ? lx : rx, K.y0 + (a + b) / 2 - h / 2, O.w, rows, 'ok', [x, K.y0 + (a + b) / 2]);
@@ -677,7 +816,7 @@
       // the hood and the tailgate as the doors are, on the nose's and the tail's line: closed
       // blue, open orange, not read dark
       const Lm = B.lamps, nr = L.car.noseR, tr0 = L.car.tailR;
-      const lid = open => open === true ? 'orange' : open === false ? 'blueSoft' : 'line4';
+      const lid = open => open === true ? 'orange' : open === false ? 'text' : 'line4';
       if (f.hood) {
         const p = arcPath(K.x0 + nr, K.y0 + nr, nr, 270 - B.hood, 270);
         p.lineTo(K.x0 + K.w - nr, K.y0); p.arc(K.x0 + K.w - nr, K.y0 + nr, nr, -90 * D2R, (B.hood - 90) * D2R);
@@ -692,13 +831,13 @@
         const span = ([a0, a1], dir) => dir > 0 ? [a0, a1] : [180 - a1, 180 - a0];
         nose.forEach(([x, dir]) => {
           const [a0, a1] = span(Lm.head, dir), p = arcPath(x, K.y0 + nr, nr, a0, a1);
-          if (m.high) { c.save(); c.globalAlpha = 0.25; stroke(c, p, 'blue', 2 * Lm.halo, null, 'round'); c.restore(); }
-          lamp(c, p, m.low || m.high, 'blue', Lm.w, Lm.halo);
+          if (m.high) { c.save(); c.globalAlpha = 0.25; stroke(c, p, 'white', 2 * Lm.halo, null, 'round'); c.restore(); }
+          lamp(c, p, m.low || m.high, 'white', Lm.w, Lm.halo);
         });
         tail.forEach(([x, dir]) => {
           const y = K.y0 + K.h - tr0;
           lamp(c, arcPath(x, y, tr0, ...span(Lm.stop, dir)), m.stop, 'orange', Lm.w, Lm.halo);
-          lamp(c, arcPath(x, y, tr0, ...span(Lm.reverse, dir)), m.reverse, 'blueSoft', Lm.w, Lm.halo);
+          lamp(c, arcPath(x, y, tr0, ...span(Lm.reverse, dir)), m.reverse, 'white', Lm.w, Lm.halo);
         });
         // the indicators: a mark off each corner, orange on the side that flashes
         const I = Lm.turn;
@@ -713,7 +852,7 @@
       const U = L.car.anchors, ux = cx - T.w / 2, uy = K.mid - T.h / 2;
       [[K.x0 + U[0], K.y0 + U[1]], [K.x0 + K.w - U[0], K.y0 + U[1]], [K.x0 + U[0], K.y0 + K.h - U[1]], [K.x0 + K.w - U[0], K.y0 + K.h - U[1]]].forEach(([x, y]) => {
         stroke(c, `M${x} ${y}L${cx} ${K.mid}`, 'line3', 1, [3, 3]);
-        dot(c, x, y, 4, 'blue');
+        dot(c, x, y, 4, 'wire5');
       });
       if (f.units.hfrm) unitTile(c, ux, uy - T.pitch, f.units.hfrm);
       unitTile(c, ux, uy, f.units.uwb);
@@ -769,9 +908,9 @@
       const P = S.pip, ink = { cold: 'blue', fresh: 'blueSoft', hot: 'orange' };
       // a seat: its cushion, the strap, the pips at its foot, its lamp at the outer front corner
       const seat = (x, y, w, h, r, s, outer) => {
-        if (s.occupied) fill(c, x, y, w, h, 'blueShare', r);
-        edge(c, x, y, w, h, s.occupied ? 'blueEdge' : 'line3', r);
-        if (s.belt === true) stroke(c, `M${x + w - 8} ${y + 6}L${x + 8} ${y + h - 14}`, 'blue', 2);
+        if (s.occupied) fill(c, x, y, w, h, 'histFill', r);
+        edge(c, x, y, w, h, s.occupied ? 'wire4' : 'line3', r);
+        if (s.belt === true) stroke(c, `M${x + w - 8} ${y + 6}L${x + 8} ${y + h - 14}`, 'text', 2);
         else if (s.occupied && s.belt === false) stroke(c, `M${x + w - 8} ${y + 6}L${x + 8} ${y + h - 14}`, 'orange', 2, [4, 3]);
         const py = y + h - P.pad - P.s;
         [['heat', 'orange', x + P.pad, 1], ['vent', 'blue', x + w - P.pad - P.s, -1]].forEach(([k, on, x1, dir]) => {
@@ -799,8 +938,8 @@
       edge(c, kx, K.y0 + Cn.y, Cn.w, Cn.h, 'line3', Cn.r);
       const pad = (x, state) => {
         const y = K.y0 + S.pad.y;
-        if (state === 'charging' || state === 'full') fill(c, x, y, S.pad.w, S.pad.h, state === 'charging' ? 'blue' : 'blueSoft', 2);
-        edge(c, x, y, S.pad.w, S.pad.h, state === 'fault' ? 'orange' : state == null ? 'line3' : 'blueEdge', 2);
+        if (state === 'charging' || state === 'full') fill(c, x, y, S.pad.w, S.pad.h, state === 'charging' ? 'blue' : 'text', 2);
+        edge(c, x, y, S.pad.w, S.pad.h, state === 'fault' ? 'orange' : state == null ? 'line3' : 'wire3', 2);
       };
       pad(cx - 1 - S.pad.w, f.pads.left); pad(cx + 1, f.pads.right);
       const box = (y, h, mode) => {
@@ -843,8 +982,8 @@
       const wedge = (x, y, angle, spread, len) => {
         const a0 = angle - spread / 2, a1 = angle + spread / 2;
         c.save(); c.beginPath(); c.moveTo(x, y); c.arc(x, y, len, a0, a1); c.closePath();
-        c.fillStyle = col('blueShare'); c.fill(); c.strokeStyle = col('blueEdge'); c.lineWidth = 1; c.stroke(); c.restore();
-        dot(c, x, y, 4, 'blue');
+        c.fillStyle = col('band'); c.fill(); c.strokeStyle = col('line4'); c.lineWidth = 1; c.stroke(); c.restore();
+        dot(c, x, y, 4, 'wire5');
       };
       const r = Math.PI / 180, cor = A.corner;
       wedge(cx, K.y0 + 2, -90 * r, A.front.spread * r, A.front.len);
@@ -882,7 +1021,7 @@
       stroke(c, `M${K.x0} ${K.front}H${gx - 22}M${mx + 22} ${K.front}H${K.x0 + K.w}M${gx + 22} ${K.front}H${mx - 22}`, 'wire3', 1.6);
       stroke(c, `M${K.x0} ${K.rear}H${cx - D.pair - 22}M${cx + D.pair + 22} ${K.rear}H${K.x0 + K.w}`, 'wire3', 1.6);
       const eng = D.engine;
-      fill(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'tileOk', 5); edge(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'line4', 5);
+      fill(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'ground', 5); edge(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'quietLine', 5);
       text(c, 'ДВС', cx, K.y0 + eng.y + (eng.h - style('cellAbbr').lh) / 2, 'cellAbbr', 'dim', { align: 'center' });
       stroke(c, `M${gx} ${K.y0 + eng.y + eng.h}V${K.front - 22}`, 'wire3', 1.6);
       // the VCU in the middle, its commands as dashed lines
@@ -914,63 +1053,7 @@
     shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); hvBody(c, f, L.hvRail); });
   }
 
-  // A range on a scale: the bar, the span the readings take on it, the scale's ends under it.
-  function rangeBar(c, x, y, w, scale, span, mark, labels) {
-    const R = L.rangeBar, at = v => x + (v - scale[0]) / (scale[1] - scale[0]) * w;
-    text(c, labels.head, x, y, 'counterLabel', 'mute');
-    text(c, labels.value, x + w, y - 3, 'valueBms', 'white', { align: 'right' });
-    const by = y + R.headGap;
-    fill(c, x, by, w, R.h, 'bitOff', R.h / 2);
-    const a = at(span[0]), b = Math.max(at(span[1]), a + R.minSpan);
-    glow(c, 6, 'rgba(67,159,252,0.7)', () => fill(c, a, by - 2, b - a, R.h + 4, 'blue', 2));
-    if (mark != null) fill(c, at(mark) - 0.75, by - 5, 1.5, R.h + 10, 'white');
-    text(c, labels.lo, x, by + R.h + R.tickGap, 'sig', 'faint');
-    text(c, labels.hi, x + w, by + R.h + R.tickGap, 'sig', 'faint', { align: 'right' });
-    if (labels.note) text(c, labels.note, x + w / 2, by + R.h + R.tickGap, 'sig', 'dim2', { align: 'center' });
-  }
-
-  // Тяговая батарея: the pack with its charge, its two poles to the DC bus, the insulation
-  // measured from them to the body; the cells' and modules' ranges beside it.
-  function sysPack(c, f) {
-    shell(c, f, () => {
-      blockHead(c, f.block); tabs(c, f.tabs);
-      const P = L.packScheme, p = f.pack;
-      fill(c, P.x, P.y, P.w, P.h, 'plate', P.r); edge(c, P.x, P.y, P.w, P.h, 'blueEdge', P.r);
-      const ih = P.h - 2 * P.pad, fh = ih * p.soc / 100;
-      fill(c, P.x + P.pad, P.y + P.pad + ih - fh, P.w - 2 * P.pad, fh, 'blueShare', 4);
-      fill(c, P.x + P.pad, P.y + P.pad + ih - fh, P.w - 2 * P.pad, 1.5, 'blueEdge');
-      const tx = P.x + P.pad + 14;
-      text(c, 'SOC', tx, P.y + P.pad + 14, 'counterLabel', 'mute');
-      text(c, p.socText, tx, P.y + P.pad + 32, 'counterBig', 'white');
-      // SOC in the empty part above the charge, SOH and the cells at the bottom, inside it
-      text(c, 'SOH', tx, P.y + P.h - P.pad - 100, 'counterLabel', 'mute');
-      text(c, p.soh, tx, P.y + P.h - P.pad - 82, 'counter', 'text');
-      text(c, p.cells, tx, P.y + P.h - P.pad - 32, 'cellSmall', 'dim');
-      const px = P.x + P.w, [yp, ym] = P.poles, bx = P.busX;
-      fill(c, px, yp - 8, 8, 16, 'line4', 2); fill(c, px, ym - 8, 8, 16, 'line4', 2);
-      stroke(c, `M${px + 8} ${yp}H${bx}M${px + 8} ${ym}H${bx}`, 'wire', 2.4);
-      text(c, 'HV+', px + 18, yp - 22, 'counterLabel', 'mute');
-      text(c, 'HV−', px + 18, ym + 8, 'counterLabel', 'mute');
-      text(c, 'ШИНА DC', bx, yp - 22, 'colHead', 'mute', { align: 'right' });
-      text(c, p.volts, bx, yp + 10, 'hvVolts', 'text', { align: 'right' });
-      text(c, p.current, bx, yp + 32, 'cellMono', 'dim', { align: 'right' });
-      // insulation: from both poles to the body
-      const I = P.iso, ix = I.x, iy = (yp + ym) / 2 - I.h / 2, mx = ix + I.w / 2;
-      stroke(c, `M${mx} ${yp}V${iy}M${mx} ${ym}V${iy + I.h}`, 'wire3', 1.6);
-      dot(c, mx, yp, 3, 'wire5'); dot(c, mx, ym, 3, 'wire5');
-      fill(c, ix, iy, I.w, I.h, 'tileOk', 6); edge(c, ix, iy, I.w, I.h, 'blueEdge', 6);
-      let y = iy + 12;
-      text(c, 'ИЗОЛЯЦИЯ НА КОРПУС', ix + 14, y, 'counterLabel', 'mute'); y += 22;
-      p.insulation.forEach(([k, v]) => { text(c, k, ix + 14, y, 'cellSmall', 'dim'); text(c, v, ix + I.w - 14, y, 'cellMono', 'white', { align: 'right' }); y += 22; });
-      text(c, p.isoNorm, ix + 14, y + 4, 'sig', 'faint');
-      const gx = ix + I.w + 30, gy = iy + I.h / 2;
-      stroke(c, `M${ix + I.w} ${gy}H${gx}V${gy + 8}M${gx - 12} ${gy + 8}H${gx + 12}M${gx - 8} ${gy + 13}H${gx + 8}M${gx - 4} ${gy + 18}H${gx + 4}`, 'wire3', 1.6);
-      text(c, 'корпус', gx, gy + 26, 'sig', 'faint', { align: 'center' });
-      const G = P.ranges;
-      f.ranges.forEach((r, i) => rangeBar(c, G.x, G.y + i * G.step, G.w, r.scale, r.span, r.mark, r));
-    });
-  }
-
+  // Двигатель: the air's way through it - inlet, throttle, manifold, cylinders, catalyst, oxygen
   // Двигатель: the air's way through it - inlet, throttle, manifold, cylinders, catalyst, oxygen
   // sensor - each reading at its place on the way.
   function sysEngineScheme(c, f) {
@@ -983,7 +1066,7 @@
       flow(c, E.x1 + 6, y, E.x1 + 34, y);
       stroke(c, `M${E.throttle - 9} ${y + hw - 3}L${E.throttle + 9} ${y - hw + 3}`, 'wire5', 2.4);
       dot(c, E.throttle, y, 2.6, 'wire5');
-      fill(c, Bk.x, Bk.y, Bk.w, Bk.h, 'tileOk', 8); edge(c, Bk.x, Bk.y, Bk.w, Bk.h, 'blueEdge', 8);
+      fill(c, Bk.x, Bk.y, Bk.w, Bk.h, 'ground', 8); edge(c, Bk.x, Bk.y, Bk.w, Bk.h, 'quietLine', 8);
       for (let i = 0; i < 4; i++) {
         const cx = Bk.x + Bk.w * (i + 0.5) / 4;
         c.beginPath(); c.arc(cx, Bk.y + Bk.h / 2, Bk.cyl, 0, 2 * Math.PI); c.strokeStyle = col('wire4'); c.lineWidth = 1.4; c.stroke();
@@ -1018,8 +1101,8 @@
       blockHead(c, f.block); tabs(c, f.tabs);
       const C = L.climateScheme, T = L.topology.tile;
       const zone = (z, x) => {
-        fill(c, x, C.zoneY, C.zoneW, C.zoneH, z.inside ? 'tileOk' : 'plate', 10);
-        edge(c, x, C.zoneY, C.zoneW, C.zoneH, z.inside ? 'blueEdge' : 'line4', 10);
+        fill(c, x, C.zoneY, C.zoneW, C.zoneH, 'ground', 10);
+        edge(c, x, C.zoneY, C.zoneW, C.zoneH, 'quietLine', 10);
         let y = C.zoneY + 20;
         text(c, z.label, x + 22, y, 'counterLabel', 'mute'); y += 22;
         text(c, z.temp, x + 22, y, 'counterBig', 'white'); y += 50;
@@ -1066,10 +1149,10 @@
         const gx = left ? K.x0 - G - Z.w : K.x0 + K.w + G;
         const y = K.y0 + (s.place === 'fl' || s.place === 'fr' ? S.rows[0] : S.rows[1] + (s.place === 'rc' ? S.step : 0));
         const gy = y + (lab + style('cell').lh - Z.h) / 2;
-        if (s.occupied) fill(c, gx, gy, Z.w, Z.h, 'blueShare', Z.r);
-        edge(c, gx, gy, Z.w, Z.h, s.occupied ? 'blueEdge' : 'line3', Z.r);
+        if (s.occupied) fill(c, gx, gy, Z.w, Z.h, 'histFill', Z.r);
+        edge(c, gx, gy, Z.w, Z.h, s.occupied ? 'wire4' : 'line3', Z.r);
         const strap = `M${gx + Z.w - Z.strapIn} ${gy + Z.strapTop}L${gx + Z.strapIn} ${gy + Z.h - Z.strapFoot}`;
-        if (s.belt === true) stroke(c, strap, 'blue', 2);
+        if (s.belt === true) stroke(c, strap, 'text', 2);
         else if (s.occupied && s.belt === false) stroke(c, strap, 'orange', 2, [4, 3]);
         const tx = left ? gx - S.pad : gx + Z.w + S.pad, align = left ? 'right' : undefined;
         text(c, s.label, tx, y, 'counterLabel', 'mute', { align });
@@ -1130,7 +1213,7 @@
       });
       // the chart: scale, grid, norm band, min/max lines, the trace, the last point
       const [lo, hi] = f.scale, yv = v => y1 - (v - lo) / (hi - lo) * (y1 - y0), xt = t => x1 - t / f.window * (x1 - x0);
-      if (f.norm) fill(c, x0, yv(f.norm[1]), x1 - x0, yv(f.norm[0]) - yv(f.norm[1]), 'blueShare');
+      if (f.norm) fill(c, x0, yv(f.norm[1]), x1 - x0, yv(f.norm[0]) - yv(f.norm[1]), 'band');
       f.grid.forEach(v => {
         const y = yv(v);
         fill(c, x0, y, x1 - x0, 1, 'hair');
@@ -1211,7 +1294,7 @@
       });
       f.probes.forEach((v, i) => {
         const x = 24 + i * (tw + T.gap), ext = i === f.probeMin || i === f.probeMax, old = staleProbes.has(i);
-        fill(c, x, T.top, tw, T.h, old ? 'tileUnread' : 'tileOk', 6); edge(c, x, T.top, tw, T.h, ext ? 'white' : old ? 'line3' : 'blueEdge', 6);
+        fill(c, x, T.top, tw, T.h, 'ground', 6); edge(c, x, T.top, tw, T.h, ext ? 'ink3' : old ? 'line3' : 'quietLine', 6);
         text(c, 'Д' + (i + 1), x + T.padX, T.top + T.padY, 'counterLabel', 'mute');
         text(c, v == null ? '—' : String(v), x + T.padX, T.top + T.padY + T.valueY, 'counter', old || v == null ? 'faint' : 'white');
         text(c, '°C', x + tw - T.padX, T.top + T.padY + T.unitY, 'unit', old ? 'faint' : 'dim2', { align: 'right' });
@@ -1219,89 +1302,47 @@
     });
   }
 
+  // The dark cockpit: a block that answered is a quiet frame, white words; one with records says so
+  // with its sign and count in place of its address; one not read is dim, one with no address dashed.
   const TILE = {
-    ok:     { fill: 'tileOk', line: 'blueEdge', ink: 'white', sub: 'dim', state: 'blueSoft', addr: 'faint' },
-    hist:   { fill: 'tileHist', line: 'sep', ink: 'white', sub: 'dim', state: 'ink4', addr: 'faint' },
-    unread: { fill: 'tileUnread', line: 'line3', ink: 'ink2', sub: 'dim', state: 'dim2', addr: 'faint' },
-    none:   { dash: 'line4', ink: 'faint', sub: 'faint2', state: 'faint2', addr: 'faint2' },
+    ok:     { fill: 'ground', line: 'quietLine', ink: 'white', sub: 'dim', addr: 'faint' },
+    hist:   { fill: 'ground', line: 'quietLine', ink: 'white', sub: 'dim', addr: 'faint' },
+    unread: { fill: 'ground', line: 'quietLine', ink: 'dim', sub: 'mute', addr: 'faint' },
+    none:   { dash: 'line4', ink: 'faint', sub: 'faint2', addr: 'faint2' },
   };
-  // The rail's autoscan: the same nine columns, narrower tiles at the width the rail leaves.
-  function sysTopology(c, f) {
-    let kinds;
-    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); kinds = topologyBody(c, f, Object.assign({}, L.topology, L.rail.topology, { tile: Object.assign({}, L.topology.tile, L.rail.topology.tile) })); }, () => kinds);
-  }
 
-  // The bus and the tiles in a layout; returns the tile kinds drawn, for the legend.
-  function topologyBody(c, f, P) {
-    const G = {};
-    f.groups.forEach(g => { G[g.id] = g; });
-    const Ti = P.tile;
-    // the trunk runs from the head unit to the last column that opens a group; a column that
-    // continues a group hangs from the one before it, under that group's caption
-    const opens = P.columns.map(parts => !parts[0][3]);
-    const lastOpen = opens.lastIndexOf(true);
-    let bus = `M${P.head.x + P.head.w} ${P.trunkY}H${P.left + lastOpen * P.column + P.busInset}`, live = '', dead = '';
-    const labels = [], tiles = [];
-    P.columns.forEach((parts, k) => {
-      const x = P.left + k * P.column, bx = x + P.busInset;
-      let y = P.firstLabel, last = 0;
-      parts.forEach(([id, from, to, cont], gi) => {
-        const g = G[id], ecus = g.ecus.slice(from || 0, to == null ? g.ecus.length : to);
-        if (gi) y += P.groupGap;
-        if (!cont) labels.push([x + Ti.inset, y, g.topo + ' · ' + g.ecus.length]);
-        y += P.labelH;
-        ecus.forEach(e => {
-          tiles.push([x + Ti.inset, y, e]);
-          const m = y + Ti.h / 2, stub = `M${bx} ${m}H${x + Ti.inset}`;
-          if (e.kind === 'none') dead += stub; else live += stub;
-          last = m;
-          y += Ti.pitch;
-        });
-      });
-      bus += opens[k] ? `M${bx} ${k ? P.trunkY : P.trunkFirstY}V${last}` : `M${bx - P.column} ${P.tailY}H${bx}V${last}`;
-    });
-    stroke(c, bus, 'bus', 1.5);
-    stroke(c, live, 'busLive', 1.5);
-    stroke(c, dead, 'line4', 1.5, [3, 3]);
-    const Hb = P.head;
-    fill(c, Hb.x, Hb.y, Hb.w, Hb.h, 'pidFill', Hb.r); edge(c, Hb.x, Hb.y, Hb.w, Hb.h, 'line4', Hb.r);
-    text(c, f.headUnit[0], Hb.x + Hb.pad, mid(Hb.y, Hb.h, 'headUnit'), 'headUnit', 'white');
-    text(c, f.headUnit[1], Hb.x + Hb.w - Hb.pad, mid(Hb.y, Hb.h, 'headUnitHops'), 'headUnitHops', 'faint', { align: 'right' });
-    labels.forEach(([x, y, t]) => text(c, t, x, y, 'topoLabel', 'dim2'));
-    // a tile: its abbreviation and address over its short name; its state is its look, and a block
-    // with history says how many codes in place of the address
-    tiles.forEach(([x, y, e]) => unitTile(c, x, y, e, Ti));
-    return new Set(tiles.map(([, , e]) => e.kind));
-  }
-
-  // A block as the topology draws it: abbreviation and address over the short name, its state its
-  // look, «ИСТ n» in place of the address where it has history.
+  // A block on a scheme: abbreviation and address over the short name, its state its look, its
+  // records - the sign and the count - in place of the address where it has any.
   function unitTile(c, x, y, e, tile) {
     const Ti = tile || L.topology.tile, k = TILE[e.kind];
     if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
     else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
     const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
     const top = y + (Ti.h - style('tileAbbr').lh - Ti.rowGap - style('tileName').lh) / 2;
-    const right = e.kind === 'hist' ? ['ИСТ ' + e.history, 'tileState', k.state] : [e.req || 'нет адреса', 'tileAddr', k.addr];
-    const rw = text(c, right[0], ix + iw, top + (style('tileAbbr').lh - style(right[1]).lh) / 2, right[1], right[2], { align: 'right' });
+    let rw;
+    if (e.kind === 'hist') {
+      rw = text(c, String(e.history), ix + iw, top, 'tileAddr', 'ink3', { align: 'right' });
+      sign(c, 'hist', ix + iw - rw - L.rail.mark.gap + 2 - L.sign.r, top + style('tileAbbr').lh / 2);
+      rw += L.rail.mark.gap - 2 + 2 * L.sign.r;
+    } else {
+      rw = text(c, e.req || 'нет адреса', ix + iw, top, 'tileAddr', k.addr, { align: 'right' });
+    }
     text(c, e.abbr, ix, top, 'tileAbbr', k.ink, { max: iw - rw - 6 });
     text(c, e.short, ix, top + style('tileAbbr').lh + Ti.rowGap, 'tileName', k.sub, { max: iw });
   }
 
-  // The status bits of a DTC, bit 0 first, as ISO 14229-1 names them.
-  const BITS = ['TF', 'TFTOC', 'PDTC', 'CDTC', 'TNCSLC', 'TFSLC', 'TNCTOC', 'WIR'];
-  const hex2 = v => '0x' + v.toString(16).toUpperCase().padStart(2, '0');
-
+  // A UDS block's memory: its codes, each status in words; under them the selected code's status
+  // byte from bit 7 to 0 and, beside it, how the memory was read.
   function bodyDtc(c, f) {
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const B = L.bodyDtc, cols = columns(B.cols, 24, W - 48);
+    const B = L.bodyDtc, cols = columns(B.table, 24, W - 48), sel = f.selected || 0;
     let y = headRow(c, cols, ['КОД', 'ТИП ОТКАЗА (FTB)', 'ОПИСАНИЕ', 'СТАТУС'], B.top, B.head, 'colHeadTight');
-    BITS.forEach((b, i) => { const [x, w] = cols[4 + i]; text(c, b, x + w / 2, mid(B.top, B.head, 'bitHead'), 'bitHead', 'mute', { align: 'center' }); });
-    for (const d of f.codes) {
-      const h = B.rowMin;
-      text(c, d.code, cols[0][0] + 12, mid(y, h, 'code'), 'code', 'white');
+    f.codes.forEach((d, n) => {
+      const h = B.rowMin, active = kindOf(d.status) === 'active';
+      if (n === sel) fill(c, 24, y, W - 48, h, 'band');
+      text(c, d.code, cols[0][0] + 12, mid(y, h, 'code'), 'code', active ? 'red' : 'white');
       runs(c, [[d.ftb, 'cellNum', 'dim'], [' · ' + d.ftbName, 'cell', 'white']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
       const room = cols[2][1] - 16;
       if (d.desc) {
@@ -1313,34 +1354,29 @@
         text(c, d.group, cols[2][0], dt, 'cell', 'text', { max: room });
         if (d.note) text(c, d.note, cols[2][0], dt + style('cell').lh + 2, 'note', 'faint', { max: room });
       }
-      text(c, hex2(d.status), cols[3][0], mid(y, h, 'cellNum'), 'cellNum', 'text');
-      BITS.forEach((_, i) => {
-        const [x, w] = cols[4 + i], on = (d.status >> i) & 1, s = B.bit;
-        const draw = () => fill(c, x + (w - s) / 2, y + (h - s) / 2, s, s, on ? 'blue' : 'bitOff', B.bitR);
-        if (on) glow(c, 6, 'rgba(67,159,252,0.8)', draw); else draw();
-      });
+      runs(c, [[hexByte(d.status) + '  ', 'cellNum', 'text'], [statusWords(d.status, f.availability), 'cellSmall', active ? 'red' : 'dim']],
+        cols[3][0], base(mid(y, h, 'cell'), 'cell'), cols[3][1]);
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
-    }
-    // the explanation and the legend stand under the last code, never under a fixed line: a block
-    // with eight codes pushed them over its rows (on the car 2026-10-20); the app scrolls the rest
-    const E = f.explain, xw = B.explainW, below = Math.max(B.below, y + B.belowGap);
-    let ey = below;
-    text(c, E.head, 24, ey, 'counterLabel', 'mute');
-    ey += style('counterLabel').lh + B.explainGap;
-    ey += para(c, E.lead, 24, ey, 'lead', 'white', xw) + B.explainGap;
-    ey += para(c, E.body, 24, ey, 'body', 'dim', xw) + B.explainGap;
-    if (E.aside) para(c, E.aside, 24, ey, 'small', 'faint', xw);
-    const G = B.legend;
-    f.bits.forEach((ru, i) => {
-      const ly = below + i * (style('legend').lh + G.rowGap);
-      text(c, BITS[i], G.x, ly, 'legendKey', 'dim');
-      text(c, 'бит ' + i + ' · ' + ru, G.x + G.key + G.gap, ly, 'legend', 'mute');
     });
+    // under the last code, never under a fixed line: a block with eight codes pushed a fixed one
+    // over its rows (on the car 2026-10-20); the app scrolls the rest
+    const d = f.codes[sel], below = Math.max(B.below, y + B.belowGap), lab = style('groupTitle').lh;
+    text(c, `СТАТУС ${d.code} · ${hexByte(d.status)} = ${bin8(d.status)}`, 24, below, 'groupTitle', 'mute');
+    const sy = below + lab + B.explainGap;
+    bitStrip(c, 24, sy, d.status, f.availability);
+    const wy = sy + L.bitStrip.nameY + style('bitHead').lh + B.explainGap + 4;
+    text(c, statusWords(d.status, f.availability), 24, wy, 'lead', 'white');
+    const unreported = (~f.availability) & 0xFF;
+    text(c, (unreported ? '«·» — блок этот бит не сообщает · ' : '') + 'доступность ' + hexByte(f.availability), 24, wy + style('lead').lh, 'small12', 'faint');
+    const G = B.legend;
+    text(c, 'КАК ПРОЧИТАН', G.x, below, 'groupTitle', 'mute');
+    f.reads.forEach((r, i) => readLine(c, G.x, sy + i * style('raw').lh, r, d.code));
     footer(c, f.footer);
   }
 
-  const MONITOR = { ready: ['ГОТОВ', 'ready'], waiting: ['НЕ ГОТОВ', 'waiting'], absent: ['НЕ ПОДДЕРЖ.', 'absent'] };
+  // A monitor's readiness in words, no chip: ready is the quiet case.
+  const MONITOR = { ready: ['готов', 'dim2'], waiting: ['не готов', 'white'], absent: ['не поддерживается', 'faint'] };
   // X: where the two halves stand - the block screen's (L.ecuDtc) or the rail's (L.rail.ecuDtc).
   function monitors(c, list, X) {
     const D = L.ecuDtc, R = (X || D).right, cols = columns((X || D).monCols, R.x, R.w);
@@ -1349,8 +1385,8 @@
       const h = D.monRow, off = state === 'absent';
       runs(c, [[name + ' ', 'cell', off ? 'faint2' : 'white'], [abbr, 'cellAbbr', 'faint']], cols[0][0] + 12, base(mid(y, h, 'cell'), 'cell'), cols[0][1] - 12);
       text(c, type, cols[1][0], mid(y, h, 'unit'), 'unit', off ? 'sep' : 'dim2');
-      const [label, tone] = MONITOR[state];
-      badge(c, label, cols[2][0], y + (h - L.badge.h) / 2, tone);
+      const [word, ink] = MONITOR[state];
+      text(c, word, cols[2][0], mid(y, h, 'cellSmall'), 'cellSmall', ink, { max: cols[2][1] });
       rule(c, R.x, y + h, R.w, 'hair');
       y += h + 1;
     }
@@ -1382,11 +1418,11 @@
     const D = L.ecuDtc, Lf = X.left, cols = columns(X.listCols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['КОДЫ НЕИСПРАВНОСТЕЙ', 'СЕРВИС', ['DTC', 'right', 12]], D.top, D.head);
     for (const [name, service, count] of f.lists) {
-      const h = D.listRow, num = /^\d+$/.test(count);
+      const h = D.listRow, num = /^\d+$/.test(count), none = count === '0';
       text(c, name, cols[0][0] + 12, mid(y, h, 'cell'), 'cell', 'white', { max: cols[0][1] - 12 });
       text(c, service, cols[1][0], mid(y, h, 'cellMono'), 'cellMono', 'dim');
       const sn = num ? 'cellNum' : 'normMono';
-      text(c, count, cols[2][0] + cols[2][1] - 12, mid(y, h, sn), sn, num ? 'white' : 'faint', { align: 'right' });
+      text(c, none ? '—' : count, cols[2][0] + cols[2][1] - 12, mid(y, h, sn), sn, num && !none ? 'white' : 'faint', { align: 'right' });
       rule(c, Lf.x, y + h, Lf.w, 'hair');
       y += h + 1;
     }
@@ -1406,8 +1442,8 @@
     const notes = d.note ? wrap(c, d.note, 'faultNote', room) : [];
     const inner = titles.length * tl + (notes.length ? 3 + notes.length * style('faultNote').lh : 0);
     const h = Math.max(Fa.rowMin, 2 * Fa.rowPad + inner);
-    fill(c, Lf.x, y, Lf.w, h, 'orangeRow');
-    text(c, d.code, cols[0][0] + 12, mid(y, h, 'codeFault'), 'codeFault', 'orangeInk');
+    fill(c, Lf.x, y, Lf.w, h, 'redRow');
+    text(c, d.code, cols[0][0] + 12, mid(y, h, 'codeFault'), 'codeFault', 'red');
     const ty = y + (h - inner) / 2;
     titles.forEach((l, i) => text(c, l, cols[1][0], ty + i * tl, 'faultTitle', 'white', { max: room }));
     notes.forEach((l, i) => text(c, l, cols[1][0], ty + titles.length * tl + 3 + i * style('faultNote').lh, 'faultNote', 'dim2'));
@@ -1424,7 +1460,7 @@
       if (i) vrule(c, x, y + 1, lh);
       let ty2 = y + 1 + py;
       text(c, name, x + (i ? 1 : 0) + px, ty2, 'colHeadTight', 'mute'); ty2 += style('counterLabel').lh + Fa.listGapIn;
-      text(c, count, x + (i ? 1 : 0) + px, ty2, 'listCount', count === '0' ? 'dim2' : 'orangeInk'); ty2 += style('listCount').lh + Fa.listGapIn;
+      text(c, count === '0' ? '—' : count, x + (i ? 1 : 0) + px, ty2, 'listCount', count === '0' ? 'faint' : 'redInk'); ty2 += style('listCount').lh + Fa.listGapIn;
       text(c, service, x + (i ? 1 : 0) + px, ty2, 'listService', 'faint');
     });
     y += 1 + lh;
@@ -1558,7 +1594,7 @@
       text(c, r.name, cols[0][0] + 12, mid(y, h, 'key'), 'key', 'dim2');
       r.cells.forEach((v, i) => {
         const [x, w] = cols[1 + i];
-        if (v.shared) fill(c, x, y, w, h, 'blueShare');
+        if (v.shared) fill(c, x, y, w, h, 'band');
         const sn = 'adas' + String(v.size || 14).replace('.', '_');
         text(c, v.t, x + A.pad, mid(y, h, sn), sn, DIM_CELL.includes(v.t) ? 'faint2' : (v.ink || 'white'), { max: w - A.pad });
       });
@@ -1589,34 +1625,25 @@
       rule(c, Lf.x, y + h, Lf.w, 'hair');
       y += h + 1;
     }
-    // the mask plate: which status bits the mask sees, what came back
-    const P = Bk.plate, iw = Lf.w - 2 * P.padX, top = y + Bk.plateGap;
-    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw);
-    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + Bk.bits.h + P.gap + bodyLines.length * style('bodyStrong').lh;
+    // the mask plate: the mask's bits from 7 to 0 under its hex and binary, «·» where the block's
+    // availability has no bit; what came back
+    const P = Bk.plate, iw = Lf.w - 2 * P.padX, top = y + Bk.plateGap, S = L.bitStrip;
+    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw), stripH = S.nameY + style('bitHead').lh;
+    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + stripH + P.gap + bodyLines.length * style('bodyStrong').lh;
     fill(c, Lf.x, top, Lf.w, ph, 'plate', P.r); edge(c, Lf.x, top, Lf.w, ph, 'rule', P.r);
     let py = top + P.padY;
     const px = Lf.x + P.padX;
-    text(c, f.mask.label, px, py, 'counterLabel', 'mute'); py += style('counterLabel').lh + P.gap;
-    const bc = columns(BITS.map(() => '1fr'), px, iw, Bk.bits.gap);
-    BITS.forEach((b, i) => {
-      const [bx, bw] = bc[i], on = (f.mask.value >> i) & 1;
-      fill(c, bx, py, bw, Bk.bits.h, on ? 'blueTint' : 'pidFill', Bk.bits.r);
-      if (on) edge(c, bx, py, bw, Bk.bits.h, 'blueEdge', Bk.bits.r);
-      text(c, b, bx + bw / 2, mid(py, Bk.bits.h, 'bit'), 'bit', on ? 'blueInk' : 'faint2', { align: 'center' });
-    });
-    py += Bk.bits.h + P.gap;
+    text(c, `МАСКА ${hexByte(f.mask.value)} = ${bin8(f.mask.value)} · ДОСТУПНОСТЬ ${hexByte(f.mask.availability)}`, px, py, 'counterLabel', 'mute');
+    py += style('counterLabel').lh + P.gap;
+    bitStrip(c, px, py, f.mask.value, f.mask.availability, true);
+    py += stripH + P.gap;
     bodyLines.forEach(l => { text(c, l, px, py, 'bodyStrong', 'white'); py += style('bodyStrong').lh; });
   }
-
-  const HV_UNIT = {
-    ok:     { fill: 'tileOk', line: 'blueEdge', ink: 'white', sub: 'dim', state: 'blueSoft' },
-    unread: { fill: 'tileUnread', line: 'line3', ink: 'ink2', sub: 'dim', state: 'dim2' },
-    none:   { fill: 'ground', dash: 'line4', ink: 'dim', sub: 'mute', state: 'faint' },
-  };
-  // The HV schema at the rail's width, without the machines' captions (their readings are
-  // «Электропривод»'s).
+  // The HV schema at the rail's width in the dark cockpit: quiet frames, white values, an
+  // inverter's bus voltage with its difference to the pack («555 В +2»), what is off at half its
+  // light; the machines' captions are «Электропривод»'s.
   function hvBody(c, f, V) {
-    const K = V.contactor, B = V.bus;
+    const K = V.contactor, B = V.bus, p = f.pack;
     stroke(c, K.wire, 'wire', 2.4);
     // the blade across the pins when the BMS says closed, lifted when open or not known
     stroke(c, f.contactorClosed ? K.closed : K.blade, 'wire', 2);
@@ -1627,31 +1654,28 @@
     stroke(c, B.coupling, 'wire4', 1.4);
     V.machines.forEach(m => {
       c.beginPath(); c.arc(m.x, m.y, V.machineR, 0, 2 * Math.PI); c.fillStyle = col('ground'); c.fill();
-      stroke(c, (() => { const p = new Path2D(); p.arc(m.x, m.y, V.machineR, 0, 2 * Math.PI); return p; })(), m.live ? 'wire5' : 'wire4', 1.6, m.live ? null : [4, 3]);
+      stroke(c, (() => { const q = new Path2D(); q.arc(m.x, m.y, V.machineR, 0, 2 * Math.PI); return q; })(), m.live ? 'wire5' : 'wire4', 1.6, m.live ? null : [4, 3]);
       const s = style('glyph');
       glyphs(c, m.glyph, m.x - measure(c, m.glyph, s) / 2, m.y + 5, s, m.live ? 'text' : 'dim');
     });
     stroke(c, B.feeds, 'wire3', 1.6, [5, 4]);
     const kh = para(c, f.contactor, K.label[0], K.label[1], 'hvLabel', 'mute', K.label[2]);
     if (f.contactorState) text(c, f.contactorState, K.label[0], K.label[1] + kh, 'hvLabel', 'text');
-    // the charge port under the charger, as the contactor's label: its word blue while a plug is in
+    // the charge port under the charger, as the contactor's label
     if (f.charge) {
       const [x, y, w] = V.charge, ch = para(c, 'зарядный разъём', x, y, 'hvLabel', 'mute', w);
-      text(c, f.charge.state, x, y + ch, 'hvLabel', f.charge.plugged ? 'blueSoft' : 'text');
+      text(c, f.charge.state, x, y + ch, 'hvLabel', 'text');
     }
     text(c, f.busLabel, V.busLabel.right, V.busLabel.y, 'colHead', 'mute', { align: 'right' });
-    f.volts.forEach((v, i) => text(c, v, V.volts[i][0], V.volts[i][1], 'hvVolts', 'text'));
     // the pack
-    const P = V.pack, p = f.pack;
-    fill(c, P.x, P.y, P.w, P.h, 'tileOk', P.r); edge(c, P.x, P.y, P.w, P.h, 'blueEdge', P.r);
+    const P = V.pack;
+    fill(c, P.x, P.y, P.w, P.h, 'ground', P.r); edge(c, P.x, P.y, P.w, P.h, 'quietLine', P.r);
     const ix = P.x + P.padX, iw = P.w - 2 * P.padX;
     let y = P.y + P.padY;
-    let by = y + Math.max(base(0, 'packTitle'), base(0, 'packTag'));
+    const by = y + Math.max(base(0, 'packTitle'), base(0, 'packTag'));
     glyphs(c, p.title, ix, by, style('packTitle'), 'white');
     glyphs(c, p.tag, ix + iw - measure(c, p.tag, 'packTag'), by, style('packTag'), 'faint');
-    y += style('packTitle').lh + P.gap;
-    text(c, p.state, ix, y, 'packState', 'blueSoft');
-    y += style('packState').lh + P.gap;
+    y += style('packTitle').lh + 2 * P.gap;
     p.rows.forEach(([k, v]) => {
       const bb = y + Math.max(base(0, 'packKey'), base(0, 'packValue'));
       const vw = measure(c, v, 'packValue');
@@ -1659,24 +1683,513 @@
       glyphs(c, v, ix + iw - vw, bb, style('packValue'), 'white');
       y += style('packValue').lh + P.gap;
     });
-    // the units on the bus and beside the pack
+    // the units on the bus and beside the pack, at their places and widths
     const U = V.unit;
-    // a unit's place, and its width where it is not the common one (the inverters on the bus, wide
-    // enough for «Инвертор задний правый»)
     f.units.forEach(u => {
-      const [x, uy, w0] = V.units[u.abbr], k = HV_UNIT[u.kind], w = w0 || U.w;
-      fill(c, x, uy, w, U.h, k.fill, U.r);
-      if (k.dash) edge(c, x, uy, w, U.h, k.dash, U.r, [3, 3]); else edge(c, x, uy, w, U.h, k.line, U.r);
+      const [x, uy, w0] = V.units[u.abbr], w = w0 || U.w;
+      c.save();
+      if (u.off) c.globalAlpha = 0.45;
+      fill(c, x, uy, w, U.h, 'ground', U.r);
+      edge(c, x, uy, w, U.h, u.kind === 'none' ? 'line4' : 'quietLine', U.r, u.kind === 'none' ? [3, 3] : null);
       const ux = x + 1 + U.padX, uw = w - 2 - 2 * U.padX;
-      const top = uy + (U.h - style('hvAbbr').lh - style('hvName').lh - style('hvState').lh - 2 * U.rowGap) / 2;
-      text(c, u.abbr, ux, top, 'hvAbbr', k.ink);
+      const top = uy + (U.h - style('hvAbbr').lh - style('hvName').lh - style('sig').lh - 2 * U.rowGap) / 2;
+      text(c, u.abbr, ux, top, 'hvAbbr', 'white');
       text(c, u.addr, ux + uw, top, 'tileAddr', 'faint', { align: 'right' });
-      text(c, u.name, ux, top + style('hvAbbr').lh + U.rowGap, 'hvName', k.sub, { max: uw });
-      text(c, u.state, ux, top + style('hvAbbr').lh + style('hvName').lh + 2 * U.rowGap, 'hvState', k.state, { max: uw });
+      text(c, u.name, ux, top + style('hvAbbr').lh + U.rowGap, 'hvName', 'dim', { max: uw });
+      // the reading: a bus voltage and its difference to the pack's, then the rest
+      const parts = [];
+      if (u.volts != null) {
+        const d = u.volts - p.u;
+        parts.push([u.volts + ' В', 'sig', 'white'], [' ' + (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d), 'sig', 'faint']);
+      }
+      if (u.reading) parts.push([(parts.length ? ' · ' : '') + u.reading, 'sig', u.volts != null ? 'dim' : 'text']);
+      if (parts.length) runs(c, parts, ux, base(top + style('hvAbbr').lh + style('hvName').lh + 2 * U.rowGap, 'sig'), uw);
+      c.restore();
     });
   }
 
-  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  /* ------------------------------------------------------- a status byte */
+  // The status bits of a DTC from bit 7 to bit 0, the order the hex and the binary read in.
+  const STRIP = ['WIR', 'TNCTOC', 'TFSLC', 'TNCSLC', 'CDTC', 'PDTC', 'TFTOC', 'TF'];
+  const bin8 = v => { const b = v.toString(2).padStart(8, '0'); return b.slice(0, 4) + ' ' + b.slice(4); };
+  // One strip: the bit's number over its cell, its name under it; a set bit filled - red where it
+  // says now (TF) or asks the lamp (WIR) - a clear one framed, «·» where the block does not report
+  // the bit. plain: a mask, every set bit alike.
+  function bitStrip(c, x, y, value, avail, plain) {
+    const S = L.bitStrip;
+    STRIP.forEach((name, i) => {
+      const bit = 7 - i, cx = x + i * (S.cell + S.gap), mx = cx + S.cell / 2, cy = y + S.cellY;
+      text(c, String(bit), mx, y, 'bit', 'faint', { align: 'center' });
+      const has = (avail >> bit) & 1, on = (value >> bit) & 1;
+      let t, ink;
+      if (!has) { edge(c, cx, cy, S.cell, S.h, 'quietLine', S.r, [3, 3]); t = '·'; ink = 'faint3'; }
+      else if (on) { fill(c, cx, cy, S.cell, S.h, !plain && (bit === 0 || bit === 7) ? 'red' : 'text', S.r); t = '1'; ink = 'ground'; }
+      else { edge(c, cx, cy, S.cell, S.h, 'line3', S.r); t = '0'; ink = 'dim'; }
+      text(c, t, mx, cy + (S.h - style('driveCell').lh) / 2, 'driveCell', ink, { align: 'center' });
+      text(c, name, mx, y + S.nameY, 'bitHead', 'mute', { align: 'center' });
+    });
+    return 8 * S.cell + 7 * S.gap;
+  }
+  // A status byte in words: what is set of what the block reports, «сейчас (не) активен» last.
+  function statusWords(s, avail) {
+    const has = b => (avail >> b) & 1, on = b => has(b) && (s >> b) & 1, w = [];
+    if (on(3)) w.push('подтверждён');
+    if (on(2)) w.push('ожидающий');
+    if (on(5)) w.push('был отказ после сброса');
+    if (on(7)) w.push('запрос лампы');
+    if (has(0)) w.push(on(0) ? 'сейчас активен' : 'сейчас не активен');
+    return w.join(' · ');
+  }
+  const hexByte = v => '0x' + v.toString(16).toUpperCase().padStart(2, '0');
+  // A DTC's three bytes: «U0121-87» is C1 21 87.
+  function dtcBytes(code) {
+    const m = /^([PCBU])([0-3])([0-9A-F])([0-9A-F]{2})-([0-9A-F]{2})$/.exec(code);
+    if (!m) return null;
+    const hi = ('PCBU'.indexOf(m[1]) << 6) | (parseInt(m[2], 16) << 4) | parseInt(m[3], 16);
+    return [hi.toString(16).toUpperCase().padStart(2, '0'), m[4], m[5]];
+  }
+  // A read as it went: the ask, «→», the answer - a long one cut to its head and the record of
+  // [code], which stands out. Returns the runs and where the record is in them.
+  function readLine(c, x, top, r, code) {
+    const bytes = r.answer.split(' '), rec = code ? dtcBytes(code) : null;
+    let at = -1;
+    if (rec) for (let i = 2; i + 3 < bytes.length && at < 0; i++) if (bytes[i] === rec[0] && bytes[i + 1] === rec[1] && bytes[i + 2] === rec[2]) at = i;
+    const sn = 'raw', P = L.code.pick;
+    const lead = r.ask + ' → ';
+    let before, record = '', after = '';
+    if (at < 0) before = r.answer;
+    else {
+      const head = bytes.slice(0, Math.min(3, at)).join(' ');
+      before = head + (at > 3 ? ' · … · ' : ' ');
+      record = bytes.slice(at, at + 4).join(' ');
+      after = at + 4 < bytes.length ? ' · …' : '';
+    }
+    const by = base(top, sn);
+    let cx = x + glyphs(c, lead + before, x, by, style(sn), 'dim');
+    if (record) {
+      const w = measure(c, record, sn), s = style(sn);
+      fill(c, cx - P[0], top + (s.lh - s.size * 1.3) / 2 - P[1], w + 2 * P[0], s.size * 1.3 + 2 * P[1], 'pick', P[2]);
+      cx += glyphs(c, record, cx, by, s, 'white');
+      glyphs(c, after, cx, by, s, 'dim');
+    }
+  }
+
+  /* -------------------------------------------------------------- a code */
+  // One record from the summary: what it means, its status byte from bit 7 to 0, how it was read;
+  // the block it lost - and that block now; the same failure type elsewhere; when it came and went
+  // by the journal, its snapshot and its counters, raw where nothing decodes them.
+  function codeScreen(c, f) {
+    header(c, f.top);
+    const Cd = L.code, kind = kindOf(f.status), tl = f.timeline;
+    const seen = tl.seen, since = tl.scans.filter(s => when(s) >= when(seen[0]));
+    blockHead(c, {
+      title: codeRuns(f.code, 'codeTitle', kind === 'active' ? 'red' : 'white'),
+      aside: `· ${f.block.abbr} ${f.block.addr} · ${f.block.name}`,
+      line: [f.sae.standard, ...f.sae.parts].join(' · '),
+      counters: [['СТАТУС', hexByte(f.status), kind === 'active' ? 'on' : undefined], ['ВПЕРВЫЕ', seen[0].slice(0, 5)], ['В СКАНАХ', `${seen.length} из ${since.length}`]],
+    });
+    rule(c, 24, Cd.rule, W - 48);
+    const [x1, x2, x3] = Cd.x, [w1, w2, w3] = Cd.w;
+    // the meaning, the status byte, the reads
+    text(c, 'ЗНАЧЕНИЕ', x1, Cd.label, 'groupTitle', 'mute');
+    text(c, f.meaning.title, x1, Cd.meaning, 'meaning', 'white', { max: w1 });
+    if (f.meaning.note) text(c, f.meaning.note, x1, Cd.meaningNote, 'cellSmall', 'dim', { max: w1 });
+    text(c, `СТАТУС · ${hexByte(f.status)} = ${bin8(f.status)}`, x1, Cd.statusLabel, 'groupTitle', 'mute');
+    bitStrip(c, x1, Cd.strip, f.status, f.availability);
+    text(c, statusWords(f.status, f.availability), x1, Cd.words, 'lead', kind === 'active' ? 'red' : 'white', { max: w1 });
+    const unreported = (~f.availability) & 0xFF;
+    text(c, (unreported ? '«·» — блок этот бит не сообщает · ' : '') + 'доступность ' + hexByte(f.availability), x1, Cd.wordsNote, 'small12', 'faint');
+    text(c, 'КАК ПРОЧИТАН', x1, Cd.readLabel, 'groupTitle', 'mute');
+    f.reads.forEach((r, i) => readLine(c, x1, Cd.reads + i * style('raw').lh, r, f.code));
+    // the block a lost message names, and how it stands now
+    let sy = Cd.label;
+    if (f.addressee) {
+      const a = f.addressee, K = Cd.card;
+      text(c, `АДРЕСАТ · ${a.label}`, x2, Cd.label, 'groupTitle', 'mute');
+      fill(c, x2, K.top, w2, K.h, 'plate', K.r); edge(c, x2, K.top, w2, K.h, 'rule', K.r);
+      const l1 = K.top + K.padY, l2 = l1 + style('abbr').lh + K.gap;
+      runs(c, [[a.abbr + '  ', 'abbr', 'white'], [a.addr + '  ', 'cellAbbr', 'faint'], [a.name, 'cellSmall', 'ink3']], x2 + K.padX, base(l1, 'abbr'), w2 - 2 * K.padX - L.chevron - 8);
+      chevron(c, x2 + w2 - K.padX - L.chevron, l1 + (style('abbr').lh - L.chevron) / 2);
+      runs(c, [[a.answers ? 'сейчас отвечает' : 'сейчас не отвечает', 'cellSmall', a.answers ? 'text' : 'orange'], [' · ', 'cellSmall', 'sep'],
+        [a.records ? `записей ${a.records}` : 'записей нет', 'cellSmall', a.records ? 'orange' : 'text'], [' · ', 'cellSmall', 'sep'],
+        [a.ms != null ? a.ms + ' мс' : '—', 'normMono', 'dim']], x2 + K.padX, base(l2, 'cellSmall'));
+      sy = Cd.sameLabel;
+    }
+    // the same failure type in other blocks
+    const ftb = f.code.split('-')[1];
+    text(c, `ТОТ ЖЕ ТИП ОТКАЗА · ${ftb}`, x2, sy, 'groupTitle', 'mute');
+    let y = sy + (Cd.same - Cd.sameLabel);
+    if (f.same.length) {
+      const cols = columns(Cd.sameCols, x2, w2, Cd.sameGap);
+      f.same.forEach(s => {
+        const h = Cd.sameRow;
+        runs(c, codeRuns(s.code, 'codeSmall', 'white', 'cellMono'), cols[0][0], base(mid(y, h, 'codeSmall'), 'codeSmall'));
+        text(c, `${s.block} ${s.addr}`, cols[1][0], mid(y, h, 'normMono'), 'normMono', 'dim');
+        text(c, 'с ' + s.since, cols[2][0], mid(y, h, 'cellAside'), 'cellAside', 'mute');
+        chevron(c, cols[3][0], y + (h - L.chevron) / 2);
+        rule(c, x2, y + h, w2, 'hair');
+        y += h + 1;
+      });
+      const n = f.same.length + 1, blocks = new Set([f.block.abbr, ...f.same.map(s => s.block)]).size;
+      const what = netLoss(f.code) ? `${plural(n, 'код', 'кода', 'кодов')} потери связи` : `${plural(n, 'код', 'кода', 'кодов')} с типом ${ftb}`;
+      text(c, `${n} ${what} в ${blocks} ${blocks === 1 ? 'блоке' : 'блоках'}`, x2, y + Cd.sameNoteGap - 1, 'note', 'mute');
+    } else {
+      text(c, 'в других блоках нет', x2, y, 'cellSmall', 'dim');
+    }
+    // when: a dot each scan that saw it, joined from the first to the last
+    const T = Cd.timeline;
+    text(c, 'ХРОНОЛОГИЯ', x3, Cd.label, 'groupTitle', 'mute');
+    const X = dayAxis(c, x3, T.top + T.axis, w3, tl.days);
+    const cy = T.top + T.dot * 2;
+    c.save(); c.globalAlpha = T.barAlpha;
+    fill(c, X(seen[0]), cy - T.bar / 2, X(seen[seen.length - 1]) - X(seen[0]), T.bar, 'orange');
+    c.restore();
+    seen.forEach(s => dot(c, X(s), cy, T.dot / 2, 'orange'));
+    const every = seen.length === since.length;
+    text(c, `впервые ${seen[0]} · ` + (every ? `в каждом из ${since.length} ${plural(since.length, 'скана', 'сканов', 'сканов')}` :
+      `в ${seen.length} из ${since.length} ${plural(since.length, 'скана', 'сканов', 'сканов')}`), x3, T.top + T.caption, 'note', 'mute');
+    // the snapshot: its record decoded, or that the block keeps none - raw
+    const sn = f.snapshot;
+    text(c, 'СТОП-КАДР · 19 04' + (sn.record ? ' · ЗАПИСЬ ' + sn.record : ''), x3, Cd.snapLabel, 'groupTitle', 'mute');
+    y = Cd.snap;
+    if (sn.rows) {
+      sn.rows.forEach(([k, v, out]) => {
+        const h = Cd.snapRow;
+        text(c, k, x3, mid(y, h, 'cellSmall'), 'cellSmall', 'ink3', { max: Cd.snapKey - 8 });
+        text(c, v, x3 + Cd.snapKey, mid(y, h, 'adas14'), 'adas14', out ? 'orange' : 'text');
+        rule(c, x3, y + h, w3, 'hair');
+        y += h + 1;
+      });
+    } else {
+      text(c, 'записи нет', x3, y, 'cellSmall', 'text');
+      y += style('cellSmall').lh;
+      readLine(c, x3, y, sn);
+      y += style('raw').lh;
+    }
+    y += Cd.countGap;
+    const ct = f.counts;
+    text(c, 'СЧЁТЧИКИ · 19 06', x3, y, 'groupTitle', 'mute');
+    y += Cd.countRow;
+    if (ct.rows) {
+      const parts = [];
+      ct.rows.forEach(([k, v], i) => { if (i) parts.push([' · ', 'cellMono', 'sep']); parts.push([`${k} ${v}`, 'cellMono', 'text']); });
+      runs(c, parts, x3, base(y, 'cellMono'));
+    } else {
+      text(c, 'записей нет', x3, y, 'cellSmall', 'text');
+      readLine(c, x3, y + style('cellSmall').lh, ct);
+    }
+    footer(c, f.footer);
+  }
+
+  // 'DD.MM HH:MM' as minutes in the year, for ordering; days in one month or across one.
+  function when(s) {
+    const m = /^(\d\d)\.(\d\d)(?: (\d\d):(\d\d))?/.exec(s);
+    return ((+m[2]) * 31 + (+m[1])) * 1440 + (+(m[3] || 0)) * 60 + (+(m[4] || 0));
+  }
+  // A day axis: a tick and its date at each day's start along [x, x + w]; returns the time's x.
+  function dayAxis(c, x, y, w, days) {
+    const T = L.code.timeline, n = days.length;
+    days.forEach((d, i) => {
+      const dx = x + i * w / n;
+      fill(c, dx, y, 1, T.tick, 'line3');
+      text(c, d, dx + T.labelGap, y - 2, 'rowSig', 'faint');
+    });
+    return s => {
+      const i = days.indexOf(s.slice(0, 5)), m = /(\d\d):(\d\d)$/.exec(s);
+      return x + (i + (m ? (+m[1] + m[2] / 60) / 24 : 0)) / n * w;
+    };
+  }
+
+  /* -------------------------------------------- Тяговая батарея · Здоровье */
+  // The pack's health on one table - now, its reference (the norm, or what is usual for this car
+  // over the journal's 30 days) and the 30 days - and beside it the cells from their mean and the
+  // probes. A mini chart's scale is never narrower than its norm or its resolution × 20.
+  function packHealth(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const Hl = L.health, T = Hl.table, cols = columns(T.cols, 24, T.w), P = T.valuePad;
+      let y = headRow(c, cols, [['ПОКАЗАТЕЛЬ', 'left', 0], ['СЕЙЧАС', 'right', P], 'ОПОРА', '30 ДНЕЙ'], T.top, T.head);
+      f.rows.forEach(r => {
+        const h = T.row, nt = y + (h - style('cell').lh - T.subGap - style('small12').lh) / 2;
+        text(c, r.name, cols[0][0], nt, 'cell', 'white', { max: cols[0][1] - 8 });
+        text(c, r.sub, cols[0][0], nt + style('cell').lh + T.subGap, 'small12', 'mute', { max: cols[0][1] - 8 });
+        let xr = cols[1][0] + cols[1][1] - P;
+        if (r.unit && r.value !== '—') xr -= text(c, r.unit, xr, mid(y, h, 'cellAside'), 'cellAside', 'dim', { align: 'right' }) + T.unitGap;
+        text(c, r.value, xr, mid(y, h, 'value'), 'value', r.value === '—' ? 'faint' : r.out ? 'orange' : 'white', { align: 'right' });
+        if (r.norm) text(c, r.norm, cols[2][0], mid(y, h, 'normMono'), 'normMono', 'dim');
+        else if (r.usual) runs(c, [['обычно ', 'unit', 'mute'], [r.usual, 'normMono', 'dim']], cols[2][0], base(mid(y, h, 'normMono'), 'normMono'));
+        else if (r.note) text(c, r.note, cols[2][0], mid(y, h, 'normMono'), 'normMono', 'dim');
+        if (r.trend) spark(c, cols[3][0], y + (h - Hl.spark.h) / 2, r.trend);
+        rule(c, 24, y + h, T.w, 'hair');
+        y += h + 1;
+      });
+      // the cells from the sweep's mean, a millivolt to L.health.cells.mv
+      const Cc = Hl.cells, x = Cc.x, pw = Cc.w - Cc.scaleW, ym = Cc.top + Cc.h / 2;
+      text(c, `ЯЧЕЙКИ · ОТ СРЕДНЕГО ${grouped(f.cellRef)} мВ`, x, Cc.labelY, 'groupTitle', 'mute');
+      Cc.grid.forEach(mv => {
+        const gy = ym - mv * Cc.mv;
+        fill(c, x, gy, pw, 1, 'rule');
+        text(c, (mv > 0 ? '+' : '−') + Math.abs(mv), x + Cc.w - 2, gy - style('tick').lh / 2, 'tick', 'faint', { align: 'right' });
+      });
+      fill(c, x, ym, pw, 1, 'line3');
+      const n = f.cells.length, step = (Cc.w - 30) / n;
+      const lo = f.cells.indexOf(Math.min(...f.cells)), hi = f.cells.indexOf(Math.max(...f.cells));
+      f.cells.forEach((v, i) => {
+        const d = v - f.cellRef;
+        if (!d) return;
+        const ext = i === lo || i === hi;
+        c.save(); c.globalAlpha = ext ? 1 : 0.75;
+        fill(c, x + i * step, d > 0 ? ym - d * Cc.mv : ym, Math.max(1.2, step - Cc.gap), Math.abs(d) * Cc.mv, ext ? 'white' : 'blue');
+        c.restore();
+      });
+      // live, as «Ячейки»: the sweep under way, a line along the chart's foot to the page that came last
+      if (f.sweep != null) {
+        const A = L.packCells.cells, sx = x + f.sweep * (Cc.w - 30), fy = Cc.top + Cc.h + 1;
+        fill(c, x, fy, sx - x, A.sweep, 'blueSoft');
+        dot(c, sx, fy + A.sweep / 2, A.sweepDot, 'blue');
+      }
+      text(c, `мин № ${lo + 1} · ${grouped(f.cells[lo])}`, x, Cc.statsY, 'sig', 'ink3');
+      text(c, `макс № ${hi + 1} · ${grouped(f.cells[hi])}`, x + Cc.w - 30, Cc.statsY, 'sig', 'ink3', { align: 'right' });
+      // the probes, the extremes outlined
+      const Pr = Hl.probes, pmin = Math.min(...f.probes), pmax = Math.max(...f.probes);
+      text(c, 'ДАТЧИКИ, °C', x, Pr.labelY, 'groupTitle', 'mute');
+      f.probes.forEach((t, i) => {
+        const px = x + (i % Pr.cols) * Pr.stepX, py = Pr.top + Math.floor(i / Pr.cols) * Pr.stepY;
+        edge(c, px, py, Pr.w, Pr.h, t === pmin || t === pmax ? 'ink3' : 'quietLine', Pr.r);
+        text(c, 'Д' + (i + 1), px + Pr.padX, py + Pr.padY, 'bitHead', 'mute');
+        text(c, String(t), px + Pr.padX, py + Pr.h - Pr.padY - style('driveCell').lh, 'driveCell', 'white');
+      });
+    });
+  }
+  const grouped = v => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  // A mini chart: the values on their scale, a line, dots where they are separate snapshots.
+  function spark(c, x, y, t) {
+    const S = L.health.spark, [lo, hi] = t.scale, n = t.values.length, span = (hi - lo) || 1;
+    const pts = t.values.map((v, i) => [x + 1 + i * (S.w - 2) / Math.max(1, n - 1), y + S.h - 2 - (v - lo) / span * (S.h - 4)]);
+    const p = new Path2D();
+    pts.forEach(([px, py], i) => i ? p.lineTo(px, py) : p.moveTo(px, py));
+    c.save(); c.lineJoin = 'round'; stroke(c, p, 'blue', S.stroke); c.restore();
+    if (t.points) pts.forEach(([px, py]) => dot(c, px, py, S.dot, 'blue'));
+  }
+
+  /* ------------------------------------------- Потоковые данные · Графики */
+  // Up to four signals on one time axis, each its own lane and scale - never narrower than its norm
+  // or its resolution × 20 - the norm a band; the cursor reads all of them at one moment.
+  function sysGraphs(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const G = L.graphs, gx = G.plotX, gw = W - 24 - gx, Cu = G.cursor;
+      const n = f.signals[0].values.length, ci = Math.round((f.window - f.cursor) / f.window * (n - 1));
+      const cx = gx + ci / (n - 1) * gw;
+      f.signals.forEach((s, k) => {
+        const top = G.lanes[k], lh = G.lane, [lo, hi] = s.scale, Y = v => top + (hi - v) / (hi - lo) * lh;
+        fill(c, gx, top + lh, gw, 1, 'rule');
+        fill(c, gx, top, gw, 1, 'hair');
+        if (s.norm) fill(c, gx, Y(s.norm[1]), gw, Y(s.norm[0]) - Y(s.norm[1]), 'band');
+        const p = new Path2D();
+        s.values.forEach((v, i) => { const px = gx + i / (n - 1) * gw; if (i) p.lineTo(px, Y(v)); else p.moveTo(px, Y(v)); });
+        c.save(); c.lineJoin = 'round'; stroke(c, p, 'blue', 1.5); c.restore();
+        const sc = Object.assign({}, s, { decimals: s.scaleDecimals != null ? s.scaleDecimals : s.decimals });
+        text(c, numText(hi, sc), W - 24 - G.scaleInset, top + 2, 'scale', 'faint', { align: 'right' });
+        text(c, numText(lo, sc), W - 24 - G.scaleInset, top + lh - style('scale').lh - 2, 'scale', 'faint', { align: 'right' });
+        // the legend: name, PID, the value at the cursor, the minute's extremes
+        let ly = top;
+        text(c, s.name, 24, ly, 'titleAside', 'white', { max: G.legendW });
+        ly += style('titleAside').lh + G.nameGap;
+        text(c, `PID ${s.pid} · ${s.abbr}`, 24, ly, 'sig', 'mute');
+        ly += style('sig').lh + G.nameGap + G.valueGap;
+        const vw = text(c, numText(s.values[ci], s), 24, ly, 'counter', 'white');
+        text(c, s.unit, 24 + vw + G.valueGap, ly + style('counter').lh - style('unit').lh - 2, 'unit', 'dim');
+        ly += style('counter').lh + G.nameGap;
+        text(c, numText(Math.min(...s.values), s) + '…' + numText(Math.max(...s.values), s), 24, ly, 'unitTag', 'faint');
+      });
+      fill(c, cx - 0.5, Cu.top, 1, Cu.bottom - Cu.top, 'wire4');
+      f.signals.forEach((s, k) => {
+        const top = G.lanes[k], [lo, hi] = s.scale;
+        dot(c, cx, top + (hi - s.values[ci]) / (hi - lo) * G.lane, Cu.dot, 'white');
+      });
+      // the axis: seconds back, the cursor's moment on it
+      [60, 45, 30, 15].forEach(t => text(c, '−' + t + ' с', gx + (f.window - t) / f.window * gw, G.axisY, 'rowSig', 'faint'));
+      text(c, 'сейчас', W - 24, G.axisY, 'rowSig', 'faint', { align: 'right' });
+      const Tg = G.tag;
+      fill(c, cx - Tg.w / 2, Tg.y, Tg.w, Tg.h, 'quiet', Tg.r); edge(c, cx - Tg.w / 2, Tg.y, Tg.w, Tg.h, 'quietLine', Tg.r);
+      text(c, '−' + String(f.cursor).replace('.', ',') + ' с', cx, Tg.y + (Tg.h - style('unitTag').lh) / 2, 'unitTag', 'white', { align: 'center' });
+    });
+  }
+  // A signal's number: its decimals, a comma, «−» for minus, a sign where the signal has one, thousands apart.
+  function numText(v, s) {
+    const d = s.decimals || 0, a = Math.abs(v).toFixed(d).split('.');
+    const t = grouped(a[0]) + (a[1] ? ',' + a[1] : '');
+    return (v < 0 && +a.join('') ? '−' : s.signed && v > 0 ? '+' : '') + t;
+  }
+
+  /* ------------------------------------------------------------- Журнал */
+  // The car's time: the scans asked for, the software updates and the cells' snapshots on one day
+  // axis; every code from its first read; values by scan; two scans side by side in the panel.
+  function journal(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const J = L.journal, px = J.plotX, pw = J.plotW;
+      const X = dayAxis(c, px, J.axisY, pw, f.days);
+      for (let i = 0; i <= f.days.length; i++) fill(c, px + i * pw / f.days.length, J.gridTop, 1, J.gridH, 'hair');
+      const lane = (name, top, h) => text(c, name, 24, mid(top, h, 'unit'), 'unit', 'ink3', { max: J.laneW });
+      // scans: a bar each, a full scan taller and white, a block read again dimmer
+      const [ys, yw, yc] = J.lanes;
+      lane('Сканы', ys, J.laneH);
+      f.scans.forEach(s => {
+        const full = s.kind !== 'block';
+        fill(c, X(s.at) - 1, ys + (full ? 6 : 7), 2, full ? 16 : 14, full ? 'text' : 'dim');
+      });
+      lane('Обновления ПО', yw, J.laneH);
+      f.software.forEach(u => {
+        const ox = X(u.at), oy = yw + J.laneH / 2;
+        c.save(); c.translate(ox, oy); c.rotate(Math.PI / 4); fill(c, -6, -6, 12, 12, 'text'); c.restore();
+        text(c, `${u.block} ${u.from} → ${u.to}`, ox + 12, mid(yw, J.laneH, 'sig'), 'sig', 'dim');
+      });
+      lane('Снимки ячеек', yc, J.laneH);
+      // a snapshot each dot; those at a full charge (SOC ≥ 95 %), which «Здоровье» judges by, white and named
+      f.cellShots.forEach(s => {
+        const sx = X(s.at), sy = yc + J.laneH / 2, full = s.soc >= 95;
+        dot(c, sx, sy, J.dot / 2, full ? 'text' : 'sep');
+        if (full) text(c, `SOC ${s.soc} %`, sx + 7, mid(yc, J.laneH, 'sig'), 'sig', 'dim');
+      });
+      J.rules.forEach(ry => fill(c, 24, ry, px + pw - 24, 1, 'rule'));
+      // codes: a line from the first read to the last scan that saw them, a dot each read
+      text(c, 'КОДЫ · С ПЕРВОГО ПРОЧТЕНИЯ', 24, J.codesLabel, 'groupTitle', 'mute');
+      f.codes.forEach((k, i) => {
+        const y = J.codesTop + i * J.codeStep, cy = y + J.codeH / 2;
+        sign(c, k.kind || 'hist', 24 + L.sign.r, cy);
+        const w = text(c, `${k.block} ${k.addr}`, 24 + 2 * L.sign.r + 8, mid(y, J.codeH, 'cellAbbr'), 'cellAbbr', 'ink3');
+        text(c, '×' + k.count, 24 + 2 * L.sign.r + 16 + w, mid(y, J.codeH, 'sig'), 'sig', 'mute');
+        const a = X(k.seen[0]), b = X(k.seen[k.seen.length - 1]);
+        c.save(); c.globalAlpha = L.code.timeline.barAlpha; fill(c, a, cy - 1, b - a, 2, 'orange'); c.restore();
+        k.seen.forEach(s => dot(c, X(s), cy, J.dot / 2, 'orange'));
+      });
+      // values: 12 V by scan, the cells' spread at a full charge by snapshot
+      text(c, 'ВЕЛИЧИНЫ', 24, J.valuesLabel, 'groupTitle', 'mute');
+      const [v0, v1] = J.values, V = f.values;
+      lane(V.lv.name, v0, J.valueH);
+      const [lo, hi] = V.lv.scale, pts = V.lv.points.map(([at, v]) => [X(at), v0 + J.valueH - 4 - (v - lo) / (hi - lo) * (J.valueH - 8), v]);
+      if (pts.length > 1) {
+        const p = new Path2D(); pts.forEach(([x, y], i) => i ? p.lineTo(x, y) : p.moveTo(x, y));
+        stroke(c, p, 'blue', 1.5);
+      }
+      pts.forEach(([x, y]) => dot(c, x, y, J.point, 'blue'));
+      if (pts.length) { const [lx, , lv] = pts[pts.length - 1]; text(c, String(lv).replace('.', ','), lx + 8, mid(v0, J.valueH, 'sig'), 'sig', 'dim'); }
+      lane(V.full.name, v1, J.valueH);
+      if (!V.full.points.length) text(c, '—', px + 4, mid(v1, J.valueH, 'sig'), 'sig', 'faint');
+      V.full.points.forEach(([at, v]) => {
+        const x = X(at);
+        dot(c, x, v1 + J.valueH / 2, J.dot / 2 - 0.5, 'blue');
+        text(c, v + ' мВ', x + 7, mid(v1, J.valueH, 'sig'), 'sig', 'dim');
+      });
+      journalPanel(c, f.compare);
+    });
+  }
+  // Two scans side by side - or the one scan there is: codes new, gone and kept, software, values.
+  function journalPanel(c, m) {
+    const P = L.journal.panel, x = P.x, w = W - 24 - x, ix = x + P.padX, iw = w - 2 * P.padX;
+    fill(c, x, P.top, w, P.h, 'plate', P.r); edge(c, x, P.top, w, P.h, 'rule', P.r);
+    let y = P.top + P.padY;
+    const label = (t, gap) => { y += gap || 0; text(c, t, ix, y, 'groupTitle', 'mute'); y += style('groupTitle').lh + 4; };
+    const row = (a, b, ink, tagText) => {
+      text(c, a, ix, mid(y, P.row, 'unit'), 'unit', 'ink3');
+      const bw = text(c, b, ix + iw, mid(y, P.row, 'normMono'), 'normMono', ink || 'text', { align: 'right' });
+      if (tagText) tagChip(c, tagText, ix + iw - bw - 8, y + P.row / 2);
+      rule(c, ix, y + P.row, iw, 'hair');
+      y += P.row + 1 + 4;
+    };
+    label(m.from ? 'СРАВНЕНИЕ' : 'СКАН');
+    text(c, m.from ? `${m.from} → ${m.to}` : m.to, ix, mid(y, P.head, 'normMono'), 'normMono', 'white');
+    y += P.head + 4;
+    label('КОДЫ', 6);
+    m.codes.forEach(([k, v]) => row(k, String(v)));
+    if (m.software.length) { label('ПО', P.gap); m.software.forEach(s => row(s.block, `${s.from} → ${s.to}`, 'text', 'ИЗМ.')); }
+    label('ВЕЛИЧИНЫ', P.gap);
+    m.values.forEach(([k, a, b, unit]) => row(k, (a != null ? `${a} → ${b}` : b) + (unit ? ' ' + unit : '')));
+  }
+
+  /* -------------------------------------------------------------- Отчёт */
+  // The report as it will be saved: its first page on the left, what goes in on the right, and where
+  // it lands - «Загрузки», a PDF for people and a JSON of the raw answers.
+  function report(c, f) {
+    header(c, f.top);
+    paper(c, f.paper);
+    const R = L.report, x = R.x, w = W - 24 - x;
+    text(c, 'Отчёт о диагностике', x, R.titleY, 'title', 'white');
+    text(c, f.line, x, R.lineY, 'line', 'mute', { max: w });
+    text(c, 'ЧТО ВОЙДЁТ', x, R.labelY, 'groupTitle', 'mute');
+    let y = R.listTop;
+    f.include.forEach(it => {
+      const by = y + (R.row - R.box) / 2;
+      if (it.on) {
+        fill(c, x, by, R.box, R.box, 'blue', R.boxR);
+        stroke(c, `M${x + 4.5} ${by + 9.3}L${x + 7.5} ${by + 12.9}L${x + 14.4} ${by + 5.4}`, 'white', 1.8, null, 'round');
+      } else {
+        c.save(); rrect(c, x + 0.75, by + 0.75, R.box - 1.5, R.box - 1.5, R.boxR); c.strokeStyle = col('line3'); c.lineWidth = 1.5; c.stroke(); c.restore();
+      }
+      text(c, it.name, x + R.box + R.boxGap, mid(y, R.row, 'item'), 'item', it.on ? 'white' : 'dim');
+      text(c, it.detail, x + w, mid(y, R.row, 'unit'), 'unit', 'mute', { align: 'right' });
+      rule(c, x, y + R.row, w, 'hair');
+      y += R.row + 1;
+    });
+    text(c, 'КУДА', x, R.destLabel, 'groupTitle', 'mute');
+    text(c, f.dest.path, x, R.dest, 'keyValue', 'white', { max: w });
+    text(c, f.dest.note, x, R.destNote, 'cellSmall', 'ink3');
+    text(c, f.dest.size, x, R.destSize, 'noteMono', 'mute');
+    footer(c, f.footer);
+  }
+  // The first page, small: a sheet of paper with the report's own type.
+  function paper(c, p) {
+    const P = L.report.paper, x = P.x + P.padX, w = P.w - 2 * P.padX;
+    fill(c, P.x, P.y, P.w, P.h, 'paper', P.r);
+    let y = P.y + P.padY;
+    const by = base(y, 'paperTitle');
+    glyphs(c, 'ОТЧЁТ О ДИАГНОСТИКЕ', x, by, style('paperTitle'), 'paperInk');
+    glyphs(c, p.by, x + w - measure(c, p.by, 'paperSmall'), by, style('paperSmall'), 'paperGrey');
+    y += style('paperTitle').lh + 6;
+    text(c, p.car, x, y, 'paper', 'paperInk', { max: w }); y += style('paper').lh;
+    text(c, p.when, x, y, 'paperSmall', 'paperGrey', { max: w }); y += style('paperSmall').lh;
+    const head = t => {
+      y += P.headGap;
+      text(c, t, x, y, 'paperHead', 'paperGrey');
+      y += style('paperHead').lh + 2;
+      fill(c, x, y, w, 1, 'paperRule');
+      y += 1 + P.lineGap;
+    };
+    p.sections.forEach(s => {
+      head(s.head);
+      if (s.lines) s.lines.forEach(l => { text(c, l, x, y, 'paperSmall', 'paperInk', { max: w }); y += style('paperSmall').lh; });
+      if (s.codes) {
+        const cols = columns([74, 58, '1fr', 52, 40], x, w), lh = style('paperSmall').lh;
+        s.codes.forEach(b => b.codes.forEach((d, i) => {
+          if (!i) text(c, `${b.abbr} ${b.addr}`, cols[0][0], y, 'paperMono', 'paperGrey');
+          text(c, d.code, cols[1][0], y, 'paperCode', 'paperInk');
+          text(c, d.meaning || d.type, cols[2][0], y, 'paperSmall', 'paperInk', { max: cols[2][1] - 4 });
+          text(c, { active: 'активный', pending: 'ожидающий', hist: 'история' }[kindOf(d.status)], cols[3][0], y, 'paperSmall', 'paperInk');
+          text(c, b.since, cols[4][0], y, 'paperMono', 'paperGrey');
+          y += lh;
+        }));
+      }
+      if (s.blocks) {
+        const cols = columns([50, 30, '1fr', 40], x, w), lh = style('paperSmall').lh;
+        s.blocks.forEach(b => {
+          text(c, b.abbr, cols[0][0], y, 'paperCode', 'paperInk');
+          text(c, b.req, cols[1][0], y, 'paperMono', 'paperGrey');
+          text(c, b.f194 || '—', cols[2][0], y, 'paperMono', 'paperInk');
+          text(c, records(b) ? String(records(b)) : '—', cols[3][0], y, 'paperSmall', 'paperGrey');
+          y += lh;
+        });
+        if (s.more) { text(c, `… ещё ${s.more}`, x, y + 2, 'paperSmall', 'paperGrey'); y += lh + 2; }
+      }
+    });
+    // the foot: what was asked, the page
+    const fy = P.y + P.h - P.padY - style('paperFoot').lh - 4;
+    fill(c, x, fy, w, 1, 'paperRule');
+    text(c, p.foot, x, fy + 4, 'paperFoot', 'paperGrey', { max: w });
+  }
+
+  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
