@@ -125,6 +125,15 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerRoute
 import dev.denza.apps.feature.diagnostics.ui.ScannerSample
 import dev.denza.apps.feature.diagnostics.ui.ScannerWords
 import dev.denza.apps.feature.vehicle.VehicleSignal
+import dev.denza.apps.feature.diagnostics.bus.DiagReply
+import dev.denza.apps.feature.diagnostics.bus.DiagRequest
+import dev.denza.apps.feature.diagnostics.protocol.hexBytes
+import dev.denza.apps.feature.diagnostics.scan.ModuleRead
+import dev.denza.apps.feature.diagnostics.scan.ObdReadProcedure
+import dev.denza.apps.feature.diagnostics.scan.ScanClock
+import dev.denza.apps.feature.diagnostics.scan.TestsBuilder
+import dev.denza.apps.feature.diagnostics.scan.TestsView
+import java.time.ZoneOffset
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -188,8 +197,9 @@ internal object ScannerFixtures {
             in CABIN_BOARDS -> sys(CarSystem.CABIN, SystemTab.STATE)
             "scanner-body-dtc" -> blocks + ScannerRoute.Module(R_ZCU, 0)
             "scanner-ecu-dtc", "scanner-ecu-fault" -> blocks + ScannerRoute.Module(ECM, 0)
-            "scanner-ecu-live" -> blocks + ScannerRoute.Module(ECM, 1)
-            "scanner-ecu-ident" -> blocks + ScannerRoute.Module(ECM, 2)
+            in TESTS_BOARDS -> blocks + ScannerRoute.Module(ECM, 1)
+            "scanner-ecu-live" -> blocks + ScannerRoute.Module(ECM, 2)
+            "scanner-ecu-ident" -> blocks + ScannerRoute.Module(ECM, 3)
             "scanner-ecu-ident-updated" -> blocks + ScannerRoute.Module(BMS, 1)
             "scanner-esp-dtc" -> listOf(summary, ScannerRoute.System(CarSystem.CHASSIS), ScannerRoute.Module(ESP, 0))
             else -> listOf(summary)
@@ -1211,7 +1221,7 @@ internal object ScannerFixtures {
     private fun ecm(all: JSONObject, id: String): ModuleView {
         val fault = id == "scanner-ecu-fault"
         val dtcBoard = fixture(all, if (fault) "scanner-ecu-fault" else "scanner-ecu-dtc")
-        val ecmBoards = setOf("scanner-ecu-dtc", "scanner-ecu-fault", "scanner-ecu-live", "scanner-ecu-ident")
+        val ecmBoards = setOf("scanner-ecu-dtc", "scanner-ecu-fault", "scanner-ecu-live", "scanner-ecu-ident") + TESTS_BOARDS
         val block = fixture(all, if (id in ecmBoards) id else "scanner-ecu-dtc").getJSONObject("block")
         val counters = arrays(block.getJSONArray("counters")).associate { it.getString(0) to it.getString(1) }
         val pid01 = dtcBoard.getJSONObject("pid01")
@@ -1227,7 +1237,9 @@ internal object ScannerFixtures {
         val liveLine = live.getJSONObject("block").getString("line")
         val rate = Regex("опрос ([^·]+?) ·").find(liveLine)?.groupValues?.get(1) ?: "—"
         val ident = fixture(all, "scanner-ecu-ident")
+        val tests = tests(fixture(all, if (id in TESTS_BOARDS) id else "scanner-ecu-tests").getJSONObject("tests"))
         return ModuleView(
+            tests = tests,
             request = ECM, name = block.getString("title"), unit = block.getString("aside").removePrefix("· "),
             inferred = false, line = block.getString("line"), status = if (fault) ModuleStatus.ACTIVE else ModuleStatus.OK,
             dtc = DtcView(emptyList(), records, if (fault) DataQuality.COMPLETE else DataQuality.COMPLETE_EMPTY, false, "", source = source),
@@ -1265,6 +1277,22 @@ internal object ScannerFixtures {
                 ),
             ),
         )
+    }
+
+    private val TESTS_BOARDS = setOf("scanner-ecu-tests", "scanner-ecu-tests-out")
+
+    /**
+     * «Тесты» from its board (`ecuTests()`): the maps and each monitor's answer as the ECM would give them, read
+     * by the session's own [ObdReadProcedure.tests] and made a view by [TestsBuilder], so the screenshot shows
+     * what the bytes make, not the board's strings; every exchange ends at the board's `at`.
+     */
+    private fun tests(t: JSONObject): TestsView {
+        val (h, m, s) = t.getString("at").split(":").map(String::toInt)
+        val at = ((h * 60L + m) * 60L + s) * 1000L
+        fun answer(ask: String, back: String) = DiagReply.Answer(DiagRequest(ECM, hexBytes(ask)), hexBytes(back), 1, at)
+        val replies = arrays(t.getJSONArray("maps")).map { answer(it.getString(0), it.getString(1)) } +
+            objects(t.getJSONArray("monitors")).map { answer("06 " + it.getString("mid"), it.getString("answer")) }
+        return TestsBuilder.view("ECM", ObdReadProcedure.tests(ModuleRead(ECM, at, replies)), ScanClock(ZoneOffset.UTC))
     }
 
     /* ------------------------------------------------- the systems' data */

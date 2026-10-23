@@ -225,6 +225,40 @@ class ReportTest {
         assertEquals("LGXCE4CB0R0000000", json.getString("vin"))
     }
 
+    @Test
+    fun theTestsAreTheOutOnesAndACountOnTheSheetAndEveryByteInTheJson() {
+        fun test(tid: String, value: String, pass: Boolean?, raw: String) = ReportTestRow(tid, "03", value, "0,30", "1,00", "", pass, raw)
+        val cat = ReportTestMonitor("21", "Катализатор, ряд 1", null, listOf("06 21 → 46 21 80 03 00 15 00 1E 00 64"),
+            listOf(test("80", "0,21", false, "21 80 03 00 15 00 1E 00 64")))
+        val evap = ReportTestMonitor("3B", "EVAP: утечка 0,040″", null, listOf("06 3B → 46 3B 80 17 00 00 00 00 00 00"),
+            listOf(ReportTestRow("80", "17", "—", "—", "—", "кПа", null, "3B 80 17 00 00 00 00 00 00")))
+        val fuel = ReportTestMonitor("81", "Топливная система, ряд 1", null, listOf("06 81 → 46 81 80 AF FF 16 F6 3C 09 C4"),
+            listOf(ReportTestRow("80", "AF", "−2,34", "−25,00", "+25,00", "%", true, "81 80 AF FF 16 F6 3C 09 C4")))
+        // all in the norm: one line
+        val (calm, _) = input(reads = ReportReads(engineTests = ReportTests(1, 1, listOf(evap, fuel))))
+        assertTrue(ReportInputs.options(calm).single { it.section == ReportSection.ENGINE }.detail.contains("тесты"))
+        val quiet = ReportDocuments.of(calm, ReportSection.entries.toSet()).pieces
+        val at = quiet.indexOfFirst { it is ReportPiece.Heading && it.text == ReportDocuments.TESTS }
+        assertTrue(at > 0)
+        assertEquals(ReportPiece.Text("1 тест в норме, 1 не выполнялся"), quiet[at + 1])
+        // one out: its row with the limits, then the count
+        val (input, _) = input(reads = ReportReads(engineTests = ReportTests(1, 1, listOf(cat, evap, fuel))))
+        val doc = ReportDocuments.of(input, ReportSection.entries.toSet()).pieces
+        val i = doc.indexOfFirst { it is ReportPiece.Heading && it.text == ReportDocuments.TESTS }
+        val table = doc[i + 1] as ReportPiece.Table
+        assertEquals(listOf(listOf("Катализатор, ряд 1 · MID 21", "80", "0,21", "0,30", "1,00")), table.rows)
+        assertEquals(ReportPiece.Text("Вне нормы 1 · в норме 1, 1 не выполнялся"), doc[i + 2])
+        // nothing of it without the engine's section
+        assertTrue(ReportDocuments.of(input, setOf(ReportSection.CODES)).pieces.none { it is ReportPiece.Heading && it.text == ReportDocuments.TESTS })
+        val tests = JSONObject(ReportJson.encode(input, setOf(ReportSection.ENGINE), null)).getJSONObject("engine").getJSONObject("tests")
+        assertEquals(1, tests.getInt("out"))
+        val first = tests.getJSONArray("monitors").getJSONObject(0)
+        assertEquals("21", first.getString("mid"))
+        assertEquals("06 21 → 46 21 80 03 00 15 00 1E 00 64", first.getJSONArray("exchange").getString(0))
+        assertEquals("21 80 03 00 15 00 1E 00 64", first.getJSONArray("tests").getJSONObject(0).getString("raw"))
+        assertTrue(tests.getJSONArray("monitors").getJSONObject(1).getJSONArray("tests").getJSONObject(0).isNull("pass"))
+    }
+
     // ------------------------------------------------------------------ pages
 
     @Test

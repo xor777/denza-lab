@@ -127,6 +127,38 @@ internal object ReportJson {
                 put("freezeFrame", e.freezeFrame?.let { frame ->
                     JSONArray().apply { frame.forEach { f -> put(JSONObject().put("name", f.name).put("value", f.value)) } }
                 } ?: JSONObject.NULL)
+                // Mode 06: every monitor with its exchange, every test with its nine bytes
+                put("tests", e.tests?.let { t ->
+                    JSONObject().apply {
+                        put("passed", t.passed)
+                        put("notRun", t.notRun)
+                        put("out", t.out.size)
+                        put("monitors", JSONArray().apply {
+                            t.monitors.forEach { m ->
+                                put(JSONObject().apply {
+                                    put("mid", m.mid)
+                                    put("name", m.name)
+                                    put("word", m.word ?: JSONObject.NULL)
+                                    put("exchange", JSONArray(m.exchange))
+                                    put("tests", JSONArray().apply {
+                                        m.tests.forEach { x ->
+                                            put(JSONObject().apply {
+                                                put("tid", x.tid)
+                                                put("uasid", x.uasid)
+                                                put("value", x.value)
+                                                put("min", x.min)
+                                                put("max", x.max)
+                                                put("unit", x.unit)
+                                                put("pass", x.pass ?: JSONObject.NULL)
+                                                put("raw", x.raw)
+                                            })
+                                        }
+                                    })
+                                })
+                            }
+                        })
+                    }
+                } ?: JSONObject.NULL)
             }
         } ?: JSONObject.NULL)
         if (ReportSection.BLOCKS in sections) root.put("blocks", JSONArray().apply {

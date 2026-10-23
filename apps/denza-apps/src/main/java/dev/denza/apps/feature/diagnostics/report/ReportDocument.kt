@@ -89,6 +89,24 @@ internal object ReportDocuments {
                     frame.map { listOf(it.name, it.value) },
                 )
             }
+            e?.tests?.let { t ->
+                pieces += ReportPiece.Heading(TESTS)
+                val out = t.out
+                if (out.isNotEmpty()) {
+                    fun unit(test: ReportTestRow, v: String) = if (test.unit.isEmpty()) v else "$v ${test.unit}"
+                    pieces += ReportPiece.Table(
+                        listOf(
+                            ReportColumn("МОНИТОР", 0f, ReportStyle.CELL),
+                            ReportColumn("TID", 34f, ReportStyle.CELL_MONO_GREY),
+                            ReportColumn("ЗНАЧЕНИЕ", 76f, ReportStyle.CELL_MONO_BOLD),
+                            ReportColumn("МИН", 76f, ReportStyle.CELL_MONO),
+                            ReportColumn("МАКС", 76f, ReportStyle.CELL_MONO),
+                        ),
+                        out.map { (m, test) -> listOf("${m.name} · MID ${m.mid}", test.tid, unit(test, test.value), unit(test, test.min), unit(test, test.max)) },
+                    )
+                }
+                pieces += ReportPiece.Text(tests(t))
+            }
         }
         if (ReportSection.BLOCKS in sections) {
             pieces += ReportPiece.Heading("БЛОКИ И НОМЕРА ПО · ${input.blocks.size}")
@@ -166,6 +184,18 @@ internal object ReportDocuments {
         parts += "изоляция ${n(p.insulationBmcKohm?.div(1000.0), 1)} / ${n(p.insulationSecondKohm?.div(1000.0), 1)} МОм"
         parts += "датчики ${n(p.probeMinC, 0)}…${n(p.probeMaxC, 0)} °C"
         return parts.joinToString(" · ")
+    }
+
+    const val TESTS = "ТЕСТЫ БОРТОВОЙ ДИАГНОСТИКИ · MODE 06"
+
+    /**
+     * Under the tests out of their limits, or alone: «17 тестов в норме, 2 не выполнялись»; with tests out,
+     * «Вне нормы 1 · в норме 16, 2 не выполнялись».
+     */
+    fun tests(t: ReportTests): String {
+        val notRun = if (t.notRun > 0) ", ${ReportInputs.count(t.notRun, "не выполнялся", "не выполнялись", "не выполнялись")}" else ""
+        val out = t.out.size
+        return if (out == 0) "${ReportInputs.count(t.passed, "тест", "теста", "тестов")} в норме$notRun" else "Вне нормы $out · в норме ${t.passed}$notRun"
     }
 
     /** «MIL выкл · готовность 4 из 9 · ПО 4.00.10 · калибровка Z31L07AB01». */

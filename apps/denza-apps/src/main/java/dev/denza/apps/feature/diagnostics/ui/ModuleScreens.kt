@@ -53,8 +53,22 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
 internal const val TAB_DTC = 0
 
-internal fun moduleTabs(module: ModuleView): List<String> =
-    if (module.obd != null) listOf("DTC и готовность", "Потоковые данные", "Идентификация") else listOf("Ошибки DTC", "Идентификация")
+/** What a block's tab shows. */
+internal enum class ModuleTab(val title: String) {
+    DTC("Ошибки DTC"), OBD_DTC("DTC и готовность"), TESTS("Тесты"), LIVE("Потоковые данные"), IDENT("Идентификация")
+}
+
+/** A block's tabs: «Тесты» only where its screen reads Mode 06 (the ECM), after «DTC и готовность». */
+internal fun moduleTabKinds(module: ModuleView): List<ModuleTab> = when {
+    module.obd == null -> listOf(ModuleTab.DTC, ModuleTab.IDENT)
+    module.tests != null -> listOf(ModuleTab.OBD_DTC, ModuleTab.TESTS, ModuleTab.LIVE, ModuleTab.IDENT)
+    else -> listOf(ModuleTab.OBD_DTC, ModuleTab.LIVE, ModuleTab.IDENT)
+}
+
+internal fun moduleTabs(module: ModuleView): List<String> = moduleTabKinds(module).map { it.title }
+
+/** The kind of [module]'s tab [tab]; its first where the index is past them. */
+internal fun moduleTab(module: ModuleView, tab: Int): ModuleTab = moduleTabKinds(module).let { it.getOrElse(tab) { _ -> it.first() } }
 
 /** A block by its name; a role read from an abbreviation is the catalog's business, not the screen's. */
 internal fun moduleTitle(module: ModuleView): String = module.name
@@ -85,13 +99,16 @@ internal fun ModulePage(
 ) {
     val obd = module.obd
     val tabs = moduleTabs(module)
-    val live = obd != null && tab == 1
-    val ident = tab == tabs.lastIndex
+    val kind = moduleTab(module, tab)
+    val live = obd != null && kind == ModuleTab.LIVE
+    val ident = kind == ModuleTab.IDENT
+    val tests = module.tests?.takeIf { kind == ModuleTab.TESTS }
     var picking by remember { mutableStateOf(false) }
     val back = FooterButton(backLabel, false, onClick = onBack)
     val footer: @Composable () -> Unit = {
         when {
             ident -> IdentFooter(back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }
+            tests != null -> ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { actions.rereadTests(module.request) }), emptyList())
             live -> ScanFooter(
                 buttons = listOf(
                     back,
@@ -110,6 +127,7 @@ internal fun ModulePage(
         ScanTabs(tabs, tab, onTab, alert = if (obd?.mil == MilState.ON) TAB_DTC else null)
         when {
             ident -> IdentContent(module.ident)
+            tests != null -> TestsContent(tests)
             live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam, scroll = true)
             else -> DtcContent(module) { onCode(module.request, it) }
         }
@@ -129,8 +147,10 @@ internal fun ModuleHead(module: ModuleView, line: String) {
     val n = module.dtc.records.size
     val records = Counter("ЗАПИСИ", n.toString(), mark = ScannerWords.mark(module.status)?.takeIf { it != Mark.NO_REPLY } ?: Mark.HISTORY)
         .takeIf { n > 0 }
+    // a test out of its limits is an exception the head says, whichever tab is in front
+    val tests = module.tests?.outOfNorm?.takeIf { it > 0 }?.let { Counter("ВНЕ НОРМЫ", it.toString(), out = true) }
     val counters = if (obd != null) {
-        listOfNotNull(Counter("MIL", ScannerWords.mil(obd.mil), on = obd.mil == MilState.ON), records, Counter("ГОТОВН.", obd.readiness))
+        listOfNotNull(Counter("MIL", ScannerWords.mil(obd.mil), on = obd.mil == MilState.ON), records, Counter("ГОТОВН.", obd.readiness), tests)
     } else {
         listOfNotNull(records)
     }

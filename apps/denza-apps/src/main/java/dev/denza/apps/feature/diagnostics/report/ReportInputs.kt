@@ -86,6 +86,7 @@ internal object ReportInputs {
                     software = field(m.ident.own, "Версия ПО") ?: f195(ECM, results, software) ?: f194(results[ECM]),
                     calibration = field(m.ident.own, "Калибровка"),
                     freezeFrame = reads?.engineFreezeFrame?.takeIf { it.isNotEmpty() },
+                    tests = reads?.engineTests?.takeIf { it.monitors.isNotEmpty() },
                 )
             },
             blocks = model.groups.flatMap { it.rows }.map { row ->
@@ -141,6 +142,7 @@ internal object ReportInputs {
                     "готовность".takeIf { e?.ready != null },
                     "калибровка".takeIf { e?.calibration != null },
                     "стоп-кадр".takeIf { e?.freezeFrame != null },
+                    "тесты".takeIf { e?.tests != null },
                 )
                 (e != null && (parts.isNotEmpty() || e.software != null)) to parts.joinToString(" · ").ifEmpty { if (e?.software != null) "ПО" else "не читали" }
             }

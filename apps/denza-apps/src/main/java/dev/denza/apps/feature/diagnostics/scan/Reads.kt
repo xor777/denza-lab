@@ -431,6 +431,19 @@ internal class SessionReads {
         refreshObd(request)
     }
 
+    /**
+     * «Прочитать снова» on «Тесты»: the tests of an opened block queued again, alone; false - and nothing - where
+     * the block's screen is not open or its tests are queued or being read already.
+     */
+    fun rereadTests(request: Int): Boolean {
+        val m = obd[request] ?: return false
+        if (ObdRead.TESTS in m && m[ObdRead.TESTS] == null) return false
+        m[ObdRead.TESTS] = null
+        obdQueue += request to ObdRead.TESTS
+        refreshObd(request)
+        return true
+    }
+
     fun nextObd(): Pair<Int, ObdRead>? = obdQueue.firstOrNull()
 
     fun obdRead(request: Int, what: ObdRead, read: ModuleRead) {

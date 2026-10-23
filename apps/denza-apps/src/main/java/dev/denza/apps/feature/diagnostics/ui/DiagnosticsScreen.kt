@@ -206,7 +206,7 @@ internal fun DiagnosticsScreen(
             current.value.setModuleOpen(under.request, true)
             onDispose { current.value.setModuleOpen(under.request, false) }
         }
-        val live = r is ScannerRoute.Module && model.modules[r.request]?.obd != null && r.tab == 1
+        val live = r is ScannerRoute.Module && model.modules[r.request]?.let { it.obd != null && moduleTab(it, r.tab) == ModuleTab.LIVE } == true
         DisposableEffect(under.request, live, run) {
             if (live) current.value.setLiveVisible(under.request, true)
             onDispose { if (live) current.value.setLiveVisible(under.request, false) }

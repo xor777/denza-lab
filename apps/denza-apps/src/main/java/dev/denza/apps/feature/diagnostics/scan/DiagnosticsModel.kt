@@ -659,6 +659,11 @@ internal data class ModuleView(
      * open now is [ReadOutcome.READING] until its answers come.
      */
     val codeReads: Map<String, CodeReadsData> = emptyMap(),
+    /**
+     * «Тесты»: Mode 06 as the screen read it on opening ([ObdView.tests] made into a view by [TestsBuilder]); null
+     * at a block whose screen does not read them - it has no such tab.
+     */
+    val tests: TestsView? = null,
 )
 
 internal data class DtcView(
@@ -1030,6 +1035,13 @@ internal interface DiagnosticsActions {
      * [ModuleView.codeReads] (architecture, 6).
      */
     fun openCode(request: Int, code: String?) {}
+
+    /**
+     * «Прочитать снова» on «Тесты»: the opening's Mode 06 read once more - the maps, then each listed monitor
+     * (`06 00`, `06 20`, … `06 <MID>`), nothing else and nothing in the background - into [ModuleView.tests].
+     * Nothing while the block's screen is not open or its tests are already being read.
+     */
+    fun rereadTests(request: Int) {}
 
     /** «Журнал» shown or left: [DiagnosticsModel.journal] is built only while it is (7.3). */
     fun setJournalVisible(visible: Boolean) {}

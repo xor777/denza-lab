@@ -142,7 +142,9 @@ internal object BoardScan {
         compare: Pair<Long?, Long?>? = null,
         idents: Map<Int, IdentResult> = emptyMap(),
         recording: dev.denza.apps.feature.diagnostics.report.ReportRecording? = null,
+        obdReads: Map<Int, Pair<FreezeFrameData, ObdTestsData>> = emptyMap(),
     ) = SessionSnapshot(
+        obdReads = obdReads,
         link = LinkState.OK, phase = ScanPhase.DONE, done = EcuCatalog.routed.size, finishedAtMillis = finished, notice = null,
         polling = null, results = results, idents = idents, open = emptySet(), streams = streams, live = live,
         streaming = true, recording = null, car = car, nowMillis = now, packCells = packCells, journal = journal,

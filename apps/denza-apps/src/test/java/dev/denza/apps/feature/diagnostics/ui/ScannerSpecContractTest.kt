@@ -312,6 +312,23 @@ class ScannerSpecContractTest {
         assertEquals(num("ecuIdent", "pid", "cols").toInt(), i.PID_COLS)
         n(i.PID_H, "ecuIdent", "pid", "h"); n(i.PID_CELL_GAP, "ecuIdent", "pid", "gap"); n(i.PID_R, "ecuIdent", "pid", "r")
 
+        val t = ScannerSpec.EcuTests
+        val k = "ecuTests"
+        assertEquals(setOf("line", "top", "x", "w", "title", "titleY", "row", "raw", "rawY", "rowCols", "valuePad", "limitPad", "scale"), (at(k) as Map<*, *>).keys)
+        assertEquals(setOf("inset", "tick", "mark", "out", "outGap"), (at(k, "scale") as Map<*, *>).keys)
+        n(t.LINE, k, "line"); n(t.TOP, k, "top"); assertEquals(cols(k, "x"), t.X); n(t.W, k, "w")
+        n(t.TITLE, k, "title"); n(t.TITLE_Y, k, "titleY"); n(t.ROW, k, "row"); n(t.RAW, k, "raw"); n(t.RAW_Y, k, "rawY")
+        assertEquals(cols(k, "rowCols"), t.ROW_COLS); n(t.VALUE_PAD, k, "valuePad"); n(t.LIMIT_PAD, k, "limitPad")
+        n(t.SCALE_INSET, k, "scale", "inset"); n(t.SCALE_TICK, k, "scale", "tick")
+        n(t.MARK_W, k, "scale", "mark", "0"); n(t.MARK_H, k, "scale", "mark", "1")
+        n(t.OUT_W, k, "scale", "out", "0"); n(t.OUT_H, k, "scale", "out", "1"); n(t.OUT_GAP, k, "scale", "outGap")
+        // a title, a line a test and an exchange's line are of one height: the columns balance by lines
+        assertEquals(t.ROW, t.TITLE, 0f); assertEquals(t.ROW, t.RAW, 0f)
+        // the second column ends where the first one's room does, 24 from the window's edge
+        assertEquals(ScannerSpec.W - 24f, t.X[1] + t.W, 0f)
+        // the boards' 21 lines of the taller column stand above the footer's content bottom
+        assertTrue(t.TOP + 21 * t.ROW <= 620f)
+
         val b = ScannerSpec.BodyDtc
         n(b.TOP, "bodyDtc", "top"); n(b.HEAD, "bodyDtc", "head")
         assertEquals(setOf("top", "head", "table", "rowMin", "below", "belowGap", "explainGap", "readX"), (at("bodyDtc") as Map<*, *>).keys)

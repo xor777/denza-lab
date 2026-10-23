@@ -84,7 +84,8 @@ internal object TestScales {
 internal data class ObdTest(val mid: Int, val tid: Int, val uasid: Int, val value: Int, val min: Int, val max: Int) {
     val scale: TestScale? get() = TestScales.of(uasid)
 
-    private fun word(raw: Int): Int = if (uasid >= 0x80 && raw >= 0x8000) raw - 0x10000 else raw
+    /** One of the three words as a number: signed where the scaling ID is 0x80 or above. */
+    fun word(raw: Int): Int = if (uasid >= 0x80 && raw >= 0x8000) raw - 0x10000 else raw
 
     /** Whether the test ran: not every word zero. */
     val ran: Boolean get() = value != 0 || min != 0 || max != 0

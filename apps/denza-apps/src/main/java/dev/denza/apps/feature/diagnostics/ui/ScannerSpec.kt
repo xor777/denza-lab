@@ -667,6 +667,32 @@ internal object ScannerSpec {
         const val PID_R = 3f
     }
 
+    /** «Тесты», Mode 06 (`ecuTests()`): the line of what was asked, then the monitors in two columns. */
+    object EcuTests {
+        const val LINE = 172f
+        const val TOP = 196f
+        val X = listOf(24f, 652f)
+        const val W = 604f
+        /** A monitor's title line; its words stand [TITLE_Y] into it. */
+        const val TITLE = 20f
+        const val TITLE_Y = 6f
+        const val ROW = 20f
+        /** A line of the exchange; its words [RAW_Y] into it. */
+        const val RAW = 20f
+        const val RAW_Y = 2f
+        /** TID, the value, its unit, the minimum, the scale, the maximum, the word. */
+        val ROW_COLS = listOf(60f, 84f, 60f, 76f, FR, 76f, 80f)
+        const val VALUE_PAD = 8f
+        const val LIMIT_PAD = 10f
+        const val SCALE_INSET = 8f
+        const val SCALE_TICK = 8f
+        const val MARK_W = 2f
+        const val MARK_H = 12f
+        const val OUT_W = 4f
+        const val OUT_H = 6f
+        const val OUT_GAP = 2f
+    }
+
     object BodyDtc {
         const val TOP = 172f
         const val HEAD = 30f

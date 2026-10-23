@@ -276,6 +276,11 @@ internal class ModelBuilder(
             ident = ident(ecu, r, id, s.software),
             obd = if (ecu.obd) obd(s, ecu, r, id) else null,
             codeReads = s.codeReads[request].orEmpty(),
+            tests = if (ecu.obd && request in ObdReadProcedure.AT) {
+                TestsBuilder.view(ecu.abbreviation, s.obdReads[request]?.second ?: ObdTestsData(), clock)
+            } else {
+                null
+            },
         )
     }
 

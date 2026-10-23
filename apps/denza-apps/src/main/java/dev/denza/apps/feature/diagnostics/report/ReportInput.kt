@@ -134,6 +134,48 @@ internal data class ReportEngine(
     val calibration: String?,
     /** Mode 02 frame 0 where read; null otherwise. */
     val freezeFrame: List<ReportField>? = null,
+    /** Mode 06 where the ECM's screen read it; null otherwise. */
+    val tests: ReportTests? = null,
+)
+
+/**
+ * The ECM's Mode 06 results as «Тесты» showed them (architecture, 7.3, 7.4): on the sheet the tests out of their
+ * limits and a count of the rest, in the JSON every monitor with its exchange and every test with its bytes.
+ */
+internal data class ReportTests(
+    val passed: Int,
+    val notRun: Int,
+    val monitors: List<ReportTestMonitor>,
+) {
+    /** Each test out of its limits with its monitor. */
+    val out: List<Pair<ReportTestMonitor, ReportTestRow>> get() = monitors.flatMap { m -> m.tests.filter { it.pass == false }.map { m to it } }
+}
+
+internal data class ReportTestMonitor(
+    /** «21». */
+    val mid: String,
+    /** «Катализатор, ряд 1». */
+    val name: String,
+    /** «не отдаёт», «нет ответа»; null where it gave its tests. */
+    val word: String?,
+    /** The exchange as the screen shows it: «06 21 → 46 21 80 03 00 3E 00 1E 00 64», a line two tests. */
+    val exchange: List<String>,
+    val tests: List<ReportTestRow>,
+)
+
+internal data class ReportTestRow(
+    val tid: String,
+    val uasid: String,
+    /** The words in their unit, «0,21»; «—» for a test that has not run. */
+    val value: String,
+    val min: String,
+    val max: String,
+    /** «мс», «» for a count, «ед. блока» outside J1979's table. */
+    val unit: String,
+    /** Null for a test that has not run. */
+    val pass: Boolean?,
+    /** The nine bytes, spaced. */
+    val raw: String,
 )
 
 internal data class ReportBlock(
@@ -187,6 +229,8 @@ internal data class ReportReads(
     val vin: String? = null,
     /** Mode 02 frame 0 of the ECM, in the order read. */
     val engineFreezeFrame: List<ReportField>? = null,
+    /** Mode 06 of the ECM where its screen read it. */
+    val engineTests: ReportTests? = null,
 )
 
 /** One line of «что войдёт»: the section, whether there is anything to put in it, and its figures in words. */

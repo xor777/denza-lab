@@ -692,7 +692,8 @@
 
   const back = ['‹ Блоки', 'quiet'];
   const ecmCounters = [['MIL', 'ВЫКЛ'], ['ГОТОВН.', '4/9']];
-  const ecmTabs = active => ({ items: ['DTC и готовность', 'Потоковые данные', 'Идентификация'], active });
+  // «Тесты» since 2026-10-23: the ECM reads Mode 06 as its screen opens; other OBD blocks keep three tabs
+  const ecmTabs = active => ({ items: ['DTC и готовность', 'Тесты', 'Потоковые данные', 'Идентификация'], active });
   const ecmBlock = (line, counters) => ({ title: 'ЭБУ двигателя', aside: '· ECM · UAES', line, counters: counters || ecmCounters });
   // F195 as the car's updater reads it: bytes 0-1 as D.DD.DD, the other four as they came (architecture 5.5)
   const ecmLine = '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 4.00.10 · 19031900 · стандарт OBD (PID 1C) 0x29';
@@ -747,6 +748,45 @@
     footer: { buttons: [back, ['Прочитать DTC', 'primary']], notes: ['Описания: каталог мануала Z9GT PHEV, перевод'] },
   };
 
+  // «Тесты», Mode 06 of the ECM (architecture, 7.3). Illustrative, not a reading of this car - no Mode 06 of
+  // it has been read yet: what a 1.5 l four-cylinder petrol engine of a hybrid typically lists. The maps as
+  // the screen asks them, each listing the next; then each monitor's answer as it would come - nine bytes a
+  // test: MID, TID, UASID, value, minimum, maximum - and the words the screen makes of each test, in the
+  // order of the answer: [value, minimum, maximum, unit] by SAE J1979's Unit and Scaling IDs (10 ms, 0B V at
+  // 1 mV, 03 at 0.01, 17 kPa at 0.01, AF % at 0.01 signed, 24 counts). The leak test of the EVAP has not run
+  // since the codes were cleared (both words zero), as is usual soon after a clearing.
+  const MODE06_MAPS = [['06 00', '46 00 C0 00 00 01'], ['06 20', '46 20 80 00 08 21'], ['06 40', '46 40 00 00 00 01'],
+    ['06 60', '46 60 00 00 00 01'], ['06 80', '46 80 80 00 00 01'], ['06 A0', '46 A0 F8 00 00 00']];
+  const mode06 = cat => [
+    { mid: '01', name: 'Датчик кислорода B1S1', answer: '46 01 05 10 00 3A 00 00 00 78 01 06 10 00 40 00 00 00 78',
+      tests: [['58', '0', '120', 'мс'], ['64', '0', '120', 'мс']] },
+    { mid: '02', name: 'Датчик кислорода B1S2', answer: '46 02 07 0B 00 3E 00 00 01 90 02 08 0B 03 18 02 58 03 E8',
+      tests: [['0,062', '0,000', '0,400', 'В'], ['0,792', '0,600', '1,000', 'В']] },
+    { mid: '21', name: 'Катализатор, ряд 1', answer: `46 21 80 03 00 ${cat[0]} 00 1E 00 64`, tests: [[cat[1], '0,30', '1,00', '']] },
+    { mid: '35', name: 'VVT, ряд 1', answer: '46 35 80 10 01 36 00 00 03 20', tests: [['310', '0', '800', 'мс']] },
+    { mid: '3B', name: 'EVAP: утечка 0,040″', answer: '46 3B 80 17 00 00 00 00 00 00 3B 81 10 00 00 00 00 00 00',
+      tests: [['—', '—', '—', 'кПа'], ['—', '—', '—', 'мс']] },
+    { mid: '81', name: 'Топливная система, ряд 1', answer: '46 81 80 AF FF 16 F6 3C 09 C4', tests: [['−2,34', '−25,00', '+25,00', '%']] },
+    { mid: 'A1', name: 'Пропуски воспламенения, общие', answer: '46 A1 0B 24 00 01 00 00 00 64 A1 0C 24 00 02 00 00 00 64',
+      tests: [['1', '0', '100', ''], ['2', '0', '100', '']] },
+    ...[['A2', 1, 0, 0], ['A3', 2, 0, 1], ['A4', 3, 1, 1], ['A5', 4, 0, 0]].map(([mid, n, ewma, now]) => ({
+      mid, name: `Пропуски воспламенения, цилиндр ${n}`,
+      answer: `46 ${mid} 0B 24 00 0${ewma} 00 00 00 28 ${mid} 0C 24 00 0${now} 00 00 00 28`,
+      tests: [[String(ewma), '0', '40', ''], [String(now), '0', '40', '']] })),
+  ];
+  const scannerEcuTests = {
+    top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:48:40', 'P'),
+    block: ecmBlock(ecmLine),
+    tabs: ecmTabs(1),
+    tests: { at: '15:48:39', maps: MODE06_MAPS, monitors: mode06(['3E', '0,62']) },
+    footer: { buttons: [back, ['Прочитать снова', 'primary']] },
+  };
+  // The same with the catalyst's storage below its minimum, no code set yet: its monitor first, its value
+  // and «вне нормы» orange, «ВНЕ НОРМЫ 1» in the head.
+  const scannerEcuTestsOut = Object.assign({}, scannerEcuTests, {
+    tests: { at: '15:48:39', maps: MODE06_MAPS, monitors: mode06(['15', '0,21']) },
+  });
+
   // An illustrative warm idle: how live data reads, not a recording. The traces are the last 60 s,
   // 0..1 of their own range, from the approved page's formula.
   const trace = (seed, amp, drift) => {
@@ -774,7 +814,7 @@
   const scannerEcuLive = {
     top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:51:02', 'P · ДВС работает', '14,1'),
     block: ecmBlock('7E0 → 7E8 · Mode 01 · 13 PID · опрос 4 Гц · график за 60 с'),
-    tabs: ecmTabs(1),
+    tabs: ecmTabs(2),
     rows: [
       live('05', 'Температура ОЖ', 'ECT', '91', '°C', '88', '92', '80…105', [1, 0.05, 0.3]),
       live('0F', 'Температура воздуха на впуске', 'IAT', '24', '°C', '22', '25', '—', [2, 0.04, 0.2]),
@@ -796,7 +836,7 @@
   const scannerEcuIdent = {
     top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:48:02', 'P'),
     block: ecmBlock(ecmLine),
-    tabs: ecmTabs(2),
+    tabs: ecmTabs(3),
     // [key, value, tone: '' white | 'dim']
     // 09 00, 09 04, 09 0A and 01 A6 as ECM answered them on 2026-10-21 (ecm-completion, ecm-obd-telemetry);
     // F193 the same day (ota-core-fields-live): 64 → 1.0.0 as the car's updater reads it
@@ -1864,6 +1904,8 @@
     'scanner-sys-adas-compare': [scanner('sysAdasCompare'), scannerSysAdasCompare],
     'scanner-body-dtc':  [scanner('bodyDtc'), scannerBodyDtc],
     'scanner-ecu-dtc':   [scanner('ecuDtc'), scannerEcuDtc],
+    'scanner-ecu-tests': [scanner('ecuTests'), scannerEcuTests],
+    'scanner-ecu-tests-out': [scanner('ecuTests'), scannerEcuTestsOut],
     'scanner-ecu-live':  [scanner('ecuLive'), scannerEcuLive],
     'scanner-ecu-fault': [scanner('ecuFault'), scannerEcuFault],
     'scanner-ecu-ident': [scanner('ecuIdent'), scannerEcuIdent],

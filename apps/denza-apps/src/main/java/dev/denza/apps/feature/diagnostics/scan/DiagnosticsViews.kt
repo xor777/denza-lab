@@ -419,3 +419,74 @@ internal data class ScanCompareView(
     /** «12 В» → «13,7 → 13,6 В». */
     val quantities: List<Field>,
 )
+
+// ------------------------------------------------------------------ «Тесты» of an OBD block
+
+/**
+ * «Тесты» (boards `scanner-ecu-tests`, `-ecu-tests-out`): the block's Mode 06 results as its screen read them on
+ * opening (architecture, 6, 7.3), built by [TestsBuilder] from the tests' own bytes. The norm says nothing: a test
+ * within its limits has no word, one outside them is orange, one that has not run since the codes were cleared
+ * has no scale. Null on [ModuleView.tests] of a block whose screen does not read Mode 06.
+ */
+internal data class TestsView(
+    val state: ReadState,
+    /** «06 00 · 06 20 · 06 40 · 06 60 · 06 80 · 06 A0 → 11 мониторов · 19 тестов · 15:48:39»; null until the maps came. */
+    val line: String?,
+    /** «читаю…», «ECM не отдаёт тесты · 7F 06 12», «блок не перечисляет тестов»; null when the groups say it. */
+    val word: String?,
+    /** «06 00 → 46 00 00 00 00 00»: what came back where no group stands. */
+    val raw: List<String>,
+    /** The monitors in two columns balanced by lines; a monitor with a test outside its limits first, the rest by MID. */
+    val columns: List<List<TestsGroup>>,
+    /** Tests outside the block's limits: the head's «ВНЕ НОРМЫ n» when above 0. */
+    val outOfNorm: Int,
+    /** Tests within their limits. */
+    val passed: Int,
+    /** Tests that have not run since the codes were cleared (all three words zero). */
+    val notRun: Int,
+) {
+    val groups: List<TestsGroup> get() = columns.flatten()
+}
+
+/** One monitor: «КАТАЛИЗАТОР, РЯД 1 · MID 21» over its tests by TID and, under them, its exchange. */
+internal data class TestsGroup(
+    /** «21». */
+    val mid: String,
+    /** «Катализатор, ряд 1»: SAE J1979's name of the monitor. */
+    val name: String,
+    /** «КАТАЛИЗАТОР, РЯД 1 · MID 21». */
+    val title: String,
+    val rows: List<TestRow>,
+    /** «не отдаёт · 7F 06 31», «нет ответа · шлюз 3»: the monitor gave no tests; null when [rows] say it. */
+    val word: String?,
+    /** «06 21 → 46 21 80 03 00 3E 00 1E 00 64», two tests a line; a further line indented under the answer. */
+    val raw: List<String>,
+) {
+    /** One of its tests is outside its limits. */
+    val out: Boolean get() = rows.any { it.pass == false }
+
+    /** How many lines it stands on: its title, a test or its word each, its exchange. */
+    val lines: Int get() = 1 + (if (rows.isEmpty() && word != null) 1 else rows.size) + raw.size
+}
+
+/** One test: «TID 80 · 0,62 · 0,30 ├──●──┤ 1,00». */
+internal data class TestRow(
+    /** «80». */
+    val tid: String,
+    /** «03»: the unit and scaling ID. */
+    val uasid: String,
+    /** «0,62», «−2,34», «58»; «—» for a test that has not run. */
+    val value: String,
+    /** «мс», «В», «» for a count; «ед. блока» where the scaling ID is not in J1979's table and the numbers are the block's own. */
+    val unit: String,
+    val min: String,
+    val max: String,
+    /** Within the block's limits; null for a test that has not run. */
+    val pass: Boolean?,
+    /** Where the value stands on min … max, 0..1, held to its ends; null where no scale is drawn (not run, limits the wrong way round). */
+    val position: Float?,
+    /** −1 under the minimum, +1 over the maximum, 0 within: the side a mark at an end points out of. */
+    val beyond: Int,
+    /** The test's nine bytes, «21 80 03 00 3E 00 1E 00 64». */
+    val raw: String,
+)

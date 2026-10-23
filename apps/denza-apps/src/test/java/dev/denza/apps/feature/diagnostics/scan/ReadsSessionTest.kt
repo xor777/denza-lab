@@ -358,6 +358,46 @@ class ReadsSessionTest {
     }
 
     @Test
+    fun readAgainAsksTheTestsAloneAndOnlyWhileTheScreenIsOpen() = runTest {
+        val bus = carNow {
+            CarNow.scriptEcmIdent(this)
+            on(0x7E0, "020200").answer("4202000000")
+            on(0x7E0, "0600").answer("4600C0000000")
+            on(0x7E0, "0601").answer("4601010B01C200000384")
+            on(0x7E0, "0602").answer("4602810B03E800000384")
+        }
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        // not open: nothing
+        s.rereadTests(0x7E0)
+        runCurrent()
+        assertFalse(bus.requests.any { it.startsWith("7E0 06") })
+        s.setModuleOpen(0x7E0, true)
+        runCurrent()
+        val view = s.model.value.modules.getValue(0x7E0).tests!!
+        assertEquals(ReadState.READ, view.state)
+        assertEquals(1, view.outOfNorm)
+        assertEquals(listOf("02", "01"), view.groups.map { it.mid })
+        // «Прочитать снова»: the maps and the monitors again, nothing else
+        val asked = bus.requests.size
+        s.rereadTests(0x7E0)
+        assertEquals(ReadState.READING, s.model.value.modules.getValue(0x7E0).tests!!.state)
+        runCurrent()
+        assertEquals(listOf("7E0 0600", "7E0 0601", "7E0 0602"), bus.requests.drop(asked))
+        assertEquals(ReadState.READ, s.model.value.modules.getValue(0x7E0).tests!!.state)
+        // closed: nothing again
+        s.setModuleOpen(0x7E0, false)
+        val closed = bus.requests.size
+        s.rereadTests(0x7E0)
+        runCurrent()
+        assertEquals(closed, bus.requests.size)
+        // a block whose screen does not read Mode 06 has no tests
+        assertNull(s.model.value.modules[0x7E5]?.tests)
+        s.stop()
+    }
+
+    @Test
     fun noStoredFrameIsOneExchange() = runTest {
         val bus = carNow {
             on(0x7E0, "020200").answer("4202000000")

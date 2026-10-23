@@ -1551,6 +1551,107 @@
     footer(c, f.footer);
   }
 
+  /* ------------------------------------------------------- Mode 06 tests */
+  // «Тесты» of the ECM (architecture, 7.3): Mode 06 as the block's screen read it on opening, out of its
+  // bytes. A test is nine of them - MID, TID, UASID and three words, signed where the UASID is 80 or above
+  // - and one whose three words are zero has not run since the codes were cleared and is not judged. The
+  // fixture's strings are the words in their unit; where the value stands between the limits, whether it is
+  // in them and which side it left by come from the words.
+  const hex2 = v => v.toString(16).toUpperCase().padStart(2, '0');
+  function monitorTests(m) {
+    const b = m.answer.split(' ').map(h => parseInt(h, 16)), out = [];
+    for (let i = 0; 1 + 9 * i < b.length; i++) {
+      const o = 1 + 9 * i, ua = b[o + 2];
+      const w = k => { const v = (b[o + 3 + 2 * k] << 8) | b[o + 4 + 2 * k]; return ua >= 0x80 && v >= 0x8000 ? v - 0x10000 : v; };
+      const v = w(0), lo = w(1), hi = w(2), ran = !!(v || lo || hi);
+      const [value, min, max, unit] = m.tests[i];
+      const beyond = !ran || hi < lo ? 0 : v < lo ? -1 : v > hi ? 1 : 0;
+      const pos = !ran || hi < lo ? null : hi === lo ? (beyond < 0 ? 0 : beyond > 0 ? 1 : 0.5) : Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+      out.push({ tid: hex2(b[o + 1]), value, min, max, unit, pass: ran ? hi >= lo && beyond === 0 : null, pos, beyond });
+    }
+    return out.sort((a, d) => (a.tid < d.tid ? -1 : a.tid > d.tid ? 1 : 0));
+  }
+  // A monitor's exchange, two tests a line, a further line under the answer's first test.
+  function testLines(ask, answer) {
+    const bytes = answer.split(' ');
+    if (bytes.length < 10 || (bytes.length - 1) % 9 || bytes[0] !== '46') return [ask + ' → ' + answer];
+    const head = ask + ' → ' + bytes[0] + ' ', lines = [];
+    for (let i = 1; i < bytes.length; i += 18) lines.push((i === 1 ? head : ' '.repeat(head.length)) + bytes.slice(i, i + 18).join(' '));
+    return lines;
+  }
+  // The monitors as the screen orders them: one with a test outside its limits first, the rest by MID.
+  function testGroups(t) {
+    const groups = t.monitors.map(m => {
+      const tests = monitorTests(m);
+      return { mid: m.mid, title: (m.name + ' · MID ' + m.mid).toUpperCase(), tests, out: tests.some(x => x.pass === false), raw: testLines('06 ' + m.mid, m.answer) };
+    });
+    return groups.filter(g => g.out).concat(groups.filter(g => !g.out));
+  }
+  // Two columns: the split that leaves the taller the shortest, the first the taller on a tie. A group is
+  // its title, a line a test and its exchange's lines, all of one height.
+  function testColumns(groups) {
+    const n = g => 1 + g.tests.length + g.raw.length, total = groups.reduce((a, g) => a + n(g), 0);
+    let best = Infinity, split = 0, left = 0;
+    for (let k = 0; k <= groups.length; k++) {
+      if (k) left += n(groups[k - 1]);
+      const m = Math.max(left, total - left);
+      if (m <= best) { best = m; split = k; }
+    }
+    return [groups.slice(0, split), groups.slice(split)].filter(g => g.length);
+  }
+  // The scale: a hairline from the minimum to the maximum and the value's mark on it; a value out of the
+  // limits stands at the end it left by, a small orange point beyond the end pointing out.
+  function testScale(c, x, w, y, h, t) {
+    const S = L.ecuTests.scale, x0 = x + S.inset, x1 = x + w - S.inset, cy = y + h / 2;
+    fill(c, x0, cy - 0.5, x1 - x0, 1, 'line3');
+    fill(c, x0, cy - S.tick / 2, 1, S.tick, 'line3');
+    fill(c, x1 - 1, cy - S.tick / 2, 1, S.tick, 'line3');
+    const out = t.pass === false, [mw, mh] = S.mark, mx = x0 + t.pos * (x1 - x0);
+    fill(c, mx - mw / 2, cy - mh / 2, mw, mh, out ? 'orange' : 'white');
+    if (t.beyond) {
+      const [pw, ph] = S.out, ex = t.beyond > 0 ? x1 + S.outGap : x0 - S.outGap, tip = ex + t.beyond * pw;
+      const p = new Path2D(); p.moveTo(ex, cy - ph / 2); p.lineTo(tip, cy); p.lineTo(ex, cy + ph / 2); p.closePath();
+      c.fillStyle = col('orange'); c.fill(p);
+    }
+  }
+  function ecuTests(c, f) {
+    header(c, f.top);
+    const t = f.tests, E = L.ecuTests, groups = testGroups(t);
+    const all = groups.flatMap(g => g.tests), out = all.filter(x => x.pass === false).length;
+    // «ВНЕ НОРМЫ n» in the head only when a test is out of its limits
+    blockHead(c, Object.assign({}, f.block, { counters: f.block.counters.concat(out ? [['ВНЕ НОРМЫ', String(out), 'out']] : []) }));
+    tabs(c, f.tabs);
+    const line = t.maps.map(m => m[0]).join(' · ') + ' → ' + [`${groups.length} ${plural(groups.length, 'монитор', 'монитора', 'мониторов')}`,
+      `${all.length} ${plural(all.length, 'тест', 'теста', 'тестов')}`, t.at].join(' · ');
+    text(c, line, E.x[0], E.line, 'noteMono', 'dim2');
+    testColumns(groups).forEach((col, ci) => {
+      const x = E.x[ci], w = E.w, cols = columns(E.rowCols, x, w);
+      let y = E.top;
+      col.forEach(g => {
+        text(c, g.title, x, y + E.titleY, 'groupTitle', 'mute', { max: w });
+        y += E.title;
+        g.tests.forEach(r => {
+          const h = E.row, o = r.pass === false, ran = r.pass !== null;
+          text(c, 'TID ' + r.tid, cols[0][0], mid(y, h, 'normMono'), 'normMono', 'faint');
+          text(c, r.value, cols[1][0] + cols[1][1] - E.valuePad, mid(y, h, 'cellNum'), 'cellNum', o ? 'orange' : ran ? 'white' : 'faint', { align: 'right' });
+          text(c, r.unit, cols[2][0], mid(y, h, 'unit'), 'unit', 'dim2', { max: cols[2][1] - 4 });
+          if (!ran) {
+            text(c, 'не выполнялся', cols[3][0], mid(y, h, 'cellSmall'), 'cellSmall', 'faint');
+          } else {
+            text(c, r.min, cols[3][0] + cols[3][1] - E.limitPad, mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });
+            if (r.pos != null) testScale(c, cols[4][0], cols[4][1], y, h, r);
+            text(c, r.max, cols[5][0] + E.limitPad, mid(y, h, 'cellMono'), 'cellMono', 'dim2');
+            if (o) text(c, 'вне нормы', cols[6][0], mid(y, h, 'cellSmall'), 'cellSmall', 'orange');
+          }
+          rule(c, x, y + h - 1, w, 'hair');
+          y += h;
+        });
+        g.raw.forEach(l => { text(c, l, x, y + E.rawY, 'noteMono', 'faint', { max: w }); y += E.raw; });
+      });
+    });
+    footer(c, f.footer);
+  }
+
   const DIM_CELL = ['—', 'н/д', 'нет адреса', 'не читали'];
   function drivesTable(c, f) {
     const D = L.drives, cols = columns(D.cols, 24, W - 48);
@@ -2246,7 +2347,7 @@
     text(c, p.foot, x, fy + 4, 'paperFoot', 'paperGrey', { max: w });
   }
 
-  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, journalCompare, journalCodes, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, summary, modules, codeScreen, packHealth, sysGraphs, journal, journalCompare, journalCodes, report, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuTests, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

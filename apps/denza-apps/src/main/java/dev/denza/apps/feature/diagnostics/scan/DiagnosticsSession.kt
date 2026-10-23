@@ -290,6 +290,10 @@ internal class DiagnosticsSession(
         }
     }
 
+    override fun rereadTests(request: Int) = act {
+        if (request in open && reads.rereadTests(request)) retryStopped()
+    }
+
     override fun openCode(request: Int, code: String?) = act {
         codeShown = when {
             code != null -> request to code
