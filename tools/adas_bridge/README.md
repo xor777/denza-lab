@@ -151,3 +151,43 @@ python3 -m tools.adas_bridge.stock_trace batch --plan captures/adas-bench/beijin
   --serial emulator-5602 --frida-port 27071
 python3 -m tools.adas_bridge.compare scenario captures/adas-bench/beijing/run-<id> --content-reference
 ```
+
+## OSM roads under the Yandex route (`road_store.py`, `roads.py`)
+
+Yandex names no junctions and no road attributes; our OSM map has both. The
+bridge places the Yandex route on it and, where it matches, cuts links at the
+network's junction nodes and attribute changes and takes the attributes from it
+(`libraries/adas-link` RoadStore + RoadMatcher, mirrored byte for byte here).
+The geometry stays Yandex's.
+
+* `road_store.py build --package BUILD_DIR --out roads.bin` — the store, from a
+  `build_map.py` output (network, tiles and the routing chain through its final
+  `factory` stage): every value is what the producers delivered to m2, decoded
+  with the field-coverage gate's readers (`routing_tiles`, `decode_tile`, the
+  factory speed-limit signs), mapped as the stock map exports it (direction
+  raw≠3 → 1, ownership 1..4 → 1); names from the network's ways. Fragments that
+  meet only each other with equal attributes are joined. Format in the module
+  docstring; the report has counts and sizes only.
+* `roads.py` — the reader and the matcher (HMM over samples every 12 m: fragments
+  within 30 m in an allowed direction, a network path for every step, a no-road
+  state; runs under 30 m dropped; past a dead end only 5 m). `stock.convert(route,
+  frame, roads)` uses it; `route_convert(..., roads=)`, `LiveBridge(..., roads)`,
+  `bridge_trace.py yandex --roads S [--engine java]` and `compare.py profile
+  --roads S` (links grouped by the OSM road under them) pass it on.
+* `road_bench.py --roads S --out OUT SNAPSHOT...` — links per route, link length
+  and attribute coverage without and with the store, per road group next to the
+  factory profile.
+
+```sh
+python3 tools/stock-map/build_map.py --region captures/adas-bridge-osm/region-yandex-routes.json \
+  --out captures/adas-bridge-osm/build-01 --stages factory --network-margin-m 1000
+python3 -m tools.adas_bridge.road_store build --package captures/adas-bridge-osm/build-01 \
+  --out captures/adas-bridge-osm/roads.bin --report captures/adas-bridge-osm/roads.report.json
+python3 -m tools.adas_bridge.bridge_trace yandex --engine java --roads captures/adas-bridge-osm/roads.bin \
+  --snapshot captures/yandex-adas-prototype-20261023/route-01/denza-hud-native-route.json \
+  --progress captures/yandex-adas-prototype-20261023/route-01/progress-later --out OUT/bridge-trace.json
+```
+
+Inside Navigator the module maps `denza-adas-roads.bin` from its files
+directory (internal, else external) at bridge start; without it the bridge uses
+Yandex data only.

@@ -159,17 +159,18 @@ def normalize(snapshot):
     return {"routeId": route_id, "edgeCount": edge_count, "sectionsKnown": sections_known, "waypoints": waypoints}
 
 
-def route_convert(snapshot, *, target_frame, path_ids=None):
+def route_convert(snapshot, *, target_frame, path_ids=None, roads=None):
     """Snapshot -> the stock NaviToEHPData (no null anywhere) plus the placement table.
 
     path_ids: the per-process stock.PathIds; a fresh one (first id 100002) when omitted.
+    roads: a roads.RoadStore to match the route onto (OSM cuts and attributes), or None.
     """
     if target_frame not in FRAMES:
         raise ContractError("target coordinate frame must be selected explicitly")
     checked = normalize(snapshot)
     try:
         route = stock.route_from_snapshot(snapshot)
-        converted = stock.convert(route, target_frame)
+        converted = stock.convert(route, target_frame, roads)
     except stock.StockError as exc:
         raise ContractError(str(exc)) from exc
     (path_ids or stock.PathIds()).assign(converted)
@@ -210,6 +211,7 @@ def route_convert(snapshot, *, target_frame, path_ids=None):
             "unknownAttributePolicy": STOCK_UNKNOWN_VALUES,
             "exportBlockers": blockers,
             "contentKey": converted["contentKey"],
+            "roadMatch": converted["roadMatch"],
             "stockGeometry": {key: converted[key] for key in ("totalM", "cumulative", "linkSegment", "linkInSegment",
                                                               "linkBeginM", "linkEndM", "linkBeginScalar", "linkEndScalar",
                                                               "segmentBeginM", "segmentEndM", "lightM", "tunnelM",

@@ -555,10 +555,27 @@ def profile(trace, groups_of=None):
     return out
 
 
-def yandex_groups(snapshot_path, target_frame):
-    """Bridge links grouped by what Yandex itself says (highway/tunnel ranges, lights); class is unknown."""
+def yandex_groups(snapshot_path, target_frame, roads=None, trace_roads=None):
+    """Bridge links grouped by what Yandex itself says (highway/tunnel ranges, lights); class is unknown.
+
+    roads: a road store to group by instead: every link by the OSM road under its middle as the
+    matcher places the route ('osm-' + coverage.road_group, 'osm-unmatched'), the same grouping for
+    a trace converted with or without roads. trace_roads: the store the trace itself was converted
+    with (its link table), None for a Yandex-only trace.
+    """
     from .bridge import route_convert
-    converted = route_convert(json.loads(Path(snapshot_path).read_text()), target_frame=target_frame)
+    snapshot = json.loads(Path(snapshot_path).read_text())
+    converted = route_convert(snapshot, target_frame=target_frame, roads=trace_roads)
+    if roads is not None:
+        from . import roads as roads_module, stock
+        geometry = converted['stockGeometry']
+        match = roads_module.match(stock.route_from_snapshot(snapshot), geometry['cumulative'], roads)
+        groups = []
+        for begin, end in zip(geometry['linkBeginScalar'], geometry['linkEndScalar']):
+            road = None if match is None else match.fragment_at((begin + end) / 2)
+            groups.append('osm-unmatched' if road is None else
+                          'osm-' + coverage.road_group({'roadclass': road['roadClass'], 'formway': road['formway']}))
+        return lambda route: groups if len(groups) == len(route['links']) else ['unknown'] * len(route['links'])
     groups = []
     for link in converted['intermediate']['links']:
         member = link['rangeMembership']
@@ -568,13 +585,22 @@ def yandex_groups(snapshot_path, target_frame):
 
 
 def cmd_profile(args):
+    from .roads import RoadStore
     result = {}
+    stores = {}
+
+    def store(path):
+        if path and path not in stores:
+            stores[path] = RoadStore(Path(path).read_bytes())
+        return stores.get(path)
+
     for spec in args.stock or []:
         result['stock:' + spec] = profile(read_trace(spec))
     for spec in args.bridge or []:
         trace = read_trace(spec)
         snapshot = trace['provenance'].get('snapshot')
-        groups_of = yandex_groups(snapshot, trace['provenance'].get('targetFrame', 'wgs84')) if snapshot else None
+        groups_of = yandex_groups(snapshot, trace['provenance'].get('targetFrame', 'wgs84'), store(args.roads and str(args.roads)),
+                                  store(trace['provenance'].get('roads'))) if snapshot else None
         result['bridge:' + spec] = profile(trace, groups_of)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, ensure_ascii=False, indent=1) + '\n')
@@ -756,6 +782,7 @@ def main():
     p = sub.add_parser('profile', help='per road type: route link fields and per-tick messages, any number of traces')
     p.add_argument('--stock', action='append', help='stock trace (factory or OSM)')
     p.add_argument('--bridge', action='append', help='bridge trace (real Yandex: grouped by Yandex ranges)')
+    p.add_argument('--roads', type=Path, help='road store: group bridge links by the OSM road the route matches')
     p.add_argument('--out', type=Path, required=True)
     p.set_defaults(func=cmd_profile)
     p = sub.add_parser('matrix', help='transition coverage matrix over scenario results')

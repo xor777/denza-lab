@@ -450,8 +450,12 @@ def sum_java(values):
     return total
 
 
-def convert(route, frame):
-    """RouteConverter.convert: the PathInfo (pathId 0) and the placement geometry."""
+def convert(route, frame, roads=None):
+    """RouteConverter.convert: the PathInfo (pathId 0) and the placement geometry.
+
+    roads: a roads.RoadStore; where the route matches it, links are also cut at the network's
+    junction nodes and attribute changes and carry its attributes (RouteConverter + RoadMatcher).
+    """
     if frame not in FRAMES:
         raise StockError("target coordinate frame must be selected explicitly")
     lon, lat = route["lon"], route["lat"]
@@ -486,6 +490,13 @@ def convert(route, frame):
         if 0 < sign[0] < edges:
             candidates.append((sign[0], 1))
     candidates += [(s, 0) for s in route.get("junctions") or () if 0 < s < edges]
+    # Junction nodes and attribute changes of the OSM roads the route matched (Amap's road records).
+    road_match = None
+    if roads is not None:
+        from . import roads as roads_module
+        road_match = roads_module.match(route, cumulative, roads)
+        if road_match is not None:
+            candidates += [(s, 0) for s in road_match.cuts if 0 < s < edges]
     candidates.sort(key=lambda c: (c[0], -c[1]))
 
     segments, link_segment, link_in_segment = [], [], []
@@ -571,7 +582,7 @@ def convert(route, frame):
             continue
         all_links[owner]["hasTrafficLight"] = True
         segments[link_segment[owner]]["trafficLightNum"] += 1
-    _attributes(route, sections, segments, link_begin_s, link_end_s, link_end, cumulative)
+    link_speed, link_legal = _attributes(route, sections, segments, link_begin_s, link_end_s, link_end, cumulative, road_match)
     groups = _groups(sections)
     traffic_lights = []
     for s in lights:
@@ -594,22 +605,37 @@ def convert(route, frame):
             "segmentBeginM": seg_begin, "segmentEndM": seg_end, "lightM": light_m,
             "tunnelM": tunnel_m, "tunnelEnds": tunnel_ends, "speedCameras": cameras,
             "segmentFreeFlowKmh": [s.get("freeFlowKmh", float("nan")) for s in sections],
+            "linkSpeedKmh": link_speed, "linkLegalKmh": link_legal,
+            "roadMatch": None if road_match is None else road_match.stats,
             "contentKey": content_key(path)}
 
 
-def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative):
-    """RouteConverter.attributes: what the factory Beijing profile lets Yandex data state.
-
-    Link MainAction stays 0 (factory segment-end links carry 0); a roundabout section is formway 4,
-    direction 1; a highway link without a light is RoadClass 0 at a limit >= 90 km/h else 6, formway 1,
-    direction 1, ownership 0, lane count from a lane sign ending it. Everything else stays NULL.
+def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative, road_match=None):
+    """RouteConverter.attributes: a link the route matched onto our OSM roads carries its road's
+    attributes as the stock map exports them (class, formway, link type, LaneNum, direction,
+    ownership, name); per link also its ERAT 0x4269 speed (NaN elsewhere) and its legal limit in
+    the direction travelled (0 none), returned.
+    Any other link keeps what the factory Beijing profile lets Yandex data state: link MainAction
+    stays 0 (factory segment-end links carry 0); a roundabout section is formway 4, direction 1; a
+    highway link without a light is RoadClass 0 at a limit >= 90 km/h else 6, formway 1, direction 1,
+    ownership 0, lane count from a lane sign ending it. Everything else stays NULL.
     """
     edges = len(route["lon"]) - 1
     index = 0
+    speeds, legal = [], []
     for si, segment in enumerate(segments):
         roundabout = sections[si]["action"] == "ENTER_ROUNDABOUT"
         for link in segment["links"]:
             middle = (begin_s[index] + end_s[index]) / 2
+            road = None if road_match is None else road_match.fragment_at(middle)
+            speeds.append(float("nan") if road is None else float(road["speed"]))
+            legal.append(0 if road is None else road_match.legal_at(middle))
+            if road is not None:
+                link["roadClass"], link["formway"], link["linkType"] = road["roadClass"], road["formway"], road["linkType"]
+                link["laneNum"], link["direction"], link["ownership"] = road["laneNum"], road["direction"], road["ownership"]
+                link["roadName"] = road["name"]
+                index += 1
+                continue
             if roundabout:
                 link["formway"], link["direction"] = 4, 1
             if _inside(route.get("highways"), middle) and not link["hasTrafficLight"]:
@@ -622,6 +648,7 @@ def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative):
                     if abs(metres(cumulative, position) - end_m[index]) <= MIN_LINK_M:
                         link["laneNum"] = int(lanes)
             index += 1
+    return speeds, legal
 
 
 def _groups(sections):

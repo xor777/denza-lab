@@ -344,13 +344,61 @@ def cmd_synth(args):
                           routes=len(snapshots))))
 
 
+def cmd_yandex_java(args, snapshot, samples):
+    """The Java feed (NavigatorDriver + StockFeed, ReplayTool) on the recorded Navigator samples."""
+    steps, seen = [], set()
+    for sample in samples:
+        now = sample.get('capturedUptimeMs')
+        if now is None:
+            continue
+        route_id = sample.get('routeId')
+        if 'positionMatchesRoute' not in sample:
+            # Recorded before the module exported it: AdasBridge's own rule (on the route unless rerouting).
+            sample = dict(sample, positionMatchesRoute=sample.get('mode') == 'guidance')
+        first = route_id == snapshot.get('routeId') and route_id not in seen
+        if first:
+            seen.add(route_id)
+        steps.append({'t_ms': now, 'sample': sample, 'snapshot': snapshot if first else None})
+    java, classes = java_classes()
+    work = Path(tempfile.mkdtemp(prefix='adas-replay-'))
+    try:
+        frame = 'wgs84' if args.target_frame == 'wgs84' else 'gcj'
+        (work / 'input.json').write_text(json.dumps({'frame': frame, 'acceptSimulated': True, 'tailMs': 6000, 'ackDelayMs': 80,
+                                                     'startMs': max(0, steps[0]['t_ms'] - 1000) if steps else 0,
+                                                     'roads': None if args.roads is None else str(args.roads.resolve()),
+                                                     'steps': steps}))
+        subprocess.run([str(java), '-cp', str(classes), 'dev.denza.adaslink.ReplayTool', str(work / 'input.json'),
+                        str(work / 'dry-run.jsonl')], check=True)
+        events = java_events(work / 'dry-run.jsonl')
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        dry = args.out.with_name(args.out.stem + '.dry-run.jsonl')
+        shutil.copyfile(work / 'dry-run.jsonl', dry)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+        shutil.rmtree(classes, ignore_errors=True)
+    provenance = {'source': 'libraries/adas-link (NavigatorDriver + StockFeed, dry run) on a REAL Yandex Navigator snapshot and '
+                            'native guidance ring (instrumented emulator build); emulated ADAS answer 80 ms',
+                  'engine': 'java', 'snapshot': str(args.snapshot), 'progress': str(args.progress), 'targetFrame': args.target_frame,
+                  'roads': None if args.roads is None else str(args.roads), 'steps': len(steps), 'dryRun': str(dry),
+                  'gnssTicks': [{'t_ms': s['t_ms'], 'mode': s['sample'].get('mode'),
+                                 'speed_mps': (s['sample'].get('location') or {}).get('speed')} for s in steps]}
+    out = write_trace(args.out, 'bridge', 'java-yandex:' + args.snapshot.parent.name, events, provenance, rebase=False)
+    print(json.dumps(dict(trace=str(args.out), events=len(out['events']), steps=len(steps))))
+
+
 def cmd_yandex(args):
     """capture_replay's loop (recorded uptime, zero delivery delay), keeping every receipt."""
     from .dynamic import status_bytes
     snapshot = read_json(args.snapshot)
     samples = sorted((read_json(p) for p in glob.glob(str(args.progress / 'sample-*.json'))),
                      key=lambda r: r.get('capturedUptimeMs', -1))
-    engine = LiveBridge(decode_someip_route(GOLDEN.read_bytes()), args.target_frame)
+    if args.engine == 'java':
+        return cmd_yandex_java(args, snapshot, samples)
+    roads = None
+    if args.roads:
+        from .roads import RoadStore
+        roads = RoadStore(args.roads.read_bytes())
+    engine = LiveBridge(decode_someip_route(GOLDEN.read_bytes()), args.target_frame, roads)
     log, accepted = [], 0
     for order, sample in enumerate(samples):
         now = sample.get('capturedUptimeMs')
@@ -368,6 +416,8 @@ def cmd_yandex(args):
     events = bench_events(log)
     provenance = {'source': 'REAL Yandex Navigator snapshot and native guidance ring (instrumented emulator build)',
                   'snapshot': str(args.snapshot), 'progress': str(args.progress), 'targetFrame': args.target_frame,
+                  'roads': None if args.roads is None else str(args.roads),
+                  'roadMatch': None if engine.converted is None else engine.converted.get('roadMatch'),
                   'samples': len(samples), 'accepted': accepted,
                   'gnssTicks': [{'t_ms': s.get('capturedUptimeMs'), 'mode': s.get('mode'),
                                  'speed_mps': (s.get('location') or {}).get('speed')} for s in samples]}
@@ -390,6 +440,9 @@ def main():
     p.add_argument('--snapshot', type=Path, required=True)
     p.add_argument('--progress', type=Path, required=True)
     p.add_argument('--target-frame', default='native-gcj-unrestricted-candidate')
+    p.add_argument('--roads', type=Path, help='road attribute store (road_store.py) to match the route onto')
+    p.add_argument('--engine', choices=('python', 'java'), default='python',
+                   help='python: the host prototype (LiveBridge); java: the bridge itself (ReplayTool)')
     p.add_argument('--out', type=Path, required=True)
     p.set_defaults(func=cmd_yandex)
     args = parser.parse_args()

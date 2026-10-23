@@ -87,9 +87,10 @@ class LiveBridge:
     """Local state only, following the stock lifecycle: one route publication per pathId, a
     transient loss or reroute holds the position and never ends navigation (DYN-02/04), the same
     link table keeps its pathId (DYN-03), a finished route is retired (DYN-13)."""
-    def __init__(self, golden_record, target_frame):
+    def __init__(self, golden_record, target_frame, roads=None):
         self.golden = golden_record
         self.target_frame = target_frame
+        self.roads = roads
         self.receiver = FakeReceiver()
         self.bench = None
         self.converted = None
@@ -160,7 +161,7 @@ class LiveBridge:
             source = copy.deepcopy(snapshot)
             source["generation"] = generation
             source["sourceSessionId"] = session
-            converted = route_convert(source, target_frame=self.target_frame, path_ids=self.path_ids)
+            converted = route_convert(source, target_frame=self.target_frame, path_ids=self.path_ids, roads=self.roads)
             same = self.converted is not None and converted["contentKey"] == self.converted["contentKey"] and self.receiver.active
             if not same:
                 self.bench = make_bench(converted, self.golden, time_ms=sample.get("capturedAtMs", 0), receiver=self.receiver)
