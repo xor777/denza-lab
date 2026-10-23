@@ -328,7 +328,7 @@
       let w = text(c, label, x, top, 'tab', on ? 'white' : 'mute');
       if (t.alert === i) {
         const d = L.header.dot;
-        glow(c, 6, 'orange', () => fill(c, x + w + N.dotGap, N.top + (N.height - d) / 2, d, d, 'orange', d / 2));
+        glow(c, 6, 'red', () => fill(c, x + w + N.dotGap, N.top + (N.height - d) / 2, d, d, 'red', d / 2));
         w += N.dotGap + d;
       }
       if (on) fill(c, x, N.top + N.height - N.underline, w, N.underline, 'blue');
@@ -1376,7 +1376,7 @@
   }
 
   // A monitor's readiness in words, no chip: ready is the quiet case.
-  const MONITOR = { ready: ['готов', 'dim2'], waiting: ['не готов', 'white'], absent: ['не поддерживается', 'faint'] };
+  const MONITOR = { ready: ['готов', 'dim2'], waiting: ['не готов', 'white'], absent: ['не поддерж.', 'faint'] };
   // X: where the two halves stand - the block screen's (L.ecuDtc) or the rail's (L.rail.ecuDtc).
   function monitors(c, list, X) {
     const D = L.ecuDtc, R = (X || D).right, cols = columns((X || D).monCols, R.x, R.w);
