@@ -115,7 +115,7 @@ class ReportTest {
         assertEquals(4.0, input.pack.cellSpreadMv!!, 0.0)
         // The exchanges are the scan's, and the services in the order first asked.
         assertEquals(scanned.scan.reads.sumOf { it.replies.size }, input.exchanges.count)
-        assertEquals(listOf("22 F194", "19 01 09"), input.exchanges.services.take(2))
+        assertEquals(listOf("22 F194", "22 F190"), input.exchanges.services.take(2))
         assertEquals("OBD 01/03/07/09/0A", input.exchanges.services.last())
     }
 
@@ -188,7 +188,7 @@ class ReportTest {
                 (if (s.memoriesRead < s.answered) " · память прочитана у ${s.memoriesRead}" else ""),
             ReportDocuments.summary(input),
         )
-        assertTrue(doc.footer, doc.footer.matches(Regex("Запросы: 22 F194 · 19 01 09 · .* · OBD 01/03/07/09/0A — \\d+ обмен(а|ов)?( за \\d+ мс| за \\d+,\\d с)?")))
+        assertTrue(doc.footer, doc.footer.matches(Regex("Запросы: 22 F194 · 22 F190 · 19 01 09 · .* · OBD 01/03/07/09/0A — \\d+ обмен(а|ов)?( за \\d+ мс| за \\d+,\\d с)?")))
         // The codes' table: the block on its first row only, no «впервые» without a journal.
         val codes = doc.pieces.filterIsInstance<ReportPiece.Table>().first()
         assertTrue(codes.columns.none { it.title == "ВПЕРВЫЕ" })

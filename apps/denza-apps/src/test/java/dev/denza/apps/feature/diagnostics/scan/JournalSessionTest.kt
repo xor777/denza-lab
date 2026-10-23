@@ -60,7 +60,8 @@ class JournalSessionTest {
         val scan = journal.latest!!
         assertEquals(JournalScanKind.FULL, scan.kind)
         assertEquals(68, scan.modules.size)
-        assertEquals(148, scan.exchanges)
+        // 148 of the v3 scan, five 0D probes and the two VIN reads (architecture, 5.2, 6).
+        assertEquals(155, scan.exchanges)
         assertEquals(13_199.7, scan.odometerKm!!, 0.0)
         assertEquals(13.7, scan.vitals.lvVolts!!, 0.0)
         assertEquals(14.4, scan.vitals.insulationMohm!!, 1e-9)
