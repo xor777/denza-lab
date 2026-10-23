@@ -7,12 +7,17 @@ import dev.denza.apps.feature.diagnostics.bus.DiagRequest
 import dev.denza.apps.feature.diagnostics.bus.DiagnosticBus
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
+import dev.denza.apps.feature.diagnostics.report.ReportBundles
+import dev.denza.apps.feature.diagnostics.report.ReportDesk
+import dev.denza.apps.feature.diagnostics.report.ReportSection
+import dev.denza.apps.feature.diagnostics.report.ReportWriter
 import java.time.ZoneId
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The diagnostic section's engine (docs/vehicle-diagnostics-architecture.md, 6 and 6.1): it lives
@@ -81,7 +87,11 @@ import kotlinx.coroutines.launch
  * ([saveCells]) each add one entry to [journal], loaded from [journalStore] once a process and written
  * by the worker; nothing else does.
  *
- * Only [ScanStore], [SoftwareStore], [JournalStore] and [StreamSinks] touch files and only [CarFeed] touches the hub;
+ * **The report** (7.4, [saveReport]): one save at a time on the worker's scope, of the model's report
+ * input and the shown scan's replies; [ReportDesk] keeps its outcome and the newest recording, looked
+ * for when the section opens and when a recording ends.
+ *
+ * Only [ScanStore], [SoftwareStore], [JournalStore], [StreamSinks] and [ReportWriter] touch files and only [CarFeed] touches the hub;
  * the rest is plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
  */
 internal class DiagnosticsSession(
@@ -105,12 +115,15 @@ internal class DiagnosticsSession(
     private val software: SoftwareStore = MemorySoftwareStore(),
     /** The scan journal's files (6.4); read and written on the worker, never on the caller's thread. */
     private val journalStore: JournalStore = MemoryJournalStore(),
+    /** Where «Сохранить» puts the report and where the newest recording is found (7.4). */
+    reports: ReportWriter = ReportWriter.NONE,
 ) : DiagnosticsActions {
     private val clock = ScanClock(zone)
     private val builder = ModelBuilder(clock, catalog)
     private val lock = Any()
     private val saving = Any()
     private val journaling = Any()
+    private val desk = ReportDesk(reports, log)
 
     private var scope: CoroutineScope? = null
     private var bus: DiagnosticBus? = null
@@ -202,6 +215,8 @@ internal class DiagnosticsSession(
             s.launch { tick() }
             // Beside the work: a full journal is megabytes, and the autoscan need not wait for it.
             s.launch { loadJournal() }
+            desk.open()
+            s.launch { lookRecording() }
             publish()
         }
     }
@@ -284,6 +299,7 @@ internal class DiagnosticsSession(
         } else if (recording?.first == request) {
             recording?.second?.close()
             recording = null
+            scope?.launch { lookRecording() }
         }
     }
 
@@ -393,6 +409,27 @@ internal class DiagnosticsSession(
     }
 
     override fun resetSystemLive(system: CarSystem) = act { liveTables[system]?.takeIf { liveShown == system }?.resetMinMax() }
+
+    override fun saveReport(sections: Set<ReportSection>) {
+        val (s, input, scan) = synchronized(lock) {
+            val s = scope ?: return
+            val input = mutable.value.report.input ?: return
+            if (!desk.claim()) return
+            publish()
+            Triple(s, input, stored())
+        }
+        s.launch {
+            // A save that began finishes and cleans up after itself even when the section closes under it.
+            withContext(NonCancellable) { desk.save { ReportBundles.of(input, sections, scan) } }
+            synchronized(lock) { publish() }
+        }.invokeOnCompletion { desk.settle() }
+    }
+
+    /** The newest recording for the report, off the caller's thread. */
+    private fun lookRecording() {
+        desk.look()
+        synchronized(lock) { publish() }
+    }
 
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {
@@ -830,6 +867,8 @@ internal class DiagnosticsSession(
         packCells = cells?.view(carNanos(), cellsStopped),
         software = codes,
         liveTable = liveShown?.let { liveTables[it] },
+        report = desk.outcome,
+        reportRecording = desk.recording,
     )
 
     private fun publish() {

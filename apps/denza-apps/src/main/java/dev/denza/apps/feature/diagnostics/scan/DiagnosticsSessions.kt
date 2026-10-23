@@ -9,6 +9,7 @@ import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
 import dev.denza.apps.feature.diagnostics.DiagnosticExtras
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.bus.ResidentDiagnosticBus
+import dev.denza.apps.feature.diagnostics.report.DownloadsReportWriter
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleTelemetryHub
 import dev.denza.apps.feature.vehicle.VehicleWatcher
@@ -64,6 +65,7 @@ internal object DiagnosticsSessions {
             carNanos = SystemClock::elapsedRealtimeNanos,
             software = FileSoftwareStore(dir),
             journalStore = FileJournalStore(File(dir, FileJournalStore.DIRECTORY)),
+            reports = DownloadsReportWriter(app, dir),
         )
     }
 

@@ -2,6 +2,8 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
+import dev.denza.apps.feature.diagnostics.report.ReportSection
+import dev.denza.apps.feature.diagnostics.report.ReportState
 
 /**
  * What the diagnostic screens show, already decided: words, figures and states. The screens never
@@ -25,6 +27,8 @@ internal data class DiagnosticsModel(
     val param: ParamView? = null,
     /** «Тяговая батарея · Ячейки» while [DiagnosticsActions.setCellsVisible] holds it; null otherwise (architecture, 6.3). */
     val packCells: PackCellsView? = null,
+    /** «Отчёт»: what it can include and what the last [DiagnosticsActions.saveReport] came to (architecture, 7.4). */
+    val report: ReportState = ReportState(),
 )
 
 /**
@@ -957,4 +961,11 @@ internal interface DiagnosticsActions {
      * and current now (architecture, 6.4); nothing before a whole sweep was drawn.
      */
     fun saveCells() {}
+
+    /**
+     * «Сохранить» on «Отчёт»: the PDF, with the JSON of the scan's replies and a copy of the last
+     * recording where [sections] ask for them, into `Download/Denza/` (architecture, 7.4);
+     * [DiagnosticsModel.report] says how it went. A press while a save runs is no second save.
+     */
+    fun saveReport(sections: Set<ReportSection>) {}
 }

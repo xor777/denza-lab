@@ -38,7 +38,7 @@ internal object Figures {
 }
 
 /** The car's wall clock as the screens print it. */
-internal class ScanClock(private val zone: ZoneId) {
+internal class ScanClock(val zone: ZoneId) {
     private val minutes = DateTimeFormatter.ofPattern("HH:mm")
     private val seconds = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val dated = DateTimeFormatter.ofPattern("dd.MM HH:mm")

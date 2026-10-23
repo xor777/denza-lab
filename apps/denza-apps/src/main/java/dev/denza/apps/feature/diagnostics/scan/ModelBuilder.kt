@@ -23,6 +23,12 @@ import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
 import dev.denza.apps.feature.diagnostics.protocol.Polled
 import dev.denza.apps.feature.diagnostics.protocol.quality
 import dev.denza.apps.feature.diagnostics.protocol.MonitorState as ObdMonitorState
+import dev.denza.apps.feature.diagnostics.report.ReportInputs
+import dev.denza.apps.feature.diagnostics.report.ReportJournal
+import dev.denza.apps.feature.diagnostics.report.ReportOutcome
+import dev.denza.apps.feature.diagnostics.report.ReportReads
+import dev.denza.apps.feature.diagnostics.report.ReportRecording
+import dev.denza.apps.feature.diagnostics.report.ReportState
 import java.time.format.DateTimeFormatter
 
 /** Everything the session knows at one moment, handed to [ModelBuilder] under its lock. */
@@ -51,6 +57,12 @@ internal class SessionSnapshot(
     val software: SoftwareHistory = SoftwareHistory(),
     /** The system whose «Потоковые данные» is in front, keeping its minute (6.3, 7.2); null otherwise. */
     val liveTable: SystemLive? = null,
+    /** What the last «Сохранить» came to, and the newest recording the report can copy (7.4). */
+    val report: ReportOutcome = ReportOutcome.Idle,
+    val reportRecording: ReportRecording? = null,
+    /** What the journal and the further reads add to the report; null while they are not connected (7.4). */
+    val reportJournal: ReportJournal? = null,
+    val reportReads: ReportReads? = null,
 )
 
 /**
@@ -77,7 +89,7 @@ internal class ModelBuilder(
         )
         // A page needs something to show: a scan, or a reading of the car.
         val anything = s.phase != ScanPhase.NEVER || s.results.isNotEmpty() || s.car.hub.isNotEmpty() || s.car.extras.isNotEmpty()
-        return DiagnosticsModel(
+        val model = DiagnosticsModel(
             header = Header(s.link, carLine(s.car), clock.seconds(s.nowMillis)),
             scan = scan,
             groups = groups,
@@ -88,6 +100,25 @@ internal class ModelBuilder(
             param = s.param,
             packCells = s.packCells,
         )
+        return model.copy(report = report(model, s))
+    }
+
+    /** «Отчёт» (7.4): its input from the model, the scan's replies and the car, once there is a scan to report. */
+    private fun report(model: DiagnosticsModel, s: SessionSnapshot): ReportState {
+        if (s.results.isEmpty()) return ReportState(outcome = s.report)
+        val input = ReportInputs.of(
+            model = model,
+            results = s.results,
+            finishedAtMillis = s.finishedAtMillis,
+            car = s.car,
+            software = s.software,
+            nowMillis = s.nowMillis,
+            zone = clock.zone,
+            recording = s.reportRecording,
+            journal = s.reportJournal,
+            reads = s.reportReads,
+        )
+        return ReportState(input, ReportInputs.options(input), s.report)
     }
 
     // ------------------------------------------------------------------ autoscan
