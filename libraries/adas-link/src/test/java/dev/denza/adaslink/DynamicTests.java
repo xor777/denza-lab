@@ -215,6 +215,8 @@ final class DynamicTests {
         for (int i = 0; i < 50; i++) rig.observe(guidance(5_000_100 + i * 100, m4.routeId, i == 0 ? m4 : null, 1.0 + i * 0.03, 10, stamp++));
         int n = rig.fires(Topics.SD_VEHICLE_LOCATION).size();
         check(n >= 4 && n <= 6, "10 Hz fixes: positions at most once a second (" + n + ")");
+        int ni = rig.fires(Topics.SD_TIDAL_LANE).size(), odd = rig.fires(Topics.ADV_AUTO_FUN_INFO).size();
+        check(ni >= 4 && ni <= 6 && odd <= 6, "10 Hz fixes: NaviInfo bundle once a second, as Amap's guidance (" + ni + "/" + odd + ")");
         // Stopped: the loop sends every second with no new fix.
         rig.observe(guidance(5_006_000, m4.routeId, null, 3.0, 0, stamp++));
         int before = rig.fires(Topics.SD_VEHICLE_LOCATION).size();

@@ -99,7 +99,8 @@ public final class NavigatorDriver {
                 naving = true;
                 feed.onNavStart();
             }
-            if (naving && o.mode.equals("rerouting") && !mode.equals("rerouting")) {
+            // A yaw reroute leaves guidance; Navigator's NOT_ON_ROUTE before its first match is not one.
+            if (naving && o.mode.equals("rerouting") && mode.equals("guidance")) {
                 sawReroute = true;
                 feed.onReroute(2);
             }
@@ -113,12 +114,22 @@ public final class NavigatorDriver {
         lastStamp = o.stamp;
         if (naving && current != null && o.mode.equals("guidance") && o.positionOnRoute && o.routeId.equals(currentRouteId)
                 && !Double.isNaN(o.scalar))
-            feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps));
+            if (naviInfoDue(o.monotonicMs)) feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps));
         feed.onLocation(new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, o.heading,
                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh));
     }
 
     public boolean naving() { return naving; }
+
+    private long lastNaviInfo = Long.MIN_VALUE / 4;
+
+    /** Amap's guidance reports NaviInfo once a second, whatever the location rate (as k.h.a0.d.c.d() paces fixes). */
+    private boolean naviInfoDue(long now) {
+        long elapsed = (now - lastNaviInfo) - 1000;
+        if (elapsed < 0) return false;
+        lastNaviInfo = elapsed < 50 ? now - elapsed : now;
+        return true;
+    }
 
     /**
      * A recorded {@code denza-yandex-guidance-v1} sample as an observation at {@code nowMs}

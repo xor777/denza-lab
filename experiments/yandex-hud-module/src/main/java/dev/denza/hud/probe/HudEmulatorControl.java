@@ -117,11 +117,12 @@ final class HudEmulatorControl {
             Log.w("DenzaYandexHud", "native route identity failed", error);
             return;
         }
-        // A new route object or id is copied at once; the same route is refreshed at most once a
+        // A new route id is copied at once; the same route is refreshed at most once a
         // minute (conditions may populate after the first result), a failed attempt after ten seconds.
-        boolean changed = route != recordedObject || !id.equals(recordedRoute) || writeFailed;
+        // MapKit hands out a new wrapper object on every read: the route id is the identity.
+        boolean changed = !id.equals(recordedRoute) || writeFailed;
         if (!changed && now - recordedRouteAt < 60_000) return;
-        if (id.equals(attemptedRoute) && route == attemptedObject && now - routeAttemptAt < 10_000) return;
+        if (id.equals(attemptedRoute) && now - routeAttemptAt < 10_000) return;
         if (writing) return; // one write in flight; the next tick tries again
         attemptedRoute = id; attemptedObject = route; routeAttemptAt = now;
         try {

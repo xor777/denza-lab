@@ -103,6 +103,7 @@ public final class StockFeed implements BridgeStatus {
     private int lastVehicleSpeed = Integer.MIN_VALUE;
     private int enteredTunnel = -1;
     private boolean cameraShown;
+    private double shownCamera = Double.NaN;
     private volatile long lastFire = -1;
 
     /** A converted route with its pathId, the Amap RouteType it came with, and its own request. */
@@ -435,15 +436,16 @@ public final class StockFeed implements BridgeStatus {
         double[] next = null;
         for (double[] cam : c.speedCameras) if (cam[0] >= passed && cam[0] - passed < 2000) { next = cam; break; }
         if (next != null) {
-            cameraShown = true;
             int distance = RouteConverter.round(next[0] - passed);
             cameraType = 7;
             cameraDistance = distance;
-            f0ActionCamera();
             eyeSpeed = (int) next[1];
             eyeDist = distance;
+            // onShowNaviCameraExt fires when the camera ahead changes; distances move with NaviInfo.
+            if (shownCamera != next[0]) { shownCamera = next[0]; cameraShown = true; f0ActionCamera(); }
         } else if (cameraShown) {
             cameraShown = false;
+            shownCamera = Double.NaN;
             eyeSpeed = 0; eyeDist = 0;                               // reSetCameraSpeedParam
             iSpeed = 0; giStart = 0; giEnd = 0; iStartLon = iStartLat = iEndLon = iEndLat = 0;   // reSetIntervalCameraSpeed
             icon = 0; actMain = 0; actAssist = 0; actDistance = -1; cameraType = 0; cameraDistance = -1;
@@ -615,6 +617,7 @@ public final class StockFeed implements BridgeStatus {
         enteredTunnel = -1;
         inTunnel = false;
         cameraShown = false;
+        shownCamera = Double.NaN;
         publishStatus();
     }
 

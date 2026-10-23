@@ -67,7 +67,6 @@ final class AdasBridge {
     private final NavigatorDriver driver;
     private boolean failed;
     private String copiedRoute;
-    private Object copiedObject;
     private long copiedAt;
     private int copies;
     private volatile Location raw;
@@ -135,7 +134,8 @@ final class AdasBridge {
             o.positionOnRoute = !o.mode.equals("rerouting");
             // The full copy on the main thread only when the route changes, and once more ten
             // seconds later (conditions populate after the first result); conversion runs off it.
-            if (route != copiedObject || !o.routeId.equals(copiedRoute)) { copiedObject = route; copiedRoute = o.routeId; copies = 0; }
+            // MapKit hands out a new wrapper object on every read: the route id is the identity.
+            if (!o.routeId.equals(copiedRoute)) { copiedRoute = o.routeId; copies = 0; }
             if (copies == 0 || (copies == 1 && now - copiedAt >= 10_000)) {
                 copy = new RouteSnapshot(api).read(route);
                 copies++;
