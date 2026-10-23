@@ -265,6 +265,129 @@ def miss_cases(routes, selection, cases_dir, args):
     return out
 
 
+# ------------------------------------------------------------------ factory transition catalog
+
+CATALOG = Path('captures/stock-map-beijing-pack/profile/transition-catalog.json')
+DECODED = Path('captures/stock-map-beijing-pack/car-01/decoded')
+
+
+class FactoryTiles:
+    """Road geometry of the decoded factory package (tools/stock-map/factory_map_readers.py).
+    Local points are offsets from the tile's south-west corner in units of
+    tile width / 2**(precision-1); the factory frame is the SDK frame (checked against
+    the original NOA export of a surveyed route: link end points agree to the unit)."""
+
+    def __init__(self, decoded=DECODED):
+        import sqlite3
+        import sys
+        sys.path.insert(0, str(HERE.parents[1] / 'tools/stock-map'))
+        import factory_map_readers
+        self.F = factory_map_readers
+        self.m2 = sqlite3.connect(str(Path(decoded) / 'm2.sqlite'))
+        self.m1 = sqlite3.connect(str(Path(decoded) / 'm1.sqlite'))
+        self.cache = {}
+
+    def _blob(self, db, table, column, key):
+        signed = key - (1 << 32) if key >= 1 << 31 else key
+        row = db.execute('SELECT %s FROM %s WHERE %s=? OR %s=?' % (column, table, 'a' if table != 'bb' else 'ati',
+                                                                    'a' if table != 'bb' else 'ati'), (key, signed)).fetchone()
+        return bytes(row[0]) if row and row[0] else None
+
+    def tile(self, key):
+        if key not in self.cache:
+            F = self.F
+            drt = F.decode_drt_full(self._blob(self.m2, 'drt', 'c', key))
+            erat = F.decode_erat_full(self._blob(self.m2, 'erat', 'c', key))
+            brt = self._blob(self.m1, 'bb', 'brt', key)
+            self.cache[key] = (drt, erat, F.decode_bmd_full(brt) if brt else None)
+        return self.cache[key]
+
+    def road(self, key, road_id):
+        """[[lon, lat], ...] in travel order (SDK frame), or None."""
+        drt, erat, bmd = self.tile(key)
+        if bmd is None:
+            return None
+        ordinal = self.F.feature_ordinal(drt['ranges'].get(7) or [], road_id)
+        if ordinal is None or ordinal >= len(erat['roads']):
+            return None
+        e = erat['roads'][ordinal]
+        points = self.F.road_points(bmd, e)
+        if not points:
+            return None
+        precision = bmd['lines'][self.F.feature_ordinal(bmd['ranges'], e['feature'])]['precision']
+        z, x, y = self.F.tile_xy(key)
+        width = 360 / (1 << z)
+        west, south = x * width - 180, 90 - (y + 1) * 180 / (1 << z)
+        unit = width / (1 << (precision - 1))
+        return [[west + px * unit, south + py * unit] for px, py in points]
+
+
+def offset(point, heading_from, heading_to, metres_away):
+    """A point `metres_away` beyond `heading_to`, along the direction heading_from -> heading_to."""
+    d = metres(heading_from, heading_to) or 1.0
+    k = metres_away / d
+    return [round(heading_to[0] + (heading_to[0] - heading_from[0]) * k, 6),
+            round(heading_to[1] + (heading_to[1] - heading_from[1]) * k, 6)]
+
+
+def catalog_pairs(per_kind, approach_m, catalog=CATALOG, decoded=DECODED):
+    tiles = FactoryTiles(decoded)
+    data = json.loads(Path(catalog).read_text())
+    out, misses = [], 0
+    for kind, entry in sorted(data['kinds'].items()):
+        if kind == 'plain_continuation':
+            continue
+        used = 0
+        for example in entry['examples']:
+            if used >= per_kind:
+                break
+            try:
+                a = tiles.road(example['tile'], example['road_id'])
+                b = tiles.road(example['to_tile'], example['to_road_id'])
+            except Exception:  # a tile the readers cannot decode is skipped, not guessed
+                a = b = None
+            if not a or not b or len(a) < 2 or len(b) < 2:
+                misses += 1
+                continue
+            # Approach along the incoming road and leave along the outgoing one, so the route
+            # (planned by the stock router) drives through the transition with context.
+            origin = offset(None, a[1], a[0], approach_m)
+            destination = offset(None, b[-2], b[-1], approach_m)
+            out.append({'id': 'c%03d' % len(out), 'from': origin, 'to': destination, 'catalogKind': kind,
+                        'catalog': {k: example.get(k) for k in ('tile', 'road_id', 'to_tile', 'to_road_id')}})
+            used += 1
+    return out, misses
+
+
+def through(route, catalog):
+    """Does the stock route drive the catalog's incoming then outgoing road (linkID = tile<<32 | flags | id)?"""
+    ids = [(l['linkID'] >> 32, l['linkID'] & 0x1fffff) for l in route['links']]
+    a = (catalog['tile'], catalog['road_id'])
+    b = (catalog['to_tile'], catalog['to_road_id'])
+    return any(x == a and y == b for x, y in zip(ids, ids[1:]))
+
+
+def cmd_catalog(args):
+    found, misses = catalog_pairs(args.per_kind, args.approach_m)
+    plan = dict(pairs=found, timeoutMs=25000)
+    args.out.mkdir(parents=True, exist_ok=False)
+    (args.out / 'pairs.json').write_text(json.dumps(plan, indent=1) + '\n')
+    observer = 'const PLAN_CASE=' + json.dumps(plan) + ';\n' + (HERE / 'stock_plan_observer.js').read_text()
+    seconds = args.seconds or 30 + 8 * len(found)
+    centre = json.loads(GEOGRAPHY.read_text())['view']
+    receipt = install_run(args.build, observer, dict(lon=centre[0], lat=centre[1], zoom=14), args.out / 'run',
+                          seconds=seconds, serial=args.serial, frida_port=args.frida_port)
+    summarize_survey(args.out)
+    routes = json.loads((args.out / 'routes.json').read_text())
+    hit = {p['id']: through(routes[p['id']]['route'], p['catalog']) for p in found if p['id'] in routes}
+    report = dict(pairs=len(found), unresolved=misses, routed=len(routes), throughTransition=sum(hit.values()),
+                  byKind={k: [p['id'] for p in found if p['catalogKind'] == k and hit.get(p['id'])]
+                          for k in sorted({p['catalogKind'] for p in found})})
+    (args.out / 'catalog-check.json').write_text(json.dumps(report, indent=1) + '\n')
+    print(json.dumps(dict(status=receipt['status'], restored=receipt['baseline_restored'], **{k: report[k] for k in
+                          ('pairs', 'unresolved', 'routed', 'throughTransition')})))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command', required=True)
@@ -281,6 +404,15 @@ def main():
     p.add_argument('--serial', default='emulator-5602')
     p.add_argument('--frida-port', type=int, default=27071)
     p.set_defaults(func=cmd_survey)
+    p = sub.add_parser('catalog', help='O/D pairs through the factory transition catalog examples')
+    p.add_argument('--build', type=Path, default=PACK)
+    p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--per-kind', type=int, default=2)
+    p.add_argument('--approach-m', type=float, default=400)
+    p.add_argument('--seconds', type=int)
+    p.add_argument('--serial', default='emulator-5602')
+    p.add_argument('--frida-port', type=int, default=27071)
+    p.set_defaults(func=cmd_catalog)
     p = sub.add_parser('summarize')
     p.add_argument('--survey', type=Path, required=True)
     p.set_defaults(func=lambda a: summarize_survey(a.survey))
