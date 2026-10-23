@@ -77,7 +77,11 @@ import kotlinx.coroutines.launch
  * through [SoftwareHistory], loaded from
  * [software] when the work starts and written back by the worker whenever it learned something.
  *
- * Only [ScanStore], [SoftwareStore] and [StreamSinks] touch files and only [CarFeed] touches the hub;
+ * **The journal** (6.4): an autoscan that ends, a module read by hand after it and «Снять ячейки сейчас»
+ * ([saveCells]) each add one entry to [journal], loaded from [journalStore] once a process and written
+ * by the worker; nothing else does.
+ *
+ * Only [ScanStore], [SoftwareStore], [JournalStore] and [StreamSinks] touch files and only [CarFeed] touches the hub;
  * the rest is plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
  */
 internal class DiagnosticsSession(
@@ -99,11 +103,14 @@ internal class DiagnosticsSession(
     private val carNanos: () -> Long = System::nanoTime,
     /** The code history's file (5.5); read and written on the worker, never on the caller's thread. */
     private val software: SoftwareStore = MemorySoftwareStore(),
+    /** The scan journal's files (6.4); read and written on the worker, never on the caller's thread. */
+    private val journalStore: JournalStore = MemoryJournalStore(),
 ) : DiagnosticsActions {
     private val clock = ScanClock(zone)
     private val builder = ModelBuilder(clock, catalog)
     private val lock = Any()
     private val saving = Any()
+    private val journaling = Any()
 
     private var scope: CoroutineScope? = null
     private var bus: DiagnosticBus? = null
@@ -151,6 +158,11 @@ internal class DiagnosticsSession(
     private val mutable = MutableStateFlow(builder.build(snapshot()))
     val model: StateFlow<DiagnosticsModel> = mutable.asStateFlow()
 
+    /** The scan journal (6.4): every explicit scan and cell snapshot, as loaded and added to since. */
+    private val journalFlow = MutableStateFlow(JournalData())
+    val journal: StateFlow<JournalData> = journalFlow.asStateFlow()
+    private var journalLoaded = false
+
     /** Why the work stands. */
     private sealed interface Halt {
         /** Not parked: resumes on its own; [awaitingLeave] while the hub must first see the car leave P. */
@@ -188,6 +200,8 @@ internal class DiagnosticsSession(
                 work()
             }
             s.launch { tick() }
+            // Beside the work: a full journal is megabytes, and the autoscan need not wait for it.
+            s.launch { loadJournal() }
             publish()
         }
     }
@@ -313,6 +327,14 @@ internal class DiagnosticsSession(
             cellsJob = null
             cells = null
         }
+    }
+
+    override fun saveCells() = act {
+        val c = cells ?: return@act
+        val s = scope ?: return@act
+        val drawn = listOfNotNull(c.cells.drawnNanos(), c.probes.drawnNanos()).maxOrNull() ?: return@act
+        val entry = JournalEntries.cells(c, wallClock() - (carNanos() - drawn) / 1_000_000L, readings) ?: return@act
+        s.launch { remember(entry) }
     }
 
     override fun setCellsPaused(paused: Boolean) = act {
@@ -515,6 +537,7 @@ internal class DiagnosticsSession(
                         publish()
                     }
                 }
+                var entry: JournalScan? = null
                 val (save, learned) = synchronized(lock) {
                     val result = ModuleResult(ecu, read)
                     results[job.request] = result
@@ -531,11 +554,13 @@ internal class DiagnosticsSession(
                         userReads -= job.request
                         persist = phase == ScanPhase.DONE && finishedAt != null
                     }
+                    if (persist) entry = journalScan(job is Work.Scan, job.request)
                     publish()
                     (if (persist) stored() else null) to fresh
                 }
                 save?.let { s -> runCatching { store.save(s) }.onFailure { log("diagnostics: last scan not saved: $it") } }
                 if (learned) keep()
+                entry?.let { remember(it) }
             }
             is Work.Ident -> {
                 val read = IdentProcedure.read(ecu, wallClock, ::ask)
@@ -594,6 +619,45 @@ internal class DiagnosticsSession(
     private fun keep() = synchronized(saving) {
         val latest = synchronized(lock) { codes }
         runCatching { software.save(latest) }.onFailure { log("diagnostics: code history not saved: $it") }
+    }
+
+    /** The journal from its files, once a process: after that the memory is ahead of them. Off the caller's thread. */
+    private fun loadJournal() {
+        if (synchronized(lock) { journalLoaded }) return
+        val loaded = runCatching { journalStore.load() }.onFailure { log("diagnostics: journal unreadable: $it") }.getOrDefault(JournalData())
+        synchronized(lock) {
+            if (journalLoaded) return
+            journalLoaded = true
+            // An entry added while the files were read stays.
+            val added = journalFlow.value
+            journalFlow.value = added.cells.fold(added.scans.fold(loaded) { d, scan -> d.with(scan) }) { d, cells -> d.with(cells) }
+        }
+    }
+
+    /**
+     * The journal's entry for an autoscan that ended ([full]), or for one module read by hand after it
+     * (7.3): the modules' results, the opened blocks, the car's readings now. Under [lock].
+     */
+    private fun journalScan(full: Boolean, request: Int): JournalScan {
+        val modules = if (full) EcuCatalog.routed.mapNotNull { results[it.request] } else listOfNotNull(results[request])
+        val kind = if (full) JournalScanKind.FULL else JournalScanKind.MODULE
+        return JournalEntries.scan(kind, modules, idents, readings, if (full) finishedAt ?: wallClock() else wallClock())
+    }
+
+    /** [entry] into the journal, then its file; off the caller's thread. */
+    private fun remember(entry: JournalScan) {
+        synchronized(lock) { journalFlow.value = journalFlow.value.with(entry) }
+        write { journalStore.add(entry) }
+    }
+
+    private fun remember(entry: JournalCells) {
+        synchronized(lock) { journalFlow.value = journalFlow.value.with(entry) }
+        write { journalStore.add(entry) }
+    }
+
+    /** One journal write at a time; a failure is logged, the entry stays in memory. */
+    private inline fun write(add: () -> Unit) {
+        synchronized(journaling) { runCatching(add).onFailure { log("diagnostics: journal not written: $it") } }
     }
 
     /** One exchange; a halt of any kind ends the unit of work with [Aborted]. */

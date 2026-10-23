@@ -63,6 +63,7 @@ internal object DiagnosticsSessions {
             catalog = { catalog },
             carNanos = SystemClock::elapsedRealtimeNanos,
             software = FileSoftwareStore(dir),
+            journalStore = FileJournalStore(File(dir, FileJournalStore.DIRECTORY)),
         )
     }
 

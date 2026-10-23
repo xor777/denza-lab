@@ -952,4 +952,9 @@ internal interface DiagnosticsActions {
     fun setSystemLivePaused(system: CarSystem, paused: Boolean)
     /** «Сбросить мин/макс» there. */
     fun resetSystemLive(system: CarSystem)
+    /**
+     * «Снять ячейки сейчас»: the sweep «Ячейки» has drawn goes into the scan journal with the charge
+     * and current now (architecture, 6.4); nothing before a whole sweep was drawn.
+     */
+    fun saveCells() {}
 }
