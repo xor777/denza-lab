@@ -643,11 +643,11 @@ internal object ScannerFixtures {
         val what = if (netLoss(code)) "${plural(n, "код", "кода", "кодов")} потери связи" else "${plural(n, "код", "кода", "кодов")} с типом $ftb"
         val every = seen.size == since.size
         val scans = plural(since.size, "скана", "сканов", "сканов")
-        fun section(title: String, o: JSONObject, rowsKey: String = "rows"): ReadSection = if (o.has(rowsKey)) {
+        fun section(title: String, o: JSONObject, empty: String, rowsKey: String = "rows"): ReadSection = if (o.has(rowsKey)) {
             val rows = arrays(o.getJSONArray(rowsKey))
             ReadSection(title, ReadState.READ, rows.map { Field(it.getString(0), it.getString(1)) }, rows.filter { it.optBoolean(2) }.map { it.getString(0) }.toSet())
         } else {
-            ReadSection(title, ReadState.EMPTY, emptyList(), raw = listOf("${o.getString("ask")} → ${o.getString("answer")}"), word = "записи нет")
+            ReadSection(title, ReadState.EMPTY, emptyList(), raw = listOf("${o.getString("ask")} → ${o.getString("answer")}"), word = empty)
         }
         val snap = f.getJSONObject("snapshot")
         return CodeView(
@@ -681,8 +681,8 @@ internal object ScannerFixtures {
                 days, seen.map { along(it, days) },
                 "впервые ${seen.first()} · " + if (every) "в каждом из ${since.size} $scans" else "в ${seen.size} из ${since.size} $scans",
             ),
-            snapshot = section("СТОП-КАДР · 19 04" + (snap.optStringOrNull("record")?.let { " · ЗАПИСЬ $it" } ?: ""), snap),
-            extended = section("СЧЁТЧИКИ · 19 06", f.getJSONObject("counts")),
+            snapshot = section("СТОП-КАДР · 19 04" + (snap.optStringOrNull("record")?.let { " · ЗАПИСЬ $it" } ?: ""), snap, "записи нет"),
+            extended = section("СЧЁТЧИКИ · 19 06", f.getJSONObject("counts"), "записей нет"),
             footnote = footnote(f),
         )
     }
