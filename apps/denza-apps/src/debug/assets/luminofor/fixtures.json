@@ -43681,7 +43681,7 @@
     "right": {
      "items": [
       "Таблица",
-      "Графики"
+      "Графики · 4"
      ],
      "active": 1
     }
@@ -45751,20 +45751,17 @@
       "primary"
      ],
      [
-      "Метка",
-      "quiet"
-     ],
-     [
-      "Запись",
-      "quiet",
-      "rec"
-     ],
-     [
-      "Сигналы · 4",
+      "Стоп записи",
       "quiet"
      ]
     ],
     "notes": [
+     [
+      "запись 0:42",
+      true,
+      "rec"
+     ],
+     "|",
      [
       "окно 60 с · 499 точек на сигнал",
       true
@@ -48440,7 +48437,7 @@
     "right": {
      "items": [
       "Таблица",
-      "Графики"
+      "Графики · 4"
      ],
      "active": 0
     }
@@ -48517,7 +48514,9 @@
       0.517,
       0.518,
       0.522
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "0F",
@@ -48590,7 +48589,9 @@
       0.511,
       0.513,
       0.513
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "0B",
@@ -48663,7 +48664,9 @@
       0.379,
       0.318,
       0.31
-     ]
+     ],
+     "key": true,
+     "pick": 3
     },
     {
      "pid": "0C",
@@ -48736,7 +48739,9 @@
       0.341,
       0.405,
       0.525
-     ]
+     ],
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "04",
@@ -48809,7 +48814,9 @@
       0.547,
       0.618,
       0.575
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "11",
@@ -48882,7 +48889,9 @@
       0.561,
       0.445,
       0.333
-     ]
+     ],
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "0E",
@@ -48955,7 +48964,9 @@
       0.419,
       0.382,
       0.422
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "06",
@@ -49028,7 +49039,9 @@
       0.406,
       0.459,
       0.466
-     ]
+     ],
+     "key": true,
+     "pick": 4
     },
     {
      "pid": "07",
@@ -49101,7 +49114,9 @@
       0.499,
       0.499,
       0.499
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "03",
@@ -49112,7 +49127,9 @@
      "min": "",
      "max": "",
      "norm": "замкн. петля",
-     "trace": []
+     "trace": [],
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "15",
@@ -49185,7 +49202,9 @@
       0.495,
       0.497,
       0.507
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "3C",
@@ -49258,7 +49277,9 @@
       0.638,
       0.672,
       0.683
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "42",
@@ -49331,18 +49352,17 @@
       0.507,
       0.504,
       0.5
-     ]
+     ],
+     "key": true,
+     "pick": 0
     }
    ],
+   "pick": true,
    "footer": {
     "buttons": [
      [
       "Пауза",
       "primary"
-     ],
-     [
-      "Выбор PID",
-      "quiet"
      ],
      [
       "Сбросить мин/макс",
@@ -52694,10 +52714,6 @@
      [
       "Пауза",
       "primary"
-     ],
-     [
-      "Выбор PID",
-      "quiet"
      ]
     ]
    }
@@ -68817,11 +68833,12 @@
     "right": {
      "items": [
       "Таблица",
-      "Графики"
+      "Графики · 2"
      ],
      "active": 0
     }
    },
+   "pick": true,
    "rows": [
     {
      "pid": "1009",
@@ -68895,7 +68912,9 @@
       0.504,
       0.503
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -68969,7 +68988,9 @@
       0.715,
       0.675
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1012",
@@ -69043,7 +69064,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69117,7 +69140,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69191,7 +69216,9 @@
       0.497,
       0.494
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69265,7 +69292,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69339,7 +69368,9 @@
       0.496,
       0.496
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1014",
@@ -69413,7 +69444,9 @@
       0.501,
       0.508
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "расч.",
@@ -69487,7 +69520,9 @@
       0.503,
       0.495
      ],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69561,7 +69596,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69635,7 +69672,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1014",
@@ -69709,7 +69748,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -69783,7 +69824,9 @@
       0.497,
       0.498
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -69857,7 +69900,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -69931,7 +69976,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1001",
@@ -69943,7 +69990,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -69955,7 +70004,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -69967,7 +70018,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1032",
@@ -69979,7 +70032,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -69991,7 +70046,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -70003,7 +70060,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -70015,7 +70074,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -70134,22 +70195,7 @@
     ],
     "line": "BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762"
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1009",
@@ -70223,7 +70269,9 @@
       0.502,
       0.502
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1012",
@@ -70297,7 +70345,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1009",
@@ -70371,7 +70421,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 3
     },
     {
      "pid": "1032",
@@ -70383,7 +70435,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -70457,7 +70511,9 @@
       0.501,
       0.501
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 4
     },
     {
      "pid": "1039",
@@ -70531,7 +70587,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1006",
@@ -70605,7 +70663,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1006",
@@ -70617,7 +70677,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1001",
@@ -70629,7 +70691,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -70641,7 +70705,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -70715,7 +70781,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1006",
@@ -70727,7 +70795,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -70747,6 +70817,22 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 4"
+     ],
+     "active": 0
+    }
    }
   }
  ],
@@ -70842,23 +70928,7 @@
      ]
     ]
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "Сравнение",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1011",
@@ -70870,7 +70940,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1013",
@@ -70944,7 +71016,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1013",
@@ -71018,7 +71092,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1012",
@@ -71092,7 +71168,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 3
     },
     {
      "pid": "1039",
@@ -71104,7 +71182,9 @@
      "max": "—",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71178,7 +71258,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 4
     },
     {
      "pid": "1012",
@@ -71252,7 +71334,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71326,7 +71410,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71400,7 +71486,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1009",
@@ -71474,7 +71562,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71548,7 +71638,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71622,7 +71714,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71696,7 +71790,9 @@
       0.501,
       0.501
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71770,7 +71866,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71844,7 +71942,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71918,7 +72018,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -71992,7 +72094,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -72066,7 +72170,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -72140,7 +72246,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1039",
@@ -72214,7 +72322,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     }
    ],
    "footer": {
@@ -72234,6 +72344,23 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "Сравнение",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 4"
+     ],
+     "active": 0
+    }
    }
   }
  ],
@@ -72326,22 +72453,7 @@
      ]
     ]
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1013",
@@ -72415,7 +72527,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1011",
@@ -72427,7 +72541,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1011",
@@ -72439,7 +72555,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1013",
@@ -72513,7 +72631,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1023",
@@ -72525,7 +72645,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1023",
@@ -72537,7 +72659,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72549,7 +72673,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72561,7 +72687,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72573,7 +72701,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72585,7 +72715,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72597,7 +72729,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72609,7 +72743,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72621,7 +72757,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72633,7 +72771,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72645,7 +72785,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72657,7 +72799,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1016",
@@ -72669,7 +72813,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -72689,6 +72835,22 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 2"
+     ],
+     "active": 0
+    }
    }
   }
  ],
@@ -72771,22 +72933,7 @@
     "line": "SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0",
     "counters": []
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1007",
@@ -72798,7 +72945,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1007",
@@ -72810,7 +72959,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1023",
@@ -72822,7 +72973,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1023",
@@ -72834,7 +72987,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1023",
@@ -72846,7 +73001,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1042",
@@ -72858,7 +73015,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1042",
@@ -72870,7 +73029,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1042",
@@ -72882,7 +73043,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1042",
@@ -72894,7 +73057,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1042",
@@ -72906,7 +73071,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -72926,6 +73093,23 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 0"
+     ],
+     "active": 0,
+     "off": 1
+    }
    }
   }
  ],
@@ -73014,22 +73198,7 @@
      ]
     ]
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1004",
@@ -73041,7 +73210,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1004",
@@ -73053,7 +73224,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1004",
@@ -73065,7 +73238,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1004",
@@ -73077,7 +73252,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1004",
@@ -73089,7 +73266,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1004",
@@ -73101,7 +73280,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1001",
@@ -73113,7 +73294,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1001",
@@ -73125,7 +73308,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -73145,6 +73330,23 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 0"
+     ],
+     "active": 0,
+     "off": 1
+    }
    }
   }
  ],
@@ -73236,22 +73438,7 @@
      ]
     ]
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1000",
@@ -73325,7 +73512,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1000",
@@ -73399,7 +73588,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1000",
@@ -73411,7 +73602,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1000",
@@ -73423,7 +73616,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1000",
@@ -73497,7 +73692,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 3
     },
     {
      "pid": "1000",
@@ -73509,7 +73706,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1000",
@@ -73583,7 +73782,9 @@
       0.506,
       0.505
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 4
     },
     {
      "pid": "1000",
@@ -73657,7 +73858,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "1043",
@@ -73669,7 +73872,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1043",
@@ -73681,7 +73886,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -73701,6 +73908,22 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 4"
+     ],
+     "active": 0
+    }
    }
   }
  ],
@@ -73792,22 +74015,7 @@
      ]
     ]
    },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "Потоковые данные",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 1,
-    "right": {
-     "items": [
-      "Таблица",
-      "Графики"
-     ],
-     "active": 0
-    }
-   },
+   "pick": true,
    "rows": [
     {
      "pid": "1001",
@@ -73881,7 +74089,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "1006",
@@ -73893,7 +74103,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "1006",
@@ -73967,7 +74179,9 @@
       0.5,
       0.5
      ],
-     "out": false
+     "out": false,
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "1001",
@@ -73979,7 +74193,9 @@
      "max": "",
      "norm": "—",
      "trace": [],
-     "out": false
+     "out": false,
+     "key": false,
+     "pick": 0
     }
    ],
    "footer": {
@@ -73999,6 +74215,22 @@
       true
      ]
     ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 2"
+     ],
+     "active": 0
+    }
    }
   }
  ],
@@ -76016,8 +76248,16 @@
      "Потоковые данные",
      "Идентификация"
     ],
-    "active": 2
+    "active": 2,
+    "right": {
+     "items": [
+      "Таблица",
+      "Графики · 4"
+     ],
+     "active": 0
+    }
    },
+   "pick": true,
    "rows": [
     {
      "pid": "05",
@@ -76090,7 +76330,9 @@
       0.517,
       0.518,
       0.522
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "0F",
@@ -76163,7 +76405,9 @@
       0.511,
       0.513,
       0.513
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "0B",
@@ -76236,7 +76480,9 @@
       0.379,
       0.318,
       0.31
-     ]
+     ],
+     "key": true,
+     "pick": 3
     },
     {
      "pid": "0C",
@@ -76309,7 +76555,9 @@
       0.341,
       0.405,
       0.525
-     ]
+     ],
+     "key": true,
+     "pick": 1
     },
     {
      "pid": "04",
@@ -76382,7 +76630,9 @@
       0.547,
       0.618,
       0.575
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "11",
@@ -76455,7 +76705,9 @@
       0.561,
       0.445,
       0.333
-     ]
+     ],
+     "key": true,
+     "pick": 2
     },
     {
      "pid": "0E",
@@ -76528,7 +76780,9 @@
       0.419,
       0.382,
       0.422
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "06",
@@ -76601,7 +76855,9 @@
       0.406,
       0.459,
       0.466
-     ]
+     ],
+     "key": true,
+     "pick": 4
     },
     {
      "pid": "07",
@@ -76674,7 +76930,9 @@
       0.499,
       0.499,
       0.499
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "03",
@@ -76685,7 +76943,9 @@
      "min": "",
      "max": "",
      "norm": "замкн. петля",
-     "trace": []
+     "trace": [],
+     "key": false,
+     "pick": 0
     },
     {
      "pid": "15",
@@ -76758,7 +77018,9 @@
       0.495,
       0.497,
       0.507
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "3C",
@@ -76831,7 +77093,9 @@
       0.638,
       0.672,
       0.683
-     ]
+     ],
+     "key": true,
+     "pick": 0
     },
     {
      "pid": "42",
@@ -76904,7 +77168,9 @@
       0.507,
       0.504,
       0.5
-     ]
+     ],
+     "key": true,
+     "pick": 0
     }
    ],
    "footer": {
@@ -76916,10 +77182,6 @@
      [
       "Пауза",
       "primary"
-     ],
-     [
-      "Выбор PID",
-      "quiet"
      ],
      [
       "Сбросить мин/макс",

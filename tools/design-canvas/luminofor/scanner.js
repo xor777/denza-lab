@@ -299,6 +299,23 @@
     const p = new Path2D(); p.arc(cx, cy, S.r - S.stroke / 2, 0, 2 * Math.PI);
     stroke(c, p, 'orange', S.stroke, kind === 'pending' ? S.dash : null);
   }
+  // A signal's place on «Графики» (L.pick): blue with its lane's number - on the graphs; an empty thin
+  // frame - not, a tap away; the frame pale once four are chosen and no more can be. x, y: top left.
+  function pickBox(c, x, y, n, pale) {
+    const P = L.pick, s = P.size, h = P.stroke / 2;
+    if (n) {
+      fill(c, x, y, s, s, 'blue', P.r);
+      text(c, String(n), x + s / 2, y + (s - style('pickNum').lh) / 2, 'pickNum', 'ground', { align: 'center' });
+      return;
+    }
+    c.save(); rrect(c, x + h, y + h, s - 2 * h, s - 2 * h, P.r - h);
+    c.strokeStyle = col(pale ? 'quietLine' : 'faint'); c.lineWidth = P.stroke; c.stroke(); c.restore();
+  }
+  // «×»: the signal off the graphs; cx, cy its middle.
+  function closeMark(c, cx, cy) {
+    const K = L.pick.close, k = K.size / 2;
+    stroke(c, `M${cx - k} ${cy - k}L${cx + k} ${cy + k}M${cx + k} ${cy - k}L${cx - k} ${cy + k}`, 'mute', K.stroke, null, 'round');
+  }
   // A record's kind from its status byte: TF active, else PDTC pending, else in history.
   const kindOf = s => (s & 1) ? 'active' : (s & 4) ? 'pending' : 'hist';
   const RANK = { active: 0, pending: 1, hist: 2 };
@@ -335,7 +352,7 @@
       x += w + N.gap;
     });
     rule(c, 24, N.top + N.height, W - 48);
-    // a view switch at the row's right end: «Таблица | Графики»
+    // a view switch at the row's right end: «Таблица | Графики · 3», the number the signals ticked
     if (t.right) {
       const G = L.segmented, y = N.top + (N.height - G.h) / 2;
       const ws = t.right.items.map(s => measure(c, s, 'segment') + 2 * G.pad);
@@ -343,7 +360,8 @@
       t.right.items.forEach((s, i) => {
         const on = i === t.right.active;
         if (on) { fill(c, sx, y, ws[i], G.h, 'quiet', G.r); edge(c, sx, y, ws[i], G.h, 'quietLine', G.r); }
-        text(c, s, sx + G.pad, y + (G.h - style('segment').lh) / 2, 'segment', on ? 'white' : 'mute');
+        // `off`: an item that cannot be chosen now - «Графики · 0» with nothing ticked - in the faint ink
+        text(c, s, sx + G.pad, y + (G.h - style('segment').lh) / 2, 'segment', on ? 'white' : t.right.off === i ? 'faint' : 'mute');
         sx += ws[i] + G.gap;
       });
     }
@@ -361,9 +379,12 @@
     for (let i = (f.notes || []).length - 1; i >= 0; i--) {
       const n = f.notes[i];
       if (n === '|') { const [dw, dh] = F.divider; fill(c, r - dw, top0 + (room - dh) / 2, dw, dh, 'divider'); r -= dw + F.gap; continue; }
-      const [str, mono] = Array.isArray(n) ? n : [n, false];
+      // [str, mono, 'rec']: a recording under way - the red dot before its time
+      const [str, mono, mark] = Array.isArray(n) ? n : [n, false];
       const sn = mono ? 'noteMono' : 'note';
-      r -= text(c, str, r, top0 + (room - style(sn).lh) / 2, sn, 'faint', { align: 'right' }) + F.gap;
+      r -= text(c, str, r, top0 + (room - style(sn).lh) / 2, sn, mark === 'rec' ? 'dim2' : 'faint', { align: 'right' });
+      if (mark === 'rec') { r -= L.rail.mark.gap + L.sign.r; sign(c, 'active', r, top0 + room / 2); r -= L.sign.r; }
+      r -= F.gap;
     }
   }
 
@@ -1481,12 +1502,17 @@
   // rows carry the device there and the FID beside the name; a value outside its norm, or a state its
   // card names a fault, is orange. A state's word longer than its column reaches back over what the
   // name leaves free, as far as 12 after it.
+  // With f.pick a row with a key - one that opens alone - leads with its square of «Графики» (pickBox) in a
+  // column of its own, the first column's padding moved into it; four chosen, the empty squares pale.
   function liveTable(c, f, colSpec, first) {
-    const E = L.ecuLive, cols = columns(colSpec, 24, W - 48);
-    let y = headRow(c, cols, [first || 'PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
+    const E = L.ecuLive, P = L.pick, px = f.pick ? P.col : 0, cols = columns(colSpec, 24 + px, W - 48 - px), pad = px ? 0 : 12;
+    let y = headRow(c, cols, [[first || 'PID', 'left', pad], 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
+    if (px) rule(c, 24, y - 1, px);
+    const full = f.rows.filter(r => r.pick).length >= 4;
     for (const r of f.rows) {
       const h = E.row, rx = i => cols[i][0] + cols[i][1] - 12;
-      text(c, r.pid, cols[0][0] + 12, mid(y, h, 'normMono'), 'normMono', 'faint');
+      if (px && r.key) pickBox(c, 24 + P.inset, y + (h - P.size) / 2, r.pick, full && !r.pick);
+      text(c, r.pid, cols[0][0] + pad, mid(y, h, 'normMono'), 'normMono', 'faint');
       const nameEnd = runs(c, [[r.name + ' ', 'cell', 'white'], [r.abbr, 'cellAside', 'faint']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
       const room = Math.max(cols[2][1] - 12, rx(2) - nameEnd - 12);
       text(c, r.value, rx(2), mid(y, h, 'value'), 'value', r.out ? 'orange' : 'white', { align: 'right', max: room });
@@ -2074,7 +2100,8 @@
 
   /* ------------------------------------------- Потоковые данные · Графики */
   // Up to four signals on one time axis, each its own lane and scale - never narrower than its norm
-  // or its resolution × 20 - the norm a band; the cursor reads all of them at one moment.
+  // or its resolution × 20 - the norm a band; the cursor reads all of them at one moment. The signals
+  // are the ones ticked on the table, their lanes in the squares' order (design/graphs, 2026-10-23).
   function sysGraphs(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
@@ -2092,16 +2119,20 @@
         const sc = Object.assign({}, s, { decimals: s.scaleDecimals != null ? s.scaleDecimals : s.decimals });
         text(c, numText(hi, sc), W - 24 - G.scaleInset, top + 2, 'scale', 'faint', { align: 'right' });
         text(c, numText(lo, sc), W - 24 - G.scaleInset, top + lh - style('scale').lh - 2, 'scale', 'faint', { align: 'right' });
-        // the legend: name, PID, the value at the cursor, the minute's extremes
+        // the legend: the lane's square as the table has it, name and «×» (off the graphs) at the
+        // legend's right edge; under the name the PID, the value at the cursor, the minute's extremes
+        const P = L.pick, lx = 24 + P.size + P.legendGap, K = P.close;
         let ly = top;
-        text(c, s.name, 24, ly, 'titleAside', 'white', { max: G.legendW });
+        pickBox(c, 24, ly + (style('titleAside').lh - P.size) / 2, k + 1);
+        closeMark(c, 24 + G.legendW - K.size / 2, ly + style('titleAside').lh / 2);
+        text(c, s.name, lx, ly, 'titleAside', 'white', { max: 24 + G.legendW - K.size - K.gap - lx });
         ly += style('titleAside').lh + G.nameGap;
-        text(c, `PID ${s.pid} · ${s.abbr}`, 24, ly, 'sig', 'mute');
+        text(c, `PID ${s.pid} · ${s.abbr}`, lx, ly, 'sig', 'mute');
         ly += style('sig').lh + G.nameGap + G.valueGap;
-        const vw = text(c, numText(s.values[ci], s), 24, ly, 'counter', 'white');
-        text(c, s.unit, 24 + vw + G.valueGap, ly + style('counter').lh - style('unit').lh - 2, 'unit', 'dim');
+        const vw = text(c, numText(s.values[ci], s), lx, ly, 'counter', 'white');
+        text(c, s.unit, lx + vw + G.valueGap, ly + style('counter').lh - style('unit').lh - 2, 'unit', 'dim');
         ly += style('counter').lh + G.nameGap;
-        text(c, numText(Math.min(...s.values), s) + '…' + numText(Math.max(...s.values), s), 24, ly, 'unitTag', 'faint');
+        text(c, numText(Math.min(...s.values), s) + '…' + numText(Math.max(...s.values), s), lx, ly, 'unitTag', 'faint');
       });
       fill(c, cx - 0.5, Cu.top, 1, Cu.bottom - Cu.top, 'wire4');
       f.signals.forEach((s, k) => {

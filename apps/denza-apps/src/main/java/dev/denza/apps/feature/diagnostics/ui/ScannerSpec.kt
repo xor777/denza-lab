@@ -192,6 +192,8 @@ internal object ScannerSpec {
         /** The systems down the left: a system's name and its codes' mark. */
         val RAIL_ITEM = Style(15f, 20f)
         val RAIL_MARK = Style(12.5f, 16f, mono = true)
+        /** A lane's number in its square of «Графики». */
+        val PICK_NUM = Style(11.5f, 14f, 500, mono = true)
         /** A parameter on its own page: the reading and its unit. */
         val PARAM_VALUE = Style(72f, 80f, 500, mono = true)
         val PARAM_UNIT = Style(18f, 22f)
@@ -249,7 +251,7 @@ internal object ScannerSpec {
             "keyValue" to KEY_VALUE, "pidHead" to PID_HEAD, "pid" to PID, "bit" to BIT, "unitName" to UNIT_NAME,
             "unitTag" to UNIT_TAG, "rowSig" to ROW_SIG, "abbr" to ABBR,
             "abbrName" to ABBR_NAME, "tileAbbr" to TILE_ABBR, "tileAddr" to TILE_ADDR, "tileName" to TILE_NAME,
-            "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "paramValue" to PARAM_VALUE, "paramUnit" to PARAM_UNIT,
+            "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "pickNum" to PICK_NUM, "paramValue" to PARAM_VALUE, "paramUnit" to PARAM_UNIT,
             "hvAbbr" to HV_ABBR, "hvName" to HV_NAME, "hvLabel" to HV_LABEL, "hvVolts" to HV_VOLTS, "packTitle" to PACK_TITLE, "packTag" to PACK_TAG,
             "packKey" to PACK_KEY, "packValue" to PACK_VALUE,
             "glyph" to GLYPH, "driveCell" to DRIVE_CELL, "driveSmall" to DRIVE_SMALL,
@@ -315,6 +317,22 @@ internal object ScannerSpec {
         const val PAD = 12f
         const val R = 5f
         const val GAP = 2f
+    }
+
+    /**
+     * A signal's square of «Графики» (`pickBox()`, `closeMark()`): a live table's column of [COL] before its first, the
+     * square [INSET] into it; on the graphs' legend the square, the name [LEGEND_GAP] after it and «×» at the legend's end.
+     */
+    object Pick {
+        const val COL = 40f
+        const val INSET = 12f
+        const val SIZE = 18f
+        const val R = 4f
+        const val STROKE = 1.5f
+        const val LEGEND_GAP = 8f
+        const val CLOSE_SIZE = 9f
+        const val CLOSE_STROKE = 1.5f
+        const val CLOSE_GAP = 12f
     }
 
     /** A status byte as one strip from bit 7 to 0 (`bitStrip()`). */
@@ -522,8 +540,8 @@ internal object ScannerSpec {
 
     /** «Графики» (`sysGraphs()`): up to four lanes on one axis, the legend at their left. */
     object Graphs {
-        const val LEGEND_W = 232f
-        const val PLOT_X = 272f
+        const val LEGEND_W = 248f
+        const val PLOT_X = 288f
         val LANES = listOf(172f, 280f, 388f, 496f)
         const val LANE = 94f
         const val NAME_GAP = 3f

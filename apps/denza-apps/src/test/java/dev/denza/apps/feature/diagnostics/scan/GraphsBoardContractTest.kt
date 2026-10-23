@@ -43,7 +43,9 @@ class GraphsBoardContractTest {
         val view = m.modules.getValue(0x7E0).obd!!.live.graphs!!
 
         assertEquals(((f["block"] as Map<String, Any?>)["line"] as String).removePrefix("7E0 → 7E8 · Mode 01 · "), view.line)
-        assertEquals(((f["footer"] as Map<String, Any?>)["notes"] as List<List<Any?>>).single()[0], view.footnote)
+        val footer = f["footer"] as Map<String, Any?>
+        val notes = footer["notes"] as List<Any?>
+        assertEquals((notes.last() as List<Any?>)[0], view.footnote)
         assertEquals(GraphScope.Block(0x7E0), view.scope)
         assertEquals(signals.map { it["name"] }, view.lanes.map { it.name })
         signals.zip(view.lanes).forEach { (s, lane) ->

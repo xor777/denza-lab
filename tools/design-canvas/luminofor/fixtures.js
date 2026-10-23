@@ -811,11 +811,24 @@
     }
     return { pid, name, abbr, value, unit, min, max, norm, trace: tr };
   };
+  // «Графики» chosen on the table (design/graphs, 2026-10-23): a row with a key - one that opens alone,
+  // here one with a trace and not a calculation - has its square; [order] the abbreviations (a system's
+  // FIDs) of the signals on the graphs, the lanes' numbers in that order. The switch says how many.
+  // With no [order] the session's default: the first rows with a key, up to four, in the table's order.
+  const picked = (rows, order) => {
+    const keyed = rows.map(r => Object.assign({}, r, { key: r.trace.length > 0 && r.pid !== 'расч.' }));
+    const chosen = order || keyed.filter(r => r.key).slice(0, 4).map(r => r.abbr);
+    return keyed.map(r => Object.assign(r, { pick: chosen.indexOf(r.abbr) + 1 }));
+  };
+  // with nothing ticked «Графики · 0» cannot be chosen (`off`)
+  const graphView = (n, active) => Object.assign({ items: ['Таблица', 'Графики · ' + n], active: active || 0 }, n ? {} : { off: 1 });
+  const ENGINE_GRAPHS = ['RPM', 'TPS', 'MAP', 'STFT'];
   const scannerEcuLive = {
     top: scanTop(['Блоки', 'ЭБУ двигателя'], '15:51:02', 'P · ДВС работает', '14,1'),
     block: ecmBlock('7E0 → 7E8 · Mode 01 · 13 PID · опрос 4 Гц · график за 60 с'),
-    tabs: ecmTabs(2),
-    rows: [
+    tabs: Object.assign(ecmTabs(2), { right: graphView(ENGINE_GRAPHS.length) }),
+    pick: true,
+    rows: picked([
       live('05', 'Температура ОЖ', 'ECT', '91', '°C', '88', '92', '80…105', [1, 0.05, 0.3]),
       live('0F', 'Температура воздуха на впуске', 'IAT', '24', '°C', '22', '25', '—', [2, 0.04, 0.2]),
       live('0B', 'Абс. давление во впуске', 'MAP', '38', 'кПа', '31', '64', 'ХХ 25…45', [3, 0.25, -0.2]),
@@ -829,8 +842,9 @@
       live('15', 'Датчик кислорода B1S2', 'O2S12', '0,68', 'В', '0,61', '0,74', '0,1…0,9', [10, 0.12, 0]),
       live('3C', 'Температура катализатора B1S1', 'CATT', '512', '°C', '486', '530', '—', [11, 0.06, 0.25]),
       live('42', 'Напряжение ЭБУ', 'VPWR', '14,1', 'В', '13,9', '14,2', '13,2…14,8', [12, 0.05, 0]),
-    ],
-    footer: { buttons: [back, ['Пауза', 'primary'], ['Выбор PID', 'quiet'], ['Сбросить мин/макс', 'quiet']] },
+    ], ENGINE_GRAPHS),
+    // the squares are the one choice: what is on the graphs is read first, no «Выбор PID»
+    footer: { buttons: [back, ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']] },
   };
 
   const scannerEcuIdent = {
@@ -976,11 +990,11 @@
   const engineBlock = { title: 'Двигатель', aside: '· ECM 7E0 · UAES', line: '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · опрос 4 Гц',
     counters: [['ОБОРОТЫ', '1 250'], ['MIL', 'ВЫКЛ'], ['ГОТОВН.', '4/9']] };
   const engineTabs = (active, view) => Object.assign({ items: ['Состояние', 'Потоковые данные', 'DTC и готовность', 'Блоки'], active },
-    active === 1 ? { right: { items: ['Таблица', 'Графики'], active: view || 0 } } : {});
+    active === 1 ? { right: graphView(ENGINE_GRAPHS.length, view) } : {});
   const scannerSysEngine = {
     top: engineTop, rail: sysRail('Двигатель'), block: engineBlock, tabs: engineTabs(1),
-    rows: scannerEcuLive.rows,
-    footer: { buttons: [['Пауза', 'primary'], ['Выбор PID', 'quiet'], ['Сбросить мин/макс', 'quiet']] },
+    rows: scannerEcuLive.rows, pick: true,
+    footer: { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']] },
   };
   const scannerSysEngineDtc = {
     top: engineTop, rail: sysRail('Двигатель'), block: engineBlock, tabs: engineTabs(2),
@@ -1015,10 +1029,9 @@
   // The systems' «Состояние» as schemes, the parked snapshot of 2026-10-20 (sweep and autoscan).
   const u = (abbr, req, short, kind, history) => ({ abbr, req, short, kind: kind || 'ok', history });
   // «Потоковые данные» after «Состояние» wherever the system has readings to stream (the cabin has none)
-  // on «Потоковые данные» the switch between the table and the graphs at the tabs' right end
-  const VIEW = { items: ['Таблица', 'Графики'], active: 0 };
-  const sysTabs = active => Object.assign({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active }, active === 1 ? { right: VIEW } : {});
-  const drivesTabs = active => Object.assign({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active }, active === 1 ? { right: VIEW } : {});
+  // on «Потоковые данные» the switch between the table and the graphs at the tabs' right end (`stream()`)
+  const sysTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active });
+  const drivesTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active });
   // a plate's rows under its label, and a row in the first row's style or a smaller one under it
   const P = (label, rows) => [[label, 'counterLabel', 'mute'], ...rows];
   const st = (t, ink) => [t, 'cell', ink || 'white'], sm = (t, ink) => [t, 'cellSmall', ink || 'dim'];
@@ -1190,7 +1203,7 @@
       pt('catalyst', 'КАТАЛИЗАТОР', ['B1S1 512 °C']),
       pt('oxygen', 'ДАТЧИК O2 B1S2', ['0,68 В']),
     ],
-    footer: { buttons: [['Пауза', 'primary'], ['Выбор PID', 'quiet']] },
+    footer: { buttons: [['Пауза', 'primary']] },
   };
   const scannerSysClimate = {
     top: sysTop('Климат', '19:31:29'), rail: sysRail('Климат'),
@@ -1253,10 +1266,13 @@
   // value, the span of the last minute, the norm and 60 s of it. Illustrative around the parked
   // reading of 2026-10-20 (the traces from the same formula as the engine's); the words have none.
   const pl = (dev, name, fid, value, unit, min, max, norm, t, out) => Object.assign(live(dev, name, fid, value, unit, min, max, norm, t), { out: !!out });
+  // on the graphs: the pack's current, then the cell minimum
+  const PACK_GRAPHS = ['C4400018', '44600010'];
   const scannerSysPackLive = {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2, right: VIEW }),
-    rows: [
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2, right: graphView(PACK_GRAPHS.length) }),
+    pick: true,
+    rows: picked([
       pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '552', '554', '—', [2, 0.06, 0.1]),
       pl('1009', 'Ток ВВБ', 'C4400018', '−4,5', 'А', '−6,1', '−3,2', '—', [5, 0.22, 0]),
       pl('1012', 'Мощность ВВБ', '14400020', '−2,0', 'кВт', '−2,0', '−2,0', '—', [0, 0, 0]),
@@ -1280,7 +1296,7 @@
       pl('1009', 'Состояние заряда батареи', '34400018', 'разряд', '', '', '', '—', null),
       pl('1009', 'Зарядное устройство, состояние', '27C0000A', 'готово', '', '', '', '—', null),
       pl('1009', 'Зарядное устройство, отказ', '27C00008', 'норма', '', '', '', '—', null),
-    ],
+    ], PACK_GRAPHS),
     footer: { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']], notes: [['обход 2,1 с', true]] },
   };
   // Every other system's «Потоковые данные», the pack's table on its rows: the research's stream
@@ -1294,7 +1310,12 @@
   const flat = [0, 0, 0];
   const sw = (dev, name, fid, word, out) => pl(dev, name, fid, word, '', '', '', '—', null, out);
   const streamFooter = { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']], notes: [['обход 0,4 с', true]] };
-  const stream = (state, tabs, rows) => ({ top: state.top, rail: state.rail, block: state.block, tabs, rows, footer: streamFooter });
+  // the squares of «Графики» as the session chooses them by default: the first four rows with a trace
+  const stream = (state, tabs, rows) => {
+    const ticked = picked(rows, null);
+    return { top: state.top, rail: state.rail, block: state.block, pick: true, rows: ticked, footer: streamFooter,
+      tabs: Object.assign({}, tabs, { right: graphView(ticked.filter(r => r.pick).length) }) };
+  };
   const scannerSysHvLive = stream(scannerSysHv, sysTabs(1), [
     pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '553', '554', '—', [2, 0.06, 0.1]),
     pl('1012', 'Мощность ВВБ', '14400020', '−2,0', 'кВт', '−2,0', '−2,0', '—', flat),
@@ -1702,8 +1723,10 @@
       { name: 'Краткосрочная коррекция B1', pid: '06', abbr: 'STFT', unit: '%', scale: [-15, 15], norm: [-10, 10], decimals: 1, scaleDecimals: 0, signed: true, values: engineGraphs[3] },
     ],
     window: 60, cursor: 37.7,
-    footer: { buttons: [['Пауза', 'primary'], ['Метка', 'quiet'], ['Запись', 'quiet', 'rec'], ['Сигналы · 4', 'quiet']],
-      notes: [['окно 60 с · 499 точек на сигнал', true]] },
+    // no «Метка» or «Сигналы»: the signals are ticked on the table. A recording under way: «Стоп записи»
+    // and its time after the red dot; stopped, the note says «запись 1:24 · войдёт в отчёт»
+    footer: { buttons: [['Пауза', 'primary'], ['Стоп записи', 'quiet']],
+      notes: [['запись 0:42', true, 'rec'], '|', ['окно 60 с · 499 точек на сигнал', true]] },
   };
 
   // «Журнал»: the scans asked for, the updates and the cells' snapshots of 18.10-23.10; every code

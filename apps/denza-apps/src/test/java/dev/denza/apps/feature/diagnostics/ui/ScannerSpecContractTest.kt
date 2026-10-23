@@ -178,6 +178,14 @@ class ScannerSpecContractTest {
         n(ScannerSpec.CHEVRON, "chevron")
         val v = ScannerSpec.Segmented
         n(v.H, "segmented", "h"); n(v.PAD, "segmented", "pad"); n(v.R, "segmented", "r"); n(v.GAP, "segmented", "gap")
+        val p = ScannerSpec.Pick
+        assertEquals(setOf("col", "inset", "size", "r", "stroke", "legendGap", "close"), (at("pick") as Map<*, *>).keys)
+        n(p.COL, "pick", "col"); n(p.INSET, "pick", "inset"); n(p.SIZE, "pick", "size"); n(p.R, "pick", "r"); n(p.STROKE, "pick", "stroke")
+        n(p.LEGEND_GAP, "pick", "legendGap"); n(p.CLOSE_SIZE, "pick", "close", "size"); n(p.CLOSE_STROKE, "pick", "close", "stroke")
+        n(p.CLOSE_GAP, "pick", "close", "gap")
+        // the square stands inside its column, and its number inside the square
+        assertTrue(p.INSET + p.SIZE <= p.COL)
+        assertTrue(ScannerSpec.Type.PICK_NUM.lh <= p.SIZE)
         val b = ScannerSpec.BitStrip
         n(b.CELL, "bitStrip", "cell"); n(b.H, "bitStrip", "h"); n(b.GAP, "bitStrip", "gap"); n(b.R, "bitStrip", "r")
         n(b.CELL_Y, "bitStrip", "cellY"); n(b.NAME_Y, "bitStrip", "nameY"); n(b.NAME_OUT, "bitStrip", "nameOut")
@@ -244,6 +252,8 @@ class ScannerSpecContractTest {
         n(g.CURSOR_BOTTOM, "graphs", "cursor", "bottom"); n(g.CURSOR_DOT, "graphs", "cursor", "dot"); n(g.AXIS_Y, "graphs", "axisY")
         n(g.TAG_Y, "graphs", "tag", "y"); n(g.TAG_W, "graphs", "tag", "w"); n(g.TAG_H, "graphs", "tag", "h"); n(g.TAG_R, "graphs", "tag", "r")
         n(g.SCALE_INSET, "graphs", "scaleInset")
+        // the legend's square, name and «×» end before the plot
+        assertTrue(24f + g.LEGEND_W < g.PLOT_X)
         // the four lanes under the tabs, over the axis
         assertTrue(g.LANES.first() >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT && g.LANES.last() + g.LANE <= g.AXIS_Y)
         val j = ScannerSpec.Journal
