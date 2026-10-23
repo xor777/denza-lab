@@ -156,6 +156,8 @@ internal object ScannerFixtures {
             "scanner-summary", "scanner-summary-active" -> listOf(summary)
             "scanner-blocks" -> blocks
             "scanner-journal", "scanner-journal-first" -> listOf(summary, ScannerRoute.Journal(0))
+            "scanner-journal-compare" -> listOf(summary, ScannerRoute.Journal(1))
+            "scanner-journal-records" -> listOf(summary, ScannerRoute.Journal(2))
             "scanner-report" -> listOf(summary, ScannerRoute.Report)
             "scanner-code" -> listOf(summary, ScannerRoute.Code(0x720, "U0121-87"))
             "scanner-code-plain" -> listOf(summary, ScannerRoute.Code(R_ZCU, "C1170-09"))
@@ -761,7 +763,7 @@ internal object ScannerFixtures {
 
     /* -------------------------------------------------------------- «Журнал» */
 
-    private val JOURNAL_BOARDS = setOf("scanner-journal", "scanner-journal-first")
+    private val JOURNAL_BOARDS = setOf("scanner-journal", "scanner-journal-first", "scanner-journal-compare", "scanner-journal-records")
 
     /** «Журнал» from its board (`journal()`, `journalPanel()`): every moment on the day axis, as a fraction of it. */
     private fun journal(f: JSONObject): JournalView {

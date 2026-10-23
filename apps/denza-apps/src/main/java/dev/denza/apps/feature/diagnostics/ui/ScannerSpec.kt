@@ -572,6 +572,19 @@ internal object ScannerSpec {
         const val PANEL_ROW = 26f
         const val PANEL_HEAD = 30f
         const val PANEL_GAP = 10f
+        /** «Сравнение» across the page (`journalCompare()`): its caption and moments, then three plates. */
+        const val COMPARE_TOP = 176f
+        const val COMPARE_HEAD = 30f
+        const val COMPARE_COLS = 3
+        const val COMPARE_GAP = 16f
+        /** «Записи» (`journalRecords()`): every block's records on the whole width of the day axis. */
+        const val RECORDS_PLOT_X = 300f
+        const val RECORDS_COUNT_W = 110f
+        const val RECORDS_AXIS_Y = 176f
+        const val RECORDS_GRID_TOP = 190f
+        const val RECORDS_TOP = 200f
+        const val RECORDS_STEP = 36f
+        const val RECORDS_H = 28f
     }
 
     /** «Отчёт» (`report()`): the first page on the left, what goes in and where on the right. */

@@ -1696,6 +1696,10 @@
       values: [['12 В', null, '13,7', 'В'], ['Δ ячеек, покой', null, '4', 'мВ'], ['Изоляция', null, '14,4', 'МОм'], ['SOH', null, '99', '%']] },
     footer: { buttons: [['Экспорт журнала', 'quiet']] },
   });
+  // the journal's other two tabs on the same five days: the comparison across the page, and every
+  // block's records on the whole width of the axis
+  const scannerJournalCompare = Object.assign({}, scannerJournal, { tabs: { items: scannerJournal.tabs.items, active: 1 } });
+  const scannerJournalRecords = Object.assign({}, scannerJournal, { tabs: { items: scannerJournal.tabs.items, active: 2 } });
 
   // «Отчёт» of the scan of 20.10 19:31: no QR and no choice of where - «Сохранить в Загрузки» puts a
   // PDF for people and a JSON of the raw answers into Download/Denza. The page is the PDF's first.
@@ -1806,6 +1810,8 @@
     'scanner-sys-engine-graphs': [scanner('sysGraphs'), scannerSysEngineGraphs],
     'scanner-journal':  [scanner('journal'), scannerJournal],
     'scanner-journal-first': [scanner('journal'), scannerJournalFirst],
+    'scanner-journal-compare': [scanner('journalCompare'), scannerJournalCompare],
+    'scanner-journal-records': [scanner('journalRecords'), scannerJournalRecords],
     'scanner-report':   [scanner('report'), scannerReport],
     'scanner-sys-engine': [scanner('sysLive'), scannerSysEngine],
     'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],
