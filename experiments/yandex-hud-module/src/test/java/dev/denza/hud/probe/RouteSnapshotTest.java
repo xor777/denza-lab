@@ -171,6 +171,22 @@ public final class RouteSnapshotTest {
     public static class Opaque {
         public String toString() { throw new AssertionError("Opaque object stringified"); }
     }
+    public enum JamType { FREE }
+    public static class Jam {
+        public JamType getJamType() { return JamType.FREE; }
+        public double getSpeed() { return 10.0; }
+    }
+    public static class ReversedRange extends Range {
+        public Position getBegin() { return new Position(1,.75); }
+        public Position getEnd() { return new Position(0,.25); }
+    }
+    public static class ReversedItem extends RangeItem { public Range getPosition() { return new ReversedRange(); } }
+    /** CAP-8: ranges, jams and positions the cutter must never receive unflagged. */
+    public static class MalformedRoute extends RichRoute {
+        int jams = 1;
+        public List<RangeItem> getHighways() { return Collections.<RangeItem>singletonList(new ReversedItem()); }
+        public List<Jam> getJamSegments() { List<Jam> out = new java.util.ArrayList<>(); for (int i = 0; i < jams; i++) out.add(new Jam()); return out; }
+    }
     public static class OpaqueRoute extends RichRoute {
         public List<Object> getEvents() { return Collections.<Object>singletonList(new Opaque()); }
     }
@@ -246,6 +262,17 @@ public final class RouteSnapshotTest {
         Map<String,Object> ended=reader.read(terminal);
         check(object(first(ended,"trafficLights"),"position").get("segmentIndex").equals(2),"canonical terminal vertex position retained");
         check("known".equals(state(ended,"trafficLights")),"terminal vertex with zero fraction accepted");
+        RichRoute overflow=new RichRoute(); overflow.light.position=new Position(0,1.5);
+        Map<String,Object> beyond=reader.read(overflow);
+        check("unknown".equals(state(beyond,"trafficLights[0].position")),"fraction above 1 rejected (CAP-8)");
+        check("partial".equals(state(beyond,"trafficLights")),"fraction above 1 marks the list partial");
+        MalformedRoute malformed=new MalformedRoute();
+        Map<String,Object> bad1=reader.read(malformed);
+        check(!"known".equals(state(bad1,"highways")) && first(bad1,"highways").get("position")==null,"reversed range rejected (CAP-8)");
+        check(object(object(bad1,"issues"),"jamSegments.alignment")!=null && "partial".equals(state(bad1,"jamSegments")),"jam list of the wrong length flagged (CAP-8)");
+        malformed.jams=2;
+        Map<String,Object> aligned=reader.read(malformed);
+        check(object(object(aligned,"issues"),"jamSegments.alignment")==null && "known".equals(state(aligned,"jamSegments")),"one jam per edge is known");
         Map<String,Object> opaque=reader.read(new OpaqueRoute());
         check("partial".equals(state(opaque,"events")),"opaque item not stringified or discarded as known empty");
         check(first(opaque,"events").get("polylinePosition")==null,"opaque object's missing getter explicit");

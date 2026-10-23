@@ -134,7 +134,8 @@ class StockEquivalenceTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="adas-link-oracle-"))
         sources = [p for p in sorted((LIB / "main/java").rglob("*.java")) if "import android." not in p.read_text()]
-        sources += sorted((LIB / "test/java").rglob("*.java"))
+        # The JUnit oracles (oracle/) need Gson, protobuf-java and JUnit: Gradle runs them, not this test.
+        sources += [p for p in sorted((LIB / "test/java").rglob("*.java")) if p.parent.name != "oracle"]
         (cls.tmp / "OracleHelper.java").write_text(HELPER)
         (cls.tmp / "TraceDemo.java").write_text(TRACE_DEMO)
         sources += [cls.tmp / "OracleHelper.java", cls.tmp / "TraceDemo.java"]

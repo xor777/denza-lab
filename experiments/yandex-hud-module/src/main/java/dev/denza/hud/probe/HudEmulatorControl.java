@@ -18,7 +18,10 @@ final class HudEmulatorControl {
     private String recordedRoute;
     private String attemptedRoute;
     private long routeAttemptAt = -10_000, recordedRouteAt = -10_000, identityFailureAt = -10_000;
-    private Object identityFailureRoute;
+    private Object identityFailureRoute, recordedObject, attemptedObject;
+    /** Serialization and the fsync'd write of the route copy run here, never on Navigator's main thread. */
+    private android.os.Handler writer;
+    private volatile boolean writing, writeFailed;
     private boolean iconSheet;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
@@ -114,21 +117,46 @@ final class HudEmulatorControl {
             Log.w("DenzaYandexHud", "native route identity failed", error);
             return;
         }
-        // Conditions may populate after the first route result. Refresh diagnostic evidence every
-        // ten seconds, including after a failed read/write; a different route id bypasses the wait.
-        if (id.equals(recordedRoute) && now - recordedRouteAt < 10_000) return;
-        if (id.equals(attemptedRoute) && now - routeAttemptAt < 10_000) return;
-        attemptedRoute = id; routeAttemptAt = now;
+        // A new route object or id is copied at once; the same route is refreshed at most once a
+        // minute (conditions may populate after the first result), a failed attempt after ten seconds.
+        boolean changed = route != recordedObject || !id.equals(recordedRoute) || writeFailed;
+        if (!changed && now - recordedRouteAt < 60_000) return;
+        if (id.equals(attemptedRoute) && route == attemptedObject && now - routeAttemptAt < 10_000) return;
+        if (writing) return; // one write in flight; the next tick tries again
+        attemptedRoute = id; attemptedObject = route; routeAttemptAt = now;
         try {
             long wallAt = System.currentTimeMillis();
-            java.util.Map<String, Object> reference = new RouteSnapshot(api).read(route);
+            // The MapKit tree must be copied on the main thread; that copy is all that runs here.
+            final java.util.Map<String, Object> reference = new RouteSnapshot(api).read(route);
+            final long copied = android.os.SystemClock.elapsedRealtime();
             reference.put("sourceSessionId", NavigationEvidence.SOURCE_SESSION_ID);
             reference.put("capturedAtUnixMs", wallAt);
             reference.put("capturedAtElapsedRealtimeMs", now);
-            reference.put("readDurationMs", android.os.SystemClock.elapsedRealtime() - now);
-            RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-hud-native-route.json"), reference);
-            recordedRoute = (String) reference.get("routeId");
-            recordedRouteAt = android.os.SystemClock.elapsedRealtime();
+            reference.put("readDurationMs", copied - now);
+            recordedObject = route;
+            recordedRoute = id;
+            recordedRouteAt = copied;
+            if (writer == null) {
+                android.os.HandlerThread thread = new android.os.HandlerThread("denza-hud-evidence", android.os.Process.THREAD_PRIORITY_BACKGROUND);
+                thread.start();
+                writer = new android.os.Handler(thread.getLooper());
+            }
+            writing = true;
+            writeFailed = false;
+            writer.post(() -> {
+                try {
+                    long begin = android.os.SystemClock.elapsedRealtime();
+                    String json = RouteSnapshot.json(reference);
+                    long serialized = android.os.SystemClock.elapsedRealtime();
+                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-hud-native-route.json"), json);
+                    Log.i("DenzaYandexHud", "route evidence copy=" + (copied - now) + "ms serialize=" + (serialized - begin)
+                            + "ms write=" + (android.os.SystemClock.elapsedRealtime() - serialized) + "ms json=" + json.length());
+                } catch (Exception error) {
+                    writeFailed = true; // retried after ten seconds, as before
+                    Log.w("DenzaYandexHud", "native route evidence failed", error);
+                }
+                finally { writing = false; }
+            });
         } catch (Exception error) { Log.w("DenzaYandexHud", "native route evidence failed", error); }
     }
 

@@ -13,7 +13,16 @@ import java.util.Map;
 final class RouteArchive {
     final byte[] bytes;
     final Map<String, Object> metadata;
-    private RouteArchive(byte[] bytes, Map<String, Object> metadata) { this.bytes = bytes; this.metadata = metadata; }
+    /** The serializer API is missing from this Navigator: no retry will ever succeed. */
+    final boolean unsupported;
+    /**
+     * One OFFLINE router and its serializer for the process, created on first use and kept, so
+     * retries never create native routers (main thread only, like Reflect).
+     */
+    private static Object router, serializer;
+    private RouteArchive(byte[] bytes, Map<String, Object> metadata, boolean unsupported) {
+        this.bytes = bytes; this.metadata = metadata; this.unsupported = unsupported;
+    }
 
     static RouteArchive read(Object route, String routeId, Reflect api) {
         Map<String, Object> info = new LinkedHashMap<>();
@@ -24,10 +33,12 @@ final class RouteArchive {
         info.put("opaque", true);
         info.put("format", "DrivingRouter.routeSerializer().save; not yet decoded");
         try {
-            Object directions = api.call(api.type("com.yandex.mapkit.directions.DirectionsFactory"), "getInstance");
-            Object offline = api.type("com.yandex.mapkit.directions.driving.DrivingRouterType").getField("OFFLINE").get(null);
-            Object router = api.call(directions, "createDrivingRouter", offline);
-            Object serializer = api.call(router, "routeSerializer");
+            if (serializer == null) {
+                Object directions = api.call(api.type("com.yandex.mapkit.directions.DirectionsFactory"), "getInstance");
+                Object offline = api.type("com.yandex.mapkit.directions.driving.DrivingRouterType").getField("OFFLINE").get(null);
+                router = api.call(directions, "createDrivingRouter", offline);
+                serializer = api.call(router, "routeSerializer");
+            }
             byte[] data = (byte[]) api.call(serializer, "save", route);
             if (data == null || data.length == 0 || data.length > 16 * 1024 * 1024)
                 throw new IOException("Native route archive outside diagnostic size bound");
@@ -35,10 +46,14 @@ final class RouteArchive {
             StringBuilder digest = new StringBuilder();
             for (byte value : MessageDigest.getInstance("SHA-256").digest(data)) digest.append(String.format("%02x", value & 255));
             info.put("status", "available"); info.put("bytes", data.length); info.put("sha256", digest.toString());
-            return new RouteArchive(data, info);
+            return new RouteArchive(data, info, false);
         } catch (Exception failure) {
             info.put("status", "unknown"); info.put("error", failure.getClass().getSimpleName() + ": " + failure.getMessage());
-            return new RouteArchive(null, info);
+            String message = String.valueOf(failure.getMessage());
+            boolean missing = failure instanceof NoSuchFieldException || message.startsWith("Missing method")
+                    || failure.getCause() instanceof ClassNotFoundException;
+            if (missing) info.put("retry", "never: the serializer API is missing");
+            return new RouteArchive(null, info, missing);
         }
     }
 

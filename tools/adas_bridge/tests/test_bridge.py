@@ -306,6 +306,12 @@ class GeometryTests(unittest.TestCase):
             with self.subTest(patch=patch_):
                 self.assertFalse(map_progress(converted, dict(source, **patch_), now_ms=10500)["accepted"])
         self.assertTrue(map_progress(converted, dict(source, locationClass="FINE", lastFineFixAgeMs=200), now_ms=10500)["accepted"])
+        # The module's CAP-1 schema: no fixAgeMs, observedStampAgeMs is not a fix age, the FINE age decides.
+        current = {k: v for k, v in source.items() if k != "fixAgeMs"}
+        current.update(observedStampAgeMs=0, locationClass="FINE", lastFineFixAgeMs=200)
+        self.assertTrue(map_progress(converted, current, now_ms=10500)["accepted"])
+        self.assertFalse(map_progress(converted, dict(current, lastFineFixAgeMs=None), now_ms=10500)["accepted"])
+        self.assertFalse(map_progress(converted, dict(current, lastFineFixAgeMs=1900), now_ms=10500)["accepted"])
         self.assertFalse(map_progress(converted, source, now_ms=12001)["accepted"])
         bad_pose = dict(source, location=dict(source["location"], longitude=0, latitude=0))
         self.assertEqual(map_progress(converted, bad_pose, now_ms=10500)["reason"], "location_source_geometry_mismatch")

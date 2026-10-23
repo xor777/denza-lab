@@ -45,6 +45,10 @@ final class NavigatorSource {
         double speed = Double.NaN;
         /** When the last fresh fix arrived; the stock camera sets its targets once per fix. */
         long staleMs, fixAt = -1;
+        /** LocationClass of the held fix (FINE, EXTRAPOLATED, ...); null without one. Diagnostic: the HUD hold ignores it. */
+        String locationClass;
+        /** relativeTimestamp (elapsedRealtime ms) of the last FINE location of this guidance; -1 none. */
+        long fineFixRelativeMs = -1;
         List<Lane> lanes = Collections.emptyList();
         Hint hint;
         boolean active() { return !mode.equals("off"); }
@@ -65,6 +69,8 @@ final class NavigatorSource {
     private String heldPositionRouteId;
     private double heldHeading, heldLatitude, heldSpeed = Double.NaN;
     private boolean held;
+    private String heldClass;
+    private long fineRelative = -1;
     NavigatorSource(Reflect api) { this.api = api; }
 
     @SuppressWarnings("unchecked") Frame read(Object guidance, boolean visible, long now) {
@@ -106,6 +112,15 @@ final class NavigatorSource {
                 if (heading != null) heldHeading = heading;
                 Double speed = (Double) api.call(location, "getSpeed");
                 heldSpeed = speed != null ? speed : Double.NaN;
+                heldClass = accuracy;
+                if (accuracy.equals("FINE")) {
+                    try {
+                        Object relative = api.call(location, "getRelativeTimestamp");
+                        if (relative instanceof Number) fineRelative = ((Number) relative).longValue();
+                    } catch (RuntimeException ignored) {
+                        // Diagnostic only: an unreadable timestamp must not change the HUD's hold.
+                    }
+                }
             }
         }
         if (!held) { frame.mode = "waiting"; return frame; }
@@ -119,6 +134,8 @@ final class NavigatorSource {
         // A fix held through a gap says nothing of the car now.
         frame.speed = frame.staleMs == 0 ? heldSpeed : Double.NaN;
         frame.position = heldPosition;
+        frame.locationClass = heldClass;
+        frame.fineFixRelativeMs = fineRelative;
         frame.positionRouteId = heldPositionRouteId;
         if (rerouting) { frame.mode = "rerouting"; return frame; }
         frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";
@@ -157,7 +174,7 @@ final class NavigatorSource {
     }
 
     private void forget() {
-        lastStamp = null; held = false;
+        lastStamp = null; held = false; heldClass = null; fineRelative = -1;
         heldLocation = heldPoint = heldPosition = null;
         heldPositionRouteId = null;
     }

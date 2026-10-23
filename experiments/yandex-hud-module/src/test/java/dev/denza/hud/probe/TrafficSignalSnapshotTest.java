@@ -20,6 +20,14 @@ public final class TrafficSignalSnapshotTest {
         public boolean onRoute(String id) { return matched && id.equals("selected-route"); }
         public Position positionOnRoute(String id) { positionReads++; return new Position(); }
     }
+    public static class Overflow extends Position { public double getSegmentPosition() { return 1.5; } }
+    public static class OverflowPosition extends RoutePosition {
+        public Position positionOnRoute(String id) { return new Overflow(); }
+    }
+    public static class OverflowLight extends Light {
+        final RoutePosition overflow=new OverflowPosition();
+        public RoutePosition getPosition() { return overflow; }
+    }
     public static class Light {
         final RoutePosition position=new RoutePosition(); Signal signal=Signal.RED; Integer seconds=7;
         public String getId() { return "light-id"; }
@@ -78,6 +86,11 @@ public final class TrafficSignalSnapshotTest {
         check(((Map<?,?>)first(snapshot).get("position")).get("polylinePosition")==null,"foreign-route position not projected");
         check(nullable.position.positionReads==2,"positionOnRoute not called after membership false");
         check("unknown".equals(state(snapshot,"trafficLightsWithSignal[0].position.polylinePosition")),"foreign route explicitly unknown");
+        windshield.lights=Collections.singletonList(new OverflowLight());
+        snapshot=TrafficSignalSnapshot.read(api,windshield,"selected-route");
+        check(((Map<?,?>)first(snapshot).get("position"))==null || ((Map<?,?>)first(snapshot).get("position")).get("polylinePosition")==null,
+                "fraction above 1 not exported (CAP-8)");
+        check(Boolean.FALSE.equals(snapshot.get("complete")),"fraction above 1 makes the copy incomplete");
         windshield.lights=Arrays.asList(new FailingLight(),null,new Opaque());
         snapshot=TrafficSignalSnapshot.read(api,windshield,"selected-route");
         check("known".equals(snapshot.get("status")) && Boolean.FALSE.equals(snapshot.get("complete")),"partially unreadable list retained");

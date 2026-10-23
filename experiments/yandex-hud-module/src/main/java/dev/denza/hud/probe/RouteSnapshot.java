@@ -28,7 +28,12 @@ final class RouteSnapshot {
 
     /** Same-directory atomic replacement: a failed copy never truncates the last usable snapshot. */
     static void writeAtomic(File destination, Map<String, Object> snapshot) throws IOException {
-        byte[] bytes = json(snapshot).getBytes(StandardCharsets.UTF_8);
+        writeAtomic(destination, json(snapshot));
+    }
+
+    /** As above, for JSON already serialized off the main thread. */
+    static void writeAtomic(File destination, String json) throws IOException {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > MAX_BYTES) throw new IOException("Route snapshot exceeds size bound");
         File temporary = File.createTempFile("route-snapshot-", ".tmp", destination.getAbsoluteFile().getParentFile());
         try {

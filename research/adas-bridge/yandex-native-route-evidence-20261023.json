@@ -439,12 +439,8 @@
           "sha256": "f857e41c5d36d52dd312e476dfbddfbbe3e8d302d0503e53a4b02fbe268f6361",
           "routeId": "01a169f9-e3e7-7f7f-aab4-144f39e86283"
         },
-        "bboxLonLat": [
-          37.583698,
-          55.752412,
-          37.629299,
-          55.784315
-        ],
+        "region": "Moscow region (coarse label; exact bbox only under captures/)",
+        "bboxSourceSha256": "f857e41c5d36d52dd312e476dfbddfbbe3e8d302d0503e53a4b02fbe268f6361",
         "allYandexPointsInsideNetworkCoverage": true,
         "yandex": {
           "counts": {
@@ -602,12 +598,8 @@
           "sha256": "212fe8ef04b672eb30737b08b400fa8a630542b1865bd849a59d1100b975667b",
           "routeId": "01a16a01-541d-7289-b608-9aca40ddafc8"
         },
-        "bboxLonLat": [
-          37.282888,
-          55.60597700013343,
-          37.470634,
-          55.679315
-        ],
+        "region": "Moscow region (coarse label; exact bbox only under captures/)",
+        "bboxSourceSha256": "212fe8ef04b672eb30737b08b400fa8a630542b1865bd849a59d1100b975667b",
         "allYandexPointsInsideNetworkCoverage": true,
         "yandex": {
           "counts": {
@@ -777,12 +769,8 @@
           "sha256": "916a0e05f32761a2e42c09cf8e57c5d5069b302f1c491eb9c5e6095d4183bad9",
           "routeId": "01a16a06-8de6-7c98-98e1-6c2291b9b06a"
         },
-        "bboxLonLat": [
-          37.665786,
-          55.392537,
-          37.79891,
-          55.59942
-        ],
+        "region": "Moscow region (coarse label; exact bbox only under captures/)",
+        "bboxSourceSha256": "916a0e05f32761a2e42c09cf8e57c5d5069b302f1c491eb9c5e6095d4183bad9",
         "allYandexPointsInsideNetworkCoverage": true,
         "yandex": {
           "counts": {

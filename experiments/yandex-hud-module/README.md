@@ -19,9 +19,15 @@ original route identity and native timestamps; a reroute cannot turn an old
 HUD pose into fresh navigation data. Optional unavailable fields remain null
 with explicit issues. Route export does not depend on an AR frame being drawn.
 Archive failures retry after ten seconds; failed saves do not poison the cache.
+Each sample carries the location's `locationClass` and `lastFineFixAgeMs`, the
+age of the last FINE fix from its own timestamp; `freshLocation` means FINE and
+at most 2.5 s old. `observedStampAgeMs` is only how long ago the module first saw
+the current timestamp, not a fix age; an EXTRAPOLATED location is never fresh.
 
-This export is gated to `ranchu`/`goldfish` and introduces no ADAS publisher or
-new vehicle permission. See [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
+This export is gated to `ranchu`/`goldfish`. The map-to-ADAS bridge
+(`AdasBridge`, `libraries/adas-link`) runs on every hardware as a dry run: it
+records what the stock map would send to `files/denza-adas-dry-run.jsonl` and
+fires nothing; its SOME/IP publisher is compiled hard-off. See [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
 for actual city/M4 captures, the offline byte receiver and unresolved map fields.
 
 ## Runtime

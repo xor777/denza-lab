@@ -21,9 +21,14 @@ final class GuidanceSnapshot {
         out.put("mode", frame.mode);
         out.put("resumed", frame.resumed);
         out.put("backgroundEnabled", frame.backgroundEnabled);
-        // The HUD deliberately holds an old fix. Export its real age, never that visual hold as fresh data.
+        // The HUD deliberately holds an old fix. observedStampAgeMs is how long ago the module saw the
+        // timestamp change (an EXTRAPOLATED stamp changes every tick); lastFineFixAgeMs is the age of
+        // the last FINE location itself, from its own relativeTimestamp (elapsedRealtime ms).
         Long age = frame.fixAt >= 0 && uptime >= frame.fixAt ? uptime - frame.fixAt : null;
-        out.put("fixAgeMs", age);
+        out.put("observedStampAgeMs", age);
+        out.put("locationClass", frame.locationClass);
+        Long fineAge = frame.fineFixRelativeMs >= 0 && uptime >= frame.fineFixRelativeMs ? uptime - frame.fineFixRelativeMs : null;
+        out.put("lastFineFixAgeMs", fineAge);
         String id = null;
         if (frame.active() && frame.route != null) {
             Object value = read.call("routeId", frame.route, "getRouteId");
@@ -33,7 +38,10 @@ final class GuidanceSnapshot {
         boolean positionMatchesRoute = id != null && id.equals(frame.positionRouteId);
         out.put("positionRouteId", id == null ? null : frame.positionRouteId);
         out.put("positionMatchesRoute", positionMatchesRoute);
-        out.put("freshLocation", positionMatchesRoute && age != null && age <= 2500 && "guidance".equals(frame.mode));
+        // Fresh for ADAS: a FINE fix of at most 2.5 s, guided, on this route. EXTRAPOLATED is a prediction.
+        boolean fresh = positionMatchesRoute && "FINE".equals(frame.locationClass) && fineAge != null && fineAge <= 2500
+                && "guidance".equals(frame.mode);
+        out.put("freshLocation", fresh);
         if (positionMatchesRoute && frame.position != null)
             out.put("sourcePolylinePosition", read.position("sourcePolylinePosition", frame.position));
         else {
@@ -41,7 +49,7 @@ final class GuidanceSnapshot {
             if (id != null && frame.position != null)
                 read.issues.put("sourcePolylinePosition", "Retained position belongs to another or unknown route");
         }
-        if (id != null && frame.location != null) {
+        if (id != null && frame.location != null && positionMatchesRoute) {
             Map<String, Object> location = map();
             Object point = read.call("location.point", frame.location, "getPosition");
             location.put("longitude", read.number("location.longitude", point, "getLongitude"));
@@ -53,11 +61,13 @@ final class GuidanceSnapshot {
             out.put("distanceToFinishM", read.number("distanceToFinishM", position, "distanceToFinish"));
             out.put("timeToFinishS", read.number("timeToFinishS", position, "timeToFinish"));
         } else {
+            // One sample, one instant: a fix held from another route never pairs with this route's ETA.
+            if (id != null && frame.location != null) read.issues.put("location", "Held fix belongs to another or unknown route");
             out.put("location", null);
             out.put("distanceToFinishM", null);
             out.put("timeToFinishS", null);
         }
-        out.put("speedLimitMps", id != null && frame.hint != null && Double.isFinite(frame.hint.limitValue)
+        out.put("speedLimitMps", fresh && frame.hint != null && Double.isFinite(frame.hint.limitValue)
                 ? frame.hint.limitValue : null);
         // These are semantic Yandex keys, NOT the different HUD/ADAS numeric manoeuvre enums.
         Map<String, Object> hint = null;
