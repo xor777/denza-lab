@@ -26,6 +26,8 @@ public final class AdasGateSnapshot {
             ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS, DISCONNECTION_STATUS));
     public static final int MAX_JSON_CHARS = 16384;
     public static final long MAX_AGE_MS = 5000;
+    /** The optional key of tools/adas_bridge/AdasGateReader.NaviSt's view. */
+    public static final String NAVI_ST = "naviSt";
 
     public static final class Snapshot {
         public final boolean valid;
@@ -35,12 +37,17 @@ public final class AdasGateSnapshot {
         public final Boolean dnpService, dnpSwitchRaw, startupDnpSwitchRaw,
                 noSleep, stockNoSleep, downtime;
         public final Map<Integer, Integer> rawValues;
+        /**
+         * The reader's NaviSt side channel (the arm's {@code naviSt} switch): its state and recent
+         * read/write events, each with its number; null when the reader does not drive it.
+         */
+        public final Map<String, Object> naviSt;
 
         private Snapshot(String error) {
             valid = false; reason = error; outageReason = "snapshot_invalid"; readerSession = null;
             sequence = startedAtElapsedMs = completedAtElapsedMs = startedAtUptimeMs = completedAtUptimeMs = -1;
             dnpService = dnpSwitchRaw = startupDnpSwitchRaw = noSleep = stockNoSleep = downtime = null;
-            rawValues = Collections.emptyMap();
+            rawValues = Collections.emptyMap(); naviSt = null;
         }
 
         private Snapshot(Map<String, Object> root, Map<Integer, Integer> raw, String outage) {
@@ -51,6 +58,7 @@ public final class AdasGateSnapshot {
             startedAtUptimeMs = integer(root, "startedAtUptimeMs");
             completedAtUptimeMs = integer(root, "completedAtUptimeMs");
             rawValues = Collections.unmodifiableMap(new LinkedHashMap<>(raw));
+            naviSt = root.containsKey(NAVI_ST) ? Collections.unmodifiableMap(object(root.get(NAVI_ST))) : null;
             int h = raw.get(HNP_CONFIG), u = raw.get(UNP_CONFIG), e = raw.get(E2E_CONFIG),
                     hs = raw.get(HNP_SWITCH), us = raw.get(UNP_SWITCH), es = raw.get(E2E_SWITCH),
                     mode = raw.get(ASSIST_MODE), ui = raw.get(NOA_UI_TYPE), sleep = raw.get(SLEEP_STATUS);
@@ -101,7 +109,10 @@ public final class AdasGateSnapshot {
                 // duplicate keys and integral-looking floats/overflowed numbers.
                 if (!canonical.equals(Json.write(parsed))) return invalid("noncanonical_json");
                 Map<String, Object> root = object(parsed);
-                if (root.size() != 10 || !SCHEMA.equals(root.get("schema"))) return invalid("schema");
+                // The eleventh key exists only when the reader drives NaviSt, and is then an object.
+                boolean side = root.containsKey(NAVI_ST);
+                if (root.size() != (side ? 11 : 10) || !SCHEMA.equals(root.get("schema"))) return invalid("schema");
+                if (side && !(root.get(NAVI_ST) instanceof Map)) return invalid("navi_st");
                 if (!boot.equals(root.get("bootId"))) return invalid("boot_mismatch");
                 if (!consumer.equals(root.get("consumerSession"))) return invalid("consumer_mismatch");
                 if (!(root.get("readerSession") instanceof String) || !uuid((String) root.get("readerSession")))

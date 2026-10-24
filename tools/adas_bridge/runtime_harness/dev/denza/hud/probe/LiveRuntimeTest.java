@@ -25,6 +25,8 @@ public final class LiveRuntimeTest {
         static final String GEOMETRY="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         static final String INVENTORY="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         static final String ALT_GEOMETRY="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+        /** The gate reader's NaviSt view (arm variant naviSt), carried in each gates file when set. */
+        Map<String,Object> naviSt;
         Rig()throws Exception {
             Handler.reset();context=new Context(new File(root,"session-"+(++serial)));
             reader=UUID.randomUUID().toString();armId=UUID.randomUUID().toString();arm=Json.object();
@@ -59,7 +61,7 @@ public final class LiveRuntimeTest {
                     fid==AdasGateSnapshot.NOA_UI_TYPE?2:fid==AdasGateSnapshot.HNP_SWITCH&&on?1:0;
                 Map<String,Object> v=Json.object();v.put("status","ok");v.put("transact",5L);v.put("value",value);values.put(Integer.toString(fid),v);
             }
-            row.put("values",values);write("denza-adas-gates.json",row);
+            row.put("values",values);if(naviSt!=null)row.put(AdasGateSnapshot.NAVI_ST,naviSt);write("denza-adas-gates.json",row);
             Map<String,Object> isolation=Json.object();isolation.put("schema","denza-adas-stock-isolation-v1");isolation.put("bootId",BOOT);
             isolation.put("consumerSession",consumer);isolation.put("readerSession",reader);isolation.put("stockAbsent",true);
             isolation.put("startedAtElapsedMs",at);isolation.put("completedAtElapsedMs",at);write("denza-adas-stock-isolation.json",isolation);
@@ -206,6 +208,7 @@ public final class LiveRuntimeTest {
         variantSession();
         variantFrameAfterOfflineWithdrawal();
         invalidVariantBlocks();
+        naviStJournal();
         System.out.println("LiveRuntimeTest: "+checks+" checks passed (fake Android/Binder boundary, production coordinator/protocol)");
     }
 
@@ -473,6 +476,42 @@ public final class LiveRuntimeTest {
         check(Coordinates.distance(p[0],p[1],gcj[0],gcj[1])<0.5&&Coordinates.distance(p[0],p[1],wgs[0],wgs[1])>100,
                 "the republished route stays in the session's STOCK_GCJ frame, not the build default");
         check(answers.requests.isEmpty(),"the default start protocol sends no ODD request");
+    }
+
+    /**
+     * The gate reader's NaviSt reads and writes reach the live journal and the drive's change journal,
+     * each once by its number, while the gates stay valid; the side channel changes no send.
+     */
+    static void naviStJournal()throws Exception {
+        Rig r=new Rig();r.arm.put("variant",object(Json.parse("{\"id\":\"H6\",\"naviSt\":true}")));
+        String read1="{\"n\":1,\"op\":\"read\",\"purpose\":\"original\",\"ok\":true,\"value\":1}";
+        r.naviSt=object(Json.parse("{\"state\":\"IDLE\",\"original\":1,\"dirty\":false,\"reason\":\"original 1\",\"n\":1}"));
+        r.write("denza-adas-navi-st.json",ledger(r,"["+read1+"]"));
+        r.arm(true);
+        check("LIVE".equals(r.state().get("state")),"the side channel's summary keeps the gates valid: "+r.state());
+        check(Boolean.TRUE.equals(object(r.state().get("variant")).get("naviSt")),"the live state names the switch");
+        check(DriveEvidence.naviSt.stream().filter(x->x.startsWith(r.armId+":")).count()==1,"the arm-time read is journalled");
+        r.streaming();
+        check(Boolean.TRUE.equals(r.state().get("guidanceActive"))&&((Number)r.state().get("confirmedPathId")).longValue()>0,
+                "the reader's trigger: guidance on a confirmed path");
+        r.naviSt=object(Json.parse("{\"state\":\"WRITTEN\",\"original\":1,\"dirty\":true,\"reason\":\"guidance on a confirmed path\",\"n\":4}"));
+        r.write("denza-adas-navi-st.json",ledger(r,"["+read1+",{\"n\":2,\"op\":\"read\",\"purpose\":\"before write\",\"ok\":true,\"value\":1},"
+                +"{\"n\":3,\"op\":\"write\",\"purpose\":\"guidance start\",\"ok\":true,\"value\":2},"
+                +"{\"n\":4,\"op\":\"read\",\"purpose\":\"readback\",\"ok\":true,\"value\":2}]"));
+        for(int i=0;i<3;i++){r.evidence(true);Handler.advance(1000);}
+        long mine=DriveEvidence.naviSt.stream().filter(x->x.startsWith(r.armId+":")).count();
+        check(mine==4,"each NaviSt read and write is journalled once: "+DriveEvidence.naviSt);
+        check(DriveEvidence.naviSt.stream().anyMatch(x->x.startsWith(r.armId+":")&&x.contains("\"op\":\"write\"")&&x.contains("\"value\":2")),
+                "the write of 2 is in the change journal");
+        check(r.journal().contains("\"input\":\"liveSession.naviSt\""),"and in the live journal");
+        r.write("denza-adas-navi-st.json",object(Json.parse("{\"schema\":\"denza-adas-navi-st-v1\",\"armId\":\"other\",\"readerSession\":\""+r.reader
+                +"\",\"events\":[{\"n\":9,\"op\":\"write\",\"ok\":true,\"value\":2}]}")));
+        r.naviSt.put("n",9L);for(int i=0;i<2;i++){r.evidence(true);Handler.advance(1000);}
+        check(DriveEvidence.naviSt.stream().filter(x->x.startsWith(r.armId+":")).count()==4,"another arm's ledger is not journalled");
+        check("LIVE".equals(r.state().get("state")),"still live");
+    }
+    static Map<String,Object> ledger(Rig r,String events)throws Exception{
+        return object(Json.parse("{\"schema\":\"denza-adas-navi-st-v1\",\"armId\":\""+r.armId+"\",\"readerSession\":\""+r.reader+"\",\"events\":"+events+"}"));
     }
 
     /** A variant the schema does not allow rejects the arm: nothing is offered or sent. */

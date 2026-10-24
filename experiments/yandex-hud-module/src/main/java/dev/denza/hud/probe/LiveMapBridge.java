@@ -61,7 +61,9 @@ final class LiveMapBridge {
     static final long REFRESH_MS = 250, END_LEAD_MS = 5000, END_WAIT_MS = LiveEgressGuard.END_SESSION_MS + 1000;
     static final int RESTART_LIMIT = 8;
     static final String ARM = "denza-adas-live-arm.json", LINEAGE = "denza-adas-live-lineage.json",
-            CONSUMER_ID = "denza-adas-consumer-id.json";
+            CONSUMER_ID = "denza-adas-consumer-id.json",
+            /** tools/adas_bridge/AdasGateReader.NAVI_ST_LEDGER: the reader's NaviSt events (arm variant naviSt). */
+            NAVI_ST_LEDGER = "denza-adas-navi-st.json";
     private static final long LIFECYCLE = -1;
     private final Context context;
     private final Handler worker;
@@ -80,6 +82,8 @@ final class LiveMapBridge {
     private NavigatorDriver driver;
     private String state = "DISARMED", reason = "Сеанс передачи не включён";
     private String lastArmId, stopReason, stopDetail, fault, blockedDetail, lastPrerequisite;
+    /** The highest NaviSt event number of this arm already journalled (the gate reader numbers them). */
+    private long naviStJournalled;
     private long activeEpoch = -1, lastSend = -1, endBy = -1, heldPath = -1, resumedHeld = -1, prerequisiteChanges;
     private boolean everStarted, ending, lineageDirty, lastDnpSwitch;
     private volatile boolean finished;
@@ -276,7 +280,7 @@ final class LiveMapBridge {
         boolean resumed = !processes.isEmpty();
         processes.add(process);
         lineageProcesses = processes; heldPath = held; resumedHeld = held; lineageDirty = true;
-        arm = incoming; lastArmId = incoming.armId; attempted.add(incoming.armId);
+        arm = incoming; lastArmId = incoming.armId; attempted.add(incoming.armId); naviStJournalled = 0;
         final LiveSessionLease owner = incoming;
         final CallbackQueue queue = new CallbackQueue(worker::post); callbacks = queue;
         gates = new AdasGateSnapshot.Tracker(boot, consumer, LiveSessionLease.INPUT_TTL_MS);
@@ -363,11 +367,40 @@ final class LiveMapBridge {
             in.gates = gates.read(read(file("denza-adas-gates.json"), 16384), SystemClock.elapsedRealtime());
             if (!in.gates.valid) in.gatesFailure = in.gates.reason;
             else if (!checked.readerSession.equals(in.gates.readerSession)) in.gatesFailure = "reader session differs from the arm";
+            else if (in.gates.naviSt != null) journalNaviSt(checked, in.gates.naviSt);
         } catch (Exception invalid) { in.gatesFailure = invalid.getMessage() == null ? invalid.toString() : invalid.getMessage(); }
         in.server = transport != null && transport.ready();
         in.replies = answers != null && answers.liveAnswersReady();
         in.readAt = SystemClock.elapsedRealtime();
         if (arm == checked) inputs = in;
+    }
+
+    /**
+     * The gate reader's NaviSt reads and writes (arm variant naviSt), each once by its number, into
+     * the live journal and the drive's change journal. The gates file carries the reader's flat
+     * summary; when its event number moves, the events come from the reader's ledger of this arm and
+     * reader (denza-adas-navi-st.json). Recording only: nothing here gates a send.
+     */
+    private void journalNaviSt(LiveSessionLease owner, Map<String, Object> summary) {
+        Object last = summary.get("n");
+        if (!(last instanceof Long) || (Long) last <= naviStJournalled) return;
+        Object parsed;
+        try { parsed = Json.parse(read(file(NAVI_ST_LEDGER), 32768)); }
+        catch (Exception unreadable) { return; }
+        if (!(parsed instanceof Map)) return;
+        Map<?, ?> ledger = (Map<?, ?>) parsed;
+        if (!"denza-adas-navi-st-v1".equals(ledger.get("schema")) || !owner.armId.equals(ledger.get("armId"))
+                || !owner.readerSession.equals(ledger.get("readerSession")) || !(ledger.get("events") instanceof List)) return;
+        for (Object item : (List<?>) ledger.get("events")) {
+            if (!(item instanceof Map)) continue;
+            @SuppressWarnings("unchecked") Map<String, Object> event = (Map<String, Object>) item;
+            Object n = event.get("n");
+            if (!(n instanceof Long) || (Long) n <= naviStJournalled) continue;
+            naviStJournalled = (Long) n;
+            note("naviSt", Json.write(event));
+            try { DriveEvidence.naviSt(owner.armId, event); }
+            catch (RuntimeException ignored) { /* Recording must not change transport state. */ }
+        }
     }
 
     /** Built from the last {@link #refresh}, per fire, with no I/O; the guard checks its age. */

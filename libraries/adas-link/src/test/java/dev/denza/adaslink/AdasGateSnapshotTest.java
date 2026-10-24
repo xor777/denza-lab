@@ -138,6 +138,22 @@ public final class AdasGateSnapshotTest {
         check(!tracker().read(new String(new char[16385]), 1200).valid, "text bounded");
         try { new AdasGateSnapshot.Tracker(BOOT, CONSUMER, 5001); throw new AssertionError("TTL weakened"); }
         catch (IllegalArgumentException expected) { checks++; }
+
+        // The reader's NaviSt side channel (arm variant naviSt) rides along as one optional object.
+        AdasGateSnapshot.Snapshot plain = read(row(), 1200);
+        check(plain.valid && plain.naviSt == null, "no side channel: no naviSt");
+        Map<String, Object> side = row(), navi = Json.object();
+        navi.put("state", "WRITTEN"); navi.put("original", 1L); navi.put("dirty", true);
+        navi.put("reason", "guidance on a confirmed path"); navi.put("n", 4L);
+        side.put(AdasGateSnapshot.NAVI_ST, navi);
+        for (int fid : AdasGateSnapshot.ALL_FIDS) if (!values(side).containsKey(Integer.toString(fid))) set(side, fid, 0);
+        AdasGateSnapshot.Snapshot withSide = read(side, 1200);
+        check(withSide.valid && withSide.hardwareGateOpen() && "WRITTEN".equals(withSide.naviSt.get("state")),
+                "the naviSt summary is carried beside all ten values and changes no gate: " + withSide.reason);
+        side.put(AdasGateSnapshot.NAVI_ST, "IDLE");
+        check(!read(side, 1200).valid, "naviSt must be an object");
+        side.remove(AdasGateSnapshot.NAVI_ST); side.put("other", Json.object());
+        check(!read(side, 1200).valid, "no other eleventh key");
         System.out.println("AdasGateSnapshotTest: " + checks + " checks passed");
     }
 
