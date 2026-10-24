@@ -303,7 +303,7 @@ public final class RouteConverter {
      * exports them (class, formway, link type, LaneNum, direction, ownership, name), and its ERAT
      * 0x4269 speed is the link's speed (returned per link, NaN elsewhere). Any other link keeps
      * what the factory Beijing profile lets us state from Yandex data alone
-     * (research/stock-map-native/factory-beijing-profile-20261023.json):
+     * (amap-injector research/stock-map-native/factory-beijing-profile-20261023.json):
      * <ul>
      * <li>link MainAction stays 0: on every factory route the stock sent (bench, 1 177 links) the
      *   link that ends a segment carries 0 and only inner links carry 8/9/10 (continue, merges),

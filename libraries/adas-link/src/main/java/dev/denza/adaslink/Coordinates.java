@@ -3,7 +3,7 @@ package dev.denza.adaslink;
 /**
  * WGS-84 to the frame the stock map sends (its SDK frame), then onto the stock's
  * {@code Coord2DInt32} grid of 1/3 600 000 degree. The GCJ candidate is the port of
- * research/stock-map-native/routing_coordinates.py (AutoDice inner routine, Moscow envelope only,
+ * amap-injector research/stock-map-native/routing_coordinates.py (AutoDice inner routine, Moscow envelope only,
  * native 1/3 686 400 quantization); {@link Frame#WGS84} is the identity for inspection and for
  * routes outside Moscow.
  */

@@ -55,8 +55,13 @@ import struct
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'tools/stock-map'))
-sys.path.insert(0, str(ROOT / 'research/stock-map-native'))
+
+
+def _stock_map_tools():
+    """The factory readers and the field-coverage gate, from the amap-injector checkout."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import amap_injector
+    amap_injector.importable('tools/stock-map', 'research/stock-map-native')
 
 MAGIC = b'DZRN'
 VERSION = 1
@@ -97,6 +102,7 @@ def exported(road, legal=(0, 0)):
 
 def speed_limit_signs(erat):
     """{(road, forward 1 / backward 0): km/h} of a tile's factory speed-limit sign pairs (ERAT 0x426f)."""
+    _stock_map_tools()
     import factory_map_readers as F
     out = {}
     for g in F.decode_erat_full(erat)['generic']:
@@ -115,6 +121,7 @@ def read_package(package, tiles_db=None):
     tiles_db: the routing tiles to read; default the field-coverage gate's choice (the signals stage, the
     records the routing stage packs into m2).
     """
+    _stock_map_tools()
     from audit_field_coverage import routing_tiles, decode_tile
     package = Path(package)
     tiles, tiles_source = routing_tiles(package, tiles_db)

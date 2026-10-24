@@ -28,7 +28,9 @@ ROOT = HERE.parents[1]
 
 
 def map_build_emulator():
-    spec = importlib.util.spec_from_file_location('map_build_emulator', ROOT / 'tools/stock-map/map_build_emulator.py')
+    from . import amap_injector
+    spec = importlib.util.spec_from_file_location('map_build_emulator',
+                                                  amap_injector.path('tools/stock-map/map_build_emulator.py'))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

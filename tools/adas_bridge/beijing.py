@@ -272,15 +272,15 @@ DECODED = Path('captures/stock-map-beijing-pack/car-01/decoded')
 
 
 class FactoryTiles:
-    """Road geometry of the decoded factory package (tools/stock-map/factory_map_readers.py).
+    """Road geometry of the decoded factory package (amap-injector tools/stock-map/factory_map_readers.py).
     Local points are offsets from the tile's south-west corner in units of
     tile width / 2**(precision-1); the factory frame is the SDK frame (checked against
     the original NOA export of a surveyed route: link end points agree to the unit)."""
 
     def __init__(self, decoded=DECODED):
         import sqlite3
-        import sys
-        sys.path.insert(0, str(HERE.parents[1] / 'tools/stock-map'))
+        from . import amap_injector
+        amap_injector.importable('tools/stock-map')
         import factory_map_readers
         self.F = factory_map_readers
         self.m2 = sqlite3.connect(str(Path(decoded) / 'm2.sqlite'))

@@ -16,12 +16,13 @@ from pathlib import Path
 import statistics
 import time
 
+from . import amap_injector
 from . import roads as roads_module
 from . import stock
 from .coverage import road_group
 
 ROOT = Path(__file__).resolve().parents[2]
-PROFILE = ROOT / 'research/stock-map-native/factory-beijing-profile-20261023.json'
+PROFILE = 'research/stock-map-native/factory-beijing-profile-20261023.json'  # in the amap-injector checkout
 FIELDS = ('roadClass', 'formway', 'laneNum', 'direction', 'ownership', 'roadName')
 UNKNOWN = dict(roadClass=-1, formway=-1, laneNum=0, direction=None, ownership=-1, roadName='')
 # Factory categories (profile_factory_map.py) per coverage.road_group.
@@ -101,7 +102,7 @@ def main():
     store = roads_module.RoadStore(args.roads.read_bytes())
     result = dict(schema='adas-bridge-road-bench-v1', roads=str(args.roads), frame=args.frame,
                   routes=[one(p, store, args.frame) for p in args.snapshots],
-                  factory=factory(json.loads(PROFILE.read_text())))
+                  factory=factory(json.loads(amap_injector.path(PROFILE).read_text())))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, ensure_ascii=False, indent=1) + '\n')
     for r in result['routes']:

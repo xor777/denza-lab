@@ -1,5 +1,5 @@
 /* Emulator-only: the stock map's own map->ADAS feed at the SOME/IP client boundary.
- * Derived from research/stock-map-native/drive_replay_observer.js (kept unchanged for
+ * Derived from amap-injector research/stock-map-native/drive_replay_observer.js (kept unchanged for
  * its pinned evidence) with the car's guidance flow and a recorder at
  * ts.car.someip.sdk.SomeIpServerProxyImpl. Prepend
  *   const REROUTE_CASE={...};   (as map_build_emulator.py reroute builds it)

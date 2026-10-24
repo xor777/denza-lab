@@ -372,7 +372,7 @@ The geometry stays Yandex's.
   factory profile.
 
 ```sh
-python3 tools/stock-map/build_map.py --region captures/adas-bridge-osm/region-yandex-routes.json \
+python3 "$DENZA_AMAP_INJECTOR"/tools/stock-map/build_map.py --region captures/adas-bridge-osm/region-yandex-routes.json \
   --out captures/adas-bridge-osm/build-01 --stages factory --network-margin-m 1000
 python3 -m tools.adas_bridge.road_store build --package captures/adas-bridge-osm/build-01 \
   --out captures/adas-bridge-osm/roads.bin --report captures/adas-bridge-osm/roads.report.json
