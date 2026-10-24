@@ -247,6 +247,7 @@ public final class LiveRuntimeTest {
         r.evidence(true);Handler.advance(300);long positions=tx.count(Topics.SD_VEHICLE_LOCATION);r.observe(false);Handler.advance(0);
         check(tx.count(Topics.SD_VEHICLE_LOCATION)>positions&&r.bridge.status().pathId==path,"fresh evidence resumes the same path at the next fix");
         check(tx.count(Topics.ROUTE)==1,"no republication after the gap");
+        check(DriveEvidence.feed.contains("PAUSED:Проверка штатной карты"),"the pause and its reason reach the change journal: "+DriveEvidence.feed);
         r.evidence(false);Handler.advance(300);r.observe(false);Handler.advance(800);
         check(!tx.closed&&"PAUSED".equals(r.state().get("state"))&&"NOA выключен".equals(r.state().get("reason")),"DNP off is a pause with a state, not an error: "+r.state().get("reason"));
         r.evidence(true);Handler.advance(1000);

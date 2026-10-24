@@ -36,7 +36,7 @@ import java.util.Map;
  * class, the route position, the posted limit - and periodically copies bounded route conditions; on its
  * own thread the {@link NavigatorDriver} turns that into the stock map's events and the
  * {@link StockFeed} into the messages the stock map would fire. They go to a {@link DryRunRecorder}
- * (files/denza-adas-dry-run.jsonl, two 8 MiB files). A separate, explicitly armed
+ * (files/denza-adas-dry-run.jsonl, five 8 MiB files). A separate, explicitly armed
  * {@link LiveMapBridge} uses real gates and acknowledgements for actual publication.
  *
  * <p>DNP service, DNP switch and NOA no-sleep come from BYDAuto on the stock map; Navigator cannot
@@ -91,7 +91,7 @@ final class AdasBridge {
         config.acceptSimulatedLocations = emulator;
         // Nothing reaches ADAS in a dry run, so its answer is emulated as the car gave it (about 110 ms).
         config.emulatedAckDelayMs = 110;
-        DryRunRecorder recorder = new DryRunRecorder(new RotatingWriter(new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl")), false);
+        DryRunRecorder recorder = new DryRunRecorder(new RotatingWriter(new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl"), DRY_RUN_GENERATIONS), false);
         feed = new StockFeed(scheduler, recorder, config);
         driver = new NavigatorDriver(feed, config.frame, scheduler);
         // Actual sends on their own normal-priority thread: conversion, graph work and the dry run stay here.
@@ -235,14 +235,24 @@ final class AdasBridge {
         });
     }
 
-    /** Two files, rotated at LIMIT physical UTF-8 bytes plus one flush batch. Bridge thread only. */
+    /**
+     * Ring sizes for a two-hour drive at the stock cadence, from the 2026-10-24 journals: the live
+     * journal about 0.31 MiB a minute (38 MiB in two hours), the dry run about 0.2 (24 MiB). At least
+     * {@code generations - 1} full files are always kept: live 40 MiB, dry run 32 MiB.
+     */
+    static final int LIVE_GENERATIONS = DriveEvidenceStreams.LIVE_GENERATIONS, DRY_RUN_GENERATIONS = DriveEvidenceStreams.DRY_RUN_GENERATIONS;
+
+    /** {@code generations} files, rotated at LIMIT physical UTF-8 bytes plus one flush batch. Bridge thread only. */
     static final class RotatingWriter extends Writer {
         static final long LIMIT = 8L << 20;
         private final File file;
+        private final int generations;
         private Writer out;
         private long size;
-        RotatingWriter(File file) throws IOException {
-            this.file = file;
+        RotatingWriter(File file) throws IOException { this(file, 2); }
+        RotatingWriter(File file, int generations) throws IOException {
+            if (generations < 2) throw new IllegalArgumentException("generations");
+            this.file = file; this.generations = generations;
             open();
         }
         private void open() throws IOException {
@@ -257,9 +267,7 @@ final class AdasBridge {
             size = file.length();
             if (size >= LIMIT) {
                 out.close();
-                File old = new File(file.getPath() + ".1");
-                if (old.exists() && !old.delete()) throw new IOException("cannot rotate " + old);
-                if (!file.renameTo(old)) throw new IOException("cannot rotate " + file);
+                DriveEvidenceLog.rotate(file, generations);
                 open();
             }
         }

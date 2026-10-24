@@ -108,7 +108,7 @@ def main():
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
          package/'StockHudSymbols.java', package/'RouteSnapshot.java', package/'GuidanceSnapshot.java', package/'TrafficSignalSnapshot.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
-         package/'EvidencePolicy.java', package/'DriveEvidenceLog.java', package/'DriveEvidenceStreams.java',
+         package/'EvidencePolicy.java', package/'DriveEvidenceLog.java', package/'DriveEvidenceStreams.java', package/'AdasStateJournal.java',
          # The ADAS status overlay's plain-Java part: wire, observations, rules, figures.
          *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits', 'CallbackQueue')],
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
@@ -139,6 +139,7 @@ def main():
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveEvidenceLogTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveEvidenceStreamsTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.CallbackQueueTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveJournalTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.AdasOverlayTest',
          ROOT/'experiments/adas-status-probe/src/test/fixtures/native-status-car-20261023.txt',
          ROOT/'tools/design-canvas/luminofor/spec.json'])

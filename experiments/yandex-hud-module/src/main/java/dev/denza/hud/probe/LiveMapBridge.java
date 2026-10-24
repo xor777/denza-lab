@@ -141,7 +141,7 @@ final class LiveMapBridge {
         worker = new Handler(sender.getLooper()); scheduler = new AndroidScheduler(worker);
         boot = LiveSessionLease.uuid(bootIdentity) ? bootIdentity : null;
         consumer = consumerIdentity();
-        audit = new DryRunRecorder(new AdasBridge.RotatingWriter(file("denza-adas-live.jsonl")), false);
+        audit = new DryRunRecorder(new AdasBridge.RotatingWriter(file("denza-adas-live.jsonl"), AdasBridge.LIVE_GENERATIONS), false);
         worker.post(poll);
         worker.postDelayed(refresher, REFRESH_MS);
     }
@@ -551,6 +551,9 @@ final class LiveMapBridge {
         if (g != null) { value.put("gateReason", g.reason); value.put("gateSequence", g.sequence);
             value.put("dnpService", g.dnpService); value.put("dnpSwitch", g.dnpSwitchRaw); value.put("noSleep", g.noSleep); }
         RouteSnapshot.writeAtomic(file("denza-adas-live-state.json"), value);
+        try { DriveEvidence.feedState(String.valueOf(value.get("state")), String.valueOf(value.get("reason")),
+                stopDetail != null ? stopDetail : guard != null && guard.suspension() != null ? guard.suspension() : blockedDetail); }
+        catch (RuntimeException ignored) { /* Recording must not change transport state. */ }
     }
     private void note(String kind, String detail) {
         try { Map<String, Object> m = Json.object(); m.put("detail", detail); m.put("consumerSession", consumer); m.put("processSession", process);

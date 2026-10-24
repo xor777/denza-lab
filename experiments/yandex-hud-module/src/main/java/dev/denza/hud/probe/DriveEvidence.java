@@ -11,14 +11,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Passive trip evidence, enabled on the car too. No sender, subscription, route or cache mutation. */
+/**
+ * Passive trip evidence, enabled on the car too. No sender, subscription, route or cache mutation.
+ * Sized for a two-hour drive: packets 7 × 8 MiB (2026-10-24: ~0.35 MiB a minute once repeats are
+ * compact and service 13 is recorded by one receiver), history 3 × 8 MiB (~1.3 KiB a second), and
+ * the change journal of ADAS state, which does not rotate while a drive lasts.
+ */
 final class DriveEvidence {
+    static final long RING_BYTES = DriveEvidenceStreams.RING_BYTES;
+    static final int PACKET_GENERATIONS = DriveEvidenceStreams.PACKET_GENERATIONS, HISTORY_GENERATIONS = DriveEvidenceStreams.HISTORY_GENERATIONS;
     private static volatile DriveEvidence current;
     private final Reflect api;
     private final Handler worker;
     private final File directory;
     private final GuidanceSnapshot progress;
     private final DriveEvidenceStreams streams;
+    private final AdasStateJournal journal;
     private final boolean enabled;
     private long nextSample, nextCache, generation;
     private String routeId;
@@ -28,8 +36,12 @@ final class DriveEvidence {
         enabled="ranchu".equals(Build.HARDWARE)||"goldfish".equals(Build.HARDWARE)
                 ||new File(context.getFilesDir(),"denza-drive-capture.enabled").isFile();
         directory=new File(context.getFilesDir(),"denza-drive-evidence");
-        streams=new DriveEvidenceStreams(new DriveEvidenceLog(new File(directory,"progress.jsonl"),8L<<20),
-                new DriveEvidenceLog(new File(directory,"adas-packets.jsonl"),8L<<20));current=enabled?this:null;
+        AdasStateJournal opened=null;
+        if(enabled)try{opened=new AdasStateJournal(new File(directory,"adas-journal.jsonl"),System.currentTimeMillis());}
+        catch(java.io.IOException|RuntimeException failed){Log.w("DenzaYandexHud","no ADAS change journal: "+failed.getClass().getSimpleName());}
+        journal=opened;
+        streams=new DriveEvidenceStreams(new DriveEvidenceLog(new File(directory,"progress.jsonl"),RING_BYTES,HISTORY_GENERATIONS),
+                new DriveEvidenceLog(new File(directory,"adas-packets.jsonl"),RING_BYTES,PACKET_GENERATIONS),journal);current=enabled?this:null;
     }
     void sample(NavigatorSource.Frame frame,long now) {
         if(!enabled||pending||now<nextSample)return;nextSample=now+1000;pending=true;
@@ -103,7 +115,14 @@ final class DriveEvidence {
     }
     static void passive(String receiver,String receiverSession,long topic,long stamp,long received,byte[] bytes) {
         DriveEvidence d=current;if(d==null)return;
-        d.enqueue(DriveEvidenceStreams.packet(receiver,receiverSession,NavigationEvidence.SOURCE_SESSION_ID,
-                topic,stamp,received,bytes,System.currentTimeMillis()));
+        long wall=System.currentTimeMillis();
+        d.enqueue(d.streams.passive(receiver,receiverSession,NavigationEvidence.SOURCE_SESSION_ID,topic,stamp,received,bytes,wall));
+        if(d.journal!=null){Map<String,Object> change=d.journal.observe(receiver,topic,bytes,received,wall);if(change!=null)d.enqueue(change);}
+    }
+    /** Our live feed's state, into the change journal when it changes. */
+    static void feedState(String state,String reason,String detail) {
+        DriveEvidence d=current;if(d==null||d.journal==null)return;
+        Map<String,Object> change=d.journal.feed(state,reason,detail,android.os.SystemClock.elapsedRealtime(),System.currentTimeMillis());
+        if(change!=null)d.enqueue(change);
     }
 }

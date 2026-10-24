@@ -11,7 +11,9 @@ final class DriveEvidence {
             this.receiver=receiver;this.session=session;this.topic=topic;this.received=received;this.bytes=bytes;
         }
     }
+    static final List<String> feed=new ArrayList<>();
     static void passiveState(String receiver,String session,String event,String detail){states.add(receiver+":"+session+":"+event);}
+    static void feedState(String state,String reason,String detail){String row=state+":"+reason;if(feed.isEmpty()||!feed.get(feed.size()-1).equals(row))feed.add(row);}
     static void passive(String receiver,String session,long topic,long stamp,long received,byte[] bytes){
         packets.add(new Record(receiver,session,topic,received,bytes));
     }
