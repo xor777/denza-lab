@@ -509,6 +509,15 @@ public final class LiveRuntimeTest {
         r.naviSt.put("n",9L);for(int i=0;i<2;i++){r.evidence(true);Handler.advance(1000);}
         check(DriveEvidence.naviSt.stream().filter(x->x.startsWith(r.armId+":")).count()==4,"another arm's ledger is not journalled");
         check("LIVE".equals(r.state().get("state")),"still live");
+
+        // Navigator restarts under the same arm: the variant (and so the reader's trigger) stays, and the
+        // reader's next event reaches the new process's journals; old numbers may repeat, none is lost.
+        Rig second=new Rig(r);second.naviSt=r.naviSt;second.naviSt.put("n",5L);
+        second.write("denza-adas-navi-st.json",ledger(second,"[{\"n\":5,\"op\":\"write\",\"purpose\":\"restore: live state stale\",\"ok\":true,\"value\":1}]"));
+        Handler.advance(1000);second.evidence(true);Handler.advance(1000);
+        check("LIVE".equals(second.state().get("state"))&&Boolean.TRUE.equals(object(second.state().get("variant")).get("naviSt")),
+                "the restarted process resumes the naviSt arm: "+second.state().get("state"));
+        check(DriveEvidence.naviSt.stream().anyMatch(x->x.startsWith(r.armId+":")&&x.contains("\"n\":5")),"the restore after the restart is journalled");
     }
     static Map<String,Object> ledger(Rig r,String events)throws Exception{
         return object(Json.parse("{\"schema\":\"denza-adas-navi-st-v1\",\"armId\":\""+r.armId+"\",\"readerSession\":\""+r.reader+"\",\"events\":"+events+"}"));
