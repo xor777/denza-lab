@@ -10,6 +10,13 @@ comparison table (the DNP/ICC/ACC timeline, noaMode, the MMTPathSelected status,
 and fields, alarm/notice codes). At the end it uninstalls the player it added and writes a receipt
 of what it pushed and the before/after stock/arm state.
 
+For a scenario that declares `naviSt` (H6) the runner itself drives the stock
+SETTING_MPC_IFC_NAVI_ST_SET channel over `adb shell` (shell UID; device 1023 is out of the app
+UID's reach, while the SOME/IP feed must stay in the player's app UID): read and record, write 2 at
+guidance start just before the route (the stock's setNaviTypeAndInit(0) trigger), then after the
+player's end sequence restore the read value and read it back - also on error, timeout and Ctrl-C.
+An unreadable or unexpected value means no write and the scenario is NOT RUN.
+
 Every ADB command is a fixed builder with an injected runner, bounded and deadlined; `plan` makes
 zero device calls. Development and tests never touch a car - the test injects a fake adb. This tool
 is written to work over `adb -s <serial>` (the car at 127.0.0.1:5555) but must not be run against
@@ -28,8 +35,25 @@ import subprocess
 import time
 
 from . import feed
+from .live_session import SessionError as _LiveSessionError, parcel_word
 
 PACKAGE = "dev.denza.adasplayer.probe"
+# SETTING_MPC_IFC_NAVI_ST_SET (0x4CA0004B) on BYDAUTO_DEVICE_SETTING, decimal as vehicle_control.py.
+# The stock writes it through PlatformApiImpl.setNaviSt from NaviService.setNaviTypeAndInit (GPS
+# navigation -> 2), called when BaseNaviPresenter's NaviService connects at guidance start, and
+# writes 0 on onNaviStop/onDestroy. Device 1023 needs a BYDAUTO permission the app UID lacks, so the
+# runner does it over `adb shell` (shell UID); the player (app UID, needed for SOME/IP) never does.
+NAVI_ST_DEVICE = 1023
+NAVI_ST_FID = 1285554251
+NAVI_ST_VALUES = (0, 1, 2)
+
+
+def navi_st_read_command():
+    return f"service call autoservice 5 i32 {NAVI_ST_DEVICE} i32 {NAVI_ST_FID}"
+
+
+def navi_st_write_command(value):
+    return f"service call autoservice 6 i32 {NAVI_ST_DEVICE} i32 {NAVI_ST_FID} i32 {int(value)} null"
 ACTIVITY = PACKAGE + "/.PlayerActivity"
 STOCK = "com.byd.launchermap"
 NAVIGATOR = "ru.yandex.yandexnavi"
@@ -147,6 +171,24 @@ class Device:
         expires = arm.get("expiresAtElapsedMs")
         return isinstance(expires, int) and expires > now_elapsed_ms
 
+    def navi_st_read(self):
+        """The current NaviSt value; SessionError on any reply but status 0 with a known value."""
+        reply = self.shell(*navi_st_read_command().split())
+        try:
+            value = parcel_word(reply)
+        except _LiveSessionError as error:
+            raise SessionError("NaviSt read reply not proven: " + str(error)) from error
+        if value not in NAVI_ST_VALUES:
+            raise SessionError("NaviSt read returned unexpected value " + str(value))
+        return value
+
+    def navi_st_write(self, value):
+        reply = self.shell(*navi_st_write_command(value).split())
+        try:
+            parcel_word(reply)
+        except _LiveSessionError as error:
+            raise SessionError("NaviSt write reply not proven: " + str(error)) from error
+
     def elapsed_ms(self):
         parts = self.shell("cat", "/proc/uptime").split()
         if not parts or not re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,9})?", parts[0]):
@@ -210,8 +252,15 @@ def _runs(values):
     return out
 
 
-def comparison_table(scenario_id, summary):
+def comparison_table(scenario_id, summary, navi=None):
     lines = [f"=== {scenario_id} ==="]
+    if navi is not None:
+        if navi.get("notRun"):
+            lines.append(f"  NOT RUN: NaviSt read failed ({navi.get('reason')}); no write, no play")
+            return "\n".join(lines)
+        lines.append(f"  NaviSt: before={navi.get('before')} written={navi.get('written')} "
+                     f"restored={navi.get('restored')} after={navi.get('after')} "
+                     f"verified={navi.get('restoreVerified')}")
     runs = _runs(summary["pilot"])
     if runs:
         lines.append("  DNP/ICC/ACC timeline:")
@@ -238,24 +287,72 @@ def comparison_table(scenario_id, summary):
     return "\n".join(lines)
 
 
+def _pre_route_s(scenario):
+    phase = (scenario.get("navStatus") or {}).get("preRoutePhase") or []
+    return sum(float(step.get("holdS", 1)) for step in phase)
+
+
 def run_scenario(device, scenario_path, preconditions, prompt, *, settle_s=5, sleep=time.sleep):
     scenario = json.loads(Path(scenario_path).read_text(encoding="utf-8"))
     scenario_id = scenario.get("id", "?")
     data = Path(scenario_path).read_bytes()
+    navi = scenario.get("naviSt")
+    navi_record = None
+    if navi is not None:
+        navi_record = {"device": NAVI_ST_DEVICE, "fid": NAVI_ST_FID, "target": int(navi["value"]),
+                       "readCommand": navi_st_read_command(),
+                       "writeCommand": navi_st_write_command(navi["value"])}
+        try:
+            navi_record["before"] = device.navi_st_read()
+        except SessionError as error:
+            # No proven value to restore: do not write, do not play, do not guess.
+            navi_record.update(notRun=True, reason=str(error))
+            return {"id": scenario_id, "pushedSha256": None, "rows": 0, "notRun": True,
+                    "naviSt": navi_record, "summary": decode_answers([]), "refused": []}
     prompt(f"Сценарий {scenario_id}: тормоз, P→D, потяните подрулевой рычаг дважды, "
            f"сфотографируйте приборку, затем продолжите.")
-    device.rm_private(FILES["once"], FILES["result"])
-    device.push_private(FILES["scenario"], data)
-    device.push_private(FILES["preconditions"], (json.dumps(preconditions) + "\n").encode())
-    device.am_start_once()
     duration = int(scenario.get("durationS", 120))
-    sleep(min(duration + settle_s, 320))
-    result = device.read_private(PACKAGE, FILES["result"])
+    total_s = min(duration + settle_s, 320)
+    write_attempted = False
+    try:
+        device.rm_private(FILES["once"], FILES["result"])
+        device.push_private(FILES["scenario"], data)
+        device.push_private(FILES["preconditions"], (json.dumps(preconditions) + "\n").encode())
+        device.am_start_once()
+        waited = 0.0
+        if navi_record is not None:
+            # The stock writes NaviSt 2 at guidance start, the same trigger as status 101 and the
+            # route publication; write at the end of the pre-route phase, just before the route.
+            waited = _pre_route_s(scenario)
+            sleep(waited)
+            write_attempted = True
+            device.navi_st_write(navi_record["target"])
+            navi_record["written"] = navi_record["target"]
+        sleep(max(0.0, total_s - waited))      # past the player's 110x3 s -> 100 end sequence
+        result = device.read_private(PACKAGE, FILES["result"])
+    except BaseException as error:             # error, timeout, KeyboardInterrupt: restore below
+        error.parked_navi = navi_record
+        raise
+    finally:
+        if write_attempted:
+            restore = navi_record["before"]
+            try:
+                device.navi_st_write(restore)
+                navi_record["restored"] = restore
+                after = device.navi_st_read()
+                navi_record["after"] = after
+                navi_record["restoreVerified"] = after == restore
+            except (SessionError, subprocess.SubprocessError, OSError) as error:
+                navi_record["restoreVerified"] = False
+                navi_record["restoreError"] = str(error)[:200]
     rows = [json.loads(line) for line in result.decode("utf-8", "replace").splitlines() if line.strip()]
     summary = decode_answers(rows)
-    return {"id": scenario_id, "pushedSha256": hashlib.sha256(data).hexdigest(),
-            "rows": len(rows), "summary": summary,
-            "refused": [r for r in rows if r.get("kind") == "note" and r.get("event") == "refused"]}
+    outcome = {"id": scenario_id, "pushedSha256": hashlib.sha256(data).hexdigest(),
+               "rows": len(rows), "summary": summary,
+               "refused": [r for r in rows if r.get("kind") == "note" and r.get("event") == "refused"]}
+    if navi_record is not None:
+        outcome["naviSt"] = navi_record
+    return outcome
 
 
 def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.sleep):
@@ -276,11 +373,22 @@ def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.slee
             if not path.exists():
                 receipt["scenarios"].append({"id": scenario_id, "skipped": "no scenario file"})
                 continue
-            outcome = run_scenario(device, path, before, prompt, settle_s=settle_s, sleep=sleep)
-            print(comparison_table(scenario_id, outcome["summary"]))
-            receipt["scenarios"].append({"id": outcome["id"], "pushedSha256": outcome["pushedSha256"],
-                                         "rows": outcome["rows"], "refused": bool(outcome["refused"]),
-                                         "summary": outcome["summary"]})
+            try:
+                outcome = run_scenario(device, path, before, prompt, settle_s=settle_s, sleep=sleep)
+            except Exception as error:
+                receipt["scenarios"].append({"id": scenario_id, "error": str(error)[:300],
+                                             "naviSt": getattr(error, "parked_navi", None)})
+                receipt["stoppedAt"] = scenario_id
+                break
+            print(comparison_table(scenario_id, outcome["summary"], outcome.get("naviSt")))
+            entry = {"id": outcome["id"], "pushedSha256": outcome["pushedSha256"],
+                     "rows": outcome["rows"], "refused": bool(outcome["refused"]),
+                     "summary": outcome["summary"]}
+            if "naviSt" in outcome:
+                entry["naviSt"] = outcome["naviSt"]
+            if outcome.get("notRun"):
+                entry["notRun"] = True
+            receipt["scenarios"].append(entry)
     finally:
         try:
             device.uninstall()
@@ -314,11 +422,25 @@ def main(argv=None):
     args = parser.parse_args(argv)
     order = args.order or _default_order()
     if args.command == "plan":
-        steps = [sid for sid in order if (args.scenario_dir / f"scenario-{sid}.json").exists()]
+        steps, navi_steps = [], []
+        for sid in order:
+            path = args.scenario_dir / f"scenario-{sid}.json"
+            if path.exists():
+                steps.append(sid)
+                if json.loads(path.read_text(encoding="utf-8")).get("naviSt") is not None:
+                    navi_steps.append(sid)
         print(json.dumps({"schema": "denza-adas-parked-session-plan-v1", "deviceCalls": 0,
                           "order": steps, "scenarioDir": str(args.scenario_dir),
+                          "naviStByHost": {"scenarios": navi_steps, "read": navi_st_read_command(),
+                                           "write": navi_st_write_command(2),
+                                           "order": ["read and record", "am start player (app UID)",
+                                                     "write 2 at guidance start, before the route",
+                                                     "after the 110x3 s -> 100 end: restore the read value",
+                                                     "read again to verify; restore also on error/timeout/Ctrl-C",
+                                                     "read fails or unexpected parcel: no write, scenario NOT RUN"]},
                           "notes": ["owner stationary; stock disabled and no live arm first (live_session.py)",
-                                    "one bounded run per scenario; player always sends the stock end sequence"]},
+                                    "one bounded run per scenario; player always sends the stock end sequence",
+                                    "SOME/IP stays in the app UID; NaviSt goes over adb shell (shell UID)"]},
                          indent=2, ensure_ascii=False))
         return 0
     validate_serial(args.serial)

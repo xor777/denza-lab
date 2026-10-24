@@ -32,7 +32,6 @@ final class ScenarioPlan {
     final long durationMs;
     final boolean oddRequest;
     final int loopStatus;
-    final Integer naviStValue;
     private final int[][] preRoutePhase;     // {status, holdMs}
     private final int[][] endSequence;        // {status, holdMs}
     private final String routePayloadJson;
@@ -66,8 +65,7 @@ final class ScenarioPlan {
         this.tidalLane = (Map<String, Object>) scenario.get("tidalLane");
         this.action = (Map<String, Object>) scenario.get("action");
         this.rates = (Map<String, Object>) scenario.get("rates");
-        Object navi = scenario.get("naviSt");
-        this.naviStValue = navi == null ? null : (Integer) (int) PlayerMessages.num((Map<String, Object>) navi, "value");
+        // "naviSt" (H6) is read by the host runner, which writes it over adb shell; ignored here.
     }
 
     static ScenarioPlan parse(String json) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile and run the parked player's pure core against fake transport/clock/NaviSt; no ADB, no
+"""Compile and run the parked player's pure core against fake transport/clock; no ADB, no
 Android. The core (ScenarioPlan, PlayerEngine, Preconditions, PlayerMessages) has no Android
 imports, so it compiles with only the stock adas-link encoders on the classpath. When the stock
 route capture is present, real scenario-*.json files are generated and each is played through the
@@ -51,7 +51,7 @@ def main():
     env_dir = str(scenario_dir) if generated else ""
     receipt = {"schema": "denza-parked-player-host-test-v1", "deviceCalls": 0,
                "scenariosGenerated": generated,
-               "boundary": "Pure player core with fake transport/clock/NaviSt; no Android or ADB.",
+               "boundary": "Pure player core with fake transport/clock; no Android or ADB.",
                "runnerSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "sources": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}}
     results = []

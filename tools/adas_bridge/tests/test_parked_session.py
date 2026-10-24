@@ -2,6 +2,7 @@
 cycle, answer decoding, and restore (uninstall). No real device is ever contacted."""
 import base64
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -58,15 +59,36 @@ class CompletedLike:
 class FakeAdb:
     """Routes fixed adb command shapes to canned outputs; records the commands it saw."""
 
-    def __init__(self, *, stock_running=False, stock_enabled=3, answers_jsonl=b""):
+    def __init__(self, *, stock_running=False, stock_enabled=3, answers_jsonl=b"", navi_value=1,
+                 navi_read_reply=None, fail_result_read=False, timeout_result_read=False):
         self.stock_running = stock_running
         self.stock_enabled = stock_enabled
         self.answers_jsonl = answers_jsonl
+        self.navi_value = navi_value
+        self.navi_read_reply = navi_read_reply
+        self.fail_result_read = fail_result_read
+        self.timeout_result_read = timeout_result_read
         self.commands = []
+        self.events = []          # ordered: ("navi", shell-command) / ("am", ...) / ("result", ...)
 
     def __call__(self, args, *, input=None, capture_output=True, timeout=None, check=False):
         self.commands.append(list(args))
         joined = " ".join(args)
+        if "service call autoservice" in joined:
+            command = args[-1]
+            self.events.append(("navi", command))
+            if command.startswith("service call autoservice 5 "):
+                if self.navi_read_reply is not None:
+                    return CompletedLike(self.navi_read_reply)
+                return CompletedLike(("Result: Parcel(00000000 %08x   '........')\n" % self.navi_value).encode())
+            self.navi_value = int(command.split()[-2])
+            return CompletedLike(b"Result: Parcel(00000000 00000001   '........')\n")
+        if "player.jsonl" in joined and "head -c" in joined:
+            self.events.append(("result", "read"))
+            if self.timeout_result_read:
+                raise subprocess.TimeoutExpired(args, timeout)
+            if self.fail_result_read:
+                return CompletedLike(b"", returncode=1, stderr=b"run-as: boom")
         if "install" in args:
             return CompletedLike()
         if "uninstall" in args:
@@ -88,6 +110,7 @@ class FakeAdb:
                 return CompletedLike(self.answers_jsonl)
             return CompletedLike(b"")
         if "am start" in joined:
+            self.events.append(("am", "start"))
             return CompletedLike(b"Status: ok\n")
         return CompletedLike(b"")
 
@@ -179,6 +202,113 @@ class ParkedSessionTest(unittest.TestCase):
 
     def test_decode_answers_empty(self):
         self.assertEqual(ps.decode_answers([])["pilot"], [])
+
+
+READ_CMD = "service call autoservice 5 i32 1023 i32 1285554251"
+WRITE2_CMD = "service call autoservice 6 i32 1023 i32 1285554251 i32 2 null"
+RESTORE1_CMD = "service call autoservice 6 i32 1023 i32 1285554251 i32 1 null"
+
+
+class NaviStRunnerTest(unittest.TestCase):
+    """H6: the runner owns NaviSt over adb shell, in the stock order, and always restores it."""
+
+    def _h6(self):
+        tmp = Path(tempfile.mkdtemp())
+        path = tmp / "scenario-H6.json"
+        path.write_text(json.dumps({"id": "H6", "durationS": 2, "naviSt": {"value": 2},
+                                    "navStatus": {"preRoutePhase": [{"status": 100, "holdS": 2},
+                                                                    {"status": 106, "holdS": 3}]}}))
+        return tmp, path
+
+    def test_exact_command_strings(self):
+        self.assertEqual(ps.navi_st_read_command(), READ_CMD)
+        self.assertEqual(ps.navi_st_write_command(2), WRITE2_CMD)
+
+    def test_read_write_play_restore_order(self):
+        fake = FakeAdb(answers_jsonl=_answers_jsonl(), navi_value=1)
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        _, path = self._h6()
+        sleeps = []
+        out = ps.run_scenario(device, path, {}, lambda m: None, sleep=sleeps.append)
+        self.assertEqual(fake.events, [("navi", READ_CMD), ("am", "start"), ("navi", WRITE2_CMD),
+                                       ("result", "read"), ("navi", RESTORE1_CMD), ("navi", READ_CMD)])
+        self.assertEqual(sleeps[0], 5.0)       # write at the end of the 100/106 pre-route phase
+        navi = out["naviSt"]
+        self.assertEqual((navi["before"], navi["written"], navi["restored"], navi["after"]), (1, 2, 1, 1))
+        self.assertTrue(navi["restoreVerified"])
+        self.assertIn("NaviSt: before=1 written=2", ps.comparison_table("H6", out["summary"], navi))
+
+    def test_restore_on_error(self):
+        fake = FakeAdb(navi_value=0, fail_result_read=True)
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        _, path = self._h6()
+        with self.assertRaises(ps.SessionError) as raised:
+            ps.run_scenario(device, path, {}, lambda m: None, sleep=lambda s: None)
+        restore0 = "service call autoservice 6 i32 1023 i32 1285554251 i32 0 null"
+        self.assertEqual(fake.events[-2:], [("navi", restore0), ("navi", READ_CMD)])
+        self.assertTrue(raised.exception.parked_navi["restoreVerified"])
+
+    def test_restore_on_timeout(self):
+        fake = FakeAdb(navi_value=1, timeout_result_read=True)
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        _, path = self._h6()
+        with self.assertRaises(subprocess.TimeoutExpired):
+            ps.run_scenario(device, path, {}, lambda m: None, sleep=lambda s: None)
+        self.assertEqual(fake.events[-2:], [("navi", RESTORE1_CMD), ("navi", READ_CMD)])
+        self.assertEqual(fake.navi_value, 1)
+
+    def test_restore_on_keyboard_interrupt(self):
+        fake = FakeAdb(navi_value=1)
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        _, path = self._h6()
+        calls = []
+
+        def sleep(seconds):
+            calls.append(seconds)
+            if len(calls) == 2:              # owner presses Ctrl-C during the play
+                raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            ps.run_scenario(device, path, {}, lambda m: None, sleep=sleep)
+        self.assertEqual(fake.events[-2:], [("navi", RESTORE1_CMD), ("navi", READ_CMD)])
+
+    def test_skip_when_read_fails(self):
+        fake = FakeAdb(navi_read_reply=b"Result: Parcel(ffffd8e5 '....')\n")
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        tmp, path = self._h6()
+        out = ps.run_scenario(device, path, {}, lambda m: None, sleep=lambda s: None)
+        self.assertTrue(out["notRun"])
+        self.assertEqual(fake.events, [("navi", READ_CMD)])   # no write, no play
+        self.assertIn("NOT RUN", ps.comparison_table("H6", out["summary"], out["naviSt"]))
+        receipt = ps.run(ps.Device("adb", "127.0.0.1:5555", runner=fake), __file__, tmp, ["H6"],
+                         lambda m: None, sleep=lambda s: None)
+        self.assertTrue(receipt["scenarios"][0]["notRun"])
+
+    def test_skip_when_read_value_unexpected(self):
+        fake = FakeAdb(navi_value=7)
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        _, path = self._h6()
+        out = ps.run_scenario(device, path, {}, lambda m: None, sleep=lambda s: None)
+        self.assertTrue(out["notRun"])
+        self.assertNotIn(("am", "start"), fake.events)
+
+    def test_no_navi_commands_without_navi_st(self):
+        fake = FakeAdb(answers_jsonl=_answers_jsonl())
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "scenario-H0.json").write_text(json.dumps({"id": "H0", "durationS": 2}))
+        ps.run_scenario(device, tmp / "scenario-H0.json", {}, lambda m: None, sleep=lambda s: None)
+        self.assertFalse(any(kind == "navi" for kind, _ in fake.events))
+
+    def test_plan_lists_host_navi_st(self):
+        tmp, _ = self._h6()
+        import io, contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            ps.main(["plan", "--scenario-dir", str(tmp), "--order", "H6"])
+        plan = json.loads(buffer.getvalue())
+        self.assertEqual(plan["naviStByHost"]["scenarios"], ["H6"])
+        self.assertEqual(plan["naviStByHost"]["read"], READ_CMD)
+        self.assertEqual(plan["naviStByHost"]["write"], WRITE2_CMD)
 
 
 if __name__ == "__main__":

@@ -18,13 +18,13 @@ Disposable probe, built only with `-Pexperiments`. Nothing in a product depends 
 - `AdasAnswerListener` records every service-13 (PilotStatus/alarm/NOA mode) and service-44
   (MMTPathSelected/PathMatch) answer, with elapsedRealtime and wall time. It never fires a server
   event and never requests 13/0x0001 (the DNP/ICC switch).
-- `NaviStShell` (H6) writes the stock `SETTING_MPC_IFC_NAVI_ST_SET` side channel (device 1023,
-  `0x4CA0004B`), reading it first and restoring it after. That device needs a `BYDAUTO_*`
-  permission the app UID lacks, so the step is **enabled only for a shell-UID launch**; an ordinary
-  app-UID launch records it disabled with no invented path.
+- H6's NaviSt side channel (`SETTING_MPC_IFC_NAVI_ST_SET`, device 1023, `0x4CA0004B`) is not
+  written here: device 1023 needs the shell UID while SOME/IP needs this app UID (a shell
+  app_process cannot bind the SOME/IP service). The host runner reads it, writes 2 at guidance
+  start and restores and verifies it over `adb shell`.
 
 The pure core (`ScenarioPlan`, `PlayerEngine`, `Preconditions`, `PlayerMessages`) has no Android
 imports and is tested off-device by `tools/adas_bridge/parked_player_harness/run.py` against a fake
-transport/clock/NaviSt. Payloads are built by the byte-exact `adas-link` encoders.
+transport/clock. Payloads are built by the byte-exact `adas-link` encoders.
 
 Durable findings live in `research/adas-bridge/README.md`.

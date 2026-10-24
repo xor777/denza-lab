@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Map;
 
 /** Host tests for the parked player's pure core: the end sequence always runs (clean, fire error,
- * exception, watchdog stop), services are always released, the NaviSt side-signal reads/writes/
- * restores or is disabled, the refusal gate rejects a competing stock map or a live arm, and every
- * generated scenario plays end to end. Fake transport/clock/NaviSt; no Android, no ADB. */
+ * exception, watchdog stop), services are always released, a naviSt scenario has no player-side
+ * NaviSt effect (the host runner owns it), the refusal gate rejects a competing stock map or a live arm, and every
+ * generated scenario plays end to end. Fake transport/clock; no Android, no ADB. */
 public final class ParkedPlayerTest {
     private static int checks;
 
@@ -60,14 +60,6 @@ public final class ParkedPlayerTest {
             for (Fired f : fires) if (f.topic == topic) out.add(f);
             return out;
         }
-    }
-
-    private static final class FakeNaviSt implements NaviStChannel {
-        boolean on = true; Integer value = 1; final List<Integer> writes = new ArrayList<>();
-        public boolean enabled() { return on; }
-        public String reason() { return on ? "ok" : "app UID lacks BYDAUTO setting permission"; }
-        public Integer read() { return value; }
-        public boolean write(int v) { writes.add(v); value = v; return true; }
     }
 
     private static final class FakeRecorder implements Recorder {
@@ -130,7 +122,7 @@ public final class ParkedPlayerTest {
         ScenarioPlan plan = ScenarioPlan.parse(scenario(true, true, "null"));
         FakeTransport t = new FakeTransport();
         FakeRecorder r = new FakeRecorder();
-        new PlayerEngine().run(plan, t, new VirtualClock(), new FakeNaviSt(), r, 777L);
+        new PlayerEngine().run(plan, t, new VirtualClock(), r, 777L);
         check(t.oddCalls == 1, "ODD request sent once");
         check(r.fireResult("route").endsWith(":0"), "route fired ok");
         check(r.fireResult("pathSelected") != null, "selection fired");
@@ -144,7 +136,7 @@ public final class ParkedPlayerTest {
         FakeTransport t = new FakeTransport();
         t.errorTopic = Topics.ROUTE;
         FakeRecorder r = new FakeRecorder();
-        new PlayerEngine().run(plan, t, new VirtualClock(), new FakeNaviSt(), r, 1L);
+        new PlayerEngine().run(plan, t, new VirtualClock(), r, 1L);
         check(r.fireResult("route").endsWith(":-11"), "route fire error recorded, not fatal");
         assertEndSequenceAndRelease(t);
     }
@@ -154,7 +146,7 @@ public final class ParkedPlayerTest {
         FakeTransport t = new FakeTransport();
         t.throwTopic = ScenarioPlan.ODD_TOPIC;  // ODD request throws -> body aborts, finally still runs
         FakeRecorder r = new FakeRecorder();
-        new PlayerEngine().run(plan, t, new VirtualClock(), new FakeNaviSt(), r, 1L);
+        new PlayerEngine().run(plan, t, new VirtualClock(), r, 1L);
         check(r.noted("engine_error:"), "engine error noted");
         check(t.withTopic(Topics.ROUTE).isEmpty(), "route not fired after the abort");
         assertEndSequenceAndRelease(t);
@@ -166,7 +158,7 @@ public final class ParkedPlayerTest {
         FakeRecorder r = new FakeRecorder();
         PlayerEngine engine = new PlayerEngine();
         engine.requestStop();  // as a watchdog / kill would, before the feed starts
-        engine.run(plan, t, new VirtualClock(), new FakeNaviSt(), r, 1L);
+        engine.run(plan, t, new VirtualClock(), r, 1L);
         check(t.withTopic(Topics.ROUTE).isEmpty(), "stop halts the normal feed");
         assertEndSequenceAndRelease(t);
     }
@@ -178,32 +170,19 @@ public final class ParkedPlayerTest {
         PlayerEngine engine = new PlayerEngine();
         final int[] n = {0};
         t.afterFire = () -> { if (++n[0] == 5) engine.requestStop(); };
-        engine.run(plan, t, new VirtualClock(), new FakeNaviSt(), r, 1L);
+        engine.run(plan, t, new VirtualClock(), r, 1L);
         check(engine.stopRequested(), "stop requested mid-loop");
         assertEndSequenceAndRelease(t);
     }
 
-    private static void naviStH6() {
+    private static void naviStScenarioPlaysWithoutSideEffects() {
+        // H6's naviSt is the host runner's (adb shell); the app-UID player just plays the feed.
         ScenarioPlan plan = ScenarioPlan.parse(scenario(true, true, "{\"value\":2}"));
         FakeTransport t = new FakeTransport();
         FakeRecorder r = new FakeRecorder();
-        FakeNaviSt navi = new FakeNaviSt();
-        navi.value = 1;
-        new PlayerEngine().run(plan, t, new VirtualClock(), navi, r, 1L);
-        check(navi.writes.size() == 2 && navi.writes.get(0) == 2 && navi.writes.get(1) == 1,
-                "NaviSt written 2 then restored to 1, got " + navi.writes);
-        check(r.noted("naviSt_write:") && r.noted("naviSt_restore:"), "NaviSt write/restore noted");
-    }
-
-    private static void naviStDisabled() {
-        ScenarioPlan plan = ScenarioPlan.parse(scenario(true, true, "{\"value\":2}"));
-        FakeTransport t = new FakeTransport();
-        FakeRecorder r = new FakeRecorder();
-        FakeNaviSt navi = new FakeNaviSt();
-        navi.on = false;
-        new PlayerEngine().run(plan, t, new VirtualClock(), navi, r, 1L);
-        check(navi.writes.isEmpty(), "no NaviSt write when the channel is disabled");
-        check(r.noted("naviSt_disabled:"), "NaviSt disabled noted");
+        new PlayerEngine().run(plan, t, new VirtualClock(), r, 1L);
+        check(!r.noted("naviSt"), "player records no NaviSt action");
+        check(!t.withTopic(Topics.ROUTE).isEmpty(), "naviSt scenario still plays the route");
         assertEndSequenceAndRelease(t);
     }
 
@@ -235,8 +214,7 @@ public final class ParkedPlayerTest {
             ScenarioPlan plan = ScenarioPlan.parse(new String(Files.readAllBytes(p), StandardCharsets.UTF_8));
             FakeTransport t = new FakeTransport();
             FakeRecorder r = new FakeRecorder();
-            FakeNaviSt navi = new FakeNaviSt();
-            new PlayerEngine().run(plan, t, new VirtualClock(), navi, r, 1_700_123L);
+            new PlayerEngine().run(plan, t, new VirtualClock(), r, 1_700_123L);
             check(!t.withTopic(Topics.ROUTE).isEmpty(), p + ": route fired");
             check(!t.withTopic(Topics.PATH_SELECTED).isEmpty(), p + ": selection fired");
             check(!r.noted("engine_error:"), p + ": no engine error");
@@ -253,8 +231,7 @@ public final class ParkedPlayerTest {
         exceptionStillEnds();
         watchdogStopStillEnds();
         stopMidLoopStillEnds();
-        naviStH6();
-        naviStDisabled();
+        naviStScenarioPlaysWithoutSideEffects();
         refusalPaths();
         generatedScenarios();
         System.out.println("ParkedPlayer pure-core host harness: " + checks + " checks PASS");

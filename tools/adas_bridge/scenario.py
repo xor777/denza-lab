@@ -33,7 +33,9 @@ offer. The chain and its single-variable discipline are asserted mechanically by
 | H6   | H0 + the stock SETTING_MPC_IFC_NAVI_ST_SET side-signal     | research README "A second stock channel" |
 
 H6 branches from H0 (not from H5): it is the positive control plus the one stock side channel
-that the map SOME/IP feed does not carry.
+that the map SOME/IP feed does not carry. Its NaviSt write needs the shell UID (device 1023) while
+the SOME/IP feed needs the player's app UID, so the host runner (`parked_session.py`) reads it,
+writes 2 at guidance start, and restores and verifies it over `adb shell`; the player ignores it.
 
 The dynamic field values are the recorded ones, with provenance in comments. The route body for H0
 is reproduced from the stock wire capture through the byte-exact `stock.py` oracle, so H0's route
@@ -413,14 +415,19 @@ def rehearse(scn):
     def emit(t_ms, kind, detail):
         rows.append({"t_ms": t_ms, "kind": kind, "detail": detail})
 
+    navi_fid = "SETTING_MPC_IFC_NAVI_ST_SET(1285554251)"
     if scn["naviSt"] is not None:
-        emit(t, "naviSt.write", {"value": scn["naviSt"]["value"], "device": 1023,
-                                 "fid": "SETTING_MPC_IFC_NAVI_ST_SET(0x4CA0004B)"})
+        # Host runner, over adb shell (shell UID): read and record before the player starts.
+        emit(t, "naviSt.read(host)", {"device": 1023, "fid": navi_fid})
     if scn["oddRequest"]:
         emit(t, "oddRequest", {"service": 13, "method": "0x0002"})
     for step in scn["navStatus"]["preRoutePhase"]:
         emit(t, "NavigationStatus", {"status": step["status"]})
         t += int(step.get("holdS", 1) * 1000)
+    if scn["naviSt"] is not None:
+        # The stock writes NaviSt 2 at guidance start (BaseNaviPresenter -> setNaviTypeAndInit(0)),
+        # the same trigger as status 101 and the route publication: just before the route.
+        emit(t, "naviSt.write(host)", {"value": scn["naviSt"]["value"], "device": 1023, "fid": navi_fid})
     emit(t, "route", {"service": 43, "event": "0x8002", "frame": scn["route"]["frame"]})
     emit(t, "pathSelected", {"service": 45, "event": "0x8001"})
     loop_t = t + 100
@@ -457,7 +464,8 @@ def rehearse(scn):
         emit(end_t, "NavigationStatus(end)", {"status": step["status"]})
         end_t += int(step.get("holdS", 0) * 1000)
     if scn["naviSt"] is not None:
-        emit(end_t, "naviSt.restore", {"device": 1023, "fid": "SETTING_MPC_IFC_NAVI_ST_SET(0x4CA0004B)"})
+        emit(end_t, "naviSt.restore(host)", {"value": "read value", "device": 1023, "fid": navi_fid})
+        emit(end_t, "naviSt.verify(host)", {"device": 1023, "fid": navi_fid})
     return rows
 
 

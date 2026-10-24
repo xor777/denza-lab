@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- No permission is requested: the stock SOME/IP service accepts an ordinary UID. The player
-         writes no vehicle or ADAS setting except the optional H6 NaviSt step, which is enabled only
-         for a shell-UID launch. It queries the stock map and the SOME/IP service so the host
+         writes no vehicle or ADAS setting (H6's NaviSt is written by the host runner over adb
+         shell). It queries the stock map and the SOME/IP service so the host
          runner's package-visibility checks work; no permission is added. -->
     <queries>
         <package android:name="com.byd.launchermap" />

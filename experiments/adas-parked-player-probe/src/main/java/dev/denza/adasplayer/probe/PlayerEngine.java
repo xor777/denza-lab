@@ -13,8 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * harness drives it with a virtual clock and a fake transport.
  *
  * <p>It never fires 13/0x0001 (the DNP/ICC switch): there is no such call here. The H6 NaviSt side
- * channel, when the scenario asks for it and the channel can perform the write, is read before the
- * run and restored after it (the vendor setting keeps state).
+ * channel is not the player's: device 1023 needs the shell UID, while SOME/IP needs this app UID,
+ * so the host runner (tools/adas_bridge/parked_session.py) reads, writes and restores it over adb.
  */
 final class PlayerEngine {
     private final AtomicBoolean stop = new AtomicBoolean();
@@ -24,36 +24,19 @@ final class PlayerEngine {
 
     boolean stopRequested() { return stop.get(); }
 
-    void run(ScenarioPlan plan, Transport transport, Clock clock, NaviStChannel navi,
-             Recorder recorder, long pathId) {
+    void run(ScenarioPlan plan, Transport transport, Clock clock, Recorder recorder, long pathId) {
         List<Long> started = new ArrayList<>();
-        boolean naviWritten = false;
-        Integer naviPrevious = null;
         try {
             for (long service : plan.services()) {
                 int result = transport.startServer(service);
                 recorder.service("start", service, result, clock.nowMs(), clock.wallMs());
                 if (result == 0 || result == 13) started.add(service);
             }
-            if (plan.naviStValue != null) {
-                if (navi.enabled()) {
-                    naviPrevious = navi.read();
-                    naviWritten = navi.write(plan.naviStValue);
-                    recorder.note("naviSt_write", "value=" + plan.naviStValue + ", previous=" + naviPrevious
-                            + ", ok=" + naviWritten);
-                } else {
-                    recorder.note("naviSt_disabled", navi.reason());
-                }
-            }
             body(plan, transport, clock, recorder, pathId);
         } catch (Throwable error) {
             recorder.note("engine_error", error.getClass().getSimpleName() + ":" + error.getMessage());
         } finally {
             endSequence(plan, transport, clock, recorder);
-            if (naviWritten && naviPrevious != null) {
-                boolean restored = navi.write(naviPrevious);
-                recorder.note("naviSt_restore", "value=" + naviPrevious + ", ok=" + restored);
-            }
             for (int i = started.size() - 1; i >= 0; i--) {
                 long service = started.get(i);
                 int result = transport.stopServer(service);

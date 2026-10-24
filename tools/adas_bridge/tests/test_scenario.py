@@ -109,14 +109,17 @@ class ScenarioChainTest(unittest.TestCase):
         self.assertIn("route", kinds)
         self.assertLess(kinds.index("route"), kinds.index("pathSelected"))
         self.assertEqual(kinds[-1], "NavigationStatus(end)")
-        self.assertEqual(rows[-1]["detail"]["status"], 100)
+        self.assertEqual(rows[-1]["detail"]["status"], 100)  # H0: no host NaviSt rows
         self.assertEqual(rows[-2]["detail"]["status"], 110)
 
-    def test_rehearsal_h6_writes_and_restores_navi_st(self):
+    def test_rehearsal_h6_navi_st_follows_the_stock_order(self):
         rows = scenario.rehearse(self.by_id["H6"])
         kinds = [r["kind"] for r in rows]
-        self.assertEqual(kinds[0], "naviSt.write")
-        self.assertEqual(kinds[-1], "naviSt.restore")
+        self.assertEqual(kinds[0], "naviSt.read(host)")
+        self.assertEqual(kinds.index("naviSt.write(host)") + 1, kinds.index("route"))
+        self.assertEqual(kinds[-2:], ["naviSt.restore(host)", "naviSt.verify(host)"])
+        self.assertLess(max(i for i, k in enumerate(kinds) if k == "NavigationStatus(end)"),
+                        kinds.index("naviSt.restore(host)"))
 
     def test_write_scenarios_emits_payload_and_drops_structure(self):
         with tempfile.TemporaryDirectory() as tmp:

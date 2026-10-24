@@ -55,7 +55,7 @@ public final class ParkedPlayer {
                 try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }
                 long pathId = freshPathId();
                 recorder.note("play", "scenario=" + plan.id + " pathId=" + pathId);
-                engine.run(plan, transport, new AndroidClock(), new NaviStShell(), recorder, pathId);
+                engine.run(plan, transport, new AndroidClock(), recorder, pathId);
             } catch (Throwable error) {
                 recorder.note("worker_error", error.getClass().getSimpleName() + ":" + error.getMessage());
             }
