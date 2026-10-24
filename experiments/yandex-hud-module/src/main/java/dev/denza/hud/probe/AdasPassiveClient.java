@@ -30,7 +30,10 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 final class AdasPassiveClient implements AutoCloseable {
     interface Sink {
+        /** Lifecycle and setup work: always essential to a bridge receiver. */
         boolean enqueue(Runnable task);
+        /** One received frame's work, by topic, so a bridge receiver can keep answers and shed status. */
+        default boolean enqueue(long topic, Runnable task) { return enqueue(task); }
         void state(String event, String detail);
         void event(long topic, long timestamp, long receivedAt, byte[] payload);
     }
@@ -220,7 +223,7 @@ final class AdasPassiveClient implements AutoCloseable {
                             else if (frame.topic == PATH_AVAILABLE) pathAvailable = true;
                             else if (frame.topic == PATH_UNAVAILABLE) { pathAvailable = false; readinessEpoch.incrementAndGet(); }
                         }
-                        boolean queued = sink.enqueue(() -> {
+                        boolean queued = sink.enqueue(accepted.topic, () -> {
                             if (!closed.get() && accepting && epoch == connectionEpoch.get())
                                 sink.event(accepted.topic, accepted.timestamp, receivedAt, accepted.payload);
                             else sink.state("late_callback_discarded", hex(accepted.topic));

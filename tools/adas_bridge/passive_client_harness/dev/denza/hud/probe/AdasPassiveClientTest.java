@@ -13,7 +13,10 @@ public final class AdasPassiveClientTest {
     private static final class Sink implements AdasPassiveClient.Sink {
         final ArrayDeque<Runnable> queue=new ArrayDeque<>(); final List<Long> topics=new ArrayList<>();
         final List<byte[]> payloads=new ArrayList<>(); final List<String> states=new ArrayList<>(); boolean admit=true;
-        public boolean enqueue(Runnable task) { if(!admit)return false; if(queue.size()>=1000)throw new AssertionError("Queue cap"); queue.add(task); return true; }
+        final List<Long> enqueuedTopics=new ArrayList<>(); int lifecycle;
+        public boolean enqueue(Runnable task) { lifecycle++; return add(task); }
+        public boolean enqueue(long topic,Runnable task) { enqueuedTopics.add(topic); return add(task); }
+        boolean add(Runnable task) { if(!admit)return false; if(queue.size()>=1000)throw new AssertionError("Queue cap"); queue.add(task); return true; }
         public void state(String event,String detail) { states.add(event+":"+detail); }
         public void event(long topic,long stamp,long at,byte[] payload) { topics.add(topic); payloads.add(payload); }
         void drain() { int n=0; while(!queue.isEmpty()) { if(++n>1000)throw new AssertionError("Drain cap"); queue.remove().run(); } }
@@ -127,12 +130,21 @@ public final class AdasPassiveClientTest {
         Fixture closing=new Fixture(true);closing.client.start();closing.app.connect(closing.hal);closing.client.close();closing.sink.drain();
         check(closing.hal.count(4)==0&&closing.hal.count(8)==0,"Queued setup cannot run after close");
     }
+    /** A bridge receiver sees each frame's topic, so it can keep service-44 answers through a backlog. */
+    private static void topics()throws Exception {
+        Fixture f=new Fixture(true);f.start();int lifecycle=f.sink.lifecycle;
+        check(f.sink.enqueuedTopics.equals(Arrays.asList(PA,RA)),"replayed availability frames carry their topics");
+        f.hal.emit(AdasWire.SELECTED,AdasWire.selected(901,200));f.hal.emit(AdasWire.MODE,AdasWire.mode(2));
+        check(f.sink.enqueuedTopics.subList(2,4).equals(Arrays.asList(AdasWire.SELECTED,AdasWire.MODE)),"data frames carry their own topics");
+        check(f.sink.lifecycle==lifecycle,"frames never use the topicless lifecycle path");
+        f.app.disconnect();check(f.sink.lifecycle==lifecycle+1,"binder loss is lifecycle work");f.client.close();
+    }
     private static void passive()throws Exception {
         Fixture f=new Fixture(false);f.start();check(f.hal.count(4)==4&&f.hal.count(8)==8,"Passive overlay service/topic set unchanged");
         check(!f.client.liveAnswersReady(),"Passive overlay never a live-answer readiness source");f.client.close();
     }
     public static void main(String[] args)throws Exception {
-        fresh();existing();failures();epochs();admission();passive();
+        fresh();existing();failures();epochs();admission();topics();passive();
         System.out.println("AdasPassiveClient production Binder harness: "+checks+" checks PASS");
     }
 }
