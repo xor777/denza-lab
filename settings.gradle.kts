@@ -93,6 +93,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":cluster-glow-probe")
     project(":cluster-glow-probe").projectDir = file("experiments/cluster-glow-probe")
 
+    include(":adas-parked-player-probe")
+    project(":adas-parked-player-probe").projectDir = file("experiments/adas-parked-player-probe")
+
     // Frozen, maintenance-only (see CLAUDE.md). Kept buildable until it is retired.
     include(":denza-gateway")
     project(":denza-gateway").projectDir = file("legacy/denza-gateway")

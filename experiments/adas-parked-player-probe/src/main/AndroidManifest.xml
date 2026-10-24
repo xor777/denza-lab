@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permission is requested: the stock SOME/IP service accepts an ordinary UID. The player
+         writes no vehicle or ADAS setting except the optional H6 NaviSt step, which is enabled only
+         for a shell-UID launch. It queries the stock map and the SOME/IP service so the host
+         runner's package-visibility checks work; no permission is added. -->
+    <queries>
+        <package android:name="com.byd.launchermap" />
+        <package android:name="com.ts.car.someip.service" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="Parked ADAS player probe">
+        <!-- One explicit run: the host pushes scenario.json + preconditions.json into the private
+             files dir and starts this with the boolean extra "parkedOnce". Exported so the host can
+             launch it with am start; config changes do not recreate it. -->
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|density|locale|layoutDirection|fontScale|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+    </application>
+</manifest>
