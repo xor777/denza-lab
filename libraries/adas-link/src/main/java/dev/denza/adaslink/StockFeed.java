@@ -65,7 +65,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         public final long ageMs;
         public final Double vehicleSpeedKmh;
         /** Amap LocMatchInfo of the road under the car: its class and ownership; the stock's NULL values when unmatched. */
-        public int roadClass = StockPath.ROAD_CLASS_NULL, ownership = StockPath.OWNERSHIP_UNKNOWN;
+        public int roadClass = FieldDefaults.ROAD_CLASS_UNMATCHED, ownership = FieldDefaults.OWNERSHIP_UNMATCHED;
         public Fix(double matchedLon, double matchedLat, double rawLon, double rawLat, double speedMps, double heading, boolean simulated,
                    long ageMs, Double vehicleSpeedKmh) {
             this.matchedLon = matchedLon; this.matchedLat = matchedLat; this.rawLon = rawLon; this.rawLat = rawLat; this.speedMps = speedMps;
@@ -118,7 +118,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     private int roadClass = -1;
     private int lightExist, lightState, lightDir, lightWaitNum, lightDistance; private double lightLon, lightLat; private long lightStart, lightEnd;
     private int tunnelDist, tunnelState; private double tStartLon, tStartLat, tEndLon, tEndLat;
-    private int regionId, provinceCode, cityCode, weather; private long countryCode = 1;
+    private int regionId = FieldDefaults.REGION_ID, provinceCode = FieldDefaults.PROVINCE_CODE, cityCode = FieldDefaults.CITY_CODE,
+            weather = FieldDefaults.WEATHER; private long countryCode = FieldDefaults.COUNTRY_CODE;
     private int flowSpeed, historySpeed, hasParallel, hasMixFork, hasSolid, solidDistance; private String voice = "";
     private int icon, actMain, actAssist, actDistance = -1, cameraType, cameraDistance = -1;
     private int giStart, giEnd, giOdd;
@@ -197,6 +198,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         h.put("emulatedAckDelayMs", config.emulatedAckDelayMs);
         h.put("adasType", (long) config.adasType);
         h.put("publisher", publisher.mode().name());
+        FieldDefaults.describe(h);
         publisher.note("header", h, clock.now());
         for (long service : Topics.SERVICES) publisher.startService(service);
         this.dnpService = dnpService;
@@ -709,6 +711,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         f.put("speedMps", fix.speedMps);
         f.put("simulated", fix.simulated);
         f.put("raw", !Double.isNaN(fix.rawLon));
+        // No car speed reaches Navigator's process: FieldDefaults.VEHICLE_SPEED says GNSS stands in.
         f.put("vehicleSpeedSource", fix.vehicleSpeedKmh == null ? "gnss" : "vehicle");
         publisher.note("location", f, clock.now());
         if (fix.simulated && !config.acceptSimulatedLocations) return;
@@ -748,7 +751,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         roadClass = fix.roadClass;                                   // locMatchInfo.roadClass
         if (live || throttle()) {
             sendRegion();
-            weather = 0;
+            weather = FieldDefaults.WEATHER;
             locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course);
             publishFacilities(route, lanePassedM, raw[0], raw[1]);
             offCourse = false;

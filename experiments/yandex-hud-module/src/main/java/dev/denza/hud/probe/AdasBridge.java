@@ -13,7 +13,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import dev.denza.adaslink.AndroidScheduler;
 import dev.denza.adaslink.BridgeStatus;
-import dev.denza.adaslink.Coordinates;
+import dev.denza.adaslink.FieldDefaults;
 import dev.denza.adaslink.DryRunRecorder;
 import dev.denza.adaslink.FixFreshness;
 import dev.denza.adaslink.Json;
@@ -84,12 +84,8 @@ final class AdasBridge {
         thread.start();
         worker = new Handler(thread.getLooper());
         AndroidScheduler scheduler = new AndroidScheduler(worker);
-        StockFeed.Config config = new StockFeed.Config();
-        // This dry-run host follows Navigator in every region. Keep its declared WGS84
-        // source frame; the older Moscow-only native-frame candidate stays a bench option.
-        config.frame = Coordinates.Frame.WGS84;
-        config.roadSpeedLimit = true;
-        config.roadFacilities = true;
+        // Frame, legal limit and facilities come from the one named place (FieldDefaults).
+        StockFeed.Config config = FieldDefaults.navigator(new StockFeed.Config());
         // Navigator's route simulation is the only way to drive the emulator; the stock map would skip it.
         config.acceptSimulatedLocations = emulator;
         // Nothing reaches ADAS in a dry run, so its answer is emulated as the car gave it (about 110 ms).
