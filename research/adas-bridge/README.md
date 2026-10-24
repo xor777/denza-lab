@@ -6,7 +6,8 @@ car's ADAS (Momenta, `getAdasType` 1) in place of the stock map
 Navigator and the stock map left installed and unmodified? The initial firmware
 feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
-emulator; car builds also collect passive evidence. Build 12 is installed. The parked car acknowledged two distinct Yandex routes
+emulator; car builds also collect passive evidence. Build 13 is installed; build 14 (SHA-256 `c57a9b04…`), which adds the experiment variant to the
+whole-route offline attributes, is built for the drive and not installed. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
 See [route replacement acceptance](#route-replacement-correction-build-12-2026-10-24).

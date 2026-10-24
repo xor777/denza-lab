@@ -356,7 +356,5 @@
   {"id":"contra.historyspeed-graph","rows":["speedx.historySpeed"],"statement":"StockFeed's comment says historySpeed is the matched graph road's speed first; the converter never supplies a graph speed (partial fragments), so it is always the section free-flow speed.","sources":[{"where":"AL/StockFeed.java:552-554","says":"the matched graph road's, else the closest Yandex value"},{"where":"AL/RouteConverter.java:331","says":"NaN unless completeAttributes"}],"resolution":"Code effect wins; fix the comment when the engine is rewritten."},
   {"id":"contra.stale-route-on-close","rows":["lifecycle.close"],"statement":"README Safety: never leave a believable old route; build 12's guarded close sent nothing and ADAS kept the last route selected. Since fc41b360/9143605a every end that may send gives the stock's end statuses, but not the stock's pathId -1 positions, and an end without the arm sends nothing.","sources":[{"where":"research/adas-bridge/README.md#Safety","says":"never leave a believable old route"},{"where":"captures/adas-live-drive-20261024/ANALYSIS.md section F","says":"ADAS keeps the last route selected"},{"where":"AL/LiveEgressGuard.java:24-27","says":"a session that closes with a route at ADAS sends the end sequence before it releases the transport"}],"resolution":"Open (P-CLOSE): whether ADAS releases on the status end alone."}
  ],
- "untrackedEvidence": {
-  "research/adas-bridge/noa-gap-audit-20261024.json": "the build-12 audit index, being edited by another session and not yet committed; evidence pointers to it are not existence-checked"
- }
+ "untrackedEvidence": {}
 }
