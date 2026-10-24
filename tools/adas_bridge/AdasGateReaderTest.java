@@ -23,8 +23,9 @@ public final class AdasGateReaderTest {
         String heartbeat = "{\"schema\":\"denza-adas-consumer-v1\",\"consumerSession\":\"consumer\",\"bootId\":\"boot\",\"elapsedMs\":1001}";
         long[] clock = {1000};
         check(AdasGateReader.consumerAlive("consumer", "boot", () -> { clock[0]=1002; return heartbeat; }, () -> clock[0]));
-        check(AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 6001));
-        check(!AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 6002));
+        check(AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 13001)); // a 12 s restart keeps the reader
+        check(AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 61001));
+        check(!AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 61002));
         check(!AdasGateReader.consumerAlive("consumer", "boot", () -> heartbeat, () -> 1000));
         check(!AdasGateReader.consumerAlive("other", "boot", () -> heartbeat, () -> 1002));
         check(!AdasGateReader.consumerAlive("consumer", "other", () -> heartbeat, () -> 1002));

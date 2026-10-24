@@ -80,6 +80,7 @@ final class AdasBridge {
 
     private AdasBridge(Context context) throws IOException {
         this.context = context.getApplicationContext();
+        // The dry run, route copies, conversion and the graph: background work. Live sends have their own thread.
         HandlerThread thread = new HandlerThread("denza-adas", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         thread.start();
         worker = new Handler(thread.getLooper());
@@ -93,7 +94,10 @@ final class AdasBridge {
         DryRunRecorder recorder = new DryRunRecorder(new RotatingWriter(new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl")), false);
         feed = new StockFeed(scheduler, recorder, config);
         driver = new NavigatorDriver(feed, config.frame, scheduler);
-        live = new LiveMapBridge(this.context,worker);
+        // Actual sends on their own normal-priority thread: conversion, graph work and the dry run stay here.
+        HandlerThread sender = new HandlerThread("denza-adas-live", android.os.Process.THREAD_PRIORITY_DEFAULT);
+        sender.start();
+        live = new LiveMapBridge(this.context, new Handler(sender.getLooper()));
         worker.post(() -> {
             Map<String, Object> f = Json.object();
             f.put("gatesAssumed", "dnpService, dnpSwitch, noSleep on: Navigator cannot read BYDAuto");

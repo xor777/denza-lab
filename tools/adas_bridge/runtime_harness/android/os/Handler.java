@@ -12,5 +12,9 @@ public class Handler {
     public boolean postAtTime(Runnable r,Object token,long at){Task t=new Task();t.owner=this;t.token=token;t.action=r;t.at=at;t.serial=serial++;tasks.add(t);return true;}
     public void removeCallbacksAndMessages(Object token){tasks.removeIf(t->t.owner==this&&(token==null||token.equals(t.token)));}
     public static void reset(){tasks.clear();serial=0;SystemClock.now=100000;}
-    public static void advance(long ms){long end=SystemClock.now+ms;int runs=0;while(true){Task next=null;for(Task t:tasks)if(t.at<=end&&(next==null||t.at<next.at||t.at==next.at&&t.serial<next.serial))next=t;if(next==null)break;tasks.remove(next);SystemClock.now=next.at;next.action.run();if(++runs>20000)throw new AssertionError("runaway scheduler");}SystemClock.now=end;}
+    /** A process death: every pending task of every handler is gone; the clock keeps going. */
+    public static void killAll(){tasks.clear();}
+    /** Overdue tasks run at the current time, as on a worker that was blocked. */
+    public static void block(long ms){SystemClock.now+=ms;}
+    public static void advance(long ms){long end=SystemClock.now+ms;int runs=0;while(true){Task next=null;for(Task t:tasks)if(t.at<=end&&(next==null||t.at<next.at||t.at==next.at&&t.serial<next.serial))next=t;if(next==null)break;tasks.remove(next);SystemClock.now=Math.max(SystemClock.now,next.at);next.action.run();if(++runs>20000)throw new AssertionError("runaway scheduler");}SystemClock.now=end;}
 }

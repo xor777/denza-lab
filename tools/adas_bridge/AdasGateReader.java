@@ -20,15 +20,18 @@ import java.util.regex.Pattern;
 /**
  * Bounded shell-UID reader for this vehicle's ten integer ADAS properties.
  * No vehicle setters, SOME/IP publisher, generic command input or network listener.
- * The debuggable Navigator consumes an atomic private-file snapshot. Losing its
- * process-specific heartbeat stops this reader; an old process cannot rearm it.
+ * The debuggable Navigator consumes an atomic private-file snapshot. The heartbeat
+ * names the boot's consumer, which a restarted Navigator process keeps: a restart
+ * shorter than {@link #HEARTBEAT_MAX_AGE_MS} keeps this reader for the resumed arm.
+ * A longer silence stops it; an old process cannot rearm it.
  */
 public final class AdasGateReader {
     static final String PACKAGE = "ru.yandex.yandexnavi";
     static final String HEARTBEAT = "files/denza-adas-consumer.json";
     static final String SNAPSHOT = "files/denza-adas-gates.json";
     static final String ISOLATION = "files/denza-adas-stock-isolation.json";
-    static final long HEARTBEAT_MAX_AGE_MS = 5000, MAX_LIFETIME_MS = 4L * 60 * 60 * 1000;
+    /** Covers a Navigator restart (12 s on 2026-10-24); the reader only reads, the consumer re-checks every input. */
+    static final long HEARTBEAT_MAX_AGE_MS = 60000, MAX_LIFETIME_MS = 4L * 60 * 60 * 1000;
     private static final int MAX_OUTPUT = 16384;
     private static final Pattern PARCEL = Pattern.compile("^\\s*Result:\\s*Parcel\\(([0-9a-fA-F]{8})\\s+([0-9a-fA-F]{8})\\s*(?:'[^'\\r\\n]*')?\\)\\s*$");
     private AdasGateReader() { }

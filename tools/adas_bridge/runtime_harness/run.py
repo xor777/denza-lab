@@ -8,7 +8,7 @@ def main():
     sources=list(pathlib.Path(__file__).parent.rglob('*.java'))
     sources += [x for x in (ROOT/'libraries/adas-link/src/main/java').rglob('*.java') if x.name!='SomeIpPublisher.java']
     module=ROOT/'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
-    sources += [module/'LiveMapBridge.java',module/'AdasFeed.java']
+    sources += [module/'LiveMapBridge.java',module/'AdasFeed.java',module/'CallbackQueue.java']
     jdk=pathlib.Path('/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home/bin')
     subprocess.run([str(jdk/'javac'),'--release','8','-encoding','UTF-8','-d',str(classes),*map(str,sources)],check=True)
     subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.LiveRuntimeTest',str(a.out/'fixtures')],check=True)
