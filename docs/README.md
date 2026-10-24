@@ -32,7 +32,7 @@ Documents".
 | `split-screen-findings.md` | Live-proven BYD split substrate, the firmware's split read from the 2026-09-23 OTA, the explicit two-picker flow, acceptance evidence, and retired approaches. |
 | `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
-| `stock-map-findings.md` | What the car's own map is (Amap AutoSDK `GBL 9.810` inside `com.byd.launchermap`), what it draws in Russia (nothing but the car arrow), and the evidence that no setting, offline pack, USB import or tile source can change that. |
+| `stock-map-findings.md` | What the car's own map is (Amap AutoSDK `GBL 9.810` inside `com.byd.launchermap`), what it draws in Russia (nothing but the car arrow), and the evidence that no setting, offline pack, USB import or tile source can change that. Our own data for it is in the private `xor777/amap-injector`. |
 | `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, direct PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, the retired single-package proxy experiment, the proposed package-replacement recovery path, and the normative steering-wheel Play/Pause resume contract. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |

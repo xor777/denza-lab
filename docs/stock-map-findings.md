@@ -6,7 +6,7 @@ the corpus and the car; the integration study below is firmware/code evidence.
 
 ## Current state
 
-Updated 2026-10-15. Separate replacing the stock map's data from replacing its
+Updated 2026-10-24. Separate replacing the stock map's data from replacing its
 launch, widget and instrument-display surfaces.
 
 | Claim | Status | Since | Section |
@@ -21,6 +21,7 @@ launch, widget and instrument-display surfaces.
 | A stock Map-mode follower using Denza Apps' existing cluster surface and Yandex's independent renderer is feasible in principle; native scene priority, small-card gates and lifecycle need a car test | open | 2026-10-15 | [Factory scene](#following-the-factory-map-scene) |
 | `pm grant` accepts requested runtime/development permissions, not arbitrary signature permissions. BYD Setting/Instrument GET/SET are signature permissions in the IVI AutoPermission APK | firmware | 2026-10-15 | [ADB privileges](#denza-apps-as-the-privileged-companion) |
 | A `com.byd.naviauto` adapter has a boot-scanning blocker in `InstallPackageHelper`; changing only `byd_map_package` or the APK name is insufficient | firmware | 2026-10-15 | [Provider adapter](#why-a-baidu-named-adapter-is-not-yet-a-durable-solution) |
+| Our own map data for the stock map, from 2026-10-21 on, lives in the private repository `xor777/amap-injector`, not here | moved | 2026-10-24 | [Our own map data](#our-own-map-data) |
 
 **Open questions**
 
@@ -47,6 +48,7 @@ launch, widget and instrument-display surfaces.
 - [The native levers](#the-native-levers-and-where-they-stop)
 - [Verdict](#verdict)
 - [Not checked](#not-checked)
+- [Our own map data](#our-own-map-data)
 - [Deeper Yandex integration (2026-10-15)](#deeper-yandex-integration-2026-10-15)
 
 ## What it is
@@ -238,6 +240,14 @@ same surfaces.
   (`himax-touchscreen`) is refused for the shell UID, so no pinch can be
   injected. It would not change the answer — an overview layer carries no
   routing and no search.
+
+## Our own map data
+
+Work on loading our own data into the stock map (from 2026-10-21) lives in
+the private repository [`xor777/amap-injector`](https://github.com/xor777/amap-injector),
+with its code, evidence and findings. It was frozen on 2026-10-24 as the
+reference for the Yandex → ADAS bridge
+([research/adas-bridge/README.md](../research/adas-bridge/README.md)).
 
 ## Deeper Yandex integration (2026-10-15)
 
