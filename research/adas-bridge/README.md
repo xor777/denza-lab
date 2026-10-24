@@ -30,6 +30,9 @@ Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 | ADAS availability is explicit DNP/ICC/ACC status (0/1/2); NOA family and route ACK are separate. Passive observer receives real car packets and shows an overlay | firmware + car acceptance, 2026-10-23 | [Status observer](#adas-status-observer) |
 | With our OSM road store (`tools/adas_bridge/road_store.py`, from a `build_map.py` build) the bridge matches the Yandex route onto our network (adas-link `RoadMatcher`, HMM): links end at OSM junctions and attribute changes and carry the producers' class, formway, link type, LaneNum, direction, ownership, name, link speed and legal limit; 99.4–100 % of four recorded Moscow routes matched, 28–48 → 119–176 links per route; Java and the Python oracle agree to the byte | code + bench, 2026-10-24; car not run | [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24) |
 | Inside Navigator on an emulator, with the store placed by `run-as`, both a home-region and a central Moscow route are 100 % matched (53 and 119 links), the dry-run traces pass `trace_check` and the overlay shows a fresh feed, a waiting route and no stock-map alarm; the bridge costs about 0.2 % of a core and 1 ms per second of the main thread, the overlay 6–7 ms; a store for Moscow plus about 50 km is 60 MB | emulator run, 2026-10-24; car not run | [Integrated run](#integrated-emulator-run-2026-10-24) |
+| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 92 open; brought in line with the engine rewrite at `6f97e3bb`, which has not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
+| A parked-car kit plays, at the start position, the stock map's own recorded start feed (H0) and then a chain that changes one variable at a time toward the live bridge (H1–H6), records ADAS's answers and always ends the route the stock way; not yet run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
+| The live engine no longer dies on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route, sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps evidence for a two-hour drive; not yet run on the car | code + host harnesses, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Transport](#transport) · [One writer](#one-writer) ·
@@ -663,6 +666,175 @@ alarm failures were traced to fields 6/9 being doubles; all 384 retained native
 packets now pass replay. Build-06 enlarges the overlay to 40-pixel text and
 720-pixel width with five short Russian lines. Receipt and final installation
 identity: [`observer-evidence-20261023.json`](observer-evidence-20261023.json).
+
+## Field contract (2026-10-24)
+
+[`field-contract-20261024.json`](field-contract-20261024.json) turns the owner's rule
+into data: every value the bridge can send to ADAS is a decision, and a missing or
+incompatible Yandex value is never quietly sent as an unknown, 0 or −1. There is one row
+per field of every outbound topic, per key of the route JSON and of the 3 km lane beans,
+per emission (cadence and gating), for the two vehicle-property side channels the stock
+writes (`0x4CA0004B`, `0x43E0003A`), for the two ADAS requests (13/0x0001, 13/0x0002),
+and for the lifecycle and input rules behind the values. Each row gives:
+- the stock's meaning of the field and where that is proved;
+- what the factory Beijing bench and the car's stock map on OSM sent;
+- what we send, from which code and on which trigger;
+- the provenance: YANDEX, PLATFORM, DERIVED, DEFAULT, CONSTANT or NOT_SENT, with one
+  rule id per branch;
+- the mark against the stock;
+- DECIDED with a reason and evidence, or OPEN with the experiment that decides it: H0–H6
+  from the build-12 analysis, or a named test (D-HWY, D-CITY, BENCH-FB, RE-LM,
+  ALIGN-STOCK, TRACE-SIDE, P-CLOSE, EMU);
+- the NOA risk.
+
+Code is cited at `6f97e3bb`, the engine rewrite (`134caa8e`..`6f97e3bb`), with a text
+anchor, and the anchor is the authority. The rewrite has not been run on the car. Rows
+whose behaviour it brought to the stock's carry the engine commit as evidence. Their
+`today` values are build 12's, recorded before the rewrite.
+
+| | Rows | Decided | Open |
+| --- | --- | --- | --- |
+| Matches the stock | 159 (61 are fields the stock builder never sets) | 157 | 2 |
+| Differs from the stock | 75 | 3 (policy) | 72 |
+| Stock unknown | 18 | 0 | 18 |
+
+The engine rewrite moved seven rows to *matches the stock*:
+- the route goes out once per Yandex route ID (`naviSDRoute`), and is resent 300 ms after
+  DNP comes back on;
+- RouteType 99 marks a real recalculation by Yandex, not a graph refresh;
+- position, TrafficInfo, tunnel and region go out at the stock's once a second in LIVE;
+- the remaining distance in TrafficInfo comes from the fix it travels with.
+
+The three decided differences are guard policy:
+- no idle stream;
+- no stale or foreign-path position;
+- no idle status outside the stock's end sequence. Every end that may still send now
+  sends that sequence: 110 ×3 after an arrival, then 100 ×3.
+
+The open rows carry 19 high, 26 medium and 47 low NOA risks. These come first:
+- **Frame (H1).** Route points, positions, lights and `mapProvider=1` claim the Amap SDK
+  frame, but both hosts send WGS-84 (`FieldDefaults.FRAME`).
+- **Road semantics (H2, D-HWY).**
+  - On links, roadclass, formway and ownership are −1, adminCode is 0, and direction is
+    0, which the export reads as two-way (DRT raw 3 → 0).
+  - Region is 0.
+  - TrafficInfo class and position ownership are −1, the stock's *unmatched* markers,
+    on a path that the same packets declare matched.
+  - historySpeed is the section's free-flow speed.
+  - SpdLmtSpeedValue comes from Yandex, against [Safety](#safety).
+  - The ramp distance is −1.
+
+  The sourceless values among these (frame, legal limit, facilities, vehicle-speed
+  source, region, unmatched class and ownership) are set in `FieldDefaults`, and every
+  trace header names them.
+- **Continuity (H3, P-CLOSE, H4).**
+  - A prerequisite gap now pauses on the same path instead of dropping it. Build 12 was
+    silent for 42 s at P→D; the gap itself is still unmeasured.
+  - A guarded close now sends the stock's end statuses but not its pathId −1
+    positions. An end that may not send, such as a removed arm, still leaves the route.
+    P-CLOSE asks whether ADAS releases the route on those statuses.
+  - pathID stays a wall-clock id, fresh for each attempt.
+- **Cadence (H5).** vehicleSpeed is the GNSS speed (`FieldDefaults.VEHICLE_SPEED`). Off
+  the route, the position indices hold their last placement. The stock freezes them at
+  the link end (ALIGN-STOCK).
+
+The file records fifteen contradictions between docs, code and the oracle as entries of
+their own:
+- linktype is −1 in the RouteConverter javadoc and in this README, but 0 in the code;
+- the oracle calls direction 0 "unknown";
+- `mapProvider=1` is sent with WGS-84 points;
+- Safety says SpdLmtSpeedValue 0, but `FieldDefaults` enables the Yandex limit for both
+  hosts;
+- lane types 0/1/2 break StockMessages' promise and the factory's 255;
+- `stock.py` lacks the `completeAttributes` gate, the 64-lane cap and the graph-name rule;
+- `naviVoiceCommand ""` is undocumented;
+- the "unknown, not silently false" flags are sent as false;
+- pathID is described as a "hash of routeId";
+- "Position, 1 Hz" (resolved by the engine rewrite, `646add68`);
+- the unmatched markers on a matched path;
+- FacilityType versus `naviFacilityType`;
+- laneNum is taken from lane signs;
+- the historySpeed comment;
+- the stale route left on close (end statuses sent since `ea0f824d`; release unproved).
+
+`oracle.FieldContractTest` (Gradle, via `FieldContractChecks`) and
+`tools/adas_bridge/tests/test_field_contract.py` fail when:
+- an encoder field has no row;
+- a row names a field or a code anchor that no longer exists;
+- a row that differs from the stock is decided without evidence;
+- an open row names no known experiment.
+
+Change a field and its row in the same commit.
+
+## Parked experiment kit (2026-10-24)
+
+To find the NOA gap by controlled experiment rather than more drives, a host generator
+(`tools/adas_bridge/scenario.py`), a disposable on-device player
+(`experiments/adas-parked-player-probe`, app id `dev.denza.adasplayer.probe`,
+`-Pexperiments`) and a host runner (`tools/adas_bridge/parked_session.py`) play, at the
+start position with the car parked, the stock map's own recorded start feed (H0, the
+positive control) and then a chain that changes one variable at a time toward the live
+bridge: frame GCJ→WGS-84 (H1), link class/formway, ownership, direction, laneNum,
+adminCode+region (H2a–H2e), position ownership + TrafficInfo roadClass (H2f), legal limit
+(H2g), no ODD request and no 106 phase (H3), 5 Hz rates (H4), the remaining bridge field
+values (H5), and H0 plus the stock `SETTING_MPC_IFC_NAVI_ST_SET` side channel (H6). H0's
+route is rebuilt through the byte-exact `stock.py` oracle, so it equals the stock wire bar
+pathId and time; H1 is an inverse-GCJ flip on identical geometry. A parked car offers no
+NOA even to the stock map, so the observable is the cluster's answer to P→D and the stalk
+(«NOA activating failed» against «ICC activating failed», TOR_738 and TOR_135: the first
+word names the function ADAS tried), next to the service-13 and service-44 answers.
+
+The player always ends with the stock stop sequence (status 110 for 3 s, then 100) and
+releases its session on a clean finish, an exception or a watchdog kill, with a fresh
+pathId per run; it refuses unless `com.byd.launchermap` is absent and disabled and no
+valid live arm is held, records every service-13 and service-44 answer, and never fires
+13/0x0001. H6's side channel (device 1023, FID 1285554251) is written by the host runner
+over `adb shell`: device 1023 needs the shell UID, while the SOME/IP feed must stay in the
+player's app UID (a shell `app_process` cannot bind the SOME/IP service). The runner
+follows the stock order (`setNaviSt(2)` from `NaviService.setNaviTypeAndInit(0)` at
+guidance start): read and record, write 2 just before the route, and after the player's
+110 → 100 end restore the read value and read it back, also on an error, a timeout or
+Ctrl-C; a failed or unexpected read means no write and the scenario is not run. The
+generator, engine, precondition and runner logic is covered off-device
+(`tools/adas_bridge/parked_player_harness/run.py`, `tests/test_scenario.py`,
+`tests/test_parked_session.py`); nothing has been run on the car. H2c (link direction → 0)
+is a no-op at this position: the stock feed already sends direction 0 there. Commits
+`236b48d5`..`22369074`.
+
+## Engine follow-up (2026-10-24)
+
+The build-12 drive (`captures/adas-live-drive-20261024/ANALYSIS.md`) showed the live
+session dying on a reroute (a 32-callback latch on a background worker that also
+converted routes and did file and Binder I/O per fire), 42 s of silence at P→D, 15 paths
+for one Yandex route, positions at about 5 Hz with indices of an older fix, a guarded close
+that left ADAS holding the route, an arm lost on a Navigator restart and evidence rings
+that rotated out the start of the drive. The host-only rewrite (`134caa8e`..`6f97e3bb`)
+changes the dynamics, not the field values:
+
+- A missing prerequisite pauses LIVE egress without dropping the path, its real ACK or the
+  FINE anchor; the session ends only on a terminal cause (an actual send or audit failure,
+  a transport epoch change, an arm or stock-package change) and keeps its first cause.
+- Sends run on their own normal-priority thread. Callbacks go through a queue that never
+  refuses: service-44 answers are kept, service-13 status is shed oldest-first. Readiness
+  inputs are read every 250 ms and before a possible route publication, never per fire.
+- One Yandex route ID is one path for its life, its link table frozen with the graph of
+  that moment; DNP back on resends the route after 300 ms, as the stock does.
+- LIVE keeps the stock's one-a-second location bundle, with the indices of the fix it reports.
+- Every end sends the stock's status-loop end (`e0` `d.run`: 110 for three ticks after
+  arrival, then 100): 110 ×3 then 100 ×3 after arrival, 100 ×3 otherwise, including 5 s
+  before arm expiry and after a Navigator restart, which resumes the same unexpired arm
+  under a per-boot consumer identity.
+- `FieldDefaults` names every sourceless value in one place (frame, vehicle-speed source,
+  legal limit, facilities, region, unmatched class and ownership); every trace header
+  records it. Vehicle speed stays GNSS: Navigator's process has no BYDAuto permission.
+- Evidence sized for a two-hour drive, service 13 recorded once, and `adas-journal.jsonl`
+  with every ADAS state transition, selection and PathMatch, never rotated within a drive.
+
+Each defect has a regression test that failed on the old engine
+(`LiveDriveRegressionTest`, the runtime and passive-client harnesses). Not yet established
+on the car: whether ADAS releases the route on the end statuses, accepts the 1 Hz cadence
+and the DNP-on resend, how the 250 ms input cache behaves under real load, the resumed
+arm, and the ring sizes on the car's disk.
 
 ## Safety
 
