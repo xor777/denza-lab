@@ -29,7 +29,7 @@
       "every known traffic light (the light ends its link)",
       "per-edge speed-limit changes",
       "tunnel, ferry and highway range boundaries",
-      "lane signs on highways",
+      "junction lane signs (point-scoped guidance, not continuous LaneNum)",
       "never at jams"
     ],
     "length": "haversine on WGS-84; link length cut down to whole metres (as Amap), segment = their sum (int navigationLen/groupLen/groupTime)",
@@ -48,7 +48,7 @@
   "candidate": {
     "publicationReady": false,
     "unknowns": "stock NULL values: roadclass/formway/linktype -1, ownership -1, actions 0; laneNum/direction/adminCode 0; never JSON null",
-    "profileFacts": "link MainAction 0 and linktype 0 unless tunnel/ferry (stock route payloads); factory Beijing profile: highway link without light: class 0 (>=90 km/h) or 6, formway 1, direction 1, ownership 0, lane sign width; roundabout formway 4 direction 1; curLinkSpeed = section free-flow speed",
+    "profileFacts": "link MainAction 0 and linktype 0 unless tunnel/ferry (stock route payloads); roundabout formway 4 direction 1; curLinkSpeed = section free-flow speed. Removed from local Java/Python source: highway/posted-speed class 0/6, divided/one-way/public assumptions and junction sign-width LaneNum. Highway/sign cuts and independently known graph fields remain; explicit known class 0/6 is allowed.",
     "speedLimit": "0 on links (stock); TrafficInfo.SpdLmtSpeedValue = Yandex posted limit (onCurrentRoadSpeed)",
     "actions": "FORK/EXIT -> SlightLeft/Right 3/4; BOARD/LEAVE_FERRY -> assistant 19/20; WAYPOINT -> 0/35; arrival 0/36"
   },

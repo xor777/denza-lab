@@ -566,6 +566,14 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         if (closed || currentPath>0 || endPending()) return;
         beginEnd(false,why);
     }
+    /** A lost map prerequisite cancels even an arrival already ending: only idle 100 may remain. */
+    public void withdrawRoute(String why) {
+        if (closed) return;
+        boolean held = hadRoute || endPending();
+        currentPath = -1; routeGeneration++; group = null;
+        acknowledgements.routeChanged(); fineClass = false; hadRoute = false;
+        if (held) beginEnd(false, why);
+    }
     /**
      * Ends the owned session the stock's way: guidance (if any) ends, the end sequence goes out at
      * the producer's cadence within {@link #END_SESSION_MS}, then the transport is released. With

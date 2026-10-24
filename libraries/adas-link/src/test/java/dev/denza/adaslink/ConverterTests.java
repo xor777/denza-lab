@@ -58,10 +58,8 @@ final class ConverterTests {
             for (StockPath.Link l : s.links) {
                 sum += l.length;
                 if (l.hasTrafficLight) { lights++; flagged++; }
-                boolean highway = l.formway == 1;
-                check(highway ? (l.roadClass == 0 || l.roadClass == 6 || l.roadClass == -1) && l.direction == 1 && l.ownership == 0 && !l.hasTrafficLight
-                                : l.roadClass == -1 && l.ownership == -1 && (l.formway == -1 || l.formway == 4) && l.laneNum == 0,
-                        name + ": stock NULLs except the profile's highway and roundabout facts");
+                check(l.roadClass == -1 && l.ownership == -1 && (l.formway == -1 || l.formway == 4) && l.laneNum == 0,
+                        name + ": route-only highway/limit/sign annotations do not invent continuous road attributes");
                 check(l.mainAction == 0, name + ": link MainAction 0, as on every stock segment-end link");
                 check(l.linkType == 0 || l.linkType == 1 || l.linkType == 2, name + ": linktype common/ferry/tunnel, never NULL");
                 check(l.pointCount() >= 2, name + ": a link has at least two points");
@@ -143,7 +141,7 @@ final class ConverterTests {
         StockPath.Segment s0 = c.path.segments.get(0);
         equal(0, s0.links.get(s0.links.size() - 1).mainAction, "synthetic: the link ending at the LEFT keeps MainAction 0 (stock)");
         equal(1, s0.mainAction, "synthetic: the segment carries the LEFT");
-        // Highway facts from the factory profile: class by posted limit, divided, one way, public, lane sign width.
+        // Highway annotations and legal speed retain their boundaries, never road class or sign-width LaneNum.
         Double[] hwLimits = new Double[20];
         for (int i = 0; i < 20; i++) hwLimits[i] = i < 10 ? 16.6 : 27.8;
         YandexRoute hw = new YandexRoute("hw", lon, lat, Arrays.asList(new YandexRoute.Section(0, 20, "STRAIGHT", "М4", 600, 95)),
@@ -152,21 +150,24 @@ final class ConverterTests {
         hw.laneSigns = Collections.singletonList(new double[]{4, 3});
         RouteConverter.Converted h = RouteConverter.convert(hw, Coordinates.Frame.WGS84);
         invariants("highway", hw, h);
-        int fast = 0, city = 0, lanes = 0, lit = 0;
+        int lit = 0;
         for (StockPath.Link l : h.path.segments.get(0).links) {
-            if (l.roadClass == 0) fast++;
-            if (l.roadClass == 6) city++;
-            if (l.laneNum == 3) lanes++;
-            if (l.hasTrafficLight) { lit++; check(l.roadClass == -1, "highway: a lit link is not a freeway"); }
+            check(l.roadClass == -1 && l.formway == -1 && l.direction == 0 && l.ownership == -1 && l.laneNum == 0,
+                    "highway: neither 59.8 nor 100 km/h proves class, form, direction, ownership or lanes");
+            if (l.hasTrafficLight) lit++;
         }
-        check(city > 0 && fast > 0, "highway: 59.8 km/h is class 6, 100 km/h is class 0 (" + city + "/" + fast + ")");
-        equal(1, lanes, "highway: the lane sign's width on the link it ends");
+        for (double boundary : new double[]{2, 4, 18}) {
+            boolean found = false;
+            for (double end : h.linkEndScalar) if (end == boundary) found = true;
+            check(found, "highway/sign boundary retained at " + boundary);
+        }
         equal(1, lit, "highway: the light still ends its link");
         equal(95.0, h.segmentFreeFlowKmh[0], "free-flow speed carried per segment");
         // Roundabout section.
         YandexRoute ring = new YandexRoute("ring", lon, lat, Arrays.asList(new YandexRoute.Section(0, 5, "STRAIGHT", null, 10),
                 new YandexRoute.Section(5, 8, "ENTER_ROUNDABOUT", null, 10), new YandexRoute.Section(8, 20, "LEAVE_ROUNDABOUT", null, 10)),
                 null, null, null, null, null, null);
+        ring.highways = Collections.singletonList(new double[]{0, 20});
         RouteConverter.Converted r = RouteConverter.convert(ring, Coordinates.Frame.WGS84);
         check(r.path.segments.get(1).links.get(0).formway == 4 && r.path.segments.get(1).links.get(0).direction == 1
                 && r.path.segments.get(2).links.get(0).formway == -1, "roundabout section is formway 4, direction 1");

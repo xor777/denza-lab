@@ -145,6 +145,8 @@ public final class RouteConverter {
      * changes and carry its attributes. {@code roads} null: Yandex data only.
      */
     public static Converted convert(YandexRoute route, Coordinates.Frame frame, RoadNetwork roads) {
+        if (route.additionalAttributes != null && !route.additionalAttributes.matches(route))
+            throw new IllegalArgumentException("additional attributes belong to another route geometry");
         int edges = route.edges();
         double[] cumulative = new double[edges + 1];
         for (int i = 0; i < edges; i++)
@@ -180,6 +182,10 @@ public final class RouteConverter {
         // Junction nodes and attribute changes of the graph roads the route matched (Amap's road records).
         RoadMatcher.Match match = roads == null ? null : RoadMatcher.match(route, cumulative, roads);
         if (match != null) for (double s : match.cuts) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
+        if (route.additionalAttributes != null) for (double s : route.additionalAttributes.cuts()) {
+            if (!Double.isFinite(s) || s < 0 || s > edges) throw new IllegalArgumentException("attribute cut outside route");
+            if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
+        }
         candidates.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(b[1], a[1]));
 
         StockPath path = new StockPath();
@@ -308,16 +314,13 @@ public final class RouteConverter {
      * <li>link MainAction stays 0: on every factory route the stock sent (bench, 1 177 links) the
      *   link that ends a segment carries 0 and only inner links carry 8/9/10 (continue, merges),
      *   which Yandex does not report;</li>
-     * <li>a Yandex highway link without a light is the factory's controlled-access road: RoadClass 0
-     *   (freeway) at a posted limit of 90 km/h or more, 6 (city speedway) below; formway 1 (divided),
-     *   direction 1 (one way), ownership 0 (public), as on 100% of factory freeway and city speedway
-     *   links; its lane count is the width of a junction lane sign that ends the link (one-way
-     *   carriageway: the factory LaneNum equals the array width);</li>
      * <li>a roundabout section (entered with ENTER_ROUNDABOUT) is formway 4, direction 1 (100% of
      *   factory roundabout links).</li>
      * </ul>
-     * Everything else keeps the stock's NULL values: no class, formway, direction or ownership is
-     * inferred for ordinary city roads, and Yandex z-levels are not taken for bridges.
+     * Highway ranges remain link boundaries, but neither their presence nor posted speed proves
+     * class, divided form, ownership or direction. Junction sign width is point-scoped guidance,
+     * not a continuous lane count. Absent independent fields retain the wire defaults (including
+     * direction 0, which the stock interprets as two-way); z-levels are not taken for bridges.
      */
     static double[] attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
                                List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative, RoadMatcher.Match match) {
@@ -331,25 +334,37 @@ public final class RouteConverter {
                 speeds[link] = road == null || !road.completeAttributes ? Double.NaN : road.speedKmh;
                 if (road != null && road.completeAttributes) {
                     l.roadClass = road.roadClass; l.formway = road.formway; l.linkType = road.linkType;
-                    l.laneNum = road.laneNum; l.direction = road.direction; l.ownership = road.ownership;
+                    l.laneNum = road.laneNum;
+                    if (road.knownAttributes.direction != null) l.direction = road.knownAttributes.direction;
+                    l.ownership = road.ownership;
                     l.roadName = road.name;
                     link++;
                     continue;
                 }
                 if (roundabout) { l.formway = 4; l.direction = 1; }
-                if (inside(route.highways, middle) && !l.hasTrafficLight) {
-                    Double limit = route.speedLimits == null ? null : route.speedLimits[Math.min((int) Math.floor(middle), route.edges() - 1)];
-                    if (limit != null) l.roadClass = limit * 3.6 >= 90 - 1e-6 ? 0 : 6;
-                    l.formway = 1;
-                    l.direction = 1;
-                    l.ownership = 0;
-                    if (route.laneSigns != null) for (double[] sign : route.laneSigns)
-                        if (Math.abs(metres(cumulative, sign[0]) - endM.get(link)) <= MIN_LINK_M) l.laneNum = (int) sign[1];
+                // A partial source can confirm individual fields independently of the other
+                // attributes, preserving tunnel/ferry and roundabout annotations when absent.
+                if (road != null) {
+                    RoadNetwork.KnownAttributes known = road.knownAttributes;
+                    if (known.roadClass != null) l.roadClass = known.roadClass;
+                    if (known.formway != null) l.formway = known.formway;
+                    if (known.linkType != null) l.linkType = known.linkType;
+                    if (known.laneNum != null) l.laneNum = known.laneNum;
+                    if (known.direction != null) l.direction = known.direction;
+                    if (known.ownership != null) l.ownership = known.ownership;
                 }
-                // The native online graph has names and legal limits, but no confirmed class,
-                // lane count or road form. Keep the route's annotations and free-flow speed.
+                // Legal limits and individually known fields do not establish historical speed.
                 if (road != null && (l.roadName == null || l.roadName.isEmpty())
                         && road.name != null && !road.name.isEmpty()) l.roadName = road.name;
+                if (route.additionalAttributes != null) {
+                    // Nearby cuts may be merged to avoid sub-metre links. Ask for unanimity over
+                    // the resulting whole interval, so a merged boundary cannot extend a fact.
+                    RoadNetwork.KnownAttributes known = route.additionalAttributes.attributesBetween(beginS.get(link), endS.get(link));
+                    if (known != null) {
+                        if (known.roadClass != null) l.roadClass = known.roadClass;
+                        if (known.direction != null) l.direction = known.direction;
+                    }
+                }
                 link++;
             }
         }

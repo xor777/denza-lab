@@ -11,6 +11,8 @@ public final class GraphRoadNetwork implements RoadNetwork {
     private final Map<Long, int[]> cells = new HashMap<>();
     private int[] starts, adjacency;
     private int conflictingGroups, conflictingVertices, skippedEdges;
+    private Map<String, Object> vectorSummary;
+    private final List<Map<String, Object>> vectorEvidence = new ArrayList<>();
 
     private static final class Group {
         String key, name;
@@ -32,6 +34,10 @@ public final class GraphRoadNetwork implements RoadNetwork {
     }
 
     public GraphRoadNetwork(List<GraphTile> tiles, YandexRoute route) {
+        this(tiles, route, Collections.<VectorRoadTile>emptyList());
+    }
+
+    public GraphRoadNetwork(List<GraphTile> tiles, YandexRoute route, List<VectorRoadTile> vectors) {
         if (route == null || route.lon.length < 2) throw new IllegalArgumentException("route geometry required");
         originLon = route.lon[0]; originLat = route.lat[0];
         my = R * Math.PI / 180; mx = my * Math.cos(Math.toRadians(originLat));
@@ -42,6 +48,7 @@ public final class GraphRoadNetwork implements RoadNetwork {
             minLat = Math.min(minLat, route.lat[i]); maxLat = Math.max(maxLat, route.lat[i]);
         }
         double padLon = 2000 / Math.abs(mx), padLat = 2000 / my;
+        VectorRoadEnrichment enrichment = new VectorRoadEnrichment(this, vectors);
         Map<String, Group> groups = new TreeMap<>();
         List<GraphTile> ordered = new ArrayList<>(tiles);
         ordered.sort(Comparator.comparing(GraphTile::sha256));
@@ -112,7 +119,10 @@ public final class GraphRoadNetwork implements RoadNetwork {
             int from=node(nodeIds,nodeKey(g,g.from,0,evidence),x[0],y[0]);
             int to=node(nodeIds,nodeKey(g,g.to,1,evidence),x[n-1],y[n-1]);
             int f=fragments.size();
-            fragments.add(Fragment.partial(f,from,to,g.legalForward,g.legalBackward,g.forward,g.backward,g.name==null?"":g.name,x,y,cum));
+            Fragment fragment = Fragment.partial(f,from,to,g.legalForward,g.legalBackward,g.forward,g.backward,g.name==null?"":g.name,x,y,cum);
+            VectorRoadEnrichment.Result attributes = enrichment.match(fragment, g.zFrom, g.zTo);
+            fragments.add(fragment.withKnownAttributes(attributes.attributes()));
+            vectorEvidence.add(attributes.evidence);
             for(long cell:touched) index.computeIfAbsent(cell,v->new TreeSet<>()).add(f);
         }
         for(Map.Entry<Long,TreeSet<Integer>> e:index.entrySet()) cells.put(e.getKey(),ints(e.getValue()));
@@ -122,6 +132,7 @@ public final class GraphRoadNetwork implements RoadNetwork {
         starts=new int[nodes.size()+1]; adjacency=new int[fragments.size()*2]; int at=0;
         for(int i=0;i<nodes.size();i++) { starts[i]=at; for(int e:ends.get(i)) adjacency[at++]=e; }
         starts[nodes.size()]=at;
+        vectorSummary = enrichment.summary();
     }
 
     private static boolean unequalKnown(Integer a,Integer b) { return a!=null && b!=null && !a.equals(b); }
@@ -161,9 +172,11 @@ public final class GraphRoadNetwork implements RoadNetwork {
         return ints(out);
     }
     public int fragmentCount() { return fragments.size(); }
+    public List<Map<String, Object>> vectorEvidence() { return Collections.unmodifiableList(vectorEvidence); }
     public Map<String,Object> summary() {
         Map<String,Object> m=Json.object(); m.put("source","yandex-native-online");m.put("fragments",fragments.size());
         m.put("vertices",nodes.size());m.put("conflictingGroups",conflictingGroups);m.put("conflictingVertices",conflictingVertices);
-        m.put("skippedEdges",skippedEdges);m.put("roadClassKnown",false);m.put("continuousLaneCountKnown",false); return m;
+        m.put("skippedEdges",skippedEdges);m.put("roadClassSource","matched_vector_functional_approximation");m.put("continuousLaneCountKnown",false);
+        m.put("vectorEnrichment",vectorSummary); return m;
     }
 }

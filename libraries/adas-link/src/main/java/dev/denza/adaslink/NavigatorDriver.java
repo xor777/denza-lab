@@ -38,6 +38,8 @@ public final class NavigatorDriver {
         public YandexRoute route;
         /** Bridge source generation, increased on route replacement/stop; -1 for legacy replay. */
         public long routeEpoch=-1;
+        /** Main-thread identity of the chosen online geometry checked by the offline coverage source. */
+        public String offlineGeometrySha256;
         /** Navigator's route status is ROUTE_FINISHED. */
         public boolean finished;
         /** The route position belongs to {@link #routeId}. */
@@ -63,6 +65,7 @@ public final class NavigatorDriver {
         public Observation copy() {
             Observation o = new Observation();
             o.monotonicMs = monotonicMs; o.mode = mode; o.routeId = routeId; o.route = route; o.routeEpoch = routeEpoch;
+            o.offlineGeometrySha256 = offlineGeometrySha256;
             o.finished = finished; o.positionOnRoute = positionOnRoute; o.scalar = scalar; o.timeToFinishS = timeToFinishS;
             o.trafficSpeedMps = trafficSpeedMps; o.speedLimitMps = speedLimitMps; o.locationClass = locationClass;
             o.lon = lon; o.lat = lat; o.speedMps = speedMps; o.heading = heading; o.stamp = stamp; o.fixAgeMs = fixAgeMs;
@@ -298,7 +301,17 @@ public final class NavigatorDriver {
         if (onCurrent && o.mode.equals("guidance")) fix.scalar = o.scalar;
         // Amap's LocMatchInfo: on the route, the graph road the route matched under the car, if any.
         RoadNetwork.Fragment road = onCurrent && lookup != null && lookup.roadMatch != null ? lookup.roadMatch.fragmentAt(o.scalar) : null;
-        if (road != null) { fix.roadClass = road.roadClass; fix.ownership = road.ownership; }
+        if (road != null) {
+            RoadNetwork.KnownAttributes known = road.knownAttributes;
+            if (known.roadClass != null) fix.roadClass = known.roadClass;
+            if (known.ownership != null) fix.ownership = known.ownership;
+        }
+        if (onCurrent && currentRoute.additionalAttributes != null && (road == null || !road.completeAttributes)) {
+            int index = current.linkIndex(current.metres(o.scalar));
+            RoadNetwork.KnownAttributes known = currentRoute.additionalAttributes.attributesBetween(
+                    current.linkBeginScalar[index], current.linkEndScalar[index]);
+            if (known != null && known.roadClass != null) fix.roadClass = known.roadClass;
+        }
         feed.onLocation(fix);
     }
 

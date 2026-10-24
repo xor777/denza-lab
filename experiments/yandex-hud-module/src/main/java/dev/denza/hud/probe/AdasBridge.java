@@ -20,6 +20,8 @@ import dev.denza.adaslink.Json;
 import dev.denza.adaslink.NavigatorDriver;
 import dev.denza.adaslink.GraphRoadNetwork;
 import dev.denza.adaslink.GraphTileCache;
+import dev.denza.adaslink.VectorRoadTile;
+import dev.denza.adaslink.VectorRoadTileCache;
 import dev.denza.adaslink.StockFeed;
 import dev.denza.adaslink.YandexRoute;
 import java.io.File;
@@ -29,6 +31,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Collections;
 
 /**
  * Host of the map-to-ADAS bridge inside Navigator (libraries/adas-link). On the main thread it
@@ -70,6 +73,11 @@ final class AdasBridge {
     private final StockFeed feed;
     private final NavigatorDriver driver;
     private final LiveMapBridge live;
+    private final YandexOfflineMapSource offlineMaps;
+    private final YandexOfflineCachePath offlinePath = new YandexOfflineCachePath();
+    private final YandexOfflineAttributes offlineAttributes = new YandexOfflineAttributes();
+    private String attributesAppliedKey;
+    private long offlineReportedAt;
     private final FixFreshness.Tracker fixes = new FixFreshness.Tracker();
     private boolean failed;
     private final RouteSnapshot.Refresh routeRefresh = new RouteSnapshot.Refresh();
@@ -77,6 +85,7 @@ final class AdasBridge {
     private YandexRoute graphRoute;
     private GraphRoadNetwork currentRoads;
     private long graphGeneration = -1, graphAppliedAt;
+    private long vectorGeneration = -1;
 
     private AdasBridge(Context context) throws IOException {
         this.context = context.getApplicationContext();
@@ -98,6 +107,7 @@ final class AdasBridge {
         HandlerThread sender = new HandlerThread("denza-adas-live", android.os.Process.THREAD_PRIORITY_DEFAULT);
         sender.start();
         live = new LiveMapBridge(this.context, new Handler(sender.getLooper()));
+        offlineMaps = new YandexOfflineMapSource(live);
         worker.post(() -> {
             Map<String, Object> f = Json.object();
             f.put("gatesAssumed", "dnpService, dnpSwitch, noSleep on: Navigator cannot read BYDAuto");
@@ -141,6 +151,7 @@ final class AdasBridge {
             // Route status only once a route exists and guidance is resumed (NavigatorSource's rule).
             String status = String.valueOf(api.call(api.call(api.call(guidance, "navigation"), "getGuidance"), "getRouteStatus"));
             o.routeId = (String) api.call(route, "getRouteId");
+            offlineMaps.routeIdentity(o.routeId, routeRefresh.route(o.routeId));
             o.finished = status.equals("ROUTE_FINISHED");
             o.mode = status.equals("NOT_ON_ROUTE") || status.equals("ROUTE_LOST") ? "rerouting" : "guidance";
             o.positionOnRoute = !o.mode.equals("rerouting");
@@ -151,7 +162,10 @@ final class AdasBridge {
                 try {
                     copy = new RouteSnapshot(api).read(route);
                     RouteSnapshot.captured(copy,capture,SystemClock.elapsedRealtime(),System.currentTimeMillis());
-                } catch(RuntimeException error) { Log.w(TAG,"conditions copy rejected",error); }
+                } catch(RuntimeException error) {
+                    offlineMaps.geometryUnavailable(o.routeId, routeRefresh.route(o.routeId));
+                    Log.w(TAG,"conditions copy rejected",error);
+                }
             }
             Object position = api.call(guidance, "getRoutePosition");
             if (position != null) o.scalar = ((Number) api.call(position, "getSegmentIndex")).doubleValue()
@@ -163,6 +177,15 @@ final class AdasBridge {
             o.simulated = !String.valueOf(api.call(guidance, "getSimulationStatus")).equals("IDLE");
         }
         o.routeEpoch=routeRefresh.route(o.routeId);
+        // Bind installed-map admission to the current route before either queue can consume it.
+        offlineMaps.sample(api, o.routeId, o.routeEpoch, copy, now);
+        o.offlineGeometrySha256 = offlineMaps.geometrySha256();
+        offlineAttributes.sample(o.routeId, o.routeEpoch, o.offlineGeometrySha256,
+                offlinePath.sample(api, now), offlineMaps.inventorySnapshot());
+        final Map<String,Object> offlineStatus;
+        if (now - offlineReportedAt >= 5000) {
+            offlineReportedAt = now; offlineStatus = offlineMaps.status();
+        } else { offlineStatus = null; }
         Object classified = api.call(guidance, "getLocation");
         Object location = classified == null ? null : api.call(classified, "getLocation");
         FixFreshness.Sample sampledFix = FixFreshness.capture(-1, -1, -1, -1, -1);
@@ -196,23 +219,31 @@ final class AdasBridge {
             try {
                 if (routeCopy != null) {
                     o.route = YandexRoute.fromSnapshot(routeCopy);
-                    if (graphRoute == null || !graphRoute.routeId.equals(o.route.routeId)) graphGeneration = -1;
+                    if (graphRoute == null || !graphRoute.routeId.equals(o.route.routeId)) {
+                        graphGeneration = -1; vectorGeneration = -1;
+                    }
                     graphRoute = o.route;
                 }
                 if (o.routeId == null || o.mode.equals("off")) {
-                    graphRoute = null; graphGeneration = -1; currentRoads=null; driver.setRoads(null);
+                    graphRoute = null; graphGeneration = -1; vectorGeneration = -1; currentRoads=null; driver.setRoads(null);
+                    attributesAppliedKey = null;
                 } else if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
                     GraphTileCache.Snapshot graph = YandexGraphSource.snapshot();
-                    if (graph != null && !graph.released && graph.generation != graphGeneration
+                    VectorRoadTileCache.Snapshot vectors = YandexVectorSource.snapshot();
+                    long observedVectorGeneration = vectors == null || vectors.released ? -1 : vectors.generation;
+                    if (graph != null && !graph.released && (graph.generation != graphGeneration || observedVectorGeneration != vectorGeneration)
                             && (graphGeneration < 0 || o.monotonicMs-graphAppliedAt>=10000)) {
-                        GraphRoadNetwork roads = new GraphRoadNetwork(graph.tiles,graphRoute);
+                        GraphRoadNetwork roads = new GraphRoadNetwork(graph.tiles, graphRoute,
+                                vectors == null || vectors.released ? Collections.<VectorRoadTile>emptyList() : vectors.tiles);
                         currentRoads=roads.fragmentCount()==0 ? null : roads;
                         driver.setRoads(currentRoads);
                         graphGeneration=graph.generation; graphAppliedAt=o.monotonicMs;
+                        vectorGeneration=observedVectorGeneration;
                         o.route=graphRoute;
                         graphSummary=roads.summary();
                         Map<String,Object> summary=graphSummary;
                         summary.put("routeId",graphRoute.routeId); summary.put("generation",graphGeneration);
+                        summary.put("vectorGeneration",vectorGeneration);
                         summary.put("appliedUptimeMs",o.monotonicMs);
 
                     }
@@ -222,11 +253,26 @@ final class AdasBridge {
             }
             try {
                 if(!routeRefresh.current(o.routeEpoch))return;
+                YandexOfflineAttributes.View attributes = offlineAttributes.prepare(graphRoute);
+                if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
+                    // Initial publication waits for the bounded acquisition attempt, never for
+                    // an invented full-coverage percentage. Partial results keep explicit gaps.
+                    if (!attributes.settled) o.route = null;
+                    else {
+                        graphRoute.additionalAttributes = attributes.attributes;
+                        String key = o.routeEpoch + "|" + o.offlineGeometrySha256;
+                        if (!key.equals(attributesAppliedKey)) { o.route = graphRoute; attributesAppliedKey = key; }
+                    }
+                } else o.route = null;
                 // Include queue/conversion delay and suspend since the original, immutable anchor.
                 o.monotonicMs = SystemClock.elapsedRealtime();
                 o.fixAgeMs = fix.ageMs(o.monotonicMs, System.currentTimeMillis());
                 driver.observe(o);
                 live.observe(o,fix,currentRoads);
+                if (offlineStatus != null)
+                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-offline-map-status.json"), offlineStatus);
+                if (offlineStatus != null)
+                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-yandex-route-vector-status.json"), attributes.status);
                 if(graphSummary!=null) {
                     graphSummary.put("conversion",driver.conversionSummary());
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(),"denza-yandex-graph-route.json"),graphSummary);

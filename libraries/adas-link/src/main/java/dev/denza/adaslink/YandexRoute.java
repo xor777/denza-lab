@@ -68,6 +68,8 @@ public final class YandexRoute {
     /** Passive copy provenance, never a claim about source-condition age. Legacy models are unknown. */
     public long captureGeneration=-1, captureRevision=-1, capturedElapsedMs=-1;
     public String snapshotKey;
+    /** Prepared before first publication; kept unchanged for this route's static link table. */
+    public RouteAttributes additionalAttributes;
     private Map<String,Object> conditionsProvenance=Collections.emptyMap();
     public Map<String,Object> conditionsProvenance() { return new LinkedHashMap<>(conditionsProvenance); }
 

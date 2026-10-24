@@ -21,6 +21,7 @@ final class YandexGraphSource {
     private static volatile YandexGraphSource instance;
     static synchronized void start(Context context) {
         if (instance == null) instance = new YandexGraphSource(context.getApplicationContext());
+        YandexVectorSource.start(context);
     }
     static GraphTileCache.Snapshot snapshot() {
         YandexGraphSource value = instance;

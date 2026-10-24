@@ -45,6 +45,14 @@ public final class AdasLinkTest {
         GraphTileTest.main(new String[]{root.getAbsolutePath()});
         GraphTileCacheTest.main(new String[]{root.getAbsolutePath()});
         GraphRoadNetworkTest.main(new String[0]);
+        KnownRoadAttributesTest.main(new String[0]);
+        AdditionalRouteAttributesTest.main(new String[0]);
+        RouteVectorAttributesTest.main(new String[0]);
+        OfflineVectorPackageTest.main(new String[]{root.getAbsolutePath()});
+        YandexRoadClassTest.main(new String[0]);
+        OfflineRegionalGraphTest.main(new String[]{root.getAbsolutePath()});
+        OfflineRouteAssociationTest.main(new String[]{root.getAbsolutePath()});
+        OfflineMapGateTest.main(new String[0]);
         LiveDriveRegressionTest.main(new String[0]);
     }
 }

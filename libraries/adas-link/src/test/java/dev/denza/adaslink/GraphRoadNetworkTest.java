@@ -121,8 +121,8 @@ public final class GraphRoadNetworkTest {
         List<StockPath.Link> all = links(graph);
         for (int i = 0; i < all.size(); i++) {
             StockPath.Link got = all.get(i), wanted = at(base, (graph.linkBeginScalar[i] + graph.linkEndScalar[i]) / 2);
-            check(got.roadClass == wanted.roadClass && got.formway == wanted.formway && got.linkType == wanted.linkType, "partial graph preserves highway and route type annotations");
-            check(got.laneNum == wanted.laneNum && got.direction == wanted.direction && got.ownership == wanted.ownership, "partial graph preserves lane-sign and direction source values");
+            check(got.roadClass == wanted.roadClass && got.formway == wanted.formway && got.linkType == wanted.linkType, "partial graph preserves route type and missing class/form values");
+            check(got.laneNum == 0 && got.direction == wanted.direction && got.ownership == wanted.ownership, "partial graph does not promote highway/sign hints into lanes or direction");
             check("Route name".equals(got.roadName), "native name does not overwrite source section name");
             check(Double.isNaN(graph.linkSpeedKmh[i]), "native legal speed never becomes historical link speed");
         }

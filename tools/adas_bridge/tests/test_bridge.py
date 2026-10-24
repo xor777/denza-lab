@@ -154,42 +154,38 @@ class GeometryTests(unittest.TestCase):
         for cut in (.25, 1.75, 2.5):
             self.assertIn(cut, ends)
         lanes = [l["laneNum"] for l in route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]]
-        self.assertEqual(set(lanes), {0})               # off a highway no lane count is stated
+        self.assertEqual(set(lanes), {0})               # point signs never establish continuous counts
 
-    def test_highway_links_take_the_factory_controlled_access_attributes(self):
-        """Factory profile: a highway link without a light is class 0 at >= 90 km/h else 6, formway 1,
-        direction 1, ownership 0; no limit keeps class NULL; a light keeps the link NULL."""
+    def test_highway_and_speed_do_not_establish_continuous_road_attributes(self):
+        """Highway annotation, posted limits and sign width are not a road-class crosswalk."""
         source = fixture()
         source["highways"] = [{"position": {"begin": pos(0), "end": pos(2, 1)}}]
-        links = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
-        self.assertEqual([l["roadclass"] for l in links], [6, -1, 6, 6, -1])
-        self.assertEqual([l["formway"] for l in links], [1, -1, 1, 1, 1])
-        self.assertEqual([l["direction"] for l in links], [1, 0, 1, 1, 1])
-        self.assertEqual([l["ownership"] for l in links], [0, -1, 0, 0, 0])
-        signed = copy.deepcopy(source)
-        signed["laneSigns"] = [{"position": pos(1), "lanes": [{}, {}, {}]}]
-        lanes = [l["laneNum"] for l in route_convert(signed, target_frame="wgs84")["candidateNaviToEHPData"]["links"]]
-        self.assertEqual(lanes, [0, 3, 0, 0, 0, 0])     # the sign cuts at edge 1 and gives its width
-        fast = copy.deepcopy(source)
-        fast["speedLimits"] = [25, 25, 25]
-        self.assertEqual(route_convert(fast, target_frame="wgs84")["candidateNaviToEHPData"]["links"][0]["roadclass"], 0)
+        source["laneSigns"] = [{"position": pos(1), "lanes": [{}, {}, {}]}]
+        for limits in ([10, 10, None], [25, 25, 25], [33.3, 33.3, 33.3], [None, None, None]):
+            with self.subTest(limits=limits):
+                changed = copy.deepcopy(source)
+                changed["speedLimits"] = limits
+                links = route_convert(changed, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
+                self.assertTrue(links)
+                self.assertEqual({(l["roadclass"], l["formway"], l["direction"], l["ownership"], l["laneNum"])
+                                  for l in links}, {(-1, -1, 0, -1, 0)})
 
-    def test_lane_sign_on_a_highway_ends_its_link_with_the_lane_count(self):
+    def test_highway_and_lane_sign_boundaries_remain_without_continuous_lane_count(self):
         source = fixture()
         source["highways"] = [{"position": {"begin": pos(1, .5), "end": pos(2, 1)}}]
         source["laneSigns"] = [{"position": pos(2, .5), "lanes": [{}, {}, {}]},
-                               {"position": pos(0, .25), "lanes": [{}, {}]}]   # off the highway: a cut, no count
+                               {"position": pos(0, .25), "lanes": [{}, {}]}]
         converted = route_convert(source, target_frame="wgs84")
         ends = [l["sourceEnd"] for l in converted["intermediate"]["links"]]
         self.assertIn(2.5, ends)
         self.assertIn(0.25, ends)
+        self.assertIn(1.5, ends)  # highway range boundary remains independently useful
         links = converted["candidateNaviToEHPData"]["links"]
-        self.assertEqual(links[ends.index(2.5)]["laneNum"], 3)
-        self.assertEqual(links[ends.index(2.5) + 1]["laneNum"], 0)
-        self.assertEqual(links[ends.index(0.25)]["laneNum"], 0)
+        self.assertEqual({l["laneNum"] for l in links}, {0})
 
     def test_roundabout_section_is_formway_4_one_way(self):
         source = fixture()
+        source["highways"] = [{"position": {"begin": pos(0), "end": pos(2, 1)}}]
         source["sections"][1]["metadata"]["annotation"]["action"] = "ENTER_ROUNDABOUT"
         links = route_convert(source, target_frame="wgs84")["candidateNaviToEHPData"]["links"]
         self.assertEqual([(l["formway"], l["direction"]) for l in links[2:]], [(4, 1)] * 3)

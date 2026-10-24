@@ -19,6 +19,12 @@ public final class LiveRuntimeTest {
     static final class Rig {
         final Context context;final LiveMapBridge bridge;final String reader,armId;
         String consumer;long seq;final Map<String,Object> arm;
+        boolean automaticOffline=true;
+        long routeEpoch;
+        OfflineMapGate.Subject offlineSubject;
+        static final String GEOMETRY="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        static final String INVENTORY="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        static final String ALT_GEOMETRY="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
         Rig()throws Exception {
             Handler.reset();context=new Context(new File(root,"session-"+(++serial)));
             reader=UUID.randomUUID().toString();armId=UUID.randomUUID().toString();arm=Json.object();
@@ -34,6 +40,8 @@ public final class LiveRuntimeTest {
             Handler.killAll();context=died.context;reader=died.reader;armId=died.armId;arm=died.arm;seq=died.seq;
             bridge=new LiveMapBridge(context,new Handler(Looper.getMainLooper()),BOOT,()->1_792_836_000_000L+SystemClock.now);
             consumer=died.consumer;
+            automaticOffline=died.automaticOffline;routeEpoch=died.routeEpoch;offlineSubject=died.offlineSubject;
+            if(offlineSubject!=null){bridge.sourceRoute(offlineSubject);offlineEvidence();}
         }
         void write(String name,Map<String,Object> value)throws Exception{Files.write(new File(context.files,name).toPath(),Json.write(value).getBytes(StandardCharsets.UTF_8));}
         @SuppressWarnings("unchecked") Map<String,Object> read(String name)throws Exception{return (Map<String,Object>)Json.parse(new String(Files.readAllBytes(new File(context.files,name).toPath()),StandardCharsets.UTF_8));}
@@ -41,6 +49,7 @@ public final class LiveRuntimeTest {
         String journal()throws Exception{return new String(Files.readAllBytes(new File(context.files,"denza-adas-live.jsonl").toPath()),StandardCharsets.UTF_8);}
         void evidence(boolean on)throws Exception{evidence(on,SystemClock.now);}
         void evidence(boolean on,long at)throws Exception {
+            if(automaticOffline)offlineEvidence();
             Map<String,Object> row=Json.object(),values=Json.object();
             row.put("schema",AdasGateSnapshot.SCHEMA);row.put("bootId",BOOT);row.put("consumerSession",consumer);row.put("readerSession",reader);row.put("sequence",++seq);
             row.put("startedAtElapsedMs",at);row.put("completedAtElapsedMs",at);
@@ -55,7 +64,10 @@ public final class LiveRuntimeTest {
             isolation.put("consumerSession",consumer);isolation.put("readerSession",reader);isolation.put("stockAbsent",true);
             isolation.put("startedAtElapsedMs",at);isolation.put("completedAtElapsedMs",at);write("denza-adas-stock-isolation.json",isolation);
         }
-        void arm(boolean on)throws Exception{evidence(on);write("denza-adas-live-arm.json",arm);Handler.advance(1000);}
+        void arm(boolean on)throws Exception{if(automaticOffline&&offlineSubject==null)subject(routeId);evidence(on);write("denza-adas-live-arm.json",arm);Handler.advance(1000);}
+        void subject(String id){if(offlineSubject!=null&&!Objects.equals(id,offlineSubject.routeId))routeEpoch++;
+            offlineSubject=new OfflineMapGate.Subject(id,routeEpoch,id==null?null:GEOMETRY);bridge.sourceRoute(offlineSubject);}
+        void offlineEvidence(){if(offlineSubject!=null)bridge.offlineMap(OfflineMapGate.Snapshot.available(offlineSubject,SystemClock.now,INVENTORY));}
         String routeId="actual-yandex-test";
         NavigatorDriver.Observation observation(boolean route){return observation(route,.2);}
         NavigatorDriver.Observation observation(boolean route,double scalar){
@@ -67,7 +79,8 @@ public final class LiveRuntimeTest {
             return o;
         }
         void observe(boolean route){observe(observation(route));}
-        void observe(NavigatorDriver.Observation o){long wall=1_792_836_000_000L+SystemClock.now;
+        void observe(NavigatorDriver.Observation o){if(automaticOffline){subject(o.routeId);offlineEvidence();}o.routeEpoch=routeEpoch;
+            o.offlineGeometrySha256=offlineSubject==null?null:offlineSubject.geometrySha256;long wall=1_792_836_000_000L+SystemClock.now;
             bridge.observe(o,FixFreshness.capture(SystemClock.now,wall,SystemClock.now,SystemClock.now,wall),null);}
         long route()throws Exception{observe(true);Handler.advance(0);long path=bridge.status().pathId;
             if(path<0){Handler.advance(1);observe(false);Handler.advance(0);path=bridge.status().pathId;}
@@ -117,7 +130,7 @@ public final class LiveRuntimeTest {
         LiveMapTransport replacementTx=LiveMapTransport.latest;
         check(firstPath>0&&firstPath<=Integer.MAX_VALUE,"compatible route ID stays positive signed32");
         NavigatorDriver.Observation off=new NavigatorDriver.Observation();off.mode="off";off.monotonicMs=SystemClock.now;
-        replacement.bridge.observe(off,null,null);Handler.advance(0);
+        replacement.observe(off);Handler.advance(0);
         check(!replacementTx.closed&&!AdasPassiveClient.latest.closed,"cancel guidance retains armed runtime and recorder");
         replacement.evidence(true);Handler.advance(1);replacement.routeId="actual-yandex-second";long secondPath=replacement.route();
         check(secondPath>firstPath&&replacementTx.count(Topics.PATH_SELECTED)==2,"replacement route is actually sent with a new persisted ID");
@@ -125,7 +138,7 @@ public final class LiveRuntimeTest {
         check(replacementTx.count(Topics.SD_VEHICLE_LOCATION)==0,"old route ACK cannot release replacement dynamics");
         replacement.ack(secondPath);Handler.advance(1000);replacement.evidence(true);replacement.observe(false);Handler.advance(0);
         check(replacementTx.count(Topics.SD_VEHICLE_LOCATION)==1,"new route ACK plus current FINE releases replacement dynamics");
-        replacement.bridge.observe(off,null,null);Handler.advance(0);replacement.evidence(true);Handler.advance(1);
+        replacement.observe(off);Handler.advance(0);replacement.evidence(true);Handler.advance(1);
         replacement.routeId="actual-yandex-third";long thirdPath=replacement.route();
         check(thirdPath>secondPath&&replacementTx.count(Topics.PATH_SELECTED)==3,"second cancel and restart works within same arm");
 
@@ -187,7 +200,78 @@ public final class LiveRuntimeTest {
         armExpiryEndsTheRoute();
         restartResumesTheArm();
         endedArmStaysEnded();
+        mandatoryOfflineInventory();
         System.out.println("LiveRuntimeTest: "+checks+" checks passed (fake Android/Binder boundary, production coordinator/protocol)");
+    }
+
+    static void mandatoryOfflineInventory()throws Exception {
+        OfflineMapGate.Snapshot productionReady=OfflineMapGate.Snapshot.available(
+                new OfflineMapGate.Subject("current",1,Rig.GEOMETRY),0,Rig.INVENTORY);
+        check(productionReady.state==OfflineMapGate.State.AVAILABLE&&productionReady.proofFingerprint==null
+                &&productionReady.code.equals("offline_inventory_ready"),"runtime ready fixture matches inventory-only production state");
+        Rig missing=new Rig();missing.automaticOffline=false;missing.subject(missing.routeId);missing.arm(true);
+        missing.observe(true);Handler.advance(1000);
+        check(LiveMapTransport.latest.topics.isEmpty()&&LiveMapTransport.latest.offered.isEmpty(),
+                "no offline inventory snapshot means zero offers and map fires even with a valid arm and hardware");
+
+        Rig changed=new Rig();changed.arm(true);LiveMapTransport changedTx=LiveMapTransport.latest;
+        changed.automaticOffline=false;changed.routeId="new-unobserved-route";changed.subject(changed.routeId);
+        changed.observe(true);Handler.advance(1000);
+        check(changedTx.topics.isEmpty(),"previous route inventory snapshot cannot publish a new route");
+
+        Rig loss=new Rig();loss.arm(true);long old=loss.streaming();LiveMapTransport tx=LiveMapTransport.latest;
+        loss.automaticOffline=false;int before=tx.topics.size();
+        loss.bridge.offlineMap(OfflineMapGate.Snapshot.unavailable(loss.offlineSubject,SystemClock.now,Rig.INVENTORY,"missing","Офлайн-карта удалена"));
+        loss.observe(false);Handler.advance(0);
+        for(int i=0;i<4;i++){loss.evidence(true);Handler.advance(1000);loss.observe(false);Handler.advance(0);}
+        check(tx.topics.size()>before,"offline loss withdraws a route already at ADAS");
+        for(int i=before;i<tx.topics.size();i++) {
+            check(tx.topics.get(i)==Topics.NAVIGATION_STATUS,"offline loss allows only the old route end sequence");
+            Map<?,?> body=(Map<?,?>)Pb.NAVIGATION_STATUS_NOTIFY.decode(tx.payloads.get(i)).get("navigationStatusLinkInfoNotifyStruct");
+            check(((Number)body.get("navigationStatus")).longValue()==100,"offline teardown never sends an active state");
+        }
+        check(!tx.closed&&loss.bridge.status().confirmedPathId<0,"offline loss retains arm but invalidates old ACK");
+        loss.offlineEvidence();long fresh=loss.route();
+        check(fresh>old,"restored inventory publishes a fresh persisted path");
+        long positions=tx.count(Topics.SD_VEHICLE_LOCATION);loss.ack(old);loss.observe(false);Handler.advance(0);
+        check(tx.count(Topics.SD_VEHICLE_LOCATION)==positions,"old ACK cannot release route after inventory restoration");
+        loss.ack(fresh);loss.evidence(true);Handler.advance(1000);loss.observe(false);Handler.advance(0);
+        check(tx.count(Topics.SD_VEHICLE_LOCATION)>positions,"fresh path requires its own actual ACK");
+
+        Rig finalBoundary=new Rig();finalBoundary.arm(true);LiveMapTransport boundaryTx=LiveMapTransport.latest;
+        finalBoundary.observe(true);
+        boundaryTx.beforeAdmission=()->finalBoundary.bridge.offlineMap(OfflineMapGate.Snapshot.unavailable(
+                finalBoundary.offlineSubject,SystemClock.now,Rig.INVENTORY,"removed","Офлайн-карта удалена"));
+        Handler.advance(0);
+        check(boundaryTx.topics.isEmpty(),"inventory availability revoked at final transport boundary blocks the first route byte");
+        check(!boundaryTx.closed,"final offline revocation does not masquerade as transport failure");
+
+        Rig stale=new Rig();stale.arm(true);stale.streaming();stale.automaticOffline=false;
+        LiveMapTransport staleTx=LiveMapTransport.latest;long expires=SystemClock.now+OfflineMapGate.MAX_AGE_MS;
+        for(int i=0;i<6;i++){stale.evidence(true);Handler.advance(1000);}
+        boolean sawEnd=false;
+        for(int i=0;i<staleTx.topics.size();i++)if(staleTx.times.get(i)>=expires){
+            check(staleTx.topics.get(i)==Topics.NAVIGATION_STATUS,"timer egress cannot outlive offline inventory TTL");sawEnd=true;
+        }
+        check(sawEnd&&stale.bridge.status().confirmedPathId<0,"TTL loss without a new observation withdraws and invalidates ACK");
+
+        Rig geometry=new Rig();geometry.arm(true);geometry.automaticOffline=false;LiveMapTransport geometryTx=LiveMapTransport.latest;
+        geometry.observe(true); // Queued copy carries the original geometry hash.
+        geometry.offlineSubject=new OfflineMapGate.Subject(geometry.routeId,geometry.routeEpoch,Rig.ALT_GEOMETRY);
+        geometry.bridge.sourceRoute(geometry.offlineSubject);geometry.offlineEvidence();Handler.advance(0);
+        check(geometryTx.topics.isEmpty(),"same ID/epoch queued geometry cannot borrow a newer scoped inventory snapshot");
+
+        Rig arrival=new Rig();arrival.arm(true);arrival.streaming();
+        NavigatorDriver.Observation arrived=arrival.observation(false);arrived.finished=true;arrival.observe(arrived);Handler.advance(0);
+        arrival.automaticOffline=false;LiveMapTransport arrivalTx=LiveMapTransport.latest;int afterArrival=arrivalTx.topics.size();
+        arrival.bridge.offlineMap(OfflineMapGate.Snapshot.unavailable(arrival.offlineSubject,SystemClock.now,Rig.INVENTORY,"missing","Офлайн-карта удалена"));
+        for(int i=0;i<4;i++){arrival.evidence(true);Handler.advance(1000);}
+        check(arrivalTx.topics.size()>afterArrival,"offline loss while already ending still withdraws the route");
+        for(int i=afterArrival;i<arrivalTx.topics.size();i++) {
+            check(arrivalTx.topics.get(i)==Topics.NAVIGATION_STATUS,"ending after offline loss permits only status packets");
+            Map<?,?> body=(Map<?,?>)Pb.NAVIGATION_STATUS_NOTIFY.decode(arrivalTx.payloads.get(i)).get("navigationStatusLinkInfoNotifyStruct");
+            check(((Number)body.get("navigationStatus")).longValue()==100,"offline loss replaces remaining arrival110 with idle100");
+        }
     }
 
     /** D (13:36:37–42): a reroute on a starved worker queued >32 callbacks; overflow ended the session. */

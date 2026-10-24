@@ -616,11 +616,10 @@ def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative, ro
     ownership, name); per link also its ERAT 0x4269 speed (NaN elsewhere) and its legal limit in
     the direction travelled (0 none), returned.
     Any other link keeps what the factory Beijing profile lets Yandex data state: link MainAction
-    stays 0 (factory segment-end links carry 0); a roundabout section is formway 4, direction 1; a
-    highway link without a light is RoadClass 0 at a limit >= 90 km/h else 6, formway 1, direction 1,
-    ownership 0, lane count from a lane sign ending it. Everything else stays NULL.
+    stays 0 (factory segment-end links carry 0); a roundabout section is formway 4, direction 1.
+    Highway ranges only supply cuts: speed and junction sign width do not establish continuous
+    class/form/ownership/direction/lanes. Other fields retain their existing wire defaults.
     """
-    edges = len(route["lon"]) - 1
     index = 0
     speeds, legal = [], []
     for si, segment in enumerate(segments):
@@ -638,15 +637,6 @@ def _attributes(route, sections, segments, begin_s, end_s, end_m, cumulative, ro
                 continue
             if roundabout:
                 link["formway"], link["direction"] = 4, 1
-            if _inside(route.get("highways"), middle) and not link["hasTrafficLight"]:
-                limits = route["speedLimits"]
-                limit = None if limits is None else limits[min(int(math.floor(middle)), edges - 1)]
-                if limit is not None:
-                    link["roadClass"] = 0 if limit * 3.6 >= 90 - 1e-6 else 6
-                link["formway"], link["direction"], link["ownership"] = 1, 1, 0
-                for position, lanes in route.get("laneSigns") or ():
-                    if abs(metres(cumulative, position) - end_m[index]) <= MIN_LINK_M:
-                        link["laneNum"] = int(lanes)
             index += 1
     return speeds, legal
 

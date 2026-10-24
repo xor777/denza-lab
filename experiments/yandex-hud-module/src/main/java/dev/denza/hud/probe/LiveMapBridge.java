@@ -18,6 +18,7 @@ import dev.denza.adaslink.Json;
 import dev.denza.adaslink.LiveEgressGuard;
 import dev.denza.adaslink.LiveSessionLease;
 import dev.denza.adaslink.NavigatorDriver;
+import dev.denza.adaslink.OfflineMapGate;
 import dev.denza.adaslink.Pb;
 import dev.denza.adaslink.RoadNetwork;
 import dev.denza.adaslink.StockFeed;
@@ -98,6 +99,44 @@ final class LiveMapBridge {
     private RoadNetwork frozenRoads;
     /** {route ID, graph} of the table the sender's driver published: the worker converts on the same graph. */
     private volatile Object[] publishedTable = {null, null};
+    private volatile OfflineMapGate.Subject sourceSubject;
+    private volatile OfflineMapGate.Snapshot offlineSnapshot;
+    private long sourceEpoch = -1;
+    private OfflineMapGate.Subject publishedSubject;
+    private boolean offlineTeardown, offlineHold;
+
+    /** Main-thread seam: publish identity before any queued route work, including a partial geometry read. */
+    synchronized void sourceRoute(OfflineMapGate.Subject subject) {
+        if (subject != null && subject.epoch < sourceEpoch) return;
+        if (subject != null) sourceEpoch = subject.epoch;
+        sourceSubject = subject;
+    }
+    /** A proof never changes the current route subject; late callbacks cannot resurrect a previous route. */
+    void offlineMap(OfflineMapGate.Snapshot snapshot) { offlineSnapshot = snapshot; }
+
+    private OfflineMapGate.Decision offline(long now) { return OfflineMapGate.check(sourceSubject, offlineSnapshot, now); }
+    private boolean sourceCurrent(NavigatorDriver.Observation o) {
+        OfflineMapGate.Subject subject = sourceSubject;
+        return subject != null && subject.epoch == o.routeEpoch && java.util.Objects.equals(subject.routeId, o.routeId)
+                && java.util.Objects.equals(subject.geometrySha256, o.offlineGeometrySha256);
+    }
+    private void reconcileOffline(long now) {
+        if (!everStarted || feed == null || guard == null || driver == null || guard.isClosed() || offlineTeardown) return;
+        if (driver.publishedRouteId() == null && guard.currentPathId() <= 0 && !guard.endPending()) return;
+        OfflineMapGate.Subject subject = sourceSubject;
+        if (offline(now).ready && java.util.Objects.equals(publishedSubject, subject)
+                && subject != null && (driver.publishedRouteId() == null
+                    || java.util.Objects.equals(subject.routeId, driver.publishedRouteId()))) return;
+        offlineTeardown = true;
+        offlineHold = subject == null || subject.routeId != null;
+        note("offlineWithdrawal", offline(now).reason);
+        feed.endGuidance();
+        guard.withdrawRoute("offline: " + offline(now).reason);
+        driver = new NavigatorDriver(feed, FieldDefaults.FRAME, scheduler);
+        driver.setRoads(roads);
+        publishedSubject = null; publishedTable = new Object[]{null, null};
+        if (!guard.endPending()) { offlineTeardown = false; offlineHold = false; }
+    }
 
     /** The last read of every readiness input, with when it was read. */
     private static final class Inputs {
@@ -122,7 +161,7 @@ final class LiveMapBridge {
     };
     private final Runnable refresher = new Runnable() {
         @Override public void run() {
-            try { if (arm != null && !finished) refresh(SystemClock.elapsedRealtime()); }
+            try { if (arm != null && !finished) { long now = SystemClock.elapsedRealtime(); refresh(now); reconcileOffline(now); } }
             catch (RuntimeException failed) { fault("readiness refresh: " + failed); }
             finally { worker.postDelayed(this, REFRESH_MS); }
         }
@@ -198,6 +237,7 @@ final class LiveMapBridge {
             } else if (!arm.same(incoming) && !finished) stop("Параметры сеанса изменились", "arm content changed", false);
             if (!finished && !ending) {
                 refresh(now);
+                if (!everStarted && resumedHeld > 0) offlineTeardown = true;
                 LiveEgressGuard.Readiness ready = readiness(now);
                 prerequisite(ready.failure(now));
                 if (fault != null) stop(everStarted ? "Связь с сервисами потеряна" : "Сервисы не подключились", fault, false);
@@ -208,6 +248,7 @@ final class LiveMapBridge {
                 else if (everStarted && arm.expiresAt - now <= END_LEAD_MS) stop("Разрешение сеанса истекает", "arm expires at " + arm.expiresAt, true);
                 else if (!everStarted && open(ready)) startFeed(ready);
                 else if (everStarted) gatesChanged();
+                if (!everStarted && !offline(now).ready) reason = offline(now).reason;
             }
         }
         if (lineageDirty) writeLineage();
@@ -236,6 +277,7 @@ final class LiveMapBridge {
         final CallbackQueue queue = new CallbackQueue(worker::post); callbacks = queue;
         gates = new AdasGateSnapshot.Tracker(boot, consumer, LiveSessionLease.INPUT_TTL_MS);
         finished = false; ending = false; fault = null; everStarted = false; activeEpoch = -1; inputs = null;
+        offlineTeardown = false; offlineHold = false; publishedSubject = null; publishedTable = new Object[]{null, null};
         stopReason = null; stopDetail = null; blockedDetail = null; lastPrerequisite = null;
         state = "WAITING"; reason = resumed ? "Возобновление после перезапуска" : "Ожидание сигналов машины и ADAS";
         transport = new LiveMapTransport(context, worker, value -> {
@@ -327,6 +369,15 @@ final class LiveMapBridge {
         return r;
     }
     private LiveEgressGuard.Readiness evaluate(long now) {
+        reconcileOffline(now);
+        LiveEgressGuard.Readiness hardware = hardwareReadiness(now);
+        if (hardware.failure(now) != null) return hardware;
+        if (offlineTeardown && (resumedHeld > 0 || guard != null && guard.endPending())) return hardware;
+        OfflineMapGate.Decision decision = offline(now);
+        return decision.ready ? hardware : LiveEgressGuard.Readiness.missing("offline: " + decision.reason, false);
+    }
+    /** Original arm/isolation/hardware/transport gates also apply to the teardown-only exception. */
+    private LiveEgressGuard.Readiness hardwareReadiness(long now) {
         Inputs in = inputs;
         if (finished || arm == null) return LiveEgressGuard.Readiness.missing("session finished", true);
         if (fault != null) return LiveEgressGuard.Readiness.missing(fault, true);
@@ -355,14 +406,23 @@ final class LiveMapBridge {
     }
     /** No Binder/disk I/O here: final check immediately before the actual map-event transaction. */
     private boolean finalAdmission(long topic) {
-        LiveEgressGuard.Readiness r = lastReadiness; long now = SystemClock.elapsedRealtime();
+        long now = SystemClock.elapsedRealtime();
+        reconcileOffline(now);
+        LiveEgressGuard.Readiness r = hardwareReadiness(now);
         if (finished || fault != null || !open(r) || r.observedAtMs > now || r.expiresAtMs <= now || r.epoch != epoch()) return false;
+        if (offlineTeardown) {
+            if (topic != Topics.NAVIGATION_STATUS || guard == null || !guard.endPending()) return false;
+        } else if (!offline(now).ready || !java.util.Objects.equals(publishedSubject, sourceSubject)) return false;
         return guard != null && guard.finalLeaseValid(topic);
     }
     private static boolean open(LiveEgressGuard.Readiness r) {
         return r != null && r.failure(SystemClock.elapsedRealtime()) == null;
     }
     private void startFeed(LiveEgressGuard.Readiness ready) {
+        // The stock reads the ODD region list before its first route. This is a list query,
+        // never the 13/0x0001 DNP/ICC switch. Its raw reply is retained by the answer client.
+        int oddResult = answers.requestOddRegionCodes();
+        note("odd_region_query", "result=" + oddResult);
         guard = new LiveEgressGuard(transport, audit, scheduler, this::readiness, id -> {
             // Only the original callback bytes that passed RealPathAck reach the producer.
             if (feed != null && handlingAck != null) feed.onPathSelectConfirm(handlingAck);
@@ -371,7 +431,7 @@ final class LiveMapBridge {
             try { writeLineage(); } catch (IOException unwritable) { lineageDirty = true; }
         }, true);
         guard.setWallClock(wallClock::getAsLong);
-        guard.setEndListener(() -> { heldPath = -1; lineageDirty = true; });
+        guard.setEndListener(() -> { heldPath = -1; lineageDirty = true; offlineTeardown = false; offlineHold = false; });
         StockFeed.Config config = FieldDefaults.navigator(new StockFeed.Config());
         config.acceptSimulatedLocations = false; config.emulatedAckDelayMs = -1; config.livePathIds = this::nextPathId;
         feed = new StockFeed(scheduler, guard, config); driver = new NavigatorDriver(feed, config.frame, scheduler);
@@ -379,7 +439,7 @@ final class LiveMapBridge {
         feed.start(ready.dnpService, ready.dnpSwitch, ready.noSleep);
         if (!transport.servicesOffered()) { stop("Сервисы отправки не запущены", "own service offers incomplete", false); return; }
         // A route an earlier process of this arm may have left at ADAS: the stock's end before anything new.
-        if (resumedHeld > 0) guard.requestEnd("route " + resumedHeld + " left by an earlier process of this arm");
+        if (resumedHeld > 0) { guard.requestEnd("route " + resumedHeld + " left by an earlier process of this arm"); resumedHeld = -1; }
         everStarted = true; state = "LIVE"; reason = "Ожидание маршрута Яндекса";
     }
     /** The stock resends its path 300 ms after the DNP switch comes back on. */
@@ -436,12 +496,18 @@ final class LiveMapBridge {
         if (next != null) observeNow(next.o, next.fix, next.roads);
     }
     private void observeNow(NavigatorDriver.Observation o, FixFreshness.Sample fix, RoadNetwork currentRoads) {
+        if (!sourceCurrent(o)) return;
         if (o.route != null) { lastRoute = o.route; lastPrepared = o.prepared; }
         if (o.routeId == null || o.mode.equals("off")) { lastRoute = null; lastPrepared = null; }
         roads = currentRoads;
         if (!everStarted || finished || ending || driver == null || guard == null) return;
         try {
             long now = SystemClock.elapsedRealtime();
+            boolean verifiedReplacement = !offlineHold && o.route != null && offline(now).ready
+                    && !java.util.Objects.equals(driver.publishedRouteId(), o.routeId);
+            if (verifiedReplacement) { offlineTeardown = false; publishedSubject = sourceSubject; }
+            else reconcileOffline(now);
+            if (offlineTeardown || !offline(now).ready) { published = liveSnapshot(); return; }
             // An observation that can publish a route reads the inputs now; dynamics use the timer's read.
             boolean mayPublish = o.route != null || !driver.naving() && lastRoute != null && lastRoute.routeId.equals(o.routeId);
             if (mayPublish) refresh(now);
@@ -454,6 +520,8 @@ final class LiveMapBridge {
             // Include hand-off and conversion delay since the original, immutable anchor.
             o.monotonicMs = SystemClock.elapsedRealtime();
             if (fix != null) o.fixAgeMs = fix.ageMs(o.monotonicMs, wallClock.getAsLong());
+            if (!sourceCurrent(o)) return;
+            publishedSubject = sourceSubject;
             driver.observe(o);
             publishedTable = new Object[]{driver.publishedRouteId(), driver.publishedRoads()};
             guard.fineFix(guard.currentPathId(), fix, o.simulated ? "SIMULATED" : o.locationClass);
@@ -466,11 +534,17 @@ final class LiveMapBridge {
         BridgeStatus.Snapshot s = feed.status();
         String shown = state, label = reason;
         if ("LIVE".equals(state) && guard != null && guard.suspension() != null) { shown = "PAUSED"; label = pauseLabel(guard.suspension()); }
+        if ("LIVE".equals(state)) {
+            OfflineMapGate.Decision decision = offline(SystemClock.elapsedRealtime());
+            if (!decision.ready && (sourceSubject == null || sourceSubject.routeId != null)) { shown = "PAUSED"; label = decision.reason; }
+            else if (offlineTeardown && offlineHold) { shown = "PAUSED"; label = "Завершение прежнего маршрута для ADAS"; }
+        }
         return new AdasFeed.Snapshot(AdasFeed.Mode.LIVE, transport.lastActualSend(), s.currentPathId, s.routeActive,
                 guard == null ? -1 : guard.confirmedPathId(), shown, label);
     }
     /** The overlay's words for a gap: what the driver can see, not the code's. */
     static String pauseLabel(String suspension) {
+        if (suspension.startsWith("offline: ")) return suspension.substring(9);
         if (suspension.contains("dnpSwitch") || suspension.contains("dnpService")) return "NOA выключен";
         if (suspension.contains("noSleep")) return "ADAS в режиме сна";
         if (suspension.contains("isolation")) return "Проверка штатной карты";
@@ -551,6 +625,9 @@ final class LiveMapBridge {
         value.put("prerequisite", lastPrerequisite); value.put("prerequisiteChanges", prerequisiteChanges);
         value.put("lastRejection", guard == null ? null : guard.lastRejection());
         value.put("callbacks", callbacks == null ? null : callbacks.stats());
+        OfflineMapGate.Decision offline = offline(SystemClock.elapsedRealtime());
+        value.put("offlineReady", offline.ready); value.put("offlineCode", offline.code);
+        value.put("offlineReason", offline.reason); value.put("offlineTeardown", offlineTeardown);
         synchronized (handoff) { value.put("observationsCoalesced", coalesced); }
         AdasGateSnapshot.Snapshot g = inputs == null ? null : inputs.gates;
         if (g != null) { value.put("gateReason", g.reason); value.put("gateSequence", g.sequence);

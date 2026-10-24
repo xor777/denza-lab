@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,7 +22,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * The ADAS overlay's listener: a client session of the stock SOME/IP client service, ported from
  * experiments/adas-status-probe (PassiveClient) unchanged in its rules. Client-only transaction
  * allowlist 1/2/4/5/8/9 (register, unregister, startClient, stopClient, subscribe, unsubscribe);
- * no server, request, setAttribute or fire API exists here. Its own session (package + random
+ * no server, setAttribute or fire API exists here. Bridge mode alone also permits the fixed
+ * read-only ODD region-list request (13/0x0002); passive mode permits no requests. Its own session (package + random
  * UUID as the intent type), so it never merges into the stock map's or the HUD's session; on close
  * it removes only its own subscriptions and clients.
  *
@@ -89,6 +91,54 @@ final class AdasPassiveClient implements AutoCloseable {
                     && requiredSubscribed && pilotAvailable && pathAvailable && (!halKnown || halAvailable);
         } catch (Exception failed) { return false; }
         finally { reply.recycle(); data.recycle(); }
+    }
+
+    /** The stock's list read, not a driving-control command. Both SomeIpData arguments are inout.
+     * SomeIpClientManagerImpl.request unconditionally fills the second object, so null crashes it.
+     * SomeIpData also writes BOTH its explicit payload length and writeByteArray's own length. */
+    int requestOddRegionCodes() {
+        if (!bridgeMode || !liveAnswersReady()) return -1;
+        IBinder binder = remote;
+        if (binder == null) return -1;
+        Parcel data = Parcel.obtain(), reply = Parcel.obtain();
+        try {
+            data.writeInterfaceToken(CLIENT);
+            writeSomeIpData(data, 563005788848130L, System.currentTimeMillis(), new byte[0]);
+            writeSomeIpData(data, 0, 0, null); // new SomeIpData(), present response object
+            if (!binder.transact(10, data, reply, 0)) return -201;
+            reply.readException();
+            int result = reply.readInt();
+            readSomeIpData(reply); // mutated/echoed request, then the response
+            SomeIpReply response = readSomeIpData(reply);
+            if (result == 0 && (response == null || response.payload == null))
+                throw new IllegalArgumentException("Successful ODD response missing");
+            sink.state("odd_region_response", "result=" + result + " topic="
+                    + (response == null ? "absent" : Long.toHexString(response.topic)) + " payloadBase64="
+                    + (response == null || response.payload == null ? "null" : Base64.getEncoder().encodeToString(response.payload)));
+            return result;
+        } catch (Exception failure) {
+            sink.state("odd_region_error", failure.getClass().getSimpleName());
+            return -200;
+        } finally { reply.recycle(); data.recycle(); }
+    }
+
+    private static void writeSomeIpData(Parcel data, long topic, long stamp, byte[] payload) {
+        data.writeInt(1); data.writeLong(topic); data.writeLong(stamp);
+        data.writeInt(payload == null ? -1 : payload.length);
+        if (payload != null) data.writeByteArray(payload);
+    }
+    private static final class SomeIpReply {
+        final long topic; final byte[] payload;
+        SomeIpReply(long topic, byte[] payload) { this.topic = topic; this.payload = payload; }
+    }
+    private static SomeIpReply readSomeIpData(Parcel data) {
+        if (data.readInt() == 0) return null;
+        long topic = data.readLong(); data.readLong();
+        int size = data.readInt();
+        if (size < -1 || size > 65536) throw new IllegalArgumentException("SomeIpData payload bound");
+        byte[] payload = size < 0 ? null : new byte[size];
+        if (payload != null) data.readByteArray(payload);
+        return new SomeIpReply(topic, payload);
     }
 
     private void invalidateReadiness() {
