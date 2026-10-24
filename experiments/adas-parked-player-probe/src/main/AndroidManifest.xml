@@ -12,6 +12,11 @@
     <application
         android:allowBackup="false"
         android:label="Parked ADAS player probe">
+        <activity
+            android:name=".OddQueryActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <!-- One explicit run: the host pushes scenario.json + preconditions.json into the private
              files dir and starts this with the boolean extra "parkedOnce". Exported so the host can
              launch it with am start; config changes do not recreate it. -->

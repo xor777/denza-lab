@@ -191,6 +191,7 @@ def _base_scenario(path, route_type):
         "derivedFrom": None,
         "changedVariable": None,
         "durationS": 120,
+        "listenOnly": False,
         "route": {"pathIdToken": PATH_ID_TOKEN, "routeType": route_type, "frame": GCJ, "path": path},
         "selection": {"pathIdToken": PATH_ID_TOKEN},
         "oddRequest": True,
@@ -324,7 +325,16 @@ def build_scenarios():
         delta(scn)
         by_id[ident] = scn
         scenarios.append(scn)
+    scenarios.append(listen_scenario())
     return scenarios
+
+
+def listen_scenario(duration_s=120):
+    if type(duration_s) is not int or not 1 <= duration_s <= 300:
+        raise ValueError("LISTEN durationS 1..300")
+    return {"schema": SCHEMA, "id": "LISTEN", "label": "record actual ADAS answers only",
+            "derivedFrom": None, "changedVariable": None, "durationS": duration_s,
+            "listenOnly": True, "oddRequest": False, "naviSt": None}
 
 
 # ---- payload emission and content signature ----
@@ -394,14 +404,16 @@ def write_scenarios(out_dir):
     written = []
     for scn in build_scenarios():
         emitted = copy.deepcopy(scn)
-        emitted["route"]["payloadJson"] = route_payload_json(scn)
-        del emitted["route"]["path"]           # the player sends payloadJson, not the structure
+        if not scn.get("listenOnly"):
+            emitted["route"]["payloadJson"] = route_payload_json(scn)
+            del emitted["route"]["path"]           # the player sends payloadJson, not the structure
         path = out / f"scenario-{scn['id']}.json"
         path.write_text(json.dumps(emitted, ensure_ascii=False, indent=2) + "\n")
-        links = sum(len(s["links"]) for s in scn["route"]["path"]["segments"])
+        links = 0 if scn.get("listenOnly") else sum(len(s["links"]) for s in scn["route"]["path"]["segments"])
         written.append({"id": scn["id"], "file": str(path), "changedVariable": scn["changedVariable"],
-                        "frame": scn["route"]["frame"], "links": links,
-                        "routeBytes": len(emitted["route"]["payloadJson"].encode("utf-8"))})
+                        "listenOnly": scn.get("listenOnly", False),
+                        "frame": scn.get("route", {}).get("frame"), "links": links,
+                        "routeBytes": len(emitted.get("route", {}).get("payloadJson", "").encode("utf-8"))})
     return written
 
 
@@ -409,6 +421,8 @@ def write_scenarios(out_dir):
 
 def rehearse(scn):
     """The ordered (t_ms, message) timeline the player would produce, as a list of dict rows."""
+    if scn.get("listenOnly"):
+        return []
     rows = []
     t = 0
 
@@ -491,7 +505,7 @@ def main(argv=None):
             parser.exit(2, f"unknown scenario {args.id}\n")
         scn = scenarios[args.id]
         rows = rehearse(scn)
-        print(f"# {scn['id']}: {scn['label']}  (frame={scn['route']['frame']}, duration={scn['durationS']}s, "
+        print(f"# {scn['id']}: {scn['label']}  (listenOnly={scn.get('listenOnly', False)}, frame={scn.get('route', {}).get('frame')}, duration={scn['durationS']}s, "
               f"oddRequest={scn['oddRequest']}, naviSt={scn['naviSt']})")
         head = rows[:args.max_rows]
         for row in head:

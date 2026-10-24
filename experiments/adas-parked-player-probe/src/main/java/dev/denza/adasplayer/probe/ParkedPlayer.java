@@ -29,15 +29,15 @@ public final class ParkedPlayer {
     public static void startInApplication(Context context, File directory) {
         String scenarioJson = readText(new File(directory, SCENARIO_FILE), 4 * 1024 * 1024);
         String preconditionsJson = readTextOrNull(new File(directory, PRECONDITIONS_FILE), 65536);
-        Preconditions.Decision decision = Preconditions.evaluate(preconditionsJson);
         ScenarioPlan plan = ScenarioPlan.parse(scenarioJson);
+        Preconditions.Decision decision = Preconditions.evaluate(preconditionsJson, plan.listenOnly);
         Recorder recorder = new FileRecorder(System.out, plan.id);
         if (!decision.safe) {
             recorder.note("refused", String.join("; ", decision.reasons));
             Log.e(TAG, "refused: " + decision.reasons);
             return;
         }
-        recorder.note("preconditions_ok", "stock absent/disabled, no live arm");
+        recorder.note("preconditions_ok", plan.listenOnly ? "LISTEN: no live arm; stock may run" : "stock absent/disabled, no live arm");
         play(context.getApplicationContext(), plan, recorder);
     }
 
@@ -48,9 +48,13 @@ public final class ParkedPlayer {
         AdasAnswerListener listener = new AdasAnswerListener(context, recorder);
         listener.start();
         String session = "dev.denza.adasplayer.probe.server-" + UUID.randomUUID();
-        AndroidTransport transport = new AndroidTransport(context, listener, session);
+        AndroidTransport transport = plan.listenOnly ? null : new AndroidTransport(context, listener, session);
         final Thread worker = new Thread(() -> {
             try {
+                if (plan.listenOnly) {
+                    engine.run(plan, null, new AndroidClock(), recorder, 0);
+                    return;
+                }
                 if (!transport.bind(5000)) { recorder.note("bind_failed", session); return; }
                 try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }
                 long pathId = freshPathId();
@@ -73,7 +77,7 @@ public final class ParkedPlayer {
             try { worker.join(GRACE_MS); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
         }
         try { listener.close(); } catch (RuntimeException ignored) { }
-        try { transport.close(); } catch (RuntimeException ignored) { }
+        if (transport != null) try { transport.close(); } catch (RuntimeException ignored) { }
         recorder.note("finished", "session released");
         if (worker.isAlive()) {
             recorder.note("hard_kill", "worker still alive after grace; killing process");

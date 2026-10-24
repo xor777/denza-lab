@@ -204,6 +204,25 @@ public final class ParkedPlayerTest {
         Preconditions.Decision ok = Preconditions.evaluate(state(false, 3, false));
         check(ok.safe && ok.reasons.isEmpty(), "absent+disabled stock and no arm is safe");
         check(!Preconditions.evaluate("not json {").safe, "malformed file refuses");
+        check(Preconditions.evaluate(state(true,0,false),true).safe,"LISTEN permits the active stock map");
+        check(!Preconditions.evaluate(state(true,0,true),true).safe,"LISTEN still rejects a live arm");
+        check(!Preconditions.evaluate(state(true,0,null),true).safe,"LISTEN cannot guess missing arm state");
+    }
+
+    private static void listenNeverPublishes() {
+        ScenarioPlan plan=ScenarioPlan.parse("{\"id\":\"LISTEN\",\"durationS\":2,\"listenOnly\":true,\"oddRequest\":false}");
+        FakeTransport t=new FakeTransport();FakeRecorder r=new FakeRecorder();VirtualClock c=new VirtualClock();
+        long start=c.nowMs();new PlayerEngine().run(plan,t,c,r,0);
+        check(c.nowMs()-start==2000,"LISTEN owns exactly its duration");
+        check(t.started.isEmpty()&&t.stopped.isEmpty()&&t.fires.isEmpty()&&t.oddCalls==0,"LISTEN makes zero transport calls including cleanup");
+        check(r.fires.isEmpty()&&r.services.isEmpty(),"LISTEN logs no publisher actions");
+        check(r.noted("listen_started")&&r.noted("listen_finished"),"LISTEN boundaries recorded");
+        new PlayerEngine().run(plan,null,new VirtualClock(),new FakeRecorder(),0);
+        check(plan.services().length==0&&plan.endSequence().length==0&&plan.loopTicks(0,0,1000).isEmpty(),"LISTEN has no latent feed");
+        boolean rejected=false;
+        try{ScenarioPlan.parse("{\"id\":\"LISTEN\",\"durationS\":2,\"listenOnly\":true,\"oddRequest\":true}");}
+        catch(IllegalArgumentException expected){rejected=true;}
+        check(rejected,"LISTEN cannot smuggle an ODD query");
     }
 
     private static void generatedScenarios() throws IOException {
@@ -215,10 +234,14 @@ public final class ParkedPlayerTest {
             FakeTransport t = new FakeTransport();
             FakeRecorder r = new FakeRecorder();
             new PlayerEngine().run(plan, t, new VirtualClock(), r, 1_700_123L);
-            check(!t.withTopic(Topics.ROUTE).isEmpty(), p + ": route fired");
-            check(!t.withTopic(Topics.PATH_SELECTED).isEmpty(), p + ": selection fired");
+            if(plan.listenOnly){
+                check(t.started.isEmpty()&&t.stopped.isEmpty()&&t.fires.isEmpty()&&t.oddCalls==0,p+": LISTEN is transport-silent");
+            }else{
+                check(!t.withTopic(Topics.ROUTE).isEmpty(), p + ": route fired");
+                check(!t.withTopic(Topics.PATH_SELECTED).isEmpty(), p + ": selection fired");
+                assertEndSequenceAndRelease(t);
+            }
             check(!r.noted("engine_error:"), p + ": no engine error");
-            assertEndSequenceAndRelease(t);
             played++;
         }
         check(played >= 1, "at least one generated scenario played");
@@ -233,6 +256,7 @@ public final class ParkedPlayerTest {
         stopMidLoopStillEnds();
         naviStScenarioPlaysWithoutSideEffects();
         refusalPaths();
+        listenNeverPublishes();
         generatedScenarios();
         System.out.println("ParkedPlayer pure-core host harness: " + checks + " checks PASS");
     }

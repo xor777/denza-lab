@@ -30,6 +30,7 @@ final class ScenarioPlan {
 
     final String id;
     final long durationMs;
+    final boolean listenOnly;
     final boolean oddRequest;
     final int loopStatus;
     private final int[][] preRoutePhase;     // {status, holdMs}
@@ -46,6 +47,19 @@ final class ScenarioPlan {
         long durationS = PlayerMessages.num(scenario, "durationS");
         if (durationS < 1 || durationS > 300) throw new IllegalArgumentException("durationS 1..300");
         this.durationMs = durationS * 1000L;
+        Object listen = scenario.get("listenOnly");
+        if (listen != null && !(listen instanceof Boolean)) throw new IllegalArgumentException("listenOnly boolean");
+        this.listenOnly = Boolean.TRUE.equals(listen);
+        if (listenOnly) {
+            if (PlayerMessages.b(scenario, "oddRequest") || scenario.get("naviSt") != null)
+                throw new IllegalArgumentException("LISTEN cannot request ODD or change NaviSt");
+            this.oddRequest = false; this.loopStatus = 0;
+            this.routePayloadJson = null; this.pathIdToken = 0; this.routeType = 0;
+            this.preRoutePhase = new int[0][]; this.endSequence = new int[0][];
+            this.position = this.trafficInfo = this.region = this.light = this.tunnel = this.speedIntersection =
+                    this.advAutoFunInfo = this.tidalLane = this.action = this.rates = null;
+            return;
+        }
         this.oddRequest = PlayerMessages.b(scenario, "oddRequest");
         Map<String, Object> route = (Map<String, Object>) scenario.get("route");
         this.routePayloadJson = String.valueOf(route.get("payloadJson"));
@@ -89,17 +103,21 @@ final class ScenarioPlan {
         return out;
     }
 
-    long[] services() { return PlayerMessages.services(); }
+    long[] services() { return listenOnly ? new long[0] : PlayerMessages.services(); }
 
     int[][] preRoutePhase() { return preRoutePhase; }
 
     int[][] endSequence() { return endSequence; }
 
     byte[] routePayload(long pathId, long wallMs) {
+        if (listenOnly) throw new IllegalStateException("LISTEN has no route");
         return PlayerMessages.route(routePayloadJson, pathIdToken, pathId, wallMs, 1);
     }
 
-    byte[] selectionPayload(long pathId) { return PlayerMessages.selection(pathId); }
+    byte[] selectionPayload(long pathId) {
+        if (listenOnly) throw new IllegalStateException("LISTEN has no selection");
+        return PlayerMessages.selection(pathId);
+    }
 
     private double hz(String name) {
         Object value = rates.get(name);
@@ -119,6 +137,7 @@ final class ScenarioPlan {
     /** The merged, time-sorted periodic feed from {@code loopStart} to {@code endMs}. */
     List<Tick> loopTicks(long pathId, long loopStart, long endMs) {
         List<Tick> out = new ArrayList<>();
+        if (listenOnly) return out;
         schedule(out, "NavigationStatus", Topics.NAVIGATION_STATUS,
                 PlayerMessages.navigationStatus(loopStatus), hz("status"), loopStart, endMs);
         schedule(out, "VehicleLocation", Topics.SD_VEHICLE_LOCATION,

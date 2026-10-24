@@ -26,15 +26,19 @@ final class Preconditions {
     private Preconditions() {}
 
     static Decision evaluate(Map<String, Object> state) {
+        return evaluate(state, false);
+    }
+
+    static Decision evaluate(Map<String, Object> state, boolean listenOnly) {
         List<String> reasons = new ArrayList<>();
         if (state == null) return new Decision(false, one("no preconditions file"));
         if (!SCHEMA.equals(state.get("schema"))) reasons.add("wrong/absent schema");
         Boolean running = asBool(state.get("stockRunning"));
-        if (running == null) reasons.add("stockRunning unknown");
-        else if (running) reasons.add("com.byd.launchermap is running");
+        if (!listenOnly && running == null) reasons.add("stockRunning unknown");
+        else if (!listenOnly && running) reasons.add("com.byd.launchermap is running");
         Object enabled = state.get("stockEnabledState");
-        if (!(enabled instanceof Number)) reasons.add("stockEnabledState unknown");
-        else if (((Number) enabled).intValue() != 3) reasons.add("com.byd.launchermap is enabled (state " + ((Number) enabled).intValue() + ")");
+        if (!listenOnly && !(enabled instanceof Number)) reasons.add("stockEnabledState unknown");
+        else if (!listenOnly && ((Number) enabled).intValue() != 3) reasons.add("com.byd.launchermap is enabled (state " + ((Number) enabled).intValue() + ")");
         Boolean armValid = asBool(state.get("armValid"));
         if (armValid == null) reasons.add("armValid unknown");
         else if (armValid) reasons.add("Navigator holds a valid live arm");
@@ -42,6 +46,10 @@ final class Preconditions {
     }
 
     static Decision evaluate(String json) {
+        return evaluate(json, false);
+    }
+
+    static Decision evaluate(String json, boolean listenOnly) {
         if (json == null) return new Decision(false, one("no preconditions file"));
         Object value;
         try {
@@ -51,7 +59,7 @@ final class Preconditions {
         }
         if (!(value instanceof Map)) return new Decision(false, one("preconditions must be a JSON object"));
         @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) value;
-        return evaluate(map);
+        return evaluate(map, listenOnly);
     }
 
     private static Boolean asBool(Object value) { return value instanceof Boolean ? (Boolean) value : null; }

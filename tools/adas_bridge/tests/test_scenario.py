@@ -22,7 +22,7 @@ class ScenarioChainTest(unittest.TestCase):
         ids = [s["id"] for s in self.scenarios]
         self.assertEqual(ids[0], "H0")
         self.assertEqual(ids, ["H0", "H1", "H2a", "H2b", "H2c", "H2d", "H2e", "H2f", "H2g",
-                               "H3", "H4", "H5", "H6"])
+                               "H3", "H4", "H5", "H6", "LISTEN"])
         self.assertIsNone(self.by_id["H0"]["changedVariable"])
         self.assertEqual(self.by_id["H6"]["derivedFrom"], "H0")
 
@@ -55,6 +55,8 @@ class ScenarioChainTest(unittest.TestCase):
 
     def test_each_scenario_changes_only_its_declared_variable(self):
         for scn in self.scenarios[1:]:
+            if scn.get("listenOnly"):
+                continue
             parent = self.by_id[scn["derivedFrom"]]
             changed, violations = scenario.diff_variable_ok(parent, scn)
             self.assertEqual(violations, set(),
@@ -100,6 +102,8 @@ class ScenarioChainTest(unittest.TestCase):
 
     def test_end_sequence_is_110_then_100(self):
         for scn in self.scenarios:
+            if scn.get("listenOnly"):
+                continue
             self.assertEqual([s["status"] for s in scn["endSequence"]], [110, 100])
             self.assertEqual(scn["endSequence"][0]["holdS"], 3)
 
@@ -129,6 +133,20 @@ class ScenarioChainTest(unittest.TestCase):
             self.assertIn("payloadJson", h0["route"])
             self.assertNotIn("path", h0["route"])
             self.assertEqual(h0["route"]["pathIdToken"], scenario.PATH_ID_TOKEN)
+
+    def test_listen_has_no_publication_or_request_plan(self):
+        listen = self.by_id["LISTEN"]
+        self.assertTrue(listen["listenOnly"])
+        self.assertEqual(listen["durationS"], 120)
+        self.assertFalse(listen["oddRequest"])
+        self.assertIsNone(listen["naviSt"])
+        self.assertNotIn("route", listen)
+        self.assertNotIn("endSequence", listen)
+        self.assertEqual(scenario.rehearse(listen), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            scenario.write_scenarios(tmp)
+            emitted = json.loads((Path(tmp) / "scenario-LISTEN.json").read_text())
+            self.assertEqual(emitted, listen)
 
 
 if __name__ == "__main__":

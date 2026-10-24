@@ -76,9 +76,11 @@ final class AdasAnswerListener implements AutoCloseable {
     }
 
     /** The stock ODD region-code request (service 13 / method 0x0002); the SDK call result, or -1. */
+    boolean oddReady() { return !closed.get() && remote != null && pilotStarted; }
+
     int oddRequest() {
         IBinder binder = remote;
-        if (binder == null || !pilotStarted) return -1;
+        if (closed.get() || binder == null || !pilotStarted) return -1;
         Parcel data = Parcel.obtain(), reply = Parcel.obtain();
         try {
             data.writeInterfaceToken(CLIENT);
@@ -86,10 +88,19 @@ final class AdasAnswerListener implements AutoCloseable {
             data.writeLong(ScenarioPlan.ODD_TOPIC);
             data.writeLong(System.currentTimeMillis());
             data.writeInt(0);                                  // empty ODDRegionCodeReq payload
-            data.writeInt(0);                                  // no out SomeIpData supplied
+            data.writeByteArray(new byte[0]);                  // SomeIpData writes the array too
+            data.writeInt(1);                                  // new SomeIpData(), response present
+            data.writeLong(0); data.writeLong(0); data.writeInt(-1);
             if (!binder.transact(TX_REQUEST, data, reply, 0)) return -201;
             reply.readException();
-            return reply.readInt();
+            int result = reply.readInt();
+            readSomeIpData(reply);                             // inout request echo
+            byte[] response = readSomeIpData(reply);
+            if (result == 0 && response == null) throw new IllegalArgumentException("Successful ODD response missing");
+            recorder.note("odd_response", response == null ? "null" : hex(response));
+            recorder.note("odd_region_response", "result=" + result + " payloadBase64="
+                    + (response == null ? "null" : java.util.Base64.getEncoder().encodeToString(response)));
+            return result;
         } catch (Exception failure) {
             recorder.note("odd_request_error", failure.getClass().getSimpleName());
             return -200;
@@ -97,6 +108,22 @@ final class AdasAnswerListener implements AutoCloseable {
             reply.recycle();
             data.recycle();
         }
+    }
+
+    private static byte[] readSomeIpData(Parcel data) {
+        if (data.readInt() == 0) return null;
+        data.readLong(); data.readLong();
+        int size = data.readInt();
+        if (size < -1 || size > 65536) throw new IllegalArgumentException("SomeIpData payload bound");
+        byte[] bytes = size < 0 ? null : new byte[size];
+        if (bytes != null) data.readByteArray(bytes);
+        return bytes;
+    }
+
+    private static String hex(byte[] bytes) {
+        char[] out = new char[bytes.length * 2], digits = "0123456789abcdef".toCharArray();
+        for (int i = 0; i < bytes.length; i++) { out[i * 2] = digits[(bytes[i] >>> 4) & 15]; out[i * 2 + 1] = digits[bytes[i] & 15]; }
+        return new String(out);
     }
 
     private int integerCall(int transaction, long value) throws RemoteException {

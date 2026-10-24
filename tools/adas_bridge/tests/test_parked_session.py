@@ -2,6 +2,8 @@
 cycle, answer decoding, and restore (uninstall). No real device is ever contacted."""
 import base64
 import json
+import re
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -60,7 +62,7 @@ class FakeAdb:
     """Routes fixed adb command shapes to canned outputs; records the commands it saw."""
 
     def __init__(self, *, stock_running=False, stock_enabled=3, answers_jsonl=b"", navi_value=1,
-                 navi_read_reply=None, fail_result_read=False, timeout_result_read=False):
+                 navi_read_reply=None, fail_result_read=False, timeout_result_read=False, arm_bytes=b""):
         self.stock_running = stock_running
         self.stock_enabled = stock_enabled
         self.answers_jsonl = answers_jsonl
@@ -70,6 +72,8 @@ class FakeAdb:
         self.timeout_result_read = timeout_result_read
         self.commands = []
         self.events = []          # ordered: ("navi", shell-command) / ("am", ...) / ("result", ...)
+        self.private_files = {}
+        self.arm_bytes = arm_bytes
 
     def __call__(self, args, *, input=None, capture_output=True, timeout=None, check=False):
         self.commands.append(list(args))
@@ -102,12 +106,20 @@ class FakeAdb:
             return CompletedLike(body.encode())
         if "dumpsys package com.byd.launchermap" in joined:
             return CompletedLike(("  User 0: ceDataInode=1 installed=true enabled=%d\n" % self.stock_enabled).encode())
-        if "run-as" in args and ps.NAVIGATOR in args:
-            return CompletedLike(b"")  # no arm file
-        if "run-as" in args and ps.PACKAGE in args:
+        if "run-as" in joined and ps.NAVIGATOR in joined:
+            return CompletedLike(self.arm_bytes)
+        if "run-as" in joined and ps.PACKAGE in joined:
+            remote = shlex.split(args[-1])
+            script = remote[-1]
             # read of player.jsonl vs writes/removes
             if "player.jsonl" in joined and "head -c" in joined:
                 return CompletedLike(self.answers_jsonl)
+            if "head -c" in script:
+                path = re.search(r"\[ -f ([^ ]+) \]", script).group(1)
+                return CompletedLike(self.private_files.get(path, b""))
+            match = re.search(r"printf %s ([^ ]+) \| base64 -d > ([^ ]+)\.tmp", script)
+            if match:
+                self.private_files[match.group(2)] = base64.b64decode(match.group(1))
             return CompletedLike(b"")
         if "am start" in joined:
             self.events.append(("am", "start"))
@@ -200,8 +212,50 @@ class ParkedSessionTest(unittest.TestCase):
         with self.assertRaises(ps.SessionError):
             ps.Device("adb", "-bad serial", runner=FakeAdb())
 
+    def test_remote_shell_receives_one_complete_script_and_write_is_verified(self):
+        fake = FakeAdb()
+        device = ps.Device("adb", "127.0.0.1:5555", runner=fake)
+        data = b'{"scenario":"H0"}\n'
+        device.push_private("files/scenario.json", data)
+        self.assertEqual(fake.private_files["files/scenario.json"], data)
+        self.assertEqual(len(fake.commands), 2, "write must be followed by readback")
+        for command in fake.commands:
+            self.assertEqual(command[3], "exec-out")
+            self.assertEqual(len(command), 5, "ADB receives a single quoted remote command")
+            remote = shlex.split(command[4])
+            self.assertEqual(remote[:4], ["run-as", ps.PACKAGE, "sh", "-c"])
+            self.assertEqual(len(remote), 5, "shell operators must stay within the script argument")
+
+    def test_lost_write_and_unknown_arm_fail_closed(self):
+        empty = lambda *args, **kwargs: CompletedLike()
+        device = ps.Device("adb", "127.0.0.1:5555", runner=empty)
+        with self.assertRaisesRegex(ps.SessionError, "readback mismatch"):
+            device.push_private("files/scenario.json", b"{}")
+        failed = lambda *args, **kwargs: CompletedLike(returncode=1, stderr=b"run-as failed")
+        device = ps.Device("adb", "127.0.0.1:5555", runner=failed)
+        with self.assertRaisesRegex(ps.SessionError, "arm state unreadable"):
+            device.navigator_arm_valid(1000)
+        malformed = lambda *args, **kwargs: CompletedLike(stdout=b"not JSON")
+        device = ps.Device("adb", "127.0.0.1:5555", runner=malformed)
+        with self.assertRaisesRegex(ps.SessionError, "arm state malformed"):
+            device.navigator_arm_valid(1000)
+
     def test_decode_answers_empty(self):
         self.assertEqual(ps.decode_answers([])["pilot"], [])
+
+    def test_listen_allows_stock_but_still_refuses_a_live_navigator_arm(self):
+        tmp = self._scenario_dir()
+        (tmp / "scenario-LISTEN.json").write_text(json.dumps({"id":"LISTEN","listenOnly":True,"durationS":2}))
+        fake = FakeAdb(stock_running=True, stock_enabled=0, answers_jsonl=_answers_jsonl())
+        receipt = ps.run(ps.Device("adb","car",runner=fake), __file__, tmp, ["LISTEN"], lambda m:None, sleep=lambda s:None)
+        self.assertNotIn("aborted",receipt)
+        self.assertTrue(receipt["stockAfter"]["running"])
+        self.assertEqual(receipt["stockAfter"]["enabledState"],0)
+        self.assertFalse(any("service call autoservice" in " ".join(c) for c in fake.commands))
+        armed = FakeAdb(stock_running=True,stock_enabled=0,arm_bytes=b'{"expiresAtElapsedMs":2000000}')
+        receipt = ps.run(ps.Device("adb","car",runner=armed),__file__,tmp,["LISTEN"],lambda m:None,sleep=lambda s:None)
+        self.assertIn("aborted",receipt)
+        self.assertFalse(any("install" in c for c in armed.commands))
 
 
 READ_CMD = "service call autoservice 5 i32 1023 i32 1285554251"

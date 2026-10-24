@@ -21,10 +21,19 @@ public final class PlayerActivity extends Activity {
             System.setErr(trace);
             if (!new File(getFilesDir(), "player-started.once").createNewFile())
                 throw new IllegalStateException("already started; no repeat");
-            ParkedPlayer.startInApplication(getApplicationContext(), getFilesDir());
+            // The player waits for its complete bounded run. Keep Android's main thread free
+            // (including am start -W and input dispatch), and retain this Activity until it ends.
+            new Thread(() -> {
+                try {
+                    ParkedPlayer.startInApplication(getApplicationContext(), getFilesDir());
+                } catch (Throwable failure) {
+                    Log.e("DenzaParkedPlayer", "player failed", failure);
+                } finally {
+                    runOnUiThread(this::finish);
+                }
+            }, "adas-parked-owner").start();
         } catch (Throwable failure) {
             Log.e("DenzaParkedPlayer", "startup rejected", failure);
-        } finally {
             finish();
         }
     }

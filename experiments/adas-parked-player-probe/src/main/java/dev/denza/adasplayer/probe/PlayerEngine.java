@@ -25,6 +25,18 @@ final class PlayerEngine {
     boolean stopRequested() { return stop.get(); }
 
     void run(ScenarioPlan plan, Transport transport, Clock clock, Recorder recorder, long pathId) {
+        if (plan.listenOnly) {
+            recorder.note("listen_started", "read-only answers; no publisher, ODD or end sequence");
+            long end = clock.nowMs() + plan.durationMs;
+            try {
+                while (!stop.get() && clock.nowMs() < end) clock.sleepUntil(Math.min(end, clock.nowMs() + 100));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } finally {
+                recorder.note("listen_finished", "read-only duration ended");
+            }
+            return;
+        }
         List<Long> started = new ArrayList<>();
         try {
             for (long service : plan.services()) {

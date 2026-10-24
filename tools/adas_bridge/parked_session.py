@@ -118,13 +118,16 @@ class Device:
     def run_as(self, package, script):
         if package not in (PACKAGE, NAVIGATOR):
             raise SessionError("run-as package allowlist")
-        return self._run(["exec-out", "run-as", package, "sh", "-c", script])
+        command = " ".join(shlex.quote(str(t)) for t in ("run-as", package, "sh", "-c", script))
+        return self._run(["exec-out", command])
 
     def push_private(self, relpath, data):
         encoded = base64.b64encode(data).decode("ascii")
         script = (f"umask 077; printf %s {shlex.quote(encoded)} | base64 -d > {relpath}.tmp"
                   f" && mv {relpath}.tmp {relpath}")
         self.run_as(PACKAGE, script)
+        if self.read_private(PACKAGE, relpath) != data:
+            raise SessionError("private file readback mismatch")
 
     def read_private(self, package, relpath, *, cap=MAX_OUTPUT):
         script = f"if [ -f {relpath} ]; then head -c {cap} {relpath}; fi"
@@ -160,14 +163,14 @@ class Device:
     def navigator_arm_valid(self, now_elapsed_ms):
         try:
             data = self.read_private(NAVIGATOR, ARM_FILE, cap=65536)
-        except SessionError:
-            return False
+        except SessionError as error:
+            raise SessionError("Navigator arm state unreadable") from error
         if not data:
             return False
         try:
             arm = json.loads(data.decode("utf-8"))
-        except (ValueError, UnicodeError):
-            return False
+        except (ValueError, UnicodeError) as error:
+            raise SessionError("Navigator arm state malformed") from error
         expires = arm.get("expiresAtElapsedMs")
         return isinstance(expires, int) and expires > now_elapsed_ms
 
@@ -196,14 +199,16 @@ class Device:
         return int(float(parts[0]) * 1000)
 
 
-def gather_preconditions(device):
+def gather_preconditions(device, *, listen_only=False):
     now = device.elapsed_ms()
     state = {"schema": PRECONDITIONS_SCHEMA,
              "stockRunning": device.stock_running(),
              "stockEnabledState": device.stock_enabled_state(),
              "armValid": device.navigator_arm_valid(now),
+             "listenOnly": listen_only,
              "elapsedMs": now}
-    state["safe"] = (not state["stockRunning"] and state["stockEnabledState"] == 3 and not state["armValid"])
+    state["safe"] = (not state["armValid"] and (listen_only or
+                     (not state["stockRunning"] and state["stockEnabledState"] == 3)))
     return state
 
 
@@ -297,6 +302,8 @@ def run_scenario(device, scenario_path, preconditions, prompt, *, settle_s=5, sl
     scenario_id = scenario.get("id", "?")
     data = Path(scenario_path).read_bytes()
     navi = scenario.get("naviSt")
+    if scenario.get("listenOnly") and navi is not None:
+        raise SessionError("LISTEN cannot change NaviSt")
     navi_record = None
     if navi is not None:
         navi_record = {"device": NAVI_ST_DEVICE, "fid": NAVI_ST_FID, "target": int(navi["value"]),
@@ -309,8 +316,10 @@ def run_scenario(device, scenario_path, preconditions, prompt, *, settle_s=5, sl
             navi_record.update(notRun=True, reason=str(error))
             return {"id": scenario_id, "pushedSha256": None, "rows": 0, "notRun": True,
                     "naviSt": navi_record, "summary": decode_answers([]), "refused": []}
-    prompt(f"Сценарий {scenario_id}: тормоз, P→D, потяните подрулевой рычаг дважды, "
-           f"сфотографируйте приборку, затем продолжите.")
+    prompt((f"Сценарий {scenario_id}: только запись ответов ADAS штатной карте; "
+            "собственный фид, ODD и конечные статусы не отправляются.") if scenario.get("listenOnly") else
+           (f"Сценарий {scenario_id}: тормоз, P→D, потяните подрулевой рычаг дважды, "
+            f"сфотографируйте приборку, затем продолжите."))
     duration = int(scenario.get("durationS", 120))
     total_s = min(duration + settle_s, 320)
     write_attempted = False
@@ -356,7 +365,11 @@ def run_scenario(device, scenario_path, preconditions, prompt, *, settle_s=5, sl
 
 
 def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.sleep):
-    before = gather_preconditions(device)
+    listen_only = bool(order) and all(
+        (Path(scenario_dir) / f"scenario-{sid}.json").exists() and
+        json.loads((Path(scenario_dir) / f"scenario-{sid}.json").read_text()).get("listenOnly") is True
+        for sid in order)
+    before = gather_preconditions(device, listen_only=listen_only)
     receipt = {"schema": "denza-adas-parked-session-v1", "serial": device.serial,
                "apkSha256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
                "stockBefore": {"running": before["stockRunning"], "enabledState": before["stockEnabledState"]},
@@ -395,7 +408,7 @@ def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.slee
             receipt["uninstalled"] = True
         except SessionError as error:
             receipt["uninstallError"] = str(error)
-        after = gather_preconditions(device)
+        after = gather_preconditions(device, listen_only=listen_only)
         receipt["stockAfter"] = {"running": after["stockRunning"], "enabledState": after["stockEnabledState"]}
         receipt["armAfter"] = after["armValid"]
     return receipt
@@ -422,15 +435,19 @@ def main(argv=None):
     args = parser.parse_args(argv)
     order = args.order or _default_order()
     if args.command == "plan":
-        steps, navi_steps = [], []
+        steps, navi_steps, listen_steps = [], [], []
         for sid in order:
             path = args.scenario_dir / f"scenario-{sid}.json"
             if path.exists():
                 steps.append(sid)
-                if json.loads(path.read_text(encoding="utf-8")).get("naviSt") is not None:
+                scenario = json.loads(path.read_text(encoding="utf-8"))
+                if scenario.get("listenOnly"):
+                    listen_steps.append(sid)
+                if scenario.get("naviSt") is not None:
                     navi_steps.append(sid)
         print(json.dumps({"schema": "denza-adas-parked-session-plan-v1", "deviceCalls": 0,
                           "order": steps, "scenarioDir": str(args.scenario_dir),
+                          "listenOnly": listen_steps,
                           "naviStByHost": {"scenarios": navi_steps, "read": navi_st_read_command(),
                                            "write": navi_st_write_command(2),
                                            "order": ["read and record", "am start player (app UID)",
