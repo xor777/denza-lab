@@ -114,14 +114,16 @@ public final class ConditionsRefreshTest {
         Rig r=new Rig();Map<String,Object> a=snapshot("a",10,1,40,100,36,"LEFT90",true);r.read(a);long old=r.feed.publishedPathId();
         Map<String,Object> changed=snapshot("a",10,2,40,100,36,"LEFT90",true);
         List<Object> points=new ArrayList<>((List<?>)changed.get("points"));points.set(6,Arrays.asList(37.0062,55.0002));changed.put("points",points);
-        r.read(changed);check(r.feed.publishedPathId()!=old,"actual geometry change publishes a different wire table");
+        r.read(changed);check(r.feed.publishedPathId()==old,"a changed table under the same Yandex route ID keeps the published path (new path only on a new route)");
         int routes=r.count(Topics.ROUTE);long path=r.feed.publishedPathId();
         // Queue an old route's NaviInfo, then replace route before the scheduler runs it.
         int before=r.count(Topics.SD_NEXT_LANES);
         r.feed.onProgress(new StockFeed.Progress(3,20,Double.NaN));
-        YandexRoute b=YandexRoute.fromSnapshot(snapshot("b",11,1,70,100,50,"STRAIGHT_AHEAD",false));
+        Map<String,Object> other=snapshot("b",11,1,70,100,50,"STRAIGHT_AHEAD",false);
+        List<Object> otherPoints=new ArrayList<>((List<?>)other.get("points"));otherPoints.set(6,Arrays.asList(37.0062,55.0002));other.put("points",otherPoints);
+        YandexRoute b=YandexRoute.fromSnapshot(other);
         r.driver.observe(r.observation(b,11,false));r.clock.drain();long next=r.feed.publishedPathId();
-        check(next!=path&&r.count(Topics.ROUTE)>routes,"new route starts its own table");
+        check(next!=path&&r.count(Topics.ROUTE)>routes,"a new Yandex route starts its own table");
         check(r.count(Topics.SD_NEXT_LANES)==before,"queued prior-route NaviInfo cannot publish stale lanes after replacement");
         int laneCount=r.count(Topics.SD_NEXT_LANES);
         NavigatorDriver.Observation late=r.observation(YandexRoute.fromSnapshot(a),10,true);r.driver.observe(late);r.clock.drain();

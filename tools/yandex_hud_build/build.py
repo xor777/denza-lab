@@ -125,7 +125,7 @@ def main():
         run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite, ROOT])
     run(['python3', '-m', 'unittest', 'tools.adas_bridge.tests.test_lane_wire', 'tools.adas_bridge.tests.test_facilities_wire'], cwd=ROOT)
     run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.FixFreshnessTest'])
-    for suite in ('AdasGateSnapshotTest', 'RealPathAckTest', 'LiveStockFeedTest', 'LiveEgressGuardTest', 'LiveSessionLeaseTest'):
+    for suite in ('AdasGateSnapshotTest', 'RealPathAckTest', 'LiveStockFeedTest', 'LiveEgressGuardTest', 'LiveSessionLeaseTest', 'LiveDriveRegressionTest'):
         run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite,
              *([ROOT] if suite == 'RealPathAckTest' else [])])
     run(['python3', ROOT/'tools/adas_bridge/runtime_harness/run.py', '--out', args.out/'live-runtime-harness'])

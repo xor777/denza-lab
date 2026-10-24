@@ -353,7 +353,8 @@ final class DynamicTests {
         equal(1, s4.fires(Topics.ROUTE).size(), "S4: the same route back is not resent");
         monotonic(s4, "S4");
         check(s4.recorder.records().stream().filter(r -> "reroute".equals(r.get("input"))).count() == 1, "S4: one yaw reroute event");
-        // S5: same routeId, refreshed snapshot: identical table keeps its pathId; a changed table gets a new one.
+        // S5: same routeId, refreshed snapshot: one Yandex route is one path for its life, whatever the
+        // refreshed table (the 2026-10-24 drive republished one route as 15 paths); a new path needs a new route.
         Rig s5 = new Rig(6_000_000);
         s5.observe(guidance(6_000_100, m4.routeId, m4, 1.0, 10, 1));
         s5.observe(guidance(6_001_100, m4.routeId, m4, 1.2, 10, 2));
@@ -363,12 +364,15 @@ final class DynamicTests {
         for (int i = 300; i < 320; i++) limits.set(i, 8.3);
         YandexRoute m4b = YandexRoute.fromSnapshot(changed);
         s5.observe(guidance(6_002_100, m4.routeId, m4b, 1.4, 10, 3));
-        equal(2, s5.fires(Topics.ROUTE).size(), "S5: changed table under the same routeId is a new route");
-        equal(100003L, field(s5.fires(Topics.PATH_SELECTED).get(1), "pathIDReq"), "S5: and a new pathId");
-        // Back to a table already published (an alternative switched back): its own pathId again.
+        equal(1, s5.fires(Topics.ROUTE).size(), "S5: a changed table under the same routeId keeps the published path");
+        check(s5.recorder.records().stream().anyMatch(r -> "conditionsSnapshot".equals(r.get("input")) && "table_change_frozen".equals(r.get("decision"))),
+                "S5: the refused table change is recorded as frozen");
         s5.observe(guidance(6_003_100, m4.routeId, m4, 1.6, 10, 4));
-        equal(3, s5.fires(Topics.ROUTE).size(), "S5: switching back resends, as the stock on a focus change");
-        equal(100002L, field(s5.fires(Topics.PATH_SELECTED).get(2), "pathIDReq"), "S5: one table, one pathId: the first id is reused");
+        equal(1, s5.fires(Topics.ROUTE).size(), "S5: the original table again is still the same path");
+        YandexRoute m4c = renamed(m4b, m4.routeId + "-rerouted");
+        s5.observe(guidance(6_004_100, m4c.routeId, m4c, 1.8, 10, 5));
+        equal(2, s5.fires(Topics.ROUTE).size(), "S5: a new Yandex route is a new route");
+        equal(100003L, field(s5.fires(Topics.PATH_SELECTED).get(1), "pathIDReq"), "S5: and a new pathId");
         // CAP-1: an extrapolated location is Navigator's prediction, not a fix.
         Rig ex = new Rig(6_500_000);
         NavigatorDriver.Observation predicted = guidance(6_500_100, m4.routeId, m4, 1.0, 10, 1);

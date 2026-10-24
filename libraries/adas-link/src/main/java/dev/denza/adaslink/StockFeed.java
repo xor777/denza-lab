@@ -70,6 +70,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         public final Double vehicleSpeedKmh;
         /** Amap LocMatchInfo of the road under the car: its class and ownership; the stock's NULL values when unmatched. */
         public int roadClass = FieldDefaults.ROAD_CLASS_UNMATCHED, ownership = FieldDefaults.OWNERSHIP_UNMATCHED;
+        /** Yandex polyline position of this fix on the guided route; NaN off it (rerouting, unmatched: frozen). */
+        public double scalar = Double.NaN;
         public Fix(double matchedLon, double matchedLat, double rawLon, double rawLat, double speedMps, double heading, boolean simulated,
                    long ageMs, Double vehicleSpeedKmh) {
             this.matchedLon = matchedLon; this.matchedLat = matchedLat; this.rawLon = rawLon; this.rawLat = rawLat; this.speedMps = speedMps;
@@ -357,6 +359,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         publisher.note("routeResult", f, clock.now());
         this.route = result;
         lastPublishAttempt = clock.now();
+        // The new path's first position goes with the first fresh fix after its ACK, not a second later.
+        lastLocationSend = Long.MIN_VALUE / 4;
         facilitiesResetPending=true;facilitiesProgressValid=false;lastFacilitiesAttempt=Long.MIN_VALUE/4;
         final long generation = ++routeGeneration;
         if (live) ((GuardedLivePublisher) publisher).routeChanged(id);
@@ -468,7 +472,10 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
             RealPathAck.Selection s;
             try { s = RealPathAck.decode(payload); } catch (IllegalArgumentException malformed) { return; }
             if (!closed && gate() && s.pathId != null && s.statusCode != null && s.statusCode == 200
-                    && curPathId > 0 && s.pathId == curPathId) selectPathId = curPathId;
+                    && curPathId > 0 && s.pathId == curPathId) {
+                selectPathId = curPathId;
+                lastLocationSend = Long.MIN_VALUE / 4; // the selected path's first position: the next fresh fix
+            }
             publishStatus();
             return;
         }
@@ -786,13 +793,36 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         int course = Double.isNaN(fix.heading) ? 0 : (int) fix.heading;
         niOwnership = fix.ownership;                                 // locMatchInfo.ownership (MIN_VALUE -> -1)
         roadClass = fix.roadClass;                                   // locMatchInfo.roadClass
-        if (live || throttle()) {
+        // k.h.a0.d.c.d(): one location bundle a second whatever the fix rate, LIVE included.
+        long previous = lastLocationSend;
+        if (throttle()) {
+            if (live) alignNaviInfo(fix);
             sendRegion();
             weather = FieldDefaults.WEATHER;
-            locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course);
+            int sent = locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course);
             publishFacilities(route, lanePassedM, raw[0], raw[1]);
             offCourse = false;
+            // A refused position (no ACK yet, stale fix) does not use up the second.
+            if (live && sent != 0) lastLocationSend = previous;
         }
+    }
+
+    /**
+     * LIVE: the position carries the step, link and remaining distances of the fix it reports, as the
+     * stock's LocInfo and NaviInfo come from the same Amap tick. Never behind the last placement on
+     * the path (DYN-01); off the route (rerouting) the indices stay frozen, as the stock's do.
+     */
+    private void alignNaviInfo(Fix fix) {
+        Route r = route;
+        if (r == null || !naving || !Double.isFinite(fix.scalar) || curPathId != r.pathId()) return;
+        RouteConverter.Converted c = r.conditions;
+        double passed = c.metres(fix.scalar);
+        Double last = lastPassed.get(r.pathId());
+        if (last != null && passed < last) return;
+        lastPassed.put(r.pathId(), passed);
+        int[] ni = c.naviInfo(passed);
+        niPathId = r.pathId(); niSegIdx = ni[0]; niLinkIdx = ni[1]; niLinkRemain = ni[3]; niSegDist = ni[4];
+        distToDest = ni[5];
     }
 
     /** Point objects use the current route's progress; 600 m visibility is an explicit adapter policy.
@@ -829,7 +859,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     }
 
     /** H0(): the location bundle, or the stationary loop. */
-    private void locationBundle(int gpsSpeed, int realSpeed, double gLon, double gLat, double rLon, double rLat, int course) {
+    /** Returns the position's own send result. */
+    private int locationBundle(int gpsSpeed, int realSpeed, double gLon, double gLat, double rLon, double rLat, int course) {
         clock.cancel(tokenSeg);
         if (!live && (realSpeed == 0 || gpsSpeed == 0)) {
             clock.post(tokenSeg, 0, new Runnable() {                // class a: no tunnel in the loop
@@ -840,12 +871,13 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
                     clock.post(tokenSeg, 1000, this);
                 }
             });
-            return;
+            return 0;
         }
-        sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course);
+        int position = sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course);
         sendTrafficInfo();
         sendTunnel();
         light();
+        return position;
     }
 
     private void light() {
@@ -1000,8 +1032,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
 
     // ------------------------------------------------------------------ f0 senders
 
-    private void sendPosition(double gLon, double gLat, double rLon, double rLat, int realSpeed, int gpsSpeed, int course) {
-        fire(Topics.SD_VEHICLE_LOCATION, StockMessages.vehicleLocation(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course, niPathId,
+    private int sendPosition(double gLon, double gLat, double rLon, double rLat, int realSpeed, int gpsSpeed, int course) {
+        return fire(Topics.SD_VEHICLE_LOCATION, StockMessages.vehicleLocation(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course, niPathId,
                 niSegIdx, niLinkIdx, niSegDist, niLinkRemain, niOwnership));
     }
 

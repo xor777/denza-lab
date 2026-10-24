@@ -12,6 +12,13 @@ import java.util.Set;
  * where it was, as the stock's does off route. A fix is new only when its timestamp moves forward,
  * its class is FINE and it is at most {@link #MAX_FIX_AGE_MS} old (CAP-1, DYN-07, DYN-10). A
  * finished route is retired for the process (DYN-13). Single-threaded, on the feed's scheduler.
+ *
+ * <p>One Yandex route is one published path for its whole life, as one Amap route is one stock path:
+ * a new path goes out only when Yandex's route changes (a new route ID: a new route or a reroute).
+ * The link table published for it is frozen with the road graph of that moment; later graph tiles
+ * and re-copies of the same route refresh only the dynamic conditions on that table, and a road
+ * graph that would cut the table differently waits for the next real route. Dynamic look-ups by
+ * position (the graph's legal limit and road under the car) follow the newest graph.
  */
 public final class NavigatorDriver {
     /** A fix older than one fix interval is not a new fix: the stock sends each fix as it comes. */
@@ -49,6 +56,50 @@ public final class NavigatorDriver {
         public double rawLon = Double.NaN, rawLat = Double.NaN;
         /** Vehicle speed from the car, km/h; null when unknown (GNSS speed stands in, flagged). */
         public Double vehicleSpeedKmh;
+        /** Conversions of {@link #route} made ahead, off the sending thread ({@link #prepare}); null: convert here. */
+        public Prepared prepared;
+
+        /** A field-for-field copy for a hand-off to another thread. */
+        public Observation copy() {
+            Observation o = new Observation();
+            o.monotonicMs = monotonicMs; o.mode = mode; o.routeId = routeId; o.route = route; o.routeEpoch = routeEpoch;
+            o.finished = finished; o.positionOnRoute = positionOnRoute; o.scalar = scalar; o.timeToFinishS = timeToFinishS;
+            o.trafficSpeedMps = trafficSpeedMps; o.speedLimitMps = speedLimitMps; o.locationClass = locationClass;
+            o.lon = lon; o.lat = lat; o.speedMps = speedMps; o.heading = heading; o.stamp = stamp; o.fixAgeMs = fixAgeMs;
+            o.simulated = simulated; o.rawLon = rawLon; o.rawLat = rawLat; o.vehicleSpeedKmh = vehicleSpeedKmh; o.prepared = prepared;
+            return o;
+        }
+    }
+
+    /** {@link #route} converted on two road graphs: the newest, and the one its published table was frozen with. */
+    public static final class Prepared {
+        final YandexRoute route;
+        final RoadNetwork latestRoads, frozenRoads;
+        final RouteConverter.Converted latest, frozen;
+        final RuntimeException failure;
+        final double durationMs;
+        private Prepared(YandexRoute route, RoadNetwork latestRoads, RoadNetwork frozenRoads, RouteConverter.Converted latest,
+                RouteConverter.Converted frozen, RuntimeException failure, double durationMs) {
+            this.route = route; this.latestRoads = latestRoads; this.frozenRoads = frozenRoads; this.latest = latest;
+            this.frozen = frozen; this.failure = failure; this.durationMs = durationMs;
+        }
+    }
+
+    /**
+     * Converts {@code o.route} ahead of {@link #observe}, on a thread that may wait (the conversion
+     * and the graph match are the slow part of a route). {@code frozenRoads} is the graph the caller
+     * froze for this route ID at its first sight; the driver falls back to its own conversion when
+     * its inputs differ.
+     */
+    public static void prepare(Observation o, Coordinates.Frame frame, RoadNetwork latestRoads, RoadNetwork frozenRoads) {
+        if (o.route == null) return;
+        long start = System.nanoTime();
+        RouteConverter.Converted latest = null, frozen = null; RuntimeException failure = null;
+        try {
+            latest = RouteConverter.convert(o.route, frame, latestRoads);
+            frozen = frozenRoads == latestRoads ? null : RouteConverter.convert(o.route, frame, frozenRoads);
+        } catch (RuntimeException error) { failure = error; }
+        o.prepared = new Prepared(o.route, latestRoads, frozenRoads, latest, frozen, failure, (System.nanoTime() - start) / 1e6);
     }
 
     private final StockFeed feed;
@@ -62,6 +113,11 @@ public final class NavigatorDriver {
     private String lastTrafficContext;
     private final Set<String> retired = new HashSet<>();
     private RouteConverter.Converted current;
+    /** The newest conversion of the current route (newest graph): dynamic look-ups by position only. */
+    private RouteConverter.Converted latest;
+    /** The graph the published table was converted with; frozen for the path's life. */
+    private RoadNetwork routeRoads;
+    private long frozenTables;
     private YandexRoute currentRoute;
     private long observedEpoch=-1, acceptedRevision=-1, roadsRevision, convertedRoadsRevision=-1;
     private String currentSnapshotKey;
@@ -90,7 +146,7 @@ public final class NavigatorDriver {
         lastObservation = o.monotonicMs;
         clock.cancel(watchdog);
         clock.post(watchdog, WATCHDOG_MS, () -> {
-            if (naving) { naving = false; current = null; currentRouteId = null; currentContent = null; feed.onNavStop(); }
+            if (naving) { naving = false; current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null; feed.onNavStop(); }
         });
         boolean active = o.routeId != null && !o.mode.equals("off") && !retired.contains(o.routeId);
         if (o.finished && naving) {
@@ -99,7 +155,7 @@ public final class NavigatorDriver {
             feed.onTrafficEvents();
             feed.onNaviArrive();
             feed.onNavStop();
-            current = null; currentRouteId = null; currentContent = null;
+            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null;
             active = false;
         }
         if (!active && naving) {
@@ -112,14 +168,15 @@ public final class NavigatorDriver {
                 feed.onNaviArrive();
             }
             feed.onNavStop();
-            current = null; currentRouteId = null; currentContent = null;
+            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null;
         }
         if (active) {
             if (o.route != null && o.route.routeId.equals(o.routeId)
                     && (o.route.captureGeneration<0 || o.routeEpoch<0 || o.route.captureGeneration==o.routeEpoch)
                     && (!o.routeId.equals(currentRouteId) || o.route.captureRevision<0 || o.route.captureRevision>=acceptedRevision)) {
                 if(o.route.captureRevision>=0)acceptedRevision=o.route.captureRevision;
-                boolean unchanged=o.routeId.equals(currentRouteId) && o.route.snapshotKey!=null
+                boolean sameRoute = current != null && o.routeId.equals(currentRouteId);
+                boolean unchanged=sameRoute && o.route.snapshotKey!=null
                         && o.route.snapshotKey.equals(currentSnapshotKey) && roadsRevision==convertedRoadsRevision;
                 Map<String,Object> provenance=o.route.conditionsProvenance();
                 provenance.put("decision",unchanged?"unchanged":"conversion_pending");
@@ -127,22 +184,9 @@ public final class NavigatorDriver {
                     // Capture provenance advances; identical values do not restart annotation timers.
                     currentRoute=o.route;
                 } else {
-                RouteConverter.Converted converted;
-                long conversionStart = System.nanoTime();
-                lastConversion = Json.object();
-                lastConversion.put("routeId",o.routeId);
-                try {
-                    converted = RouteConverter.convert(o.route, frame, roads);
-                    lastConversion.put("routeMetres",converted.totalM);
-                    lastConversion.put("links",converted.linkSegment.length);
-                    lastConversion.put("graphMatchedMetres",converted.roadMatch==null?0:converted.roadMatch.matchedM);
-                    lastConversion.put("graphCuts",converted.roadMatch==null?0:converted.roadMatch.cuts.length);
-                    lastConversion.put("graphMatchedSamples",converted.roadMatch==null?0:converted.roadMatch.matchedSamples);
-                } catch (RuntimeException e) {
-                    converted = null; lastConversion.put("error",e.toString());
-                }
-                lastConversion.put("durationMs",(System.nanoTime()-conversionStart)/1000000.0);
-                if (converted != null && (!StockFeed.sameLinkTable(current,converted) || !o.routeId.equals(currentRouteId))) {
+                RouteConverter.Converted converted = convert(o, roads, false);
+                if (converted != null) latest = converted;
+                if (converted != null && !sameRoute) {
                     int type = !naving ? 1 : sawReroute ? 2 : 5;   // RouteTypeCommon, RouteTypeYaw, RouteTypeTMC
                     if (!naving) {
                         // The stock order: guidance starts (101, the resets), then the route data update.
@@ -153,23 +197,32 @@ public final class NavigatorDriver {
                         lastLimit = Integer.MIN_VALUE; // onNavStart resets the dynamic road limit.
                     }
                     current = converted;
+                    routeRoads = roads;
                     currentRoute = o.route;
                     currentContent = converted.contentKey;
                     currentRouteId = o.routeId;
                     currentSnapshotKey=o.route.snapshotKey;convertedRoadsRevision=roadsRevision;
                     sawReroute = false;
                     feed.onRouteResult(converted, type);
-                    provenance.put("decision","published_table_changed");
+                    provenance.put("decision","published_new_route");
                     // Amap guides the new path from its next NaviInfo cycle, not the tick that brought it,
                     // and its traffic-event update for the new path follows that first NaviInfo.
                     lastNaviInfo = o.monotonicMs;
                     firstNaviInfo = true;
-                } else if (converted != null && o.routeId.equals(currentRouteId)) {
-                    if(feed.refreshConditions(converted)) {
-                        current = converted;currentRoute = o.route;
-                        currentSnapshotKey=o.route.snapshotKey;convertedRoadsRevision=roadsRevision;
-                        provenance.put("decision","conditions_only");
-                    } else provenance.put("decision","conditions_rejected");
+                } else if (converted != null) {
+                    // The same Yandex route: its published table stays. Conditions refresh on that table only,
+                    // converted with the graph the table was frozen with when the newest graph cuts it otherwise.
+                    RouteConverter.Converted conditions = StockFeed.sameLinkTable(current, converted) ? converted
+                            : roads == routeRoads ? null : convert(o, routeRoads, true);
+                    if (conditions != null && StockFeed.sameLinkTable(current, conditions) && feed.refreshConditions(conditions)) {
+                        current = conditions; currentRoute = o.route;
+                        provenance.put("decision", conditions == converted ? "conditions_only" : "conditions_only_frozen_graph");
+                    } else {
+                        frozenTables++;
+                        provenance.put("decision","table_change_frozen");
+                        provenance.put("frozenTableChanges",frozenTables);
+                    }
+                    currentSnapshotKey=o.route.snapshotKey;convertedRoadsRevision=roadsRevision;
                 }
                 if(converted==null)provenance.put("decision","conversion_rejected");
                 }
@@ -198,9 +251,11 @@ public final class NavigatorDriver {
             limit = edge == null ? 0 : legalKmh(edge);
             if (limit > 0) limitSource = "yandex_route_edge";
         }
-        // Where Yandex names no limit, the matched graph road's speed-limit sign in the direction travelled.
-        if (limit == 0 && onCurrent && current != null && current.roadMatch != null) {
-            int graphLimit = current.roadMatch.legalKmhAt(o.scalar);
+        // Where Yandex names no limit, the matched graph road's speed-limit sign in the direction travelled
+        // (the newest graph: a look-up by position, independent of the frozen link table).
+        RouteConverter.Converted lookup = latest != null && current != null && latest.routeId.equals(current.routeId) ? latest : current;
+        if (limit == 0 && onCurrent && lookup != null && lookup.roadMatch != null) {
+            int graphLimit = lookup.roadMatch.legalKmhAt(o.scalar);
             if (graphLimit > 0) { limit = graphLimit; limitSource = "matched_graph"; }
         }
         if (limit != lastLimit || !limitSource.equals(lastLimitSource)) {
@@ -239,13 +294,47 @@ public final class NavigatorDriver {
         double course = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
         StockFeed.Fix fix = new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh);
+        // The guided position of this very fix; off the route (rerouting) the stock's indices stay frozen.
+        if (onCurrent && o.mode.equals("guidance")) fix.scalar = o.scalar;
         // Amap's LocMatchInfo: on the route, the graph road the route matched under the car, if any.
-        RoadNetwork.Fragment road = onCurrent && current != null && current.roadMatch != null ? current.roadMatch.fragmentAt(o.scalar) : null;
+        RoadNetwork.Fragment road = onCurrent && lookup != null && lookup.roadMatch != null ? lookup.roadMatch.fragmentAt(o.scalar) : null;
         if (road != null) { fix.roadClass = road.roadClass; fix.ownership = road.ownership; }
         feed.onLocation(fix);
     }
 
     public boolean naving() { return naving; }
+
+    /**
+     * {@code o.route} on {@code with}: the prepared conversion when it was made for these exact inputs,
+     * else here. {@code frozenGraph}: the conversion on the graph the published table was frozen with.
+     */
+    private RouteConverter.Converted convert(Observation o, RoadNetwork with, boolean frozenGraph) {
+        Prepared p = o.prepared;
+        long start = System.nanoTime();
+        RouteConverter.Converted converted = null; RuntimeException failure = null; boolean ahead = false;
+        if (p != null && p.route == o.route && p.failure == null) {
+            if (!frozenGraph && p.latestRoads == with) { converted = p.latest; ahead = true; }
+            else if (frozenGraph && p.frozenRoads == with) { converted = p.frozen != null ? p.frozen : p.latestRoads == with ? p.latest : null; ahead = converted != null; }
+        }
+        if (!ahead) {
+            try { converted = RouteConverter.convert(o.route, frame, with); }
+            catch (RuntimeException e) { failure = e; }
+        }
+        if (!frozenGraph) {
+            lastConversion = Json.object();
+            lastConversion.put("routeId",o.routeId);
+            if (converted != null) {
+                lastConversion.put("routeMetres",converted.totalM);
+                lastConversion.put("links",converted.linkSegment.length);
+                lastConversion.put("graphMatchedMetres",converted.roadMatch==null?0:converted.roadMatch.matchedM);
+                lastConversion.put("graphCuts",converted.roadMatch==null?0:converted.roadMatch.cuts.length);
+                lastConversion.put("graphMatchedSamples",converted.roadMatch==null?0:converted.roadMatch.matchedSamples);
+            } else lastConversion.put("error",String.valueOf(failure != null ? failure : p != null ? p.failure : null));
+            lastConversion.put("durationMs",ahead ? p.durationMs : (System.nanoTime()-start)/1000000.0);
+            lastConversion.put("preparedAhead",ahead);
+        }
+        return converted;
+    }
 
     /** Zero is the wire's unknown/clear value, never an observed zero-speed legal limit. */
     private static int legalKmh(double mps) {
