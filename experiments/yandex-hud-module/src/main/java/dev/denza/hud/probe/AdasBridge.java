@@ -257,14 +257,17 @@ final class AdasBridge {
         }
         private void open() throws IOException {
             size = file.length();
-            out = new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8);
+            // Bytes are counted as they leave the encoder: no stat per record on the sending thread.
+            out = new OutputStreamWriter(new java.io.FilterOutputStream(new FileOutputStream(file, true)) {
+                @Override public void write(int b) throws IOException { out.write(b); size++; }
+                @Override public void write(byte[] b, int off, int len) throws IOException { out.write(b, off, len); size += len; }
+            }, StandardCharsets.UTF_8);
         }
         @Override public void write(char[] buffer, int offset, int length) throws IOException {
             out.write(buffer, offset, length);
         }
         @Override public void flush() throws IOException {
             out.flush();
-            size = file.length();
             if (size >= LIMIT) {
                 out.close();
                 DriveEvidenceLog.rotate(file, generations);

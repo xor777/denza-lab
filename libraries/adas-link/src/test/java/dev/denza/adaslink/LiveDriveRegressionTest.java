@@ -99,6 +99,7 @@ public final class LiveDriveRegressionTest {
         graphRefreshNeverRepublishes();
         oneHertzPositionsWithTheirOwnIndices();
         firstPositionFollowsAck();
+        conversionOffTheSendThread();
         System.out.println("LiveDriveRegressionTest: " + checks + " checks passed");
     }
 
@@ -189,6 +190,24 @@ public final class LiveDriveRegressionTest {
             int[] ni = table.naviInfo(along);
             check(Math.abs(number(p, "linkOffset") - ni[3]) <= 2, "remaining link distance belongs to the position sent: " + number(p, "linkOffset") + " vs " + ni[3]);
         }
+    }
+
+    /** D: conversion and graph matching ran on the sending thread; a prepared conversion is now used as made. */
+    static void conversionOffTheSendThread() {
+        Live live = new Live(); YandexRoute route = straight("prepared");
+        NavigatorDriver.Observation o = DynamicTests.guidance(live.clock.now(), route.routeId, route, 0.01, 5, ++live.stamp);
+        o.fixAgeMs = 0; o.stamp = live.clock.now();
+        NavigatorDriver.prepare(o, Coordinates.Frame.WGS84, null, null);
+        live.driver.observe(o); live.clock.drain();
+        check(Boolean.TRUE.equals(live.driver.conversionSummary().get("preparedAhead")) && live.transport.of(Topics.ROUTE).size() == 1,
+                "the route prepared on the worker is published without converting again");
+        Live other = new Live();
+        NavigatorDriver.Observation stale = DynamicTests.guidance(other.clock.now(), route.routeId, route, 0.01, 5, ++other.stamp);
+        NavigatorDriver.prepare(stale, Coordinates.Frame.WGS84, null, null);
+        stale.route = straight("prepared");  // a different copy than the one prepared
+        other.driver.observe(stale); other.clock.drain();
+        check(Boolean.FALSE.equals(other.driver.conversionSummary().get("preparedAhead")) && other.transport.of(Topics.ROUTE).size() == 1,
+                "a conversion prepared for other inputs is not used");
     }
 
     /** D/F: after a real new path the first position waited 1.06–1.40 s although the ACK came after ~0.2 s. */

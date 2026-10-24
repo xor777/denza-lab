@@ -303,6 +303,10 @@ public final class NavigatorDriver {
     }
 
     public boolean naving() { return naving; }
+    /** The Yandex route ID published now, or null. */
+    public String publishedRouteId() { return current == null ? null : currentRouteId; }
+    /** The road graph the published table was frozen with (null: Yandex only, or nothing published). */
+    public RoadNetwork publishedRoads() { return current == null ? null : routeRoads; }
 
     /**
      * {@code o.route} on {@code with}: the prepared conversion when it was made for these exact inputs,

@@ -93,9 +93,11 @@ final class LiveMapBridge {
     private final Object handoff = new Object();
     private Pending pending;
     private long coalesced;
-    // Graph frozen per route ID at its first sight, on the caller's thread (see observe).
+    // Graph frozen per route ID: the sender's published one, else the caller's first sight (see observe).
     private String frozenRouteId;
     private RoadNetwork frozenRoads;
+    /** {route ID, graph} of the table the sender's driver published: the worker converts on the same graph. */
+    private volatile Object[] publishedTable = {null, null};
 
     /** The last read of every readiness input, with when it was read. */
     private static final class Inputs {
@@ -410,7 +412,9 @@ final class LiveMapBridge {
         NavigatorDriver.Observation o = original.copy();
         o.prepared = null;
         if (o.route != null && o.routeId != null) {
-            if (!o.routeId.equals(frozenRouteId)) { frozenRouteId = o.routeId; frozenRoads = currentRoads; }
+            Object[] sent = publishedTable;
+            if (o.routeId.equals(sent[0])) { frozenRouteId = o.routeId; frozenRoads = (RoadNetwork) sent[1]; }
+            else if (!o.routeId.equals(frozenRouteId)) { frozenRouteId = o.routeId; frozenRoads = currentRoads; }
             NavigatorDriver.prepare(o, FieldDefaults.FRAME, currentRoads, frozenRoads);
         }
         boolean post;
@@ -451,6 +455,7 @@ final class LiveMapBridge {
             o.monotonicMs = SystemClock.elapsedRealtime();
             if (fix != null) o.fixAgeMs = fix.ageMs(o.monotonicMs, wallClock.getAsLong());
             driver.observe(o);
+            publishedTable = new Object[]{driver.publishedRouteId(), driver.publishedRoads()};
             guard.fineFix(guard.currentPathId(), fix, o.simulated ? "SIMULATED" : o.locationClass);
             published = liveSnapshot();
         } catch (RuntimeException failed) { stop("Ошибка маршрута", failed.toString(), true); }
