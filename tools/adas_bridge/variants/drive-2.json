@@ -1,0 +1,11 @@
+{
+  "id": "drive-2",
+  "frame": "STOCK_GCJ",
+  "position.ownership": 0,
+  "traffic.roadClass": "link",
+  "region": 990001,
+  "historySpeed": {"mode": "alternate", "values": [null, 25]},
+  "startProtocol": "stock",
+  "naviSt": true,
+  "instrumentNaviStatus": true
+}
