@@ -190,4 +190,19 @@ python3 -m tools.adas_bridge.bridge_trace yandex --engine java --roads captures/
 
 Inside Navigator the module maps `denza-adas-roads.bin` from its files
 directory (internal, else external) at bridge start; without it the bridge uses
-Yandex data only.
+Yandex data only. One file, one region: build the store from one `build_map.py`
+build whose region covers everywhere the car drives (the stores of two builds
+are not merged). The YandexHUD build is debuggable, so the file goes into the
+internal files directory through `run-as`, then Navigator is restarted (the store
+is mapped once, when the bridge starts):
+
+```sh
+adb exec-in "run-as ru.yandex.yandexnavi sh -c 'cat > files/denza-adas-roads.bin.part'" < roads.bin
+adb shell "run-as ru.yandex.yandexnavi sh -c 'chmod 600 files/denza-adas-roads.bin.part && mv files/denza-adas-roads.bin.part files/denza-adas-roads.bin'"
+adb shell "run-as ru.yandex.yandexnavi sha256sum files/denza-adas-roads.bin"
+adb shell am force-stop ru.yandex.yandexnavi
+adb logcat -s DenzaAdasBridge   # "OSM roads …: N roads, B bytes"; the dry-run trace's state line says the same
+```
+
+Removing the file (`run-as … rm files/denza-adas-roads.bin`, then a restart)
+returns the bridge to Yandex data only. The file survives `adb install -r`.

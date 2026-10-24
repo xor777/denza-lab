@@ -10,7 +10,7 @@ no new ADAS sender has been installed or used on the car.
 
 ## Current state
 
-Updated 2026-10-23. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
@@ -29,6 +29,7 @@ Updated 2026-10-23. Local parser acceptance is separate from vehicle acceptance.
 | A local SOME/IP client can subscribe to the stock map's offered events (HAL client classes, no security section); the overlay subscribes read-only | firmware; car receipt open | [Transport](#transport) |
 | ADAS availability is explicit DNP/ICC/ACC status (0/1/2); NOA family and route ACK are separate. Passive observer receives real car packets and shows an overlay | firmware + car acceptance, 2026-10-23 | [Status observer](#adas-status-observer) |
 | With our OSM road store (`tools/adas_bridge/road_store.py`, from a `build_map.py` build) the bridge matches the Yandex route onto our network (adas-link `RoadMatcher`, HMM): links end at OSM junctions and attribute changes and carry the producers' class, formway, link type, LaneNum, direction, ownership, name, link speed and legal limit; 99.4–100 % of four recorded Moscow routes matched, 28–48 → 119–176 links per route; Java and the Python oracle agree to the byte | code + bench, 2026-10-24; car not run | [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24) |
+| Inside Navigator on an emulator, with the store placed by `run-as`, both a home-region and a central Moscow route are 100 % matched (53 and 119 links), the dry-run traces pass `trace_check` and the overlay shows a fresh feed, a waiting route and no stock-map alarm; the bridge costs about 0.2 % of a core and 1 ms per second of the main thread, the overlay 6–7 ms; a store for Moscow plus about 50 km is 60 MB | emulator run, 2026-10-24; car not run | [Integrated run](#integrated-emulator-run-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Transport](#transport) · [One writer](#one-writer) ·
@@ -556,10 +557,47 @@ names land on the same streets, Yandex tunnels on OSM tunnels (98 %), Yandex hig
 ranges on classes 0/1. Not matched: short stretches where OSM has no connection
 Yandex drives (19–70 m on M4, a turn on the city route) and parking-lot starts.
 
-Not done: no car run; the store must be pushed next to Navigator; the region build
+Not done: no car run. ~~The store must be pushed next to Navigator; the region build
 needs the producers' `lanes` stage, which fails on this region ("Duplicate
 directed-road lane record"), so the bench store took the `factory` stage run by hand
-on the `toll` output (lanes and signals change no field the store reads).
+on the `toll` output (lanes and signals change no field the store reads).~~ (2026-10-24:
+the lanes failure was a oneway way tagged both `turn:lanes` and `turn:lanes:forward`,
+two records on one approach; the producer now keeps one record per approach and drops
+conflicting arrows. Every stage of `build_map.py` now runs on that region with no
+stage done by hand; three of its 22 gates still fail on region coverage —
+`routing:graph_audit`, `classification:routing_values_handled` (unclassified tag
+values such as `barrier=sally_port`, `motor_vehicle=service`) and
+`signals:approaches_flagged` (6 of 8 617 approaches have no transition) — and the
+home region's build passes all of them. The store is placed with `run-as`:
+[Integrated run](#integrated-emulator-run-2026-10-24).)
+
+### Integrated emulator run (2026-10-24)
+
+The YandexHUD arm64 stock-prototype build with the bridge, the overlay and a store in
+Navigator's files directory, put there with `run-as` (`tools/adas_bridge/README.md`), ran
+Navigator's own route simulation on an emulator: a route in the owner's home region
+(8.5 km) and a central Moscow route (7.1 km, the recorded `route-01`). Stores: home
+region 1.6 MB (25 009 fragments), Moscow-routes region 16.8 MB (277 401), Moscow plus
+about 50 km (the car's loaded map region, 1.26° × 2.11°) 60.2 MB (946 937; 34.4 MB
+gzip; routing chain about 1 h 40 min on the host). On the device the route took 53
+and 119 links, every link with a known class (100 % matched, the same as the host
+bench, with either store). The traces pass `trace_check` (1 Hz status and position,
+one route and selection per path, 110 ×3 only after arrival, no backward progress);
+the overlay shows the feed fresh («Яндекс 0,x с»), the route waiting (no ADAS answer
+on an emulator) and no stock-map alarm. Against the stock map's trace of the same
+home-region drive (`captures/stock-map-factory-verify/`), `compare` separates a
+different drive, not a defect: Yandex picks 3 guide segments where the stock has 7, and
+the two runs differ in speed and time, so per-tick values cannot agree (the position
+reaches the new path about 5 s after the route because the simulation was started 6 s
+after Go). Open before any live step: TrafficInfo `spdLmtSpeedValue` carries the limit
+(20–90 in these traces) while [Safety](#safety) asks for 0 until a separate test; link
+`speedLimit` is 0. Cost in
+Navigator's process (simpleperf on the main thread, /proc per thread): the bridge thread
+about 0.2 % of one core; on the main thread `AdasBridge.sample` about 1 ms per second, the
+overlay 6–7 ms and the HUD tick 36–39 ms; of the 60 MB store only the pages read are
+resident (12 MB on the home route), clean file pages. A 1 ms `am profile` sampling run
+made Navigator's main thread stall into an ANR; the profiler, not the module (rerun
+without it). Evidence: `captures/yandex-adas-deliverable-20261024/`.
 
 ## Native route archive
 
