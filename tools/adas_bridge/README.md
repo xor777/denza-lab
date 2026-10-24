@@ -15,6 +15,21 @@ are separate from the offline tools. The device-side library is
 compiled into Navigator by `tools/yandex_hud_build`; the durable research owner
 is [`research/adas-bridge/README.md`](../../research/adas-bridge/README.md).
 
+The current local follow-up adds embedded vector decoding, explicit functional
+road-class approximation and a separate full-route downloaded-map attribute
+provider. Automatic offscreen-camera requests have been retired from the active
+bridge. The provider uses standard pinned Zstd and a read-only catalog; route
+choice and guidance remain Yandex SDK data. The owner's
+minimal offline prerequisite is a fresh inventory containing at least one usable
+installed region; it does not assert route coverage or require a second offline
+route. The latest changes are now compiled into the local signed ARM64 build 13
+(SHA-256 `acc7054011849cbdd3c743133638c9776f96841af3bf39c991308dd40f263b86`),
+with the separate parked-player APK and build receipts under
+`captures/yandex-feed13-fullroute-20261024/`. Host Java replay and builder checks
+pass; neither APK was installed, and Android provider/JNI execution remains
+unverified. See
+[runtime and prerequisite status](../../research/adas-bridge/README.md#generic-vector-runtime-and-offline-prerequisite-2026-10-24).
+
 ## Preparing the real channel
 
 `live_session.py` is separate from the offline converter. It prepares one

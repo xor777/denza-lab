@@ -1,0 +1,173 @@
+{
+  "schema": "denza-noa-gap-audit-v1",
+  "date": "2026-10-24",
+  "status": "CONFIRMED_PRODUCER_GAPS; NO_UNIQUE_ECU_ROOT_CAUSE",
+  "scope": "Investigation of last Yandex build-12 trip and earlier stock/OSM success. Existing trusted ADB used for read-only file/hash/process/package observations; no runtime code, install, setter, arm, package-state or tunnel change. Private coordinates remain in ignored captures.",
+  "installed": {
+    "version": "29.8.1-YandexHUD.12",
+    "apkSha256": "b0dbe08bee205de965c77b38faaac0e719013ae56166265c76dee3cfe5a284eb",
+    "verifiedBeforeAndAfterPull": true,
+    "sourceArchive": {
+      "path": "captures/yandex-feed12-20261024/build12/build12-sources.tar.gz",
+      "bytes": 724253,
+      "sha256": "2e61f4d79e48a3a3c1d05e1f13a7372a8837e6d81c81a8f2d20deef65b8c7b5c"
+    }
+  },
+  "evidence": [
+    {
+      "path": "captures/noa-bridge-audit-20261024/read-only-car/pull-receipt.json",
+      "bytes": 636,
+      "sha256": "815d578501c42ad413a67dbc76cea1053f39c6bd0d88e501bf2266f21371f802"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/read-only-car/identity-receipt.json",
+      "bytes": 1237,
+      "sha256": "d402f1976c78f40aed77b0dcaf8ef98d8aab824d35a90d5d82c8d92e9a7797eb"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/read-only-car/additional-identity-receipt.json",
+      "bytes": 727,
+      "sha256": "b628f3538cb5335321a90cd6050fe788a97f5e6ed015a74f8d10f3c515d00fff"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/reports/stock-semantics.json",
+      "bytes": 23495,
+      "sha256": "447c06ea8fb671462d46f8debab81fa26b401264919a9501563c5d3c88fe65f8"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/reports/bridge-dynamics.json",
+      "bytes": 54513,
+      "sha256": "0dd371edde73722f2557627f13c9fbdcf4875be7d5420e7a7d664ca08a4dcc81"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/reports/receiver-timeline.json",
+      "bytes": 158858,
+      "sha256": "47d99e1aac53649a56aad243145e2469ca6646b221efbf9fd76dc0aba38d0cef"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/reports/analyze_bridge.py",
+      "bytes": 18553,
+      "sha256": "3b67ea70da941a438cc315f837301e887a2d48f7df40629bb59f9f801896f100"
+    },
+    {
+      "path": "captures/noa-bridge-audit-20261024/reports/receiver_timeline.py",
+      "bytes": 15567,
+      "sha256": "e1d03a8f35237895772b06107a75a466968a30e1c5620321edb34707cdb56126"
+    }
+  ],
+  "findings": [
+    {
+      "id": "A01",
+      "kind": "live_timeline",
+      "fact": "The only retained explicit city-family DNP-active pulse starts after the custom publisher stopped. Earlier receiver status rotated out.",
+      "stoppedElapsedMs": 78706490,
+      "firstDnpActiveElapsedMs": 78784035,
+      "lastExplicitDnpActiveElapsedMs": 78784409,
+      "firstFollowingIccActiveElapsedMs": 78784509,
+      "delayAfterStopMs": 77545,
+      "limit": "Not proof that earlier CNOA never occurred; cached route state is not excluded."
+    },
+    {
+      "id": "A02",
+      "kind": "coordinate_contract",
+      "fact": "Live sends WGS84 at mapProvider1; original supplier1 exporter forwards SDK frame. The measured SDK candidate differs by537-542m over retained positions. Last route has526/526 exact source-WGS grid matches and0/526 transformed-source matches.",
+      "limit": "Producer difference proved; external receiver datum/inverse not recovered. A frame change is not a proven NOA fix."
+    },
+    {
+      "id": "A03",
+      "kind": "road_semantics",
+      "routePublications": 16,
+      "linkInstances": 929,
+      "allFields": {
+        "roadclass": -1,
+        "formway": -1,
+        "laneNum": 0,
+        "ownership": -1,
+        "adminCode": 0,
+        "direction": 0,
+        "hasParallel": false,
+        "hasMultiOut": false,
+        "hasMixFork": false
+      },
+      "fact": "Captured directed topology and rich vector host evidence are not equivalent to these semantics reaching ADAS. direction0 is stock two-way, not an explicit unknown.",
+      "limit": "No particular missing attribute is proven necessary or sufficient."
+    },
+    {
+      "id": "A04",
+      "kind": "path_continuity",
+      "fact": "One Yandex route was republished15 times over601s as graph cuts changed.",
+      "newPathPositionDelayMs": [
+        1064,
+        1399
+      ],
+      "ackDelayMs": [
+        162,
+        262
+      ],
+      "limit": "This is not15 actual Yandex reroutes; no causal NOA downgrade follows solely from this correlation."
+    },
+    {
+      "id": "A05",
+      "kind": "dynamic_coherence",
+      "actualPositions": 3961,
+      "positionMedianIntervalMs": 200,
+      "naviInfoMedianIntervalMs": 1004,
+      "statusMedianIntervalMs": 1010,
+      "maximumRemainingLinkDistanceMismatchM": 36.5734,
+      "positionsMoreThan10mOutsideClaimedLink": 16,
+      "maximumOutsideClaimedLinkM": 22.98,
+      "fact": "LIVE bypasses stock/dry throttle, so position and indices update at different cadences. Both speed slots use GNSS on all3961 positions.",
+      "limit": "ECU tolerance unknown; max gap includes interruptions, not steady-state cadence."
+    },
+    {
+      "id": "A06",
+      "kind": "diagnostic_loss",
+      "fact": "Installed12 stop sets finished before closing feed. Close readiness can overwrite the initiating failure with generic session lost. Fresh FINE guidance continues through closure.",
+      "limit": "The initial lost prerequisite cannot be identified from the retained generic reason; do not label ECU refusal or GNSS loss."
+    },
+    {
+      "id": "A07",
+      "kind": "bench_scope",
+      "fact": "Beijing synth takes already-SDK points through identity WGS path; encrypted GNSS input bypasses source conversion. Receiver ACK is scripted; no Momenta receiver. Fixed graph and dry branch omit observed LIVE cadence and graph-driven path changes.",
+      "limit": "Bench remains useful for producer protocol and serializer checks."
+    },
+    {
+      "id": "A08",
+      "kind": "other_inputs",
+      "fact": "Region differs (bridge0/1/0/0 vs successful stock990001/1/990001/990001). Stock also has vehicle-property/CAN navigation-state writes outside the map SOME/IP channel; bridge equivalence does not cover those.",
+      "limit": "These are concrete producer differences, not established receiver gates. Do not send DNP-switch or vehicle setters as speculative cures."
+    },
+    {
+      "id": "A09",
+      "kind": "transient_feed_loss",
+      "fact": "A43.972s position gap has prerequisite invalidations and recovery publication in same session/epoch, while all43retained guidance samples remain FINE on the same Yandex route.",
+      "positionGapElapsedMs": [
+        78019984,
+        78063956
+      ],
+      "limit": "Initial prerequisite unknown. Binder reconnect is not established. Candidate13 latch addresses automatic recovery after a failed prerequisite but is not installed and does not eliminate the initial cause."
+    }
+  ],
+  "negativeControls": [
+    "Old captured HNOA lasts54.103s with dynamic class6/history85/legal0/public ownership. Nonzero legal limit is not established as a universal gate.",
+    "Old package-a to b changes multiple fields; class6 correlation is not a single-variable A/B. Divider formway1 already existed on7/8 relevant fragments before success.",
+    "Old static successful-drive route body was not captured. Decoded source m2 lane3/direction1 does not prove those exact static fields arrived at ECU.",
+    "Stock ODD-region request retrieves URIDs. Successful OSM also emitted max no-ODD distance. DNP switch method is a UI action, not a missing periodic handshake.",
+    "All16 retained complete route publications got real status200 ACKs. Selection is not a successful geometry, semantic or NOA verdict."
+  ],
+  "nextSteps": [
+    "Preserve first terminal failure, complete session/availability timeline and rare receiver transitions independently of bulk packets.",
+    "Hold one published link table/path identity until an actual source route change; use coherent current indices/position and stock cadence in the actual LIVE execution path.",
+    "Compare the same source poses/geometry through the original stock exporter and bridge to settle the producer frame without trusting the identity Beijing fixture.",
+    "Audit full stock navigation start/stop side effects, including SETTING_MPC_IFC_NAVI_ST_SET0x4CA0004B and instrument navigation status0x43E0003A; trace recipients before any vehicle write.",
+    "Map source-supported road class/form, direction, continuous lane count, junction/fork semantics and vertical levels independently; preserve raw namespaces and explicit unknowns.",
+    "Use separate controlled comparisons for runtime, coordinate and road-semantic changes; do not fill every unknown with eligibility-seeking constants."
+  ],
+  "verification": [
+    "Offline bridge analysis rerun:16routes,3961positions,2968coherence rows,16outside-link outliers.",
+    "Independent presence-aware receiver replay rerun:45442raw packets,24846successful actual egress packets,one retained DNP-active pulse."
+  ],
+  "runtimeModified": false,
+  "vehicleStateModified": false,
+  "commitOrPush": false
+}
