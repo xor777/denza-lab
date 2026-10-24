@@ -324,7 +324,7 @@ Proposed product architecture, in two places:
    existing Navigator → Denza Apps Binder (`HudHostProtocol` style, with
    generation and expiry).
 2. **In Denza Apps:** map-match the polyline to the OSM graph we already build
-   for the region (`tools/stock-map`, `research/stock-map-native`), take class,
+   for the region (amap-injector `tools/stock-map`, `research/stock-map-native`), take class,
    formway, lanes, direction, ownership, bridges and signals from it, cut links
    at attribute changes and manoeuvres, transform to the SDK frame, serialize
    `NaviToEHPData` byte-compatible with the stock Gson output, and publish
@@ -449,7 +449,7 @@ module hosts it; the owner's rule is mirrored code, never our own semantics.
 **Content from Yandex, by field.** Unknowns are the stock's own NULL values
 (`roadclass`, `formway`, `linktype` -1, ownership -1, actions 0), never JSON null.
 Facts taken from the factory Beijing profile
-(`research/stock-map-native/factory-beijing-profile-20261023.json`): ~~the manoeuvre
+(amap-injector `research/stock-map-native/factory-beijing-profile-20261023.json`): ~~the manoeuvre
 link carries the segment's MainAction~~ (overturned by the stock's own route
 payloads on the bench: every segment-end link carries 0, only inner links 8/9/10,
 so link MainAction stays 0); linktype is common (0) unless Yandex lists a tunnel
