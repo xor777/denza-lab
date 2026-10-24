@@ -53,6 +53,19 @@ was restored before installing build 12. The current two-hour trip ledger is
 `captures/yandex-feed12-20261024/session1.rollback.json`. Timeout closes the
 publisher but does not restore the stock package; run `restore` after the test.
 
+`arm --variant FILE.json` puts one experiment variant into the arm (examples in
+`variants/`: baseline, H1, H2a–H2g, H3, H6, the historySpeed A/B). It is checked
+against ExperimentVariant's strict schema before any device call: an unknown key
+or a value outside the stock's set refuses the arm. The effective variant is
+printed, written to the rollback ledger and carried by the arm, so a restarted
+Navigator keeps it. With `naviSt: true` the reader is started with the arm's id
+and drives SETTING_MPC_IFC_NAVI_ST_SET (`AdasGateReader.NaviSt`): it reads the
+original at arm time (the arm is refused without it), writes 2 at guidance on a
+confirmed path, restores on guidance end, arm end or expiry and its own exit, and
+reads back every write. `restore` then reads NaviSt itself and writes the
+recorded original back only if the reader did not. Every read and write is in the
+reader's ledger (`files/denza-adas-navi-st.json`) and Navigator's journals.
+
 Private JSON writes use an atomic, bounded base64 command, avoiding an exec-out
 stdin EOF dependency. Getter subprocesses retain their one-second deadline but
 poll completion every 5 ms; a car batch measured 145 ms after this correction.
@@ -67,6 +80,15 @@ coordinator's local harness without Android or ADB using:
 python3 tools/adas_bridge/runtime_harness/run.py --out /tmp/denza-live-runtime-check
 python3 tools/adas_bridge/passive_client_harness/run.py --out /tmp/denza-passive-client-check
 python3 -m unittest tools.adas_bridge.tests.test_live_session
+```
+
+The reader's own test (NaviSt read → write 2 → restore, no write on a failed
+read) compiles against `android.jar` and runs on the host:
+
+```sh
+A=$ANDROID_HOME/platforms/android-35/android.jar L=libraries/adas-link/src/main/java/dev/denza/adaslink
+javac --release 8 -cp $A -d /tmp/denza-reader-test tools/adas_bridge/AdasGateReader*.java $L/Json.java $L/AdasGateSnapshot.java $L/BootIdentity.java
+java -cp /tmp/denza-reader-test:$A dev.denza.adasprobe.AdasGateReaderTest
 ```
 
 The client harness executes the actual `AdasPassiveClient` against a fake Binder

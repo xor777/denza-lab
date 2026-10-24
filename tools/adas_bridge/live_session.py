@@ -3,8 +3,14 @@
 
 `plan` and `arm --dry-run` are local only. `build-reader` compiles the read-only
 shell helper locally. `arm`/`restore` are deliberately separate, explicit ADB
-operations: no install, launch, key management, tunnels, vehicle setters or
-automatic APK-version inference. A rollback ledger is durable before mutation.
+operations: no install, launch, key management, tunnels or automatic APK-version
+inference. A rollback ledger is durable before mutation.
+
+`--variant FILE.json` puts one experiment variant into the arm (ExperimentVariant
+in libraries/adas-link: the parked chain's variables as runtime switches); it is
+validated here with the same strict schema before any device call. Its one vehicle
+setter, `naviSt`, is the gate reader's (AdasGateReader.NaviSt): `arm` records the
+original the reader read, and `restore` puts it back if the reader did not.
 """
 from __future__ import annotations
 
@@ -21,6 +27,7 @@ import re
 import shlex
 import struct
 import subprocess
+import sys
 import tempfile
 import time
 import uuid
@@ -35,7 +42,8 @@ STATE = "files/denza-adas-live-state.json"
 GATES = "files/denza-adas-gates.json"
 STOP = "files/denza-adas-reader-stop.json"
 ISOLATION = "files/denza-adas-stock-isolation.json"
-FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, ISOLATION))
+NAVI_ST = "files/denza-adas-navi-st.json"
+FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, ISOLATION, NAVI_ST))
 MAX_JSON = 16384
 MAX_LIFETIME_MS = 4 * 60 * 60 * 1000
 MAX_AGE_MS = 5000
@@ -49,6 +57,126 @@ REQUIRED_FIDS = (1126170651, 1126170658, 1126170664, 700448824, 700448826,
 
 class SessionError(ValueError):
     pass
+
+
+# The experiment variant: ExperimentVariant.java's schema, key for key and value for value.
+VARIANT_KEYS = ("id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum",
+                "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
+                "startProtocol", "naviSt")
+# The stock's values on our roads (route-01 of first-full, the parked chain's H0).
+VARIANT_MEMBERS = {"link.roadclass": (9,), "link.formway": (15,), "link.ownership": (0,), "link.direction": (0, 1),
+                   "link.laneNum": (1, 2), "link.adminCode": (990001,), "region": (990001,), "position.ownership": (0,)}
+VARIANT_DEFAULT = {"link.roadclass": "yandex", "link.formway": "yandex", "link.ownership": "yandex",
+                   "link.direction": "yandex", "link.laneNum": "yandex", "link.adminCode": "yandex", "region": "default",
+                   "position.ownership": "yandex"}
+TRAFFIC_ROAD_CLASS = (9,)
+TRAFFIC_CLASS_LINK = "link"
+HISTORY_MIN, HISTORY_MAX, ALTERNATE_MAX = 1, 120, 8
+DEFAULT_FRAME = "WGS84"  # FieldDefaults.FRAME
+# SETTING_MPC_IFC_NAVI_ST_SET (0x4CA0004B), device 1023: parked_session.py's commands and values.
+NAVI_ST_DEVICE, NAVI_ST_FID, NAVI_ST_VALUES = 1023, 1285554251, (0, 1, 2)
+
+
+def _bad(why):
+    return SessionError("variant: " + why)
+
+
+def _member(value, key, allowed):
+    if type(value) is not int or value not in allowed:
+        raise _bad(key + " must be one of " + str(list(allowed)))
+    return value
+
+
+def _speed(value):
+    if type(value) is not int or not HISTORY_MIN <= value <= HISTORY_MAX:
+        raise _bad(f"historySpeed values are whole km/h {HISTORY_MIN}-{HISTORY_MAX}")
+    return value
+
+
+def _string(row, key, allowed):
+    value = row.get(key)
+    if not isinstance(value, str):
+        raise _bad(key + " must be a string")
+    if value not in allowed:
+        raise _bad(key + " " + " or ".join(allowed))
+    return value
+
+
+def validate_variant(variant):
+    """The arm's variant object, exactly as ExperimentVariant.parse admits it; SessionError otherwise."""
+    if not isinstance(variant, dict):
+        raise _bad("variant must be an object")
+    for key in variant:
+        if key not in VARIANT_KEYS:
+            raise _bad("unknown key " + str(key))
+    if "id" in variant and not (isinstance(variant["id"], str) and re.fullmatch(r"[A-Za-z0-9_.+-]{1,32}", variant["id"])):
+        raise _bad("id must be 1-32 of [A-Za-z0-9_.+-]")
+    if "frame" in variant:
+        _string(variant, "frame", ("WGS84", "STOCK_GCJ"))
+    for key, allowed in VARIANT_MEMBERS.items():
+        if key in variant:
+            _member(variant[key], key, allowed)
+    if "traffic.roadClass" in variant and variant["traffic.roadClass"] != TRAFFIC_CLASS_LINK:
+        _member(variant["traffic.roadClass"], "traffic.roadClass", TRAFFIC_ROAD_CLASS)
+    if "historySpeed" in variant:
+        history = variant["historySpeed"]
+        if not isinstance(history, dict):
+            raise _bad("historySpeed must be an object")
+        mode = _string(history, "mode", ("yandex", "fixed", "alternate"))
+        keys = {"yandex": {"mode"}, "fixed": {"mode", "value"}, "alternate": {"mode", "values"}}[mode]
+        if set(history) != keys:
+            raise _bad("historySpeed keys must be " + str(sorted(keys)))
+        if mode == "fixed":
+            _speed(history["value"])
+        elif mode == "alternate":
+            values = history["values"]
+            if not isinstance(values, list) or not 2 <= len(values) <= ALTERNATE_MAX:
+                raise _bad(f"historySpeed.values must list 2-{ALTERNATE_MAX} entries")
+            for value in values:
+                if value is not None:
+                    _speed(value)
+            if all(value is None for value in values):
+                raise _bad("historySpeed.values needs at least one fixed value")
+    if "speedLimit" in variant:
+        _string(variant, "speedLimit", ("yandex", "zero"))
+    if "startProtocol" in variant:
+        _string(variant, "startProtocol", ("bridge", "stock"))
+    if "naviSt" in variant and type(variant["naviSt"]) is not bool:
+        raise _bad("naviSt must be true or false")
+    return variant
+
+
+def effective_variant(variant):
+    """ExperimentVariant.effective(): every switch at its effective value, and the keys the file set."""
+    validate_variant(variant)
+    out = {"id": variant.get("id"), "frame": variant.get("frame", DEFAULT_FRAME)}
+    for key in ("link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum", "link.adminCode",
+                "region", "position.ownership", "traffic.roadClass"):
+        out[key] = variant.get(key, VARIANT_DEFAULT.get(key, "yandex"))
+    out["historySpeed"] = variant.get("historySpeed", {"mode": "yandex"})
+    out["speedLimit"] = variant.get("speedLimit", "yandex")
+    out["startProtocol"] = variant.get("startProtocol", "bridge")
+    out["naviSt"] = variant.get("naviSt", False)
+    out["overrides"] = [key for key in variant if key != "id"]
+    return out
+
+
+def load_variant(path):
+    """A variant file: one JSON object, unique keys, finite numbers, the strict schema."""
+    path = Path(path)
+    if path.stat().st_size > MAX_JSON:
+        raise SessionError("variant file cap")
+    return validate_variant(decode_json(path.read_bytes()))
+
+
+def navi_st_read_tokens():
+    return ("service", "call", "autoservice", "5", "i32", str(NAVI_ST_DEVICE), "i32", str(NAVI_ST_FID))
+
+
+def navi_st_write_tokens(value):
+    if type(value) is not int or value not in NAVI_ST_VALUES:
+        raise SessionError("NaviSt value outside the stock's set")
+    return ("service", "call", "autoservice", "6", "i32", str(NAVI_ST_DEVICE), "i32", str(NAVI_ST_FID), "i32", str(value), "null")
 
 
 def validate_serial(serial):
@@ -314,8 +442,10 @@ class Device:
         if self.stock_pids():
             raise SessionError("stock process still present after force-stop")
 
-    def reader(self, jar, digest, consumer, reader, lifetime):
+    def reader(self, jar, digest, consumer, reader, lifetime, navi_st_arm=None):
         canonical_uuid(consumer); canonical_uuid(reader)
+        # The arm's naviSt switch: the reader drives NaviSt for exactly this arm id.
+        navi = "" if navi_st_arm is None else " " + canonical_uuid(navi_st_arm) + " navi-st"
         integer(lifetime, "reader lifetime", 1000, MAX_LIFETIME_MS)
         remote = "/data/local/tmp/denza-adas-reader-" + reader + ".jar"
         log = "/data/local/tmp/denza-adas-reader-" + reader + ".log"
@@ -327,11 +457,21 @@ class Device:
         # Firmware inventory files-system.txt:2105 includes nohup. Keep all three standard
         # descriptors detached so the bounded reader does not depend on the ADB shell lifetime.
         script = (f"CLASSPATH={shlex.quote(remote)} /system/bin/nohup /system/bin/app_process /system/bin dev.denza.adasprobe.AdasGateReader "
-                  f"{consumer} {reader} {lifetime} > {shlex.quote(log)} 2>&1 < /dev/null & echo $!")
+                  f"{consumer} {reader} {lifetime}{navi} > {shlex.quote(log)} 2>&1 < /dev/null & echo $!")
         output = self.shell("sh", "-c", script).strip()
         if not re.fullmatch(r"[1-9][0-9]{0,9}", output):
             raise SessionError("reader launch PID not established")
         return {"pid": int(output), "jar": remote, "log": log}
+
+    def navi_st_read(self):
+        """NaviSt as autoservice reports it; SessionError on any reply but status 0 with a stock value."""
+        value = parcel_word(self.shell(*navi_st_read_tokens()))
+        if value not in NAVI_ST_VALUES:
+            raise SessionError("NaviSt read returned unexpected value " + str(value))
+        return value
+
+    def navi_st_write(self, value):
+        parcel_word(self.shell(*navi_st_write_tokens(value)))
 
 
 def save_ledger(path, row, *, create=False):
@@ -437,8 +577,36 @@ def arm_accepted(device, row, *, sleep=time.sleep):
     raise SessionError("fresh runtime acceptance of this exact armId not established")
 
 
-def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep):
+def navi_st_ledger(device, row):
+    """The reader's NaviSt ledger of this session, or None when absent or another session's."""
+    ledger = device.private(NAVI_ST)
+    if ledger is None or ledger.get("schema") != "denza-adas-navi-st-v1":
+        return None
+    if any(ledger.get(key) != row[key] for key in ("bootId", "consumerSession", "readerSession", "armId")):
+        return None
+    return ledger
+
+
+def navi_st_original(device, row, *, sleep=time.sleep):
+    """The original NaviSt the reader read at arm time; without it the naviSt variant cannot run."""
+    for _ in range(16):
+        ledger = navi_st_ledger(device, row)
+        if ledger is not None and ledger.get("state") != "STARTING":
+            original = ledger.get("original")
+            if ledger.get("state") != "IDLE" or type(original) is not int or original not in NAVI_ST_VALUES:
+                raise SessionError("reader's NaviSt read at arm time failed (" + str(ledger.get("reason"))[:120]
+                                   + "); the naviSt variant cannot run")
+            return {"original": original, "readAtElapsedMs": ledger.get("updatedAtElapsedMs"),
+                    "device": NAVI_ST_DEVICE, "fid": NAVI_ST_FID, "source": "reader ledger " + NAVI_ST}
+        sleep(0.25)
+    raise SessionError("reader's NaviSt original not recorded; the naviSt variant cannot run")
+
+
+def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep, variant=None):
     integer(lifetime, "arm lifetime", 1000, MAX_LIFETIME_MS)
+    navi = False
+    if variant is not None:
+        navi = effective_variant(variant)["naviSt"]
     checked_sha(jar_sha)
     if not stationary_confirmed:
         raise SessionError("explicit --stationary-confirmed human confirmation is required")
@@ -462,13 +630,21 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
            "stockPackage": STOCK, "originalStock": stock, "stockPidsBefore": device.stock_pids(),
            "initialQuiescence": initial, "stationary": stationary, "lifetimeMs": lifetime,
            "readerJarSha256": jar_sha, "phase": "ROLLBACK_RECORDED", "armWritten": False}
+    if variant is not None:
+        row["variant"] = variant; row["variantEffective"] = effective_variant(variant)
     save_ledger(ledger_path, row, create=True)  # Must precede the first package or device-file mutation.
     try:
         device.stock_enabled(3); row["phase"] = "STOCK_DISABLED"; save_ledger(ledger_path, row)
         device.stock_stop()
-        row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime)
+        if navi:
+            row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime, navi_st_arm=row["armId"])
+        else:
+            row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime)
         row["phase"] = "READER_STARTED"; save_ledger(ledger_path, row)
         reader_ready(device, row, sleep=sleep)
+        if navi:
+            # The reader's own arm-time read; restore puts this value back if the reader could not.
+            row["naviSt"] = navi_st_original(device, row, sleep=sleep); save_ledger(ledger_path, row)
         consumer_now(device, boot, consumer)
         if device.boot() != boot:
             raise SessionError("boot changed during setup")
@@ -479,6 +655,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
         record = {"schema": "denza-adas-live-arm-v1", "bootId": boot, "consumerSession": consumer,
                   "readerSession": row["readerSession"], "armId": row["armId"], "issuedAtElapsedMs": issued,
                   "expiresAtElapsedMs": issued + lifetime, "stockPackage": STOCK, "stockDisabled": True}
+        if variant is not None:
+            record["variant"] = variant
         # Unknown outcome after write must take the normal disarm/closure-proof rollback path.
         row["phase"] = "ARM_WRITE_PENDING"; row["armWritten"] = True; row["arm"] = record; save_ledger(ledger_path, row)
         device.write_private(ARM, record)
@@ -529,11 +707,53 @@ def restore(device, ledger_path, *, sleep=time.sleep):
         if any(actual[key] != row["originalStock"][key] for key in ("sha256", "versionCode", "versionName")):
             raise SessionError("stock APK identity changed; original-state restore requires review")
         device.stock_enabled(original)
+        if (row.get("variant") or {}).get("naviSt") is True:
+            row["naviStRestore"] = restore_navi_st(device, row, sleep=sleep); save_ledger(path, row)
     except Exception as error:
         row["phase"] = "ROLLBACK_PENDING"; row["rollbackError"] = str(error)[:300]; save_ledger(path, row)
         raise
     row["phase"] = "RESTORED"; save_ledger(path, row)
     return row
+
+
+def restore_navi_st(device, row, *, sleep=time.sleep):
+    """After the arm is gone and the reader told to stop: NaviSt back at the arm-time original.
+
+    The reader restores on its own way out; this reads the value independently and writes the
+    original back only if it differs, then reads it back. A failed or unexpected read writes nothing
+    and leaves the rollback pending.
+    """
+    reader = None
+    for _ in range(16):
+        reader = navi_st_ledger(device, row)
+        if reader is not None and reader.get("state") == "CLOSED":
+            break
+        sleep(0.25)
+    summary = None if reader is None else {key: reader.get(key) for key in ("state", "original", "dirty", "reason", "n")}
+    original = (row.get("naviSt") or {}).get("original")
+    if original is None and reader is not None:
+        original = reader.get("original")
+    if original is None:
+        if reader is not None and any(e.get("op") == "write" for e in reader.get("events") or [] if isinstance(e, dict)):
+            raise SessionError("NaviSt was written but no original is recorded; restore by hand")
+        return {"reader": summary, "skipped": "no original recorded: the reader never wrote NaviSt"}
+    if type(original) is not int or original not in NAVI_ST_VALUES:
+        raise SessionError("recorded NaviSt original outside the stock's set")
+    try:
+        before = device.navi_st_read()
+    except SessionError as error:
+        raise SessionError("NaviSt read failed; no write: " + str(error)) from error
+    result = {"reader": summary, "original": original, "before": before, "written": False}
+    if before != original:
+        device.navi_st_write(original)
+        result["written"] = True
+    after = device.navi_st_read()
+    result["after"] = after
+    if after != original:
+        raise SessionError("NaviSt readback " + str(after) + " is not the original " + str(original))
+    result["verified"] = True
+    result["restoredBy"] = "host" if result["written"] else ("reader" if summary and summary.get("state") == "CLOSED" else "unchanged")
+    return result
 
 
 def build_reader(output, java_home, android_sdk):
@@ -583,6 +803,7 @@ def main(argv=None):
             command.add_argument("--lifetime-ms", required=True, type=int)
             command.add_argument("--stationary-confirmed", action="store_true")
             command.add_argument("--dry-run", action="store_true")
+            command.add_argument("--variant", type=Path, help="experiment variant JSON (tools/adas_bridge/variants/)")
     args = parser.parse_args(argv)
     try:
         if args.command == "build-reader":
@@ -595,11 +816,16 @@ def main(argv=None):
             integer(args.lifetime_ms, "lifetime", 1000, MAX_LIFETIME_MS); checked_sha(args.reader_sha256)
             if sha256_file(args.reader_jar) != args.reader_sha256:
                 raise SessionError("reader JAR hash mismatch")
+            # Strict before any device call: an unknown key or an out-of-range value refuses the arm.
+            variant = load_variant(args.variant) if args.variant is not None else None
+            if variant is not None:
+                print("effective variant: " + json.dumps(effective_variant(variant), separators=(",", ":")), file=sys.stderr)
             if args.command == "plan" or args.dry_run:
                 result = {"schema": "denza-adas-live-plan-v1", "deviceCalls": 0, "serial": args.serial,
                           "stockPackage": STOCK, "apk": expected.__dict__, "ledger": str(args.ledger),
                           "readerJar": str(args.reader_jar), "readerSha256": args.reader_sha256,
                           "lifetimeMs": args.lifetime_ms,
+                          "variant": variant, "variantEffective": None if variant is None else effective_variant(variant),
                           "stationaryConfirmationRequired": True,
                           "steps": ["Verify exact APK SHA/version, boot and fresh consumer", "Require human stationary confirmation, legacy park raw1 and FLOAT speed0",
                                     "Require no existing arm and fresh quiescent/closed runtime", "Durably record original stock enabled state and identity",
@@ -608,7 +834,7 @@ def main(argv=None):
                           "limits": ["No independent selector-P proof", "No process-absence/Binder-cleanup restore fallback; missing closure proof leaves explicit rollback pending"]}
             else:
                 result = arm(Device(args.adb, args.serial), expected, args.reader_jar, args.reader_sha256, args.lifetime_ms,
-                             args.ledger, stationary_confirmed=args.stationary_confirmed)
+                             args.ledger, stationary_confirmed=args.stationary_confirmed, variant=variant)
         print(json.dumps(result, indent=2, allow_nan=False)); return 0
     except (SessionError, OSError, subprocess.SubprocessError) as error:
         parser.exit(2, str(error) + "\n")
