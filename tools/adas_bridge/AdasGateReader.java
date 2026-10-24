@@ -11,15 +11,21 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Bounded shell-UID reader for this vehicle's ten integer ADAS properties.
- * No vehicle setters, SOME/IP publisher, generic command input or network listener.
+ * No SOME/IP publisher, generic command input or network listener, and no vehicle setter
+ * except one: with the arm's {@code naviSt} switch ({@link NaviSt}, started with the arm's id and
+ * {@code navi-st}) it drives the stock's SETTING_MPC_IFC_NAVI_ST_SET side channel, which the app
+ * UID cannot write, and restores its original value on every way out it controls.
  * The debuggable Navigator consumes an atomic private-file snapshot. The heartbeat
  * names the boot's consumer, which a restarted Navigator process keeps: a restart
  * shorter than {@link #HEARTBEAT_MAX_AGE_MS} keeps this reader for the resumed arm.
@@ -30,27 +36,44 @@ public final class AdasGateReader {
     static final String HEARTBEAT = "files/denza-adas-consumer.json";
     static final String SNAPSHOT = "files/denza-adas-gates.json";
     static final String ISOLATION = "files/denza-adas-stock-isolation.json";
+    static final String ARM = "files/denza-adas-live-arm.json", STATE = "files/denza-adas-live-state.json",
+            NAVI_ST_LEDGER = "files/denza-adas-navi-st.json";
+    static final String NAVI_ST_ARG = "navi-st";
     /** Covers a Navigator restart (12 s on 2026-10-24); the reader only reads, the consumer re-checks every input. */
     static final long HEARTBEAT_MAX_AGE_MS = 60000, MAX_LIFETIME_MS = 4L * 60 * 60 * 1000;
+    /** Navigator's live state is written every second; older than this, guidance is not established. */
+    static final long STATE_MAX_AGE_MS = 5000;
     private static final int MAX_OUTPUT = 16384;
     private static final Pattern PARCEL = Pattern.compile("^\\s*Result:\\s*Parcel\\(([0-9a-fA-F]{8})\\s+([0-9a-fA-F]{8})\\s*(?:'[^'\\r\\n]*')?\\)\\s*$");
     private AdasGateReader() { }
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 3 || !uuid(args[0]) || !uuid(args[1]) || !args[2].matches("[0-9]{1,8}"))
-            throw new IllegalArgumentException("consumerSession readerSession lifetimeMs");
+        boolean naviSt = args.length == 5;
+        if (!(args.length == 3 || naviSt && uuid(args[3]) && NAVI_ST_ARG.equals(args[4]))
+                || !uuid(args[0]) || !uuid(args[1]) || !args[2].matches("[0-9]{1,8}"))
+            throw new IllegalArgumentException("consumerSession readerSession lifetimeMs [armId navi-st]");
         if (Process.myUid() != 2000) throw new SecurityException("shell UID required");
         long lifetime = Long.parseLong(args[2]);
         if (lifetime < 1000 || lifetime > MAX_LIFETIME_MS) throw new IllegalArgumentException("lifetime bound");
-        final String consumer = args[0], reader = args[1], boot = bootId();
+        final String consumer = args[0], reader = args[1], boot = bootId(), armId = naviSt ? args[3] : null;
         final long began = SystemClock.elapsedRealtime();
         long sequence = 0;
-        System.out.println("ADAS integer reader started " + reader);
+        System.out.println("ADAS integer reader started " + reader + (naviSt ? " with NaviSt for arm " + armId : ""));
+        final NaviSt channel = naviSt ? new NaviSt(AdasGateReader::command, SystemClock::elapsedRealtime,
+                line -> System.out.println("NaviSt " + line), row -> writeLedger(row, boot, consumer, reader, armId)) : null;
+        String exit = "lifetime over";
+        if (channel != null) {
+            // Read and record the original at arm time (the host writes the arm right after this reader starts).
+            channel.start();
+            // Every exit through the runtime (System.exit, an uncaught error) restores here too; whether
+            // ART runs hooks on SIGTERM is not established, and SIGKILL never does: live_session.py restore.
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> channel.close("reader exit (shutdown hook)")));
+        }
         try {
             while (SystemClock.elapsedRealtime() - began < lifetime) {
                 long cycle = SystemClock.elapsedRealtime();
-                if (!consumerAlive(consumer, boot)) break;
-                if (stopRequested(consumer, reader, boot)) break;
+                if (!consumerAlive(consumer, boot)) { exit = "consumer gone"; break; }
+                if (stopRequested(consumer, reader, boot)) { exit = "stop requested"; break; }
                 Map<String, Object> row = Json.object(), values = Json.object();
                 row.put("schema", AdasGateSnapshot.SCHEMA);
                 row.put("bootId", boot); row.put("consumerSession", consumer); row.put("readerSession", reader);
@@ -74,7 +97,9 @@ public final class AdasGateReader {
                 row.put("values", values);
                 row.put("completedAtUptimeMs", SystemClock.uptimeMillis());
                 row.put("completedAtElapsedMs", SystemClock.elapsedRealtime());
-                if (!consumerAlive(consumer, boot)) break;
+                // The side channel's summary; Navigator journals the ledger's events when its number moves.
+                if (channel != null) row.put("naviSt", channel.snapshot());
+                if (!consumerAlive(consumer, boot)) { exit = "consumer gone"; break; }
                 byte[] body = (Json.write(row) + "\n").getBytes(StandardCharsets.UTF_8);
                 command(body, "/system/bin/run-as", PACKAGE, "/system/bin/sh", "-c",
                         "umask 077; cat > " + SNAPSHOT + ".tmp && mv " + SNAPSHOT + ".tmp " + SNAPSHOT);
@@ -91,11 +116,207 @@ public final class AdasGateReader {
                 command((Json.write(isolation)+"\n").getBytes(StandardCharsets.UTF_8),
                         "/system/bin/run-as", PACKAGE, "/system/bin/sh", "-c",
                         "umask 077; cat > " + ISOLATION + ".tmp && mv " + ISOLATION + ".tmp " + ISOLATION);
+                // After the snapshot is handed over: the side channel follows the bridge's guidance.
+                if (channel != null) channel.step(notGuiding(privateJson(ARM), privateJson(STATE), boot, consumer, reader, armId,
+                        SystemClock.elapsedRealtime()));
                 long remaining = 1000 - (SystemClock.elapsedRealtime() - cycle);
                 if (remaining > 0) Thread.sleep(remaining);
             }
+        } catch (Exception | Error failed) {
+            exit = "error " + failed.getClass().getSimpleName();
+            throw failed;
         } finally {
-            System.out.println("ADAS integer reader stopped " + reader + " snapshots=" + sequence);
+            if (channel != null) channel.close(exit);
+            System.out.println("ADAS integer reader stopped " + reader + " snapshots=" + sequence + " (" + exit + ")");
+        }
+    }
+
+    /** Navigator's private JSON file, or null when it is absent, unreadable or not JSON. */
+    private static Object privateJson(String name) {
+        try { return Json.parse(command(null, "/system/bin/run-as", PACKAGE, "cat", name)); }
+        catch (Exception absent) { return null; }
+    }
+    /** The side channel's durable record in Navigator's files, for the host's restore. A failed write only logs. */
+    private static void writeLedger(Map<String, Object> ledger, String boot, String consumer, String reader, String armId) {
+        Map<String, Object> row = Json.object();
+        row.put("schema", NaviSt.SCHEMA); row.put("bootId", boot); row.put("consumerSession", consumer);
+        row.put("readerSession", reader); row.put("armId", armId);
+        row.putAll(ledger);
+        try {
+            command((Json.write(row) + "\n").getBytes(StandardCharsets.UTF_8), "/system/bin/run-as", PACKAGE, "/system/bin/sh", "-c",
+                    "umask 077; cat > " + NAVI_ST_LEDGER + ".tmp && mv " + NAVI_ST_LEDGER + ".tmp " + NAVI_ST_LEDGER);
+        } catch (Exception failed) { System.out.println("NaviSt ledger write failed: " + failed.getClass().getSimpleName()); }
+    }
+
+    /**
+     * Null while Navigator guides on a confirmed path under this reader's unexpired naviSt arm (the
+     * stock writes NaviSt 2 at its guidance start); otherwise why not. Pure: the files as parsed, the clock.
+     */
+    @SuppressWarnings("unchecked")
+    static String notGuiding(Object armFile, Object stateFile, String boot, String consumer, String reader, String armId, long now) {
+        if (!(armFile instanceof Map)) return "no arm";
+        Map<String, Object> arm = (Map<String, Object>) armFile;
+        if (!"denza-adas-live-arm-v1".equals(arm.get("schema")) || !boot.equals(arm.get("bootId"))
+                || !consumer.equals(arm.get("consumerSession")) || !reader.equals(arm.get("readerSession"))
+                || !armId.equals(arm.get("armId"))) return "another arm";
+        Object expires = arm.get("expiresAtElapsedMs");
+        if (!(expires instanceof Long) || now >= (Long) expires) return "arm expired";
+        Object variant = arm.get("variant");
+        if (!(variant instanceof Map) || !Boolean.TRUE.equals(((Map<String, Object>) variant).get("naviSt"))) return "arm without naviSt";
+        if (!(stateFile instanceof Map)) return "no live state";
+        Map<String, Object> state = (Map<String, Object>) stateFile;
+        if (!"denza-adas-live-state-v1".equals(state.get("schema")) || !boot.equals(state.get("bootId"))
+                || !consumer.equals(state.get("consumerSession")) || !armId.equals(state.get("armId"))) return "live state of another session";
+        Object stamp = state.get("elapsedMs");
+        if (!(stamp instanceof Long) || now < (Long) stamp || now - (Long) stamp > STATE_MAX_AGE_MS) return "live state stale";
+        if (!"LIVE".equals(state.get("state"))) return "session " + state.get("state");
+        if (!Boolean.TRUE.equals(state.get("guidanceActive"))) return "guidance ended";
+        Object path = state.get("confirmedPathId");
+        if (!(path instanceof Long) || (Long) path < 0) return "path not confirmed";
+        return null;
+    }
+
+    /**
+     * The stock's SETTING_MPC_IFC_NAVI_ST_SET (device 1023, FID 1285554251 = 0x4CA0004B) under the arm's
+     * {@code naviSt} switch, with the command strings of tools/adas_bridge/parked_session.py. The stock
+     * writes 2 at guidance start (NaviService.setNaviTypeAndInit) and 0 at its stop; here the original is
+     * read once at arm time, 2 is written when Navigator guides on a confirmed path, and the original is
+     * written back when that ends, the arm ends or expires, or the reader exits. Every write is read back.
+     * A failed or unexpected read means no write; any failure restores what was written and disables
+     * the channel for the rest of the reader's life. Every read and write is an event with its number
+     * in the private ledger ({@link #NAVI_ST_LEDGER}, the last {@link #KEPT}); the gates file carries
+     * the flat summary (state, original, the last number), which the hardened gates parser admits, and
+     * Navigator journals the ledger's new events when that number moves.
+     */
+    static final class NaviSt {
+        static final String SCHEMA = "denza-adas-navi-st-v1";
+        static final int DEVICE = 1023, FID = 1285554251, GUIDANCE = 2, KEPT = 48;
+        /** The values the stock writes: 0 stopped, 1 cruise, 2 GPS navigation (parked_session.NAVI_ST_VALUES). */
+        static final int MAX_VALUE = 2;
+        interface Shell { String run(byte[] input, String... args) throws Exception; }
+        interface Ledger { void write(Map<String, Object> ledger); }
+        enum State { STARTING, IDLE, WRITTEN, DISABLED, CLOSED }
+
+        private final Shell shell;
+        private final LongSupplier clock;
+        private final Consumer<String> log;
+        private final Ledger ledger;
+        private final List<Map<String, Object>> events = new ArrayList<>();
+        private State state = State.STARTING;
+        private Integer original;
+        /** A write of 2 may be on the car and no verified restore followed it. */
+        private boolean dirty;
+        private long n;
+        private String reason = "starting";
+
+        NaviSt(Shell shell, LongSupplier clock, Consumer<String> log, Ledger ledger) {
+            this.shell = shell; this.clock = clock; this.log = log; this.ledger = ledger;
+        }
+
+        static String[] readCommand() {
+            return new String[] {"/system/bin/service", "call", "autoservice", "5", "i32", Integer.toString(DEVICE), "i32", Integer.toString(FID)};
+        }
+        static String[] writeCommand(int value) {
+            return new String[] {"/system/bin/service", "call", "autoservice", "6", "i32", Integer.toString(DEVICE), "i32", Integer.toString(FID),
+                    "i32", Integer.toString(value), "null"};
+        }
+
+        /** Arm time: the original value. Without it the channel never writes. */
+        synchronized void start() {
+            if (state != State.STARTING) return;
+            Integer value = read("original");
+            if (value == null) { disable("original read failed: no write"); }
+            else { original = value; state = State.IDLE; reason = "original " + value; }
+            publish();
+        }
+
+        /** One reader cycle: {@code notGuiding} null writes 2 (once per guidance), non-null restores. */
+        synchronized void step(String notGuiding) {
+            if (state == State.IDLE && notGuiding == null) {
+                Integer before = read("before write");
+                if (before == null || !before.equals(original)) {
+                    disable(before == null ? "read before write failed: no write" : "value changed to " + before + " since arm time: no write");
+                } else {
+                    dirty = true;
+                    boolean sent = write(GUIDANCE, "guidance start");
+                    Integer back = read("readback");
+                    if (sent && back != null && back == GUIDANCE) { state = State.WRITTEN; reason = "guidance on a confirmed path"; }
+                    else { restore("write not verified"); disable("write not verified"); }
+                }
+                publish();
+            } else if (state == State.WRITTEN && notGuiding != null) {
+                state = restore(notGuiding) ? State.IDLE : State.DISABLED;
+                reason = state == State.IDLE ? "restored: " + notGuiding : "restore not verified: " + notGuiding;
+                publish();
+            }
+        }
+
+        /** Every way out: restores what may be written, then nothing more. Idempotent. */
+        synchronized void close(String why) {
+            if (state == State.CLOSED) return;
+            if (dirty && !restore(why)) restore(why + " (retry)");
+            state = State.CLOSED; reason = (dirty ? "closed, restore NOT verified: " : "closed: ") + why;
+            log.accept(reason);
+            publish();
+        }
+
+        /** The gates file's flat summary: state, original, dirty, reason and the last event number. */
+        synchronized Map<String, Object> snapshot() {
+            Map<String, Object> v = Json.object();
+            v.put("state", state.name()); v.put("original", original == null ? null : (Object) (long) original);
+            v.put("dirty", dirty); v.put("reason", reason); v.put("n", n);
+            return v;
+        }
+        synchronized State state() { return state; }
+        synchronized boolean dirty() { return dirty; }
+
+        private boolean restore(String why) {
+            if (original == null) return !dirty;
+            boolean sent = write(original, "restore: " + why);
+            Integer back = read("restore readback");
+            if (sent && back != null && back.equals(original)) { dirty = false; return true; }
+            return false;
+        }
+        private void disable(String why) { state = State.DISABLED; reason = why; log.accept("disabled: " + why); }
+
+        private Integer read(String purpose) {
+            Map<String, Object> e = event("read", purpose);
+            Integer value = null;
+            try {
+                value = parseInteger(shell.run(null, readCommand()));
+                if (value == null) e.put("error", "reply not a status-0 integer");
+                else if (value < 0 || value > MAX_VALUE) { e.put("error", "unexpected value"); e.put("raw", (long) value); value = null; }
+            } catch (Exception failed) { e.put("error", failed.getClass().getSimpleName()); }
+            e.put("ok", value != null);
+            if (value != null) e.put("value", (long) value);
+            log.accept(Json.write(e));
+            return value;
+        }
+        private boolean write(int value, String purpose) {
+            Map<String, Object> e = event("write", purpose);
+            e.put("value", (long) value);
+            boolean ok = false;
+            try {
+                ok = parseInteger(shell.run(null, writeCommand(value))) != null;
+                if (!ok) e.put("error", "reply not a status-0 parcel");
+            } catch (Exception failed) { e.put("error", failed.getClass().getSimpleName()); }
+            e.put("ok", ok);
+            log.accept(Json.write(e));
+            return ok;
+        }
+        private Map<String, Object> event(String op, String purpose) {
+            Map<String, Object> e = Json.object();
+            e.put("n", ++n); e.put("op", op); e.put("purpose", purpose); e.put("elapsedMs", clock.getAsLong());
+            e.put("device", (long) DEVICE); e.put("fid", (long) FID);
+            events.add(e);
+            if (events.size() > KEPT) events.remove(0);
+            return e;
+        }
+        private void publish() {
+            Map<String, Object> v = snapshot();
+            v.put("events", new ArrayList<Object>(events));
+            v.put("updatedAtElapsedMs", clock.getAsLong());
+            try { ledger.write(v); } catch (RuntimeException failed) { log.accept("ledger: " + failed.getClass().getSimpleName()); }
         }
     }
 
