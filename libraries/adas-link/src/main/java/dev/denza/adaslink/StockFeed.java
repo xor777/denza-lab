@@ -38,6 +38,13 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         default void navigationStopped(boolean arrived) { navigationStopped(); }
         /** Every prerequisite held at the last check: a failed route attempt may be retried now. */
         default boolean admitting() { return true; }
+        /**
+         * Guidance starts from idle. Under the variant's stock start ({@link LiveEgressGuard#admitStockStart})
+         * the guard then admits the stock's pre-route statuses and one ODD region request; otherwise nothing.
+         */
+        default void navigationStarting() { }
+        /** A client request to ADAS; only the stock's ODD region read exists ({@link Topics#ODD_REGION_REQUEST}). */
+        default int request(long topic) { return -1; }
     }
     public static final class Config {
         public Coordinates.Frame frame = Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE;
@@ -258,11 +265,41 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     public void onNavStart() {
         if (live) sessionEpoch++;
         publisher.note("navStart", Json.object(), clock.now());
+        boolean fresh = !naving;
         naving = true;
+        if (fresh && config.variant.startProtocol == ExperimentVariant.StartProtocol.STOCK) stockStart();
         setMapState(101);
         clock.post(null, 0, this::resetAll);
         publishStatus();
     }
+
+    // The variant's stock start: the statuses still to go before 101, and when the route may follow.
+    private int[] startStatuses = new int[0];
+    private int startIndex;
+    private long startRouteAt = Long.MIN_VALUE / 4;
+
+    /**
+     * The stock map's start (first-full, scenario.py H0): the ODD region request, then the status
+     * loop says 100 and 106 for {@link ExperimentVariant#STOCK_PRE_ROUTE_PHASE} before the route
+     * and 101. LIVE: the guard admits exactly this request and these statuses under this switch.
+     */
+    private void stockStart() {
+        startStatuses = ExperimentVariant.stockStartStatuses(); startIndex = 0;
+        startRouteAt = clock.now() + ExperimentVariant.stockStartMs();
+        int result = 0;
+        if (live) {
+            ((GuardedLivePublisher) publisher).navigationStarting();
+            result = ((GuardedLivePublisher) publisher).request(Topics.ODD_REGION_REQUEST);
+        }
+        Map<String, Object> f = Json.object();
+        f.put("statuses", java.util.Arrays.toString(startStatuses)); f.put("routeAfterMs", ExperimentVariant.stockStartMs());
+        f.put("oddRequest", Topics.name(Topics.ODD_REGION_REQUEST)); f.put("oddRequestResult", (long) result);
+        f.put("dryRun", !live); f.put("variantId", config.variant.id);
+        publisher.note("stockStart", f, clock.now());
+        applied(-1, "startProtocol", "stock", "ODD request, NavigationStatus 100/106 before the route");
+    }
+    private boolean starting() { return naving && clock.now() < startRouteAt; }
+    private void clearStart() { startStatuses = new int[0]; startIndex = 0; startRouteAt = Long.MIN_VALUE / 4; }
 
     /** GaoDeSignalManager.onNaviArrive: MmtSomeIpDataManager.R() arms three 110s. */
     public void onNaviArrive() {
@@ -281,6 +318,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         }
         publisher.note("navStop", Json.object(), clock.now());
         naving = false;
+        clearStart();
         setMapState(100);
         clock.post(null, 0, this::resetAll);
         clock.cancel(tokenLanes);
@@ -377,7 +415,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         facilitiesResetPending=true;facilitiesProgressValid=false;lastFacilitiesAttempt=Long.MIN_VALUE/4;
         final long generation = ++routeGeneration;
         if (live) ((GuardedLivePublisher) publisher).routeChanged(id);
-        if (gate()) clock.post(null, 0, () -> onRouteDataUpdate(result, generation));
+        // Under the stock start the route waits for the end of its pre-route phase, as the stock's did.
+        long delay = starting() ? startRouteAt - clock.now() : 0;
+        if (gate()) clock.post(null, delay, () -> onRouteDataUpdate(result, generation));
         publishStatus();
         return result;
     }
@@ -1038,7 +1078,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     /** MmtSomeIpDataManager.d.run(). */
     private void statusTick() {
         int state;
-        if (naving) { arriveCounter = 0; state = 101; }
+        if (naving && startIndex < startStatuses.length) { arriveCounter = 0; state = startStatuses[startIndex++]; } // the stock start
+        else if (naving) { arriveCounter = 0; state = 101; }
         else if (arriveCounter > 0 && arriveCounter <= 3) { arriveCounter++; state = 110; }
         else { arriveCounter = 0; state = mapState; }
         fire(Topics.NAVIGATION_STATUS, StockMessages.navigationStatus(state));
@@ -1052,7 +1093,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
      * This is not a republication of a route ADAS holds: that happens only on a new Yandex route.
      */
     private void retryUnpublished() {
-        if (!live || closed || !naving || route == null || curPathId == route.pathId()) return;
+        if (!live || closed || !naving || route == null || curPathId == route.pathId() || starting()) return;
         if (clock.now() - lastPublishAttempt < 1000 || !((GuardedLivePublisher) publisher).admitting() || !gate()) return;
         Route unsent = route;
         Map<String, Object> f = Json.object(); f.put("pathId", unsent.pathId()); f.put("attempt", ++routeRetries);

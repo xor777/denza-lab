@@ -53,6 +53,21 @@ public final class ExperimentVariant {
      * first-full: {status, hold ms}. The ODD request goes first; the route follows the last hold.
      */
     public static final int[][] STOCK_PRE_ROUTE_PHASE = {{100, 2000}, {106, 3000}};
+    /** The stock's 1 s status loop through that phase: one status per tick (100, 100, 106, 106, 106). */
+    public static int[] stockStartStatuses() {
+        int n = 0;
+        for (int[] step : STOCK_PRE_ROUTE_PHASE) n += step[1] / 1000;
+        int[] out = new int[n];
+        int i = 0;
+        for (int[] step : STOCK_PRE_ROUTE_PHASE) for (int k = 0; k < step[1] / 1000; k++) out[i++] = step[0];
+        return out;
+    }
+    /** The route follows the phase: its total hold, ms. */
+    public static long stockStartMs() {
+        long ms = 0;
+        for (int[] step : STOCK_PRE_ROUTE_PHASE) ms += step[1];
+        return ms;
+    }
     private static final String[] KEYS = {"id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction",
             "link.laneNum", "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
             "startProtocol", "naviSt"};

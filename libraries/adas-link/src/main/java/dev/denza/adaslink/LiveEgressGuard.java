@@ -108,6 +108,12 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
     /** Pending end statuses; endIndex == endSequence.length when none is pending. */
     private int[] endSequence = new int[0];
     private int endIndex;
+    /** The variant's stock start ({@link #admitStockStart}): its pre-route statuses still due, and its one ODD request. */
+    private Requester requester;
+    private int[] startSequence = new int[0];
+    private int startIndex;
+    private boolean oddRequested;
+    private long startStatusesSent, requestsSent;
     private Runnable endListener;
     private Group group;
     private static final class Group {
@@ -256,6 +262,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
             reject(Topics.ROUTE,"old/invalid/reused route group"); return;
         }
         usedIds.add(pathId); acknowledgements.routeChanged();
+        clearStart("the route follows the stock start");
         group=new Group(pathId,routeGeneration,chunkCount);
     }
 
@@ -323,6 +330,60 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
     /** Run once when a pending end sequence is complete (sent in full), on this worker. */
     public void setEndListener(Runnable listener) { endListener=listener; }
 
+    /** The client channel of the one ADAS request this guard can admit; called on this worker. */
+    public interface Requester { int request(long topic); }
+    /**
+     * The arm's {@code startProtocol: stock} switch. Without it the guard admits no request at all and
+     * no status before a route. With it, each fresh guidance start admits, once and in order, the
+     * stock's pre-route statuses ({@link ExperimentVariant#stockStartStatuses}) and one
+     * {@link Topics#ODD_REGION_REQUEST} through {@code requester}. No other request, 13/0x0001 included.
+     */
+    public void admitStockStart(Requester requester) {
+        if (requester==null) throw new IllegalArgumentException("requester");
+        this.requester=requester;
+        noteDecision("variant",0,0,"startProtocol stock: the ODD region request and statuses "
+                +Arrays.toString(ExperimentVariant.stockStartStatuses())+" admitted before each new route");
+    }
+    public boolean startPending() { return !closed && startIndex<startSequence.length; }
+    /** Pre-route statuses actually sent under the stock start; requests actually made. */
+    public long startStatusesSent() { return startStatusesSent; }
+    public long requestsSent() { return requestsSent; }
+    @Override public void navigationStarting() {
+        if (closed || closeAfterEnd || requester==null) return;
+        startSequence=ExperimentVariant.stockStartStatuses(); startIndex=0; oddRequested=false;
+        noteDecision("start",0,0,"stock start: ODD request, then "+Arrays.toString(startSequence)+" before the route");
+    }
+    private void clearStart(String why) {
+        if (startSequence.length==0) return;
+        boolean pending=startPending();
+        startSequence=new int[0]; startIndex=0; oddRequested=true;
+        if (pending) noteDecision("startCleared",0,0,why);
+    }
+    /**
+     * The one client request: the stock's ODD region read, once per stock start, before its route,
+     * with every prerequisite of a packet. Anything else, the DNP/ICC switch request 13/0x0001
+     * included, is refused here and never reaches a transport.
+     */
+    @Override public int request(long topic) {
+        if (topic!=Topics.ODD_REGION_REQUEST) return reject(topic,"request not admitted: only the stock ODD region request exists");
+        if (requester==null) return reject(topic,"ODD request only under the variant's startProtocol stock");
+        if (!startPending() || oddRequested) return reject(topic,"ODD request only once, at the start of a stock start");
+        if (!readiness(clock.now())) return reject(topic,"request not admitted, "+notAdmitted());
+        if (!servicesReady()) return reject(topic,"own service offers incomplete");
+        if (endPending()) return reject(topic,"ending: no request");
+        oddRequested=true;
+        if (!noteDecision("attempt",topic,0,"actual client request")) return REJECTED;
+        int result;
+        try { result=requester.request(topic); }
+        catch (RuntimeException failure) { result=REJECTED; }
+        requestsSent++;
+        Map<String,Object> row=Json.object(); row.put("topic",topic); row.put("name",Topics.name(topic)); row.put("result",result);
+        row.put("source","real_client_request"); row.put("epoch",epoch);
+        try { audit.note("liveEgress.request",row,clock.now()); } catch(RuntimeException failure) { failure("audit unavailable after request"); }
+        // A read: a refused or failed answer does not end the session.
+        return result;
+    }
+
     /**
      * Final post-marshalling check for the transport call currently owned by this guard. No
      * prerequisite callbacks, Binder, file writes or audit operations occur here. The Android
@@ -343,6 +404,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
             if (!valid) finalLeaseRejection=1;
             return valid;
         }
+        if (startPending() && topic==Topics.NAVIGATION_STATUS) return true; // the stock start's next status, checked in fire
         if (currentPath<=0) { finalLeaseRejection=1; return false; }
         if (topic==Topics.ROUTE || topic==Topics.PATH_SELECTED) return true;
         boolean valid=acknowledgements.confirmedPathId()==currentPath && fresh(now);
@@ -358,6 +420,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         if (!readiness(now)) return reject(topic,notAdmitted());
         if (!servicesReady()) return reject(topic,"own service offers incomplete");
         if (endPending()) return endPacket(topic,payload,now);
+        if (startPending() && topic==Topics.NAVIGATION_STATUS) return startPacket(payload,now);
         if (currentPath<=0) return reject(topic,"no current route");
         if (topic==Topics.ROUTE) return routePacket(payload,now);
         if (topic==Topics.PATH_SELECTED) return selectPacket(payload,now);
@@ -368,6 +431,18 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         if (topic==Topics.NAVIGATION_STATUS && status(payload)==STATUS_IDLE)
             return reject(topic,"idle status only in an end sequence");
         return actual(topic,payload,now);
+    }
+    /** The stock start admits exactly its next pre-route status, with no route or ACK required yet. */
+    private int startPacket(byte[] payload,long now) {
+        int status=status(payload), expected=startSequence[startIndex];
+        if (status!=expected) return reject(Topics.NAVIGATION_STATUS,"stock start: expected status "+expected+", got "+status);
+        int[] sequence=startSequence; int index=startIndex;
+        int result=actual(Topics.NAVIGATION_STATUS,payload,now);
+        if (result==0 && startSequence==sequence && startIndex==index) {
+            startStatusesSent++; startIndex++;
+            if (startIndex>=startSequence.length) noteDecision("startSent",0,0,"stock pre-route statuses sent; the route follows");
+        }
+        return result;
     }
     /** The pending end sequence admits exactly its next status; 100 may cut short unsent 110s. */
     private int endPacket(long topic,byte[] payload,long now) {
@@ -456,7 +531,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
     private int actual(long topic,byte[] payload,long now,long[] preFire) {
         if (firingTopic!=-1) return reject(topic,"nested actual fire");
         long sentEpoch=epoch, sentPath=currentPath, generation=routeGeneration;
-        boolean ending=endPending();
+        boolean ending=endPending(), starting=!ending && startPending() && topic==Topics.NAVIGATION_STATUS;
         if (!noteDecision("attempt",topic,0,"actual transport")) {
             if (owns(sentEpoch,sentPath,generation)) failure("audit unavailable before actual send");
             return REJECTED;
@@ -466,7 +541,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         long fireNow=clock.now();
         if (!readiness(fireNow) || !servicesReady() || !owns(sentEpoch,sentPath,generation)) return REJECTED;
         fireNow=clock.now(); // The callback itself may block on files or Binder readiness queries.
-        if (!ending && topic!=Topics.ROUTE && topic!=Topics.PATH_SELECTED
+        if (!ending && !starting && topic!=Topics.ROUTE && topic!=Topics.PATH_SELECTED
                 && (acknowledgements.confirmedPathId()!=currentPath || !fresh(fireNow)))
             return reject(topic,"FINE/selection lease expired before actual fire");
         if (ending && (topic!=Topics.NAVIGATION_STATUS || fireNow>endDeadline))
@@ -545,6 +620,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
     @Override public void navigationStopped(boolean arrived) {
         if (closed) return;
         boolean held=hadRoute;
+        clearStart("navigation ended during the stock start");
         currentPath=-1; routeGeneration++; group=null; acknowledgements.routeChanged(); fineClass=false; hadRoute=false;
         if (!held) {
             if (!endPending()) noteDecision("idle",0,0,"navigation ended before any route reached ADAS");
@@ -593,7 +669,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
     @Override public void close() {
         if (closed) return;
         closed=true; currentPath=-1; group=null; fineClass=false;
-        lastReadiness=null;
+        lastReadiness=null; startSequence=new int[0]; startIndex=0;
         clock.cancel(endToken); acknowledgements.invalidateSession(); joined.clear();
         if (transport instanceof AutoCloseable) try { ((AutoCloseable)transport).close(); }
         catch(Exception failure) { noteDecision("close",0,REJECTED,"own transport cleanup failed"); }

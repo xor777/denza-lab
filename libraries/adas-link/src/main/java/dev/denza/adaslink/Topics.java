@@ -33,6 +33,13 @@ public final class Topics {
     public static final long SD_AHEAD_LANES = event(SVC_SD_MAP, 0x800E);
     /** Inbound, ADAS to IVI: MMTPathSelected ({@code PathSelectedProxy}, 1126088888320002). */
     public static final long PATH_SELECT_CONFIRM = event(SVC_PATH_MATCH, 0x8002);
+    /**
+     * IVI to ADAS client request: the stock's ODD region-code read (service 13 / method 0x0002,
+     * 563005788848130), sent before its route. A read, not a control; never an event, so no
+     * publisher fires it. Method 0x0001 of the same service (the DNP/ICC switch) has no constant
+     * and no sender anywhere in this library.
+     */
+    public static final long ODD_REGION_REQUEST = (2L << 48) | (13L << 32) | (13L << 16) | 0x0002;
 
     public static int service(long topic) { return (int) ((topic >>> 32) & 0xFFFF); }
     public static int id(long topic) { return (int) (topic & 0xFFFF); }
@@ -57,6 +64,7 @@ public final class Topics {
         if (topic == SD_NEXT_LANES) return "nextIntersectionLanesInfo";
         if (topic == SD_AHEAD_LANES) return "aheadIntersectionsLanesInfo";
         if (topic == PATH_SELECT_CONFIRM) return "MMTPathSelected";
+        if (topic == ODD_REGION_REQUEST) return "ODDRegionCodeReq";
         return "0x" + Long.toHexString(topic);
     }
 

@@ -56,5 +56,6 @@ public final class AdasLinkTest {
         LiveDriveRegressionTest.main(new String[0]);
         ExperimentVariantTest.main(new String[]{root.getAbsolutePath()});
         VariantWireTest.main(new String[0]);
+        LiveVariantTest.main(new String[0]);
     }
 }
