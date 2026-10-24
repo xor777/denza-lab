@@ -77,9 +77,16 @@ public final class LiveEgressGuardTest {
     private static void terminalLifecycle(){
         Rig lost=new Rig(true);lost.join();lost.route(201);lost.ack(201);lost.fine(201);
         int sent=lost.transport.calls.size();lost.permitted=false;
-        check(lost.position(201)!=0&&lost.guard.isClosed()&&lost.transport.closes==1,"observed prerequisites loss immediately closes owned production transport");
-        lost.permitted=true;lost.guard.routeChanged(202);lost.guard.beginRoute(202,1);
-        check(lost.packet(Topics.ROUTE,chunk(202,0,1,1))!=0&&lost.transport.calls.size()==sent,"same arm cannot recover after gates restore before coordinator tick");
+        check(lost.position(201)!=0&&!lost.guard.isClosed()&&lost.transport.closes==0&&lost.guard.currentPathId()==201
+                &&lost.guard.confirmedPathId()==201,"a prerequisite gap suspends the production session; path and ACK stay");
+        check(lost.guard.suspension()!=null&&lost.guard.firstFailure().equals("prerequisites unavailable"),"the gap names its prerequisite and is the first failure");
+        lost.permitted=true;check(lost.position(201)==0&&lost.guard.suspension()==null,"the same arm resumes on the same path once every prerequisite is back");
+        lost.override=LiveEgressGuard.Readiness.missing("arm removed",true);
+        check(lost.position(201)!=0&&lost.guard.isClosed()&&lost.transport.closes==1&&lost.guard.terminalReason().contains("arm removed"),
+                "a terminal prerequisite closes the owned production transport with its own reason");
+        check(lost.guard.firstFailure().equals("prerequisites unavailable"),"the first failure is kept after a later terminal one");
+        lost.override=null;lost.guard.routeChanged(202);lost.guard.beginRoute(202,1);
+        check(lost.packet(Topics.ROUTE,chunk(202,0,1,1))!=0&&lost.transport.calls.size()==sent+1,"a closed arm cannot recover");
 
         Rig failed=new Rig(true);failed.join();failed.begin(203,1);failed.transport.routeResult=-7;
         check(failed.packet(Topics.ROUTE,chunk(203,0,1,1))==-7&&failed.guard.isClosed()&&failed.transport.closes==1,"actual current send failure is terminal and preserves result");
@@ -147,11 +154,11 @@ public final class LiveEgressGuardTest {
         Transport stoppedTransport=new Transport();LiveEgressGuard stopped=new LiveEgressGuard(stoppedTransport,new Audit(),paused,
                 at->ready(1,at,Long.MAX_VALUE),id->{},true);stoppedTransport.admission=stopped::finalLeaseValid;
         for(long service:Topics.SERVICES)stopped.startService(service);stopped.routeChanged(280);stopped.beginRoute(280,1);
-        check(stopped.fire(Topics.ROUTE,chunk(280,0,1,1),now[0])==0,"production stop-deadline fixture has an actual route");stopped.navigationStopped();
+        check(stopped.fire(Topics.ROUTE,chunk(280,0,1,1),now[0])==0,"production stop fixture has an actual route");stopped.navigationStopped();
         int stopCount=stoppedTransport.calls.size();stoppedTransport.afterMarshal=()->now[0]+=1001;
-        check(stopped.fire(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100),now[0])!=0
-                &&stoppedTransport.calls.size()==stopCount&&!stopped.isClosed()&&!stopped.isStopping(),
-                "healthy production stop deadline rejects old packet and returns to idle");
+        check(stopped.fire(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100),now[0])==0
+                &&stoppedTransport.calls.size()==stopCount+1&&!stopped.isClosed()&&stopped.isStopping(),
+                "a guidance end has no deadline while the session lives: a late tick still sends its status");
         stoppedTransport.afterMarshal=null;stopped.routeChanged(281);stopped.beginRoute(281,1);
         check(stopped.fire(Topics.ROUTE,chunk(281,0,1,1),now[0])==0,"arm remains reusable after bounded stop expiry");
     }
@@ -171,9 +178,11 @@ public final class LiveEgressGuardTest {
         int before=r.transport.calls.size();
         check(r.packet(Topics.event(13,1),new byte[0])!=0&&r.packet(Topics.PATH_SELECT_CONFIRM,new byte[0])!=0,"control and inbound topics never published");
         check(r.transport.calls.size()==before,"forbidden topics do not reach transport");
-        r.permitted=false;check(r.position(10)!=0&&r.guard.confirmedPathId()==-1,"prerequisite loss revokes route and ACK");
-        r.permitted=true;check(r.position(10)!=0,"readiness restoration does not restore old path");
-        r.begin(10,1);check(r.packet(Topics.ROUTE,chunk(10,0,1,1))!=0,"wire ID cannot be retried after loss");
+        int sentBeforeGap=r.transport.calls.size();
+        r.permitted=false;check(r.position(10)!=0&&r.guard.currentPathId()==10&&r.guard.confirmedPathId()==10,"a prerequisite gap suspends egress and keeps route and ACK");
+        check(r.transport.calls.size()==sentBeforeGap,"nothing reaches the wire during the gap");
+        r.permitted=true;check(r.position(10)==0,"readiness restoration resumes the same confirmed path");
+        r.begin(10,1);check(r.packet(Topics.ROUTE,chunk(10,0,1,1))!=0,"wire ID cannot be retried");
         r.epoch=2;r.guard.routeChanged(11);r.guard.beginRoute(11,1);
         check(r.packet(Topics.ROUTE,chunk(11,0,1,1))!=0,"new transport epoch needs four new own offers");
         r.join();r.route(11);check(r.guard.onAck(1,Topics.PATH_SELECT_CONFIRM,r.time.now(),StockMessages.pathSelectConfirm(11,200))==RealPathAck.Decision.WRONG_SESSION,"old queued callback epoch rejected");
@@ -244,21 +253,24 @@ public final class LiveEgressGuardTest {
         r.route(52);r.ack(52);r.fine(52);r.guard.navigationStopped();
         check(r.position(52)!=0,"navStop immediately blocks dynamics");
         check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(101))!=0,"only own explicit stop status allowed while stopping");
-        check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))==0,"one explicit own status100 allowed after route");
-        int n=r.transport.calls.size();check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))!=0&&r.transport.calls.size()==n,"second idle status never reaches wire");
+        check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))==0,"the first end status100 allowed after route");
+        check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))==0&&r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))==0
+                &&!r.guard.isStopping(),"the stock's three end statuses go, then the end is complete");
+        int n=r.transport.calls.size();check(r.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))!=0&&r.transport.calls.size()==n,"a fourth idle status never reaches wire");
         r.time.advanceTo(110_000);check(r.transport.closes==0&&!r.guard.isClosed(),"normal route stop retains armed transport");
         r.route(53);r.fine(53);check(r.position(53)!=0,"replacement still needs its own ACK");
         check(r.guard.onAck(r.epoch,Topics.PATH_SELECT_CONFIRM,r.time.now(),StockMessages.pathSelectConfirm(52,200))!=RealPathAck.Decision.ACCEPTED&&r.position(53)!=0,"previous route ACK cannot authorize replacement");
         r.ack(53);check(r.position(53)==0,"new route works after normal stop with its own ACK and fix");
         r.guard.close();r.guard.close();check(r.transport.closes==1,"explicit session close remains terminal and idempotent");
         Rig silent=new Rig();silent.join();silent.route(60);silent.guard.navigationStopped();silent.time.advanceTo(101_000);
-        check(silent.transport.closes==0&&!silent.guard.isStopping()&&silent.transport.count(Topics.NAVIGATION_STATUS)==0,"stop grace goes idle without inventing a stop packet");
+        check(silent.transport.closes==0&&silent.guard.isStopping()&&silent.transport.count(Topics.NAVIGATION_STATUS)==0,"the end waits for the producer's status loop; the guard invents no packet");
         Rig immediate=new Rig();immediate.join();immediate.route(63);immediate.guard.navigationStopped();immediate.route(64);
         check(immediate.guard.currentPathId()==64&&!immediate.guard.isClosed(),"immediate replacement cancels old stop deadline");
         check(immediate.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))!=0,"late old stop cannot clear new route");
         immediate.time.advanceTo(101_000);check(immediate.guard.currentPathId()==64&&!immediate.guard.isClosed(),"old stop timer cannot close replacement");
         Rig gate=new Rig();gate.join();gate.route(61);gate.permitted=false;gate.guard.navigationStopped();
-        check(gate.transport.closes==1&&gate.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))!=0,"lost prerequisites allow cleanup only, no stop packet");
+        check(gate.transport.closes==0&&gate.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))!=0,"a gap at the stop sends no status yet and keeps the session");
+        gate.permitted=true;check(gate.packet(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100))==0,"the pending end goes once every prerequisite is back");
         Rig unsent=new Rig();unsent.join();unsent.begin(65,1);unsent.guard.navigationStopped();
         check(!unsent.guard.isClosed()&&unsent.transport.calls.isEmpty(),"cancel before first route chunk stays idle without status100");
         unsent.route(66);check(unsent.guard.currentPathId()==66&&unsent.transport.count(Topics.PATH_SELECTED)==1,"cancel before first send accepts new route");
@@ -319,8 +331,11 @@ public final class LiveEgressGuardTest {
         feed[0].onLocation(new StockFeed.Fix(49.1,55.8,Double.NaN,Double.NaN,0,90,false,0,null));time.drain();
         check(transport.count(Topics.SD_VEHICLE_LOCATION)==1,"real selected producer stationary fix emits once");
         time.advanceTo(205_000);check(transport.count(Topics.SD_VEHICLE_LOCATION)==1,"combined producer and guard cannot repeat stationary fix");
+        int statusBefore=transport.count(Topics.NAVIGATION_STATUS);
         feed[0].onNavStop();time.drain();
-        check(!guard.isStopping()&&!guard.isClosed()&&guard.currentPathId()==-1&&transport.closes==0,"actual producer navStop ends route and retains armed session");
+        check(guard.isStopping()&&!guard.isClosed()&&guard.currentPathId()==-1&&transport.closes==0,"actual producer navStop ends route and retains armed session");
+        time.advanceTo(time.now()+3000);
+        check(transport.count(Topics.NAVIGATION_STATUS)==statusBefore+3&&!guard.isStopping(),"the producer's own 1 s loop sends the stock's three end statuses");
         int after=transport.calls.size();time.advanceTo(220_000);check(transport.calls.size()==after,"idle producer timers cannot publish without a route");
         feed[0].onNavStart();long next=feed[0].onRouteResult(converted(),1).pathId();time.drain();
         check(next!=id&&transport.count(Topics.PATH_SELECTED)==2,"same selected geometry can restart with a fresh wire ID");
@@ -361,13 +376,22 @@ public final class LiveEgressGuardTest {
         Transport transport=new Transport();LiveEgressGuard guard=new LiveEgressGuard(transport,new Audit(),paused,
                 now->ready(1,now,Long.MAX_VALUE),id->{});guard.setWallClock(()->1_000_000+elapsed[0]);transport.admission=guard::finalLeaseValid;
         for(long service:Topics.SERVICES)guard.startService(service);guard.routeChanged(95);guard.beginRoute(95,1);
-        check(guard.fire(Topics.ROUTE,chunk(95,0,1,1),elapsed[0])==0,"stop fixture has actual own route");guard.navigationStopped();
+        check(guard.fire(Topics.ROUTE,chunk(95,0,1,1),elapsed[0])==0,"session-end fixture has actual own route");guard.endSession("test end");
+        check(guard.isStopping()&&!guard.isClosed(),"a session with a route at ADAS ends with the stock's end statuses first");
         int count=transport.calls.size();transport.afterMarshal=()->{
-            elapsed[0]+=1001;check(!guard.isClosed(),"scheduled close deliberately held by blocked worker");
-            check(!guard.finalLeaseValid(Topics.NAVIGATION_STATUS),"exact stop deadline rejects without scheduled close");
+            elapsed[0]+=LiveEgressGuard.END_SESSION_MS+1;check(!guard.isClosed(),"scheduled close deliberately held by blocked worker");
+            check(!guard.finalLeaseValid(Topics.NAVIGATION_STATUS),"exact session-end deadline rejects without scheduled close");
         };
         check(guard.fire(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100),100_000)!=0&&transport.calls.size()==count,
-                "late one-shot stop status never reaches actual wire");
-        check(guard.isClosed()&&transport.closes==1,"rejected late stop still closes own transport");
+                "a late session-end status never reaches actual wire");
+        check(guard.isClosed()&&transport.closes==1,"the expired session end still closes own transport");
+        Transport quick=new Transport();LiveEgressGuard ends=new LiveEgressGuard(quick,new Audit(),paused,now->ready(1,now,Long.MAX_VALUE),id->{});
+        quick.admission=ends::finalLeaseValid;for(long service:Topics.SERVICES)ends.startService(service);
+        ends.endSession("nothing at ADAS");check(ends.isClosed()&&quick.calls.isEmpty(),"a session that never sent a route closes at once and sends nothing");
+        Transport recovered=new Transport();LiveEgressGuard recovery=new LiveEgressGuard(recovered,new Audit(),paused,now->ready(1,now,Long.MAX_VALUE),id->{});
+        recovered.admission=recovery::finalLeaseValid;for(long service:Topics.SERVICES)recovery.startService(service);
+        recovery.requestEnd("route of an earlier process");
+        for(int i=0;i<4;i++)recovery.fire(Topics.NAVIGATION_STATUS,StockMessages.navigationStatus(100),elapsed[0]);
+        check(recovered.count(Topics.NAVIGATION_STATUS)==3&&!recovery.isStopping(),"a route held from an earlier process gets exactly the stock's three end statuses");
     }
 }

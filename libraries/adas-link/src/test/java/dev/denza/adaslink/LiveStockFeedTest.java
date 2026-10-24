@@ -94,10 +94,13 @@ public final class LiveStockFeedTest {
         check(duplicateFeed.publishedPathId()==-1,"invalid ID clears publication");
     }
     private static void leasesAndClose(){
-        Rig r=new Rig();r.route(route(0));r.feed.setGates(false,true,true);r.feed.setGates(true,true,true);r.clock.drain();
+        Rig r=new Rig();long queued=r.route(route(0));r.feed.setGates(false,true,true);r.feed.setGates(true,true,true);r.clock.drain();
         check(r.guard.count(Topics.ROUTE)==0&&r.guard.count(Topics.PATH_SELECTED)==0,"queued route before gate cycle invalidated");
-        r.clock.advance(1000);check(r.guard.count(Topics.ROUTE)==0,"gate reopening does not resend reused ID");
-        r.route(route(0));r.clock.drain();check(r.guard.count(Topics.PATH_SELECTED)==1,"fresh attempt after gates reopen works");
+        r.clock.advance(1000);
+        check(r.guard.count(Topics.ROUTE)==1&&r.guard.count(Topics.PATH_SELECTED)==1&&r.feed.publishedPathId()!=queued
+                &&r.feed.publishedPathId()>0,"a route that never reached ADAS goes again once admitted, with a fresh ID, never the reused one");
+        r.clock.advance(5000);check(r.guard.count(Topics.ROUTE)==1,"a completed attempt is not repeated");
+        r.route(route(0));r.clock.drain();check(r.guard.count(Topics.PATH_SELECTED)==2,"fresh attempt after gates reopen works");
         Rig offMid=new Rig();offMid.guard.afterRoute=()->offMid.feed.setGates(true,true,false);offMid.route(route(600_000));offMid.clock.drain();
         check(offMid.guard.routeCalls==1&&offMid.guard.count(Topics.PATH_SELECTED)==0&&offMid.feed.publishedPathId()==-1,"gate rechecked between chunks");
         Rig stoppedMid=new Rig();stoppedMid.guard.afterRoute=stoppedMid.feed::onNavStop;stoppedMid.route(route(600_000));stoppedMid.clock.drain();

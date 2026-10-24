@@ -34,6 +34,10 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         void routeChanged(long pathId);
         void beginRoute(long pathId, int chunkCount);
         void navigationStopped();
+        /** Guidance ended; {@code arrived} when Amap's onNaviArrive preceded it (the stock then says 110 first). */
+        default void navigationStopped(boolean arrived) { navigationStopped(); }
+        /** Every prerequisite held at the last check: a failed route attempt may be retried now. */
+        default boolean admitting() { return true; }
     }
     public static final class Config {
         public Coordinates.Frame frame = Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE;
@@ -147,6 +151,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     private boolean facilitiesProgressValid;
     private long facilitiesProgressEpoch;
     private volatile long lastFire = -1;
+    private boolean arrivePending;
+    private long lastPublishAttempt = Long.MIN_VALUE / 4;
+    private long routeRetries;
 
     /** A converted route with its pathId, the Amap RouteType it came with, and its own request. */
     public static final class Route {
@@ -246,12 +253,18 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     /** GaoDeSignalManager.onNaviArrive: MmtSomeIpDataManager.R() arms three 110s. */
     public void onNaviArrive() {
         publisher.note("naviArrive", Json.object(), clock.now());
-        clock.post(null, 0, () -> arriveCounter = 1);
+        // LIVE: the stop that follows opens a new epoch, which would drop a queued setter; set it now.
+        if (live) { arriveCounter = 1; arrivePending = true; }
+        else clock.post(null, 0, () -> arriveCounter = 1);
     }
 
     /** GaoDeSignalManager.onNavStop: map state 100, observers onNavStop (z(), DriveRouteManager reset). */
     public void onNavStop() {
-        if (live) { sessionEpoch++; ((GuardedLivePublisher) publisher).navigationStopped(); }
+        if (live) {
+            sessionEpoch++;
+            boolean arrived = arrivePending; arrivePending = false;
+            ((GuardedLivePublisher) publisher).navigationStopped(arrived);
+        }
         publisher.note("navStop", Json.object(), clock.now());
         naving = false;
         setMapState(100);
@@ -266,6 +279,29 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         clock.cancel(tokenNoaSwitch);
         requestId = -1;
         publishStatus();
+    }
+
+    /** LIVE session end: guidance ends as on a stop, so the status loop sends the stock's end sequence. */
+    public void endGuidance() {
+        if (closed) return;
+        if (naving) onNavStop();
+    }
+
+    /**
+     * DriveRouteManager.onDnpSwitchState(true): the stock resends its focus path 300 ms after the DNP
+     * switch comes back on. LIVE sends it as a fresh attempt (a new wire ID); the dry run has its own
+     * gate path in {@link #setGates}.
+     */
+    public void onDnpSwitchOn() {
+        if (!live || closed || route == null || !naving) return;
+        final Route expected = route;
+        clock.cancel(tokenNoaSwitch);
+        clock.post(tokenNoaSwitch, 300, () -> {
+            if (route != expected || !naving) return;
+            Map<String, Object> f = Json.object(); f.put("pathId", expected.pathId()); f.put("reason", "dnpSwitch on");
+            publisher.note("routeResend", f, clock.now());
+            onRouteResult(expected.converted, expected.amapRouteType);
+        });
     }
 
     /** GaoDeSignalManager.onReroute: type 2 (yaw) sets map state 105; MmtSomeIpDataManager.b0(). */
@@ -320,6 +356,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         f.put("segments", (long) converted.path.segments.size());
         publisher.note("routeResult", f, clock.now());
         this.route = result;
+        lastPublishAttempt = clock.now();
         facilitiesResetPending=true;facilitiesProgressValid=false;lastFacilitiesAttempt=Long.MIN_VALUE/4;
         final long generation = ++routeGeneration;
         if (live) ((GuardedLivePublisher) publisher).routeChanged(id);
@@ -893,6 +930,22 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         else { arriveCounter = 0; state = mapState; }
         fire(Topics.NAVIGATION_STATUS, StockMessages.navigationStatus(state));
         clock.post(tokenStatus, 1000, this::statusTick);
+        retryUnpublished();
+    }
+
+    /**
+     * LIVE: a route whose attempt never completed (a prerequisite gap during its chunks or selection)
+     * never reached ADAS, so the same table goes again as a fresh attempt once the guard admits.
+     * This is not a republication of a route ADAS holds: that happens only on a new Yandex route.
+     */
+    private void retryUnpublished() {
+        if (!live || closed || !naving || route == null || curPathId == route.pathId()) return;
+        if (clock.now() - lastPublishAttempt < 1000 || !((GuardedLivePublisher) publisher).admitting() || !gate()) return;
+        Route unsent = route;
+        Map<String, Object> f = Json.object(); f.put("pathId", unsent.pathId()); f.put("attempt", ++routeRetries);
+        publisher.note("routeRetry", f, clock.now());
+        try { onRouteResult(unsent.converted, unsent.amapRouteType); }
+        catch (RuntimeException failure) { lastPublishAttempt = clock.now(); }
     }
 
     // ------------------------------------------------------------------ resets (z(), b0(), d0())
