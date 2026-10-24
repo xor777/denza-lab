@@ -87,8 +87,9 @@ class LiveBridge:
     """Local state only, following the stock lifecycle: one route publication per pathId, a
     transient loss or reroute holds the position and never ends navigation (DYN-02/04), the same
     link table keeps its pathId (DYN-03), a finished route is retired (DYN-13)."""
-    def __init__(self, golden_record, target_frame, roads=None):
+    def __init__(self, golden_record, target_frame, roads=None, road_speed_limit=False):
         self.golden = golden_record
+        self.road_speed_limit = road_speed_limit
         self.target_frame = target_frame
         self.roads = roads
         self.receiver = FakeReceiver()
@@ -178,7 +179,7 @@ class LiveBridge:
         result = self.receiver.progress(sample, now_ms=now_ms, clock="uptime")
         bundle = None
         if result["accepted"]:
-            bundle = make_dynamic_packets(self.receiver.route, sample, result)
+            bundle = make_dynamic_packets(self.receiver.route, sample, result, road_speed_limit=self.road_speed_limit)
             self.receiver.consume_dynamic(bundle)
             self.dynamic_packets_parsed += len(bundle["packets"])
         return dict(receipt, accepted=result["accepted"], reason=result["reason"],

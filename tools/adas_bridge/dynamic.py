@@ -55,8 +55,11 @@ def status_bytes(status):
     return stock.navigation_status(status)
 
 
-def make_dynamic_packets(converted, sample, mapped):
-    """f0.s / f0.q / f0.e for an accepted sample: the stock's own values where Yandex has none."""
+def make_dynamic_packets(converted, sample, mapped, *, road_speed_limit=False):
+    """f0.s / f0.q / f0.e for an accepted sample: the stock's own values where Yandex has none.
+
+    TrafficInfo.SpdLmtSpeedValue follows StockFeed.Config.roadSpeedLimit: 0 by default (the stock
+    reports no limit on our roads), Yandex's posted limit only with road_speed_limit=True."""
     if not mapped.get("accepted"):
         raise ContractError("cannot encode rejected progress")
     path = mapped["curSDRouteID"]
@@ -81,7 +84,8 @@ def make_dynamic_packets(converted, sample, mapped):
                                       gps_speed, gps_speed, course, path, mapped["curStepId"], mapped["curLinkId"],
                                       mapped["distanceToNextStep"], mapped["linkOffset"], stock.OWNERSHIP_UNKNOWN)
     limit = sample.get("speedLimitMps")
-    road_speed = stock.half_up(limit * 3.6) if isinstance(limit, (int, float)) and not isinstance(limit, bool) and limit > 0 else 0
+    road_speed = stock.half_up(limit * 3.6) if (road_speed_limit and isinstance(limit, (int, float))
+                                                 and not isinstance(limit, bool) and limit > 0) else 0
     time = sample.get("timeToFinishS")
     time_to = max(0, stock.half_up(time)) if isinstance(time, (int, float)) and not isinstance(time, bool) else 0
     traffic = stock.traffic_info(0, -1, 0, 0, 0, 0.0, 0.0, road_speed, 0, 0, 0.0, 0.0, 0.0, 0.0, 0, False,

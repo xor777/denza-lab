@@ -653,7 +653,9 @@ class WireTests(unittest.TestCase):
         self.assertEqual(as_int32(traffic["roadClass"]), -1)
         self.assertIn("9801ffffffff0f", traffic_hex)                        # F10: uint32, five bytes
         self.assertEqual(traffic["distToDsttn"], mapped["distanceToDestinationM"])   # F11
-        self.assertEqual(traffic["spdLmtSpeedValue"], 60)
+        self.assertEqual(traffic.get("spdLmtSpeedValue", 0), 0)               # default: no limit, as the stock on our roads
+        enabled = make_dynamic_packets(converted, source, mapped, road_speed_limit=True)
+        self.assertEqual(decode_struct(bytes.fromhex(enabled["packets"][1]["binderProtobufHex"]), TRAFFIC)["spdLmtSpeedValue"], 60)
         bad = dict(mapped, curSDRouteID=(1 << 53)+1)
         with self.assertRaises(ContractError):
             make_dynamic_packets(converted, source, bad)

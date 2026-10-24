@@ -26,8 +26,14 @@ public final class StockFeed implements BridgeStatus {
     public static final class Config {
         public Coordinates.Frame frame = Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE;
         public StockRouteJson.Strings strings = StockRouteJson.Strings.EN;
-        /** TrafficInfo.SpdLmtSpeedValue from Yandex's posted limit (the stock code's onCurrentRoadSpeed); false sends 0. */
-        public boolean roadSpeedLimit = true;
+        /**
+         * TrafficInfo.SpdLmtSpeedValue (the stock code's onCurrentRoadSpeed) from Yandex's posted limit,
+         * else the matched OSM road's; false (the default) sends 0. On the factory map the guide reports
+         * a limit only from a speed-limit sign facility that passes its condition filter, which no
+         * record of our roads does, so the stock sends 0 on them; the bridge sends no limit the stock
+         * would not (research/adas-bridge). true is for experiments only.
+         */
+        public boolean roadSpeedLimit = false;
         /** Stock skips simulated locations ({@code locInfo.isSimulate == 1}); true only for emulator traces. */
         public boolean acceptSimulatedLocations;
         /** Emulated MMTPathSelected after this delay (dry-run only; the car's took ~110 ms); negative: none. */

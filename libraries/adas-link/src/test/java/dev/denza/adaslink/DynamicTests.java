@@ -107,6 +107,25 @@ final class DynamicTests {
         chunking();
         sequences(root, m4);
         vanishing(m4);
+        roadSpeedLimit(m4);
+    }
+
+    /** TrafficInfo.SpdLmtSpeedValue: 0 by default even where Yandex posts a limit; the posted km/h only when enabled. */
+    static void roadSpeedLimit(YandexRoute m4) {
+        for (boolean enabled : new boolean[] {false, true}) {
+            StockFeed.Config c = config();
+            c.roadSpeedLimit = enabled;
+            Rig rig = new Rig(9_000_000, c, true, true);
+            for (int i = 0; i < 5; i++) {
+                NavigatorDriver.Observation o = guidance(9_000_100 + i * 1000L, m4.routeId, m4, 1.0 + i, 10, i + 1);
+                o.speedLimitMps = 60 / 3.6;
+                rig.observe(o);
+            }
+            List<Map<String, Object>> traffic = rig.fires(Topics.TRAFFIC_INFO);
+            check(!traffic.isEmpty(), "roadSpeedLimit: TrafficInfo sent");
+            equal(enabled ? 60L : 0L, field(traffic.get(traffic.size() - 1), "spdLmtSpeedValue"),
+                    enabled ? "roadSpeedLimit on: the posted limit" : "roadSpeedLimit default: 0, as the stock on our roads");
+        }
     }
 
     /** Idle 100s, route + selection, 101, positions on the path, arrival 110 x3 then 100 and pathId -1. */

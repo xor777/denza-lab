@@ -25,6 +25,7 @@ public final class ReplayTool {
         StockFeed.Config config = new StockFeed.Config();
         config.frame = "wgs84".equals(input.get("frame")) ? Coordinates.Frame.WGS84 : Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE;
         config.acceptSimulatedLocations = Boolean.TRUE.equals(input.get("acceptSimulated"));
+        config.roadSpeedLimit = Boolean.TRUE.equals(input.get("roadSpeedLimit"));
         config.emulatedAckDelayMs = input.get("ackDelayMs") instanceof Number ? ((Number) input.get("ackDelayMs")).longValue() : 80;
         List<Object> steps = (List<Object>) input.get("steps");
         ManualScheduler clock = new ManualScheduler(0);
