@@ -37,4 +37,7 @@ tasks.withType<Test>().configureEach {
         rootProject.fileTree("captures/yandex-adas-prototype-20261023") { include("*/denza-hud-native-route.json") },
         rootProject.fileTree("captures/adas-bridge-review/dynamics/sequences"),
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("adasCaptures")
+    /** FieldContractChecks reads it: an edit to the contract alone must rerun the tests. */
+    inputs.file(rootProject.file("research/adas-bridge/field-contract-20261024.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("fieldContract")
 }
