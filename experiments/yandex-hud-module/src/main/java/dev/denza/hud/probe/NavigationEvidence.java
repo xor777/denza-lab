@@ -30,7 +30,8 @@ final class NavigationEvidence {
         try {
             // Observe cancellation immediately even between periodic samples.
             if (!policy.due(frame.mode, now)) return;
-            Map<String, Object> value = source.read(frame, now, System.currentTimeMillis());
+            Map<String, Object> value = source.read(frame, android.os.SystemClock.elapsedRealtime(),
+                    System.currentTimeMillis(), android.os.SystemClock.uptimeMillis());
             Object id = value.get("routeId");
             final String routeId = id instanceof String ? (String) id : null;
             EvidencePolicy.Decision decision = policy.take(frame.mode, routeId, now);

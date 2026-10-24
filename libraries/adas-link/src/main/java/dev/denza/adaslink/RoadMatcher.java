@@ -10,10 +10,10 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
- * A Yandex route on our OSM roads ({@link RoadNetwork}): for the stretches it matches, the junction
+ * A Yandex route on an observed road graph ({@link RoadNetwork}): for the stretches it matches, the junction
  * nodes the route passes (where Amap's links end) and the road under every route position; where it
  * does not match, nothing, and {@link RouteConverter} keeps its Yandex-only rules. The geometry stays
- * Yandex's: only cuts and attributes come from OSM.
+ * Yandex's: only supported cuts and attributes come from that graph.
  *
  * <p>A hidden Markov model over samples every {@link #STEP_M} metres of the route, in costs: a
  * sample's states are the fragments within {@link #RADIUS_M} in an allowed direction of travel
@@ -21,7 +21,7 @@ import java.util.Set;
  * costs |network distance - route distance| / BETA, the network distance by a bounded Dijkstra
  * over allowed directions (so a divided road's other carriageway and a parallel service road need
  * a path through a junction to be reached, and lose); a no-road state carries the route over roads
- * OSM lacks. Viterbi picks the cheapest sequence; runs shorter than {@link #MIN_RUN_M} or farther
+ * the graph lacks. Viterbi picks the cheapest sequence; runs shorter than {@link #MIN_RUN_M} or farther
  * than {@link #MAX_MEAN_M} on average are dropped. Only + - * / and sqrt, in the order of
  * {@code tools/adas_bridge/roads.py}, so the host oracle gives the same doubles and choices.
  */

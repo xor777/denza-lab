@@ -1,0 +1,120 @@
+{
+  "schema": "denza-yandex-parked-selection-evidence-v1",
+  "date": "2026-10-24",
+  "scope": "Physicalcarparkedoneshot,builtfromrealYandexroute;hostindependentreviewonly",
+  "receipt": {
+    "path": "captures/yandex-car-trip-20261024/parked-physical-presence-receipt.json",
+    "sha256": "3afe40bff6430b599fcc7fe51c7875c55c4e85c3a72d5e79173fd549fee88ca3"
+  },
+  "trace": {
+    "path": "captures/yandex-car-trip-20261024/parked-probe-v4.jsonl",
+    "sha256": "ab40a423503c3a9ef757614b7717f74ad46b31da821945ae8c7def215df604ac",
+    "callbacks": 245,
+    "service13Callbacks": 243,
+    "service44Callbacks": 2
+  },
+  "publication": {
+    "pathId": 1118166796,
+    "routeChunks": 1,
+    "routeProtobufBytes": 58526,
+    "selectionProtobufBytes": 8,
+    "segments": 11,
+    "links": 37,
+    "serializedPoints": 859,
+    "totalM": 25357.68296787937,
+    "frame": "wgs84",
+    "routeFireResult": 0,
+    "selectionFireResult": 0,
+    "routeChunkCount": 1,
+    "livePublisher": "SeparatetemporaryAPKonly;fullNavigatorpublisherHARD_OFF"
+  },
+  "selected": {
+    "topic": "0x4002c002c8002",
+    "pathId": 1118166796,
+    "statusCode": {
+      "present": true,
+      "value": 200
+    },
+    "payloadHex": "0a11089aeadbaa051038188cbe97950420c801"
+  },
+  "pathMatch": {
+    "topic": "0x4002c002c8001",
+    "pathId": 1118166796,
+    "routeEndIdx": {
+      "present": true,
+      "value": 858
+    },
+    "outerCode": {
+      "present": false,
+      "effectiveProto3Getter": 0
+    },
+    "itemStatusCode": {
+      "present": false,
+      "effectiveProto3Getter": 0
+    },
+    "totalNOADistance": {
+      "present": false,
+      "effectiveProto3Getter": 0
+    },
+    "routeBeginIdx": {
+      "present": false,
+      "effectiveProto3Getter": 0
+    },
+    "payloadHex": "0a1108adbe99bc092209088cbe97950420da06",
+    "fieldProof": "RouteInfofield4=endIndex,field5=statusCode;notinterchangeable",
+    "receiverSemantics": "Noverifiedzero-to-success/failure/eligiblekmcontract",
+    "consistency": "858=859serializedpointsminus1;notgeographicmatchproof"
+  },
+  "consumerEvidence": {
+    "getters": "Absent proto3 scalar fields still return effective0 in generated getters; presence-aware receipt retains both absence and protobufDefault0.",
+    "outerCode": "PathMatchProxy q.java:26 passes getCode() only to logging, with no success branch",
+    "itemFields": "q.java:28 copies gettervalues into EHPtoNav; actualregisteredlistener d.java:128..130 onlyreadsaflag and ignoreslist",
+    "otherInspectedUses": "RouteOddSegUtil m.java:147..,379.. uses begin/end indices to map DNPRoadData, with no totalNOADistance or statusCode decision",
+    "zeroMappingConclusion": "No0=success/failure/none/eligiblekm mapping established in this inspectedconsumerpath. Effectivegetterdistance0 is not an independent measured0eligiblekilometers claim.",
+    "selectedContrast": "PathSelectedProxy t.java:13 explicitly acceptsstatusCode200; otherstatus invokesfailure callback"
+  },
+  "priorAttempts": [
+    {
+      "trace": "parked-probe.jsonl",
+      "reason": "app_processContext lacked registered IApplicationThread:SecurityException beforeserverstart/fire",
+      "noStartOrFire": true
+    },
+    {
+      "trace": "parked-probe-apk.jsonl",
+      "reason": "RegisteredAPKcontext worked but8-topic gate rejected5critical/8total subscriptions; optional local7/8202unsupported",
+      "noStartOrFire": true
+    }
+  ],
+  "v4Gate": "Five exact13/8002,13/8003,13/8005,44/8002,44/8001successfulsubscribes. Three optionalIVImonitors not required.",
+  "cleanup": "Ownservices45/43stop0,ownclientclosed/unbound;parentuninstalledprobeandreleasedcar",
+  "unproved": [
+    "No explicit PathMatch outercode or itemstatus transmitted",
+    "No NOA distance/begin range transmitted; proto3 default0 is not observed success",
+    "End858 equals last index of859 serialized points: numeric consistency only; no full-map-match or eligible-distance claim",
+    "No continuous position/navigationStatusfeed, movingtripacceptance, NOAavailability/activation, lane/classvalidation",
+    "Full Navigator APK remains publisherHARD_OFF; separate temporary probe only"
+  ],
+  "tests": {
+    "path": "captures/yandex-car-trip-20261024/parked-presence-tests.log",
+    "sha256": "aa0d3b0f577b4ffbb02922f34ccad78755a17f980c61f0676801ebed9eef44a2",
+    "result": "4/4PASS"
+  },
+  "sourceHashes": {
+    "captures/yandex-car-trip-20261024/decode_parked_presence.py": "b0b245e3383a3534fb2fd0cf08ca9ce07ea4543c32c7e9f8de1ac9190dc84095",
+    "captures/yandex-car-trip-20261024/summarize_parked_callbacks.py": "982ca5f2f28a0642298fd0d0dba4de4dc37eec73f596c170c4320782f6f6f2d9",
+    "captures/yandex-car-trip-20261024/parked-probe-v4.jsonl": "ab40a423503c3a9ef757614b7717f74ad46b31da821945ae8c7def215df604ac",
+    "captures/yandex-car-trip-20261024/parked-probe.jsonl": "d35cb048bfa9bbdada5a55acc49806caac1224d99099db44ce6bd4cf52d393a6",
+    "captures/yandex-car-trip-20261024/parked-probe-apk.jsonl": "1eed49e414d65ca13927e4b589543ca5fa7b8df5cab19c5c12635efca6b5b60a",
+    "captures/yandex-car-trip-20261024/parked-payload/receipt.json": "9284272510f5bcb3f3919fe6a31520ac659cd6f25ab8017ad53c82327aa7f8d0",
+    "captures/yandex-car-trip-20261024/parked-payload/route-0.pb": "ebbbf8de8a78626aed5665b6429f97726e372a951f82df3a70e4de8bdc99ca62",
+    "captures/yandex-car-trip-20261024/parked-payload/selection.pb": "f2037bea10f7f6c981f5a15e80fb1ecb8a574d4440d5a3c6cdcdc9a099946e28",
+    "tools/adas_bridge/someip_schema.json": "317cb04e8df4d223aba18bf11fc39b86e87b56098bf440ac4ee36aff5b2bd8a7",
+    "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/someip/navigation/path/match/status/service/SomeipNavigationPathMatchStatusService.java": "ad37e135914094f00a1a239d82e717e3d4c84791da5a16641f322fadb354a3ec",
+    "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/c/j/j0/q.java": "ac414ed7cc5f52198f944cbdae3ec3957c197e5fa6d042f04b1c1bcd056bb03f",
+    "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/d.java": "b6048131fcb99bd0e8d5e7e8928ad5faf394df6ba119ac01bb01c4c406087061",
+    "captures/yandex-car-trip-20261024/test_parked_presence.py": "d606a0e8793c47a9bbb052c570e4f44e9bb9a8536053fc3a2cca0e6f383ecb15",
+    "captures/yandex-car-trip-20261024/parked-presence-tests.log": "aa0d3b0f577b4ffbb02922f34ccad78755a17f980c61f0676801ebed9eef44a2",
+    "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/c/j/j0/t.java": "5ac9182b8b3e56e64b5b34b813063373d73446080b6a81c0ba4dae769f7be2f7",
+    "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/m.java": "ca8a6ac5f283b3d3bfedd99b8689bc27f0c9a5776aba377c98d9b0bcf1891ee6"
+  }
+}

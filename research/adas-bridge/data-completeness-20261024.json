@@ -1,0 +1,2820 @@
+{
+  "schema": "denza-yandex-amap-adas-completeness-inventory-v1",
+  "generatedUtc": "2026-10-24T09:44:17.719621Z",
+  "scope": "Host read-only audit of specified Java source, exact local factory LM source,18 Beijing traces,6 retained car route snapshots and2 regional emulator snapshots. Production source/device/APK unchanged by this agent. This is a bounded inventory of inspected contract, not proof of all Yandex internals or NOA requirements.",
+  "sourcePins": "source-pins.json",
+  "classifications": {
+    "proven_loss": "source content or source availability is discarded by our chain",
+    "factory_default": "Matches a proved factory literal or omission; our integration policies are classified separately.",
+    "no_proven_source": "the inspected contract has no source; do not fabricate; required extraction/test given",
+    "unproved_mapping": "source exists, semantic/orientation/namespace crosswalk not established; concrete next extraction/fixture given",
+    "intended_integration_policy": "Our guarded lifecycle, HUD scope or memory/coverage bounds; not a factory default and not claimed factory equivalence"
+  },
+  "concurrentWork": "Legal limits, lanes, traffic provenance and traffic-signal diagnostics were in flight. Source SHA snapshots define findings; no claim these are final build11 bytes.",
+  "findings": [
+    {
+      "id": "C01",
+      "title": "Same-route conditions become permanently stale",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "conditionsOutdated",
+        "jamSegments",
+        "events",
+        "speedLimits",
+        "sections.weight"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 152,
+          "anchor": "if (copies == 0",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        }
+      ],
+      "factoryEvidence": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/DrivingRoute.java:15,51,132-143; factory captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:295-300,1029-1049",
+      "decision": "Root decision: add a separate ConditionsListener/update-callback revision pipeline. Geometry and path IDs remain immutable within a route generation; attribute updates carry source revision/timestamp. Add a bounded ConditionsListener snapshot generation, coalesced off UI work; detach on route change. Separate dynamic conditions from topology/content key so traffic updates do not force route/selection. Preserve outdated state and reject expired updates.",
+      "nextTest": "One routeId: initial incomplete -> populated -> congestion/camera/limit change -> disappearance; updates reach dynamics, no stale resurrection or path resend.",
+      "impact": "temporal completeness",
+      "state": "implement_next",
+      "localFollowup13": {
+        "status": "implemented_local",
+        "detail": "Ongoing bounded route copies: initial, +10s, then every30s; actual source freshness remains unknown; stale queued generation rejected.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C02",
+      "title": "Jam segment type, speed and alignment dropped",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "jamSegments[].jamType",
+        "jamSegments[].speed",
+        "TrafficInfo.trafficJamDist",
+        "TrafficInfo.distToStartTrafficJam",
+        "TrafficInfo.trafficJamStatus",
+        "TrafficInfo.passTime"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 86,
+          "anchor": "\"jamSegments\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 78,
+          "anchor": "public static YandexRoute fromSnapshot",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 817,
+          "anchor": "private void resetJam()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:1029-1051; TrafficStatus.java: Open1 Slow2 Jam3 Congested4 Unknown0; captured-input-profile.json has LIGHT/HARD in real drive",
+      "decision": "Retain aligned raw jam array. Derive the first contiguous congestion run ahead from route arc lengths and only a reviewed semantic JamType->TrafficStatus table; FREE1/LIGHT2/HARD3/VERY_HARD4 are candidate labels, BLOCKED has no exact scalar equivalent. Pass time from positive segment speed, unavailable time remains separately unknown. Native-graph agent owns diagnostics first.",
+      "nextTest": "Mixed FREE/LIGHT/HARD/UNKNOWN/BLOCKED, fractional current segment, zero speed, aligned-size failure, update/removal. Do not treat BLOCKED as an ordinal.",
+      "impact": "traffic completeness",
+      "state": "in_flight"
+    },
+    {
+      "id": "C03",
+      "title": "trafficFlowSpeed is zero in both inspected factory and bridge",
+      "classification": "factory_default",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "SpeedIntersection.trafficFlowSpeed",
+        "Observation.trafficSpeedMps"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 37,
+          "anchor": "trafficSpeedMps = Double.NaN",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 455,
+          "anchor": "final double traffic = p.trafficSpeedMps",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 806,
+          "anchor": "flowSpeed = 0",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:955-967; setter has no callers in LM; beijing-presence-profile.json: absent in all 5268 messages",
+      "decision": "Keep factory-default wire 0 for this build. Carry Yandex current jam speed and units as diagnostic provenance; enabling wire flow is a separately versioned extension after receiver-unit evidence. Do not conflate with historySpeed.",
+      "nextTest": "Assert raw Yandex m/s survives input and diagnostics; wire remains absent/default0; new receiver contract fixture required to enable.",
+      "impact": "semantic fidelity",
+      "state": "in_flight"
+    },
+    {
+      "id": "C04",
+      "title": "Per-section free-flow average substitutes for per-link historical speed",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "sections.metadata.weight.distance",
+        "sections.metadata.weight.time",
+        "historySpeed"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 101,
+          "anchor": "free = num(d.get(\"value\"))",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 485,
+          "anchor": "double free = c.linkSpeedKmh",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:955; Beijing history present5268,78 distinct; ERAT wire values are not universally ordinary km/h (owner doc calibration)",
+      "decision": "Retain source distance/time and distinguish section free-flow estimate from factory historical link speed. Use existing section ratio only as named approximation; prefer a proven native per-edge historical source if recovered. No fixed NOA-enabling constant.",
+      "nextTest": "Two links in one section with different observed traffic/limits: history stays independently sourced; missing/zero weight does not become a positive speed.",
+      "impact": "speed semantics",
+      "state": "backlog"
+    },
+    {
+      "id": "C05",
+      "title": "Dynamic legal limit was suppressed, now wrappers enable it",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "Guidance.getSpeedLimit",
+        "route.speedLimits",
+        "graph.speedLimitMps",
+        "TrafficInfo.spdLmtSpeedValue"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 48,
+          "anchor": "public boolean roadSpeedLimit = false",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 93,
+          "anchor": "config.roadSpeedLimit = true",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/LiveMapBridge.java",
+          "line": 213,
+          "anchor": "config.roadSpeedLimit=true",
+          "sha256": "54809c238f20ebc5b41d9cf126c5de6ea62f4c27383f24a8fa844f2d94c564eb",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/LiveMapBridge.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:208-215; Beijing legal limits70/80 present1357/5822 TrafficInfo",
+      "decision": "Accept in-flight fix: current guidance -> aligned route edge -> uniquely matched directional graph -> explicit clear0 with source. Keep static route speedLimit literal separate.",
+      "nextTest": "Known change, disappearance, fallback and route stop; assert source attribution and no stale legal limit.",
+      "impact": "high, implemented producer omission",
+      "state": "in_flight"
+    },
+    {
+      "id": "C06",
+      "title": "Traffic-light signal state is diagnostic-only",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "Windshield.getTrafficLightsWithSignal",
+        "signal",
+        "arrow",
+        "sectionType",
+        "secondsLeft",
+        "lightStateType",
+        "startTime",
+        "endTime",
+        "lightDir",
+        "lightWaitNum"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/GuidanceSnapshot.java",
+          "line": 98,
+          "anchor": "upcomingTrafficSignals",
+          "sha256": "83a2ab906c13ff0b86b9aba683d1c1728667f5c958f7f0bfe10c7030434f7d31",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GuidanceSnapshot.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/TrafficSignalSnapshot.java",
+          "line": 25,
+          "anchor": "sourceTimestamp",
+          "sha256": "338ad49409289241cc123181a402ca094561ab7485b893ebd990ac790237f02d",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/TrafficSignalSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 819,
+          "anchor": "private void resetLightLocation()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:367-395; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:150-159; no state/countdown fields present in all4910 Beijing light messages",
+      "decision": "Keep exact live signal snapshot with route membership, observed clock and nullable literals. Translate color/direction only after pinned enum + factory branch/bytecode proof. API lacks source sample timestamp/validity, so do not synthesize trusted countdown start/end from wall-clock + secondsLeft. Report unsupported reason per field.",
+      "nextTest": "All pinned signal enums, arrows/section types, null seconds, stale repeated object, route change, signal disappearance. Factory-state mapping needs a typed fixture, not a zero-color assumption.",
+      "impact": "signal completeness; countdown freshness",
+      "state": "in_flight"
+    },
+    {
+      "id": "C07",
+      "title": "Static light IDs and true light distance are discarded",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "trafficLights[].id",
+        "lightDistance",
+        "sdTrafficLight coordinates"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 118,
+          "anchor": "lights[i] = position",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 482,
+          "anchor": "setLightLocation(0, light[0], light[1])",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:954,1139-1140; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:155 never serializes distance itself",
+      "decision": "Retain source light ID and exact scalar/metres. Correlate live signals by identity plus current route. Use measured next-light distance for emission gating; current 0 passes <500m even for a selected light up to3km away. Preserve factory sender field set.",
+      "nextTest": "Light at499/500/501/2999/3001m, duplicate/coincident lights, route-start light and ID change; no negative/passed signal selected.",
+      "impact": "temporal light selection",
+      "state": "backlog"
+    },
+    {
+      "id": "C08",
+      "title": "Non-camera route events become empty incident lists",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "events.tags",
+        "events.eventId",
+        "events.descriptionText",
+        "events.location",
+        "sdTraffiIncident",
+        "occupiedLane"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 133,
+          "anchor": "cameras.add(new Camera",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 284,
+          "anchor": "c.tags.contains(\"SPEED_CONTROL\")",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 717,
+          "anchor": "public void onTrafficEvents()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:304-336,1078-1124; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:133-147",
+      "decision": "Separate typed Event from Camera, retain ID/tags/position/location. Add incident mapping for semantics established by factory layer/type evidence; retain unsupported raw events with explicit reason and count. Do not substitute camera/police tags into unrelated incident codes or claim [] means no source events. Lane occupancy is unavailable in inspected Yandex event; use factory unknown only after code proof.",
+      "nextTest": "ACCIDENT/RECONSTRUCTION/CLOSED/DANGER plus camera-only and multi-tag events, no-position fallback to validated event.location, update/removal; unsupported count must be nonzero.",
+      "impact": "incident completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C09",
+      "title": "Construction reminder never populated; stock has an immediate-reset quirk",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "TrafficInfo.cnstrctnRmnd",
+        "cnstrctnCrdLatitude",
+        "cnstrctnCrdLongitude",
+        "RECONSTRUCTION"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 818,
+          "anchor": "private void resetConstruction()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 717,
+          "anchor": "public void onTrafficEvents()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:320-335 sets2 for type201 then resets before next queued location",
+      "decision": "Retain RECONSTRUCTION as an event and pass through reviewed incident semantics. Reproduce factory reset ordering in strict oracle mode; do not add a persistent construction warning under a claim of byte equivalence. If persistent warning desired, specify as extension and test lifecycle.",
+      "nextTest": "Factory type201 callback timing vs following TrafficInfo; bridge event appears/disappears and no stale coordinate remains.",
+      "impact": "construction semantics",
+      "state": "backlog"
+    },
+    {
+      "id": "C10",
+      "title": "Camera type, direction and unknown-limit cameras discarded",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "SPEED_CONTROL",
+        "LANE_CONTROL",
+        "ROAD_MARKING_CONTROL",
+        "CROSS_ROAD_CONTROL",
+        "NO_STOPPING_CONTROL",
+        "MOBILE_CONTROL",
+        "TRAFFIC_CONTROL",
+        "cameraData.inFace",
+        "cameraData.inBack",
+        "cameraType"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 253,
+          "anchor": "\"cameraData\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 33,
+          "anchor": "public static final class Camera",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 284,
+          "anchor": "Double.isFinite(c.speedLimitMps)",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 552,
+          "anchor": "cameraType = 7",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:638-688; LM/k/h/a0/d/c.java:g maps subtype list; captured-input-profile.json demonstrates discarded tags",
+      "decision": "Keep nullable legal limit independent of camera existence. Add pinned tag->factory subtype semantics, preserving multiple tags and approach direction; emit type even without known speed where contract permits. Do not label every control as ultrahigh-speed7.",
+      "nextTest": "Each pinned control tag, multi-tag, front/back cameras, no limit, limit-only change and passing/hide reset.",
+      "impact": "camera completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C11",
+      "title": "Average-speed camera pairs and distances remain zero",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "intervalCameraStartPointLon/Lat",
+        "intervalCameraEndPointLon/Lat",
+        "intervalCameraSpeedValue",
+        "genernalNavigation.intervalCameraSpeedDisttoStart/End"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 562,
+          "anchor": "iStartLon = iStartLat = iEndLon",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 99,
+          "anchor": "public static byte[] generalNavigation",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:655-678,900-908 defines subtype25/26 boundaries; Beijing54 packets contain endpoint",
+      "decision": "Inspect Windshield upcoming-road-event payload and route archive for an explicit paired interval identity. Only map if paired start/end, direction and limit are available. Do not pair adjacent SPEED_CONTROL points or infer a zone from matching limits. Preserve zeros until a pair fixture proves it.",
+      "nextTest": "Explicit pair enter/in-zone/leave, reversed pair, unmatched endpoint, reroute inside zone and source disappearance.",
+      "impact": "source extraction required",
+      "state": "backlog"
+    },
+    {
+      "id": "C12",
+      "title": "Pedestrian/railway/checkpoint facility inputs have no sender",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "pedestrianCrossings",
+        "railwayCrossings.type",
+        "checkpoints",
+        "RoadFacilities"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 88,
+          "anchor": "\"pedestrianCrossings\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 78,
+          "anchor": "public static YandexRoute fromSnapshot",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Topics.java",
+          "line": 24,
+          "anchor": "public static final long SD_TUNNEL",
+          "sha256": "839d8756a3c5770801bae9d3fd039bde59fede5700b60d5e8972588aa2e76312",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Topics.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:735-748; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:125-130; NaviRoadFacility @common.path.FacilityType: Zebra31 Railway8/50/51/52 CheckPoint91;29 nonempty Beijing packets",
+      "decision": "Implement RoadFacilities schema/topic0x8202/0x8005 and nearest visible typed facility using route scalar/coordinate. Pedestrian->31 and untyped railway->8 are direct named matches; gate subtype51/52 on explicit Yandex crossing type. Checkpoint91 only if getter provides corresponding physical checkpoint. Do not use guide.NaviFacilityType (different enum).",
+      "nextTest": "Factory serializer golden for31/8/51/52/91, nearest selection and distance, after-pass/reset zeros, conflicting/coincident facilities.",
+      "impact": "immediate implementable content",
+      "state": "backlog",
+      "localFollowup13": {
+        "status": "partial_local",
+        "detail": "RoadFacilities schema/topic/sender + pedestrian31, genericrailway8, checkpoint91 and same-route refresh/clear. 600m nearest-ahead is explicit adapter policy; coordinate is route interpolation.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C13",
+      "title": "Speed bumps, school/danger and poor-surface events dropped",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "speedBumps",
+        "ruggedRoads",
+        "fordCrossings",
+        "SCHOOL",
+        "DANGER",
+        "DRAWBRIDGE",
+        "OVERTAKING_DANGER",
+        "PEDESTRIAN_DANGER",
+        "CROSS_ROAD_DANGER"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 84,
+          "anchor": "\"fordCrossings\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 88,
+          "anchor": "\"speedBumps\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 78,
+          "anchor": "public static YandexRoute fromSnapshot",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/common/path/model/FacilityType.java: School17 Danger30 OvertakeForbid18 WaterPavement27 Irregularity28 Amble29",
+      "decision": "Map SCHOOL->17 and generic DANGER->30 with positions after event certainty policy. Keep bump/ford/rugged subtype raw; confirm Amble29 vs physical speed bump and water/rough semantics using native/localized stock sign records before mapping. Danger is not automatically a statutory prohibition; DRAWBRIDGE requires its own no-exact-code decision.",
+      "nextTest": "Known school/danger from retained SPb/Kazan inputs; speedbump named factory record; ensure hazard tags never silently create prohibition or bridge state.",
+      "impact": "facilities and hazard scope",
+      "state": "backlog",
+      "localFollowup13": {
+        "status": "partial_local",
+        "detail": "SCHOOL17/DANGER30 named mappings. Bumps/ford/rugged/restrictions raw retained with explicit unresolved mapping. RuggedRoad inPoorCondition/unpaved extraction added.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C14",
+      "title": "Toll-road ranges do not create service/toll messages",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "tollRoads",
+        "metadata.flags.hasTolls",
+        "serviceAreaAndTollStation",
+        "on_service_area",
+        "struct:toll"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 83,
+          "anchor": "\"tollRoads\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 137,
+          "anchor": "route.highways = ranges",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Topics.java",
+          "line": 24,
+          "anchor": "public static final long SD_TUNNEL",
+          "sha256": "839d8756a3c5770801bae9d3fd039bde59fede5700b60d5e8972588aa2e76312",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Topics.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:163-170; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:973-1024 uses NaviFacility area/toll with lane data",
+      "decision": "Retain toll ranges and raw service-area renderer attributes. Add service/toll message only from explicit point facility (name/type/distance), not arbitrary range entry. Extract direction-sign/POI facility source and native driving annotations next; toll-range membership alone does not prove booth or lane types.",
+      "nextTest": "A toll range with no booth, a booth without toll-range edge, service area approach and passed reset; no invented toll-lane array.",
+      "impact": "missing dynamic family",
+      "state": "backlog"
+    },
+    {
+      "id": "C15",
+      "title": "HD range and trajectory are exported then unused",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "hdSections",
+        "annotation.hdAnnotation.actionArea",
+        "annotation.hdAnnotation.trajectory",
+        "vector.hd_covered",
+        "NavigationStatus.hDStartDistance"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 83,
+          "anchor": "\"hdSections\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 181,
+          "anchor": "\"hdAnnotation\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 29,
+          "anchor": "public static byte[] navigationStatus",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:69-77 stock only sets navigationStatus, not hDStartDistance; exact map->ADAS JSON has no HD trajectory field",
+      "decision": "Retain HD geometry as source evidence, validate coordinates and use only sinks explicitly carrying it. Keep hDStartDistance unset in factory mode: Yandex HD coverage is not ADAS ODD/HD certification. Add separately typed diagnostic coverage, not an NOA-enabling flag.",
+      "nextTest": "HD present/empty/null/transition; assert no HD coverage bit leaks into driving eligibility.",
+      "impact": "unmapped source with no proven sink",
+      "state": "backlog"
+    },
+    {
+      "id": "C16",
+      "title": "Route z-levels and structural data lose bridge/elevated distinctions",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "zlevels",
+        "zlevelBreakpoints",
+        "graph.beginZLevel/endZLevel",
+        "vector.struct",
+        "linktype"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 92,
+          "anchor": "\"zlevels\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 224,
+          "anchor": "else link.linkType = StockPath.LINK_TYPE_COMMON",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/common/path/model/LinkType.java: Common0 Ferry1 Tunnel2 Bridge3 Elevated4; graph levels do not encode structural type",
+      "decision": "Retain z-level changes for matching and cuts. Unknown structural type should remain provenance-tagged common approximation or explicit NULL, chosen consistently; only literal proven renderer bridge/tunnel structure may map to3/2 after unique geometry association. Never infer bridge solely from z>0.",
+      "nextTest": "Stacked crossing with same2D geometry, negative/positive levels, explicit bridge vs elevated and unknown fields.",
+      "impact": "structural correctness",
+      "state": "backlog"
+    },
+    {
+      "id": "C17",
+      "title": "Highway annotation is promoted into class/public/divided/one-way assumptions",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "highways",
+        "speedLimits",
+        "roadclass",
+        "formway",
+        "direction",
+        "ownership"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 338,
+          "anchor": "if (inside(route.highways",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 343,
+          "anchor": "l.ownership = 0",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:115-134; factory table correlation does not prove cross-provider equivalence; raw class/fc and richer offline types exist",
+      "decision": "Move heuristic output into explicit estimate provenance and prevent it being used as confirmed eligibility. Recover per-attribute semantics from renderer and native offline enum switch tables. A posted90 threshold cannot distinguish freeway vs other road and public access must not follow highway membership.",
+      "nextTest": "Highway-tagged restricted/private/undivided example, same speed across distinct classes, light within highway range.",
+      "impact": "high, inferred map facts",
+      "state": "backlog"
+    },
+    {
+      "id": "C18",
+      "title": "Ordinary-road class and formway stay NULL despite known richer sources",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "roadclass",
+        "formway",
+        "vector.class",
+        "vector.fc",
+        "offline.types",
+        "offline.structTypes",
+        "offline.categories"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 320,
+          "anchor": "static double[] attributes",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 115,
+          "anchor": "Fragment.partial",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/common/path/model/{RoadClass,Formway}.java; research/adas-bridge/yandex-vector-world-20261024.json; yandex-richer-attributes-20261024.json native getters0x247bce0/0x247bd04/0x247bd28",
+      "decision": "Implement typed per-attribute evidence rather than all-or-nothing completeAttributes. Preserve renderer literals now. Next bounded extraction: native semantic switch/formatter consumers of types/structTypes/categories, then curated same-road annotation fixtures; do not equate raw numeric class/fc ordinals with Amap enums.",
+      "nextTest": "Cross-provider road-role table with negative controls, unmatched/ambiguous geometry rejected, source change invalidates attributes.",
+      "impact": "native extraction backlog",
+      "state": "backlog"
+    },
+    {
+      "id": "C19",
+      "title": "Sign width is spread over entire highway link",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "laneSigns[].lanes.size",
+        "links.laneNum"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 155,
+          "anchor": "route.laneSigns.add",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 345,
+          "anchor": "l.laneNum = (int) sign[1]",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:121; factory LaneNum is both directions on two-way roads; sign width is junction-scoped and can include special lanes",
+      "decision": "Keep actual lane-sign arrays for point-scoped guidance (in-flight). Remove or explicitly quarantine whole-link lane count estimate; if approach estimate is requested, bound upstream100m and stop at all topology/attribute boundaries, separate special/turn lanes. Seek physical lane-count source independently.",
+      "nextTest": "Sign at short/long link end, special lanes, two-way road, changing sign width and no sign; no constant laneNum1 fallback.",
+      "impact": "high, false physical count",
+      "state": "in_flight"
+    },
+    {
+      "id": "C20",
+      "title": "Road direction is default0; captured traversability is not legal one-way",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "links.direction",
+        "graph.forward/backward",
+        "vector.oneway",
+        "offline.reverseIndex"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 37,
+          "anchor": "public int direction;",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 79,
+          "anchor": "g.backward = true",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 337,
+          "anchor": "l.direction = 1",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:132 reads RoadDirection raw; reverse geometry/index does not establish legal direction",
+      "decision": "Preserve literal one-way text plus geometry orientation separately. Recover orientation reference and enum using both directional route captures or native decoder consumers. Opposite edge absence in bounded online cache is not one-way proof. Avoid treating default0 as measured two-way.",
+      "nextTest": "Same road both directions, clipped tile lacking reverse, yes/-1 style renderer values, roundabout orientation.",
+      "impact": "direction/access safety",
+      "state": "backlog"
+    },
+    {
+      "id": "C21",
+      "title": "Road ownership/access is NULL or assumed public",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "links.ownership",
+        "offline.accessIdMaskIndices",
+        "offline.accessIdMasks",
+        "VehicleTypes",
+        "requiresAccessPass",
+        "restrictedEntries"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 35,
+          "anchor": "ownership = OWNERSHIP_UNKNOWN",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 343,
+          "anchor": "l.ownership = 0",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:126-130 normalizes1..4->1; regional table23 raw masks; public VehicleType0..3 does not prove regional mask bits",
+      "decision": "Preserve raw access masks and route restrictions. Complete public VehicleType->regional ID conversion via native JNI0x242e188/0x242eb48 and reader profile consumers, then crosswalk public/service/private semantics to stock ownership. Until proof use explicit unknown; do not publicize to enable NOA.",
+      "nextTest": "Default/taxi/truck/moto profiles, private/service roads, numeric-zero namespace mismatch, access-pass route.",
+      "impact": "high, access fact",
+      "state": "backlog"
+    },
+    {
+      "id": "C22",
+      "title": "Graph source IDs are discarded before exported link IDs",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "graph.edge.id",
+        "edgeDataId",
+        "from/to",
+        "links.linkID"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 59,
+          "anchor": "StringBuilder k =",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 115,
+          "anchor": "Fragment.partial",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 218,
+          "anchor": "link.topoId = topoId(link)",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 419,
+          "anchor": "static long topoId",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:113-114 stock exports64TopoID, -1 outside signed64; Yandex IDs namespaces are not proved stock-compatible",
+      "decision": "Carry source tile/hash/release/edgeData/directed IDs through Fragment/Match for traceability now. Define a bridge-owned ID namespace and stable split identity; source identity plus canonical offset is preferable to only geometry hash after scope proof. Preserve synthetic wire ID if receiver namespace requirements unknown; never call it factory topo ID.",
+      "nextTest": "Same road split by limit/light update, reversed route, clipped tile variations and hash collision fixture; path ID does not prove link-ID acceptance.",
+      "impact": "identity stability",
+      "state": "backlog"
+    },
+    {
+      "id": "C23",
+      "title": "Multi-exit, parallel-road and mixed-fork default false become affirmative absence",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "links.hasMultiOut",
+        "links.hasParallel",
+        "links.hasMixFork",
+        "SpeedIntersection.hasParallelRoad",
+        "hasMixFork",
+        "MixForkInfo"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 31,
+          "anchor": "public boolean hasMultiOut",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 469,
+          "anchor": "hasMixFork = l.hasMixFork ? 1 : 2",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Topics.java",
+          "line": 32,
+          "anchor": "SD_AHEAD_LANES",
+          "sha256": "839d8756a3c5770801bae9d3fd039bde59fede5700b60d5e8972588aa2e76312",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Topics.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:122,131,134; captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:763-783,937-939; Beijing mixFork1 observed230 ticks",
+      "decision": "Use internal tri-state per property. Recover multi-out only from complete source adjacency and route branch semantics; parallel/mix fork need explicit graph/native source or robust labeled topology fixture. Missing fields must not become known-absent2. Add MixFork schema0x800D only for supported point records, not every fork annotation.",
+      "nextTest": "Incomplete tile, grade-separated crossing, true merge vs fork, parallel frontage road, explicit false and unknown; unsupported never equals absence.",
+      "impact": "topology completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C24",
+      "title": "Graph pruning/conflicts drop usable partial attributes wholesale",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "GraphRoadNetwork skippedEdges/conflictingGroups/conflictingVertices",
+        "names",
+        "limits",
+        "topology"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 95,
+          "anchor": "if (g.conflict)",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 75,
+          "anchor": "g.name == null",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 53,
+          "anchor": "minLon-padLon",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        }
+      ],
+      "factoryEvidence": "Graph evidence requires missing/conflicting endpoints remain distinct; factory has complete road records",
+      "decision": "Preserve rejection counters per reason, source IDs and usable independent fields. A speed conflict must suppress speed, not necessarily geometry/name; a topology conflict must not join nodes. Keep spatial2km cap and memory budgets explicit coverage limits. Conflicting names need deterministic provenance rather than first nonempty value.",
+      "nextTest": "One attribute conflicts while geometry agrees, duplicate tiles, missing endpoint and clipped extent, cache eviction; verify no false join or arbitrary conflicting speed.",
+      "impact": "coverage/data-quality",
+      "state": "backlog"
+    },
+    {
+      "id": "C25",
+      "title": "Route/graph matcher works in2D without carrying route vertical level",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "zlevels",
+        "GraphLevel",
+        "RoadMatcher.match",
+        "graphMatch"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 112,
+          "anchor": "nodeKey",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 180,
+          "anchor": "RoadMatcher.match(route",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "research/adas-bridge/yandex-vector-world-20261024.json: geometry association2D does not establish common level namespace",
+      "decision": "Carry route graphLevelAt or z-level evidence into matcher after proving its namespace aligns with graph levels; otherwise reject ambiguous stacked candidate and report coverage gap. Do not resolve by nearest2D distance alone.",
+      "nextTest": "Two same-shape stacked roads with different limit/name and crossing-only adjacency.",
+      "impact": "attribute-to-road identity",
+      "state": "backlog"
+    },
+    {
+      "id": "C26",
+      "title": "Junction markers discard direction-sign text and restrictions semantics",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "directionSigns.direction/items/exit/road/toponym/icon/style",
+        "restrictedTurns",
+        "restrictedEntries"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 267,
+          "anchor": "private Map<String, Object> directionSign",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 139,
+          "anchor": "for (String key : new String[]{\"directionSigns\"",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:80-87 NextAction has semantic action/distance, not arbitrary sign style",
+      "decision": "Retain typed sign and restriction objects, not only cut positions. Use sign exit/road text for next-road/branch provenance only when route scope agrees; styles/icons have no proven ADAS sink and remain diagnostics. Restrictions can block applicability but cannot be recoded as legal lane permissions without payload.",
+      "nextTest": "Same position signs with different branch text, no-name section, restricted entry/turn and future unknown enum.",
+      "impact": "annotation completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C27",
+      "title": "Vehicle restrictions, request points and vehicle options never exported",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "DrivingRoute.getRoadVehicleRestrictions",
+        "getManoeuvreVehicleRestrictions",
+        "getRequestPoints",
+        "getVehicleOptions"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 25,
+          "anchor": "Map<String, Object> read(Object route)",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        }
+      ],
+      "factoryEvidence": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/DrivingRoute.java:65,77,86,113",
+      "decision": "Extend evidence snapshot using pinned public getter/member schema and preserve typed values. Their exact members are not present in partial JADX tree: inspect existing dex member dump/archive first, no blind reflection names. Gate applicability locally; do not manufacture Amap ownership/lane/height restrictions from route success.",
+      "nextTest": "Round-trip each restriction kind and units, vehicle profile change, empty vs getter-failure.",
+      "impact": "native-source extraction",
+      "state": "backlog"
+    },
+    {
+      "id": "C28",
+      "title": "Roundabout/exit/turn metadata and series/HD annotations flattened",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "annotation.actionMetadata.leaveRoundabout.exitNumber",
+        "turn.turnNumber",
+        "uturn.length",
+        "exit.sequentialNumber/numerationProximityMask",
+        "inSeriesWithNext",
+        "annotationLanes"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 198,
+          "anchor": "private Map<String, Object> actionMetadata",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 103,
+          "anchor": "sections.add(new Section",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/common/path/model/{MainAction,AssistantAction}.java; stock byte serializer exposes main+assistant but no generic roundabout-exit scalar",
+      "decision": "Carry metadata in Section. Keep exit count/series as diagnostic and description until a matching stock semantic sink is demonstrated. Fork/EXIT are currently flattened to slight turn; use contextual assistant branch codes only with labeled factory examples. Do not map FORK to MERGE merely because an enum exists.",
+      "nextTest": "All19 pinned Action members plus unknown future token; exit counts1..N, rapid consecutive manoeuvres, right U-turn.",
+      "impact": "manoeuvre fidelity",
+      "state": "backlog"
+    },
+    {
+      "id": "C29",
+      "title": "Actual outgoing manoeuvre identity loses right U-turn and ferry icon details",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "UTURN_RIGHT",
+        "LEAVE_FERRY",
+        "NextAction.iconType",
+        "nextManoeuvre"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 104,
+          "anchor": "case \"UTURN_LEFT\": case \"UTURN_RIGHT\"",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 116,
+          "anchor": "public static int icon",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 473,
+          "anchor": "int cross = StockRouteJson.displayAction",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/guide/model/ManeuverIconID.java: UTurn8 UTurnRight19 Ferry46; MainAction only UTurn7",
+      "decision": "Store a distinct manoeuvre icon/source semantic per section, then dynamic NextAction can use it while retaining factory main/assistant serialization. Existing RouteConverter.icon is unused in actual feed; guide hint distance/position also diagnostic-only. Confirm leave-ferry has no separate icon before reusing46.",
+      "nextTest": "UTURN_RIGHT icon19 vs left8, ferry board/leave, dynamic hint vs section boundary; no unknown action silently masquerades as straight.",
+      "impact": "immediate icon omission",
+      "state": "backlog"
+    },
+    {
+      "id": "C30",
+      "title": "Default unknown actions silently encodeNULL",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "RouteConverter.actions default0,0",
+        "RouteConverter.icon default0"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 111,
+          "anchor": "default: return new int[]{0, 0}",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 133,
+          "anchor": "default: return 0;",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "Pinned Yandex Action has19 members, all recognized by actions; Amap MainActionNULL0 is explicit absence",
+      "decision": "Add an unsupported-action result with source token and reason; continue geometry if policy permits but never report content complete. Keep NULL for truly absent annotation only.",
+      "nextTest": "Exhaustive pinned-enum fixture and injected future value, null vs unsupported distinction.",
+      "impact": "forward-compatibility",
+      "state": "backlog"
+    },
+    {
+      "id": "C31",
+      "title": "Section weights, road names and descriptions are reduced",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "weight.distance",
+        "time",
+        "timeWithTraffic",
+        "localized.text",
+        "annotation.descriptionText",
+        "metadata.tags/description",
+        "toponym"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 94,
+          "anchor": "double time = Double.NaN",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 216,
+          "anchor": "link.roadName = section.toponym",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockRouteJson.java",
+          "line": 180,
+          "anchor": "description(segment, nextRoadName",
+          "sha256": "967033ce3122753893ae1cb18a235df2f84e52e79255da1caccb39c94475b2e4",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockRouteJson.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:95-106 factory grouping uses real GroupSegment, not equal-name heuristic",
+      "decision": "Keep numeric weights and source descriptions; source timeWithTraffic feeds ETA, time feeds labeled free-flow. Add current Guidance.getRoadName for dynamic/source provenance, and do not assign section toponym across differently named graph pieces. Generated EN description/grouping are explicit presentation approximations; use raw text only with correct semantic sink.",
+      "nextTest": "Unnamed vs empty, same-name separate roads, section crossing names, localized-value mismatch and zero/NaN time.",
+      "impact": "semantic granularity",
+      "state": "backlog"
+    },
+    {
+      "id": "C32",
+      "title": "Waypoints and legs retained but unused by converter",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "wayPoints",
+        "sections.legIndex",
+        "viaPointPositions",
+        "route.legIndex",
+        "isArriveWayPoint"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 120,
+          "anchor": "double[] wayPoints = null",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 152,
+          "anchor": "\"viaPointPositions\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 207,
+          "anchor": "YandexRoute.Section next",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "StockRouteJson.segment sets waypoint from assistant35/36 only; stock via-point/leg navigation has explicit section boundaries",
+      "decision": "Retain route leg/waypoint offsets and cut/annotate waypoint boundaries even when no WAYPOINT action appears. Do not reinterpret final destination as every intermediate waypoint or retire route before next leg.",
+      "nextTest": "Two-leg route, zero-length waypoint, leg advance without routeId change, waypoint coincident with manoeuvre.",
+      "impact": "route completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C33",
+      "title": "viaRoadInfo is hardcoded empty although partial source fields exist",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "NaviToEHPData.viaRoadInfo"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockRouteJson.java",
+          "line": 135,
+          "anchor": "data.put(\"viaRoadInfo\", new ArrayList<>())",
+          "sha256": "967033ce3122753893ae1cb18a235df2f84e52e79255da1caccb39c94475b2e4",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockRouteJson.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/e0/d/f/l.java:643-673 stock consumes ViaRoadInfo with name,length,class,formway,toll/link fields and point",
+      "decision": "Recover exact ViaRoadInfoItem schema and emit only fields/records derivable from approved route topology and per-attribute evidence. No synthetic class/lane/admin values just to fill list. Preserve [] until at least one complete record is defined; track omission count and reason.",
+      "nextTest": "Factory known record golden, grouping by actual via-road semantics vs named sections, partial fields rejected.",
+      "impact": "missing route family",
+      "state": "backlog"
+    },
+    {
+      "id": "C34",
+      "title": "Administrative codes, region/weather and country are fixed defaults",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "links.adminCode",
+        "Region.regionId/provinceCode/cityCode/weatherType/countryCode"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 34,
+          "anchor": "public long adcode",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 119,
+          "anchor": "private int regionId",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 850,
+          "anchor": "private void sendRegion()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:1063-1075 resolves stock administrative IDs from map; RegionalWeatherParam storescountry1; Beijing5167 region messages carry actual Chinese district IDs",
+      "decision": "Keep0 admin fields as unresolved with explicit evidence; country1 is factory literal, not proof of Russia or ISO code. Extract Yandex administrative/country identifiers via native/region metadata and define a namespace crosswalk only if receiver contract proven. Never put Yandex region43 or synthetic372 into Amap admin fields. Weather needs its own typed source/enum.",
+      "nextTest": "Cross-boundary route, no admin coverage, country namespace mismatch, weather clear. Assert no fabricated eligible city.",
+      "impact": "high, region semantics",
+      "state": "backlog"
+    },
+    {
+      "id": "C35",
+      "title": "ODD distance alwaysMAX is a bounded factory fallback",
+      "classification": "no_proven_source",
+      "sourceAvailability": "truly_unavailable_in_inspected_contract",
+      "fields": [
+        "AdvAutoFunInfo.noODDRegionDist",
+        "genernalNavigation.newNoODDRegionDist"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 751,
+          "anchor": "oddLast = Integer.MAX_VALUE",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 100,
+          "anchor": "GENERAL_NAVIGATION.encode(toStart, toEnd, -1",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        }
+      ],
+      "factoryEvidence": "Factory DnpOddDistanceController uses KEY_OPEN_CITY cache; no universal Yandex->ADAS ODD area source established",
+      "decision": "Retain factory fallbackMAX/-1 and explicitly label no eligibility knowledge. Future input must come from actual approved ADAS/stock ODD regions with proven coordinate/code semantics; Yandex HD/highways cannot substitute.",
+      "nextTest": "No-cache golden, authorized read of ODD region response typed with absence, no eligibility inferred from fallback.",
+      "impact": "ODD control semantics",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C36",
+      "title": "Ramp reminder, tidal lane and long solid lane stayreset-only",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "TidalLane.rampRmnd",
+        "tidalLane",
+        "hasLongSolidLane",
+        "assistantActionDistance"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 490,
+          "anchor": "f0TidalLane(-1, tidal)",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 568,
+          "anchor": "private void solidLaneDistance()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:961-966; factory FontRoundBean sees ramp link/formway; Beijing longSolid1 on41 ticks,2 on178",
+      "decision": "Retain reset defaults with unknown provenance. Derive ramp distance only after explicit EXIT/slip-form semantics and topology prove ramp entry; tidal and long-solid need native lane marking/type input, absent in public route signs. Do not infer solid line from highlighted lane, or tidal from lane count.",
+      "nextTest": "Factory ramp and solid-lane trace replay, explicit normal/no-source, tidal special-lane enum vs ordinary bus lane.",
+      "impact": "missing topology/lane attributes",
+      "state": "backlog"
+    },
+    {
+      "id": "C37",
+      "title": "Lane arrays are now carried, extra arrays lack proven source",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "backLane",
+        "frontLane",
+        "extendLane",
+        "recomendLane",
+        "backLaneType",
+        "frontLaneType",
+        "aheadIntersectionsLanesInfo"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 158,
+          "anchor": "laneGuidanceSigns = LaneGuidance.readSigns",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 83,
+          "anchor": "public static byte[] nextLanes",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 573,
+          "anchor": "private void publishLanes",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:62-101,116-122; lane module owned by separate agent",
+      "decision": "Accept in-flight exact supported direction/highlight mappings and explicit per-sign rejection. Extended/recommended/types require source-specific proof; leave empty only with reason and do not infer continuous count. Preserve sign identity, scope, route offsets and lane byte semantics.",
+      "nextTest": "See lane agent tests: all directions/kinds/combinations, >bounded lanes, unsupported nearest blocks later sign, ahead list timing/reset.",
+      "impact": "high, active correction",
+      "state": "in_flight"
+    },
+    {
+      "id": "C38",
+      "title": "Nearest HUD lanes are truncated and are not ADAS-complete source",
+      "classification": "intended_integration_policy",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "GuidanceSnapshot.hudLaneHint",
+        "nearest800m max6"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/GuidanceSnapshot.java",
+          "line": 97,
+          "anchor": "hudLaneHintScope",
+          "sha256": "83a2ab906c13ff0b86b9aba683d1c1728667f5c958f7f0bfe10c7030434f7d31",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GuidanceSnapshot.java"
+        }
+      ],
+      "factoryEvidence": "Factory lane arrays may exceed HUD rendering constraints; full RouteSnapshot.laneSigns is correct source",
+      "decision": "Keep HUD hint as scoped diagnostics. ADAS must consume complete route signs/windshield source, never at-most6 HUD lanes. Do not treat empty HUD list as no lanes.",
+      "nextTest": "7+lane full sign retained; HUD truncation has no effect on ADAS arrays.",
+      "impact": "scope boundary",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C39",
+      "title": "Raw GNSS and vehicle speed use flagged fallbacks",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "VehicleLocation.location*",
+        "vehicleSpeed",
+        "GPSspeed",
+        "course",
+        "Fix.vehicleSpeedKmh"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 189,
+          "anchor": "if (gps != null",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 216,
+          "anchor": "Double.isNaN(o.speedMps) ? 0",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 638,
+          "anchor": "int realSpeed = fix.vehicleSpeedKmh",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 660,
+          "anchor": "raw = Double.isNaN(fix.rawLon) ? matched",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/e0.java:432-482 factory reads separate car speed/raw LocInfo and matched road course",
+      "decision": "Keep fallback provenance; actual vehicle speed is already available in shell gate snapshot and can be copied as independently fresh input if units/type established. Missing Yandex speed must not become measured stationary0. Matched-as-raw is approximation; preserve raw-source presence and age.",
+      "nextTest": "Missing/null/negative speed, stale car speed, fresh raw fix crossing1500ms, stationary vs raw movement; no fallback used as stationary authorization.",
+      "impact": "location truthfulness",
+      "state": "backlog"
+    },
+    {
+      "id": "C40",
+      "title": "Location quality and standing state do not reach wire model",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "accuracy",
+        "altitude",
+        "confidence",
+        "Guidance.isIsStanding",
+        "distanceToFinishM"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/GuidanceSnapshot.java",
+          "line": 63,
+          "anchor": "\"accuracy\", \"altitude\"",
+          "sha256": "83a2ab906c13ff0b86b9aba683d1c1728667f5c958f7f0bfe10c7030434f7d31",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GuidanceSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 250,
+          "anchor": "public static Observation fromSample",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        }
+      ],
+      "factoryEvidence": "Factory sdVehicleLocation schema has no accuracy/altitude/confidence fields; factory stationary loop uses real/GPSspeed",
+      "decision": "Retain quality/standing as typed diagnostics and admission evidence where justified, not arbitrary spare fields. No direct stock wire sink; altitude could help future level matcher but is not reliable bridge proof. distanceToFinishM can cross-check geometric remaining distance, not silently overwrite route offsets.",
+      "nextTest": "Low-quality and unknown confidence, standing with nonzero noisy speed, SDK distance vs geometric disagreement.",
+      "impact": "source quality",
+      "state": "backlog"
+    },
+    {
+      "id": "C41",
+      "title": "Coordinate frame differs from factory and remains acceptance issue",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "WGS84 route/position",
+        "factory SDK coordinates",
+        "Coordinates.Frame"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 92,
+          "anchor": "config.frame = Coordinates.Frame.WGS84",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/LiveMapBridge.java",
+          "line": 212,
+          "anchor": "config.frame=Coordinates.Frame.WGS84",
+          "sha256": "54809c238f20ebc5b41d9cf126c5de6ea62f4c27383f24a8fa844f2d94c564eb",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/LiveMapBridge.java"
+        }
+      ],
+      "factoryEvidence": "research/adas-bridge/README.md Contract Coordinates: factory SDK inner transform; Moscow-only candidate evidence is not global WGS84 proof",
+      "decision": "Preserve declared source/output frames and do not silently convert twice. Stationary same-path ACK tests transport only. Require logged comparison of raw GNSS, SDK match and ADAS vehicle position/path interpretation before claiming coordinate equivalence; no arbitrary regional transform extrapolation.",
+      "nextTest": "Known point/heading with both frame hypotheses and actual PathMatch spatial semantics; ACK alone insufficient.",
+      "impact": "high, receiver coordinate semantics",
+      "state": "backlog"
+    },
+    {
+      "id": "C42",
+      "title": "Freshness and ACK gates intentionally narrow factory lifecycle",
+      "classification": "intended_integration_policy",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "preACK dynamics",
+        "held stationary fix",
+        "idle NavigationStatus/position",
+        "arrival110 tail",
+        "route stop100"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 440,
+          "anchor": "if (live && (!liveRouteCurrent",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 690,
+          "anchor": "if (!live && (realSpeed == 0",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 236,
+          "anchor": "public void onNavStop()",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/LiveMapBridge.java",
+          "line": 254,
+          "anchor": "private void stop(String why)",
+          "sha256": "54809c238f20ebc5b41d9cf126c5de6ea62f4c27383f24a8fa844f2d94c564eb",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/LiveMapBridge.java"
+        }
+      ],
+      "factoryEvidence": "Beijing idle continuously sends path-1, held fix1Hz; arrival110 about3s; live guard deliberately closes on stop",
+      "decision": "Keep guard controls. Record lifecycle deviation in comparison; do not restore idle/held-fix repetition to pass byte inventory. Full arrival sequence, if required, needs a bounded explicitly specified stop phase respecting guard lease and fresh inputs.",
+      "nextTest": "Start/route/ACK/guidance/reroute/arrival/stop timing comparison plus no-send after expiry/restart; source watchdog and gate loss stop.",
+      "impact": "intentional temporal difference",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C43",
+      "title": "Finished route retirement and arrival inference are approximations",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "ROUTE_FINISHED",
+        "lastRemain<=50",
+        "retired routeIds"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 20,
+          "anchor": "public static final double ARRIVAL_M",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 102,
+          "anchor": "if (lastRemainM <= ARRIVAL_M)",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 90,
+          "anchor": "retired.add(currentRouteId)",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        }
+      ],
+      "factoryEvidence": "Yandex exact getRouteStatus exists; factory arrival is explicit callback sequence",
+      "decision": "Prefer explicit finish/leg events; retain50m inference as named conservative approximation, with record of reason. A stopped/cancelled route near destination is not proof of arrival. Multi-leg same routeId needs explicit retirement policy.",
+      "nextTest": "Cancel at49m vs explicit arrival, route disappears after stale fix, restart same routeId and next leg.",
+      "impact": "lifecycle semantics",
+      "state": "backlog"
+    },
+    {
+      "id": "C44",
+      "title": "Same serialized route suppresses dynamic-only model updates",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "route.cameras",
+        "laneGuidance",
+        "segmentFreeFlowKmh",
+        "linkLegalKmh",
+        "StockFeed.Route.converted"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 148,
+          "anchor": "else if (converted != null && o.routeId.equals(currentRouteId))",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 104,
+          "anchor": "private Route route;",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        }
+      ],
+      "factoryEvidence": "Factory updates traffic/signals independently of route JSON; contentKey covers serialized path only",
+      "decision": "Root decision: immutable geometry/path identity with separate attribute revision, not periodic fullconvert+resend. Introduce explicit per-route dynamic-condition update path. Replacing NavigatorDriver.current alone does not replace StockFeed.Route.converted when content key unchanged: camera/lane/freeflow changes can remain stale even after resnapshot. Do not force new path just to deliver dynamics.",
+      "nextTest": "Same geometry/name/time/path JSON with changed camera list, sign highlight and freeflow source; StockFeed sees new conditions without selection.",
+      "impact": "high, update propagation",
+      "state": "implement_next",
+      "localFollowup13": {
+        "status": "implemented_local",
+        "detail": "Compatible same-table annotations refresh in place. Actual link/static changes republish with a fresh path and own ACK. Published table remains frozen.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C45",
+      "title": "Unknown/partial source availability is dropped before publication",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "availability",
+        "issues",
+        "complete",
+        "notExported",
+        "null vs[]"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 99,
+          "anchor": "out.put(\"complete\", issues.isEmpty())",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 178,
+          "anchor": "static boolean known",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 70,
+          "anchor": "this.cameras = cameras == null",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "Proto3 defaults are wire semantics, not source-quality evidence; strict source absence must remain distinguishable in evidence",
+      "decision": "Keep an immutable per-field availability map through YandexRoute/Converted and completeness report. known() currently rejects only unknown, accepts partial: validate each item and reject that attribute, not entire route or fabricated empty source. Surface dropped counts per field.",
+      "nextTest": "Partial/null item in sections/lights/events/lanes, missing getter vs empty list; no misleading complete feed status.",
+      "impact": "cross-cutting observability",
+      "state": "backlog",
+      "localFollowup13": {
+        "status": "partial_local",
+        "detail": "Malformed optional camera and restricted-junction items no longer abort the route; per-item diagnostics and facilities raw provenance retained. Other optional arrays remain to audit.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C46",
+      "title": "Metadata flags and opaque descriptor/traits are captured but unused",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "metadata.flags.*",
+        "tags",
+        "description",
+        "descriptorBase64",
+        "traitsBase64",
+        "uri"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 131,
+          "anchor": "private Map<String, Object> flags",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 111,
+          "anchor": "\"descriptorBase64\"",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 78,
+          "anchor": "public static YandexRoute fromSnapshot",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "Factory JSON does not carry these fields directly; route archive may hide edge IDs/richer attrs but mapping not proved",
+      "decision": "Retain flags for applicability and diagnostic completeness; blocked/futureBlocked/requiresAccessPass must be visible. Preserve bytes/hash in bounded evidence; use existing native archive reader and known codecs to extract proven IDs/attrs, no parsing random words into map facts. Text/tags/uri have no direct stock sink and stay evidence.",
+      "nextTest": "Every pinned flag, opaque roundtrip and unknown flag future addition; blocked route never silently becomes normal measured data.",
+      "impact": "potential source extraction",
+      "state": "backlog"
+    },
+    {
+      "id": "C47",
+      "title": "Synthetic section/link boundaries and submetre cuts flatten topology",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "links geometry",
+        "link lengths",
+        "MIN_LINK_M",
+        "traffic light/sign/range cuts",
+        "section boundaries"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 23,
+          "anchor": "static final double MIN_LINK_M",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 203,
+          "anchor": "kept.remove(kept.size() - 1)",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 237,
+          "anchor": "lengths[k] = (int) Math.floor",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "Factory links are topology records; Beijing lengths floor geometry (~0.47m median); arbitrary traffic changes are not topology",
+      "decision": "Keep geometry and floor convention, mark cuts as source-driven vs synthetic. Preserve multiple semantic events within1m independently even when geometry cut merges; graph cut conflict must not erase light/sign identity. Dedupe grid points intentionally only.",
+      "nextTest": "Co-located light+sign+limit/tunnel boundary, sub1m link, duplicate vertices, route end; offsets stay consistent and events retained.",
+      "impact": "topology fidelity",
+      "state": "backlog"
+    },
+    {
+      "id": "C48",
+      "title": "Link actions remain zero despite graph junction evidence",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "links.mainAction",
+        "links.assistantAction",
+        "hasMultiOut",
+        "inner-link merges"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 32,
+          "anchor": "public int mainAction;",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RouteConverter.java",
+          "line": 306,
+          "anchor": "link MainAction stays 0",
+          "sha256": "0e9dd8eacc4b4b9f8d989b56d8622b2153acee86f0554b4174bc4a309bd36732",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteConverter.java"
+        }
+      ],
+      "factoryEvidence": "Factory bench inner links carrycontinue8/merge9/10, segment-ending links0; MainAction and segment manoeuvre are distinct",
+      "decision": "Derive link transition actions only from proved branch topology and geometry rules, preserving actual NULL continuation. Do not copy section manoeuvre onto every link or treat fork as merge. Native graph adjacency offers candidates, not full legal transition restrictions.",
+      "nextTest": "Junction with true continuation, left/right merge, fork and segment end; compare factory transition catalog.",
+      "impact": "link action omissions",
+      "state": "backlog"
+    },
+    {
+      "id": "C49",
+      "title": "NavigationStatus optional fields, checksums and reserves are intentionally unset",
+      "classification": "factory_default",
+      "sourceAvailability": "truly_unavailable_in_inspected_contract",
+      "fields": [
+        "checksum",
+        "counter",
+        "timestamp",
+        "matchingTableStatus",
+        "remainDistance",
+        "viaPointDistance",
+        "hDStartDistance",
+        "dNPSwitch",
+        "aNPRoad",
+        "mapVersion",
+        "route.checksCRC32/counter",
+        "reserve fields"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 30,
+          "anchor": "NAVIGATION_STATUS.encode",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 112,
+          "anchor": "NAVI_SD_ROUTE.encode(null",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockMessages.java",
+          "line": 118,
+          "anchor": "PATH_SELECT.encode(null",
+          "sha256": "4875b5d80299aeb4dc64707f10b4fda97dda8b3a5ed9a6ce34a32afa4d391259",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockMessages.java"
+        }
+      ],
+      "factoryEvidence": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/k/h/a0/c/c/a/f0.java:69-77 and stock route sender only invoke shown setters; generated proto3 omits defaults",
+      "decision": "Keep exact factory builder field set. Do not populate HD/mapVersion/checksum/counter/reserves from unrelated Yandex values; these need independent receiver contract. Internal source truth belongs in diagnostics.",
+      "nextTest": "Byte goldens on stock generated serializers; absent field preserved through decode, no synthetic explicit-zero fields.",
+      "impact": "wire fidelity",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C50",
+      "title": "Serializer omission of0/false/empty is correct proto3 behavior",
+      "classification": "factory_default",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "all scalar defaults",
+        "empty bytes/string/list",
+        "negative sentinels"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Pb.java",
+          "line": 111,
+          "anchor": "private static void write",
+          "sha256": "4edfefe54a45438848d9a83a9b4232bed9077023a54ea7d45ac069c54871df59",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Pb.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Pb.java",
+          "line": 131,
+          "anchor": "if (v == 0) return",
+          "sha256": "4edfefe54a45438848d9a83a9b4232bed9077023a54ea7d45ac069c54871df59",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Pb.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Pb.java",
+          "line": 151,
+          "anchor": "if (!(Boolean) value) return",
+          "sha256": "4edfefe54a45438848d9a83a9b4232bed9077023a54ea7d45ac069c54871df59",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Pb.java"
+        }
+      ],
+      "factoryEvidence": "Generated LM protobuf-java-lite newMessageInfo and builder tables; -1 uint32 fivebytes/int32 tenbytes",
+      "decision": "Keep omission and presence-aware decode. Outbound explicit0 is not improved fidelity; source unknown must be tracked out-of-band. No loss claim for stock unset reserves/default scalars.",
+      "nextTest": "Generated class byte differential including -1, UINT32/INT32, empty submessage vs absent, negativezero float.",
+      "impact": "serialization semantics",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C51",
+      "title": "Unknown inbound protobuf fields currently reject whole message",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "Pb.Msg.decode unknown field",
+        "ACK/status forward compatibility"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/Pb.java",
+          "line": 56,
+          "anchor": "if (field == null) throw",
+          "sha256": "4edfefe54a45438848d9a83a9b4232bed9077023a54ea7d45ac069c54871df59",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/Pb.java"
+        }
+      ],
+      "factoryEvidence": "Factory generated parser tolerates unknown fields; actual ACK must still explicitly contain same path/status200",
+      "decision": "Keep fail-closed admission for unrecognized ACK schema unless bounded unknown-field preservation/skip parser is designed. Improve evidence decoder to retain unknown raw fields without synthesizing status; no need to relax live ACK based only on pathID.",
+      "nextTest": "ACK with unknown extension and valid known fields, malformed extension, missingstatus and duplicate known field.",
+      "impact": "forward compatibility; guard independent",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C52",
+      "title": "Single-path, provider and end-POI literals narrow factory feature set",
+      "classification": "factory_default",
+      "sourceAvailability": "truly_unavailable_in_inspected_contract",
+      "fields": [
+        "pathCount1",
+        "data singlepath",
+        "mapProvider1",
+        "PTPStateFlag1",
+        "AVPMapIdList[]",
+        "RouteType"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "line": 337,
+          "anchor": "StockMessages.route(chunk, 1)",
+          "sha256": "64f43e9c796bb21d08f41221fe2693ba97023135a9061d5a7d29717db1c04669",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockFeed.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockRouteJson.java",
+          "line": 66,
+          "anchor": "end.put(\"AVPMapIdList\"",
+          "sha256": "967033ce3122753893ae1cb18a235df2f84e52e79255da1caccb39c94475b2e4",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockRouteJson.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockRouteJson.java",
+          "line": 72,
+          "anchor": "send.put(\"mapProvider\", 1L)",
+          "sha256": "967033ce3122753893ae1cb18a235df2f84e52e79255da1caccb39c94475b2e4",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockRouteJson.java"
+        }
+      ],
+      "factoryEvidence": "Factory k.g single path, ADAS type1; alternate/multipath and AVP source are separate paths",
+      "decision": "Keep single selected Yandex route and factory-compatible provider literal pending receiver provider enum contract; label bridge origin in evidence. No AVP/PTP data exists in inspected Yandex route contract. Do not fabricate parking HD map IDs.",
+      "nextTest": "Single-route golden, alternate route selected identity, reroute/common/TMC classification; ensure no count mismatch.",
+      "impact": "scope/literal defaults",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C53",
+      "title": "Graph cache and native capture bounds limit coverage",
+      "classification": "intended_integration_policy",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "tile cache16/accounted16MiB",
+        "native8 slots2MiB",
+        "2km graph filter",
+        "10s graph coalescing",
+        "skipped/dropped/oversize"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/GraphRoadNetwork.java",
+          "line": 44,
+          "anchor": "padLon = 2000",
+          "sha256": "0aed0a1b660ff961bf66f6f295e2116a991549d57755053e2a73f7e504d87bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GraphRoadNetwork.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 205,
+          "anchor": "o.monotonicMs-graphAppliedAt>=10000",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        }
+      ],
+      "factoryEvidence": "README native collector/caches: online tiles load as Navigator moves; full route initial coverage is not proved",
+      "decision": "Keep budgets; expose coverage over length, ambiguity, clipped endpoints and attr-specific source age. Treat cache misses as missing evidence and re-enrich on new generation. Never extrapolate road class/lanes across gaps.",
+      "nextTest": "Route beyond cache, eviction/reload, graph generation while routeId unchanged, conflict and unavailable source with bounded memory.",
+      "impact": "coverage/lifecycle",
+      "state": "retained_by_decision"
+    },
+    {
+      "id": "C54",
+      "title": "Route result reason and lifecycle classifications are approximated",
+      "classification": "unproved_mapping",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "RouteTypeCommon1",
+        "Yaw2",
+        "TMC5->99",
+        "mapState104/105/106"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 128,
+          "anchor": "int type = !naving ? 1 : sawReroute ? 2 : 5",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 294,
+          "anchor": "o.finished =",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        }
+      ],
+      "factoryEvidence": "Factory routing callbacks distinguish reroute causes and selection/retry; Yandex mode strings alone do not encode every cause",
+      "decision": "Retain actual route-change/reason callbacks if available from pinned Guidance/RouteListener. Use explicit generic update for unclassified change, not invented TMC fact. Publish reason/provenance in trace.",
+      "nextTest": "Manual alternate, missed-turn reroute, traffic update, resumed route and lost fix; byte/timing comparison by scenario.",
+      "impact": "lifecycle classification",
+      "state": "backlog"
+    },
+    {
+      "id": "C55",
+      "title": "Same route source can be rejected wholesale by optional malformed fields",
+      "classification": "proven_loss",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "sections metadata null",
+        "events null element",
+        "laneSigns empty/null",
+        "speedLimits length"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 92,
+          "anchor": "Map<String, Object> metadata =",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 132,
+          "anchor": "if (e.get(\"polylinePosition\") == null)",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        },
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java",
+          "line": 219,
+          "anchor": "route copy rejected",
+          "sha256": "32ae4bdbce9d5f68a7c3780bbbd5a7ee866180acb4b01fb8cafeaf149b9c31fa",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/AdasBridge.java"
+        }
+      ],
+      "factoryEvidence": "Snapshot records optional item issues independently; geometry+identity are required only",
+      "decision": "Validate each optional array per its role; preserve valid items and explicit rejection reason, reject topology if required alignment/contiguity fails. A malformed optional event should not leave an old unrelated route active. Clear/report blocked conversion generation rather than silent stale fallback.",
+      "nextTest": "Valid newroute with one bad optional event/sign, malformed topology, conversion failure after previous route; no old route advertised as new.",
+      "impact": "high, partial input handling",
+      "state": "backlog",
+      "localFollowup13": {
+        "status": "partial_local",
+        "detail": "Original facility source availability and nested getter issues retained separately from projection decisions; bounded decision examples plus complete reason counts in recurring log, raw capture remains authority.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    },
+    {
+      "id": "C56",
+      "title": "Replay sample omits route-status and simulation flags consumed by replay driver",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "GuidanceSnapshot.routeStatus",
+        "GuidanceSnapshot.simulated",
+        "Observation.finished"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/GuidanceSnapshot.java",
+          "line": 25,
+          "anchor": "out.put(\"mode\", frame.mode)",
+          "sha256": "83a2ab906c13ff0b86b9aba683d1c1728667f5c958f7f0bfe10c7030434f7d31",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/GuidanceSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java",
+          "line": 294,
+          "anchor": "o.finished = \"ROUTE_FINISHED\"",
+          "sha256": "14d3872e1a26a1a2c9bfc919b9e86613ed871270a0e00fff9fe5b7d8d8900be3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/NavigatorDriver.java"
+        }
+      ],
+      "factoryEvidence": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/navigation/automotive/Guidance.java; active AdasBridge.look reads native getRouteStatus/getSimulationStatus",
+      "decision": "Add typed routeStatus and simulated to evidence schema so replay observes the same explicit native state as live. Preserve absent in legacy captures and identify inference; do not infer simulation from coordinates or emulator alone.",
+      "nextTest": "Same observation through live vs saved-sample parser has identical finish/simulation policy; legacy absent remains marked.",
+      "impact": "replay completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C57",
+      "title": "Standing, zone and range-object details reduced to positions then dropped",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "standingSegments",
+        "zoneCrossings",
+        "range-item attributes"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 304,
+          "anchor": "private Map<String, Object> rangeItem",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/YandexRoute.java",
+          "line": 137,
+          "anchor": "route.highways = ranges",
+          "sha256": "efcb1572c0525e1da3794c51b1f41700ba68f2ae60b47fb97a5a6011d5f9bf69",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/YandexRoute.java"
+        }
+      ],
+      "factoryEvidence": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/DrivingRoute.java:101,127; public route interface is available, range object payload members require pinned dex schema",
+      "decision": "Retain these ranges in source model and audit their typed members before projecting further. Standing range is not equivalent to a current stopped vehicle; zone crossing is not an Amap administrative code. Preserve positions and explicit unavailable payload reason; next bounded extraction is exact dex member/archive schema for StandingSegment and ZoneCrossing.",
+      "nextTest": "Nonempty range fixture, valid empty vs getter failure, region/access zone cross vs administrative boundary, stopped-current-location independent.",
+      "impact": "range completeness",
+      "state": "backlog"
+    },
+    {
+      "id": "C58",
+      "title": "Additional public route context getters are absent from evidence snapshot",
+      "classification": "proven_loss",
+      "sourceAvailability": "native_source_known",
+      "fields": [
+        "getAnnotationLanguage",
+        "getAnnotationSchemes",
+        "getPosition",
+        "graphLevelAt",
+        "metadataAt",
+        "getTollRoadsPrice"
+      ],
+      "locations": [
+        {
+          "path": "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/RouteSnapshot.java",
+          "line": 25,
+          "anchor": "Map<String, Object> read(Object route)",
+          "sha256": "fb9ff52a45b97d5cd8b2f0eadb4058b716999d5a4c84f75cedd5c5f88dba4bb3",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RouteSnapshot.java"
+        }
+      ],
+      "factoryEvidence": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/DrivingRoute.java:20-25,74,106,130-136",
+      "decision": "Capture route annotation language/scheme and current-position identity for decoding/provenance. Query graphLevelAt only at bounded matched positions after level-namespace proof. metadataAt may expose section-local flags/descriptor and should be compared against top-level snapshot. Toll price has no stock ADAS sink and stays diagnostic; no need to request paid/network updates merely for completeness.",
+      "nextTest": "Typed getter availability and null/empty cases, local-vs-root metadata difference, bounded sample count, price excluded from vehicle controls.",
+      "impact": "native context preservation",
+      "state": "backlog"
+    },
+    {
+      "id": "C59",
+      "title": "Continuous physical lanes, width and marking source is not established",
+      "classification": "no_proven_source",
+      "sourceAvailability": "truly_unavailable_in_inspected_contract",
+      "fields": [
+        "per-road lane count",
+        "lane width",
+        "lane marking solidity",
+        "continuous permitted lane use"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/RoadNetwork.java",
+          "line": 41,
+          "anchor": "public static Fragment partial",
+          "sha256": "0c6473c45a692d460b5cd076848b5980c63b0c97d1ace1e0fb8626bef751c5b6",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/RoadNetwork.java"
+        },
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockPath.java",
+          "line": 30,
+          "anchor": "public int laneNum;",
+          "sha256": "4efda4ac70cdef937e1e9abede792da1c44e2b687e6cff82f1158eef35b7077e",
+          "snapshot": "captures/yandex-feed11-20261024/completeness/source/StockPath.java"
+        }
+      ],
+      "factoryEvidence": "Inspected96-byte online RoadGraphEdgeData has no class/lane/width fields; public route lane signs are junction-scoped; regional driving.fb reader has no established continuous physical lane schema",
+      "decision": "Do not fill laneNum/width/solid flags from sign width or a default. Preserve exact junction signs and missing-source reason now. Next bounded extraction: native regional EdgeData/lane-data consumers with a real nonstub source and a known multi-lane fixture; existing named OSRM GetLaneData is an error stub, not success. If unavailable, capability remains explicitly junction guidance only.",
+      "nextTest": "A route with two-way/special-lane junction signs must not claim measured continuous counts; new source must match a known physical lane transition and units.",
+      "impact": "hard source boundary",
+      "state": "backlog"
+    },
+    {
+      "id": "C60",
+      "title": "Next-lane timestamp cadence differs from factory latch",
+      "classification": "unproved_mapping",
+      "state": "backlog",
+      "sourceAvailability": "already_captured",
+      "fields": [
+        "NextIntersectionLanes.timestamp"
+      ],
+      "locations": [
+        {
+          "path": "libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java",
+          "anchor": "StockMessages.nextLanes",
+          "sha256": "a337abb1aeb7ecfa13ddce18487ec81da4c5429aa36af4274775135e7f3765bf"
+        }
+      ],
+      "factoryEvidence": "captures/yandex-feed11-20261024/lanes/receipt.json:limitations; factory IntersectionLaneInfoParam timestamp latched by onShow",
+      "decision": "Latch timestamp for stable source sign identity/revision; do not reset it on graph-only refresh. Keep per-query ahead timestamp separate. Build11 preserves current known difference for pinned stationary baseline, not claimed identical cadence.",
+      "nextTest": "Repeat same sign with distance change/graph refresh: same timestamp; new sign or source sign revision: new timestamp; hide/reappear/reset verified against factory.",
+      "impact": "timestamp fidelity",
+      "localFollowup13": {
+        "status": "implemented_local",
+        "detail": "NextLanes timestamp latched by displayed sign content+position+path, not by repeated query or wrapper identity.",
+        "installed": false,
+        "evidence": "captures/yandex-followup-20261024/"
+      }
+    }
+  ],
+  "rootInputMatrix": {
+    "routeId": [
+      "C22",
+      "C42",
+      "C54"
+    ],
+    "points": [
+      "C41",
+      "C47"
+    ],
+    "metadata": [
+      "C04",
+      "C31",
+      "C46"
+    ],
+    "sections": [
+      "C28",
+      "C31",
+      "C32",
+      "C48"
+    ],
+    "speedLimits": [
+      "C01",
+      "C05",
+      "C17"
+    ],
+    "laneSigns": [
+      "C19",
+      "C37",
+      "C59"
+    ],
+    "trafficLights": [
+      "C06",
+      "C07"
+    ],
+    "highways": [
+      "C17"
+    ],
+    "tunnels": [
+      "C16"
+    ],
+    "ferries": [
+      "C16",
+      "C29"
+    ],
+    "tollRoads": [
+      "C14"
+    ],
+    "hdSections": [
+      "C15"
+    ],
+    "standingSegments": [
+      "C57"
+    ],
+    "fordCrossings": [
+      "C13"
+    ],
+    "ruggedRoads": [
+      "C13"
+    ],
+    "zoneCrossings": [
+      "C57",
+      "C21"
+    ],
+    "jamSegments": [
+      "C01",
+      "C02",
+      "C03"
+    ],
+    "events": [
+      "C08",
+      "C09",
+      "C10",
+      "C11",
+      "C13"
+    ],
+    "speedBumps": [
+      "C13"
+    ],
+    "pedestrianCrossings": [
+      "C12"
+    ],
+    "checkpoints": [
+      "C12"
+    ],
+    "restrictedEntries": [
+      "C21",
+      "C26"
+    ],
+    "restrictedTurns": [
+      "C26"
+    ],
+    "railwayCrossings": [
+      "C12"
+    ],
+    "directionSigns": [
+      "C26"
+    ],
+    "zlevels": [
+      "C16",
+      "C25"
+    ],
+    "zlevelBreakpoints": [
+      "C16",
+      "C25"
+    ],
+    "wayPoints": [
+      "C32"
+    ],
+    "legIndex": [
+      "C32"
+    ],
+    "conditionsOutdated": [
+      "C01"
+    ],
+    "availability": [
+      "C45"
+    ],
+    "issues": [
+      "C45"
+    ],
+    "complete": [
+      "C45"
+    ],
+    "notExported": [
+      "C18",
+      "C19",
+      "C20",
+      "C21",
+      "C22",
+      "C06"
+    ],
+    "schema/coordinateFrame/pointOrder/units": [
+      "C41",
+      "C45"
+    ],
+    "sourceSessionId/capturedAtMs (added by evidence owner)": [
+      "C45"
+    ],
+    "schema": [
+      "C45"
+    ],
+    "coordinateFrame": [
+      "C41"
+    ],
+    "pointOrder": [
+      "C41"
+    ],
+    "units": [
+      "C45"
+    ]
+  },
+  "enumInventory": {
+    "Action": {
+      "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/Action.java",
+      "values": [
+        "STRAIGHT",
+        "SLIGHT_LEFT",
+        "SLIGHT_RIGHT",
+        "LEFT",
+        "RIGHT",
+        "HARD_LEFT",
+        "HARD_RIGHT",
+        "FORK_LEFT",
+        "FORK_RIGHT",
+        "UTURN_LEFT",
+        "UTURN_RIGHT",
+        "ENTER_ROUNDABOUT",
+        "LEAVE_ROUNDABOUT",
+        "BOARD_FERRY",
+        "LEAVE_FERRY",
+        "EXIT_LEFT",
+        "EXIT_RIGHT",
+        "FINISH",
+        "WAYPOINT"
+      ],
+      "policy": "All19 have actions mapping; FORK/EXIT flatten, UTURN side lost in actual feed, LEAVE_FERRY icon unused; future token must explicit unsupported",
+      "findings": [
+        "C28",
+        "C29",
+        "C30"
+      ]
+    },
+    "JamType": {
+      "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/navigation/JamType.java",
+      "values": [
+        "UNKNOWN",
+        "BLOCKED",
+        "FREE",
+        "LIGHT",
+        "HARD",
+        "VERY_HARD"
+      ],
+      "policy": "Retain all; no ordinal mapping; BLOCKED has no proved TrafficStatus equivalent",
+      "findings": [
+        "C02",
+        "C03"
+      ]
+    },
+    "EventTag": {
+      "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/road_events/EventTag.java",
+      "values": [
+        "OTHER",
+        "FEEDBACK",
+        "CHAT",
+        "LOCAL_CHAT",
+        "DRAWBRIDGE",
+        "CLOSED",
+        "RECONSTRUCTION",
+        "ACCIDENT",
+        "DANGER",
+        "SCHOOL",
+        "OVERTAKING_DANGER",
+        "PEDESTRIAN_DANGER",
+        "CROSS_ROAD_DANGER",
+        "POLICE",
+        "LANE_CONTROL",
+        "ROAD_MARKING_CONTROL",
+        "CROSS_ROAD_CONTROL",
+        "NO_STOPPING_CONTROL",
+        "MOBILE_CONTROL",
+        "SPEED_CONTROL",
+        "TRAFFIC_CONTROL",
+        "POLICE_PATROL"
+      ],
+      "policy": "Only SPEED_CONTROL+positive limit currently enters output; preserve all raw. Direct physical school/danger facility mappings named; camera/incident/control mappings require factory semantics",
+      "findings": [
+        "C08",
+        "C09",
+        "C10",
+        "C13"
+      ]
+    },
+    "lane/signal": {
+      "policy": "Separate agent owns exhaustive LaneKind/LaneDirection and signal enums plus source snapshot. Do not numerically reuse SDK ordinals. Extra lane arrays and countdown validity are not implied.",
+      "findings": [
+        "C06",
+        "C37",
+        "C38"
+      ]
+    },
+    "offline/renderer": {
+      "values": [
+        "types0..9raw",
+        "structTypes0..2",
+        "categories",
+        "23accessmasks",
+        "class/fc/oneway/struct/toll/HD literals"
+      ],
+      "policy": "Retain raw data; no Amap numeric crosswalk without native semantic consumer and labeled fixture. Annotation wrapper clamps type>=8 to0: do not discard raw9.",
+      "findings": [
+        "C18",
+        "C20",
+        "C21",
+        "C23"
+      ]
+    },
+    "LaneKind": {
+      "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/LaneKind.java",
+      "values": [
+        "UNKNOWN_KIND",
+        "PLAIN_LANE",
+        "BUS_LANE",
+        "TRAM_LANE",
+        "TAXI_LANE",
+        "BIKE_LANE"
+      ],
+      "findings": [
+        "C19",
+        "C37"
+      ]
+    },
+    "LaneDirection": {
+      "source": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/sources/com/yandex/mapkit/directions/driving/LaneDirection.java",
+      "values": [
+        "UNKNOWN_DIRECTION",
+        "LEFT180",
+        "LEFT135",
+        "LEFT90",
+        "LEFT45",
+        "STRAIGHT_AHEAD",
+        "RIGHT45",
+        "RIGHT90",
+        "RIGHT135",
+        "RIGHT180",
+        "LEFT_FROM_RIGHT",
+        "RIGHT_FROM_LEFT",
+        "LEFT_SHIFT",
+        "RIGHT_SHIFT"
+      ],
+      "findings": [
+        "C37"
+      ]
+    },
+    "signal_stub_test_only": {
+      "values": {
+        "Signal": [
+          "GREEN",
+          "RED",
+          "RED_AND_YELLOW",
+          "YELLOW"
+        ],
+        "Arrow": [
+          "FORWARD",
+          "LEFT",
+          "RIGHT",
+          "UTURN_LEFT"
+        ],
+        "Section": [
+          "MAIN",
+          "ADDITIONAL"
+        ]
+      },
+      "source": "experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/TrafficSignalSnapshotTest.java",
+      "policy": "Test enums only: not an exhaustive pinned APK enum inventory. Exact signal/arrow/section members require independent dex schema; no wire mapping inferred.",
+      "findings": [
+        "C06"
+      ]
+    }
+  },
+  "coverageMap": "coverage-map.json",
+  "coverageValidation": {
+    "routeTopLevelCount": 38,
+    "guidanceTopLevelCount": 26,
+    "trafficSignalTopLevelCount": 9,
+    "emittedStockTopicsCount": 16,
+    "factoryStockTopicFamilyCount": 20,
+    "missing": {
+      "route": [],
+      "guidance": [],
+      "signals": [],
+      "emittedTopics": []
+    },
+    "source": "Saved source SHA pins; this is not final build11 state.",
+    "routeFieldsEnumerated": [
+      "availability",
+      "checkpoints",
+      "complete",
+      "conditionsOutdated",
+      "coordinateFrame",
+      "directionSigns",
+      "events",
+      "ferries",
+      "fordCrossings",
+      "hdSections",
+      "highways",
+      "issues",
+      "jamSegments",
+      "laneSigns",
+      "legIndex",
+      "metadata",
+      "notExported",
+      "pedestrianCrossings",
+      "pointOrder",
+      "points",
+      "railwayCrossings",
+      "restrictedEntries",
+      "restrictedTurns",
+      "routeId",
+      "ruggedRoads",
+      "schema",
+      "sections",
+      "speedBumps",
+      "speedLimits",
+      "standingSegments",
+      "tollRoads",
+      "trafficLights",
+      "tunnels",
+      "units",
+      "wayPoints",
+      "zlevelBreakpoints",
+      "zlevels",
+      "zoneCrossings"
+    ],
+    "guidanceFieldsEnumerated": [
+      "backgroundEnabled",
+      "capturedAtMs",
+      "capturedSdkUptimeMs",
+      "capturedUptimeMs",
+      "coordinateFrame",
+      "distanceToFinishM",
+      "freshLocation",
+      "hudLaneHint",
+      "hudLaneHintScope",
+      "issues",
+      "lastFineFixAgeMs",
+      "location",
+      "locationClass",
+      "mode",
+      "nextManoeuvre",
+      "observedStampAgeMs",
+      "positionMatchesRoute",
+      "positionRouteId",
+      "relativeTimestampClock",
+      "resumed",
+      "routeId",
+      "schema",
+      "sourcePolylinePosition",
+      "speedLimitMps",
+      "timeToFinishS",
+      "upcomingTrafficSignals"
+    ],
+    "signalFieldsEnumerated": [
+      "availability",
+      "complete",
+      "issues",
+      "routeId",
+      "schema",
+      "sourceTimestamp",
+      "status",
+      "trafficLightsWithSignal",
+      "windshieldValid"
+    ],
+    "emittedTopicsEnumerated": [
+      "ADV_AUTO_FUN_INFO",
+      "NAVIGATION_STATUS",
+      "PATH_SELECTED",
+      "ROUTE",
+      "SD_ACTION_CAMERA",
+      "SD_AHEAD_LANES",
+      "SD_INTERSECTION",
+      "SD_NEXT_LANES",
+      "SD_REGION",
+      "SD_SPEED_INTERSECTION",
+      "SD_TIDAL_LANE",
+      "SD_TRAFFIC_INCIDENT",
+      "SD_TRAFFIC_LIGHT",
+      "SD_TUNNEL",
+      "SD_VEHICLE_LOCATION",
+      "TRAFFIC_INFO"
+    ]
+  },
+  "artifacts": [
+    "source-pins.json",
+    "coverage-map.json",
+    "captured-input-profile.json",
+    "beijing-presence-profile.json",
+    "owner-table.md",
+    "inventory.md"
+  ],
+  "acceptance": "Stationary route/selection/ACK proves transport for that case. It does not establish map fact completeness, coordinate/link semantics, continuous feed or NOA eligibility.",
+  "auditSnapshot": {
+    "path": "captures/yandex-feed11-20261024/completeness/inventory.json",
+    "sha256": "c6d38e1b5d4f108330b073bdde3f0f8fdd2172a424c3c4146b33a53368652100",
+    "note": "Historical source pins are retained. finalBuild11Resolution below describes the separately built artifact."
+  },
+  "finalBuild11Resolution": {
+    "apkSha256": "78451b6dd27725a6bf30d27470c928bcbaf59aeb478b90fb552f4bebd47ccf91",
+    "generatedUtc": "2026-10-24T09:53:34.116660+00:00",
+    "C02": {
+      "state": "partial",
+      "decision": "All1307 recorded jam entries retained in typed model and scalar-bound diagnostics, with validity/provenance; wire mapping still requires nonempty factory/receiver evidence."
+    },
+    "C03": {
+      "state": "retained_by_decision",
+      "decision": "Factory flow0 retained; captured Yandex traffic preserved independently.2650 traffic checks passed."
+    },
+    "C05": {
+      "state": "implemented_host_verified",
+      "decision": "Dynamic limit enabled, Guidance -> route edge -> observed graph, explicit source and clear;103 checks passed. Static route literal0 retained."
+    },
+    "C19": {
+      "state": "partial",
+      "decision": "Full point-scoped lane arrays implemented. Existing whole-link lane-count approximation is still a separate unresolved item; never label as measured continuous lane count."
+    },
+    "C37": {
+      "state": "partial",
+      "decision": "All14 directions+6 kinds classified, all16383 nonempty direction sets checked; source decisions/known subset/foreground preserved.12/12 actual signs,30lanes,13highlights retained. No source for optimal ranking/extension semantics invented."
+    },
+    "C44": {
+      "state": "partial",
+      "decision": "Same-content lane-only refresh now reaches StockFeed without pathID/ACK-generation change. General conditions revision/refresh for other fields remains outstanding."
+    },
+    "C45": {
+      "state": "partial",
+      "decision": "Lane/source and traffic validity diagnostics survive; other field families need the same typed quality model."
+    },
+    "C55": {
+      "state": "partial",
+      "decision": "Lane parser preserves valid slots, bounded raw data, rejected item indices and specific reasons. Other malformed optional arrays are not fixed by this change."
+    }
+  },
+  "nextImplementationOrder": [
+    [
+      "C08",
+      "C10"
+    ],
+    [
+      "C06",
+      "C07"
+    ],
+    [
+      "C17",
+      "C18",
+      "C19",
+      "C20",
+      "C21",
+      "C22",
+      "C25"
+    ],
+    [
+      "C45",
+      "C55",
+      "C13"
+    ]
+  ],
+  "inventoryCounts": {
+    "proven_loss": 30,
+    "factory_default": 4,
+    "no_proven_source": 2,
+    "unproved_mapping": 21,
+    "intended_integration_policy": 3
+  },
+  "limitations": "Coverage is complete for the enumerated inspected contract, not all undiscovered Yandex internals, all firmware receivers, or NOA prerequisites. Signal enums in partial JADX stubs require exact DEX enumeration.",
+  "localFollowup13": {
+    "date": "2026-10-24",
+    "installed": false,
+    "physicalSessionUnchanged": "build12",
+    "workLocalOnly": true,
+    "sourceFieldAdditions": [
+      "ruggedRoads[].inPoorCondition",
+      "ruggedRoads[].unpaved"
+    ],
+    "snapshotProvenanceAdditions": [
+      "conditionsCapture.routeGeneration",
+      "conditionsCapture.revision",
+      "conditionsCapture.completedAtElapsedMs",
+      "capturedAtMs"
+    ],
+    "findings": [
+      "C01",
+      "C44",
+      "C60",
+      "C12",
+      "C13",
+      "C45",
+      "C55"
+    ],
+    "runtimeCorrections": [
+      "Terminal observed prerequisite and actual send failure latch per arm",
+      "Old callback ownership including callback queue budget",
+      "Idle overlay names guidance action"
+    ],
+    "limitations": [
+      "No moving vehicle acceptance",
+      "No sufficient NOA eligibility claim",
+      "600m visibility is explicit adapter policy, not recovered factory threshold",
+      "Regular/unknown railway map only to generic8, no gate inference",
+      "Partial optional recovery, remaining arrays still require review",
+      "Full camera/incident tags, signal identity, classes/access/direction/continuous lanes remain open"
+    ],
+    "validation": {
+      "allBuilderChecksPassed": true,
+      "roadFacilities": 162,
+      "conditions": 52,
+      "routeSnapshot": 86,
+      "guard": 391,
+      "runtime": 130,
+      "overlay": 398,
+      "factoryFacilitiesByteGoldens": 50,
+      "pythonBridgeTests": 47,
+      "apkSha256": "9cdd001a66ef891dcd0f711502b874f8894715c99c446e18b20490481a219c7a",
+      "version": "29.8.1-YandexHUD.13",
+      "receipt": "captures/yandex-followup-20261024/candidate13.json"
+    }
+  }
+}

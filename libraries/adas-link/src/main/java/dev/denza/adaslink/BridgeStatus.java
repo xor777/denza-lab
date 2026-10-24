@@ -12,7 +12,7 @@ public interface BridgeStatus {
         DISABLED,
         /** Messages are recorded locally, never fired at the car. */
         DRY_RUN,
-        /** Messages are fired on the real SOME/IP service (hard-off in this build). */
+        /** Messages use the guarded real SOME/IP transport. */
         LIVE
     }
 

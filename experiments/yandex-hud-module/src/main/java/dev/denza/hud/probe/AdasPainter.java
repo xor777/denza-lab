@@ -242,9 +242,9 @@ final class AdasPainter {
     /* ------------------------------------------------------------ stacked plates */
 
     private Item alarmPlate(AdasOverlayState st) {
-        boolean stock = st.alarm == AdasOverlayState.Alarm.STOCK_EMPTY;
-        final String big = stock ? "Штатная карта" : "Яндекс молчит";
-        final String small = stock ? "шлёт пустой маршрут" : "ADAS без нашего маршрута";
+        final String big = st.alarmTitle();
+        String subtitle = st.alarmSubtitle().replace('\n',' ').replace('\r',' ');
+        final String small = subtitle.length()>96?subtitle.substring(0,95)+"…":subtitle;
         final float w = 2 * PAD + 80 + 26 + Math.max(tw(big, BIG, true), tw(small, MID, false));
         Item it = new Item() {
             void draw(float x, float y) {

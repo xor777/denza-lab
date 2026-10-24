@@ -42,5 +42,8 @@ public final class AdasLinkTest {
         ConverterTests.run(root);
         DynamicTests.run(root);
         RoadTests.run();
+        GraphTileTest.main(new String[]{root.getAbsolutePath()});
+        GraphTileCacheTest.main(new String[]{root.getAbsolutePath()});
+        GraphRoadNetworkTest.main(new String[0]);
     }
 }

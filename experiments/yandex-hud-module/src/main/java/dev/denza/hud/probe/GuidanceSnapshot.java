@@ -1,5 +1,6 @@
 package dev.denza.hud.probe;
 
+import dev.denza.adaslink.FixFreshness;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -9,25 +10,30 @@ import java.util.Map;
 /** Diagnostic copy of guidance, before HUD hold/symbol conversion. No vehicle output. */
 final class GuidanceSnapshot {
     private final Reflect api;
+    private final FixFreshness.Tracker fixes = new FixFreshness.Tracker();
     GuidanceSnapshot(Reflect api) { this.api = api; }
 
-    Map<String, Object> read(NavigatorSource.Frame frame, long uptime, long wallTime) {
+    Map<String, Object> read(NavigatorSource.Frame frame, long uptime, long wallTime, long sdkUptime) {
         Read read = new Read(api);
         Map<String, Object> out = map();
         out.put("schema", "denza-yandex-guidance-v1");
         out.put("coordinateFrame", "wgs84");
         out.put("capturedAtMs", wallTime);
         out.put("capturedUptimeMs", uptime);
+        out.put("capturedSdkUptimeMs", sdkUptime >= 0 ? sdkUptime : null);
+        out.put("relativeTimestampClock", FixFreshness.RELATIVE_CLOCK);
         out.put("mode", frame.mode);
         out.put("resumed", frame.resumed);
         out.put("backgroundEnabled", frame.backgroundEnabled);
         // The HUD deliberately holds an old fix. observedStampAgeMs is how long ago the module saw the
         // timestamp change (an EXTRAPOLATED stamp changes every tick); lastFineFixAgeMs is the age of
-        // the last FINE location itself, from its own relativeTimestamp (elapsedRealtime ms).
+        // the last FINE location, using its SDK clock, elapsed aging and an absolute-time veto.
         Long age = frame.fixAt >= 0 && uptime >= frame.fixAt ? uptime - frame.fixAt : null;
         out.put("observedStampAgeMs", age);
         out.put("locationClass", frame.locationClass);
-        Long fineAge = frame.fineFixRelativeMs >= 0 && uptime >= frame.fineFixRelativeMs ? uptime - frame.fineFixRelativeMs : null;
+        FixFreshness.Sample fix = fixes.observe(frame.fineFixRelativeMs, frame.fineFixAbsoluteMs, sdkUptime, uptime, wallTime);
+        long measuredAge = fix.ageMs(uptime, wallTime);
+        Long fineAge = measuredAge != FixFreshness.UNKNOWN ? measuredAge : null;
         out.put("lastFineFixAgeMs", fineAge);
         String id = null;
         if (frame.active() && frame.route != null) {

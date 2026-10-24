@@ -46,10 +46,47 @@ public final class AdasOverlayTest {
 
     public static void main(String[] args) throws Exception {
         wire(args[0]);
+        routeFeedback();
+        explicitFeedLifecycle();
         states();
         layout();
         figures(args[1]);
         System.out.println(checks + " ADAS overlay assertions passed");
+    }
+
+    static void explicitFeedLifecycle() {
+        AdasObservations o=seen(0,2,50);
+        AdasFeed.Snapshot pending=new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-30000,PATH,true,-1,"LIVE","Ожидание ответа");
+        AdasOverlayState s=AdasOverlayState.of(o,pending,T,false);
+        check(s.route==AdasOverlayState.Route.WAITING&&s.alarm==AdasOverlayState.Alarm.WAITING_ACK,"route sent long ago without ACK remains waiting, not Yandex silence");
+        check((s.alarmTitle()+" "+s.alarmSubtitle()).equals("Ожидаем подтверждение ADAS"),"plain pending-ACK text");
+        check(s.details!=null&&!s.details.get(0).warn&&s.details.get(0).label.equals("маршрут отправлен"),"pending send age is informative, not a silence warning");
+        select(o,PATH,200);
+        check(AdasOverlayState.of(o,pending,T,false).route==AdasOverlayState.Route.WAITING,"overlay receipt cannot replace producer current guard proof");
+        AdasFeed.Snapshot foreign=new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-20,PATH,true,PATH+1,"LIVE",null);
+        check(AdasOverlayState.of(o,foreign,T,false).alarm==AdasOverlayState.Alarm.WAITING_ACK,"guard confirmation must match exact current path");
+        AdasFeed.Snapshot confirmed=new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-20,PATH,true,PATH,"LIVE","Передача готова");
+        s=AdasOverlayState.of(seen(0,2,50),confirmed,T,false);
+        check(s.route==AdasOverlayState.Route.SELECTED&&s.alarm==null,"actual guard confirmation selects despite independent overlay not seeing ACK");
+        AdasFeed.Snapshot silent=new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-4000,PATH,true,PATH,"LIVE",null);
+        check(AdasOverlayState.of(o,silent,T,false).alarm==AdasOverlayState.Alarm.YANDEX_SILENT,"confirmed live feed still obeys actual send freshness");
+        AdasFeed.Snapshot stopped=new AdasFeed.Snapshot(AdasFeed.Mode.DISABLED,T-4000,-1,false,-1,"STOPPED","Связь сеанса потеряна");
+        s=AdasOverlayState.of(o,stopped,T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_STOPPED&&s.route==null&&s.alarmTitle().equals("Передача остановлена"),"closed session has explicit stopped panel, no receipt");
+        check(s.alarmSubtitle().equals("Связь сеанса потеряна"),"stopped reason preserved");
+        AdasFeed.Snapshot blocked=new AdasFeed.Snapshot(AdasFeed.Mode.DISABLED,-1,-1,false,-1,"BLOCKED","Ошибка разрешения сеанса");
+        s=AdasOverlayState.of(o,blocked,T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_ERROR&&s.alarmSubtitle().equals("Ошибка разрешения сеанса"),"runtime error remains visible, no unknown fallback");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"WAITING","Ожидание маршрута Яндекса"),T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_WAITING&&s.route==null&&s.alarmSubtitle().contains("маршрута"),"healthy idle waits for route, no fake ACK wait");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"LIVE","Передача готова"),T,false);
+        check(s.alarmTitle().equals("Ожидаем запуск маршрута")&&s.alarmSubtitle().equals("Нажмите «Поехали» в Яндексе"),"ready transport without guidance names the required action, not contradictory send readiness");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"WAITING","Ожидание связи"),T,false);
+        check(s.alarmTitle().equals("Подготовка передачи")&&s.alarmSubtitle().equals("Ожидание связи"),"waiting for transport retains the actual reason");
+        select(o,PATH,500);s=AdasOverlayState.of(o,pending,T,false);
+        check(s.route==AdasOverlayState.Route.REJECTED&&s.alarm==AdasOverlayState.Alarm.FEED_ERROR&&s.alarmSubtitle().contains("500"),"explicit refusal is not hidden behind waiting");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"BAD_STATE",null),T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_ERROR&&s.alarmSubtitle().contains("BAD_STATE"),"unexpected runtime state surfaces exact error");
     }
 
     static void wire(String fixture) throws Exception {
@@ -108,10 +145,10 @@ public final class AdasOverlayTest {
         // waiting: our route sent, no selection yet
         s = AdasOverlayState.of(seen(0, 2, 100), feed(400), T, false);
         check(s.route == AdasOverlayState.Route.WAITING && s.alarm == null && s.details == null, "waiting " + s);
-        // available + matched
+        // Available + explicit selection. PATH_MATCH's result enum is not established.
         AdasObservations o = seen(2, 2, 100); select(o, PATH, 200); match(o, PATH);
         s = AdasOverlayState.of(o, feed(400), T, false);
-        check(s.noa == AdasOverlayState.Fn.AVAILABLE && s.route == AdasOverlayState.Route.MATCHED, "available " + s);
+        check(s.noa == AdasOverlayState.Fn.AVAILABLE && s.route == AdasOverlayState.Route.SELECTED, "raw match IDs do not prove matching " + s);
         // active
         o = seen(1, 1, 100); select(o, PATH, 200); match(o, PATH);
         s = AdasOverlayState.of(o, feed(400), T, false);
@@ -182,6 +219,71 @@ public final class AdasOverlayTest {
     }
 
     static boolean HANDS(AdasOverlayState s) { return AdasOverlayState.HANDS.equals(s.takeover); }
+
+    static void routeFeedback() {
+        long parkedPath=1118166796L;
+        AdasWire.Event selected=AdasWire.decode(AdasWire.SELECTED,hex("0a11089aeadbaa051038188cbe97950420c801"));
+        check(selected.pathIdPresent&&selected.statusCodePresent&&selected.pathId==parkedPath&&selected.statusCode==200,
+                "real parked SELECTED explicitly transmits same path and status200");
+        AdasWire.Event match=AdasWire.decode(AdasWire.PATH_MATCH,hex("0a1108adbe99bc092209088cbe97950420da06"));
+        check(!match.statusCodePresent&&match.matchCode==null,"real parked PATH_MATCH outer code absent, not observed zero");
+        check(match.routeInfo.length==1&&match.routeInfo[0].pathId==parkedPath&&match.routeInfo[0].routeEndIdx==858,
+                "real parked item preserves exact path and field4 end index");
+        check(match.routeInfo[0].statusCode==null&&match.routeInfo[0].totalNoaDistance==null&&match.routeInfo[0].routeBeginIdx==null,
+                "real parked item status/distance/begin remain absent");
+        AdasObservations o=seen(2,2,100);o.apply(selected,T-100);o.apply(match,T-50);
+        AdasFeed.Snapshot live=new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-20,parkedPath,true);
+        check(AdasOverlayState.of(o,live,T,false).route==AdasOverlayState.Route.SELECTED,
+                "real parked response proves selection only, never MATCHED");
+        AdasObservations copy=o.copy();
+        check(copy.matchCode==null&&copy.routeInfo[0].routeEndIdx==858&&copy.matchedPaths[0]==parkedPath,
+                "observation snapshot retains raw receipt and presence");
+        copy.matchedPaths[0]=99;copy.routeInfo[0]=null;
+        check(o.matchedPaths[0]==parkedPath&&o.routeInfo[0]!=null,"raw receipt arrays copied independently");
+
+        o.apply(AdasWire.decode(AdasWire.SELECTED,hex("0a06188cbe979504")),T-10);
+        check(!o.selectedCodePresent&&AdasOverlayState.of(o,live,T,false).route==AdasOverlayState.Route.WAITING,
+                "missing SELECTED status is unknown, not refusal or success");
+        o.apply(AdasWire.decode(AdasWire.SELECTED,hex("0a0320c801")),T-5);
+        check(!o.selectedPathPresent&&AdasOverlayState.of(o,live,T,false).route==AdasOverlayState.Route.WAITING,
+                "missing SELECTED path cannot acknowledge current path");
+        o=seen(2,2,100);o.apply(AdasWire.decode(AdasWire.SELECTED,hex("0a0418072000")),T-100);
+        check(o.selectedCodePresent&&o.selectedCode==0&&AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.REJECTED,
+                "explicit selected status0 follows stock non200 refusal branch");
+        select(o,PATH,500);check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.REJECTED,"explicit selected500 refusal");
+        select(o,PATH,200);
+        for(int code:new int[]{0,200,500}) {
+            o.apply(AdasWire.decode(AdasWire.PATH_MATCH,AdasWire.match(code,PATH)),T-50);
+            check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.SELECTED,
+                    "PATH_MATCH code"+code+" cannot borrow SELECTED enum semantics");
+        }
+        AdasWire.Event zero=AdasWire.decode(AdasWire.PATH_MATCH,hex("0a081800220408072800"));
+        check(zero.matchCode!=null&&zero.matchCode==0&&zero.routeInfo[0].statusCode!=null&&zero.routeInfo[0].statusCode==0,
+                "explicit match zeros retained separately from absent fields");
+        o.apply(zero,T-50);check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.SELECTED,"explicit match zeros are not invented success");
+        AdasWire.Event missingItemId=AdasWire.decode(AdasWire.PATH_MATCH,hex("0a08220620da0628c801"));
+        check(missingItemId.routeInfo[0].pathId==null&&missingItemId.routeInfo[0].routeEndIdx==858,
+                "missing item ID retained unknown despite present result/end");
+
+        o=seen(2,2,100);select(o,PATH,200);o.session(false,T-5000);
+        check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.WAITING,"disconnect invalidates old route receipt");
+        o.session(true,T-5000);
+        check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.WAITING,"new session invalidates even equal-millisecond receipt");
+        o.apply(AdasWire.decode(AdasWire.SELECTED,AdasWire.selected(PATH,200)),T-5001);
+        check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.WAITING,"receipt predating current session cannot count");
+        o.apply(AdasWire.decode(AdasWire.SELECTED,AdasWire.selected(PATH,200)),T+1);
+        check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.WAITING,"future receipt cannot count");
+        o.apply(AdasWire.decode(AdasWire.SELECTED,AdasWire.selected(PATH,200)),T-1);
+        check(AdasOverlayState.of(o,feed(20),T,false).route==AdasOverlayState.Route.SELECTED,"fresh current-session explicit receipt restores selected");
+
+        reject(AdasWire.SELECTED,"0a07180720c8012000"); // ambiguous duplicate status
+        reject(AdasWire.SELECTED,"0a071807180820c801"); // duplicate path
+        reject(AdasWire.SELECTED,"0a0718072500000000"); // fixed32 status masquerading as int32
+        reject(AdasWire.SELECTED,"0a08180720c881808010"); // >int32 value would narrow to status200
+        reject(AdasWire.PATH_MATCH,"0a0418001800"); // duplicate outer code
+        reject(AdasWire.PATH_MATCH,"0a06220408070808"); // duplicate item path
+        reject(AdasWire.PATH_MATCH,"0a0722052d00000000"); // fixed32 item status
+    }
 
     static void layout() {
         AdasOverlayState s = new AdasOverlayState();

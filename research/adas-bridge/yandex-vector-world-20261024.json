@@ -1,0 +1,281 @@
+{
+  "schema": "denza-yandex-vector-world-research-manifest-v1",
+  "date": "2026-10-24",
+  "scope": "Frozen online-vmap3 host geometry replay and review table; not runtime ADAS enrichment or offline-package acceptance",
+  "frozenReceipt": {
+    "path": "captures/yandex-vector-world-20261024/geometry-final-receipt.json",
+    "bytes": 17075,
+    "sha256": "15f8af3cc3b9d8f9d225d36a4383f87b2ce63fd95ea8fb3507c2f822bf13cb8f"
+  },
+  "sourceLibrarySha256": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f",
+  "geometry": {
+    "tiles": 8,
+    "bytes": 2164413,
+    "sourcePoints": 214456,
+    "features": 17895,
+    "verifiedTileContexts": 8
+  },
+  "tileContext": "All8captured native-success inputs have equal wrapper/render/layer-source TileIds. Host rejects missing/different contexts; no universal overzoom equality asserted.",
+  "coordinateContract": {
+    "worldBits": 30,
+    "localGrid": "[-2^(b-1),2^(b-1)-1], inclusive checked bounds",
+    "normalizationDenominator": "2^b-1",
+    "path": "first pair absolute, remaining pairs delta; reset each component; zero deltas consumed without adding vertices",
+    "projection": "native ellipsoidal WGS84, not spherical Web Mercator",
+    "polygonAuxiliaryRole": "unknown",
+    "rootField7": "opaque bytes retained losslessly; three inputs contain binary GLB headers"
+  },
+  "positiveRoute": {
+    "source": {
+      "path": "captures/yandex-vector-world-20261024/route.json",
+      "bytes": 58361,
+      "sha256": "d88c3bc8da30b281fe04b64f4cb06e4a253b5b574f53abb0f4dd7656d2b27480"
+    },
+    "points": 266,
+    "sampledLengthM": 3299.161805065055,
+    "coverageDefinition": "Length-weighted segment-midpoint samples,2D,including ambiguous candidates; not continuous route identity or independent map accuracy",
+    "coverageIncludingAmbiguity": 0.9873030208547452,
+    "uniqueFraction": 0.9407566782184424,
+    "ambiguousFraction": 0.046546342636302675,
+    "unmatchedFraction": 0.012696979145254573,
+    "uniqueM": 3103.7085006381617,
+    "ambiguousM": 153.56391579116087,
+    "unmatchedM": 41.889388635731436,
+    "maximumDistanceM": 3,
+    "maximumUndirectedHeadingDegrees": 15,
+    "sampleStepM": 10,
+    "eligibleSampleDistanceM": {
+      "count": 457,
+      "p50": 0.06501436789858127,
+      "p95": 1.939426343777958,
+      "max": 2.9711150332242755
+    }
+  },
+  "negativeControls": {
+    "wrongSphericalInverseCoverage": 0.0,
+    "northRouteOutsideTilesCoverage": 0.0,
+    "tileBoundsChecks": {
+      "positive": 266,
+      "positiveTotal": 266,
+      "northNegative": 0,
+      "northNegativeTotal": 225
+    }
+  },
+  "hostReviewTable": {
+    "counts": {
+      "physicalGraphFragments": 5558,
+      "candidateRows": 1585,
+      "geometryStatuses": {
+        "insufficient_extent": 492,
+        "ambiguous_geometry": 486,
+        "single_candidate_geometry_supported": 582,
+        "partial_geometry": 25,
+        "unmatched": 3973
+      }
+    },
+    "identityCounts": {
+      "supportedPhysicalFragments": 582,
+      "supportedDirectedEdgeRecordsWithTileScope": 975,
+      "supportedUniqueDirectedEdgeIdBits": 975,
+      "supportedUniqueEdgeDataIdBits": 582,
+      "supportedUniqueRendererField5IdBits": 237,
+      "combinedGraphFiles": 14,
+      "combinedDirectedEdgeRecords": 10126,
+      "combinedUniqueDirectedEdgeIdBits": 9927
+    },
+    "countSemantics": "582canonical graph fragments keyed by EdgeDataID+exact canonical geometry; clipped variants stay separate;975directed ID bits and237renderer ID bits in this corpus, not global roads",
+    "thresholds": {
+      "minimumSingleCandidateSampledCoverage": 0.95,
+      "maximumAmbiguityFraction": 0.01,
+      "minimumFragmentLengthM": 15,
+      "minimumSamples": 3,
+      "sampleStepM": 5,
+      "maximumDistanceM": 3,
+      "maximumUndirectedHeadingDegrees": 15
+    },
+    "attributePolicy": "Literal class/fc/oneway/struct/toll/HD/level values retain original types. No Amap enum, legal direction or lane count conversion; build5 does not consume this table."
+  },
+  "graphCorpusVsRuntime": {
+    "hostReplayFiles": 14,
+    "hostReplayDirectedRecords": 10126,
+    "hostReplayUniqueDirectedIdBits": 9927,
+    "replayTimeCache": {
+      "source": {
+        "path": "captures/yandex-vector-world-20261024/graph-current/status.json",
+        "bytes": 1016,
+        "sha256": "8973e703b1c3fdbd34823f5b025ad9b2a7a03d598ee968df7c9351eb8df8b7f6"
+      },
+      "tiles": 6,
+      "directedEdges": 2786
+    },
+    "finalRuntime": {
+      "source": {
+        "path": "captures/yandex-vector-world-20261024/graph-status-final.json",
+        "bytes": 1017,
+        "sha256": "6afbdaed6ed355d5f8c59b1b71e500af2581f3505c68e068736741509c04baaf"
+      },
+      "tiles": 9,
+      "directedEdges": 7650,
+      "vertices": 4075,
+      "captured": 9,
+      "polled": 9,
+      "dropped": 0,
+      "invalid": 0,
+      "oversize": 0,
+      "selfTestFailures": 0,
+      "rejected": 0
+    }
+  },
+  "finalDryRun": {
+    "trace": {
+      "path": "captures/yandex-vector-world-20261024/trace.jsonl",
+      "bytes": 1779871,
+      "sha256": "192ce742dbb27d5ad7800da08ac57baa53098a9923646cb09f20d8c04e50f2c6"
+    },
+    "report": {
+      "path": "captures/yandex-vector-world-20261024/trace-check.json",
+      "bytes": 977210,
+      "sha256": "ee4962a67e3f181ae3a6ad328589e5b7dc49a6bb4fd0143805305237d8cda98e"
+    },
+    "fires": 3442,
+    "problems": 0,
+    "publisher": "DRY_RUN"
+  },
+  "operationAndCleanup": {
+    "receipt": {
+      "path": "captures/yandex-vector-world-20261024/cleanup.json",
+      "bytes": 1101,
+      "sha256": "d381b6a08dd37049caac2d4a93d8f0734d7d2fd971bf86e455baa6e18c3d667b"
+    },
+    "crashEvidence": {
+      "path": "captures/yandex-vector-world-20261024/crash-log-after-capture.txt",
+      "bytes": 2748,
+      "sha256": "1eb7761486c3cb9f6674374f8bea0a1675f7723f360280d44dd87ba3ed3d017c"
+    },
+    "failedSpawn": "One Frida device.spawn timed out; Android zygote aborted before observer installation. No spawn retry; normal launch recovered.",
+    "ownedEmulatorStopped": true,
+    "otherDevicesTouched": false,
+    "sharedReaInstallationTouched": false,
+    "scope": "Previous vector-world stage only; no statement about subsequent offline research"
+  },
+  "observerBounds": {
+    "copiedInputs": 8,
+    "combinedCopiedBytes": 8388608,
+    "durationMs": 60000,
+    "minZoom": 14,
+    "minInputBytes": 32768,
+    "optionalWindow": "caller-supplied validated {z,minX,maxX,minY,maxY}; not geographic hardcoding",
+    "parseFailuresConsumeCopyBudget": true
+  },
+  "hostBounds": {
+    "tiles": 8,
+    "combinedBytes": 8388608,
+    "rawParserPerInputBytes": 2097152,
+    "captureFeatures": 100000,
+    "captureStoredCoordinatePairs": 500000,
+    "tilePaths": 200000,
+    "pathStoredCoordinatePairs": 100000
+  },
+  "tests": {
+    "command": "python3 -m unittest tools.adas_bridge.tests.test_yandex_vector_tile tools.adas_bridge.tests.test_yandex_vector_geometry -v",
+    "passed": 29,
+    "failures": 0
+  },
+  "performanceHostOnly": {
+    "python": "3.9.6",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "decodeEightVectorTilesSeconds": 3.070425208,
+    "decodeFourteenGraphFilesSeconds": 0.801452791,
+    "vectorToGraphComparisonSeconds": 0.22832058300000035,
+    "routeToVectorAndGraphComparisonSeconds": 0.16377862499999996,
+    "graphFragmentEnrichmentReviewSeconds": 0.5372855410000001,
+    "twoNegativeControlsSeconds": 0.09768766700000064,
+    "serializeArtifactsSeconds": 0.7438704999999999,
+    "totalReplaySeconds": 5.72904825
+  },
+  "unknowns": [
+    "This is an offline review table, not runtime ADAS enrichment. No raw class/fc→Amap mapping is established.",
+    "oneway remains a literal string; polyline orientation does not establish legal traffic direction.",
+    "No road lane count/width or continuous lane permissions are established by these geometry matches.",
+    "2D sample-based geometry does not establish a shared vertical-level namespace or feature identity at stacked roads.",
+    "Full unclipped vendor-edge extents, dynamic validity, map-release ID namespace and polygon auxiliary roles remain unknown.",
+    "Coverage is length-weighted midpoint sampling; distance quantiles cover eligible samples only. Unsampled gaps remain unverified.",
+    "Physical fragments, directed ID records, unique ID bit patterns and current in-memory cache counts are reported separately.",
+    "Native empty Point cross-path peek and int32 overflow wrapping are deliberately rejected by the host verifier."
+  ],
+  "sourceAndTestPins": [
+    {
+      "path": "tools/adas_bridge/yandex_vector_geometry.py",
+      "bytes": 43626,
+      "sha256": "98dfaa6fb8ec2a158fdbaedc304f0122c440c34618449fda574b6a615f18823f"
+    },
+    {
+      "path": "tools/adas_bridge/tests/test_yandex_vector_geometry.py",
+      "bytes": 17354,
+      "sha256": "dda2b01da2af267d0f1ad79caa4904136a831fd0329bb9e47eeea0485a5c2122"
+    },
+    {
+      "path": "tools/adas_bridge/yandex_vector_tile.py",
+      "bytes": 15225,
+      "sha256": "1f229b7d3f90fedb745384862a765de2ad84c9c88444cc65043f54048a288688"
+    },
+    {
+      "path": "tools/adas_bridge/tests/test_yandex_vector_tile.py",
+      "bytes": 10018,
+      "sha256": "46141baa38adf6f56395ed7a9b2b8ec5131adae56a4d9c4d0e73b5f7008ece78"
+    },
+    {
+      "path": "tools/adas_bridge/yandex_vector_observer.js",
+      "bytes": 8717,
+      "sha256": "5e9d5c17a1637da5fc40d0ee8706ac9aca18413afcb4d8c65524034d7e106089"
+    },
+    {
+      "path": "tools/adas_bridge/tests/test_yandex_vector_observer.cjs",
+      "bytes": 5267,
+      "sha256": "c324e20563e9a8ce52fe55f0b12ac20e67613232aab6117e0d8e463ba4ea1382"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/native-local/geometry-decoder-receipt.json",
+      "bytes": 13168,
+      "sha256": "b60dbf5efdca8902a1caf794ef086842b42a1cb791139642db0c0f5212b62a46"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/native-projection/projection-evidence.json",
+      "bytes": 15438,
+      "sha256": "a7aade3f8ad51cb6bbfa0e00ea9056f43a103b4e98d0d49f626e1511425401d9"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/native-projection/geometry-host-review.json",
+      "bytes": 15996,
+      "sha256": "40f5883846a9df5ae1aab7d2c42e56991e3ba9697964899a928cc88ef2cb4a59"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/geometry-tests.log",
+      "bytes": 3997,
+      "sha256": "424e4236a341000d58bee8ec3e8da139fbbe8a426b94b1b89dc8f6ed349a1900"
+    }
+  ],
+  "artifactPins": [
+    {
+      "path": "captures/yandex-vector-world-20261024/geometry-world.json",
+      "bytes": 30764449,
+      "sha256": "1231bbb7d06ec42e013fbbd0a450a22a7369644b0fc324714d0646f6f3950eca"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/geometry-verification.json",
+      "bytes": 1484369,
+      "sha256": "0ffbffc453040147b4f845900d12d0b6c6e5b9c04117e3b899cf8f9195694540"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/enrichment-review.json",
+      "bytes": 3993674,
+      "sha256": "a36f7b07d8a6e93d2e175e677a6efff8a30664c8783b9bd7d70bbbf7c398975e"
+    },
+    {
+      "path": "captures/yandex-vector-world-20261024/enrichment-review.csv",
+      "bytes": 675589,
+      "sha256": "3108076d3d2b7b93e4044615a47c352c825b7d6e59c2630399596704326f09fd"
+    }
+  ],
+  "reproduce": "See tools/adas_bridge/README.md, Vector world geometry: capture and replay. Use separate output files; keep frozen capture artifacts unchanged."
+}

@@ -1,0 +1,151 @@
+{
+  "schema": "denza-yandex-native-extraction-v1",
+  "date": "2026-10-24",
+  "scope": "Local native source analysis. Runtime evidence produced independently by parent agent on disposable emulator; no car actions by this researcher.",
+  "source": {
+    "path": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/resources/lib/arm64-v8a/libmaps-mobile.so",
+    "bytes": 62862384,
+    "sha256": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f",
+    "buildIdSha1": "929979daf6ef385413af0e7615e3319aa43464be"
+  },
+  "addressMapping": {
+    "originalFirstPtLoad": "VA0/fileOffset0, RX through0x38d9770",
+    "elfVaEqualsFileOffsetForListedFunctions": true,
+    "ghidraCodeSliceEntry": "0x2988000",
+    "ghidraRawSliceActualMapping": "offset0 maps to0x2988000; exact originalbytes extracted. All selectedfunctionVAs unchanged.",
+    "fullElfGhidraMapping": "Not established. Initial180second import timedout; second owned fullELF import was cancelled after overfive minutes without queryresults. Both cleaned up. Focused originalbyte slice succeeded."
+  },
+  "functions": [
+    {
+      "meaning": "RoadGraph::lookupEdge(uint64,uint64)",
+      "elfVa": "0x2996720",
+      "fileOffset": "0x2996720",
+      "endExclusiveFromEhFrame": "0x2996940",
+      "bytes": 544,
+      "sha256": "e1b057e6d0bc4f3c8e9068c4eecc3c831df925acec22ae0e1ef788e590f3d2b6",
+      "first16Hex": "ffc306d1fd7b15a9fcb300f9fa6717a9"
+    },
+    {
+      "meaning": "RoadGraphEdgeData constructor",
+      "elfVa": "0x2994b70",
+      "fileOffset": "0x2994b70",
+      "endExclusiveFromEhFrame": "0x2994c54",
+      "bytes": 228,
+      "sha256": "e1e6ddb9ac400e4722be094dfc62cc770992770be88125aee8a335adb05f0ba7",
+      "first16Hex": "ff0302d1fd7b03a9f92300f9f85f05a9"
+    },
+    {
+      "meaning": "GraphTileData decoder from raw bytes",
+      "elfVa": "0x298bba0",
+      "fileOffset": "0x298bba0",
+      "endExclusiveFromEhFrame": "0x298c4c8",
+      "bytes": 2344,
+      "sha256": "0e8106dda3c2a4322dd9ab76a3522d2a89b609c6aace55059ea7b5f0d78f4e2c",
+      "first16Hex": "ff8307d1fd7b18a9fc6f19a9fa671aa9"
+    },
+    {
+      "meaning": "RoadGraphLayerImpl registered decode callback",
+      "elfVa": "0x2993084",
+      "fileOffset": "0x2993084",
+      "endExclusiveFromEhFrame": "0x299308c",
+      "bytes": 8,
+      "sha256": "08d6be454e22097903a8261fd9146f137ef4b0372838b1c88b39d2f70d0d62e6",
+      "first16Hex": "e00302aac6e2ff17ff8304d1fd7b0ca9"
+    },
+    {
+      "meaning": "DrivingRouteMetadata.getDescriptor JNI",
+      "elfVa": "0x2422904",
+      "fileOffset": "0x2422904",
+      "endExclusiveFromEhFrame": "0x2422abc",
+      "bytes": 440,
+      "sha256": "8ece55f1ee219f7b8e2dff59715e78e12bce91089890379d1dc730fa61a2b468",
+      "first16Hex": "ff8305d1fd7b13a9fc5714a9f44f15a9"
+    }
+  ],
+  "nativeGraph": {
+    "lookup": {
+      "inputAarch64": {
+        "x0": "RoadGraph*",
+        "x1": "uint64 edgeId",
+        "x2": "SD segment index",
+        "x8": "caller return optional storage"
+      },
+      "returnStorage": {
+        "0x00": "uint64 source graph vertex index",
+        "0x08": "uint64 target graph vertex index",
+        "0x10": "RoadGraphEdgeData*",
+        "0x18": "optional engaged byte"
+      },
+      "keying": "unordered multimap-like buckets atgraph+0x40/+0x48 keyedby64bit edgeID; perID recordsselected bysegmentstart andgeometryedgecount",
+      "identityEvidence": "exact RTTI lambda string at0x9c1bef encodes RoadGraph10lookupEdgeEmm; capstone and REA focused code slice agree"
+    },
+    "edgeDataLayout": {
+      "sizeBytes": 96,
+      "sizeEvidence": "source/output vector stride0x60 in0x2994180; constructor0x2994b70 writes through uint32+0x58 only",
+      "fields": {
+        "0x00": "uint64 edge ID",
+        "0x08": "uint32 start SD segment index (4 padding bytes follow)",
+        "0x10": "geometry shared pointer raw pointer",
+        "0x18": "geometry shared ownership pointer",
+        "0x20": "optional libc++string road name (longstringcapacity/shortstringtag)",
+        "0x28": "long string length when lowbitat0x20 is1",
+        "0x30": "long string char pointer when lowbitat0x20 is1",
+        "0x38": "name optional engagedbyte,7paddingbytes",
+        "0x40": "optional<float>speed limit m/s value",
+        "0x44": "speed limit engagedbyte,3paddingbytes",
+        "0x48": "double geometry length",
+        "0x50": "int32 graph z level ofbeginvertex",
+        "0x54": "int32 graph z level ofendvertex",
+        "0x58": "graph level optional engagedbyte,7paddingbytes"
+      },
+      "zLevelEvidence": "protoTile vertexfield5\u2192vertexID/z map andendpointlookup in0x298bba0..0x298c08c; interfaceagent independenttrace",
+      "negativeBoundary": "Offsets0x60 andhigher are outsideRoadGraphEdgeData. Runtimebytes there cannotbe interpreted as roadclass/lane count."
+    },
+    "rawTileCapture": {
+      "script": "captures/yandex-only-native-20261024/observe-graph-tiles.js",
+      "entryElfVa": "0x298bba0",
+      "argX0": "reference to vector<uint8_t>; begin pointer+0,end+8",
+      "cap": "12tiles,<=2097152bytes each, read-only Frida hookwithprefixverification",
+      "upstreamCandidate": "Independent parser confirmed field11 absent in all1418 EdgeData records fromtwo actualKazan tiles. It cannot provideclass/lanes for thesecaptures."
+    }
+  },
+  "descriptor": {
+    "oldBlockBytes": 1400,
+    "oldBlockWords64": 175,
+    "oldBlockEntropyBitsPerByte": 7.876703339197731,
+    "newProvenInterpretation": null,
+    "limitation": "Randomlookinguint64words are notproved IDs. Runtime observed IDs are small integers. Do notdecode175cuts/roadclasses fromblock without confirmed nativecodec."
+  },
+  "artifacts": {
+    "elfMap": "captures/yandex-only-native-20261024/elf-map-and-target-symbols.json",
+    "relativeRelocs": "captures/yandex-only-native-20261024/relative-relocs.json",
+    "ehFrameFunctions": "captures/yandex-only-native-20261024/function-starts.json",
+    "stringRefs": "captures/yandex-only-native-20261024/string-code-refs.json",
+    "focusedReaLookup": "captures/yandex-only-native-20261024/rea-lookup-slice.json",
+    "rawSlice": "captures/yandex-only-native-20261024/automotive-graph-code.bin",
+    "rawSliceManifest": "captures/yandex-only-native-20261024/automotive-graph-slice.json",
+    "runtimeParent": "captures/yandex-only-runtime-20261024/roadgraph-headers.jsonl",
+    "focusedReaBatch": "captures/yandex-only-native-20261024/mcp-slice-focus-batch.json",
+    "rawOnlineTilesParent": "captures/yandex-only-runtime-20261024/graph-tile-001.bin and graph-tile-002.bin",
+    "upstreamSchemaIndependent": "captures/yandex-only-interfaces-20261024/raw-tile-summary.json"
+  },
+  "provedRoadClass": false,
+  "provedPerRoadLaneCount": false,
+  "completeAlwaysAvailableYandexExtraction": false,
+  "scopeConclusion": {
+    "proved": "Native RoadGraph topology/identity, clippededgefragment mapping, names, direction viaorientedgeometry, optional speedlimit, length andzlevel are accessible in Navigator process andraw online graph tiles.",
+    "remaining": "These twoonline graph tiles and96byte matchinggraph records do not identify functionalroadclass or perroadlane count. Richer internaloffline routing EdgeData exists,but it is a separate source andno alwaysonline bridge tothose fields is established.",
+    "absenceScope": "No proofthat allNavigator native structures lackattributes. This is a boundednegative result for the inspectedRoadGraph/road_graph_layer path."
+  },
+  "verification": {
+    "sourceSha256After": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f",
+    "sourceUnchanged": true,
+    "focusedReaBatchTotal": 4,
+    "focusedReaBatchSucceeded": 4,
+    "focusedReaBatchFailed": 0,
+    "temporaryReaWorkspaceEmpty": true,
+    "sharedToolchainPreserved": true,
+    "vehicleActions": 0,
+    "deviceActionsByThisResearcher": 0
+  }
+}

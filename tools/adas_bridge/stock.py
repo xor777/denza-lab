@@ -1102,6 +1102,10 @@ TUNNEL = Msg("tunnel", f(1, UINT32, "tunneStates"), f(2, DOUBLE, "tunnelStartPio
     f(4, DOUBLE, "tunnelEndPiointLat"), f(5, DOUBLE, "tunnelEndPiointLon"), f(6, UINT32, "toTunnelDist"),
     f(7, UINT64, "reserve1"), f(8, UINT32, "reserve2"), f(9, FLOAT, "reserve3"))
 TUNNEL_NOTIFY = Msg("tunnelNotify", m(1, "tunnel", TUNNEL))
+ROAD_FACILITIES = Msg("roadFacilities", f(1, UINT32, "naviFacilityType"), f(2, UINT32, "cruiseFacilityType"),
+    f(3, UINT32, "distance"), f(4, DOUBLE, "boardSignLocationLon"), f(5, DOUBLE, "boardSignLocationLat"),
+    f(6, UINT64, "reserve1"), f(7, UINT32, "reserve2"), f(8, FLOAT, "reserve3"))
+ROAD_FACILITIES_NOTIFY = Msg("roadFacilitiesNotify", m(1, "roadFacilities", ROAD_FACILITIES))
 SD_TRAFFIC_INCIDENT_ITEM = Msg("sdTraffiIncidentItem",
     f(1, UINT32, "naviCongestionInfo"), f(2, UINT32, "occupiedLane"), f(3, DOUBLE, "cnstrctnCrdLatitude"),
     f(4, DOUBLE, "cnstrctnCrdLongitude"), f(5, UINT64, "naviCongestionDistLen"), f(6, UINT32, "occupiedLaneDtl"), f(7, FLOAT, "reserve3"))
@@ -1123,6 +1127,15 @@ SPEED_INTERSECTION = Msg("speedIntersectionInformation",
     f(5, UINT32, "hasLongSolidLane"), f(6, UINT32, "assistantActionDistance"), f(7, STRING, "naviVoiceCommand"),
     f(8, UINT64, "reserve1"), f(9, UINT64, "reserve2"), f(10, DOUBLE, "reserve3"))
 SPEED_INTERSECTION_NOTIFY = Msg("speedIntersectionInformationNotify", m(1, "speedIntersectionInformation", SPEED_INTERSECTION))
+INTERSECTION = Msg("intersection",
+    f(1, UINT32, "distToNextGudc"), f(2, BYTES, "foreground"), f(3, BYTES, "background"),
+    f(4, UINT32, "numOfLaneOfNextIntscn"), f(5, UINT64, "reserve1"), f(6, UINT32, "reserve2"), f(7, FLOAT, "reserve3"))
+INTERSECTION_NOTIFY = Msg("intersectionNotify", m(1, "intersection", INTERSECTION))
+NEXT_LANES = Msg("nextIntersectionLanesInfo",
+    f(1, BYTES, "backLane"), f(2, BYTES, "frontLane"), f(3, BYTES, "extendLane"), f(4, BYTES, "recomendLane"),
+    f(5, BYTES, "backLaneType"), f(6, BYTES, "frontLaneType"), f(7, UINT32, "segmentIndex"),
+    f(8, UINT32, "linkIndex"), f(9, DOUBLE, "timestamp"))
+NEXT_LANES_NOTIFY = Msg("nextIntersectionLanesInfoNotify", m(1, "nextIntersectionLanesInfo", NEXT_LANES))
 AHEAD_LANES_NOTIFY = Msg("aheadIntersectionsLanesInfoNotify", f(1, STRING, "aheadIntersectionsLanesInfo"))
 NAVIGATION_STATUS = Msg("NavigationStatus_LinkInfoNotifyStruct",
     f(1, UINT32, "checksum"), f(2, UINT32, "counter"), f(3, DOUBLE, "timestamp"), f(4, UINT32, "navigationStatus"),
@@ -1171,11 +1184,14 @@ TOPICS = {
     _event(0x8202, 0x8001): ("sdTrafficLight", SD_TRAFFIC_LIGHT_NOTIFY),
     _event(0x8202, 0x8002): ("sdTraffiIncident", SD_TRAFFIC_INCIDENT_NOTIFY),
     _event(0x8202, 0x8004): ("tunnel", TUNNEL_NOTIFY),
+    _event(0x8202, 0x8005): ("roadFacilities", ROAD_FACILITIES_NOTIFY),
+    _event(0x8202, 0x8006): ("intersection", INTERSECTION_NOTIFY),
     _event(0x8202, 0x8007): ("tidalLane", TIDAL_LANE_NOTIFY),
     _event(0x8202, 0x8008): ("sdVehicleLocation", SD_VEHICLE_LOCATION_NOTIFY),
     _event(0x8202, 0x8009): ("regionalAndWeather", REGIONAL_AND_WEATHER_NOTIFY),
     _event(0x8202, 0x800A): ("speedIntersectionInformation", SPEED_INTERSECTION_NOTIFY),
     _event(0x8202, 0x800B): ("naviActionAndCamera", NAVI_ACTION_AND_CAMERA_NOTIFY),
+    _event(0x8202, 0x800C): ("nextIntersectionLanesInfo", NEXT_LANES_NOTIFY),
     _event(0x8202, 0x800E): ("aheadIntersectionsLanesInfo", AHEAD_LANES_NOTIFY),
     _event(44, 0x8002): ("MMTPathSelected", PATH_SELECT_CONFIRM_NOTIFY),
 }

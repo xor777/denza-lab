@@ -29,6 +29,8 @@ public final class NavigatorDriver {
         public String routeId;
         /** A fresh copy of the route, only when the module re-read it; null otherwise. */
         public YandexRoute route;
+        /** Bridge source generation, increased on route replacement/stop; -1 for legacy replay. */
+        public long routeEpoch=-1;
         /** Navigator's route status is ROUTE_FINISHED. */
         public boolean finished;
         /** The route position belongs to {@link #routeId}. */
@@ -40,6 +42,7 @@ public final class NavigatorDriver {
         // The classified location.
         public String locationClass;
         public double lon = Double.NaN, lat = Double.NaN, speedMps = Double.NaN, heading = Double.NaN;
+        /** Internal forward-only fix identity: SDK monotonic timestamp; never emitted on the wire. */
         public long stamp = Long.MIN_VALUE, fixAgeMs = Long.MAX_VALUE;
         public boolean simulated;
         // The raw platform GNSS fix (passive provider), NaN when none fresh.
@@ -55,9 +58,13 @@ public final class NavigatorDriver {
     private String mode = "off", currentRouteId, currentContent;
     private long lastStamp = Long.MIN_VALUE, lastObservation;
     private int lastLimit = Integer.MIN_VALUE;
+    private String lastLimitSource;
+    private String lastTrafficContext;
     private final Set<String> retired = new HashSet<>();
     private RouteConverter.Converted current;
     private YandexRoute currentRoute;
+    private long observedEpoch=-1, acceptedRevision=-1, roadsRevision, convertedRoadsRevision=-1;
+    private String currentSnapshotKey;
     private double lastRemainM = Double.MAX_VALUE;
     private boolean firstNaviInfo;
     private final Object watchdog = "navigator-watchdog";
@@ -67,11 +74,19 @@ public final class NavigatorDriver {
     }
 
     private volatile RoadNetwork roads;
+    private Map<String,Object> lastConversion = Json.object();
 
-    /** Our OSM roads to match each new route onto (cuts and attributes, {@link RoadMatcher}); null: Yandex only. */
-    public void setRoads(RoadNetwork roads) { this.roads = roads; }
+    /** Last conversion attempt, including partial graph coverage; bridge worker only. */
+    public Map<String,Object> conversionSummary() { return new java.util.LinkedHashMap<>(lastConversion); }
+
+    /** Observed road graph to match each new route onto (cuts and attributes, {@link RoadMatcher}); null: Yandex only. */
+    public void setRoads(RoadNetwork roads) { if(this.roads!=roads)roadsRevision++; this.roads = roads; }
 
     public void observe(Observation o) {
+        if(o.routeEpoch>=0) {
+            if(o.routeEpoch<observedEpoch)return;
+            if(o.routeEpoch>observedEpoch) { observedEpoch=o.routeEpoch;acceptedRevision=-1; }
+        }
         lastObservation = o.monotonicMs;
         clock.cancel(watchdog);
         clock.post(watchdog, WATCHDOG_MS, () -> {
@@ -100,11 +115,34 @@ public final class NavigatorDriver {
             current = null; currentRouteId = null; currentContent = null;
         }
         if (active) {
-            if (o.route != null && o.route.routeId.equals(o.routeId)) {
+            if (o.route != null && o.route.routeId.equals(o.routeId)
+                    && (o.route.captureGeneration<0 || o.routeEpoch<0 || o.route.captureGeneration==o.routeEpoch)
+                    && (!o.routeId.equals(currentRouteId) || o.route.captureRevision<0 || o.route.captureRevision>=acceptedRevision)) {
+                if(o.route.captureRevision>=0)acceptedRevision=o.route.captureRevision;
+                boolean unchanged=o.routeId.equals(currentRouteId) && o.route.snapshotKey!=null
+                        && o.route.snapshotKey.equals(currentSnapshotKey) && roadsRevision==convertedRoadsRevision;
+                Map<String,Object> provenance=o.route.conditionsProvenance();
+                provenance.put("decision",unchanged?"unchanged":"conversion_pending");
+                if(unchanged) {
+                    // Capture provenance advances; identical values do not restart annotation timers.
+                    currentRoute=o.route;
+                } else {
                 RouteConverter.Converted converted;
-                try { converted = RouteConverter.convert(o.route, frame, roads); }
-                catch (RuntimeException e) { converted = null; }
-                if (converted != null && (!converted.contentKey.equals(currentContent) || !o.routeId.equals(currentRouteId))) {
+                long conversionStart = System.nanoTime();
+                lastConversion = Json.object();
+                lastConversion.put("routeId",o.routeId);
+                try {
+                    converted = RouteConverter.convert(o.route, frame, roads);
+                    lastConversion.put("routeMetres",converted.totalM);
+                    lastConversion.put("links",converted.linkSegment.length);
+                    lastConversion.put("graphMatchedMetres",converted.roadMatch==null?0:converted.roadMatch.matchedM);
+                    lastConversion.put("graphCuts",converted.roadMatch==null?0:converted.roadMatch.cuts.length);
+                    lastConversion.put("graphMatchedSamples",converted.roadMatch==null?0:converted.roadMatch.matchedSamples);
+                } catch (RuntimeException e) {
+                    converted = null; lastConversion.put("error",e.toString());
+                }
+                lastConversion.put("durationMs",(System.nanoTime()-conversionStart)/1000000.0);
+                if (converted != null && (!StockFeed.sameLinkTable(current,converted) || !o.routeId.equals(currentRouteId))) {
                     int type = !naving ? 1 : sawReroute ? 2 : 5;   // RouteTypeCommon, RouteTypeYaw, RouteTypeTMC
                     if (!naving) {
                         // The stock order: guidance starts (101, the resets), then the route data update.
@@ -112,22 +150,35 @@ public final class NavigatorDriver {
                         firstNaviInfo = true;
                         lastRemainM = Double.MAX_VALUE;
                         feed.onNavStart();
+                        lastLimit = Integer.MIN_VALUE; // onNavStart resets the dynamic road limit.
                     }
                     current = converted;
                     currentRoute = o.route;
                     currentContent = converted.contentKey;
                     currentRouteId = o.routeId;
+                    currentSnapshotKey=o.route.snapshotKey;convertedRoadsRevision=roadsRevision;
                     sawReroute = false;
                     feed.onRouteResult(converted, type);
+                    provenance.put("decision","published_table_changed");
                     // Amap guides the new path from its next NaviInfo cycle, not the tick that brought it,
                     // and its traffic-event update for the new path follows that first NaviInfo.
                     lastNaviInfo = o.monotonicMs;
                     firstNaviInfo = true;
+                } else if (converted != null && o.routeId.equals(currentRouteId)) {
+                    if(feed.refreshConditions(converted)) {
+                        current = converted;currentRoute = o.route;
+                        currentSnapshotKey=o.route.snapshotKey;convertedRoadsRevision=roadsRevision;
+                        provenance.put("decision","conditions_only");
+                    } else provenance.put("decision","conditions_rejected");
                 }
+                if(converted==null)provenance.put("decision","conversion_rejected");
+                }
+                feed.onConditionsSnapshot(provenance);
             }
             if (!naving && current != null && o.routeId.equals(currentRouteId)) {
                 naving = true;
                 feed.onNavStart();
+                lastLimit = Integer.MIN_VALUE;
             }
             // A yaw reroute leaves guidance; Navigator's NOT_ON_ROUTE before its first match is not one.
             if (naving && o.mode.equals("rerouting") && mode.equals("guidance")) {
@@ -137,20 +188,41 @@ public final class NavigatorDriver {
         }
         mode = active ? o.mode : "off";
         // The legal limit of the road here: Navigator's posted limit, else the route's own per-edge limit.
-        double limitMps = o.speedLimitMps;
+        int limit = active ? legalKmh(o.speedLimitMps) : 0;
+        String limitSource = limit > 0 ? "yandex_guidance" : "unknown";
         boolean onCurrent = naving && currentRoute != null && o.routeId != null && o.routeId.equals(currentRouteId)
-                && o.positionOnRoute && !Double.isNaN(o.scalar);
-        if (Double.isNaN(limitMps) && onCurrent && currentRoute.speedLimits != null) {
-            Double edge = currentRoute.speedLimits[Math.min((int) Math.floor(o.scalar), currentRoute.edges() - 1)];
-            if (edge != null) limitMps = edge;
+                && o.positionOnRoute && Double.isFinite(o.scalar) && o.scalar >= 0 && o.scalar <= currentRoute.edges();
+        if (limit == 0 && onCurrent && currentRoute.speedLimits != null) {
+            int index = Math.min((int) Math.floor(o.scalar), currentRoute.edges() - 1);
+            Double edge = index < currentRoute.speedLimits.length ? currentRoute.speedLimits[index] : null;
+            limit = edge == null ? 0 : legalKmh(edge);
+            if (limit > 0) limitSource = "yandex_route_edge";
         }
-        // Where Yandex names no limit, the matched OSM road's speed-limit sign in the direction travelled.
-        if ((Double.isNaN(limitMps) || limitMps <= 0) && onCurrent && current != null && current.roadMatch != null) {
-            int osm = current.roadMatch.legalKmhAt(o.scalar);
-            if (osm > 0) limitMps = osm / 3.6;
+        // Where Yandex names no limit, the matched graph road's speed-limit sign in the direction travelled.
+        if (limit == 0 && onCurrent && current != null && current.roadMatch != null) {
+            int graphLimit = current.roadMatch.legalKmhAt(o.scalar);
+            if (graphLimit > 0) { limit = graphLimit; limitSource = "matched_graph"; }
         }
-        int limit = Double.isNaN(limitMps) || limitMps <= 0 ? 0 : RouteConverter.round(limitMps * 3.6);
-        if (limit != lastLimit) { lastLimit = limit; feed.onCurrentRoadSpeed(limit); }
+        if (limit != lastLimit || !limitSource.equals(lastLimitSource)) {
+            lastLimit = limit; lastLimitSource = limitSource;
+            feed.onCurrentRoadSpeed(limit, limitSource);
+        }
+        Map<String,Object> trafficContext;
+        if(currentRoute!=null && currentRoute.trafficContext!=null)
+            trafficContext=currentRoute.trafficContext.at(currentRouteId,o.scalar,onCurrent);
+        else {
+            trafficContext=Json.object();trafficContext.put("routeId",o.routeId);
+            trafficContext.put("source","yandex_route_snapshot.jamSegments");trafficContext.put("snapshotContext",true);
+            trafficContext.put("sourceAgeKnown",false);
+            trafficContext.put("speedKnown",false);trafficContext.put("rawSpeed",null);trafficContext.put("rawJamType",null);
+            trafficContext.put("speedStatus","unavailable");trafficContext.put("jamTypeStatus","unavailable");
+            trafficContext.put("unavailableReason","missing_route_traffic_context");
+            trafficContext.put("wireDecision",YandexTrafficContext.WIRE_DECISION);
+        }
+        String trafficKey=Json.write(trafficContext);
+        if(!trafficKey.equals(lastTrafficContext)) {
+            lastTrafficContext=trafficKey;feed.onTrafficContext(trafficContext);
+        }
 
         boolean fine = "FINE".equals(o.locationClass) && !Double.isNaN(o.lon) && o.stamp != Long.MIN_VALUE;
         if (!fine || o.stamp <= lastStamp || o.fixAgeMs < 0 || o.fixAgeMs > MAX_FIX_AGE_MS) return;
@@ -167,13 +239,20 @@ public final class NavigatorDriver {
         double course = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
         StockFeed.Fix fix = new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh);
-        // Amap's LocMatchInfo: on the route, the OSM road the route matched under the car, if any.
+        // Amap's LocMatchInfo: on the route, the graph road the route matched under the car, if any.
         RoadNetwork.Fragment road = onCurrent && current != null && current.roadMatch != null ? current.roadMatch.fragmentAt(o.scalar) : null;
         if (road != null) { fix.roadClass = road.roadClass; fix.ownership = road.ownership; }
         feed.onLocation(fix);
     }
 
     public boolean naving() { return naving; }
+
+    /** Zero is the wire's unknown/clear value, never an observed zero-speed legal limit. */
+    private static int legalKmh(double mps) {
+        double kmh = mps * 3.6;
+        if (!Double.isFinite(kmh) || kmh <= 0 || kmh > Integer.MAX_VALUE) return 0;
+        return RouteConverter.round(kmh);
+    }
 
     private long lastNaviInfo = Long.MIN_VALUE / 4;
 
@@ -187,7 +266,9 @@ public final class NavigatorDriver {
 
     /**
      * A recorded {@code denza-yandex-guidance-v1} sample as an observation at {@code nowMs}
-     * (uptime clock). Old samples carry no location class: their {@code freshLocation} stands for FINE.
+     * (elapsedRealtime clock). Old samples carry no location class: their {@code freshLocation} stands for FINE.
+     * Untagged historical replays use only recorded ages plus an absolute-age veto; SDK relative
+     * timestamps are never subtracted from capturedUptimeMs (that is a different clock).
      */
     @SuppressWarnings("unchecked")
     public static Observation fromSample(Map<String, Object> s, long nowMs, YandexRoute route) {
@@ -212,15 +293,37 @@ public final class NavigatorDriver {
             o.lat = ((Number) loc.get("latitude")).doubleValue();
             if (loc.get("speed") instanceof Number) o.speedMps = ((Number) loc.get("speed")).doubleValue();
             if (loc.get("heading") instanceof Number) o.heading = ((Number) loc.get("heading")).doubleValue();
-            if (loc.get("absoluteTimestamp") instanceof Number) o.stamp = ((Number) loc.get("absoluteTimestamp")).longValue();
-            Object rel = loc.get("relativeTimestamp"), captured = s.get("capturedUptimeMs");
-            if (rel instanceof Number && captured instanceof Number)
-                o.fixAgeMs = nowMs - ((Number) rel).longValue();
-            if (s.get("lastFineFixAgeMs") instanceof Number && captured instanceof Number)
-                o.fixAgeMs = ((Number) s.get("lastFineFixAgeMs")).longValue() + (nowMs - ((Number) captured).longValue());
+            long absolute = timestamp(loc.get("absoluteTimestamp")), relative = timestamp(loc.get("relativeTimestamp"));
+            long captured = timestamp(s.get("capturedUptimeMs")), wall = timestamp(s.get("capturedAtMs"));
+            boolean declared = s.containsKey("relativeTimestampClock") || s.containsKey("capturedSdkUptimeMs");
+            o.stamp = declared ? relative : absolute; // Legacy absolute identity is replay-only.
+            if (o.stamp < 0) o.stamp = Long.MIN_VALUE;
+            long recordedAge = timestamp(s.get("lastFineFixAgeMs"));
+            if (!declared && recordedAge < 0) recordedAge = timestamp(s.get("fixAgeMs"));
+            if (captured >= 0 && nowMs >= captured && wall >= 0 && absolute >= 0 && wall >= absolute && recordedAge >= 0) {
+                long delay = nowMs - captured;
+                if (recordedAge < Long.MAX_VALUE - delay && wall < Long.MAX_VALUE - delay) {
+                    long age = Math.max(recordedAge + delay, wall - absolute + delay);
+                    if (declared) {
+                        long sdkNow = timestamp(s.get("capturedSdkUptimeMs"));
+                        if (!FixFreshness.RELATIVE_CLOCK.equals(s.get("relativeTimestampClock")) || sdkNow < 0 || relative < 0)
+                            age = FixFreshness.UNKNOWN;
+                        else age = Math.max(age, FixFreshness.capture(relative, absolute, sdkNow, captured, wall)
+                                .ageMs(nowMs, wall + delay));
+                    }
+                    o.fixAgeMs = age;
+                }
+            }
         }
         o.finished = "ROUTE_FINISHED".equals(s.get("routeStatus"));
         o.simulated = Boolean.TRUE.equals(s.get("simulated"));
         return o;
+    }
+
+    private static long timestamp(Object value) {
+        if (!(value instanceof Number)) return -1;
+        Number n = (Number) value;
+        long integer = n.longValue();
+        return Double.isFinite(n.doubleValue()) && integer >= 0 && n.doubleValue() == integer ? integer : -1;
     }
 }

@@ -1,0 +1,330 @@
+{
+  "schema": "denza-yandex-graph-tile-protobuf-evidence-v1",
+  "date": "2026-10-24",
+  "status": "local host prototype and static native schema evidence; not integrated into live bridge or vehicle accepted",
+  "source": {
+    "apk": "captures/hud-lanes-20261011/yandex-installed.apk",
+    "apkSha256": "3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3",
+    "versionName": "29.8.1",
+    "versionCode": 739494300,
+    "elf": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/resources/lib/arm64-v8a/libmaps-mobile.so",
+    "elfBytes": 62862384,
+    "elfSha256": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f",
+    "addressConvention": "ELF virtual addresses, not runtime ASLR addresses",
+    "loadSegments": [
+      {
+        "fileOffset": "0x0",
+        "virtualAddress": "0x0",
+        "fileSize": "0x38d9770"
+      },
+      {
+        "fileOffset": "0x38d9770",
+        "virtualAddress": "0x38dd770",
+        "fileSize": "0x280cf0"
+      },
+      {
+        "fileOffset": "0x3b5a460",
+        "virtualAddress": "0x3b62460",
+        "fileSize": "0x98640"
+      }
+    ]
+  },
+  "method": "Reuse exact existing ELF, EH-frame starts and decoded Android APS2 relocations; selected AArch64 disassembly with capstone5.0.7. No additional full Ghidra import, native execution, device or network calls by schema investigator.",
+  "code": {
+    "tileParser": "0x37d4a7c",
+    "edgeDataParser": "0x37d3dc8",
+    "edgeDataSerializer": "0x37d4004",
+    "edgeDataRequiredCheck": "0x37d4494",
+    "vertexParser": "0x37d33ac",
+    "edgeParser": "0x37d3918",
+    "roadParser": "0x37d453c",
+    "automotiveTileConverter": "0x298bba0",
+    "transportTileConverter": "0x2a90400"
+  },
+  "messages": {
+    "Tile": {
+      "fullName": "yandex.maps.proto.road_graph_layer.tile.Tile",
+      "vtable": "0x3b38818",
+      "fields": [
+        {
+          "field": 1,
+          "wire": 2,
+          "repeated": true,
+          "message": "Vertex"
+        },
+        {
+          "field": 2,
+          "wire": 2,
+          "repeated": true,
+          "message": "Edge"
+        },
+        {
+          "field": 3,
+          "wire": 2,
+          "repeated": true,
+          "message": "EdgeData"
+        },
+        {
+          "field": 4,
+          "wire": 2,
+          "repeated": true,
+          "message": "Road"
+        }
+      ]
+    },
+    "Vertex": {
+      "fullName": "yandex.maps.proto.road_graph_layer.tile.Vertex",
+      "vtable": "0x3b38638",
+      "fields": [
+        {
+          "field": 1,
+          "wire": 0,
+          "storageOffset": "0x48",
+          "decodedMeaning": "vendor vertex ID"
+        },
+        {
+          "field": 3,
+          "wire": [
+            0,
+            2
+          ],
+          "storageOffset": "0x18",
+          "repeated": true,
+          "decodedMeaning": "incoming directed edge IDs",
+          "consumer": "0x298bd6c..0x298bd98 stores vertex ID as endpoint1"
+        },
+        {
+          "field": 4,
+          "wire": [
+            0,
+            2
+          ],
+          "storageOffset": "0x30",
+          "repeated": true,
+          "decodedMeaning": "outgoing directed edge IDs",
+          "consumer": "0x298bd3c..0x298bd68 stores vertex ID as endpoint0"
+        },
+        {
+          "field": 5,
+          "wire": 0,
+          "storageOffset": "0x50",
+          "decodedMeaning": "optional signed int32 graph z-level",
+          "consumer": "0x298bc94..0x298bd38 stores level by vertex ID; 0x298c038..0x298c08c combines begin/end levels",
+          "recordedValues": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    "Edge": {
+      "fullName": "yandex.maps.proto.road_graph_layer.tile.Edge",
+      "vtable": "0x3b386b0",
+      "fields": [
+        {
+          "field": 1,
+          "wire": 0,
+          "storageOffset": "0x18",
+          "decodedMeaning": "vendor directed edge ID"
+        },
+        {
+          "field": 2,
+          "wire": 0,
+          "storageOffset": "0x20",
+          "decodedMeaning": "EdgeData ID reference"
+        },
+        {
+          "field": 3,
+          "wire": 0,
+          "storageOffset": "0x28",
+          "decodedMeaning": "boolean reverse geometry",
+          "consumer": "0x298bfec..0x298c034 reverses point vector and swaps field7/8 pair"
+        }
+      ]
+    },
+    "EdgeData": {
+      "fullName": "yandex.maps.proto.road_graph_layer.tile.EdgeData",
+      "vtable": "0x3b38728",
+      "fields": [
+        {
+          "field": 1,
+          "wire": 0,
+          "storageOffset": "0x38",
+          "required": true,
+          "decodedMeaning": "vendor EdgeData ID"
+        },
+        {
+          "field": 6,
+          "wire": 2,
+          "storageOffset": "0x30",
+          "required": true,
+          "message": "yandex.maps.proto.common2.geometry.Polyline",
+          "typeProof": "0x37569fc allocates via0x2c69250; vtable0x3a7c9f0 -> typeinfo0x3a7cec0 -> RTTI0xa2cd89"
+        },
+        {
+          "field": 7,
+          "wire": 0,
+          "storageOffset": "0x40",
+          "required": true,
+          "type": "uint32",
+          "decodedMeaning": null,
+          "consumer": "Copied with field8 to sourceEdge+0x28. Native graph builder creates anonymous endpoint when nonzero; host leaves endpoint unresolved."
+        },
+        {
+          "field": 8,
+          "wire": 0,
+          "storageOffset": "0x44",
+          "required": true,
+          "type": "uint32",
+          "decodedMeaning": null,
+          "consumer": "Copied with field7 to sourceEdge+0x28; swapped when Edge.field3=true."
+        },
+        {
+          "field": 9,
+          "wire": [
+            0,
+            2
+          ],
+          "storageOffset": "0x18",
+          "repeated": true,
+          "type": "uint32",
+          "decodedMeaning": "Road name-table references",
+          "consumer": "0x298be70..0x298be80 and Road loop0x298c0ac onward"
+        },
+        {
+          "field": 10,
+          "wire": 5,
+          "storageOffset": "0x48",
+          "type": "float",
+          "decodedMeaning": "optional speed limit in metres per second",
+          "consumer": "0x298be84..0x298bec0 copies optional float into sourceEdge"
+        },
+        {
+          "field": 11,
+          "wire": 0,
+          "storageOffset": "0x4c",
+          "type": "uint32",
+          "decodedMeaning": null,
+          "consumer": "Not read by automotive converter. Transport converter0x2a90674..0x2a906fc tests bit masks1,2,4,8,16,32,64,128 from0x5dba80 and constructs optional bit set. Exact bit labels unproved.",
+          "capturedPresent": 0,
+          "capturedRecords": 5077
+        }
+      ],
+      "requiredCheck": "0x37d4494 requires presence mask0x0f (fields6,1,7,8), then nested Polyline required fields."
+    },
+    "Road": {
+      "fullName": "yandex.maps.proto.road_graph_layer.tile.Road",
+      "vtable": "0x3b387a0",
+      "fields": [
+        {
+          "field": 1,
+          "wire": 0,
+          "storageOffset": "0x20",
+          "type": "uint32",
+          "decodedMeaning": "road name-table ID"
+        },
+        {
+          "field": 2,
+          "wire": 2,
+          "storageOffset": "0x18",
+          "type": "string",
+          "decodedMeaning": "UTF-8 road name"
+        }
+      ]
+    }
+  },
+  "geometry": {
+    "type": "common2.geometry.Polyline",
+    "encoding": "field1 longitude axis, field2 latitude axis; axis.field1 zigzag first integer, axis.field2 packed zigzag deltas; scale1e6",
+    "coordinateFrame": "wgs84",
+    "pointOrder": "lon,lat",
+    "scope": "Complete stored tile fragment, which may be only part of a global edge."
+  },
+  "semanticsLimits": [
+    "No road class, lane count, formway, ownership or legal one-way field has been established by this schema.",
+    "A directionally stored edge and its reverse flag establish traversal orientation, not legal one-way semantics.",
+    "Fields7/8 remain unnamed. Repeated EdgeData ID175690336 has values(1,0) in Kazan tile001 vs(0,1) in tile002, along with different clipped geometry; they cannot be treated as stable road attributes.",
+    "Bytes at native RoadGraphEdgeData+0x60 and above are outside that 96-byte object.",
+    "The 12-byte field at native edge+0x50 holds optional graph levels: int32 begin/end at+0x50/+0x54 and engaged byte+0x58; remaining bytes are padding, not road attributes.",
+    "Edge IDs may identify different stored fragments in different tiles. Cross-release stability and safe cross-tile stitching remain unproved."
+  ],
+  "implementation": {
+    "module": "tools/adas_bridge/yandex_graph_tile.py",
+    "tests": "tools/adas_bridge/tests/test_yandex_graph_tile.py",
+    "schema": "denza-yandex-graph-tile-v1",
+    "collectionSchema": "denza-yandex-graph-tiles-v1",
+    "bounds": {
+      "perTileBytes": 8388608,
+      "fieldsAndPackedIntegers": 500000,
+      "entities": 100000,
+      "points": 500000,
+      "roadNameBytes": 65536,
+      "tilesPerCollection": 32
+    },
+    "topology": "Keep vendor IDs and raw adjacency; a missing/ambiguous or native-anonymous endpoint is null. No coordinates-based node fabrication or cross-tile joining."
+  },
+  "validation": {
+    "unitTests": {
+      "command": "python3 -m unittest tools.adas_bridge.tests.test_yandex_graph_tile",
+      "passed": 12
+    },
+    "realTileSummary": {
+      "tiles": 7,
+      "vertices": 4747,
+      "directedEdges": 9160,
+      "edgeData": 5077,
+      "roads": 84,
+      "geometryPoints": 13796,
+      "edgesWithResolvedEndpoints": 8971,
+      "unresolvedEndpoints": 193,
+      "field11Present": 0
+    },
+    "realSources": [
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/graph-tile-001.bin",
+        "sha256": "59d5a3e9e27edba3000715a0e9464e14a1eaf2133b65718147e9c325c9efa4d7",
+        "bytes": 67253
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/graph-tile-002.bin",
+        "sha256": "f0ab725607f1609a22b9bbdf284e4494650548921ca6f7bdf402485a106d9446",
+        "bytes": 67406
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/novosibirsk-tile-001.bin",
+        "sha256": "f9d01d77b28dffd57f10c9b5507c4544af17399355afde051eb33a1dd3ba2492",
+        "bytes": 57186
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/novosibirsk-tile-002.bin",
+        "sha256": "1e945b8cc4bef3d20b3026d0844432164a2222d8cf1866e4ed234cb3b7f8520c",
+        "bytes": 72503
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/novosibirsk-tile-003.bin",
+        "sha256": "8b8ee5fc517d9e790c5aa353ca7ff951de4d25bde1fc8ba97d8b2f5e5f5cf520",
+        "bytes": 71577
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/novosibirsk-tile-004.bin",
+        "sha256": "8830c5c7090d9be82fea100a319fe77e0a65842bf710abd76836c78c3e3937d8",
+        "bytes": 76205
+      },
+      {
+        "name": "/Users/dmitry/Dev/denza-gateway/captures/yandex-only-runtime-20261024/novosibirsk-tile-005.bin",
+        "sha256": "c1a8c3a955f3ac82acd9546b03cb21589eddd11c6b706f23a942170c6fc664d2",
+        "bytes": 67112
+      }
+    ],
+    "output": "captures/yandex-only-interfaces-20261024/yandex-graph-tiles-decoded.json"
+  },
+  "retainedEvidence": [
+    "captures/yandex-only-interfaces-20261024/proto-vtables-and-disasm.json",
+    "captures/yandex-only-interfaces-20261024/proto-tile-converter-298bba0.txt",
+    "captures/yandex-only-interfaces-20261024/proto-transport-converter-2a90400.txt",
+    "captures/yandex-only-interfaces-20261024/native-road-schema-strings.json",
+    "captures/yandex-only-native-20261024/relative-relocs.json",
+    "captures/yandex-only-native-20261024/function-starts.json"
+  ]
+}

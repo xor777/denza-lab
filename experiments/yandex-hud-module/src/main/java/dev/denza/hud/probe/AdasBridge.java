@@ -15,29 +15,29 @@ import dev.denza.adaslink.AndroidScheduler;
 import dev.denza.adaslink.BridgeStatus;
 import dev.denza.adaslink.Coordinates;
 import dev.denza.adaslink.DryRunRecorder;
+import dev.denza.adaslink.FixFreshness;
 import dev.denza.adaslink.Json;
 import dev.denza.adaslink.NavigatorDriver;
-import dev.denza.adaslink.RoadStore;
+import dev.denza.adaslink.GraphRoadNetwork;
+import dev.denza.adaslink.GraphTileCache;
 import dev.denza.adaslink.StockFeed;
 import dev.denza.adaslink.YandexRoute;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
  * Host of the map-to-ADAS bridge inside Navigator (libraries/adas-link). On the main thread it
  * looks at Navigator once a module tick - route, route status, the classified location with its
- * class, the route position, the posted limit - and copies the route only when it changes; on its
+ * class, the route position, the posted limit - and periodically copies bounded route conditions; on its
  * own thread the {@link NavigatorDriver} turns that into the stock map's events and the
  * {@link StockFeed} into the messages the stock map would fire. They go to a {@link DryRunRecorder}
- * (files/denza-adas-dry-run.jsonl, two 8 MiB files): this build never fires anything at the car.
+ * (files/denza-adas-dry-run.jsonl, two 8 MiB files). A separate, explicitly armed
+ * {@link LiveMapBridge} uses real gates and acknowledgements for actual publication.
  *
  * <p>DNP service, DNP switch and NOA no-sleep come from BYDAuto on the stock map; Navigator cannot
  * read them, so the dry run assumes all three on (said in the trace header). Raw GNSS for the
@@ -69,11 +69,14 @@ final class AdasBridge {
     private final Handler worker;
     private final StockFeed feed;
     private final NavigatorDriver driver;
+    private final LiveMapBridge live;
+    private final FixFreshness.Tracker fixes = new FixFreshness.Tracker();
     private boolean failed;
-    private String copiedRoute;
-    private long copiedAt;
-    private int copies;
+    private final RouteSnapshot.Refresh routeRefresh = new RouteSnapshot.Refresh();
     private volatile Location raw;
+    private YandexRoute graphRoute;
+    private GraphRoadNetwork currentRoads;
+    private long graphGeneration = -1, graphAppliedAt;
 
     private AdasBridge(Context context) throws IOException {
         this.context = context.getApplicationContext();
@@ -82,7 +85,11 @@ final class AdasBridge {
         worker = new Handler(thread.getLooper());
         AndroidScheduler scheduler = new AndroidScheduler(worker);
         StockFeed.Config config = new StockFeed.Config();
-        config.frame = Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE;
+        // This dry-run host follows Navigator in every region. Keep its declared WGS84
+        // source frame; the older Moscow-only native-frame candidate stays a bench option.
+        config.frame = Coordinates.Frame.WGS84;
+        config.roadSpeedLimit = true;
+        config.roadFacilities = true;
         // Navigator's route simulation is the only way to drive the emulator; the stock map would skip it.
         config.acceptSimulatedLocations = emulator;
         // Nothing reaches ADAS in a dry run, so its answer is emulated as the car gave it (about 110 ms).
@@ -90,48 +97,20 @@ final class AdasBridge {
         DryRunRecorder recorder = new DryRunRecorder(new RotatingWriter(new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl")), false);
         feed = new StockFeed(scheduler, recorder, config);
         driver = new NavigatorDriver(feed, config.frame, scheduler);
+        live = new LiveMapBridge(this.context,worker);
         worker.post(() -> {
             Map<String, Object> f = Json.object();
             f.put("gatesAssumed", "dnpService, dnpSwitch, noSleep on: Navigator cannot read BYDAuto");
             f.put("emulator", emulator);
-            f.put("roads", loadRoads());
+            f.put("roads", "yandex-native-online");
+            f.put("coordinateFrame",config.frame.name());
             recorder.note("state", f, SystemClock.elapsedRealtime());
             feed.start(true, true, true);
         });
-        AdasFeed.install(() -> {
-            BridgeStatus.Snapshot s = feed.status();
-            return new AdasFeed.Snapshot(AdasFeed.Mode.valueOf(s.mode.name()), s.lastSendMonotonicMs, s.currentPathId, s.routeActive);
-        });
+        // The overlay shows only actual transmission; the independent dry run stays in its log.
+        AdasFeed.install(live::status);
         listenRaw();
         Log.i(TAG, "ADAS bridge running: dry-run trace " + new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl"));
-    }
-
-    /** The file tools/adas_bridge/road_store.py builds from our OSM map, pushed next to Navigator's files. */
-    static final String ROADS = "denza-adas-roads.bin";
-
-    /**
-     * Bridge thread: map our OSM road store, when one was put in Navigator's files (internal, else
-     * external), and hand it to the driver: routes are then cut at its junctions and carry its
-     * attributes where they match it (RoadMatcher). Without it the bridge uses Yandex data only.
-     */
-    private String loadRoads() {
-        File[] places = {new File(context.getFilesDir(), ROADS),
-                context.getExternalFilesDir(null) == null ? null : new File(context.getExternalFilesDir(null), ROADS)};
-        for (File file : places) {
-            if (file == null || !file.isFile()) continue;
-            try (FileInputStream in = new FileInputStream(file); FileChannel channel = in.getChannel()) {
-                MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-                RoadStore store = new RoadStore(map);
-                driver.setRoads(store);
-                String said = file + ": " + store.fragmentCount() + " roads, " + channel.size() + " bytes";
-                Log.i(TAG, "OSM roads " + said);
-                return said;
-            } catch (IOException | RuntimeException error) {
-                Log.w(TAG, "OSM roads not loaded from " + file, error);
-                return "failed: " + error;
-            }
-        }
-        return "none";
     }
 
     private void listenRaw() {
@@ -165,14 +144,14 @@ final class AdasBridge {
             o.finished = status.equals("ROUTE_FINISHED");
             o.mode = status.equals("NOT_ON_ROUTE") || status.equals("ROUTE_LOST") ? "rerouting" : "guidance";
             o.positionOnRoute = !o.mode.equals("rerouting");
-            // The full copy on the main thread only when the route changes, and once more ten
-            // seconds later (conditions populate after the first result); conversion runs off it.
-            // MapKit hands out a new wrapper object on every read: the route id is the identity.
-            if (!o.routeId.equals(copiedRoute)) { copiedRoute = o.routeId; copies = 0; }
-            if (copies == 0 || (copies == 1 && now - copiedAt >= 10_000)) {
-                copy = new RouteSnapshot(api).read(route);
-                copies++;
-                copiedAt = now;
+            // Native listener registration would require another JNI callback ABI. Passive bounded
+            // polling observes SDK updates without requesting network updates or adding a Proxy.
+            Map<String,Object> capture=routeRefresh.begin(o.routeId,now);
+            if (capture!=null) {
+                try {
+                    copy = new RouteSnapshot(api).read(route);
+                    RouteSnapshot.captured(copy,capture,SystemClock.elapsedRealtime(),System.currentTimeMillis());
+                } catch(RuntimeException error) { Log.w(TAG,"conditions copy rejected",error); }
             }
             Object position = api.call(guidance, "getRoutePosition");
             if (position != null) o.scalar = ((Number) api.call(position, "getSegmentIndex")).doubleValue()
@@ -183,8 +162,10 @@ final class AdasBridge {
             if (limit != null) o.speedLimitMps = ((Number) api.call(limit, "getValue")).doubleValue();
             o.simulated = !String.valueOf(api.call(guidance, "getSimulationStatus")).equals("IDLE");
         }
+        o.routeEpoch=routeRefresh.route(o.routeId);
         Object classified = api.call(guidance, "getLocation");
         Object location = classified == null ? null : api.call(classified, "getLocation");
+        FixFreshness.Sample sampledFix = FixFreshness.capture(-1, -1, -1, -1, -1);
         if (location != null) {
             o.locationClass = String.valueOf(api.call(classified, "getLocationClass"));
             Object point = api.call(location, "getPosition");
@@ -194,26 +175,68 @@ final class AdasBridge {
             o.speedMps = speed == null ? Double.NaN : ((Number) speed).doubleValue();
             o.heading = heading == null ? Double.NaN : ((Number) heading).doubleValue();
             Object stamp = api.call(location, "getAbsoluteTimestamp"), relative = api.call(location, "getRelativeTimestamp");
-            if (stamp instanceof Number) o.stamp = ((Number) stamp).longValue();
-            // Relative timestamps are elapsedRealtime milliseconds: the fix's own age, not the read's.
-            if (relative instanceof Number) o.fixAgeMs = now - ((Number) relative).longValue();
+            // The source monotonic identity orders fixes independently of changes to wall time.
+            if (relative instanceof Number && ((Number) relative).longValue() >= 0)
+                o.stamp = ((Number) relative).longValue();
+            if ("FINE".equals(o.locationClass) && stamp instanceof Number && relative instanceof Number) {
+                // Read clocks after the location; a newer fix must not look future due to read latency.
+                long elapsed = SystemClock.elapsedRealtime(), wall = System.currentTimeMillis();
+                sampledFix = fixes.observe(((Number) relative).longValue(), ((Number) stamp).longValue(),
+                        SystemClock.uptimeMillis(), elapsed, wall);
+            }
         }
         Location gps = raw;
         if (gps != null && now - gps.getElapsedRealtimeNanos() / 1_000_000 <= 1500) { o.rawLon = gps.getLongitude(); o.rawLat = gps.getLatitude(); }
         final Map<String, Object> routeCopy = copy;
+        final FixFreshness.Sample fix = sampledFix;
         worker.post(() -> {
+            // A route stop/replacement on the main thread invalidates already queued old copies.
+            if(!routeRefresh.current(o.routeEpoch))return;
+            Map<String,Object> graphSummary = null;
             try {
-                if (routeCopy != null) o.route = YandexRoute.fromSnapshot(routeCopy);
+                if (routeCopy != null) {
+                    o.route = YandexRoute.fromSnapshot(routeCopy);
+                    if (graphRoute == null || !graphRoute.routeId.equals(o.route.routeId)) graphGeneration = -1;
+                    graphRoute = o.route;
+                }
+                if (o.routeId == null || o.mode.equals("off")) {
+                    graphRoute = null; graphGeneration = -1; currentRoads=null; driver.setRoads(null);
+                } else if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
+                    GraphTileCache.Snapshot graph = YandexGraphSource.snapshot();
+                    if (graph != null && !graph.released && graph.generation != graphGeneration
+                            && (graphGeneration < 0 || o.monotonicMs-graphAppliedAt>=10000)) {
+                        GraphRoadNetwork roads = new GraphRoadNetwork(graph.tiles,graphRoute);
+                        currentRoads=roads.fragmentCount()==0 ? null : roads;
+                        driver.setRoads(currentRoads);
+                        graphGeneration=graph.generation; graphAppliedAt=o.monotonicMs;
+                        o.route=graphRoute;
+                        graphSummary=roads.summary();
+                        Map<String,Object> summary=graphSummary;
+                        summary.put("routeId",graphRoute.routeId); summary.put("generation",graphGeneration);
+                        summary.put("appliedUptimeMs",o.monotonicMs);
+
+                    }
+                }
             } catch (RuntimeException error) {
                 Log.w(TAG, "route copy rejected", error);
             }
-            try { driver.observe(o); }
-            catch (RuntimeException error) { Log.w(TAG, "ADAS bridge step failed", error); }
+            try {
+                if(!routeRefresh.current(o.routeEpoch))return;
+                // Include queue/conversion delay and suspend since the original, immutable anchor.
+                o.monotonicMs = SystemClock.elapsedRealtime();
+                o.fixAgeMs = fix.ageMs(o.monotonicMs, System.currentTimeMillis());
+                driver.observe(o);
+                live.observe(o,fix,currentRoads);
+                if(graphSummary!=null) {
+                    graphSummary.put("conversion",driver.conversionSummary());
+                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(),"denza-yandex-graph-route.json"),graphSummary);
+                }
+            } catch (IOException | RuntimeException error) { Log.w(TAG, "ADAS bridge step failed", error); }
         });
     }
 
-    /** Line writer that keeps at most two files of {@link #LIMIT} bytes. Bridge thread only. */
-    private static final class RotatingWriter extends Writer {
+    /** Two files, rotated at LIMIT physical UTF-8 bytes plus one flush batch. Bridge thread only. */
+    static final class RotatingWriter extends Writer {
         static final long LIMIT = 8L << 20;
         private final File file;
         private Writer out;
@@ -228,10 +251,10 @@ final class AdasBridge {
         }
         @Override public void write(char[] buffer, int offset, int length) throws IOException {
             out.write(buffer, offset, length);
-            size += length;
         }
         @Override public void flush() throws IOException {
             out.flush();
+            size = file.length();
             if (size >= LIMIT) {
                 out.close();
                 File old = new File(file.getPath() + ".1");

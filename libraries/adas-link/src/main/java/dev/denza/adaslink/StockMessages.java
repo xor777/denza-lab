@@ -44,6 +44,11 @@ public final class StockMessages {
         return Pb.TUNNEL_NOTIFY.encode((Object) inner);
     }
 
+    /** f0.j(distance, type, cruiseType, lon, lat), with the observed cruiseType 0. */
+    public static byte[] roadFacilities(int type, int distance, double lon, double lat) {
+        return Pb.ROAD_FACILITIES_NOTIFY.encode((Object) Pb.ROAD_FACILITIES.encode(type, 0, distance, lon, lat, null, null, null));
+    }
+
     /** f0.k(list): one item per event; empty list is an empty message. */
     public static byte[] incidents(int[] types, int[] lanes, double[] lons, double[] lats) {
         byte[][] items = new byte[types.length][];
@@ -74,6 +79,19 @@ public final class StockMessages {
     public static byte[] speedIntersection(int flow, int history, int parallel, int mixFork, int solid, int distance, String voice) {
         byte[] inner = Pb.SPEED_INTERSECTION.encode(flow, history, parallel, mixFork, solid, distance, voice, null, null, null);
         return Pb.SPEED_INTERSECTION_NOTIFY.encode((Object) inner);
+    }
+
+    /** f0.d/g: exact LaneAction byte arrays; no invented optimal/type/extension attributes. */
+    public static byte[] intersection(int distance, byte[] back, byte[] front) {
+        return Pb.INTERSECTION_NOTIFY.encode((Object) Pb.INTERSECTION.encode(distance, front, back, back.length, null, null, null));
+    }
+    public static byte[] nextLanes(byte[] back, byte[] front, int segment, int link, long timestamp) {
+        byte[] empty = new byte[0];
+        return nextLanes(back,front,empty,empty,empty,empty,segment,link,timestamp);
+    }
+    public static byte[] nextLanes(byte[] back, byte[] front, byte[] extend, byte[] recommend, byte[] backType, byte[] frontType,
+                                   int segment, int link, long timestamp) {
+        return Pb.NEXT_LANES_NOTIFY.encode((Object) Pb.NEXT_LANES.encode(back,front,extend,recommend,backType,frontType,segment,link,(double)timestamp));
     }
 
     /** f0.i(list): Gson JSON of the 3 km lane beans. */

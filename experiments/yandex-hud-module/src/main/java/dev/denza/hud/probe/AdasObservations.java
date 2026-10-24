@@ -17,8 +17,13 @@ final class AdasObservations {
     long pilotAt = -1, alarmAt = -1, modeAt = -1;
     long selectedPath = Long.MIN_VALUE;
     int selectedCode;
+    boolean selectedPathPresent, selectedCodePresent;
     long selectedAt = -1;
+    long sessionVersion, selectedSession = -1, matchSession = -1;
     long[] matchedPaths = new long[0];
+    long[] matchedCodes = new long[0];
+    Long matchCode;
+    AdasWire.RouteInfo[] routeInfo = new AdasWire.RouteInfo[0];
     long matchAt = -1;
     /** Any message of the stock map's feed, and the last one that said "no route". */
     long stockAt = -1, stockEmptyAt = -1;
@@ -28,8 +33,12 @@ final class AdasObservations {
             case PILOT: dnp = e.dnp; icc = e.icc; takeover = e.takeover; pilotAt = at; break;
             case ALARM: alarmReason = e.alarmReason; notice = e.notice; alarmAt = at; break;
             case MODE: noaMode = e.noaMode; modeAt = at; break;
-            case SELECTED: selectedPath = e.pathId; selectedCode = e.statusCode; selectedAt = at; break;
-            case MATCH: matchedPaths = e.matchedPaths.clone(); matchAt = at; break;
+            case SELECTED:
+                selectedPath=e.pathId; selectedCode=e.statusCode; selectedAt=at;
+                selectedPathPresent=e.pathIdPresent; selectedCodePresent=e.statusCodePresent; selectedSession=sessionVersion; break;
+            case MATCH:
+                matchedPaths=e.matchedPaths.clone(); matchedCodes=e.matchedCodes.clone();
+                matchCode=e.matchCode; routeInfo=e.routeInfo.clone(); matchAt=at; matchSession=sessionVersion; break;
             default:
                 stockAt = at;
                 if (e.stockEmpty()) stockEmptyAt = at;
@@ -37,17 +46,31 @@ final class AdasObservations {
     }
 
     /** A new or lost Binder session: nothing heard before it is fresh any more. */
-    void session(boolean up, long at) { connected = up; sessionAt = at; }
+    void session(boolean up, long at) { connected = up; sessionAt = at; sessionVersion++; }
 
     /** Heard at [at] on the current session. */
     boolean current(long at) { return connected && at >= 0 && at >= sessionAt; }
+
+    boolean selectionCurrent(long now) {
+        return selectedSession==sessionVersion && current(selectedAt) && selectedAt<=now;
+    }
+
+    /**
+     * No PATH_MATCH result enum is proved by the inspected firmware consumer: q.java logs the
+     * outer code and copies RouteInfo, while its listener ignores the list. Neither absent 0 nor
+     * an explicit 200 may borrow SELECTED's separate success contract. Keep raw rows for evidence.
+     */
+    boolean matchSuccessProved(long path,long now) { return false; }
 
     AdasObservations copy() {
         AdasObservations o = new AdasObservations();
         o.connected = connected; o.sessionAt = sessionAt; o.dnp = dnp; o.icc = icc; o.noaMode = noaMode; o.takeover = takeover;
         o.alarmReason = alarmReason; o.notice = notice; o.pilotAt = pilotAt; o.alarmAt = alarmAt; o.modeAt = modeAt;
         o.selectedPath = selectedPath; o.selectedCode = selectedCode; o.selectedAt = selectedAt;
-        o.matchedPaths = matchedPaths.clone(); o.matchAt = matchAt; o.stockAt = stockAt; o.stockEmptyAt = stockEmptyAt;
+        o.selectedPathPresent=selectedPathPresent; o.selectedCodePresent=selectedCodePresent;
+        o.sessionVersion=sessionVersion; o.selectedSession=selectedSession; o.matchSession=matchSession;
+        o.matchedPaths = matchedPaths.clone(); o.matchedCodes=matchedCodes.clone();
+        o.matchCode=matchCode; o.routeInfo=routeInfo.clone(); o.matchAt = matchAt; o.stockAt = stockAt; o.stockEmptyAt = stockEmptyAt;
         return o;
     }
 }

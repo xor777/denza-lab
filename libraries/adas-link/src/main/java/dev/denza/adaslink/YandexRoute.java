@@ -4,10 +4,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
- * The parts of a Yandex {@code DrivingRoute} the converter reads, as immutable values copied once
- * per route (WGS-84 lon/lat, polyline positions as {@code segmentIndex + segmentPosition}).
+ * The parts of a Yandex {@code DrivingRoute} the converter reads, copied in bounded snapshots
+ * (WGS-84 lon/lat, polyline positions as {@code segmentIndex + segmentPosition}).
  * {@link #fromSnapshot} reads the module's {@code denza-yandex-driving-route-v1} map.
  * A list that Navigator did not report is {@code null}; an empty list is a known empty list.
  */
@@ -52,8 +56,20 @@ public final class YandexRoute {
     public List<double[]> highways;
     /** Junction lane signs: {position, number of lanes}; null when not reported. */
     public List<double[]> laneSigns;
+    /** Complete, bounded junction signs; per-lane raw enums, projections and losses are retained. */
+    public List<LaneGuidance.Sign> laneGuidanceSigns;
+    public LaneGuidance.Source laneGuidanceSource;
     /** Other junction positions: direction signs, restricted turns and entries; null when not reported. */
     public double[] junctions;
+    /** Captured traffic inputs retained separately from legal limits and unproved Amap wire semantics. */
+    public YandexTrafficContext trafficContext;
+    public RoadFacilities.Source roadFacilitiesSource;
+    public List<Map<String,Object>> optionalParseIssues=Collections.emptyList();
+    /** Passive copy provenance, never a claim about source-condition age. Legacy models are unknown. */
+    public long captureGeneration=-1, captureRevision=-1, capturedElapsedMs=-1;
+    public String snapshotKey;
+    private Map<String,Object> conditionsProvenance=Collections.emptyMap();
+    public Map<String,Object> conditionsProvenance() { return new LinkedHashMap<>(conditionsProvenance); }
 
     public YandexRoute(String routeId, double[] lon, double[] lat, List<Section> sections, Double[] speedLimits, double[] trafficLights,
                        List<double[]> tunnels, List<double[]> ferries, double[] wayPoints, List<Camera> cameras) {
@@ -119,39 +135,92 @@ public final class YandexRoute {
             wayPoints = new double[raw.size()];
             for (int i = 0; i < raw.size(); i++) wayPoints[i] = position(raw.get(i), edges);
         }
+        List<Map<String,Object>> parseIssues=new ArrayList<>();
         List<Camera> cameras = new ArrayList<>();
-        if (known(s, "events")) for (Object o : (List<Object>) s.get("events")) {
+        if (known(s, "events") && s.get("events") instanceof List) {
+          int index=0;
+          for (Object o : (List<Object>) s.get("events")) {
+            if(!(o instanceof Map)) { optionalIssue(parseIssues,"events",index++,"not_object");continue; }
             Map<String, Object> e = (Map<String, Object>) o;
             List<String> tags = new ArrayList<>();
             if (e.get("tags") instanceof List) for (Object t : (List<Object>) e.get("tags")) tags.add(String.valueOf(t));
             Object limit = e.get("speedLimit");
-            if (e.get("polylinePosition") == null) continue;
-            cameras.add(new Camera(position(e.get("polylinePosition"), edges), limit instanceof Number ? num(limit) : Double.NaN, tags));
+            try {
+                double at=position(e.get("polylinePosition"),edges);
+                double speed=limit instanceof Number && Double.isFinite(((Number)limit).doubleValue())?num(limit):Double.NaN;
+                cameras.add(new Camera(at,speed,tags));
+            } catch(RuntimeException malformed) { optionalIssue(parseIssues,"events",index,"invalid_position"); }
+            index++;
+          }
         }
         YandexRoute route = new YandexRoute((String) s.get("routeId"), lon, lat, sections, limits, lights,
                 ranges(s, "tunnels", edges), ranges(s, "ferries", edges), wayPoints, cameras);
         route.highways = ranges(s, "highways", edges);
         List<Double> junctions = new ArrayList<>();
         for (String key : new String[]{"directionSigns", "restrictedTurns", "restrictedEntries"}) {
-            if (!known(s, key)) continue;
-            for (Object o : (List<Object>) s.get(key))
-                if (o instanceof Map && ((Map<String, Object>) o).get("position") != null)
-                    junctions.add(position(((Map<String, Object>) o).get("position"), edges));
+            if (!known(s, key) || !(s.get(key) instanceof List)) continue;
+            int index=0;
+            for (Object o : (List<Object>) s.get(key)) {
+                try {
+                    if(!(o instanceof Map))throw new IllegalArgumentException();
+                    junctions.add(position(((Map<String,Object>)o).get("position"),edges));
+                } catch(RuntimeException malformed) { optionalIssue(parseIssues,key,index,"invalid_position_or_object"); }
+                index++;
+            }
         }
         if (!junctions.isEmpty()) {
             route.junctions = new double[junctions.size()];
             for (int i = 0; i < junctions.size(); i++) route.junctions[i] = junctions.get(i);
         }
-        if (known(s, "laneSigns")) {
+        route.laneGuidanceSource = LaneGuidance.readSource(s, edges);
+        route.laneGuidanceSigns = route.laneGuidanceSource.signs;
+        if (known(s,"laneSigns")) {
             route.laneSigns = new ArrayList<>();
-            for (Object o : (List<Object>) s.get("laneSigns")) {
-                Map<String, Object> sign = (Map<String, Object>) o;
-                Object lanes = sign.get("lanes");
-                if (sign.get("position") == null || !(lanes instanceof List) || ((List<Object>) lanes).isEmpty()) continue;
-                route.laneSigns.add(new double[]{position(sign.get("position"), edges), ((List<Object>) lanes).size()});
-            }
+            for (LaneGuidance.Sign sign : route.laneGuidanceSigns)
+                if (sign.supported()) route.laneSigns.add(new double[]{sign.scalar,sign.back.length});
         }
+        route.trafficContext = YandexTrafficContext.fromSnapshot(s, edges);
+        route.roadFacilitiesSource = RoadFacilities.readSource(s,edges);
+        route.optionalParseIssues=Collections.unmodifiableList(parseIssues);
+        route.readProvenance(s);
         return route;
+    }
+
+    private void readProvenance(Map<String,Object> snapshot) {
+        Map<String,Object> values=new LinkedHashMap<>(snapshot);
+        values.remove("conditionsCapture");values.remove("capturedAtMs");
+        try {
+            byte[] hash=MessageDigest.getInstance("SHA-256").digest(Json.write(values).getBytes(StandardCharsets.UTF_8));
+            StringBuilder key=new StringBuilder();for(byte b:hash)key.append(String.format(java.util.Locale.ROOT,"%02x",b&255));
+            snapshotKey=key.toString();
+        } catch(NoSuchAlgorithmException impossible) { throw new AssertionError(impossible); }
+        Map<String,Object> p=Json.object();p.put("routeId",routeId);p.put("snapshotKey",snapshotKey);
+        p.put("sourceUpdatedAtKnown",false);p.put("sourceAgeKnown",false);
+        p.put("conditionsOutdated",snapshot.get("conditionsOutdated"));
+        Object capture=snapshot.get("conditionsCapture");
+        if(capture instanceof Map) {
+            Map<?,?> c=(Map<?,?>)capture;
+            captureGeneration=nonnegative(c.get("routeGeneration"));captureRevision=nonnegative(c.get("revision"));
+            capturedElapsedMs=nonnegative(c.get("completedAtElapsedMs"));
+            p.put("capture",new LinkedHashMap<>((Map<?,?>)capture));
+        }
+        p.put("capturedAtMs",snapshot.get("capturedAtMs"));
+        Map<String,Object> availability=Json.object();Object raw=snapshot.get("availability");
+        for(String key:new String[]{"conditionsOutdated","speedLimits","laneSigns","events","jamSegments","sections"})
+            availability.put(key,raw instanceof Map?((Map<?,?>)raw).get(key):snapshot.get(key)==null?"unknown":"reported");
+        p.put("optionalParseIssues",optionalParseIssues);
+        p.put("availability",availability);conditionsProvenance=Collections.unmodifiableMap(p);
+    }
+
+    private static void optionalIssue(List<Map<String,Object>> issues,String field,int index,String reason) {
+        if(issues.size()>=64)return;
+        Map<String,Object> item=Json.object();item.put("field",field);item.put("index",index);item.put("reason",reason);issues.add(item);
+    }
+
+    private static long nonnegative(Object value) {
+        if(!(value instanceof Number))return -1;
+        double d=((Number)value).doubleValue();long n=((Number)value).longValue();
+        return Double.isFinite(d)&&d==n&&n>=0?n:-1;
     }
 
     @SuppressWarnings("unchecked")

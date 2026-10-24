@@ -39,6 +39,10 @@ public final class RouteSnapshotTest {
         public Position getEnd() { return new Position(1,.75); }
     }
     public static class RangeItem { public Range getPosition() { return new Range(); } }
+    public static class RuggedRoad extends RangeItem {
+        public boolean getInPoorCondition() { return true; }
+        public boolean getUnpaved() { return false; }
+    }
     public static class Localized {
         final double value; Localized(double value) { this.value=value; }
         public double getValue() { return value; }
@@ -154,6 +158,7 @@ public final class RouteSnapshotTest {
         public List<Light> getTrafficLights() { return Collections.singletonList(light); }
         public List<RangeItem> getHighways() { return Collections.singletonList(new RangeItem()); }
         public List<RangeItem> getTunnels() { return Collections.emptyList(); }
+        public List<RuggedRoad> getRuggedRoads() { return Collections.singletonList(new RuggedRoad()); }
         public List<RangeItem> getTollRoads() { return Collections.emptyList(); }
         public List<RangeItem> getHdSections() { return Collections.emptyList(); }
         public List<RangeItem> getStandingSegments() { return Collections.emptyList(); }
@@ -192,6 +197,7 @@ public final class RouteSnapshotTest {
     }
 
     public static void main(String[] args) throws Exception {
+        refreshPolicy();
         RouteSnapshot reader = new RouteSnapshot(new Reflect());
         Map<String,Object> snapshot = reader.read(new RichRoute());
         check(RouteSnapshot.SCHEMA.equals(snapshot.get("schema")),"versioned schema");
@@ -228,6 +234,8 @@ public final class RouteSnapshotTest {
         check(object(first(snapshot,"trafficLights"),"position").get("segmentPosition").equals(.125),"light position is not coordinate");
         check(((List<?>)snapshot.get("tunnels")).isEmpty() && "known".equals(state(snapshot,"tunnels")),"empty returned list known empty");
         check(object(first(snapshot,"highways"),"position").containsKey("begin"),"range getter uses position then begin/end");
+        check(Boolean.TRUE.equals(first(snapshot,"ruggedRoads").get("inPoorCondition")),"rugged poor condition retained");
+        check(Boolean.FALSE.equals(first(snapshot,"ruggedRoads").get("unpaved")),"rugged false is known false, not missing");
         check(object(snapshot,"metadata").get("descriptorBase64").equals("AAH/"),"opaque descriptor bytes");
         check(object(snapshot,"metadata").get("descriptorByteLength").equals(3),"opaque descriptor length");
         check(object(snapshot,"metadata").get("traitsBase64").equals("AQ=="),"opaque traits bytes");
@@ -309,6 +317,25 @@ public final class RouteSnapshotTest {
             }
         }
         System.out.println("RouteSnapshotTest: "+checks+" checks");
+    }
+
+    private static void refreshPolicy() {
+        RouteSnapshot.Refresh policy=new RouteSnapshot.Refresh();
+        Map<String,Object> first=policy.begin("a",100);
+        long epoch=((Number)first.get("routeGeneration")).longValue();
+        check(first.get("revision").equals(1L),"initial copy revision");
+        check(policy.begin("a",10099)==null,"no unbounded per-tick copy");
+        check(policy.begin("a",10100).get("revision").equals(2L),"bootstrap conditions retry after10s");
+        check(policy.begin("a",40099)==null,"periodic copy waits30s");
+        Map<String,Object> third=policy.begin("a",40100);
+        check(third.get("revision").equals(3L),"passive periodic refresh after30s");
+        Map<String,Object> copied=new LinkedHashMap<>();RouteSnapshot.captured(copied,third,40110,1000000);
+        check(object(copied,"conditionsCapture").get("sourceUpdatedAtKnown").equals(false),"copy does not claim condition freshness");
+        check(object(copied,"conditionsCapture").get("completedAtElapsedMs").equals(40110L),"completion time separate from SDK source time");
+        check(!third.containsKey("completedAtElapsedMs"),"capture stamp does not mutate scheduler token");
+        policy.begin("b",40111);check(!policy.current(epoch),"reroute invalidates queued old copy");
+        long replacement=policy.route("b");policy.route(null);check(!policy.current(replacement),"stop invalidates queued replacement");
+        check(policy.begin("a",40112).get("revision").equals(1L),"same ID after stop starts new generation");
     }
 
     private interface Attempt { void run() throws Exception; }

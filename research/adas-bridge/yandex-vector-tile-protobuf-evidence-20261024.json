@@ -1,0 +1,689 @@
+{
+  "schema": "denza-yandex-vector-protobuf-evidence-v1",
+  "date": "2026-10-24",
+  "source": {
+    "path": "captures/firmware/yandexnavi-29.8.1-3b0dec32/jadx/Navigator/resources/lib/arm64-v8a/libmaps-mobile.so",
+    "bytes": 62862384,
+    "sha256": "c2842633cc3db8301f252aff52df86aab4c64a8b10b826f80f4f922a327d340f"
+  },
+  "apk": {
+    "path": "captures/hud-lanes-20261011/yandex-installed.apk",
+    "sha256": "3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3",
+    "versionName": "29.8.1",
+    "versionCode": 739494300
+  },
+  "addressMapping": {
+    "architecture": "AARCH64 little endian",
+    "code": "All listed code VAs equal file offsets; module base+VA at runtime",
+    "ptLoad": [
+      {
+        "fileOffset": "0x0",
+        "elfVa": "0x0",
+        "fileBytes": "0x38d9770"
+      },
+      {
+        "fileOffset": "0x38d9770",
+        "elfVa": "0x38dd770",
+        "fileBytes": "0x280cf0"
+      },
+      {
+        "fileOffset": "0x3b5a460",
+        "elfVa": "0x3b62460",
+        "fileBytes": "0x98640"
+      }
+    ]
+  },
+  "method": "Native parser tag comparisons, constructor vtable identities via decoded Android APS2 relocations, and attribute consumer instructions. Supplementary REA Ghidra12.1.4 raw slices are byte-attested with explicit entry/load addresses; no full-ELF import.",
+  "functions": [
+    {
+      "elfVa": "0x17bbaa0",
+      "fileOffset": "0x17bbaa0",
+      "first16BytesHex": "ff4301d1fd7b02a9f65703a9f44f04a9",
+      "role": "Raw vmap3 protobuf decode wrapper; x0 span, x1 arena pointer, x8 optional output; success byte output+0x10"
+    },
+    {
+      "elfVa": "0x17bb954",
+      "fileOffset": "0x17bb954",
+      "first16BytesHex": "ff4302d1fd7b07a9f44f08a9fdc30191",
+      "role": "Caller performs optional decompression then calls raw decode wrapper"
+    },
+    {
+      "elfVa": "0x3105d2c",
+      "fileOffset": "0x3105d2c",
+      "first16BytesHex": "ff4301d1fd7b01a9f71300f9f65703a9",
+      "role": "vmap3.Tile protobuf parser"
+    },
+    {
+      "elfVa": "0x31057a4",
+      "fileOffset": "0x31057a4",
+      "first16BytesHex": "ff0301d1fd7b01a9f51300f9f44f03a9",
+      "role": "vmap3.Layer protobuf parser"
+    },
+    {
+      "elfVa": "0x3104fec",
+      "fileOffset": "0x3104fec",
+      "first16BytesHex": "ff4301d1fd7b01a9f71300f9f65703a9",
+      "role": "vmap3.Feature protobuf parser"
+    },
+    {
+      "elfVa": "0x3104a38",
+      "fileOffset": "0x3104a38",
+      "first16BytesHex": "ff0301d1fd7b01a9f65702a9f44f03a9",
+      "role": "vmap3.Feature.Attributes protobuf parser"
+    },
+    {
+      "elfVa": "0x3106f04",
+      "fileOffset": "0x3106f04",
+      "first16BytesHex": "ff0301d1fd7b01a9f51300f9f44f03a9",
+      "role": "Shared AttributeKeys/StringArray parser: repeated f1 strings"
+    },
+    {
+      "elfVa": "0x31075f4",
+      "fileOffset": "0x31075f4",
+      "first16BytesHex": "ff0302d1e80b00fdfd7b02a9fc6f03a9",
+      "role": "AttributeValue oneof parser"
+    },
+    {
+      "elfVa": "0x31071a4",
+      "fileOffset": "0x31071a4",
+      "first16BytesHex": "ff0301d1fd7b01a9f51300f9f44f03a9",
+      "role": "FloatArray parser"
+    },
+    {
+      "elfVa": "0x3104208",
+      "fileOffset": "0x3104208",
+      "first16BytesHex": "ff0301d1fd7b01a9f65702a9f44f03a9",
+      "role": "MultiLineString parser"
+    },
+    {
+      "elfVa": "0x3104644",
+      "fileOffset": "0x3104644",
+      "first16BytesHex": "ff0301d1fd7b01a9f65702a9f44f03a9",
+      "role": "MultiPolygon parser"
+    },
+    {
+      "elfVa": "0x3104090",
+      "fileOffset": "0x3104090",
+      "first16BytesHex": "ff0301d1fd7b01a9f51300f9f44f03a9",
+      "role": "Point parser: no declared fields"
+    },
+    {
+      "elfVa": "0x1798074",
+      "fileOffset": "0x1798074",
+      "first16BytesHex": "fd7bbaa9fc6f01a9fa6702a9f85f03a9",
+      "role": "createAttributeDecoder callable; f1 zero-based keyset index, cardinality check"
+    },
+    {
+      "elfVa": "0x1798ef0",
+      "fileOffset": "0x1798ef0",
+      "first16BytesHex": "ff4303d1fd7b09a9f85f0aa9f6570ba9",
+      "role": "Lazy LayerObjectAttributes getter; positional key search and zero-based value index"
+    },
+    {
+      "elfVa": "0x300c0a0",
+      "fileOffset": "0x300c0a0",
+      "first16BytesHex": "fd7bbca9fc5f01a9fd030091f65702a9",
+      "role": "Renderer style label enum/string table; ROAD_1..7 semantics not assigned"
+    },
+    {
+      "elfVa": "0x17bb6c8",
+      "fileOffset": "0x17bb6c8",
+      "first16BytesHex": "ff8301d1fd7b04a9f44f05a9fd030191",
+      "role": "Source TileId and raw-vector context wrapper"
+    },
+    {
+      "elfVa": "0x17c1bdc",
+      "fileOffset": "0x17c1bdc",
+      "first16BytesHex": "fd7bbaa9fc6f01a9fa6702a9f85f03a9",
+      "role": "Vector feature decoder constructs grid limits from precision"
+    },
+    {
+      "elfVa": "0x1ab3598",
+      "fileOffset": "0x1ab3598",
+      "first16BytesHex": "fd7bbda9f50b00f9f44f02a9fd030091",
+      "role": "TileId stream printer reads three uint32 words"
+    }
+  ],
+  "messages": {
+    "Tile": {
+      "parser": "0x3105d2c",
+      "fields": {
+        "1": "uint32, unnamed",
+        "2": "repeated sint32 packed or unpacked, shared raw buffer",
+        "3": "repeated uint32 packed or unpacked, shared raw buffer",
+        "4": "repeated AttributeKeys",
+        "5": "repeated AttributeValue",
+        "6": "repeated Layer",
+        "7": "opaque length-delimited bytes, unnamed; optional UTF8 only. Runtime binary GLB-like payload disproves mandatory text; original proto string/bytes keyword unproved."
+      },
+      "constructorProof": {
+        "4": "0x3105e6c -> 0x3106924 -> 0x3108000 writes vtable0x3ab1ab0 (AttributeKeys)",
+        "5": "0x3105e08 -> 0x3106960 -> 0x3107fb8 writes vtable0x3ab1a38 (AttributeValue)",
+        "6": "0x3105ed0 -> 0x310699c -> 0x31067ac writes vtable0x3ab17b0 (Layer)"
+      }
+    },
+    "Layer": {
+      "parser": "0x31057a4",
+      "fields": {
+        "1": "string name",
+        "2": "repeated Feature"
+      },
+      "constructorProof": "f2 helper0x31068e8 -> 0x3106734 writes Feature vtable0x3ab1738"
+    },
+    "Feature": {
+      "parser": "0x3104fec",
+      "fields": {
+        "1": "Point geometry oneof",
+        "2": "MultiLineString geometry oneof",
+        "3": "MultiPolygon geometry oneof",
+        "4": "repeated uint32, unnamed raw buffer/index data",
+        "5": "uint64, unsigned raw ID candidate",
+        "6": "Feature.Attributes",
+        "7": "renderer.common.FeatureMetadata retained as hex"
+      },
+      "constructorProof": {
+        "1": "0x3104ddc ->0x31065d4 writes Point vtable0x3ab1540",
+        "2": "0x3104e30 ->0x310661c writes MultiLineString vtable0x3ab15d0",
+        "3": "0x3104e84 ->0x3106670 writes MultiPolygon vtable0x3ab1648",
+        "6": "0x31051c0 ->0x31066dc writes Attributes vtable0x3ab16c0",
+        "7": "0x3105208 ->0x30065b4 writes common.FeatureMetadata vtable0x3aa8978"
+      }
+    },
+    "Feature.Attributes": {
+      "parser": "0x3104a38",
+      "fields": {
+        "1": "uint32 zero-based keyset dictionary index",
+        "2": "repeated uint32 zero-based value dictionary indices"
+      },
+      "joinProof": [
+        "0x1798104 loads key dictionary+0x10, indexes f1<<3, loads element+8",
+        "0x1798114..0x1798124 compares Attributes f2 size against selected keyset f1 size",
+        "0x1798f58..0x1798f6c searches key names by positional index",
+        "0x1798f8c..0x1798fa0 indexes value dictionary with uint32 valueIndex<<3, element+8"
+      ]
+    },
+    "AttributeKeys": {
+      "parser": "0x3106f04",
+      "fields": {
+        "1": "repeated string"
+      }
+    },
+    "AttributeValue": {
+      "parser": "0x31075f4",
+      "oneof": {
+        "1": "string",
+        "2": "sint32 zigzag",
+        "3": "uint32",
+        "4": "uint64 raw unsigned representation",
+        "5": "float32",
+        "6": "bool",
+        "7": "FloatArray",
+        "8": "StringArray"
+      },
+      "arrayProof": {
+        "7": "0x3107888 ->0x31074ac ->0x3107f64 writes FloatArray vtable0x3ab19c0",
+        "8": "0x31077e4 ->0x3107504 ->0x3107f04 writes StringArray vtable0x3ab1948"
+      }
+    },
+    "FloatArray": {
+      "parser": "0x31071a4",
+      "fields": {
+        "1": "repeated float32 packed or unpacked"
+      }
+    },
+    "StringArray": {
+      "parser": "0x3106f04",
+      "fields": {
+        "1": "repeated string"
+      }
+    },
+    "Point": {
+      "parser": "0x3104090",
+      "fields": {}
+    },
+    "MultiLineString": {
+      "parser": "0x3104208",
+      "fields": {
+        "1": "uint32 unnamed",
+        "2": "repeated uint64 unnamed",
+        "3": "repeated uint64 unnamed"
+      }
+    },
+    "MultiPolygon": {
+      "parser": "0x3104644",
+      "fields": {
+        "1": "repeated uint32 unnamed",
+        "2": "uint32 unnamed",
+        "3": "repeated uint64 unnamed"
+      }
+    }
+  },
+  "observer": {
+    "path": "tools/adas_bridge/yandex_vector_observer.js",
+    "readOnly": true,
+    "nativeCalls": false,
+    "maxInputs": 4,
+    "maxCombinedCopiedBytes": 2097152,
+    "durationMs": 60000,
+    "onlyEmitWhenNativeParseSucceeded": true,
+    "prefixGuardBytes": 16
+  },
+  "decoder": {
+    "path": "tools/adas_bridge/yandex_vector_tile.py",
+    "outputSchema": "denza-yandex-vector-tile-v1",
+    "dictionaryReferences": "feature.attributes.keySetIndex indexes dictionaries.keySets; entry.keyIndex indexes that keyset.keys; entry.valueIndex indexes dictionaries.values. References are retained to bound output amplification.",
+    "unknowns": "Every supported message keeps unknown wire fields; Feature f7 metadata remains raw hex. Invalid dictionary indices stay explicit.",
+    "geometry": "Shared buffers and geometry message integer fields retained verbatim, without WGS84 reconstruction."
+  },
+  "validation": {
+    "command": "python3 -m unittest tools.adas_bridge.tests.test_yandex_vector_tile -v",
+    "testsPassed": 10,
+    "javascriptSyntaxCommand": "node --check tools/adas_bridge/yandex_vector_observer.js",
+    "javascriptSyntaxExitCode": 0,
+    "runtimeVectorCapture": "4 native-success inputs, host decoded without parser changes; all dictionary references valid"
+  },
+  "limitations": [
+    "The vmap3 protobuf path is now runtime confirmed by4native-success captures. No alternate vmap3fb online parser is required by this iteration; literalvmap3fb factory found in offline style-region data is not itself a raw tile decoder.",
+    "Capturedclass/fc/oneway/etc are literal renderer vendor attributes. Physical road lane count, exact ROAD_1..7 style linkage, and Amap/ADAS mapping remain unproved.",
+    "Feature geometry coordinate reconstruction, shared buffer meanings, feature-ID scope/stability and metadata schema are not decoded here.",
+    "Non-zigzag integer labels describe native stored width and raw unsigned decoding. The original .proto signedness aliases were not recovered; no signed numeric semantics are assigned to those values.",
+    "Native getter bounds assume vendor-valid dictionaries; host decoder preserves invalid reference issues and rejects malformed wire, singular duplicates and AttributeValue oneof conflicts.",
+    "Raw-slice pseudocode has unmapped globals and external callees, and inferred ABI parameters can differ from actual x0/x1/x8 register convention. Original instructions and relocation identities establish the claims.",
+    "This agent used local corpus and parent-owned captured bytes only. No device/emulator/network/vehicle calls, commit or push was performed by this agent."
+  ],
+  "corpusArtifacts": [
+    {
+      "path": "captures/yandex-only-richer-20261024/vector-seeded-slice-provenance.json",
+      "bytes": 1330,
+      "sha256": "2b097862a93efb7e68fd222092c0ac8d71c2694716db5b5753f76a858fb1118c"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/vector-decode-seeded-decompile.json",
+      "bytes": 14434,
+      "sha256": "66876e10140a9581a9d9834907f09227bab1974ca76634f33a4624d984973485"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/attribute-getter-seeded-decompile.json",
+      "bytes": 28770,
+      "sha256": "036aecf96cfb7acc786faa6335c448fb87d0eb0c4c28748439c3c3dd3ae6b43a"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-1798074.txt",
+      "bytes": 17126,
+      "sha256": "39a59af08fad3e358ef2fd60371ab1d352ebfcd3d3b9e94191abd8e68b74f40d"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-1798ef0.txt",
+      "bytes": 7489,
+      "sha256": "9c112c5b5110c25de75a8bd6097ec63e7b1b009a9fd84173a4e48de47b9baf81"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-17bbaa0.txt",
+      "bytes": 959,
+      "sha256": "be3ae79c26950d19a0eb0603a3d8e642087812da6b3df1bee8d6d8ab69c0aaae"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/vmap3-Tile-slot50-3105d2c.txt",
+      "bytes": 4732,
+      "sha256": "6778510f82819357ea2161d07225f50d486415d8530b5974133e9ba32e302ecd"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-3104fec.txt",
+      "bytes": 2972,
+      "sha256": "211353119266d1e260b60734d95ee7d4349ea16daf2d792b07e36ca90f18c2db"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/vmap3-AttributeValue-slot50-31075f4.txt",
+      "bytes": 5284,
+      "sha256": "7eb2953fe75949626c552cf68db9d00e8e7e73558133ee2ba4a9a49b770b66db"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/decoded.json",
+      "bytes": 31646591,
+      "sha256": "226534153bcb90f914ed3aae59c7c47756f9223fd3f0e8f483e8ccea41e95b00"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/attribute-census.json",
+      "bytes": 1503575,
+      "sha256": "dc85ea92d9f57eedc4f715925c1b95fa505fa99e8626a46f1395a84620e9fa1c"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/road-feature-samples.json",
+      "bytes": 78242,
+      "sha256": "aa2644d7859db2d1a2f632043a67f85d2e6a2eb0a1c0520520cb5bfd05331d2a"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/graph-id-comparison.json",
+      "bytes": 8531,
+      "sha256": "3017856371594963db9b850aef4de463a3c6a864fc2f1a41cfef619a422f2350"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-17c1bdc.txt",
+      "bytes": 22145,
+      "sha256": "454719f614c29cfa134df00a72d3f80ee3646ac941cc37587ab7f7dc53ffa0f0"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-17bb6c8.txt",
+      "bytes": 1332,
+      "sha256": "3c76756b2288175605c3bca1b0d628aac229bf9cdf1f26e7d1042111e27ccad9"
+    },
+    {
+      "path": "captures/yandex-only-richer-20261024/disasm-1ab3598.txt",
+      "bytes": 831,
+      "sha256": "31400a088851298dfd3be514effb3dbc3dc53884043efbcab00437962efeb27e"
+    }
+  ],
+  "runtimeProof": {
+    "captureOwner": "Parent agent owned emulator session; this agent performed host decoding only",
+    "sourceEvents": {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/events.jsonl",
+      "bytes": 2188,
+      "sha256": "2e682c7f1a98fb46c862e33c8a953d195093452becaa5c29db6917442b53ceeb"
+    },
+    "tiles": [
+      {
+        "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-001.bin",
+        "bytes": 409458,
+        "sha256": "f7ab2676363c351f89fb79746a073ea410e7b896a9c38f759e2c52e77c9fad0e"
+      },
+      {
+        "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-002.bin",
+        "bytes": 267,
+        "sha256": "7de5f74a2c545f4dee26125dda729e5a3f9564c3187cc1038a0bd2a184292531"
+      },
+      {
+        "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-003.bin",
+        "bytes": 265,
+        "sha256": "aed37269e929dba57618baee57844e8dada5f9ba5109f96b9bc409562a541305"
+      },
+      {
+        "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-004.bin",
+        "bytes": 733870,
+        "sha256": "a27f1336cf314d23bf59b192d7dab954a7890546678803a2416f830491bbfc45"
+      }
+    ],
+    "nativeParseSucceededInputs": 4,
+    "observerStop": {
+      "kind": "vector_tile_observer_stop",
+      "reason": "capture_budget",
+      "stats": {
+        "calls": 4,
+        "copied": 4,
+        "copiedBytes": 1143860,
+        "emitted": 4,
+        "emittedBytes": 1143860,
+        "rejectedSize": 0,
+        "parseFailed": 0,
+        "readErrors": 0,
+        "stopped": true
+      }
+    },
+    "features": 9609,
+    "roadFeatureRows": 1238,
+    "distinctRoadFeatureField5Ids": 1214,
+    "allLayerAttributeKeys": 77,
+    "dictionaryReferenceIssues": 0,
+    "parserChangesRequired": false,
+    "baseTileLayers": [
+      {
+        "tile": "vector-001.bin",
+        "layerCount": 31,
+        "featureCount": 3345
+      },
+      {
+        "tile": "vector-002.bin",
+        "layerCount": 1,
+        "featureCount": 2
+      },
+      {
+        "tile": "vector-003.bin",
+        "layerCount": 1,
+        "featureCount": 2
+      },
+      {
+        "tile": "vector-004.bin",
+        "layerCount": 33,
+        "featureCount": 6260
+      }
+    ],
+    "observedRoadFields": [
+      "class",
+      "detail",
+      "fc",
+      "hd_covered",
+      "hide_in_road3d",
+      "max_zlev",
+      "min_zlev",
+      "on_service_area",
+      "oneway",
+      "sort_order",
+      "struct",
+      "struct:toll",
+      "toll",
+      "z_level",
+      "zlev"
+    ],
+    "roadFcHistogram": [
+      {
+        "value": 10,
+        "count": 753
+      },
+      {
+        "value": 8,
+        "count": 404
+      },
+      {
+        "value": 7,
+        "count": 67
+      },
+      {
+        "value": 6,
+        "count": 9
+      },
+      {
+        "value": 5,
+        "count": 3
+      },
+      {
+        "value": 4,
+        "count": 2
+      }
+    ],
+    "roadClassHistogram": [
+      {
+        "value": "10_pedestrian",
+        "count": 524
+      },
+      {
+        "value": "8",
+        "count": 404
+      },
+      {
+        "value": "stairs",
+        "count": 99
+      },
+      {
+        "value": "10_park",
+        "count": 76
+      },
+      {
+        "value": "crosswalk",
+        "count": 65
+      },
+      {
+        "value": "7",
+        "count": 34
+      },
+      {
+        "value": "7_pedestrian",
+        "count": 14
+      },
+      {
+        "value": "6",
+        "count": 9
+      },
+      {
+        "value": "construction",
+        "count": 5
+      },
+      {
+        "value": "5",
+        "count": 3
+      },
+      {
+        "value": "10_bike",
+        "count": 3
+      },
+      {
+        "value": "4",
+        "count": 2
+      }
+    ],
+    "hdLayers": {
+      "hd_road_surface_border": 94,
+      "hd_road_surface": 35,
+      "hd_road_marking_l": 586,
+      "hd_road_marking_a": 484
+    },
+    "concreteSamples": "captures/yandex-only-richer-20261024/runtime-vector/road-feature-samples.json",
+    "census": "captures/yandex-only-richer-20261024/runtime-vector/attribute-census.json",
+    "geographicEvidence": "Bilingual label names identify Kazan: O\u0441\u0442\u0440\u043e\u0432\u0441\u043a\u043e\u0433\u043e/\u0421\u0430\u0444\u044c\u044f\u043d/\u0425\u0430\u0434\u0438 \u0422\u0430\u043a\u0442\u0430\u0448\u0430/\u043e\u0437\u0435\u0440\u043e \u041a\u0430\u0431\u0430\u043d in001 and \u041a\u0440\u0435\u043c\u043b\u0451\u0432\u0441\u043a\u0430\u044f/\u0411\u0430\u0443\u043c\u0430\u043d\u0430/\u041b\u0435\u0432\u043e-\u0411\u0443\u043b\u0430\u0447\u043d\u0430\u044f in004. This corrects the earlier Novosibirsk assumption; exact XYZ is not captured.",
+    "idJoin": {
+      "graphTileFilesRead": 14,
+      "kazanGraphTiles": 4,
+      "kazanGraphEdgeDataIds": 2936,
+      "kazanGraphDirectedEdgeIds": 5322,
+      "roadFeatureIds": 1214,
+      "allLayerFeatureIds": 6977,
+      "roadIdExactEdgeDataOverlap": [],
+      "roadIdExactDirectedEdgeOverlap": [],
+      "allLayerIdExactEdgeDataOverlap": [],
+      "allLayerIdExactDirectedEdgeOverlap": [],
+      "roadIdRange": [
+        158490,
+        19548974
+      ],
+      "graphEdgeDataIdRange": [
+        175691427,
+        189963641
+      ]
+    },
+    "idJoinArtifact": {
+      "path": "captures/yandex-only-richer-20261024/runtime-vector/graph-id-comparison.json",
+      "bytes": 8531,
+      "sha256": "3017856371594963db9b850aef4de463a3c6a864fc2f1a41cfef619a422f2350"
+    },
+    "interpretation": [
+      "Native-success online renderer bytes carry literal road class/fc/oneway/structure/toll/zlevel attributes and detailed HD road-marking feature types.",
+      "class andfc are not interchangeable: capturedclass10_pedestrian andconstruction canhavefc7. No Amap or ADAS functional-class mapping is established.",
+      "No lane-count attribute exists among the77 captured keys; lane-direction and linear-lane labels describe marking features. This is not proof that all Yandex tiles lack lane counts.",
+      "width values occur onhd_road_marking_l and are not interpreted as road/lane width.",
+      "Exact road-feature ID/graph-ID equality is absent across fresh4Kazan tiles, including all vector-layer IDs; a geometry/context join remains to be implemented."
+    ]
+  },
+  "geometryFrame": {
+    "nativeEvidence": [
+      "0x17c1e70..0x17c1e98 creates shared coordinate/int-count buffer spans fromTile+0x18/0x30",
+      "0x17c200c readsTile f1 atobject+0x98",
+      "0x17c2018 computes1<<f1",
+      "0x17c2020..0x17c2044 derives centered min=-2^(f1-1), max=2^(f1-1)-1 and grid extent"
+    ],
+    "observed": [
+      {
+        "source": {
+          "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-001.bin",
+          "bytes": 409458,
+          "sha256": "f7ab2676363c351f89fb79746a073ea410e7b896a9c38f759e2c52e77c9fad0e"
+        },
+        "field1": 14,
+        "coordinateScalarCount": 55024,
+        "pointCount": 27512,
+        "componentCount": 6379,
+        "sumComponentVertexCounts": 27512,
+        "rawScalarRange": [
+          -16383,
+          16383
+        ]
+      },
+      {
+        "source": {
+          "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-002.bin",
+          "bytes": 267,
+          "sha256": "7de5f74a2c545f4dee26125dda729e5a3f9564c3187cc1038a0bd2a184292531"
+        },
+        "field1": 13,
+        "coordinateScalarCount": 30,
+        "pointCount": 15,
+        "componentCount": 2,
+        "sumComponentVertexCounts": 15,
+        "rawScalarRange": [
+          -4096,
+          4095
+        ]
+      },
+      {
+        "source": {
+          "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-003.bin",
+          "bytes": 265,
+          "sha256": "aed37269e929dba57618baee57844e8dada5f9ba5109f96b9bc409562a541305"
+        },
+        "field1": 13,
+        "coordinateScalarCount": 20,
+        "pointCount": 10,
+        "componentCount": 2,
+        "sumComponentVertexCounts": 10,
+        "rawScalarRange": [
+          -5377,
+          5377
+        ]
+      },
+      {
+        "source": {
+          "path": "captures/yandex-only-richer-20261024/runtime-vector/vector-004.bin",
+          "bytes": 733870,
+          "sha256": "a27f1336cf314d23bf59b192d7dab954a7890546678803a2416f830491bbfc45"
+        },
+        "field1": 14,
+        "coordinateScalarCount": 96884,
+        "pointCount": 48442,
+        "componentCount": 11318,
+        "sumComponentVertexCounts": 48442,
+        "rawScalarRange": [
+          -16383,
+          16383
+        ]
+      }
+    ],
+    "status": "Tile-local quantized/delta integer buffers confirmed; raw f2 values are not direct WGS84 coordinates. Complete geometry reconstruction and global projection are not implemented in this decoder."
+  },
+  "nextTileContext": {
+    "status": "statically established capture point, not yet runtime captured",
+    "entry": {
+      "elfVa": "0x17bb6c8",
+      "fileOffset": "0x17bb6c8",
+      "first16BytesHex": "ff8301d1fd7b04a9f44f05a9fd030191",
+      "role": "decoders::vector3::parse(const TileId&, const vector<uint8_t>&) wrapper"
+    },
+    "inputLayout": {
+      "x0": "const TileId*: raw12 bytes comprising native uint32 at offsets0,4,8; retain all12 bytes and numeric words. This receipt does not assign x/y/zoom ordering without a runtime/context check.",
+      "x1": "const std::vector<uint8_t>*: begin pointer+0,end pointer+8,capacity end+0x10. These are source bytes before optional decompression.",
+      "x8": "output {Arena*,vmap3.Tile*} pair"
+    },
+    "proof": [
+      "RTTI0x5beac1/0x5beb75 identifies logger lambda owned by vector3::parse(TileId const&,vector<uint8_t> const&)",
+      "0x17bb6e8..0x17bb6f4 constructs logger closure with original x0 TileId pointer atclosure+8",
+      "0x17bb6f8..0x17bb6fc passes originalx1 bytevector through0x17bb79c",
+      "0x17bb7b8..0x17bb7c0 passes that bytevector asx0 to0x17bb954",
+      "0x17bb954 optionally decompresses via0x1db5218, then calls0x17bbaa0 with raw protobuf span",
+      "logger callable0x17bbbd4 loadsclosure+8 and passesTileId* to0x17f82dc;0x17f8320 callsTileId stream printer0x1ab3598",
+      "0x1ab35c0/0x1ab35dc/0x1ab35f0 prints uint32 words atTileId+0/+4/+8"
+    ],
+    "correlation": "For a future passive observer, retain a per-thread nested context across entry/leave0x17bb6c8; associate its raw TileId words with nested0x17bbaa0 output-success bytes. Bound input count, duration and copied bytes. No such new observer was added or run in this iteration.",
+    "whyNeeded": "Raw vmap3 root lacks tile XYZ. Geometry is a centered quantized local grid, so converting to world geometry and matching Yandex graph fragments needs source tile context."
+  },
+  "rootField7Correction20261024": {
+    "path": "captures/yandex-vector-world-20261024/native-local/root-field7-lossless-receipt.json",
+    "bytes": 6622,
+    "sha256": "1187eaff1e4a8e14fbcf40fb2e27f487b62a00e896f4dde839be761fc980ef85"
+  }
+}

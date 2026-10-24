@@ -60,6 +60,8 @@ public final class ModuleTest {
     public static class Point { public double getLatitude() { return 55.7; } }
     public static class Location {
         public long getAbsoluteTimestamp() { return stamp; }
+        public Long getRelativeTimestamp() { return relative; }
+        Long relative;
         public Point getPosition() { return new Point(); }
         public Double getHeading() { return 0d; }
         public Double getSpeed() { return speed; }
@@ -193,7 +195,25 @@ public final class ModuleTest {
         check(source.read(guidance,true,7200).lanes.isEmpty(),"rerouting clears lanes");
         roles();
         positionOwnership();
+        monotonicIdentity();
         System.out.println(assertions+" native module assertions passed");
+    }
+
+    private static void monotonicIdentity() {
+        NavigatorSource source=new NavigatorSource(new Reflect());
+        Guidance g=new Guidance(); g.location=new Classified(); g.route=new Route();
+        g.location.location.relative=100L;
+        NavigatorSource.Frame f=source.read(g,true,1000);
+        check(f.fineFixRelativeMs==100 && f.fineFixAbsoluteMs==1,"FINE captures both source clocks");
+        g.location.location.relative=101L;
+        f=source.read(g,true,1100);
+        check(f.fixAt==1100 && f.fineFixRelativeMs==101,"new relative fix refreshes even while absolute timestamp is held");
+        g.location.location.relative=102L; g.location.location.stamp=0;
+        f=source.read(g,true,1200);
+        check(f.fixAt==1200 && f.fineFixAbsoluteMs==0,"wall-clock rollback does not hide a new monotonic fix");
+        g.location.location.relative=null; g.location.location.stamp=2;
+        f=source.read(g,true,1300);
+        check(f.fineFixRelativeMs==-1,"missing relative getter cannot retain a previous FINE timestamp");
     }
 
     /** Route replacement must not relabel the visual hold as a fresh pose on the new route. */

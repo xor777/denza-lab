@@ -47,8 +47,9 @@ final class NavigatorSource {
         long staleMs, fixAt = -1;
         /** LocationClass of the held fix (FINE, EXTRAPOLATED, ...); null without one. Diagnostic: the HUD hold ignores it. */
         String locationClass;
-        /** relativeTimestamp (elapsedRealtime ms) of the last FINE location of this guidance; -1 none. */
+        /** Last FINE SDK CLOCK_MONOTONIC and absolute timestamps; -1 means unavailable. */
         long fineFixRelativeMs = -1;
+        long fineFixAbsoluteMs = -1;
         List<Lane> lanes = Collections.emptyList();
         Hint hint;
         boolean active() { return !mode.equals("off"); }
@@ -70,7 +71,7 @@ final class NavigatorSource {
     private double heldHeading, heldLatitude, heldSpeed = Double.NaN;
     private boolean held;
     private String heldClass;
-    private long fineRelative = -1;
+    private long fineRelative = -1, fineAbsolute = -1;
     NavigatorSource(Reflect api) { this.api = api; }
 
     @SuppressWarnings("unchecked") Frame read(Object guidance, boolean visible, long now) {
@@ -95,7 +96,12 @@ final class NavigatorSource {
         String accuracy = classified == null ? "NONE" : String.valueOf(api.call(classified, "getLocationClass"));
         Object position = api.call(guidance, "getRoutePosition");
         if (location != null && position != null && (accuracy.equals("FINE") || accuracy.equals("EXTRAPOLATED"))) {
-            String stamp = String.valueOf(api.call(location, "getAbsoluteTimestamp"));
+            Object absolute = api.call(location, "getAbsoluteTimestamp"), relative = null;
+            try { relative = api.call(location, "getRelativeTimestamp"); }
+            catch (RuntimeException ignored) { /* Optional for the HUD; freshness fails closed. */ }
+            // A new native monotonic fix can arrive while the wall timestamp is held or reset.
+            String stamp = relative instanceof Number && ((Number) relative).longValue() >= 0
+                    ? "relative:" + relative : "absolute:" + absolute;
             if (!stamp.equals(lastStamp)) {
                 lastStamp = stamp; lastChanged = now; held = true;
                 heldLocation = location; heldPosition = position;
@@ -114,12 +120,8 @@ final class NavigatorSource {
                 heldSpeed = speed != null ? speed : Double.NaN;
                 heldClass = accuracy;
                 if (accuracy.equals("FINE")) {
-                    try {
-                        Object relative = api.call(location, "getRelativeTimestamp");
-                        if (relative instanceof Number) fineRelative = ((Number) relative).longValue();
-                    } catch (RuntimeException ignored) {
-                        // Diagnostic only: an unreadable timestamp must not change the HUD's hold.
-                    }
+                    fineRelative = relative instanceof Number ? ((Number) relative).longValue() : -1;
+                    fineAbsolute = absolute instanceof Number ? ((Number) absolute).longValue() : -1;
                 }
             }
         }
@@ -136,6 +138,7 @@ final class NavigatorSource {
         frame.position = heldPosition;
         frame.locationClass = heldClass;
         frame.fineFixRelativeMs = fineRelative;
+        frame.fineFixAbsoluteMs = fineAbsolute;
         frame.positionRouteId = heldPositionRouteId;
         if (rerouting) { frame.mode = "rerouting"; return frame; }
         frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";
@@ -174,7 +177,7 @@ final class NavigatorSource {
     }
 
     private void forget() {
-        lastStamp = null; held = false; heldClass = null; fineRelative = -1;
+        lastStamp = null; held = false; heldClass = null; fineRelative = -1; fineAbsolute = -1;
         heldLocation = heldPoint = heldPosition = null;
         heldPositionRouteId = null;
     }

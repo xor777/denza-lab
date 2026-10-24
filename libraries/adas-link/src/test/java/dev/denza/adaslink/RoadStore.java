@@ -13,6 +13,7 @@ import java.util.Map;
  * nothing here touches the file system. Fragments are decoded on first use and kept while the
  * cache is small. Mirrored by {@code tools/adas_bridge/roads.py} RoadStore.
  */
+// Historical OSM-store oracle, test sources only; never packaged into Navigator.
 public final class RoadStore implements RoadNetwork {
     static final int SCALE = 3600000;
     static final int FRAGMENT_BYTES = 25;

@@ -1,4 +1,8 @@
 # YandexHUD — embedded Navigator HUD experiment
+Local candidate 13 adds continuing route-condition refresh, road-facility messages,
+partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
+build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
+
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into
@@ -10,7 +14,7 @@ installation is separate from these build/test tools. Detailed evidence belongs 
 
 ## Local route evidence for ADAS research
 
-The emulator-only recorder now exports the rich selected route to
+The original emulator-only recorder exports the rich selected route to
 `files/denza-hud-native-route.json`, one-second progress to
 `files/denza-adas-progress.json` plus a 120-sample ring, and the opaque native
 serializer output to `files/denza-adas-route-archive.bin` with a hash manifest.
@@ -20,15 +24,137 @@ HUD pose into fresh navigation data. Optional unavailable fields remain null
 with explicit issues. Route export does not depend on an AR frame being drawn.
 Archive failures retry after ten seconds; failed saves do not poison the cache.
 Each sample carries the location's `locationClass` and `lastFineFixAgeMs`, the
-age of the last FINE fix from its own timestamp; `freshLocation` means FINE and
-at most 2.5 s old. `observedStampAgeMs` is only how long ago the module first saw
-the current timestamp, not a fix age; an EXTRAPOLATED location is never fresh.
+age of the last FINE fix from its own timestamp; the intended `freshLocation`
+gate is FINE and at most 2.5 s old. **Build 7 calculated this age in the wrong
+clock domain:** Yandex `relativeTimestamp` is native `CLOCK_MONOTONIC(1)`
+milliseconds, matching Android `SystemClock.uptimeMillis()`, while the module
+subtracted it from `elapsedRealtime()`. All 56 FINE fixes in the retained car
+window were therefore rejected; its age/freshness fields are not valid fix-age
+evidence. **Build 8 corrects this:** it samples `uptimeMillis()` after reading
+the location, keeps an immutable elapsed-time anchor for each FINE timestamp,
+and uses absolute age as an additional veto. The 2.5 s diagnostic and 1 s
+driver gates are unchanged. Held fixes, future timestamps and clock jumps
+remain rejected. New exports include `capturedSdkUptimeMs` and
+`relativeTimestampClock: "android.uptimeMillis"`; `capturedUptimeMs` continues
+to mean `elapsedRealtime` for compatibility.
+See the [native clock proof](../../research/adas-bridge/README.md#location-clock-domain-2026-10-24).
+`observedStampAgeMs` is only how long ago the module first saw the current
+timestamp, not a fix age; an EXTRAPOLATED location is never fresh.
 
-This export is gated to `ranchu`/`goldfish`. The map-to-ADAS bridge
-(`AdasBridge`, `libraries/adas-link`) runs on every hardware as a dry run: it
+This export is gated to `ranchu`/`goldfish`. The independent dry-run bridge
 records what the stock map would send to `files/denza-adas-dry-run.jsonl` and
-fires nothing; its SOME/IP publisher is compiled hard-off. See [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
+fires nothing. Historical build 8 had only that publication path. Installed build
+12 retains the separate `LiveMapBridge` introduced in candidate 9, armed for one process through the stationary
+host procedure; it never treats the dry run's assumed gates or emulated ACK as
+live evidence. See [the live candidate](../../research/adas-bridge/README.md#guarded-live-candidate-2026-10-24)
+and [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
 for actual city/M4 captures, the offline byte receiver and unresolved map fields.
+
+Build 5 also collects Navigator's own online graph through the embedded
+`libdenza_yandex_graph.so`, without root or Frida. `YandexGraphSource` decodes a
+bounded tile cache for the dry-run bridge; there is no OSM loader, packaged
+regional store or OSM fallback. The native graph supplies topology, names and
+available limits near the current position. Continuous lane count and native
+road class remain unknown. See [the embedded graph and emulator acceptance](../../research/adas-bridge/README.md#yandex-only-graph-extraction-2026-10-24).
+
+## Car trip recorder (2026-10-24)
+
+**Build 12 is installed; build 8 below is historical rollback evidence.** It uses actual
+BYDAuto integer getter snapshots, remote SOME/IP availability, successful route
+chunk sends and an explicit status-200 acknowledgement of its fresh path ID.
+Dynamic messages additionally require a current FINE fix. A lost transport or
+gate closes that armed session; restoring an old file does not reopen it.
+The overlay's route-feed state reports actual sends only. An explicit same-path
+selection status 200 gives the route receipt; a path ID in PATH_MATCH alone
+cannot light a matched indicator. Its result semantics remain unproved.
+The dry-run recorder remains independent. The live audit adds two bounded 8 MiB files
+(`denza-adas-live.jsonl` and `.1`, plus at most one flush batch), so it adds about
+16 MiB to the recorder limits below. Heartbeat, gate, isolation and runtime-state
+files are overwritten, not accumulated. Build 11 received no matching ACK. Build 12 received two actual route ACKs
+and sent dynamics while parked. See
+[build-11 acceptance and completeness](../../research/adas-bridge/README.md#build-11-completeness-and-car-test-2026-10-24).
+
+Candidate 10 records every actual callback from the existing live client,
+including PathMatch, pilot status and null-payload availability, with its arm ID,
+process-session UUID and original elapsed callback time. It creates no extra subscriber.
+Raw packets have a separate ring so routine status cannot evict guidance.
+Selection, PathMatch and availability are also retained with guidance; independent
+bounded queue budgets reserve space for those rare receipts. Guidance includes
+queue-drop, failed-post and write-error counters. This fixes the recording losses
+found in the [post-drive review](../../research/adas-bridge/README.md#post-drive-read-only-review-2026-10-24).
+The display-owned listener still follows Activity visibility; during an armed
+session the existing live client's recording is independent of that lifecycle.
+When unarmed, this does not promise continuous background ADAS recording.
+The current receipt is `captures/yandex-feed12-20261024/candidate12.json`;
+`session1.rollback.json` there owns the two-hour car test and exact restoration.
+Two distinct routes received actual status200 in the same session, including
+cancellation/replacement and subsequent dynamic packets.
+Timeout stops the publisher but does not re-enable the stock package.
+
+**Historical build 8 (replaced by build 11).** Version `29.8.1-YandexHUD.8`, code `739494308`,
+SHA-256 `a66ed9676188303ac49744626fd5b9cc4f5fc2fc0f5ad76abb8db0cf5f63f6b2`.
+The installed APK's bytes match the local artifact. Its initial 49.0 s capture
+contains 43 FINE fixes, all reported fresh, with ages 2–54 ms, and 1,472 actual
+passive ADAS packets. This confirms the clock correction in that bounded car
+window; the later drive retained 1,362/1,362 fresh FINE guidance samples at
+2–364 ms. Neither window establishes NOA availability. The publisher remains
+`HARD_OFF`; status broadcasts are not answers to a continuously transmitted
+Yandex route. Evidence: `captures/yandex-car-trip-20261024/installed-build8.json`
+and `build8-progress-initial.jsonl`. The build's sources, signed APK and report
+are retained under `build8/` in that directory.
+
+Build 8 also measures dry-run rotation in physical UTF-8 bytes: two files at
+about 8 MiB each, with at most one complete flush batch over the threshold.
+The other recorder limits below are unchanged.
+
+**Build 7 was replaced by build 8 after a bounded parked-recording check.** Version
+`29.8.1-YandexHUD.7`, code `739494307`, SHA-256
+`95ee1036af3b1142a2fcf5e5b3ce6b2becdb85bd4a866f7da9a105462ffa2b67`.
+The same PID remained alive for 115.5 s with an active Navigator route: 104
+guidance samples, two offline-cache samples and 3,468 real passive packets.
+No new Navigator crash was observed in that window. This confirms the recorder
+during parked guidance; a moving trip and ADAS route acceptance are separate.
+Build 7 removes the Java Proxy and `requestPath` callback below, so periodic
+cache evidence retains region state/release metadata without requesting its path.
+Evidence: `captures/yandex-car-trip-20261024/{installed-build7.json,build7-progress.jsonl,build7-crash-buffer.txt,car-build7-guidance.png}`.
+
+**Build 6 is withdrawn.** `29.8.1-YandexHUD.6`, version code `739494306`,
+SHA-256 `4debfd9e70fa84aaaef55ec109b062434d9f724797161d3c622c105b706c8ae6`,
+was installed on the owner's car, then aborted after about eight seconds.
+CheckJNI reports a `CallVoidMethodV` return-type mismatch for
+`OfflineCacheManager.PathGetterListener.onPathReceived(String)`, reached through
+the recorder's Java Proxy. The earlier short capture does not establish build 6
+stability. Evidence:
+`captures/yandex-car-trip-20261024/{installed-build6.json,after-crash.txt}`.
+
+The recorder's opt-in marker is `files/denza-drive-capture.enabled`, checked
+when the recorder is constructed; enable or remove it before the next process
+start. Emulators (`ranchu`/`goldfish`) record automatically. Its retained files
+are separate from the original emulator export:
+
+- `files/denza-drive-evidence/route-0.json` through `route-7.json`: selected-route
+  snapshots when the route changes, at most eight files and 2 MiB per snapshot.
+- `files/denza-drive-evidence/progress.jsonl` and `.1`: guidance at 1 Hz,
+  listener state, rare route/availability replies and an offline-region
+  state/release summary every 60 s, at most 8 MiB per file.
+- Candidate 10 adds `files/denza-drive-evidence/adas-packets.jsonl` and `.1`:
+  all existing passive callbacks, at most 8 MiB per file. This adds at most
+  16 MiB. Payloads preserve null versus empty and retain up to the receiver's
+  64 KiB cap, with the original length and explicit truncation. Installed
+  build 8 instead mixes all packets into progress, with a 4 KiB payload cap.
+  Neither version creates an additional ADAS subscriber for recording.
+- `files/denza-yandex-graph/tile-<sha256>.bin`: exact raw graph tiles, retained
+  to at most 128 files and 64 MiB combined. `status.json` and `latest-tile.json`
+  describe the collector and latest decoded tile. The marker gates raw-tile
+  retention; the bounded graph source itself still serves the dry-run bridge.
+
+Before the build 6 abort, the collector reported two tiles and 364 directed
+edges (24 unresolved boundary endpoints), with no collector rejection or
+self-test failure, and the recorder received real `13/0x8002`, `13/0x8003`
+and `13/0x8005` packets. These are bounded observations before the crash, not
+route acceptance. The APK's live ADAS publisher remains **HARD_OFF**
+(`SomeIpPublisher.LIVE_ALLOWED=false`); the bridge uses its existing dry-run
+writer. No route transmission or acceptance is claimed here.
 
 ## Runtime
 
@@ -212,8 +338,11 @@ starts), `clearing HUD`, `HUD stop ret=…`, `transport stopped`.
 Requires JDK 17, Android SDK platform 35 / build-tools 36.0.0, Node, `apkanalyzer`
 and the dexlib2 bundled in local JADX 1.5.5. Paths can be supplied via
 `JAVA_HOME`, `ANDROID_HOME`, `--jadx-jar`, `--apk` and `--stock-apk`.
-`--abi arm64-v8a` keeps only the 22 ARM64 native libraries; `--abi universal`
-(the default) retains all original architectures. No other code or resources
+The graph collector uses the existing Apple Clang, `rust-lld` and Android
+library stubs from the local corpus; `tools/yandex_hud_build/native_graph.py`
+records and checks these inputs. `--abi arm64-v8a` keeps the 22 original ARM64
+native libraries and adds the collector; `--abi universal` (the default)
+retains all original architectures and adds the ARM64 collector. No other code or resources
 are removed. The builder verifies the exact omitted entries, the remaining
 ABIs and the byte equality of every retained original file outside the normal
 module/manifest/account patch; it records the ABI and sizes in the report.

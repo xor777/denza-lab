@@ -40,6 +40,10 @@ final class AdasPassiveClient implements AutoCloseable {
     private final Context context;
     private final Sink sink;
     private final String session;
+    private final boolean bridgeMode;
+    private volatile boolean pilotAvailable, pathAvailable, requiredSubscribed;
+    private static final long PILOT_AVAILABLE = 0x0001000D000D0001L, PILOT_UNAVAILABLE = 0x0001000D000D0002L;
+    private static final long PATH_AVAILABLE = 0x0001002C002C0001L, PATH_UNAVAILABLE = 0x0001002C002C0002L;
     private final List<Long> subscriptions = new ArrayList<>(), clients = new ArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private volatile IBinder remote;
@@ -47,6 +51,7 @@ final class AdasPassiveClient implements AutoCloseable {
     private boolean registered;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final AtomicLong connectionEpoch = new AtomicLong();
+    private final AtomicLong readinessEpoch = new AtomicLong();
     private int retries;
     private volatile boolean accepting = true;
     private volatile boolean halKnown, halAvailable;
@@ -57,47 +62,86 @@ final class AdasPassiveClient implements AutoCloseable {
     long invalidatedAt() { return invalidatedAt; }
 
     AdasPassiveClient(Context context, Sink sink) {
+        this(context, sink, false);
+    }
+
+    AdasPassiveClient(Context context, Sink sink, boolean bridgeMode) {
         this.context = context.getApplicationContext(); this.sink = sink;
+        this.bridgeMode = bridgeMode;
         session = context.getPackageName() + ".session-" + UUID.randomUUID();
+    }
+
+    long epoch() { return readinessEpoch.get(); }
+    boolean isClosed() { return closed.get(); }
+    boolean liveAnswersReady() {
+        if (!bridgeMode || !requiredSubscribed || !pilotAvailable || !pathAvailable || !transportAlive()) return false;
+        Parcel data = Parcel.obtain(), reply = Parcel.obtain();
+        try {
+            IBinder binder = remote;
+            if (binder == null || !binder.isBinderAlive()) return false;
+            data.writeInterfaceToken(CLIENT);
+            if (!binder.transact(3, data, reply, 0)) return false;
+            reply.readException();
+            return reply.readInt() != 0 && binder == remote && !closed.get() && accepting
+                    && requiredSubscribed && pilotAvailable && pathAvailable && (!halKnown || halAvailable);
+        } catch (Exception failed) { return false; }
+        finally { reply.recycle(); data.recycle(); }
+    }
+
+    private void invalidateReadiness() {
+        requiredSubscribed = false; pilotAvailable = false; pathAvailable = false;
     }
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
             if (closed.get()) return;
+            invalidateReadiness();
+            halKnown=false; halAvailable=false;
             remote = binder;
             invalidatedAt = SystemClock.elapsedRealtime();
             final long epoch = connectionEpoch.incrementAndGet();
+            readinessEpoch.incrementAndGet();
             sink.enqueue(() -> {
                 if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
                 sink.state("binder_connected", session);
                 try {
                     register(true); registered = true;
-                    for (long service : AdasWire.SERVICES) {
+                    boolean setupOk = true;
+                    // A fresh HAL rejects subscribe until startClient exists (result11).
+                    // Subscribing AVAILABLE after start replays its current exact topic,
+                    // including an empty payload, so an already available service is not missed.
+                    for (long service : serviceTopics()) {
                         if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
                         int result = integerCall(4, service);
                         sink.state("start_client", hex(service) + ":" + result);
                         if (result == 0 || result == 13) clients.add(service);
+                        else setupOk = false;
                     }
-                    for (long topic : topics()) {
+                    for (long topic : subscriptionTopics()) {
                         if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
                         int result = integerCall(8, topic);
                         sink.state("subscribe", hex(topic) + ":" + result);
                         if (result == 0) subscriptions.add(topic);
+                        else setupOk = false;
                     }
-                    sink.state("subscribed", subscriptions.size() + "/" + topics().length);
+                    requiredSubscribed = setupOk && remote==binder && connectionEpoch.get()==epoch && !closed.get() && accepting;
+                    sink.state("subscribed", subscriptions.size() + "/" + subscriptionTopics().length);
                 } catch (Exception failure) { sink.state("client_setup_error", failure.getClass().getSimpleName()); }
             });
         }
         @Override public void onServiceDisconnected(ComponentName name) {
             remote = null;
+            invalidateReadiness();
             invalidatedAt = SystemClock.elapsedRealtime();
             connectionEpoch.incrementAndGet();
+            readinessEpoch.incrementAndGet();
             sink.enqueue(() -> sink.state("binder_disconnected", "current availability UNKNOWN"));
         }
         @Override public void onBindingDied(ComponentName name) { onServiceDisconnected(name); retryBrokenBinding(); }
         @Override public void onNullBinding(ComponentName name) {
             remote = null; sink.enqueue(() -> sink.state("null_binding", "current availability UNKNOWN"));
-            connectionEpoch.incrementAndGet(); retryBrokenBinding();
+            invalidateReadiness();
+            connectionEpoch.incrementAndGet(); readinessEpoch.incrementAndGet(); retryBrokenBinding();
         }
     };
 
@@ -115,7 +159,7 @@ final class AdasPassiveClient implements AutoCloseable {
         if (++retries <= 3) main.postDelayed(() -> { if (!closed.get()) start(); }, 1000L * retries);
         else sink.enqueue(() -> sink.state("rebind_exhausted", "manual restart required"));
     }
-    void stopAdmission() { accepting = false; }
+    void stopAdmission() { accepting = false; invalidateReadiness(); readinessEpoch.incrementAndGet(); }
 
     private int integerCall(int transaction, long value) throws RemoteException {
         if (transaction != 4 && transaction != 5 && transaction != 8 && transaction != 9)
@@ -144,7 +188,8 @@ final class AdasPassiveClient implements AutoCloseable {
 
     @Override public void close() {
         if (!closed.compareAndSet(false, true)) return;
-        accepting = false; connectionEpoch.incrementAndGet(); main.removeCallbacksAndMessages(null);
+        invalidateReadiness();
+        accepting = false; connectionEpoch.incrementAndGet(); readinessEpoch.incrementAndGet(); main.removeCallbacksAndMessages(null);
         // Called on the bounded worker, never from a native event callback.
         for (int i = subscriptions.size()-1; i >= 0; i--) try { integerCall(9, subscriptions.get(i)); } catch (Exception ignored) { }
         for (int i = clients.size()-1; i >= 0; i--) try { integerCall(5, clients.get(i)); } catch (Exception ignored) { }
@@ -163,15 +208,24 @@ final class AdasPassiveClient implements AutoCloseable {
                 Frame frame = null;
                 try {
                     frame = readFrame(data);
-                    if (code == 1 && frame != null && AdasWire.allowed(frame.topic) && !closed.get() && accepting) {
+                    if (code == 1 && frame != null && allowed(frame.topic) && !closed.get() && accepting) {
                         final Frame accepted = frame;
                         final long receivedAt = SystemClock.elapsedRealtime();
                         final long epoch = connectionEpoch.get();
-                        sink.enqueue(() -> {
+                        // Availability is encoded by these exact topics, not by a data payload.
+                        // Loss invalidates admission immediately, even if the bounded queue is full.
+                        if (bridgeMode) {
+                            if (frame.topic == PILOT_AVAILABLE) pilotAvailable = true;
+                            else if (frame.topic == PILOT_UNAVAILABLE) { pilotAvailable = false; readinessEpoch.incrementAndGet(); }
+                            else if (frame.topic == PATH_AVAILABLE) pathAvailable = true;
+                            else if (frame.topic == PATH_UNAVAILABLE) { pathAvailable = false; readinessEpoch.incrementAndGet(); }
+                        }
+                        boolean queued = sink.enqueue(() -> {
                             if (!closed.get() && accepting && epoch == connectionEpoch.get())
                                 sink.event(accepted.topic, accepted.timestamp, receivedAt, accepted.payload);
                             else sink.state("late_callback_discarded", hex(accepted.topic));
                         });
+                        if (!queued && bridgeMode) { invalidateReadiness(); readinessEpoch.incrementAndGet(); }
                     }
                 } catch (RuntimeException failure) {
                     sink.enqueue(() -> sink.state("malformed_callback", failure.getClass().getSimpleName()));
@@ -188,7 +242,7 @@ final class AdasPassiveClient implements AutoCloseable {
             if (code == 2) {
                 data.enforceInterface(CALLBACK); final boolean available = data.readInt() != 0;
                 halKnown = true; halAvailable = available;
-                if (!available) invalidatedAt = SystemClock.elapsedRealtime();
+                if (!available) { invalidatedAt = SystemClock.elapsedRealtime(); invalidateReadiness(); readinessEpoch.incrementAndGet(); }
                 sink.enqueue(() -> sink.state("hal_available", String.valueOf(available)));
                 if (reply != null) reply.writeNoException(); return true;
             }
@@ -202,18 +256,49 @@ final class AdasPassiveClient implements AutoCloseable {
         System.arraycopy(AdasWire.STOCK, 0, all, AdasWire.ANSWERS.length, AdasWire.STOCK.length);
         return all;
     }
+    private long[] serviceTopics() {
+        return bridgeMode ? new long[]{AdasWire.SERVICES[0], AdasWire.SERVICES[1]} : AdasWire.SERVICES;
+    }
+    private long[] subscriptionTopics() {
+        if (!bridgeMode) return topics();
+        long[] topics = new long[AdasWire.ANSWERS.length + 4];
+        System.arraycopy(AdasWire.ANSWERS, 0, topics, 0, AdasWire.ANSWERS.length);
+        int at = AdasWire.ANSWERS.length;
+        topics[at] = PILOT_AVAILABLE; topics[at+1] = PILOT_UNAVAILABLE;
+        topics[at+2] = PATH_AVAILABLE; topics[at+3] = PATH_UNAVAILABLE;
+        return topics;
+    }
+    private static long[] availabilityTopics() {
+        return new long[]{PILOT_AVAILABLE,PILOT_UNAVAILABLE,PATH_AVAILABLE,PATH_UNAVAILABLE};
+    }
+    private static boolean isAvailability(long topic) {
+        for (long value : availabilityTopics()) if (topic == value) return true;
+        return false;
+    }
+    private boolean allowed(long topic) {
+        if (!bridgeMode) return AdasWire.allowed(topic);
+        for (long allowed : subscriptionTopics()) if (topic == allowed) return true;
+        return false;
+    }
     static String hex(long value) { return String.format("0x%013X", value); }
 
     private static Frame readFrame(Parcel data) {
         if (data.readInt() == 0) return null;
         long topic = data.readLong(), timestamp = data.readLong(); int length = data.readInt();
+        // SomeIpData encodes a null availability payload as -1 without an array.
+        // Data events still require actual bytes; preserve null for the SDK echo.
+        if (length == -1 && isAvailability(topic)) return new Frame(topic, timestamp, null);
         if (length < 0 || length > AdasWire.MAX_PAYLOAD) throw new IllegalArgumentException("Callback payload cap");
         byte[] payload = new byte[length]; data.readByteArray(payload); // validates encoded byte-array length without attacker-sized allocation.
         return new Frame(topic, timestamp, payload);
     }
     private static void writeFrame(Parcel reply, Frame frame) {
         reply.writeInt(frame == null ? 0 : 1);
-        if (frame != null) { reply.writeLong(frame.topic); reply.writeLong(frame.timestamp); reply.writeInt(frame.payload.length); reply.writeByteArray(frame.payload); }
+        if (frame != null) {
+            reply.writeLong(frame.topic); reply.writeLong(frame.timestamp);
+            reply.writeInt(frame.payload == null ? -1 : frame.payload.length);
+            if (frame.payload != null) reply.writeByteArray(frame.payload);
+        }
     }
     private static final class Frame {
         final long topic, timestamp; final byte[] payload;

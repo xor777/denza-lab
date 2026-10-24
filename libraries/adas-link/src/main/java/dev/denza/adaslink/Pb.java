@@ -230,6 +230,11 @@ public final class Pb {
             f(4, DOUBLE, "tunnelEndPiointLat"), f(5, DOUBLE, "tunnelEndPiointLon"), f(6, UINT32, "toTunnelDist"),
             f(7, UINT64, "reserve1"), f(8, UINT32, "reserve2"), f(9, FLOAT, "reserve3"));
     public static final Msg TUNNEL_NOTIFY = new Msg("tunnelNotify", m(1, "tunnel", TUNNEL));
+    public static final Msg ROAD_FACILITIES = new Msg("roadFacilities",
+            f(1, UINT32, "naviFacilityType"), f(2, UINT32, "cruiseFacilityType"), f(3, UINT32, "distance"),
+            f(4, DOUBLE, "boardSignLocationLon"), f(5, DOUBLE, "boardSignLocationLat"), f(6, UINT64, "reserve1"),
+            f(7, UINT32, "reserve2"), f(8, FLOAT, "reserve3"));
+    public static final Msg ROAD_FACILITIES_NOTIFY = new Msg("roadFacilitiesNotify", m(1, "roadFacilities", ROAD_FACILITIES));
     public static final Msg SD_TRAFFIC_INCIDENT_ITEM = new Msg("sdTraffiIncidentItem",
             f(1, UINT32, "naviCongestionInfo"), f(2, UINT32, "occupiedLane"), f(3, DOUBLE, "cnstrctnCrdLatitude"),
             f(4, DOUBLE, "cnstrctnCrdLongitude"), f(5, UINT64, "naviCongestionDistLen"), f(6, UINT32, "occupiedLaneDtl"), f(7, FLOAT, "reserve3"));
@@ -251,6 +256,15 @@ public final class Pb {
             f(5, UINT32, "hasLongSolidLane"), f(6, UINT32, "assistantActionDistance"), f(7, STRING, "naviVoiceCommand"),
             f(8, UINT64, "reserve1"), f(9, UINT64, "reserve2"), f(10, DOUBLE, "reserve3"));
     public static final Msg SPEED_INTERSECTION_NOTIFY = new Msg("speedIntersectionInformationNotify", m(1, "speedIntersectionInformation", SPEED_INTERSECTION));
+    public static final Msg INTERSECTION = new Msg("intersection",
+            f(1, UINT32, "distToNextGudc"), f(2, BYTES, "foreground"), f(3, BYTES, "background"),
+            f(4, UINT32, "numOfLaneOfNextIntscn"), f(5, UINT64, "reserve1"), f(6, UINT32, "reserve2"), f(7, FLOAT, "reserve3"));
+    public static final Msg INTERSECTION_NOTIFY = new Msg("intersectionNotify", m(1, "intersection", INTERSECTION));
+    public static final Msg NEXT_LANES = new Msg("nextIntersectionLanesInfo",
+            f(1, BYTES, "backLane"), f(2, BYTES, "frontLane"), f(3, BYTES, "extendLane"), f(4, BYTES, "recomendLane"),
+            f(5, BYTES, "backLaneType"), f(6, BYTES, "frontLaneType"), f(7, UINT32, "segmentIndex"),
+            f(8, UINT32, "linkIndex"), f(9, DOUBLE, "timestamp"));
+    public static final Msg NEXT_LANES_NOTIFY = new Msg("nextIntersectionLanesInfoNotify", m(1, "nextIntersectionLanesInfo", NEXT_LANES));
     public static final Msg AHEAD_LANES_NOTIFY = new Msg("aheadIntersectionsLanesInfoNotify", f(1, STRING, "aheadIntersectionsLanesInfo"));
 
     // --- someip.navigation.status_.link.info.service.SomeipNavigationStatusLinkInfoService ---

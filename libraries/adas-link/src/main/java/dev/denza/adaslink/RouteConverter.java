@@ -41,13 +41,16 @@ public final class RouteConverter {
         public final List<double[]> speedCameras;
         /** Per segment: its Yandex section's free-flow speed, km/h (NaN unknown): the factory's typical link speed. */
         public final double[] segmentFreeFlowKmh;
-        /** Per link: the ERAT 0x4269 speed of the OSM road it matched, km/h; NaN where unmatched. */
+        /** Per link: the graph road’s historical speed, km/h; NaN when not supplied. */
         public double[] linkSpeedKmh;
-        /** Per link: the matched OSM road's legal limit in the direction travelled, km/h; 0 none or unmatched. */
+        /** Per link: the matched graph road's legal limit in the direction travelled, km/h; 0 none or unmatched. */
         public int[] linkLegalKmh;
-        /** The route on our OSM roads, or null when converted without a road network or outside it. */
+        /** The route on the road graph, or null when converted without a road network or outside it. */
         public RoadMatcher.Match roadMatch;
         public final String contentKey;
+        /** Actual point-scoped lane signs, independent of continuous link attributes. */
+        public LaneGuidance laneGuidance;
+        public RoadFacilities.View roadFacilities;
 
         Converted(String routeId, StockPath path, double totalM, int[] linkSegment, int[] linkInSegment, double[] linkBeginM, double[] linkEndM,
                   double[] linkBeginScalar, double[] linkEndScalar, double[] segmentBeginM, double[] segmentEndM, double[] lightM,
@@ -174,7 +177,7 @@ public final class RouteConverter {
         if (route.laneSigns != null) for (double[] sign : route.laneSigns)
             if (sign[0] > 0 && sign[0] < edges) candidates.add(new double[]{sign[0], 1});
         if (route.junctions != null) for (double s : route.junctions) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
-        // Junction nodes and attribute changes of the OSM roads the route matched (Amap's road records).
+        // Junction nodes and attribute changes of the graph roads the route matched (Amap's road records).
         RoadMatcher.Match match = roads == null ? null : RoadMatcher.match(route, cumulative, roads);
         if (match != null) for (double s : match.cuts) if (s > 0 && s < edges) candidates.add(new double[]{s, 0});
         candidates.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(b[1], a[1]));
@@ -288,13 +291,15 @@ public final class RouteConverter {
         converted.linkLegalKmh = new int[linkSpeed.length];
         if (match != null)
             for (int k = 0; k < linkSpeed.length; k++)
-                if (!Double.isNaN(linkSpeed[k])) converted.linkLegalKmh[k] = match.legalKmhAt((linkBeginS.get(k) + linkEndS.get(k)) / 2);
+                converted.linkLegalKmh[k] = match.legalKmhAt((linkBeginS.get(k) + linkEndS.get(k)) / 2);
         converted.roadMatch = match;
+        converted.laneGuidance = new LaneGuidance(route.laneGuidanceSource, converted);
+        converted.roadFacilities = RoadFacilities.onRoute(route.roadFacilitiesSource, route, converted, frame);
         return converted;
     }
 
     /**
-     * A link the route matched onto our OSM roads carries its road's attributes as the stock map
+     * A match with complete attributes carries the graph road's fields as the stock map
      * exports them (class, formway, link type, LaneNum, direction, ownership, name), and its ERAT
      * 0x4269 speed is the link's speed (returned per link, NaN elsewhere). Any other link keeps
      * what the factory Beijing profile lets us state from Yandex data alone
@@ -323,8 +328,8 @@ public final class RouteConverter {
             for (StockPath.Link l : path.segments.get(si).links) {
                 double middle = (beginS.get(link) + endS.get(link)) / 2;
                 RoadNetwork.Fragment road = match == null ? null : match.fragmentAt(middle);
-                speeds[link] = road == null ? Double.NaN : road.speedKmh;
-                if (road != null) {
+                speeds[link] = road == null || !road.completeAttributes ? Double.NaN : road.speedKmh;
+                if (road != null && road.completeAttributes) {
                     l.roadClass = road.roadClass; l.formway = road.formway; l.linkType = road.linkType;
                     l.laneNum = road.laneNum; l.direction = road.direction; l.ownership = road.ownership;
                     l.roadName = road.name;
@@ -341,6 +346,10 @@ public final class RouteConverter {
                     if (route.laneSigns != null) for (double[] sign : route.laneSigns)
                         if (Math.abs(metres(cumulative, sign[0]) - endM.get(link)) <= MIN_LINK_M) l.laneNum = (int) sign[1];
                 }
+                // The native online graph has names and legal limits, but no confirmed class,
+                // lane count or road form. Keep the route's annotations and free-flow speed.
+                if (road != null && (l.roadName == null || l.roadName.isEmpty())
+                        && road.name != null && !road.name.isEmpty()) l.roadName = road.name;
                 link++;
             }
         }

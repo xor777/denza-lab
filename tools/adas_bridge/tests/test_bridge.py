@@ -376,6 +376,45 @@ class GeometryTests(unittest.TestCase):
         source["sourceSessionId"] = "old-process"
         self.assertEqual(map_progress(converted, source, now_ms=10500)["reason"], "source_session_mismatch")
 
+    def test_sdk_clock_stays_distinct_from_elapsed_after_suspend(self):
+        converted = route_convert(fixture(), target_frame="wgs84")
+        source = native(0, capturedUptimeMs=3000 + 36_757_978,
+                        capturedSdkUptimeMs=3000,
+                        relativeTimestampClock="android.uptimeMillis")
+        self.assertTrue(map_progress(converted, source, now_ms=10500)["accepted"])
+        self.assertTrue(map_progress(converted, source, now_ms=source["capturedUptimeMs"] + 500,
+                                     clock="uptime")["accepted"])
+        for stamp in (1000, 3001, 3250, 3251, 4000):
+            changed = dict(source, location=dict(source["location"], relativeTimestamp=stamp))
+            self.assertFalse(map_progress(converted, changed, now_ms=10000)["accepted"])
+            if stamp > 3000:
+                self.assertFalse(map_progress(converted, changed, now_ms=10500)["accepted"])
+        for ahead in (1, 250, 251):
+            changed = dict(source, location=dict(source["location"], absoluteTimestamp=10000 + ahead))
+            self.assertFalse(map_progress(converted, changed, now_ms=10000)["accepted"])
+            self.assertFalse(map_progress(converted, changed, now_ms=10500)["accepted"])
+        # A suspended old fix cannot pass just because the producer clock paused.
+        old = dict(source, location=dict(source["location"], absoluteTimestamp=1000))
+        self.assertFalse(map_progress(converted, old, now_ms=10000)["accepted"])
+
+    def test_missing_sdk_clock_never_falls_back_to_elapsed(self):
+        converted = route_convert(fixture(), target_frame="wgs84")
+        legacy = native(0, capturedUptimeMs=3000 + 36_757_978)
+        self.assertTrue(map_progress(converted, legacy, now_ms=10500)["accepted"])
+        declared = dict(legacy, relativeTimestampClock="android.uptimeMillis")
+        self.assertEqual(map_progress(converted, declared, now_ms=10500)["reason"],
+                         "unknown_native_relative_clock")
+        no_relative = dict(declared, location=dict(declared["location"], relativeTimestamp=None))
+        self.assertEqual(map_progress(converted, no_relative, now_ms=10500)["reason"],
+                         "unknown_native_relative_clock")
+        no_relative["capturedSdkUptimeMs"] = 3000
+        self.assertEqual(map_progress(converted, no_relative, now_ms=10500)["reason"],
+                         "unknown_native_relative_clock")
+        no_wall = dict(legacy, location=dict(legacy["location"], absoluteTimestamp=None))
+        self.assertFalse(map_progress(converted, no_wall, now_ms=10500)["accepted"])
+        future_wall = dict(legacy, location=dict(legacy["location"], absoluteTimestamp=10251))
+        self.assertFalse(map_progress(converted, future_wall, now_ms=10500)["accepted"])
+
     def test_synthetic_ids_are_deterministic_and_signed64_exact(self):
         expected = stable_id("route", "абв")
         code = "from tools.adas_bridge.bridge import stable_id; print(stable_id('route','абв'))"

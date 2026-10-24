@@ -52,15 +52,30 @@ final class AdasWire {
 
     enum Kind { PILOT, ALARM, MODE, SELECTED, MATCH, NAV_STATUS, TRAFFIC, LOCATION }
 
+    /** Literal RouteInfo values. Null is absent, including when a proto3 getter would return 0. */
+    static final class RouteInfo {
+        final Long pathId, totalNoaDistance, routeBeginIdx, routeEndIdx, statusCode;
+        RouteInfo(Fields fields) {
+            pathId=fields.optionalNumber(1); totalNoaDistance=fields.optionalNumber(2);
+            routeBeginIdx=fields.optionalNumber(3); routeEndIdx=fields.optionalNumber(4);
+            statusCode=fields.optionalNumber(5);
+        }
+    }
+
     /** One decoded event; only the fields the overlay reads. */
     static final class Event {
         final Kind kind;
         int dnp, icc, acc, noaMode, alarmReason, alarmStage, notice, statusCode, navigationStatus, roadClass;
         boolean takeover;
         long pathId;
+        boolean pathIdPresent, statusCodePresent;
+        /** PATH_MATCH outer code is uint64; retain its raw bits without narrowing it to int. */
+        Long matchCode;
         double routeId;
+        /** Reported raw candidate IDs/codes; these arrays are not a proof of successful matching. */
         long[] matchedPaths = new long[0];
         long[] matchedCodes = new long[0];
+        RouteInfo[] routeInfo = new RouteInfo[0];
         Event(Kind kind) { this.kind = kind; }
         /** The stock map's "no route" in this event: status 100, road class -1, pathId -1. */
         boolean stockEmpty() {
@@ -73,7 +88,7 @@ final class AdasWire {
 
     static Event decode(long topic, byte[] payload) {
         if (!allowed(topic)) throw new IllegalArgumentException("Unsubscribed topic");
-        if (payload.length > MAX_PAYLOAD) throw new IllegalArgumentException("Payload cap");
+        if (payload==null || payload.length > MAX_PAYLOAD) throw new IllegalArgumentException("Payload cap");
         Fields outer = new Fields(payload);
         if (outer.all(1).size() != 1 || outer.kind(1) != 2 || !(outer.first(1) instanceof byte[]))
             throw new IllegalArgumentException("Expected notification struct field 1");
@@ -90,16 +105,24 @@ final class AdasWire {
             e.alarmReason = (int) f.number(3); e.alarmStage = (int) f.number(5);
             f.real(6); e.notice = (int) f.number(7); f.real(9);
         } else if (topic == SELECTED) {
-            e = new Event(Kind.SELECTED); e.pathId = f.number(3); e.statusCode = (int) f.number(4); f.text(5);
+            e = new Event(Kind.SELECTED);
+            Long path=f.optionalNumber(3), code=f.optionalNumber(4);
+            if(code!=null && (code<Integer.MIN_VALUE || code>Integer.MAX_VALUE)) throw new IllegalArgumentException("Selected status int32");
+            e.pathIdPresent=path!=null; e.statusCodePresent=code!=null;
+            e.pathId=path==null?0:path; e.statusCode=code==null?0:code.intValue(); f.text(5);
         } else if (topic == PATH_MATCH) {
-            e = new Event(Kind.MATCH); e.statusCode = (int) f.number(3); f.text(5);
+            e = new Event(Kind.MATCH); e.matchCode=f.optionalNumber(3);
+            e.statusCodePresent=e.matchCode!=null; e.statusCode=e.matchCode==null?0:e.matchCode.intValue(); f.text(5);
             for (int kind : f.kinds(4)) if (kind != 2) throw new IllegalArgumentException("RouteInfo wire kind");
             List<Object> items = f.all(4);
             e.matchedPaths = new long[items.size()]; e.matchedCodes = new long[items.size()];
+            e.routeInfo=new RouteInfo[items.size()];
             for (int i = 0; i < items.size(); i++) {
                 if (!(items.get(i) instanceof byte[])) throw new IllegalArgumentException("RouteInfo wire type");
                 Fields item = new Fields((byte[]) items.get(i));
-                e.matchedPaths[i] = item.number(1); e.matchedCodes[i] = item.number(5);
+                RouteInfo row=new RouteInfo(item); e.routeInfo[i]=row;
+                e.matchedPaths[i]=row.pathId==null?0:row.pathId;
+                e.matchedCodes[i]=row.statusCode==null?0:row.statusCode;
             }
         } else if (topic == NAV_STATUS) {
             e = new Event(Kind.NAV_STATUS); e.navigationStatus = (int) f.number(4); f.real(3);
@@ -196,6 +219,13 @@ final class AdasWire {
             if (value == null) return 0; // Generated proto3 primitive default.
             if (!(value instanceof Long)) throw new IllegalArgumentException("Expected integer field " + field);
             return (Long) value;
+        }
+        Long optionalNumber(int field) {
+            List<Object> list=all(field);
+            if(list.isEmpty())return null;
+            if(list.size()!=1 || kind(field)!=0 || !(list.get(0) instanceof Long))
+                throw new IllegalArgumentException("Ambiguous integer field "+field);
+            return (Long)list.get(0);
         }
         double real(int field) {
             Object value = first(field);

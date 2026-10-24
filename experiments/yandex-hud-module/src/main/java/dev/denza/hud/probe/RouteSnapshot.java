@@ -21,6 +21,38 @@ final class RouteSnapshot {
 
     RouteSnapshot(Reflect api) { this.api = api; }
 
+    /** Passive polling only: capture time is not the time the SDK obtained its conditions. */
+    static final class Refresh {
+        static final long INITIAL_RETRY_MS = 10_000, INTERVAL_MS = 30_000;
+        private String routeId;
+        private long generation, revision, attemptedAt;
+        private int attempts;
+        synchronized long route(String id) {
+            if (!java.util.Objects.equals(routeId,id)) {
+                routeId=id; generation++; revision=0; attempts=0;
+            }
+            return generation;
+        }
+        synchronized boolean current(long epoch) { return generation==epoch; }
+        synchronized Map<String,Object> begin(String id,long now) {
+            route(id);
+            if (id==null || (attempts>0 && now-attemptedAt < (attempts==1?INITIAL_RETRY_MS:INTERVAL_MS))) return null;
+            attemptedAt=now; attempts++;
+            Map<String,Object> capture=map();
+            capture.put("routeGeneration",generation);capture.put("revision",++revision);
+            capture.put("startedAtElapsedMs",now);capture.put("policy","passive_poll_10s_then_30s");
+            capture.put("sourceUpdatedAtKnown",false);
+            return capture;
+        }
+    }
+
+    static void captured(Map<String,Object> snapshot,Map<String,Object> capture,long elapsed,long wall) {
+        Map<String,Object> provenance=new LinkedHashMap<>(capture);
+        provenance.put("completedAtElapsedMs",elapsed);
+        snapshot.put("conditionsCapture",provenance);
+        snapshot.put("capturedAtMs",wall);
+    }
+
     /** Only the identity and complete finite geometry are required; optional failures remain visible. */
     Map<String, Object> read(Object route) {
         return new Copy(api).read(route);
@@ -81,8 +113,9 @@ final class RouteSnapshot {
             field(out, "", "laneSigns", route, "getLaneSigns", array(this::laneSign));
             field(out, "", "trafficLights", route, "getTrafficLights", array(this::trafficLight));
             for (String key : Arrays.asList("highways", "tunnels", "tollRoads", "hdSections", "standingSegments",
-                    "ferries", "fordCrossings", "ruggedRoads", "zoneCrossings"))
+                    "ferries", "fordCrossings", "zoneCrossings"))
                 field(out, "", key, route, getter(key), array(this::rangeItem));
+            field(out,"","ruggedRoads",route,"getRuggedRoads",array(this::ruggedRange));
             field(out, "", "jamSegments", route, "getJamSegments", alignedArray(this::jam, false));
             field(out, "", "events", route, "getEvents", array(this::event));
             for (String key : Arrays.asList("speedBumps", "pedestrianCrossings", "checkpoints", "restrictedEntries", "restrictedTurns"))
@@ -299,6 +332,13 @@ final class RouteSnapshot {
 
         private Map<String, Object> positionItem(Object source, String path) {
             return one(source, path, "position", this::position);
+        }
+
+        private Map<String,Object> ruggedRange(Object source,String path) {
+            Map<String,Object> out=rangeItem(source,path);
+            field(out,path,"inPoorCondition",source,"getInPoorCondition",this::bool);
+            field(out,path,"unpaved",source,"getUnpaved",this::bool);
+            return out;
         }
 
         private Map<String, Object> rangeItem(Object source, String path) {

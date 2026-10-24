@@ -297,17 +297,43 @@ def map_progress(converted, sample, *, now_ms, max_age_ms=2000, clock="wall", ma
         if (any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
                 for value in (lon, lat, accuracy)) or not -180 <= lon <= 180 or not -90 <= lat <= 90 or not 0 <= accuracy <= 100):
             return dict(result, reason="invalid_or_unknown_location_accuracy")
+        if "relativeTimestampClock" in sample:
+            sdk_now, sdk_stamp = sample.get("capturedSdkUptimeMs"), location.get("relativeTimestamp")
+            if (sample["relativeTimestampClock"] != "android.uptimeMillis"
+                    or type(sdk_now) is not int or sdk_now < 0
+                    or type(sdk_stamp) is not int or sdk_stamp < 0):
+                return dict(result, reason="unknown_native_relative_clock")
+        # Yandex's relative timestamp is CLOCK_MONOTONIC / Android uptimeMillis.
+        # capturedUptimeMs is the recorder's elapsedRealtime (includes suspend),
+        # so it must never be used to age that SDK timestamp. Older captures lack
+        # the producer-clock sample; their absolute stamp and explicit fix-age
+        # checks still apply, without inventing a cross-clock conversion.
         stamped = False
-        for key, capture_key in (("absoluteTimestamp", "capturedAtMs"), ("relativeTimestamp", "capturedUptimeMs")):
+        for key, capture_key in (("absoluteTimestamp", "capturedAtMs"), ("relativeTimestamp", "capturedSdkUptimeMs")):
             value, capture = location.get(key), sample.get(capture_key)
             if value is None:
                 continue
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or type(capture) is not int:
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
                 return dict(result, reason="invalid_native_location_time")
-            fix_age = capture - value + now_ms - timestamp
-            if fix_age < -250 or fix_age > max_fix_age_ms:
+            if key == "relativeTimestamp" and capture is None:
+                if "relativeTimestampClock" in sample:
+                    return dict(result, reason="unknown_native_relative_clock")
+                continue
+            if type(capture) is not int:
+                return dict(result, reason="invalid_native_location_time")
+            if key == "relativeTimestamp" and sample.get("relativeTimestampClock") != "android.uptimeMillis":
+                return dict(result, reason="unknown_native_relative_clock")
+            # New exports use the proven producer clock and reject every future
+            # stamp, as the live Java tracker does. Keep the old replay-only
+            # rounding allowance for untagged historical captures.
+            future_allowance = 0 if "relativeTimestampClock" in sample else 250
+            if capture - value < -future_allowance:
                 return dict(result, reason="stale_or_future_native_location_time")
-            stamped = True
+            fix_age = capture - value + now_ms - timestamp
+            if fix_age < -future_allowance or fix_age > max_fix_age_ms:
+                return dict(result, reason="stale_or_future_native_location_time")
+            if key == "absoluteTimestamp":
+                stamped = True
         if not stamped:
             return dict(result, reason="unknown_native_location_time")
         gap = distance([lon, lat], wgs)

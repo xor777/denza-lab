@@ -145,6 +145,7 @@ final class AdasOverlay implements AdasPassiveClient.Sink {
     }
 
     @Override public void state(String event, String detail) {
+        DriveEvidence.passiveState(event, detail);
         long now = SystemClock.elapsedRealtime();
         if (event.equals("subscribed")) model.session(!detail.startsWith("0/"), now);
         else if (event.equals("binder_disconnected") || event.equals("null_binding") || event.equals("bind_failed")
@@ -155,6 +156,7 @@ final class AdasOverlay implements AdasPassiveClient.Sink {
     }
 
     @Override public void event(long topic, long timestamp, long receivedAt, byte[] payload) {
+        DriveEvidence.passive(topic, timestamp, receivedAt, payload);
         try {
             model.apply(AdasWire.decode(topic, payload), receivedAt);
             published = model.copy();

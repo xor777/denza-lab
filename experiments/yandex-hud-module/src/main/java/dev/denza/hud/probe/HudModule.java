@@ -28,6 +28,7 @@ public final class HudModule {
         try {
             Context application = value.getApplicationContext();
             if (Build.VERSION.SDK_INT >= 28 && !application.getPackageName().equals(Application.getProcessName())) return;
+            YandexGraphSource.start(application);
             if (application instanceof Application) AdasOverlay.install((Application) application);
             MAIN.post(() -> {
                 context = application;
@@ -72,6 +73,7 @@ public final class HudModule {
         final AtomicLong epoch = new AtomicLong();
         final HudEmulatorControl emulator;
         final NavigationEvidence navigationEvidence;
+        final DriveEvidence driveEvidence;
         Object guidance;
         HudMap map;
         HudPainter painter;
@@ -101,6 +103,7 @@ public final class HudModule {
             thread.start();
             worker = new Handler(thread.getLooper());
             navigationEvidence = new NavigationEvidence(context, api, worker);
+            driveEvidence = new DriveEvidence(context, api, worker);
             final JSONObject laneArt = theme.getJSONObject("laneArt");
             worker.post(() -> {
                 stockArt = new StockHudArt(context.getAssets(), laneArt);
@@ -120,6 +123,7 @@ public final class HudModule {
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
                 navigationEvidence.sample(frame, now);
+                driveEvidence.sample(frame, now);
                 AdasBridge.sample(context, api, guidance, frame);
                 AdasOverlay.navigating(frame.drawMap());
                 // Route extraction must not depend on AR eligibility or a manoeuvre being visible.

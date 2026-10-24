@@ -1,0 +1,18 @@
+package dev.denza.hud.probe;
+import java.util.ArrayList;
+import java.util.List;
+/** Recorder boundary only; production coordinator decides which callbacks arrive here. */
+final class DriveEvidence {
+    static final List<Record> packets=new ArrayList<>();
+    static final List<String> states=new ArrayList<>();
+    static final class Record {
+        final String receiver,session;final long topic,received;final byte[] bytes;
+        Record(String receiver,String session,long topic,long received,byte[] bytes){
+            this.receiver=receiver;this.session=session;this.topic=topic;this.received=received;this.bytes=bytes;
+        }
+    }
+    static void passiveState(String receiver,String session,String event,String detail){states.add(receiver+":"+session+":"+event);}
+    static void passive(String receiver,String session,long topic,long stamp,long received,byte[] bytes){
+        packets.add(new Record(receiver,session,topic,received,bytes));
+    }
+}

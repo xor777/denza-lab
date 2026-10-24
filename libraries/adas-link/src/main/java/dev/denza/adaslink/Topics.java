@@ -22,6 +22,7 @@ public final class Topics {
     public static final long SD_TRAFFIC_LIGHT = event(SVC_SD_MAP, 0x8001);        // 1268847189590017
     public static final long SD_TRAFFIC_INCIDENT = event(SVC_SD_MAP, 0x8002);
     public static final long SD_TUNNEL = event(SVC_SD_MAP, 0x8004);
+    public static final long SD_ROAD_FACILITIES = event(SVC_SD_MAP, 0x8005);
     public static final long SD_INTERSECTION = event(SVC_SD_MAP, 0x8006);
     public static final long SD_TIDAL_LANE = event(SVC_SD_MAP, 0x8007);
     public static final long SD_VEHICLE_LOCATION = event(SVC_SD_MAP, 0x8008);     // 1268847189590024
@@ -46,6 +47,7 @@ public final class Topics {
         if (topic == SD_TRAFFIC_LIGHT) return "sdTrafficLight";
         if (topic == SD_TRAFFIC_INCIDENT) return "sdTraffiIncident";
         if (topic == SD_TUNNEL) return "tunnel";
+        if (topic == SD_ROAD_FACILITIES) return "roadFacilities";
         if (topic == SD_INTERSECTION) return "intersection";
         if (topic == SD_TIDAL_LANE) return "tidalLane";
         if (topic == SD_VEHICLE_LOCATION) return "sdVehicleLocation";
@@ -69,11 +71,14 @@ public final class Topics {
         if (topic == SD_TRAFFIC_LIGHT) return Pb.SD_TRAFFIC_LIGHT_NOTIFY;
         if (topic == SD_TRAFFIC_INCIDENT) return Pb.SD_TRAFFIC_INCIDENT_NOTIFY;
         if (topic == SD_TUNNEL) return Pb.TUNNEL_NOTIFY;
+        if (topic == SD_ROAD_FACILITIES) return Pb.ROAD_FACILITIES_NOTIFY;
         if (topic == SD_TIDAL_LANE) return Pb.TIDAL_LANE_NOTIFY;
         if (topic == SD_VEHICLE_LOCATION) return Pb.SD_VEHICLE_LOCATION_NOTIFY;
         if (topic == SD_REGION) return Pb.REGIONAL_AND_WEATHER_NOTIFY;
         if (topic == SD_SPEED_INTERSECTION) return Pb.SPEED_INTERSECTION_NOTIFY;
         if (topic == SD_ACTION_CAMERA) return Pb.NAVI_ACTION_AND_CAMERA_NOTIFY;
+        if (topic == SD_INTERSECTION) return Pb.INTERSECTION_NOTIFY;
+        if (topic == SD_NEXT_LANES) return Pb.NEXT_LANES_NOTIFY;
         if (topic == SD_AHEAD_LANES) return Pb.AHEAD_LANES_NOTIFY;
         if (topic == PATH_SELECT_CONFIRM) return Pb.PATH_SELECT_CONFIRM_NOTIFY;
         return null;

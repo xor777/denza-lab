@@ -1,11 +1,199 @@
 # Yandex → ADAS host oracle and offline prototype
+Local candidate 13 adds continuing route-condition refresh, road-facility messages,
+partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
+build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
 
-Host Python 3 standard library only. Conversion/replay is offline; `watch.py`
-adds bounded, read-only ADB access to an explicitly guarded emulator. There are
-no Binder calls, vehicle setters or publisher. `publicationReady` is always
-`false`. The device side is [`libraries/adas-link`](../../libraries/adas-link),
+
+The Python conversion/replay tools use the standard library and run offline;
+`watch.py` adds bounded, read-only ADB access to an explicitly guarded emulator.
+These conversion/replay tools have no Binder publisher and keep `publicationReady=false`.
+The separate `ParkedRouteProbe.java` and `parked_probe/` APK sent one route and
+selection on the parked car, then were removed; its source allowlist and
+[physical receipt](../../research/adas-bridge/README.md#parked-route-selection-with-a-separate-probe-2026-10-24)
+are separate from the offline tools. The device-side library is
+[`libraries/adas-link`](../../libraries/adas-link),
 compiled into Navigator by `tools/yandex_hud_build`; the durable research owner
 is [`research/adas-bridge/README.md`](../../research/adas-bridge/README.md).
+
+## Preparing the real channel
+
+`live_session.py` is separate from the offline converter. It prepares one
+explicitly armed session of build 12; it is not an installer. Build 12 is
+installed and two stationary route ACKs were observed. Its
+`plan` and `arm --dry-run` modes make **zero device calls**. `build-reader`
+compiles the fixed shell-UID getter helper into a DEX JAR, with source and
+artifact hashes. Use `--help` for the required APK version/hash, reader hash,
+serial and rollback-ledger arguments; the script never chooses a device or
+assumes an installed version.
+
+The actual arm operation requires human stationary confirmation, the narrowly
+tested park predicate and measured speed zero. It preserves the stock map's
+enabled state before disabling it, proves process absence, validates the
+reader and waits for the matching runtime to accept the arm. `restore` disarms
+first, asks the owned reader to stop, proves runtime quiescence, then restores
+the exact original package state. Failure to prove closure is reported as
+pending restoration. It does not reset ADB keys, tunnels or global SOME/IP
+clients. Sessions 1–3 were restored with exact original package state; build-11 session 4
+was restored before installing build 12. The current two-hour trip ledger is
+`captures/yandex-feed12-20261024/session1.rollback.json`. Timeout closes the
+publisher but does not restore the stock package; run `restore` after the test.
+
+Private JSON writes use an atomic, bounded base64 command, avoiding an exec-out
+stdin EOF dependency. Getter subprocesses retain their one-second deadline but
+poll completion every 5 ms; a car batch measured 145 ms after this correction.
+Freshness limits are unchanged. The consumer heartbeat clock is read after the
+file. These fixes and failed attempts are retained in the build-11 evidence.
+
+The [live-channel findings](../../research/adas-bridge/README.md#guarded-live-candidate-2026-10-24)
+describe the real gates, callbacks, ACK and timing checks. Run the production
+coordinator's local harness without Android or ADB using:
+
+```sh
+python3 tools/adas_bridge/runtime_harness/run.py --out /tmp/denza-live-runtime-check
+python3 tools/adas_bridge/passive_client_harness/run.py --out /tmp/denza-passive-client-check
+python3 -m unittest tools.adas_bridge.tests.test_live_session
+```
+
+The client harness executes the actual `AdasPassiveClient` against a fake Binder
+boundary; it exercises fresh/already-started service setup, availability replay,
+readiness loss and owned cleanup. Neither harness proves delivery on the car.
+The final local APK, source archive and pinned plan are recorded in
+`captures/yandex-feed12-20261024/candidate12.json`. Build 12 retains
+separate bounded packet/history recording and captures the existing live
+client's actual responses independently of overlay visibility; the send and
+arming protocol from candidate 9 is unchanged. The APK explicitly
+queries the stock package so its enabled-state check works under Android's
+package-visibility rules; no extra permission is added.
+
+## Yandex-only data source
+
+The Navigator build now uses its own online graph and route annotations. It
+contains no OSM loader, database path or regional store. The historical
+`RoadStore` Java reader remains under test sources only, for the old matcher
+oracle. `GraphTile`, `GraphTileCache` and `GraphRoadNetwork` are the runtime
+source; `YandexGraphSource` owns the background decoder and bounded cache.
+
+* `yandex_graph_observer.js` observes original online graph protobuf messages
+  inside the exact ARM64 Navigator 29.8.1 library. Tested with Frida 16.7.19 on
+  an owned emulator. Verify the library SHA in the script before attachment;
+  its instruction-prefix check is not a complete library hash check. Save the
+  binary `data` argument from Frida's message callback as a `.bin` file.
+* `yandex_graph_tile.py` decodes those saved tiles into directed road fragments,
+  source IDs, adjacency, geometry, names, limits and endpoint levels. It retains
+  tile-boundary gaps and unknown fields instead of joining roads by proximity.
+* `yandex_graph_capture.py` independently decodes saved `lookupEdge` memory
+  observations. Graph pointers and vertex indices stay scoped to their capture
+  frame. Bytes beyond the confirmed 96-byte object are not road attributes.
+* `yandex_vector_observer.js` captures bounded successful online `vmap3.Tile`
+  decodes at a different native entry, with wrapper/render/source TileId context.
+  `yandex_vector_tile.py` exports raw geometry buffers and dictionary-backed
+  feature attributes, retaining root field 7 as opaque bytes even when it is
+  not UTF-8. Runtime samples contain literal `class`, `fc`, `oneway`,
+  structure/toll/level fields and HD markings.
+* `yandex_vector_geometry.py` reconstructs native local paths, the 30-bit world
+  affine and ellipsoidal WGS84 geometry. It compares saved road features with
+  route/graph geometry and exports a host review table. Renderer feature IDs
+  and graph edge IDs remain separate namespaces; class/fc/oneway are not recoded
+  or consumed by build 5's ADAS bridge.
+* `yandex_inference.py` extracts route evidence and separate estimates. Optional
+  lane extrapolation is capped at 100 m upstream from a sign and stops at known
+  boundaries. It does not turn junction sign width into a measured count over
+  an entire road.
+
+```sh
+python3 -m tools.adas_bridge.yandex_graph_tile tile-01.bin tile-02.bin --out graph.json
+python3 -m tools.adas_bridge.yandex_graph_capture observations.jsonl --out observed.json --route route.json
+python3 -m tools.adas_bridge.yandex_inference --out-dir inference --approach-lanes-m 100 route.json
+python3 -m unittest tools.adas_bridge.tests.test_yandex_graph_tile tools.adas_bridge.tests.test_yandex_graph_capture tools.adas_bridge.tests.test_yandex_inference
+```
+
+The parsers use only the Python standard library. The embedded ARM64 collector
+is built by `tools/yandex_hud_build/native_graph.py`; it needs neither root nor
+Frida. It pins the original library SHA, loaded build ID and instruction bytes,
+checks register preservation before installation, and copies only naturally
+received graph tiles into an eight-slot queue. Parsing runs on a worker. The
+Frida observer remains an independent research tool; do not attach it at the
+same decoder entry while the embedded collector is installed.
+
+`files/denza-yandex-graph/status.json` records queue/cache/decode metrics.
+`files/denza-yandex-graph-route.json` records accepted fragments and actual
+matched route metres/cuts. Raw tile evidence is written on emulators or when
+the car's `files/denza-drive-capture.enabled` marker enables bounded recording.
+The dry-run host declares WGS84 for all regions; the historical Moscow-only
+native-frame candidate remains an explicit bench option. Installed build 8 has
+publication compiled off; candidate 10 uses the separately armed channel above.
+Evidence, coverage and remaining attribute gaps are in the research
+owner's [Yandex-only extraction section](../../research/adas-bridge/README.md#yandex-only-graph-extraction-2026-10-24).
+
+### Vector world geometry: capture and replay
+
+The vector observer has three instruction-prefix guards: decoder `0x17bbaa0`,
+wrapper `0x17bb6c8` and layer context `0x17c1bdc`. Verify the pinned complete
+APK/library identity separately before attaching to an already running owned
+emulator process. Prefix guards alone do not establish that identity. It
+records per-thread nested wrapper, render and layer-source TileIds and emits
+bytes only after the original parser reports success. Save the message
+payload plus `binaryFile`, `binarySize` and SHA-256 in `events.jsonl`, alongside
+the `.bin` files; `decode_capture` checks all three identities and their raw
+12-byte representations, native success, thread ID and binary size/hash.
+Missing or differing TileId contexts are rejected rather than inferred from
+geography. The capture proves equality for these inputs, not all overzoom cases.
+
+Observer bounds are **eight copied inputs, 8 MiB combined copied bytes and
+60 seconds**; failed native parses still consume the copy budget. Inputs below
+zoom 14 or 32 KiB are skipped. An optional
+`globalThis.DENZA_VECTOR_CAPTURE_WINDOW = {z, minX, maxX, minY, maxY}` supplied
+before the script restricts capture to one validated tile rectangle. It is a
+caller-selected window, not a regional road store. The observer detaches on its
+budget, duration or `stop()` RPC. It performs no application setters or explicit
+native data-source calls. One later Frida spawn attempt failed in Android's
+zygote before observer installation; normal launch recovered, and that trigger
+was not retried. This is not a reason to repeat a spawn for the preserved replay.
+
+Host geometry capture bounds are also eight tiles/8 MiB combined, with the raw
+parser's separate **2 MiB per-input** default. Geometry limits additionally cap
+the whole capture at 100,000 features and 500,000 stored coordinate pairs, each
+tile at 200,000 paths, and each path at 100,000 pairs. A path starts with an
+absolute pair, then deltas, resetting at each component. The affine denominator
+is `2^b-1`, with inclusive local-grid bounds; projection is the native
+ellipsoidal WGS84 implementation. Rings are not automatically closed, polygon
+auxiliary roles stay unknown, and host verification rejects native int32
+overflow or an empty Point's cross-path peek.
+
+Exact CLI for the retained eight vector inputs, positive route and combined
+fourteen-file graph corpus (run from the repository root; the existing graph
+glob expands in the shell):
+
+```sh
+python3 -m tools.adas_bridge.yandex_vector_geometry \
+  captures/yandex-vector-world-20261024/runtime \
+  --out /tmp/yandex-vector-world.json \
+  --route captures/yandex-vector-world-20261024/route.json \
+  --graph-tiles captures/yandex-vector-world-20261024/graph-current/tile-*.bin \
+  --verification-out /tmp/yandex-vector-verification.json \
+  --enrichment-out /tmp/yandex-vector-enrichment.json
+
+python3 -m unittest tools.adas_bridge.tests.test_yandex_vector_tile tools.adas_bridge.tests.test_yandex_vector_geometry -v
+node tools/adas_bridge/tests/test_yandex_vector_observer.cjs
+```
+
+`--out` is required. `--route`, `--graph-tiles`, `--verification-out` and
+`--enrichment-out` are optional; enrichment needs graph inputs and also writes
+a sibling `.csv`. The saved corpus is input only in the command above. The
+frozen outputs and hashes are indexed by
+[`yandex-vector-world-20261024.json`](../../research/adas-bridge/yandex-vector-world-20261024.json).
+
+For this positive control, **98.73% is sampled 2D coverage including ambiguity**:
+94.08% unique and 4.65% ambiguous, with a 3 m distance/15° undirected-heading
+gate and 10 m sampling step. The table's separate 5 m sampling gate supports
+582 canonical graph fragments (975 directed-edge IDs, 237 renderer feature IDs),
+not 582 globally identified roads. It requires 95% single-candidate coverage,
+at most 1% ambiguity, 15 m extent and three samples. Unmatched, ambiguous,
+partial and short fragments remain explicit. Literal `class`, `fc`, `oneway`
+and level/structure fields accompany candidates; they are not Amap categories,
+legal traffic-direction assertions or per-road lane counts. This is an offline
+host table, **not runtime ADAS enrichment**. Coverage between samples, shared
+vertical-level semantics and unclipped edge extents remain unverified.
 
 ## The oracle: `stock.py`
 
@@ -51,6 +239,11 @@ python3 -m unittest discover -s tools/adas_bridge/tests -v
   offset and segment/route remainders from that one table (TrafficInfo
   `distToDsttn` too), FINE-only freshness when the sample carries
   `locationClass`, fix age from `lastFineFixAgeMs` when present, at most 1 s.
+  The producer clock must be established: Yandex `relativeTimestamp` is
+  `CLOCK_MONOTONIC` milliseconds, matching Android `uptimeMillis`, while
+  `capturedUptimeMs` in these snapshots is `elapsedRealtime`. Direct subtraction
+  mixes clock domains. Build 7's retained car age/freshness fields are invalid
+  for that reason; see the [native clock proof](../../research/adas-bridge/README.md#location-clock-domain-2026-10-24).
   The location/route consistency check compares two Yandex outputs (the
   classified location is already route-snapped) and is not an independence
   guard.

@@ -15,7 +15,8 @@ import java.util.List;
  * <li>Staleness: no fresh pilot status on the current session greys the whole row and names the
  *     age of the last answer. A stale row is never drawn active and never raises a takeover.</li>
  * <li>Route receipt, only while we feed a route: a clock until ADAS selects our pathId, one tick
- *     for selection with 200, two once its path match names our pathId, a cross for a refusal.</li>
+ *     for an explicit current-session selection with 200, a cross for an explicit refusal.
+ *     MATCHED requires separately proved PATH_MATCH success semantics, currently unavailable.</li>
  * <li>Alarms, only while we feed a route: «Яндекс молчит» when our feed stopped, «Штатная карта /
  *     шлёт пустой маршрут» when the stock map's own feed says "no route" over ours.</li>
  * <li>The details line (who feeds ADAS and how old each side is) appears only with a deviation.</li>
@@ -27,7 +28,7 @@ final class AdasOverlayState {
     enum Fn { ACTIVE, AVAILABLE, OFF }
     enum Mode { CITY, HIGHWAY }
     enum Route { WAITING, SELECTED, MATCHED, REJECTED }
-    enum Alarm { STOCK_EMPTY, YANDEX_SILENT }
+    enum Alarm { STOCK_EMPTY, YANDEX_SILENT, WAITING_ACK, FEED_STOPPED, FEED_ERROR, FEED_WAITING }
     enum Plate { ROW, ALARM, TAKEOVER }
 
     /** No pilot status for this long and the row is stale; the car sends one about ten times a second. */
@@ -47,6 +48,9 @@ final class AdasOverlayState {
     /** Whole seconds since the last ADAS answer while stale; -1 when none was ever heard. */
     int staleSeconds = -1;
     Alarm alarm;
+    /** Actual producer reason, retained even when the painter bounds the displayed text. */
+    String feedReason;
+    boolean awaitingGuidance;
     String takeover;
     /** The details line, or null: label, value («0,4», «12»), whether it is the deviation. */
     List<Detail> details;
@@ -90,22 +94,67 @@ final class AdasOverlayState {
         long yandexAge = feed.lastSendMs < 0 ? Long.MAX_VALUE : Math.max(0, now - feed.lastSendMs);
         boolean stockEmpty = false;
         if (feed.feeding()) {
-            if (o.selectedPath != feed.pathId) s.route = Route.WAITING;
+            if (!o.selectionCurrent(now) || !o.selectedPathPresent || !o.selectedCodePresent || o.selectedPath != feed.pathId)
+                s.route = Route.WAITING;
             else if (o.selectedCode != AdasWire.SUCCESS) s.route = Route.REJECTED;
-            else s.route = contains(o.matchedPaths, feed.pathId) ? Route.MATCHED : Route.SELECTED;
+            else s.route = o.matchSuccessProved(feed.pathId,now) ? Route.MATCHED : Route.SELECTED;
             stockEmpty = o.current(o.stockEmptyAt) && now - o.stockEmptyAt <= STOCK_WINDOW_MS;
-            if (yandexAge > SILENT_MS) s.alarm = Alarm.YANDEX_SILENT;
-            else if (stockEmpty) s.alarm = Alarm.STOCK_EMPTY;
+            if (!feed.explicitState()) {
+                if (yandexAge > SILENT_MS) s.alarm = Alarm.YANDEX_SILENT;
+                else if (stockEmpty) s.alarm = Alarm.STOCK_EMPTY;
+            }
+        }
+        if (feed.explicitState()) {
+            s.feedReason = feed.reason;
+            if ("STOPPED".equals(feed.runtimeState) || "DISARMED".equals(feed.runtimeState)) {
+                s.alarm = Alarm.FEED_STOPPED; s.route = null;
+            } else if ("BLOCKED".equals(feed.runtimeState) || "ERROR".equals(feed.runtimeState)) {
+                s.alarm = Alarm.FEED_ERROR; s.route = null;
+            } else if ("WAITING".equals(feed.runtimeState) || "LIVE".equals(feed.runtimeState) && !feed.feeding()) {
+                s.alarm = Alarm.FEED_WAITING; s.route = null;
+                s.awaitingGuidance = "LIVE".equals(feed.runtimeState) && !feed.feeding();
+            } else if ("LIVE".equals(feed.runtimeState) && feed.feeding()) {
+                if (feed.confirmed()) {
+                    // The producer guard is the authoritative current-session receipt source.
+                    s.route = Route.SELECTED;
+                    if (yandexAge > SILENT_MS) s.alarm = Alarm.YANDEX_SILENT;
+                    else if (stockEmpty) s.alarm = Alarm.STOCK_EMPTY;
+                } else if (s.route == Route.REJECTED) {
+                    s.alarm = Alarm.FEED_ERROR;
+                    s.feedReason = "ADAS отклонила маршрут: " + o.selectedCode;
+                } else {
+                    s.route = Route.WAITING; s.alarm = Alarm.WAITING_ACK;
+                }
+            } else {
+                s.alarm = Alarm.FEED_ERROR; s.route = null;
+                s.feedReason = "Неизвестное состояние передачи: " + feed.runtimeState;
+            }
         }
         if (s.alarm != null || s.stale) {
             List<Detail> d = new ArrayList<>();
             if (feed.mode != AdasFeed.Mode.DISABLED && feed.lastSendMs >= 0)
-                d.add(new Detail("Яндекс", age(yandexAge), yandexAge > SILENT_MS));
+                d.add(new Detail(s.alarm==Alarm.WAITING_ACK?"маршрут отправлен":"Яндекс", age(yandexAge), s.alarm==Alarm.YANDEX_SILENT));
             if (s.alarm == Alarm.STOCK_EMPTY) d.add(new Detail("штатная карта", age(now - o.stockEmptyAt), true));
             else if (o.pilotAt >= 0) d.add(new Detail("ответ ADAS", age(Math.max(0, now - o.pilotAt)), s.stale));
             s.details = d.isEmpty() ? null : d;
         }
         return s;
+    }
+
+    String alarmTitle() {
+        if (alarm==Alarm.WAITING_ACK) return "Ожидаем";
+        if (alarm==Alarm.FEED_STOPPED) return "Передача остановлена";
+        if (alarm==Alarm.FEED_ERROR) return "Ошибка передачи";
+        if (alarm==Alarm.FEED_WAITING) return awaitingGuidance ? "Ожидаем запуск маршрута" : "Подготовка передачи";
+        return alarm==Alarm.STOCK_EMPTY?"Штатная карта":"Яндекс молчит";
+    }
+    String alarmSubtitle() {
+        if (alarm==Alarm.WAITING_ACK) return "подтверждение ADAS";
+        if (alarm==Alarm.FEED_WAITING && awaitingGuidance) return "Нажмите «Поехали» в Яндексе";
+        if (alarm==Alarm.FEED_STOPPED || alarm==Alarm.FEED_ERROR || alarm==Alarm.FEED_WAITING)
+            return feedReason==null || feedReason.trim().isEmpty() ?
+                    (alarm==Alarm.FEED_ERROR?"Причина не передана приложением":alarm==Alarm.FEED_WAITING?"Ожидание маршрута или готовности":"Сеанс передачи закрыт") : feedReason;
+        return alarm==Alarm.STOCK_EMPTY?"шлёт пустой маршрут":"ADAS без нашего маршрута";
     }
 
     static Fn fn(int value) { return value == 1 ? Fn.ACTIVE : value == 2 ? Fn.AVAILABLE : Fn.OFF; }
@@ -114,11 +163,6 @@ final class AdasOverlayState {
     static String age(long ms) {
         if (ms < 1000) return "0," + Math.max(0, ms / 100);
         return String.valueOf(ms / 1000);
-    }
-
-    private static boolean contains(long[] values, long value) {
-        for (long v : values) if (v == value) return true;
-        return false;
     }
 
     /**
