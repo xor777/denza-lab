@@ -26,7 +26,7 @@ public final class LiveRuntimeTest {
         static final String INVENTORY="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         static final String ALT_GEOMETRY="cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
         /** The gate reader's NaviSt view (arm variant naviSt), carried in each gates file when set. */
-        Map<String,Object> naviSt;
+        Map<String,Object> naviSt, instrumentNaviStatus;
         Rig()throws Exception {
             Handler.reset();context=new Context(new File(root,"session-"+(++serial)));
             reader=UUID.randomUUID().toString();armId=UUID.randomUUID().toString();arm=Json.object();
@@ -61,7 +61,7 @@ public final class LiveRuntimeTest {
                     fid==AdasGateSnapshot.NOA_UI_TYPE?2:fid==AdasGateSnapshot.HNP_SWITCH&&on?1:0;
                 Map<String,Object> v=Json.object();v.put("status","ok");v.put("transact",5L);v.put("value",value);values.put(Integer.toString(fid),v);
             }
-            row.put("values",values);if(naviSt!=null)row.put(AdasGateSnapshot.NAVI_ST,naviSt);write("denza-adas-gates.json",row);
+            row.put("values",values);if(naviSt!=null)row.put(AdasGateSnapshot.NAVI_ST,naviSt);if(instrumentNaviStatus!=null)row.put(AdasGateSnapshot.INSTRUMENT_NAVI_STATUS,instrumentNaviStatus);write("denza-adas-gates.json",row);
             Map<String,Object> isolation=Json.object();isolation.put("schema","denza-adas-stock-isolation-v1");isolation.put("bootId",BOOT);
             isolation.put("consumerSession",consumer);isolation.put("readerSession",reader);isolation.put("stockAbsent",true);
             isolation.put("startedAtElapsedMs",at);isolation.put("completedAtElapsedMs",at);write("denza-adas-stock-isolation.json",isolation);
@@ -209,6 +209,7 @@ public final class LiveRuntimeTest {
         variantFrameAfterOfflineWithdrawal();
         invalidVariantBlocks();
         naviStJournal();
+        instrumentNaviStatusJournal();
         System.out.println("LiveRuntimeTest: "+checks+" checks passed (fake Android/Binder boundary, production coordinator/protocol)");
     }
 
@@ -518,6 +519,37 @@ public final class LiveRuntimeTest {
         check("LIVE".equals(second.state().get("state"))&&Boolean.TRUE.equals(object(second.state().get("variant")).get("naviSt")),
                 "the restarted process resumes the naviSt arm: "+second.state().get("state"));
         check(DriveEvidence.naviSt.stream().anyMatch(x->x.startsWith(r.armId+":")&&x.contains("\"n\":5")),"the restore after the restart is journalled");
+    }
+    static void instrumentNaviStatusJournal()throws Exception {
+        Rig r=new Rig();r.arm.put("variant",object(Json.parse("{\"id\":\"H7\",\"instrumentNaviStatus\":true}")));
+        r.instrumentNaviStatus=object(Json.parse("{\"state\":\"IDLE\",\"original\":4,\"dirty\":false,\"n\":1}"));
+        Map<String,Object> ledger=Json.object();ledger.put("schema","denza-adas-instrument-navi-status-v1");
+        ledger.put("bootId",BOOT);ledger.put("consumerSession",r.consumer);ledger.put("readerSession",r.reader);ledger.put("armId",r.armId);
+        ledger.put("events",Json.parse("[{\"n\":1,\"op\":\"read\",\"value\":4,\"ok\":true}]"));
+        r.write("denza-adas-instrument-navi-status.json",ledger);r.arm(true);
+        check("LIVE".equals(r.state().get("state")),"instrument original admitted under H7");
+        check(DriveEvidence.instrumentNaviStatus.stream().filter(x->x.startsWith(r.armId+":")).count()==1,"instrument original journalled once");
+        check(DriveEvidence.naviSt.stream().noneMatch(x->x.startsWith(r.armId+":")),"instrument never journals MPC events");
+        r.streaming();
+        r.instrumentNaviStatus.put("n",2L);r.instrumentNaviStatus.put("state","WRITTEN");r.instrumentNaviStatus.put("dirty",true);
+        ledger.put("events",Json.parse("[{\"n\":2,\"op\":\"write\",\"value\":2,\"ok\":true}]"));
+        r.write("denza-adas-instrument-navi-status.json",ledger);
+        for(int i=0;i<2;i++){r.evidence(true);Handler.advance(1000);}
+        check(DriveEvidence.instrumentNaviStatus.stream().filter(x->x.startsWith(r.armId+":")).count()==2,"instrument write journalled once independently");
+        check(r.journal().contains("\"input\":\"liveSession.instrumentNaviStatus\""),"instrument event in live journal");
+        ledger.put("bootId","another-boot");r.instrumentNaviStatus.put("n",3L);
+        ledger.put("events",Json.parse("[{\"n\":3,\"op\":\"write\",\"value\":1,\"ok\":true}]"));
+        r.write("denza-adas-instrument-navi-status.json",ledger);
+        for(int i=0;i<2;i++){r.evidence(true);Handler.advance(1000);}
+        check(DriveEvidence.instrumentNaviStatus.stream().filter(x->x.startsWith(r.armId+":")).count()==2,"instrument wrong-boot ledger rejected");
+        ledger.put("bootId",BOOT);r.write("denza-adas-instrument-navi-status.json",ledger);
+        Rig resumed=new Rig(r);resumed.instrumentNaviStatus=r.instrumentNaviStatus;
+        Handler.advance(1000);resumed.evidence(true);Handler.advance(1000);
+        check("LIVE".equals(resumed.state().get("state")),"restart preserves instrument arm and accepted original");
+        check(DriveEvidence.instrumentNaviStatus.stream().anyMatch(x->x.startsWith(r.armId+":")&&x.contains("\"n\":3")),"restart journals next instrument event");
+        Rig unknown=new Rig();unknown.arm.put("variant",object(Json.parse("{\"instrumentNaviStatus\":true}")));
+        unknown.instrumentNaviStatus=object(Json.parse("{\"state\":\"DISABLED\",\"original\":null,\"dirty\":false,\"n\":1}"));unknown.arm(true);
+        check(!"LIVE".equals(unknown.state().get("state")),"unreadable instrument original blocks live arm");
     }
     static Map<String,Object> ledger(Rig r,String events)throws Exception{
         return object(Json.parse("{\"schema\":\"denza-adas-navi-st-v1\",\"armId\":\""+r.armId+"\",\"readerSession\":\""+r.reader+"\",\"events\":"+events+"}"));

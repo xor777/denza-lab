@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Explicit future stationary-session setup/restore. Development/tests never call a device.
 
-`plan` and `arm --dry-run` are local only. `build-reader` compiles the read-only
+`plan` and `arm --dry-run` are local only. `build-reader` compiles the bounded
 shell helper locally. `arm`/`restore` are deliberately separate, explicit ADB
 operations: no install, launch, key management, tunnels or automatic APK-version
 inference. A rollback ledger is durable before mutation.
 
 `--variant FILE.json` puts one experiment variant into the arm (ExperimentVariant
 in libraries/adas-link: the parked chain's variables as runtime switches); it is
-validated here with the same strict schema before any device call. Its one vehicle
-setter, `naviSt`, is the gate reader's (AdasGateReader.NaviSt): `arm` records the
-original the reader read, and `restore` puts it back if the reader did not.
+validated here with the same strict schema before any device call. The two fixed
+vehicle side channels are MPC `naviSt` and `instrumentNaviStatus`: `arm` records
+independent originals from the reader, and `restore` restores both before the stock
+map resumes. New host arms default the instrument channel ON unless explicitly
+false; MPC stays OFF, and legacy arm files retain their previous absent-key behavior.
 """
 from __future__ import annotations
 
@@ -43,7 +45,8 @@ GATES = "files/denza-adas-gates.json"
 STOP = "files/denza-adas-reader-stop.json"
 ISOLATION = "files/denza-adas-stock-isolation.json"
 NAVI_ST = "files/denza-adas-navi-st.json"
-FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, ISOLATION, NAVI_ST))
+INSTRUMENT_NAVI_STATUS = "files/denza-adas-instrument-navi-status.json"
+FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, ISOLATION, NAVI_ST, INSTRUMENT_NAVI_STATUS))
 MAX_JSON = 16384
 MAX_LIFETIME_MS = 4 * 60 * 60 * 1000
 MAX_AGE_MS = 5000
@@ -62,7 +65,7 @@ class SessionError(ValueError):
 # The experiment variant: ExperimentVariant.java's schema, key for key and value for value.
 VARIANT_KEYS = ("id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum",
                 "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
-                "startProtocol", "naviSt")
+                "startProtocol", "naviSt", "instrumentNaviStatus")
 # The stock's values on our roads (route-01 of first-full, the parked chain's H0).
 VARIANT_MEMBERS = {"link.roadclass": (9,), "link.formway": (15,), "link.ownership": (0,), "link.direction": (0, 1),
                    "link.laneNum": (1, 2), "link.adminCode": (990001,), "region": (990001,), "position.ownership": (0,)}
@@ -75,6 +78,8 @@ HISTORY_MIN, HISTORY_MAX, ALTERNATE_MAX = 1, 120, 8
 DEFAULT_FRAME = "WGS84"  # FieldDefaults.FRAME
 # SETTING_MPC_IFC_NAVI_ST_SET (0x4CA0004B), device 1023: parked_session.py's commands and values.
 NAVI_ST_DEVICE, NAVI_ST_FID, NAVI_ST_VALUES = 1023, 1285554251, (0, 1, 2)
+INSTRUMENT_NAVI_STATUS_DEVICE, INSTRUMENT_NAVI_STATUS_FID = 1007, 1138753594
+INSTRUMENT_NAVI_STATUS_VALUES = (0, 1, 2, 3, 4)
 
 
 def _bad(why):
@@ -141,8 +146,9 @@ def validate_variant(variant):
         _string(variant, "speedLimit", ("yandex", "zero"))
     if "startProtocol" in variant:
         _string(variant, "startProtocol", ("bridge", "stock"))
-    if "naviSt" in variant and type(variant["naviSt"]) is not bool:
-        raise _bad("naviSt must be true or false")
+    for key in ("naviSt", "instrumentNaviStatus"):
+        if key in variant and type(variant[key]) is not bool:
+            raise _bad(key + " must be true or false")
     return variant
 
 
@@ -157,8 +163,16 @@ def effective_variant(variant):
     out["speedLimit"] = variant.get("speedLimit", "yandex")
     out["startProtocol"] = variant.get("startProtocol", "bridge")
     out["naviSt"] = variant.get("naviSt", False)
+    out["instrumentNaviStatus"] = variant.get("instrumentNaviStatus", False)
     out["overrides"] = [key for key in variant if key != "id"]
     return out
+
+
+def new_arm_variant(variant):
+    """New host sessions default the instrument channel ON; old Java arms keep legacy semantics."""
+    given = {} if variant is None else dict(validate_variant(variant))
+    given.setdefault("instrumentNaviStatus", True)
+    return validate_variant(given)
 
 
 def load_variant(path):
@@ -177,6 +191,17 @@ def navi_st_write_tokens(value):
     if type(value) is not int or value not in NAVI_ST_VALUES:
         raise SessionError("NaviSt value outside the stock's set")
     return ("service", "call", "autoservice", "6", "i32", str(NAVI_ST_DEVICE), "i32", str(NAVI_ST_FID), "i32", str(value), "null")
+
+
+def instrument_navi_status_read_tokens():
+    # IVI HAL registers this exact INT event in get/set maps against the same parameter cache.
+    return ("service", "call", "autoservice", "5", "i32", "1007", "i32", "1138753594")
+
+
+def instrument_navi_status_write_tokens(value):
+    if type(value) is not int or value not in INSTRUMENT_NAVI_STATUS_VALUES:
+        raise SessionError("instrument navigation status value outside framework range 0..4")
+    return ("service", "call", "autoservice", "6", "i32", "1007", "i32", "1138753594", "i32", str(value), "null")
 
 
 def validate_serial(serial):
@@ -442,10 +467,15 @@ class Device:
         if self.stock_pids():
             raise SessionError("stock process still present after force-stop")
 
-    def reader(self, jar, digest, consumer, reader, lifetime, navi_st_arm=None):
+    def reader(self, jar, digest, consumer, reader, lifetime, navi_st_arm=None, instrument_navi_status_arm=None):
         canonical_uuid(consumer); canonical_uuid(reader)
         # The arm's naviSt switch: the reader drives NaviSt for exactly this arm id.
         navi = "" if navi_st_arm is None else " " + canonical_uuid(navi_st_arm) + " navi-st"
+        if instrument_navi_status_arm is not None:
+            own = canonical_uuid(instrument_navi_status_arm)
+            if navi_st_arm is not None and own != navi_st_arm:
+                raise SessionError("side channels must own the same arm")
+            navi = " " + own + (" navi-st+instrument-navi-status" if navi_st_arm is not None else " instrument-navi-status")
         integer(lifetime, "reader lifetime", 1000, MAX_LIFETIME_MS)
         remote = "/data/local/tmp/denza-adas-reader-" + reader + ".jar"
         log = "/data/local/tmp/denza-adas-reader-" + reader + ".log"
@@ -462,6 +492,15 @@ class Device:
         if not re.fullmatch(r"[1-9][0-9]{0,9}", output):
             raise SessionError("reader launch PID not established")
         return {"pid": int(output), "jar": remote, "log": log}
+
+    def instrument_navi_status_read(self):
+        value = parcel_word(self.shell(*instrument_navi_status_read_tokens()))
+        if value not in INSTRUMENT_NAVI_STATUS_VALUES:
+            raise SessionError("instrument navigation status read returned unexpected value " + str(value))
+        return value
+
+    def instrument_navi_status_write(self, value):
+        parcel_word(self.shell(*instrument_navi_status_write_tokens(value)))
 
     def navi_st_read(self):
         """NaviSt as autoservice reports it; SessionError on any reply but status 0 with a stock value."""
@@ -577,6 +616,70 @@ def arm_accepted(device, row, *, sleep=time.sleep):
     raise SessionError("fresh runtime acceptance of this exact armId not established")
 
 
+def instrument_navi_status_ledger(device, row):
+    ledger = device.private(INSTRUMENT_NAVI_STATUS)
+    if ledger is None or ledger.get("schema") != "denza-adas-instrument-navi-status-v1":
+        return None
+    if any(ledger.get(key) != row[key] for key in ("bootId", "consumerSession", "readerSession", "armId")):
+        return None
+    return ledger
+
+
+def instrument_navi_status_original(device, row, *, sleep=time.sleep):
+    for _ in range(16):
+        ledger = instrument_navi_status_ledger(device, row)
+        if ledger is not None and ledger.get("state") != "STARTING":
+            original = ledger.get("original")
+            if ledger.get("state") != "IDLE" or type(original) is not int or original not in INSTRUMENT_NAVI_STATUS_VALUES:
+                raise SessionError("reader's instrument navigation status original read failed (" + str(ledger.get("reason"))[:160] + "); H7 cannot run")
+            return {"original": original, "readAtElapsedMs": ledger.get("updatedAtElapsedMs"),
+                    "device": INSTRUMENT_NAVI_STATUS_DEVICE, "fid": INSTRUMENT_NAVI_STATUS_FID,
+                    "source": "reader ledger " + INSTRUMENT_NAVI_STATUS}
+        sleep(0.25)
+    raise SessionError("reader's instrument navigation status original not recorded; H7 cannot run")
+
+
+def restore_instrument_navi_status(device, row, *, sleep=time.sleep):
+    """After the arm is gone and the reader told to stop: instrument navigation status back at the arm-time original.
+
+    The reader restores on its own way out; this reads the value independently and writes the
+    original back only if it differs, then reads it back. A failed or unexpected read writes nothing
+    and leaves the rollback pending.
+    """
+    reader = None
+    for _ in range(16):
+        reader = instrument_navi_status_ledger(device, row)
+        if reader is not None and reader.get("state") == "CLOSED":
+            break
+        sleep(0.25)
+    summary = None if reader is None else {key: reader.get(key) for key in ("state", "original", "dirty", "reason", "n")}
+    original = (row.get("instrumentNaviStatus") or {}).get("original")
+    if original is None and reader is not None:
+        original = reader.get("original")
+    if original is None:
+        if reader is not None and any(e.get("op") == "write" for e in reader.get("events") or [] if isinstance(e, dict)):
+            raise SessionError("instrument navigation status was written but no original is recorded; restore by hand")
+        return {"reader": summary, "skipped": "no original recorded: the reader never wrote instrument navigation status"}
+    if type(original) is not int or original not in INSTRUMENT_NAVI_STATUS_VALUES:
+        raise SessionError("recorded instrument navigation status original outside the stock's set")
+    try:
+        before = device.instrument_navi_status_read()
+    except SessionError as error:
+        raise SessionError("instrument navigation status read failed; no write: " + str(error)) from error
+    result = {"reader": summary, "original": original, "before": before, "written": False}
+    if before != original:
+        device.instrument_navi_status_write(original)
+        result["written"] = True
+    after = device.instrument_navi_status_read()
+    result["after"] = after
+    if after != original:
+        raise SessionError("instrument navigation status readback " + str(after) + " is not the original " + str(original))
+    result["verified"] = True
+    result["restoredBy"] = "host" if result["written"] else ("reader" if summary and summary.get("state") == "CLOSED" else "unchanged")
+    return result
+
+
+
 def navi_st_ledger(device, row):
     """The reader's NaviSt ledger of this session, or None when absent or another session's."""
     ledger = device.private(NAVI_ST)
@@ -604,9 +707,9 @@ def navi_st_original(device, row, *, sleep=time.sleep):
 
 def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep, variant=None):
     integer(lifetime, "arm lifetime", 1000, MAX_LIFETIME_MS)
-    navi = False
-    if variant is not None:
-        navi = effective_variant(variant)["naviSt"]
+    variant = new_arm_variant(variant)
+    effective = effective_variant(variant)
+    navi, instrument = effective["naviSt"], effective["instrumentNaviStatus"]
     checked_sha(jar_sha)
     if not stationary_confirmed:
         raise SessionError("explicit --stationary-confirmed human confirmation is required")
@@ -636,7 +739,12 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
     try:
         device.stock_enabled(3); row["phase"] = "STOCK_DISABLED"; save_ledger(ledger_path, row)
         device.stock_stop()
-        if navi:
+        if instrument:
+            owned = {"instrument_navi_status_arm": row["armId"]}
+            if navi:
+                owned["navi_st_arm"] = row["armId"]
+            row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime, **owned)
+        elif navi:
             row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime, navi_st_arm=row["armId"])
         else:
             row["reader"] = device.reader(jar, jar_sha, consumer, row["readerSession"], lifetime)
@@ -645,6 +753,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
         if navi:
             # The reader's own arm-time read; restore puts this value back if the reader could not.
             row["naviSt"] = navi_st_original(device, row, sleep=sleep); save_ledger(ledger_path, row)
+        if instrument:
+            row["instrumentNaviStatus"] = instrument_navi_status_original(device, row, sleep=sleep); save_ledger(ledger_path, row)
         consumer_now(device, boot, consumer)
         if device.boot() != boot:
             raise SessionError("boot changed during setup")
@@ -706,9 +816,19 @@ def restore(device, ledger_path, *, sleep=time.sleep):
         actual = device.app(STOCK)
         if any(actual[key] != row["originalStock"][key] for key in ("sha256", "versionCode", "versionName")):
             raise SessionError("stock APK identity changed; original-state restore requires review")
+        side_errors = []
+        for key, restore_channel in (("naviSt", restore_navi_st), ("instrumentNaviStatus", restore_instrument_navi_status)):
+            if (row.get("variant") or {}).get(key) is True:
+                try:
+                    row[key + "Restore"] = restore_channel(device, row, sleep=sleep)
+                except (SessionError, OSError, subprocess.SubprocessError) as error:
+                    row[key + "Restore"] = {"error": str(error)[:300]}
+                    side_errors.append(str(error))
+                save_ledger(path, row)
+        if side_errors:
+            raise SessionError("; ".join(side_errors))
+        # No stock writer may resume until both owned side channels are restored.
         device.stock_enabled(original)
-        if (row.get("variant") or {}).get("naviSt") is True:
-            row["naviStRestore"] = restore_navi_st(device, row, sleep=sleep); save_ledger(path, row)
     except Exception as error:
         row["phase"] = "ROLLBACK_PENDING"; row["rollbackError"] = str(error)[:300]; save_ledger(path, row)
         raise
@@ -817,7 +937,7 @@ def main(argv=None):
             if sha256_file(args.reader_jar) != args.reader_sha256:
                 raise SessionError("reader JAR hash mismatch")
             # Strict before any device call: an unknown key or an out-of-range value refuses the arm.
-            variant = load_variant(args.variant) if args.variant is not None else None
+            variant = new_arm_variant(load_variant(args.variant) if args.variant is not None else None)
             if variant is not None:
                 print("effective variant: " + json.dumps(effective_variant(variant), separators=(",", ":")), file=sys.stderr)
             if args.command == "plan" or args.dry_run:
@@ -830,7 +950,7 @@ def main(argv=None):
                           "steps": ["Verify exact APK SHA/version, boot and fresh consumer", "Require human stationary confirmation, legacy park raw1 and FLOAT speed0",
                                     "Require no existing arm and fresh quiescent/closed runtime", "Durably record original stock enabled state and identity",
                                     "disable-user state3; force-stop; verify all stock/stock: PIDs absent", "Start own bounded reader; verify same-session snapshot",
-                                    "Recheck identities/stationarity/isolation; write nine-field atomic arm", "On failure disarm + stop own reader; restore stock only after stable closure proof"],
+                                    "Read and record instrument original 0..4 (default ON unless explicit false); recheck identities/stationarity/isolation; write atomic arm with normalized variant", "On failure disarm + stop own reader; restore stock only after stable closure proof"],
                           "limits": ["No independent selector-P proof", "No process-absence/Binder-cleanup restore fallback; missing closure proof leaves explicit rollback pending"]}
             else:
                 result = arm(Device(args.adb, args.serial), expected, args.reader_jar, args.reader_sha256, args.lifetime_ms,

@@ -55,6 +55,30 @@ public final class LaneGuidanceTest {
         LaneGuidance.Placed inconsistent=convert(snapshot(Arrays.<Object>asList(sign(2,lane("PLAIN_LANE","LEFT90","STRAIGHT_AHEAD"))),.001)).laneGuidance.next(0);
         check((inconsistent.front()[0]&255)==255&&inconsistent.back()[0]==0,"inconsistent highlight fails individually, background retained");
     }
+    /** Retained corpus enum is independent of our mapping and of the all-NULL Beijing sample. */
+    @SuppressWarnings("unchecked") static void categorySourceOracle(File root)throws Exception {
+        Map<String,Object> oracle=(Map<String,Object>)Json.parse(new String(Files.readAllBytes(new File(root,"research/adas-bridge/lane-category-source-20261024.json").toPath()),StandardCharsets.UTF_8));
+        Map<String,Object> categories=(Map<String,Object>)oracle.get("enum");
+        for(Object raw:(List<?>)oracle.get("mapping")) {
+            Map<String,Object> row=(Map<String,Object>)raw;String kind=(String)row.get("sourceKind");
+            int expected=((Number)categories.get(row.get("factoryEnum"))).intValue();
+            RouteConverter.Converted c=convert(snapshot(Arrays.<Object>asList(sign(2,
+                    lane(kind,"LEFT90","LEFT90"),lane(kind,null,"LEFT90"))),.001));
+            LaneGuidance.Placed p=c.laneGuidance.next(0);
+            Map<String,Object> wire=inner(Topics.SD_NEXT_LANES,StockMessages.nextLanes(p.back(),p.front(),p.extend(),p.recommend(),p.backType(),p.frontType(),p.segmentIndex,p.linkIndex,1000));
+            check(Pb.hex(bytes(expected,expected)).equals(wire.get("backLaneType")),"source enum reaches next-lane background "+kind);
+            check(Pb.hex(bytes(expected,255)).equals(wire.get("frontLaneType")),"source enum only for explicit foreground "+kind);
+            check("0101".equals(wire.get("backLane"))&&"01ff".equals(wire.get("frontLane")),"category does not change direction or width "+kind);
+            Map<String,Object> bean=(Map<String,Object>)((List<?>)Json.parse(c.laneGuidance.aheadJson(0,42,1000))).get(0);
+            check(bean.get("backLaneType").toString().equals(Arrays.asList(expected,expected).toString()),"source enum reaches 3km background "+kind);
+            check(bean.get("frontLaneType").toString().equals(Arrays.asList(expected,255).toString()),"source enum reaches 3km foreground "+kind);
+            if("LaneTypeOther".equals(row.get("factoryEnum"))) {
+                List<?> losses=(List<?>)p.sign.decisions.get(0).get("losses");
+                check(losses.contains("special subtype projected to Other category; no access inference"),"Other projection loss remains explicit "+kind);
+            }
+        }
+        check(((Number)categories.get("LaneTypeTidal")).intValue()==3&&((Number)categories.get("LaneTypeVariable")).intValue()==4,"retain known SDK categories without inventing a Yandex mapping");
+    }
     static void crossProduct() {
         String[] ds={"UNKNOWN_DIRECTION","LEFT180","LEFT135","LEFT90","LEFT45","STRAIGHT_AHEAD","RIGHT45","RIGHT90","RIGHT135","RIGHT180","LEFT_FROM_RIGHT","RIGHT_FROM_LEFT","LEFT_SHIFT","RIGHT_SHIFT"};
         int[] bits={0,8,2,2,2,1,4,4,4,16,2,4,1,1}, single={255,5,1,1,1,0,3,3,3,8,1,3,0,0};
@@ -171,7 +195,8 @@ public final class LaneGuidanceTest {
         System.out.println("Actual trip route1/2: "+retained+"/"+total+" signs retained; per-lane losses explicitly reported");
     }
     public static void main(String[] args)throws Exception {
-        wire();enums();crossProduct();malformedDiagnostics();placement();lifecycle();replacement();sameContentRefresh();real(new File(args.length>0?args[0]:"."),args.length>1?new File(args[1]):null);
+        File root=new File(args.length>0?args[0]:".");
+        wire();enums();categorySourceOracle(root);crossProduct();malformedDiagnostics();placement();lifecycle();replacement();sameContentRefresh();real(root,args.length>1?new File(args[1]):null);
         System.out.println("LaneGuidanceTest: "+checks+" checks PASS");
     }
 }

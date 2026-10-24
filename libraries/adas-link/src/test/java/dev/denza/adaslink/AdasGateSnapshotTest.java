@@ -150,6 +150,13 @@ public final class AdasGateSnapshotTest {
         AdasGateSnapshot.Snapshot withSide = read(side, 1200);
         check(withSide.valid && withSide.hardwareGateOpen() && "WRITTEN".equals(withSide.naviSt.get("state")),
                 "the naviSt summary is carried beside all ten values and changes no gate: " + withSide.reason);
+        side.put(AdasGateSnapshot.INSTRUMENT_NAVI_STATUS, navi);
+        check(read(side, 1200).valid && read(side, 1200).instrumentNaviStatus != null, "both channels carried independently");
+        side.remove(AdasGateSnapshot.NAVI_ST);
+        check(read(side, 1200).valid && read(side, 1200).naviSt == null, "instrument alone leaves MPC absent");
+        side.put(AdasGateSnapshot.INSTRUMENT_NAVI_STATUS, "IDLE");
+        check(!read(side, 1200).valid, "instrument summary must be an object");
+        side.remove(AdasGateSnapshot.INSTRUMENT_NAVI_STATUS);
         side.put(AdasGateSnapshot.NAVI_ST, "IDLE");
         check(!read(side, 1200).valid, "naviSt must be an object");
         side.remove(AdasGateSnapshot.NAVI_ST); side.put("other", Json.object());

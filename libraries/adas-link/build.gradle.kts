@@ -40,4 +40,6 @@ tasks.withType<Test>().configureEach {
     /** FieldContractChecks reads it: an edit to the contract alone must rerun the tests. */
     inputs.file(rootProject.file("research/adas-bridge/field-contract-20261024.json"))
         .withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("fieldContract")
+    inputs.file(rootProject.file("research/adas-bridge/lane-category-source-20261024.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("laneCategorySource")
 }

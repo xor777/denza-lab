@@ -22,7 +22,7 @@ class ScenarioChainTest(unittest.TestCase):
         ids = [s["id"] for s in self.scenarios]
         self.assertEqual(ids[0], "H0")
         self.assertEqual(ids, ["H0", "H1", "H2a", "H2b", "H2c", "H2d", "H2e", "H2f", "H2g",
-                               "H3", "H4", "H5", "H6", "LISTEN"])
+                               "H3", "H4", "H5", "H6", "H7", "LISTEN"])
         self.assertIsNone(self.by_id["H0"]["changedVariable"])
         self.assertEqual(self.by_id["H6"]["derivedFrom"], "H0")
 
@@ -94,6 +94,20 @@ class ScenarioChainTest(unittest.TestCase):
         self.assertEqual(self.by_id["H4"]["rates"]["position"], 5.0)
         self.assertEqual(self.by_id["H3"]["rates"]["position"], 1.0)
 
+    def test_h7_is_h0_with_only_instrument_status_and_safe_rehearsal(self):
+        changed, violations = scenario.diff_variable_ok(self.by_id["H0"], self.by_id["H7"])
+        self.assertFalse(violations)
+        self.assertEqual(self.by_id["H7"]["derivedFrom"], "H0")
+        self.assertEqual(self.by_id["H7"]["instrumentNaviStatus"], {"value": 2})
+        self.assertIsNone(self.by_id["H7"]["naviSt"])
+        self.assertIsNone(self.by_id["H0"]["instrumentNaviStatus"])
+        rows = scenario.rehearse(self.by_id["H7"])
+        kinds = [r["kind"] for r in rows]
+        self.assertEqual(kinds[0], "instrumentNaviStatus.read(host)")
+        self.assertEqual(kinds.index("instrumentNaviStatus.write(host)") + 1, kinds.index("route"))
+        self.assertEqual(kinds[-2:], ["instrumentNaviStatus.restore(host)", "instrumentNaviStatus.verify(host)"])
+        self.assertFalse(any(k.startswith("naviSt.") for k in kinds))
+
     def test_h6_adds_navi_st_only(self):
         changed, violations = scenario.diff_variable_ok(self.by_id["H0"], self.by_id["H6"])
         self.assertEqual(violations, set())
@@ -140,6 +154,7 @@ class ScenarioChainTest(unittest.TestCase):
         self.assertEqual(listen["durationS"], 120)
         self.assertFalse(listen["oddRequest"])
         self.assertIsNone(listen["naviSt"])
+        self.assertIsNone(listen["instrumentNaviStatus"])
         self.assertNotIn("route", listen)
         self.assertNotIn("endSequence", listen)
         self.assertEqual(scenario.rehearse(listen), [])

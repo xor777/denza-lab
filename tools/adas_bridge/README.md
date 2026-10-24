@@ -54,17 +54,46 @@ was restored before installing build 12. The current two-hour trip ledger is
 publisher but does not restore the stock package; run `restore` after the test.
 
 `arm --variant FILE.json` puts one experiment variant into the arm (examples in
-`variants/`: baseline, H1, H2a–H2g, H3, H6, the historySpeed A/B). It is checked
+`variants/`: baseline, H1, H2a–H2g, H3, H6, H7, the historySpeed A/B). It is checked
 against ExperimentVariant's strict schema before any device call: an unknown key
 or a value outside the stock's set refuses the arm. The effective variant is
 printed, written to the rollback ledger and carried by the arm, so a restarted
-Navigator keeps it. With `naviSt: true` the reader is started with the arm's id
+Navigator keeps it. Link and position fill-ins only set a field Yandex left unknown
+(a graph road's or the offline maps' class and one-way stay). Only `startProtocol:
+stock` (H3) sends the ODD region read, with the fixed parcel, once per fresh guidance
+start; without it the live bridge makes no ODD request. With `naviSt: true` the reader is started with the arm's id
 and drives SETTING_MPC_IFC_NAVI_ST_SET (`AdasGateReader.NaviSt`): it reads the
 original at arm time (the arm is refused without it), writes 2 at guidance on a
 confirmed path, restores on guidance end, arm end or expiry and its own exit, and
 reads back every write. `restore` then reads NaviSt itself and writes the
 recorded original back only if the reader did not. Every read and write is in the
 reader's ledger (`files/denza-adas-navi-st.json`) and Navigator's journals.
+
+`instrumentNaviStatus: true` independently enables the stock instrument side channel
+(device 1007, `0x43E0003A` / 1138753594); new host `arm`/`plan`/`arm --dry-run` sessions default the instrument switch ON;
+set `instrumentNaviStatus: false` explicitly to disable it. MPC `naviSt` stays OFF.
+The host normalizes and records this default in the variant before starting a reader.
+Legacy arm files and direct Java schema parsing keep their old absent-key OFF behavior. `H7.json`
+changes only that switch, and parked scenario H7 is H0 plus the instrument signal.
+The stock map's `NaviService.sendNavigateInfoToCAN` writes 2 for GPS navigation,
+1 when guidance stops, via `PlatformApiImpl.setNaviState` and the instrument proxy.
+The IVI HAL registers this exact INT event in both get/set maps with the same
+parameter cache; shell UID passes the native permission gate. Its initial 65535
+is unknown: only an original and every readback in 0..4 is accepted. Cache readback
+does not prove ECU receipt or an ADAS consumer.
+
+The reader stores this channel's original at arm time in its own
+`files/denza-adas-instrument-navi-status.json` ledger, and H7 refuses to arm without
+it. It writes 2 only while the same unexpired arm owns live guidance on a confirmed
+path; it restores the exact original at guidance end, arm expiry, stale live state,
+stop or exit. Failed reads write nothing; uncertain writes attempt restoration and
+disable only that channel. Navigator journals instrument events separately from
+MPC NaviSt. Host `restore` disarms and proves egress quiescent, restores each side
+channel independently (including fallback from the rollback ledger when the reader
+is gone), then restores the stock package. Any pending side restoration keeps the
+stock map disabled and records `ROLLBACK_PENDING`. The parked runner uses the same
+fixed read/write commands, verifies writes and restores after the player's end or
+on error, timeout and Ctrl-C. No generic device/FID setter or `fire13/0x0001` is added.
 
 Private JSON writes use an atomic, bounded base64 command, avoiding an exec-out
 stdin EOF dependency. Getter subprocesses retain their one-second deadline but

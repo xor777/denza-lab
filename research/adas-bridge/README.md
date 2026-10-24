@@ -51,10 +51,14 @@ Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 | Build 11 route and selection fires returned 0 with fresh hardware snapshots and actual remote-service availability; no matching service-44 ACK was received in the retained pre-departure window | historical build-11 parked car; superseded by build-12 ACKs below | [Build 11](#build-11-completeness-and-car-test-2026-10-24) |
 | Normal route cancellation closed the whole build-11 arm; build 12 keeps a healthy armed session idle between routes and distinguishes an ACK wait from send silence | host regression + two physical same-arm route ACKs and dynamics | [Route replacement](#route-replacement-correction-build-12-2026-10-24) |
 | Local candidate 13 refreshes same-route conditions, adds typed road facilities, preserves partial-source errors, latches terminal sender failures and clarifies the idle overlay | local host validation; not installed | [Local follow-up](#local-follow-up-candidate-13-2026-10-24) |
-| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 92 open; brought in line with the engine rewrite at `6f97e3bb`, which has not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
+| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 87 open after the local enrichment source audit; code anchors describe main with the experiment variant merged in; the engine rewrite at `6f97e3bb` and the merge have not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
 | Historical first parked H0 obtained ACK 200 and PathMatch but its ODD request failed with NullPointerException. The owner confirms this car never activates or displays NOA while stationary: the proposed cluster-message criterion is inapplicable. The revised control compares internal ADAS replies against the actual stock map | physical car + owner-directed revised method, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Corrected H0 ODD returned 0 and retained its 1,743-byte response as `odd_response` hex. Actual LISTEN recorded 1,800 pilot samples with zero publisher calls; no stock-route ACK/PathMatch was received, so the paired guidance control is not established. Stock was disabled again and the probe removed | physical H0/LISTEN + 34 Python tests / 127 core checks, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | The live engine no longer dies on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route while its offline admission remains valid (proof withdrawal requires a fresh path), sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps evidence for a two-hour drive; not yet run on the car | code + host harnesses, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
+| Lane category 0/1/2 is supported by the recovered SDK enum and the stock's forwarding code; the Beijing sample's 255 is NULL, not a universal constant. TRAM/TAXI/BIKE → Other remains a declared coarse projection | corpus + source-oracle regression, 2026-10-24; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
+| Strict per-arm field switches and the separate MPC/instrument state switches are implemented for local controlled comparisons; instrument state is ON by default for new host sessions (explicit false disables it), MPC remains opt-in; their presence does not decide OPEN field rows | code + host harnesses; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
+| Instrument `0x43E0003A` is registered for both SET and cached GET on device 1007 and shell UID is allowed; its initial 65535 is unknown. Cache readback does not prove ECU receipt or an ADAS gate; the inspected MPC `0x4CA0004B` registration is request-only | original native corpus + bounded offline replay, 2026-10-24 | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
+| The experiment variant (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
@@ -70,6 +74,7 @@ Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-2
 [Pre-test review](#pre-test-firmware-review-2026-10-24) ·
 [Build 11 and completeness](#build-11-completeness-and-car-test-2026-10-24) ·
 [Route replacement](#route-replacement-correction-build-12-2026-10-24) ·
+[Field contract](#field-contract-2026-10-24) · [Parked experiments](#parked-experiment-kit-2026-10-24) · [Engine follow-up](#engine-follow-up-2026-10-24) · [Enrichment follow-up](#enrichment-follow-up-2026-10-24) ·
 [Safety](#safety) · [Verdict and plan](#verdict-and-plan) ·
 [Evidence](#evidence-and-reproduction)
 
@@ -710,9 +715,13 @@ status code or NOA distance. The stock consumer is empty (`k.h.e0.d.d.k()`).
 
 **Position, 1 Hz (`0x8202/0x8008`).** `sdVehicleLocation{ 1 lat, 2 lon, 3/4 matched lat/lon, 5 vehicleSpeed, 6 GPSspeed, 7 curSDRouteID=pathId, 8 reserve4=course, 9 curStepId=segment, 10 curLinkId=link in segment, 11 linkOffset (remaining in link), 12 distanceToNextStep (segment distance), 13 currentRoadOwnership }`
 (`f0.java:230-239`). Sent with TrafficInfo, tunnel and incidents
-(`e0.java:1128-1143`). Unmatched: freeze at the link end, matched point = GPS,
-ownership −1, class −1; there is no explicit off-route flag in practice
-(`offCourse` exists in TrafficInfo but stays false).
+(`e0.java:1128-1143`). ~~Unmatched: freeze at the link end~~ (unsupported earlier
+generalization, corrected by the source audit: `e0.b0`, `:600-613`, does not clamp or
+overwrite the current NaviInfo placement; `e0.P/H0`, `:432-484`, `:1127-1143`, sends
+fresh GPS/matched coordinates with the current bean's indices and remaining distances).
+Ownership −1 is the mapping of SDK `Integer.MIN_VALUE`, not proof of an off-route state.
+`offCourse` is set by a recalculation callback and reset after the location bundle,
+rather than a persistent indication on every off-route packet.
 
 **TrafficInfo (`7/0x8003`).** jam length/distance/status, pass time,
 construction, `SpdLmtSpeedValue` (legal limit; 0 on this car), camera limit and
@@ -724,7 +733,9 @@ distance, interval camera, `offCourse`, distance and time to destination,
 `…0B` next icon/main/assistant action and distance, camera; `…07` ramp
 distance and tidal lane; `…0C` next-intersection lanes (back/front/extend/
 recommended/types as bytes); `…0E` lanes 3 km ahead (JSON); `…01` light
-(only when < 500 m or with a countdown); `…09` region; `7/0x8001` status 101.
+(only when `dstLinkDistance < 500` or with a countdown: this is distance through the
+lane-target link, **not** distance to the next light; see the source audit below);
+`…09` region; `7/0x8001` status 101.
 
 **Not to send.** `13/method 0x0001` (DNP/ICC switch request,
 `e0.java:110`) is a control of the driving function; memory-NOA requests are
@@ -815,8 +826,10 @@ Proposed product architecture, in two places:
    segment/link/offsets of our cut, publish position, TrafficInfo
    (class of the current link, distance/time to destination, `SpdLmtSpeedValue`
    0 at first), status 101, `historySpeed`/`trafficFlowSpeed` from jams,
-   lights within 500 m, region 372. Off-route or lost: emulate the stock's
-   unmatched state; route end or Yandex gone: status 110 for 3 s, then 100
+   ~~lights within 500 m~~ (corrected: apply the stock's lane-target distance gate,
+   independent of the next light's location), region 372. Off-route or lost: retain the
+   latest guidance placement while fresh location coordinates continue; route end or
+   Yandex gone: status 110 for 3 s, then 100
    and pathId −1, then stop.
 
 Unknown attributes stay explicit in the offline draft and block publication
@@ -961,8 +974,10 @@ installed dry run. Their exact BYDAuto getter sources and a separate shell-UID
 read path are now identified; normal Navigator UID access and the three actual
 car readings are not established ([Live gate sources](#live-publisher-gate-sources-2026-10-24)).
 Region codes stay at the stock defaults (no Amap adcodes);
-jams, incidents, lane info (`0x800C`) and 3 km lanes (`0x800E`, sent empty as the
-car did) are not mapped; ~~link granularity is Yandex's~~ (with the road store links
+jams and incidents are not mapped; ~~lane info (`0x800C`) and 3 km lanes (`0x800E`,
+sent empty as the car did) are not mapped~~ (superseded: junction signs now feed both
+lane surfaces, with per-lane losses recorded by `LaneGuidance`; continuous lane counts
+remain a separate decision); ~~link granularity is Yandex's~~ (with the road store links
 also end at OSM junctions: [OSM roads](#osm-roads-under-the-yandex-route-2026-10-24)) (fewer, longer links than
 the factory's); path ids restart per Navigator process; positions come per FINE
 fix, so a tunnel without fixes is silent where Amap would dead-reckon.
@@ -2169,16 +2184,17 @@ and for the lifecycle and input rules behind the values. Each row gives:
   ALIGN-STOCK, TRACE-SIDE, P-CLOSE, EMU);
 - the NOA risk.
 
-Code is cited at `6f97e3bb`, the engine rewrite (`134caa8e`..`6f97e3bb`), with a text
-anchor, and the anchor is the authority. The rewrite has not been run on the car. Rows
-whose behaviour it brought to the stock's carry the engine commit as evidence. Their
-`today` values are build 12's, recorded before the rewrite.
+Code anchors describe the local working tree based on `810a2fe9`; the anchor is the
+authority. The preceding engine rewrite (`134caa8e`..`6f97e3bb`) and this follow-up have
+not been run on the car. Historical `today` values remain build 12's, recorded before
+the rewrite. Source-audit decisions carry their retained evidence instead of a new
+commit identifier.
 
 | | Rows | Decided | Open |
 | --- | --- | --- | --- |
-| Matches the stock | 159 (61 are fields the stock builder never sets) | 157 | 2 |
-| Differs from the stock | 75 | 3 (policy) | 72 |
-| Stock unknown | 18 | 0 | 18 |
+| Matches the stock | 160 (61 are fields the stock builder never sets) | 158 | 2 |
+| Differs from the stock | 70 | 7 | 63 |
+| Stock unknown | 22 | 0 | 22 |
 
 The engine rewrite moved seven rows to *matches the stock*:
 - the route goes out once per Yandex route ID (`naviSDRoute`), and is resent 300 ms after
@@ -2187,21 +2203,28 @@ The engine rewrite moved seven rows to *matches the stock*:
 - position, TrafficInfo, tunnel and region go out at the stock's once a second in LIVE;
 - the remaining distance in TrafficInfo comes from the fix it travels with.
 
-The three decided differences are guard policy:
+Three decided differences are guard policy:
 - no idle stream;
 - no stale or foreign-path position;
 - no idle status outside the stock's end sequence. Every end that may still send now
   sends that sequence: 110 ×3 after an arrival, then 100 ×3.
 
-The open rows carry 19 high, 26 medium and 47 low NOA risks. These come first:
+Four more decided differences are lane categories against the unknown-only Beijing
+sample: the recovered SDK enum supports Normal 0 / Bus 1, with special subtypes explicitly
+projected to Other 2. The light gate now mirrors the recovered independent
+`dstLinkDistance` accumulator. Four broad off-route position rows moved to *stock
+unknown*: current-bean retention is supported, while equivalence of upstream Amap and
+Yandex off-route inputs remains open; the universal endpoint-freeze premise is removed.
+
+The open rows carry 19 high, 21 medium and 47 low NOA risks. These come first:
 - **Frame (H1).** Route points, positions, lights and `mapProvider=1` claim the Amap SDK
   frame, but both hosts send WGS-84 (`FieldDefaults.FRAME`).
 - **Road semantics (H2, D-HWY).**
   - On links, roadclass, formway and ownership are −1, adminCode is 0, and direction is
     0, which the export reads as two-way (DRT raw 3 → 0).
   - Region is 0.
-  - TrafficInfo class and position ownership are −1, the stock's *unmatched* markers,
-    on a path that the same packets declare matched.
+  - TrafficInfo class and position ownership are unknown −1 on a path that the same
+    packets declare matched. Unknown is not proof of a universal off-route state.
   - historySpeed is the section's free-flow speed.
   - SpdLmtSpeedValue comes from Yandex, against [Safety](#safety).
   - The ramp distance is −1.
@@ -2217,8 +2240,9 @@ The open rows carry 19 high, 26 medium and 47 low NOA risks. These come first:
     P-CLOSE asks whether ADAS releases the route on those statuses.
   - pathID stays a wall-clock id, fresh for each attempt.
 - **Cadence (H5).** vehicleSpeed is the GNSS speed (`FieldDefaults.VEHICLE_SPEED`). Off
-  the route, the position indices hold their last placement. The stock freezes them at
-  the link end (ALIGN-STOCK).
+  the route, the position indices hold their last placement while fresh location
+  coordinates continue. ~~The stock freezes them at the link end~~ (the source does
+  not establish this universal rule; see the enrichment follow-up).
 
 The file records fifteen contradictions between docs, code and the oracle as entries of
 their own:
@@ -2227,13 +2251,16 @@ their own:
 - `mapProvider=1` is sent with WGS-84 points;
 - Safety says SpdLmtSpeedValue 0, but `FieldDefaults` enables the Yandex limit for both
   hosts;
-- lane types 0/1/2 break StockMessages' promise and the factory's 255;
+- ~~lane types 0/1/2 break StockMessages' promise and the factory's 255~~ (resolved
+  corpus-first: the SDK declares Normal 0, Bus 1, Other 2 and NULL 255, and the stock
+  forwards supplied types; [source oracle](lane-category-source-20261024.json));
 - `stock.py` lacks the `completeAttributes` gate, the 64-lane cap and the graph-name rule;
 - `naviVoiceCommand ""` is undocumented;
 - the "unknown, not silently false" flags are sent as false;
 - pathID is described as a "hash of routeId";
 - "Position, 1 Hz" (resolved by the engine rewrite, `646add68`);
-- the unmatched markers on a matched path;
+- unknown class/ownership on a matched path (earlier universal-unmatched wording
+  corrected against the source);
 - FacilityType versus `naviFacilityType`;
 - laneNum was taken from lane signs (resolved in local source: signs remain
   point-scoped guidance and cuts, with no continuous lane-count promotion);
@@ -2260,7 +2287,8 @@ positive control) and then a chain that changes one variable at a time toward th
 bridge: frame GCJ→WGS-84 (H1), link class/formway, ownership, direction, laneNum,
 adminCode+region (H2a–H2e), position ownership + TrafficInfo roadClass (H2f), legal limit
 (H2g), no ODD request and no 106 phase (H3), 5 Hz rates (H4), the remaining bridge field
-values (H5), and H0 plus the stock `SETTING_MPC_IFC_NAVI_ST_SET` side channel (H6). H0's
+values (H5), H0 plus the stock `SETTING_MPC_IFC_NAVI_ST_SET` side channel (H6), and
+independently H0 plus `INSTRUMENT_SEND_NAVI_STATUS_SET` (H7). H0's
 route is rebuilt through the byte-exact `stock.py` oracle, so it equals the stock wire bar
 pathId and time; H1 is an inverse-GCJ flip on identical geometry. A parked car offers no
 NOA even to the stock map. The original plan proposed the cluster's answer to P→D and
@@ -2286,6 +2314,9 @@ follows the stock order (`setNaviSt(2)` from `NaviService.setNaviTypeAndInit(0)`
 guidance start): read and record, write 2 just before the route, and after the player's
 110 → 100 end restore the read value and read it back, also on an error, a timeout or
 Ctrl-C; a failed or unexpected read means no write and the scenario is not run. The
+H7 runner applies the same read/write-2/restore/readback lifecycle to the separate
+instrument device 1007, FID 1138753594, accepting originals 0–4 and rejecting 65535.
+H0 remains the unmodified parked control; H7 adds only the instrument side channel. The
 generator, engine, precondition and runner logic is covered off-device
 (`tools/adas_bridge/parked_player_harness/run.py`, `tests/test_scenario.py`,
 `tests/test_parked_session.py`); those host results predate the first physical H0 below. H2c (link direction → 0)
@@ -2368,8 +2399,10 @@ state 3 with no stock processes, the probe was uninstalled and Navigator remaine
 unarmed. `comparison.json`, both raw journals, the rollback ledger and cleanup
 proof are retained under `captures/adas-h0-listen-20261024/`.
 
-The real bridge now also has the fixed read-only ODD-list query before its armed
-feed starts, with raw response/status recording. The passive overlay cannot use
+The real bridge now also has the fixed read-only ODD-list query ~~before its armed
+feed starts~~ (superseded by the variant merge: only under `startProtocol: stock`,
+through the guard, once per fresh guidance start; see
+[Enrichment follow-up](#enrichment-follow-up-2026-10-24)), with raw response/status recording. The passive overlay cannot use
 it. Its Binder harness has 327 passing checks and the production coordinator has
 180. Signed build 13 with this follow-up is local at
 `captures/yandex-feed13-car-trip-20261024/release-odd-fix/`, SHA-256
@@ -2410,6 +2443,116 @@ Each defect has a regression test that failed on the old engine
 on the car: whether ADAS releases the route on the end statuses, accepts the 1 Hz cadence
 and the DNP-on resend, how the 250 ms input cache behaves under real load, the resumed
 arm, and the ring sizes on the car's disk.
+
+## Enrichment follow-up (2026-10-24)
+
+Local working-tree follow-up to `810a2fe9`; parser and host-test results do not establish
+an ADAS consumer, a receiver interpretation or acceptance on the car.
+
+The field switches are explicit in the arm's `variant`, with the same strict schema in
+`ExperimentVariant` and `live_session.py`. New host sessions normalize an omitted
+`instrumentNaviStatus` to `true` and persist that value in the arm and rollback ledger;
+explicit `false` disables it. Other omitted fields keep their baseline values. Java
+retains missing-key `false` for legacy arms, so restarting an already issued arm does
+not silently change its behavior. MPC `naviSt` remains opt-in. Unknown keys,
+wrong types and unsupported values are rejected; the effective values and the keys
+actually overridden are recorded with the arm and the trace. The supplied files in
+`tools/adas_bridge/variants/` isolate these choices:
+
+| Variant | Choice |
+| --- | --- |
+| H1 | Route and position frame, `STOCK_GCJ` versus the WGS84 baseline |
+| H2a–H2g | Link class/formway, ownership, direction, lane count, adminCode+region, position ownership+TrafficInfo class, and legal-limit zero, one step at a time |
+| H3 | ODD region read, then the stock's 100/106 start phase before the route; the chosen holds are experimental, not measured stock timings |
+| historySpeed A/B | Yandex's section free-flow value, a fixed value, or alternate values per Yandex route ID |
+| H6 / `naviSt` | Independent MPC navigation-state property `0x4CA0004B`, device 1023: only after reading an original, write 2 for confirmed guidance, restore and read back; original-read can refuse this channel |
+| H7 / `instrumentNaviStatus` | Independent instrument-state property `0x43E0003A`, device 1007: read original 0–4, write 2 for confirmed guidance, restore and read back; new host arm default ON, explicit false OFF |
+
+These switches leave undecided field rows OPEN. A switch creates a controlled
+comparison, not evidence that the selected value makes NOA available.
+
+**Merged with the offline attributes.** The switches now sit in main on top of build 13's
+offline class and one-way. A link or position fill-in applies per field, only where Yandex
+left the value unknown: a class from a graph road or the offline maps, an offline one-way
+and a roundabout's form and direction stay, while for example an unknown ownership on the
+same road is still filled; `variantApplied` counts only what a switch put on the wire
+(`VariantWireTest.linkOverrides`, `partialRoad`). The highway rule (class from posted
+speed, lane count from sign width) stays removed. One ODD request implementation remains,
+build 13's fixed parcel (both inout objects, explicit length plus `writeByteArray`, the
+raw answer kept as base64 within 64 KiB): only H3's `startProtocol: stock` sends it,
+through the guard, once per fresh guidance start and never on a reroute; build 13's
+unconditional request before the armed feed is gone, so every other variant leaves H3 a
+clean variable. A driver recreated after an offline withdrawal keeps the session's frame
+and variant (`LiveRuntimeTest.variantFrameAfterOfflineWithdrawal`). None of this has been
+built into a car build or run on the car.
+
+**Instrument channel native proof.** The separate instrument switch uses
+`0x43E0003A` on device 1007 (guidance 2; not-guiding 1 in the stock API). Original IVI
+native code registers the same Parameter in the request and query maps at
+`0x178a24/0x178a34`; `getIntValue` reads its integer cache and `setIntValue` updates that
+cache. Autoservice permits both calls from shell UID 2000. The initial HAL value is
+65535, an unknown original that must refuse a write. This establishes a cached getter,
+not an ECU acknowledgement or an ADAS consumer.
+
+The source hashes, disassembly and reproducible bounded constructor/registration replay
+are retained in `captures/adas-stock-followup-20261024/native-source-proof.json` and
+`inspect_ivi_registration.py`. The inspected MPC property `0x4CA0004B` is registered only
+in the request map (`0x194b70`), so H6's existing original-read requirement can refuse
+it; the second channel does not inherit proof of a getter from the first. Both side
+channel rows remain OPEN for their unknown receiver role and vehicle acceptance.
+
+H7 is H0 plus only `instrumentNaviStatus: {"value": 2}` in the parked scenario, and an
+independent strict `instrumentNaviStatus: true` arm switch in the live candidate. It
+uses its own ledger (`files/denza-adas-instrument-navi-status.json`, schema
+`denza-adas-instrument-navi-status-v1`). A valid original is required before any guidance
+write; each write gets a cache readback. Guidance end, expiry, stale consumer and reader
+exit restore the exact original. Host rollback independently verifies/restores that
+original before re-enabling the stock map; a failure leaves rollback pending. The
+implemented lifecycle is enabled by default in new host sessions and remains unrun on
+the car; the default is not acceptance evidence.
+
+**Lane category source audit.** The earlier review treated the Beijing fixture's 255 on
+3,172/3,172 next-lane packets as a universal stock constant. That premise is false.
+`LM/com/autonavi/gbl/guide/model/LaneCategoryType.java:7-14` declares Normal 0, Bus 1,
+Other 2, Tidal 3, Variable 4 and NULL 255. `e0.Z` (`:550-597`) forwards SDK
+`LaneInfo.backLaneType/frontLaneType` to the 3 km beans, and `f0.g` (`:91-98`) serializes
+the supplied next-lane types without coercing them to 255.
+
+The existing Normal 0 / Bus 1 mapping therefore stays. TRAM/TAXI/BIKE → Other 2 is a
+declared coarse projection: the original subtype and its loss remain in each lane's
+diagnostics, with no access inference. Unknown kinds and foregrounds without a supported
+explicit highlight stay NULL 255. No direction payload or lane count changes. The
+[retained source oracle](lane-category-source-20261024.json) records the enum's source
+and SHA-256; `LaneGuidanceTest.categorySourceOracle` checks both lane wire surfaces,
+foreground unknowns, unchanged directions/width and the special-subtype loss. The four
+category rows are decided on this evidence, with receiver acceptance still untested.
+
+**Light gate source audit.** The earlier instruction to pass the next light's real
+distance into the 500 m gate would have changed the wrong field. In `k.h.a0.d.c.c`, the
+`FontRoundBean` walk has two independent accumulators: `lightDist` for the first flagged
+light and `dstLinkDistance` through the link identified by the next-lane target's
+segment/link indices. The latter defaults to 0 when no target is found. `e0.v0` (`:954`)
+puts `dstLinkDistance` in `LightParam`; `e0.H0` (`:1139-1140`) checks that value against
+500, or admits an active countdown. It does not check `lightDist`.
+
+`StockFeed.fontRound` mirrors that walk on the converted route: remaining metres of the
+current link, whole subsequent links, the 3 km bound and tunnel-exit boundary. The
+lane-target distance feeds the gate; the separately found light feeds the location.
+Consequently a light more than 500 m away is not by itself a stock mismatch: with no
+lane target the stock's distance is 0. `TrafficLightDynamicsTest` checks target-link
+boundaries, the independent light location, default/reset and wire emissions. The
+original normal/fallback DEX extractions and hashes are retained in
+`captures/adas-stock-followup-20261024/stock-dynamics-source.json`.
+
+**Off-route source audit.** The earlier proposed endpoint clamp was also unsupported.
+`e0.b0` resets transient guidance extras on recalculation and sets `offCourse`, but
+leaves `NaviInfoParam` placement untouched. The moving and stationary location paths
+read its current segment/link and remaining distances. We therefore keep the existing
+placement when Navigator provides no guided scalar and continue sending fresh road/GPS
+coordinates; we do not invent an endpoint with zero remaining distance. The regressions
+hold positive remaining distances through a reroute in LIVE and dry run. This describes
+the sender's retention rule, not every possible value supplied by an upstream Amap
+callback during loss of guidance.
 
 ## Safety
 

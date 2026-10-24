@@ -14,11 +14,12 @@ final class DriveEvidence {
     }
     static final List<String> feed=new ArrayList<>();
     /** The change journal's variant and NaviSt rows, as armId:json. */
-    static final List<String> variants=new ArrayList<>(),naviSt=new ArrayList<>();
+    static final List<String> variants=new ArrayList<>(),naviSt=new ArrayList<>(),instrumentNaviStatus=new ArrayList<>();
     static void passiveState(String receiver,String session,String event,String detail){states.add(receiver+":"+session+":"+event);}
     static void feedState(String state,String reason,String detail){String row=state+":"+reason;if(feed.isEmpty()||!feed.get(feed.size()-1).equals(row))feed.add(row);}
     static void variant(String armId,Map<String,Object> effective){variants.add(armId+":"+dev.denza.adaslink.Json.write(effective));}
     static void naviSt(String armId,Map<String,Object> event){naviSt.add(armId+":"+dev.denza.adaslink.Json.write(event));}
+    static void instrumentNaviStatus(String armId,Map<String,Object> event){instrumentNaviStatus.add(armId+":"+dev.denza.adaslink.Json.write(event));}
     static void passive(String receiver,String session,long topic,long stamp,long received,byte[] bytes){
         packets.add(new Record(receiver,session,topic,received,bytes));
     }

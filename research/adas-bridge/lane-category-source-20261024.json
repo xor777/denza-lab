@@ -1,0 +1,18 @@
+{
+  "source": "captures/hud-firmware-20260923/jadx/BydLaunchermap/sources/com/autonavi/gbl/guide/model/LaneCategoryType.java",
+  "sha256": "36ab250b320b7112e820d4f777511e84310a698957ccd383a749b07aa184be78",
+  "enum": {"LaneTypeNormal": 0, "LaneTypeBus": 1, "LaneTypeOther": 2, "LaneTypeTidal": 3, "LaneTypeVariable": 4, "LaneTypeNULL": 255},
+  "forwarding": [
+    "LM/k/h/a0/c/c/a/e0.java:550-597: LaneInfo.backLaneType/frontLaneType pass unchanged to QueryAppointLanesInfoBean.setLaneParam",
+    "LM/k/h/a0/c/c/a/f0.java:91-98: IntersectionLaneInfoParam back/front types pass unchanged to nextIntersectionLanesInfo"
+  ],
+  "mapping": [
+    {"sourceKind": "PLAIN_LANE", "factoryEnum": "LaneTypeNormal", "projection": "exact category"},
+    {"sourceKind": "BUS_LANE", "factoryEnum": "LaneTypeBus", "projection": "exact category"},
+    {"sourceKind": "TRAM_LANE", "factoryEnum": "LaneTypeOther", "projection": "coarse Other; subtype lost; no access inference"},
+    {"sourceKind": "TAXI_LANE", "factoryEnum": "LaneTypeOther", "projection": "coarse Other; subtype lost; no access inference"},
+    {"sourceKind": "BIKE_LANE", "factoryEnum": "LaneTypeOther", "projection": "coarse Other; subtype lost; no access inference"},
+    {"sourceKind": "UNKNOWN_KIND", "factoryEnum": "LaneTypeNULL", "projection": "unknown"}
+  ],
+  "observation": "Factory Beijing 3172/3172 packets use NULL255; this bounds that sample only and does not override the recovered enum. No vehicle acceptance is claimed."
+}

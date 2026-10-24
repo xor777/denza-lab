@@ -165,6 +165,9 @@ public final class LaneGuidance {
         if("RIGHT180".equals(d))return 16;
         return 0;
     }
+    // Stock LaneCategoryType: Normal=0, Bus=1, Other=2, Tidal=3, Variable=4, NULL=255.
+    // The SDK's back/front types pass through e0.Z/f0.g; 255 in the Beijing fixture is
+    // an unknown sample, not a required constant. Other remains a coarse projection.
     private static int category(String kind) {
         if("PLAIN_LANE".equals(kind))return 0;
         if("BUS_LANE".equals(kind))return 1;

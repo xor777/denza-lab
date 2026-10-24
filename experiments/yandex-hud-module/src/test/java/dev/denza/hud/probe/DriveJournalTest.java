@@ -74,6 +74,10 @@ public final class DriveJournalTest {
         Map<String, Object> set = new java.util.LinkedHashMap<>(); set.put("n", 2L); set.put("op", "set"); set.put("value", 2L); set.put("readback", 2L);
         check(journal.naviSt("arm-2", read, 250, 1150) != null && journal.naviSt("arm-2", read, 251, 1151) == null
                 && journal.naviSt("arm-2", set, 260, 1160) != null, "each NaviSt read and write is journalled once by its number");
+        check(journal.instrumentNaviStatus("arm-2", read, 250, 1150) != null
+                && journal.instrumentNaviStatus("arm-2", read, 251, 1151) == null
+                && journal.instrumentNaviStatus("arm-2", set, 260, 1160) != null,
+                "instrument events deduplicate separately from MPC event numbers");
         streams.append(variant);
         check(read(log).contains("\"what\":\"variant\""), "the variant row reaches the journal file");
 

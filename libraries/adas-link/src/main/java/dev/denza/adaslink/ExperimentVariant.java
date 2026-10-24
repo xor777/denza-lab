@@ -72,7 +72,7 @@ public final class ExperimentVariant {
     }
     private static final String[] KEYS = {"id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction",
             "link.laneNum", "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
-            "startProtocol", "naviSt"};
+            "startProtocol", "naviSt", "instrumentNaviStatus"};
 
     public static final ExperimentVariant NONE = new ExperimentVariant(new LinkedHashMap<String, Object>());
 
@@ -87,7 +87,7 @@ public final class ExperimentVariant {
     public final HistoryMode historyMode;
     /** FIXED: the one value; ALTERNATE: per Yandex route ID in order, null = Yandex's own. */
     public final List<Integer> historyValues;
-    public final boolean speedLimitZero, naviSt;
+    public final boolean speedLimitZero, naviSt, instrumentNaviStatus;
     public final StartProtocol startProtocol;
     private final Map<String, Object> given;
 
@@ -144,6 +144,9 @@ public final class ExperimentVariant {
         startProtocol = start.equals("stock") ? StartProtocol.STOCK : StartProtocol.BRIDGE;
         if (m.containsKey("naviSt") && !(m.get("naviSt") instanceof Boolean)) throw bad("naviSt must be true or false");
         naviSt = Boolean.TRUE.equals(m.get("naviSt"));
+        if (m.containsKey("instrumentNaviStatus") && !(m.get("instrumentNaviStatus") instanceof Boolean))
+            throw bad("instrumentNaviStatus must be true or false");
+        instrumentNaviStatus = Boolean.TRUE.equals(m.get("instrumentNaviStatus"));
         given = Collections.unmodifiableMap(new LinkedHashMap<>(m));
     }
 
@@ -159,7 +162,7 @@ public final class ExperimentVariant {
         return frame == null && linkRoadClass == null && linkFormway == null && linkOwnership == null && linkDirection == null
                 && linkLaneNum == null && linkAdminCode == null && region == null && positionOwnership == null
                 && trafficRoadClass == null && !trafficRoadClassFromLink && historyMode == HistoryMode.YANDEX && !speedLimitZero
-                && startProtocol == StartProtocol.BRIDGE && !naviSt;
+                && startProtocol == StartProtocol.BRIDGE && !naviSt && !instrumentNaviStatus;
     }
 
     /** The coordinate frame this variant sends in; {@code fallback} when it names none. */
@@ -207,6 +210,7 @@ public final class ExperimentVariant {
         e.put("speedLimit", speedLimitZero ? "zero" : "yandex");
         e.put("startProtocol", startProtocol == StartProtocol.STOCK ? "stock" : "bridge");
         e.put("naviSt", naviSt);
+        e.put("instrumentNaviStatus", instrumentNaviStatus);
         List<Object> set = new ArrayList<>();
         for (String key : given.keySet()) if (!key.equals("id")) set.add(key);
         e.put("overrides", set);

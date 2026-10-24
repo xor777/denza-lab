@@ -31,6 +31,7 @@ offer. The chain and its single-variable discipline are asserted mechanically by
 | H4   | 5 Hz dynamic rates                                         | ANALYSIS A.2 |
 | H5   | the remaining bridge field values (historySpeed, light)    | ANALYSIS A.2 / S01, X01 |
 | H6   | H0 + the stock SETTING_MPC_IFC_NAVI_ST_SET side-signal     | research README "A second stock channel" |
+| H7   | H0 + the independent instrument 0x43E0003A side-signal    | research README "A second stock channel" |
 
 H6 branches from H0 (not from H5): it is the positive control plus the one stock side channel
 that the map SOME/IP feed does not carry. Its NaviSt write needs the shell UID (device 1023) while
@@ -39,7 +40,7 @@ writes 2 at guidance start, and restores and verifies it over `adb shell`; the p
 
 The dynamic field values are the recorded ones, with provenance in comments. The route body for H0
 is reproduced from the stock wire capture through the byte-exact `stock.py` oracle, so H0's route
-JSON equals the recording except its pathId and time. H6 reuses H0's body.
+JSON equals the recording except its pathId and time. H6 and H7 reuse H0's body.
 """
 from __future__ import annotations
 
@@ -209,6 +210,7 @@ def _base_scenario(path, route_type):
         "action": copy.deepcopy(STOCK_ACTION),
         "rates": copy.deepcopy(STOCK_RATES),
         "naviSt": None,
+        "instrumentNaviStatus": None,
     }
 
 
@@ -285,6 +287,10 @@ def _d_navi_st(scn):
     scn["naviSt"] = {"value": 2}
 
 
+def _d_instrument_navi_status(scn):
+    scn["instrumentNaviStatus"] = {"value": 2}
+
+
 # id -> (parent id, human label, delta fn, the content paths it may change)
 CHAIN = [
     ("H1", "H0", "coordinate frame GCJ -> WGS-84", _d_frame,
@@ -309,6 +315,8 @@ CHAIN = [
      {"speedIntersection.history", "position.course", "light.exist", "light.lon", "light.lat"}),
     ("H6", "H0", "H0 + stock NaviSt side-signal (SETTING_MPC_IFC_NAVI_ST_SET)", _d_navi_st,
      {"naviSt"}),
+    ("H7", "H0", "H0 + stock instrument navigation status (0x43E0003A)", _d_instrument_navi_status,
+     {"instrumentNaviStatus"}),
 ]
 ALLOWED = {entry[0]: entry[4] for entry in CHAIN}
 PARENT = {entry[0]: entry[1] for entry in CHAIN}
@@ -335,7 +343,7 @@ def listen_scenario(duration_s=120):
         raise ValueError("LISTEN durationS 1..300")
     return {"schema": SCHEMA, "id": "LISTEN", "label": "record actual ADAS answers only",
             "derivedFrom": None, "changedVariable": None, "durationS": duration_s,
-            "listenOnly": True, "oddRequest": False, "naviSt": None}
+            "listenOnly": True, "oddRequest": False, "naviSt": None, "instrumentNaviStatus": None}
 
 
 # ---- payload emission and content signature ----
@@ -430,6 +438,8 @@ def rehearse(scn):
     def emit(t_ms, kind, detail):
         rows.append({"t_ms": t_ms, "kind": kind, "detail": detail})
 
+    if scn.get("instrumentNaviStatus") is not None:
+        emit(t, "instrumentNaviStatus.read(host)", {"device": 1007, "fid": 1138753594})
     navi_fid = "SETTING_MPC_IFC_NAVI_ST_SET(1285554251)"
     if scn["naviSt"] is not None:
         # Host runner, over adb shell (shell UID): read and record before the player starts.
@@ -443,6 +453,9 @@ def rehearse(scn):
         # The stock writes NaviSt 2 at guidance start (BaseNaviPresenter -> setNaviTypeAndInit(0)),
         # the same trigger as status 101 and the route publication: just before the route.
         emit(t, "naviSt.write(host)", {"value": scn["naviSt"]["value"], "device": 1023, "fid": navi_fid})
+    if scn.get("instrumentNaviStatus") is not None:
+        emit(t, "instrumentNaviStatus.write(host)", {"device": 1007, "fid": 1138753594,
+             "value": scn["instrumentNaviStatus"]["value"]})
     emit(t, "route", {"service": 43, "event": "0x8002", "frame": scn["route"]["frame"]})
     emit(t, "pathSelected", {"service": 45, "event": "0x8001"})
     loop_t = t + 100
@@ -481,6 +494,9 @@ def rehearse(scn):
     if scn["naviSt"] is not None:
         emit(end_t, "naviSt.restore(host)", {"value": "read value", "device": 1023, "fid": navi_fid})
         emit(end_t, "naviSt.verify(host)", {"device": 1023, "fid": navi_fid})
+    if scn.get("instrumentNaviStatus") is not None:
+        emit(end_t, "instrumentNaviStatus.restore(host)", {"value": "read value", "device": 1007, "fid": 1138753594})
+        emit(end_t, "instrumentNaviStatus.verify(host)", {"device": 1007, "fid": 1138753594})
     return rows
 
 

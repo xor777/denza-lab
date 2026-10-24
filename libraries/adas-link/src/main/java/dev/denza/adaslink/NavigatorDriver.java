@@ -8,8 +8,8 @@ import java.util.Set;
  * Navigator's state, observed every module tick, as the Amap events the stock feed listens to:
  * guidance start and stop, arrival, route results, yaw reroute, NaviInfo and LocInfo. Navigation
  * is Navigator's own guidance state, not the freshness of a fix: a lost fix, a stale or duplicate
- * read, or Navigator rerouting never ends navigation (DYN-02, DYN-04); the position simply stays
- * where it was, as the stock's does off route. A fix is new only when its timestamp moves forward,
+ * read, or Navigator rerouting never ends navigation (DYN-02, DYN-04). Without guided progress,
+ * route indices retain the last NaviInfo; fresh location coordinates can still advance. A fix is new only when its timestamp moves forward,
  * its class is FINE and it is at most {@link #MAX_FIX_AGE_MS} old (CAP-1, DYN-07, DYN-10). A
  * finished route is retired for the process (DYN-13). Single-threaded, on the feed's scheduler.
  *
@@ -314,7 +314,7 @@ public final class NavigatorDriver {
         double course = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
         StockFeed.Fix fix = new StockFeed.Fix(o.lon, o.lat, o.rawLon, o.rawLat, Double.isNaN(o.speedMps) ? 0 : o.speedMps, course,
                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh);
-        // The guided position of this very fix; off the route (rerouting) the stock's indices stay frozen.
+        // Without guided progress retain the last NaviInfo; LocInfo itself does not clamp offsets to0.
         if (onCurrent && o.mode.equals("guidance")) fix.scalar = o.scalar;
         // Amap's LocMatchInfo: on the route, the graph road the route matched under the car, if any.
         RoadNetwork.Fragment road = onCurrent && lookup != null && lookup.roadMatch != null ? lookup.roadMatch.fragmentAt(o.scalar) : null;

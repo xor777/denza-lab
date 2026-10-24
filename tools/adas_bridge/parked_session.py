@@ -35,7 +35,9 @@ import subprocess
 import time
 
 from . import feed
-from .live_session import SessionError as _LiveSessionError, parcel_word
+from .live_session import (SessionError as _LiveSessionError, parcel_word,
+                           INSTRUMENT_NAVI_STATUS_DEVICE, INSTRUMENT_NAVI_STATUS_FID,
+                           instrument_navi_status_read_tokens, instrument_navi_status_write_tokens, INSTRUMENT_NAVI_STATUS_VALUES)
 
 PACKAGE = "dev.denza.adasplayer.probe"
 # SETTING_MPC_IFC_NAVI_ST_SET (0x4CA0004B) on BYDAUTO_DEVICE_SETTING, decimal as vehicle_control.py.
@@ -54,6 +56,17 @@ def navi_st_read_command():
 
 def navi_st_write_command(value):
     return f"service call autoservice 6 i32 {NAVI_ST_DEVICE} i32 {NAVI_ST_FID} i32 {int(value)} null"
+def instrument_navi_status_read_command():
+    return " ".join(instrument_navi_status_read_tokens())
+
+
+def instrument_navi_status_write_command(value):
+    try:
+        return " ".join(instrument_navi_status_write_tokens(value))
+    except _LiveSessionError as error:
+        raise SessionError(str(error)) from error
+
+
 ACTIVITY = PACKAGE + "/.PlayerActivity"
 STOCK = "com.byd.launchermap"
 NAVIGATOR = "ru.yandex.yandexnavi"
@@ -192,6 +205,21 @@ class Device:
         except _LiveSessionError as error:
             raise SessionError("NaviSt write reply not proven: " + str(error)) from error
 
+    def instrument_navi_status_read(self):
+        try:
+            value = parcel_word(self.shell(*instrument_navi_status_read_tokens()))
+        except _LiveSessionError as error:
+            raise SessionError("instrument navigation status read reply not proven: " + str(error)) from error
+        if value not in INSTRUMENT_NAVI_STATUS_VALUES:
+            raise SessionError("instrument navigation status read returned unexpected value " + str(value))
+        return value
+
+    def instrument_navi_status_write(self, value):
+        try:
+            parcel_word(self.shell(*instrument_navi_status_write_tokens(value)))
+        except _LiveSessionError as error:
+            raise SessionError("instrument navigation status write reply not proven: " + str(error)) from error
+
     def elapsed_ms(self):
         parts = self.shell("cat", "/proc/uptime").split()
         if not parts or not re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,9})?", parts[0]):
@@ -257,7 +285,7 @@ def _runs(values):
     return out
 
 
-def comparison_table(scenario_id, summary, navi=None):
+def comparison_table(scenario_id, summary, navi=None, instrument=None):
     lines = [f"=== {scenario_id} ==="]
     if navi is not None:
         if navi.get("notRun"):
@@ -266,6 +294,12 @@ def comparison_table(scenario_id, summary, navi=None):
         lines.append(f"  NaviSt: before={navi.get('before')} written={navi.get('written')} "
                      f"restored={navi.get('restored')} after={navi.get('after')} "
                      f"verified={navi.get('restoreVerified')}")
+    if instrument is not None:
+        if instrument.get("notRun"):
+            lines.append(f"  NOT RUN: instrument navigation status original read failed ({instrument.get('reason')}); no write, no play")
+            return "\n".join(lines)
+        lines.append(f"  InstrumentNaviStatus: before={instrument.get('before')} written={instrument.get('written')} "
+                     f"restored={instrument.get('restored')} after={instrument.get('after')} verified={instrument.get('restoreVerified')}")
     runs = _runs(summary["pilot"])
     if runs:
         lines.append("  DNP/ICC/ACC timeline:")
@@ -301,66 +335,97 @@ def run_scenario(device, scenario_path, preconditions, prompt, *, settle_s=5, sl
     scenario = json.loads(Path(scenario_path).read_text(encoding="utf-8"))
     scenario_id = scenario.get("id", "?")
     data = Path(scenario_path).read_bytes()
-    navi = scenario.get("naviSt")
-    if scenario.get("listenOnly") and navi is not None:
-        raise SessionError("LISTEN cannot change NaviSt")
-    navi_record = None
-    if navi is not None:
-        navi_record = {"device": NAVI_ST_DEVICE, "fid": NAVI_ST_FID, "target": int(navi["value"]),
-                       "readCommand": navi_st_read_command(),
-                       "writeCommand": navi_st_write_command(navi["value"])}
+    if scenario.get("listenOnly") and (scenario.get("naviSt") is not None
+                                       or scenario.get("instrumentNaviStatus") is not None):
+        raise SessionError("LISTEN cannot change NaviSt or the instrument navigation status")
+    channels = []
+    # Two fixed, independent channels; never an arbitrary device/FID setter.
+    for key, dev, fid, read_cmd, write_cmd, read_value, write_value, allowed in (
+        ("naviSt", NAVI_ST_DEVICE, NAVI_ST_FID, navi_st_read_command, navi_st_write_command,
+         "navi_st_read", "navi_st_write", NAVI_ST_VALUES),
+        ("instrumentNaviStatus", INSTRUMENT_NAVI_STATUS_DEVICE, INSTRUMENT_NAVI_STATUS_FID,
+         instrument_navi_status_read_command, instrument_navi_status_write_command,
+         "instrument_navi_status_read", "instrument_navi_status_write", INSTRUMENT_NAVI_STATUS_VALUES)):
+        config = scenario.get(key)
+        if config is None:
+            continue
+        read_value, write_value = getattr(device, read_value), getattr(device, write_value)
+        target = config.get("value")
+        if type(target) is not int or target != 2:
+            raise SessionError(key + " guidance target must be 2")
+        record = {"device": dev, "fid": fid, "target": target,
+                  "readCommand": read_cmd(), "writeCommand": write_cmd(target)}
+        channels.append({"key": key, "record": record, "read": read_value, "write": write_value, "attempted": False})
         try:
-            navi_record["before"] = device.navi_st_read()
+            before = read_value()
+            if type(before) is not int or before not in allowed:
+                raise SessionError(key + " unexpected original " + str(before))
+            record["before"] = before
         except SessionError as error:
-            # No proven value to restore: do not write, do not play, do not guess.
-            navi_record.update(notRun=True, reason=str(error))
+            record.update(notRun=True, reason=str(error))
             return {"id": scenario_id, "pushedSha256": None, "rows": 0, "notRun": True,
-                    "naviSt": navi_record, "summary": decode_answers([]), "refused": []}
+                    **{c["key"]: c["record"] for c in channels}, "summary": decode_answers([]), "refused": []}
     prompt((f"Сценарий {scenario_id}: только запись ответов ADAS штатной карте; "
             "собственный фид, ODD и конечные статусы не отправляются.") if scenario.get("listenOnly") else
            (f"Сценарий {scenario_id}: тормоз, P→D, потяните подрулевой рычаг дважды, "
             f"сфотографируйте приборку, затем продолжите."))
     duration = int(scenario.get("durationS", 120))
     total_s = min(duration + settle_s, 320)
-    write_attempted = False
     try:
         device.rm_private(FILES["once"], FILES["result"])
         device.push_private(FILES["scenario"], data)
         device.push_private(FILES["preconditions"], (json.dumps(preconditions) + "\n").encode())
         device.am_start_once()
         waited = 0.0
-        if navi_record is not None:
-            # The stock writes NaviSt 2 at guidance start, the same trigger as status 101 and the
-            # route publication; write at the end of the pre-route phase, just before the route.
+        if channels:
+            # Both stock side channels assert guidance before the route, after the pre-route phase.
             waited = _pre_route_s(scenario)
             sleep(waited)
-            write_attempted = True
-            device.navi_st_write(navi_record["target"])
-            navi_record["written"] = navi_record["target"]
+            for channel in channels:
+                current = channel["read"]()
+                channel["record"]["beforeWrite"] = current
+                if current != channel["record"]["before"]:
+                    channel["record"]["reason"] = "value changed since original read; no write"
+                    raise SessionError(channel["key"] + " value changed since original read; no write")
+                channel["attempted"] = True
+                channel["write"](channel["record"]["target"])
+                channel["record"]["written"] = channel["record"]["target"]
+                after = channel["read"]()
+                channel["record"]["writeReadback"] = after
+                if after != channel["record"]["target"]:
+                    raise SessionError(channel["key"] + " write readback differs from guidance target")
         sleep(max(0.0, total_s - waited))      # past the player's 110x3 s -> 100 end sequence
         result = device.read_private(PACKAGE, FILES["result"])
     except BaseException as error:             # error, timeout, KeyboardInterrupt: restore below
-        error.parked_navi = navi_record
+        error.parked_navi = next((c["record"] for c in channels if c["key"] == "naviSt"), None)
+        error.parked_instrument = next((c["record"] for c in channels if c["key"] == "instrumentNaviStatus"), None)
         raise
     finally:
-        if write_attempted:
-            restore = navi_record["before"]
+        for channel in reversed(channels):
+            if not channel["attempted"]:
+                continue
+            record = channel["record"]
+            original = record["before"]
             try:
-                device.navi_st_write(restore)
-                navi_record["restored"] = restore
-                after = device.navi_st_read()
-                navi_record["after"] = after
-                navi_record["restoreVerified"] = after == restore
+                channel["write"](original)
+                record["restored"] = original
+                after = channel["read"]()
+                record["after"] = after
+                record["restoreVerified"] = after == original
+                if after != original:
+                    record["restoreError"] = "restore readback differs from original"
             except (SessionError, subprocess.SubprocessError, OSError) as error:
-                navi_record["restoreVerified"] = False
-                navi_record["restoreError"] = str(error)[:200]
+                record["restoreVerified"] = False
+                record["restoreError"] = str(error)[:200]
     rows = [json.loads(line) for line in result.decode("utf-8", "replace").splitlines() if line.strip()]
     summary = decode_answers(rows)
     outcome = {"id": scenario_id, "pushedSha256": hashlib.sha256(data).hexdigest(),
                "rows": len(rows), "summary": summary,
                "refused": [r for r in rows if r.get("kind") == "note" and r.get("event") == "refused"]}
-    if navi_record is not None:
-        outcome["naviSt"] = navi_record
+    for channel in channels:
+        outcome[channel["key"]] = channel["record"]
+    if any(c["attempted"] and c["record"].get("restoreVerified") is not True for c in channels):
+        outcome["restorationPending"] = True
     return outcome
 
 
@@ -390,18 +455,26 @@ def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.slee
                 outcome = run_scenario(device, path, before, prompt, settle_s=settle_s, sleep=sleep)
             except Exception as error:
                 receipt["scenarios"].append({"id": scenario_id, "error": str(error)[:300],
-                                             "naviSt": getattr(error, "parked_navi", None)})
+                                             "naviSt": getattr(error, "parked_navi", None),
+                                             "instrumentNaviStatus": getattr(error, "parked_instrument", None)})
                 receipt["stoppedAt"] = scenario_id
                 break
-            print(comparison_table(scenario_id, outcome["summary"], outcome.get("naviSt")))
+            print(comparison_table(scenario_id, outcome["summary"], outcome.get("naviSt"), outcome.get("instrumentNaviStatus")))
             entry = {"id": outcome["id"], "pushedSha256": outcome["pushedSha256"],
                      "rows": outcome["rows"], "refused": bool(outcome["refused"]),
                      "summary": outcome["summary"]}
             if "naviSt" in outcome:
                 entry["naviSt"] = outcome["naviSt"]
+            if "instrumentNaviStatus" in outcome:
+                entry["instrumentNaviStatus"] = outcome["instrumentNaviStatus"]
             if outcome.get("notRun"):
                 entry["notRun"] = True
+            if outcome.get("restorationPending"):
+                entry["restorationPending"] = True
+                receipt["stoppedAt"] = scenario_id
             receipt["scenarios"].append(entry)
+            if outcome.get("restorationPending"):
+                break
     finally:
         try:
             device.uninstall()
@@ -415,7 +488,7 @@ def run(device, apk, scenario_dir, order, prompt, *, settle_s=5, sleep=time.slee
 
 
 def _default_order():
-    return ["H0", "H1", "H2a", "H2b", "H2c", "H2d", "H2e", "H2f", "H2g", "H3", "H4", "H5", "H6"]
+    return ["H0", "H1", "H2a", "H2b", "H2c", "H2d", "H2e", "H2f", "H2g", "H3", "H4", "H5", "H6", "H7"]
 
 
 def main(argv=None):
@@ -435,7 +508,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     order = args.order or _default_order()
     if args.command == "plan":
-        steps, navi_steps, listen_steps = [], [], []
+        steps, navi_steps, instrument_steps, listen_steps = [], [], [], []
         for sid in order:
             path = args.scenario_dir / f"scenario-{sid}.json"
             if path.exists():
@@ -445,6 +518,8 @@ def main(argv=None):
                     listen_steps.append(sid)
                 if scenario.get("naviSt") is not None:
                     navi_steps.append(sid)
+                if scenario.get("instrumentNaviStatus") is not None:
+                    instrument_steps.append(sid)
         print(json.dumps({"schema": "denza-adas-parked-session-plan-v1", "deviceCalls": 0,
                           "order": steps, "scenarioDir": str(args.scenario_dir),
                           "listenOnly": listen_steps,
@@ -455,6 +530,10 @@ def main(argv=None):
                                                      "after the 110x3 s -> 100 end: restore the read value",
                                                      "read again to verify; restore also on error/timeout/Ctrl-C",
                                                      "read fails or unexpected parcel: no write, scenario NOT RUN"]},
+                          "instrumentNaviStatusByHost": {"scenarios": instrument_steps, "device": 1007, "fid": 1138753594,
+                                                        "target": 2, "read": instrument_navi_status_read_command(),
+                                                        "write": instrument_navi_status_write_command(2), "runnable": True,
+                                                        "note": "original/readback must be 0..4; initial HAL unknown 65535 refuses; cache readback is not ECU acceptance"},
                           "notes": ["owner stationary; stock disabled and no live arm first (live_session.py)",
                                     "one bounded run per scenario; player always sends the stock end sequence",
                                     "SOME/IP stays in the app UID; NaviSt goes over adb shell (shell UID)"]},

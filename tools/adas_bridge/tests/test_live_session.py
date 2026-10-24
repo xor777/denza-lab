@@ -32,6 +32,7 @@ class FakeDevice:
         # NaviSt (device 1023) as the car holds it, and the gate reader's side of it.
         self.navi = 1; self.navi_reader_read_fails = False; self.navi_reader_restores = True
         self.navi_read_fails = False; self.navi_arm = None
+        self.instrument = 1; self.instrument_arm = None; self.instrument_read_fails = False; self.instrument_reader_restores = True
 
     def boot(self):
         self.calls.append("boot"); return self.boot_id
@@ -79,6 +80,11 @@ class FakeDevice:
 
     def write_private(self, name, row):
         self.calls.append(("write", name)); self.files[name] = copy.deepcopy(row)
+        instrument = self.files.get(live.INSTRUMENT_NAVI_STATUS)
+        if name == live.STOP and instrument is not None and self.instrument_reader_restores:
+            if instrument["dirty"]:
+                self.instrument = instrument["original"]
+            instrument.update(state="CLOSED", dirty=False, reason="closed: stop requested")
         ledger = self.files.get(live.NAVI_ST)
         if name == live.STOP and ledger is not None and ledger["state"] != "CLOSED":
             # The reader's own way out: it restores what it wrote, unless it died first.
@@ -92,6 +98,15 @@ class FakeDevice:
         ledger = self.files[live.NAVI_ST]
         self.navi = 2; ledger.update(state="WRITTEN", dirty=True, n=ledger["n"] + 3)
         ledger["events"].append({"n": ledger["n"] - 1, "op": "write", "purpose": "guidance start", "ok": True, "value": 2})
+
+    def instrument_navi_status_read(self):
+        self.calls.append(("instrument_read",))
+        if self.instrument_read_fails:
+            raise live.SessionError("autoservice instrument read failed")
+        return self.instrument
+
+    def instrument_navi_status_write(self, value):
+        self.calls.append(("instrument_write", value)); self.instrument = value
 
     def navi_st_read(self):
         self.calls.append(("navi_read",))
@@ -121,7 +136,7 @@ class FakeDevice:
         if self.running:
             raise live.SessionError("stock PID remains")
 
-    def reader(self, jar, digest, consumer, reader, lifetime, navi_st_arm=None):
+    def reader(self, jar, digest, consumer, reader, lifetime, navi_st_arm=None, instrument_navi_status_arm=None):
         self.calls.append("reader_start")
         if self.failure:
             raise live.SessionError(self.failure)
@@ -133,6 +148,15 @@ class FakeDevice:
                                         "original": None if failed else self.navi, "dirty": False, "n": 1, "updatedAtElapsedMs": self.now,
                                         "reason": "original read failed: no write" if failed else "original " + str(self.navi),
                                         "events": [{"n": 1, "op": "read", "purpose": "original", "ok": not failed}]}
+        self.instrument_arm = instrument_navi_status_arm
+        if instrument_navi_status_arm is not None:
+            failed = self.instrument_read_fails or self.instrument not in live.INSTRUMENT_NAVI_STATUS_VALUES
+            self.files[live.INSTRUMENT_NAVI_STATUS] = {
+                "schema": "denza-adas-instrument-navi-status-v1", "bootId": self.boot_id, "consumerSession": self.consumer,
+                "readerSession": reader, "armId": instrument_navi_status_arm, "state": "DISABLED" if failed else "IDLE",
+                "original": None if failed else self.instrument, "dirty": False, "n": 1, "updatedAtElapsedMs": self.now,
+                "reason": "original read failed: no write" if failed else "original " + str(self.instrument),
+                "events": [{"n": 1, "op": "read", "ok": not failed}]}
         if self.changed_consumer:
             self.consumer = OTHER
         return {"pid": 456, "jar": "/data/local/tmp/owned.jar", "log": "/data/local/tmp/owned.log"}
@@ -149,10 +173,98 @@ class ProcedureTests(unittest.TestCase):
         return live.arm(self.device, APK, self.jar, self.digest, 60000, self.ledger,
                         stationary_confirmed=True, sleep=lambda _: None, **kwargs)
 
+    def test_new_arm_defaults_instrument_on_and_explicit_false_disables(self):
+        row = self.arm()
+        self.assertTrue(row["variant"]["instrumentNaviStatus"])
+        self.assertTrue(self.device.files[live.ARM]["variant"]["instrumentNaviStatus"])
+        self.assertEqual(self.device.instrument_arm, row["armId"])
+        self.assertEqual(row["instrumentNaviStatus"]["original"], 1)
+        live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.ledger.unlink();self.device = FakeDevice(self.ledger)
+        row = self.arm(variant={"instrumentNaviStatus": False})
+        self.assertIsNone(self.device.instrument_arm)
+        self.assertNotIn("instrumentNaviStatus", row)
+        self.assertFalse(row["variantEffective"]["instrumentNaviStatus"])
+
+    def test_instrument_arm_records_original_and_restores_independently(self):
+        self.device.instrument = 4
+        row = self.arm(variant={"id": "H7", "instrumentNaviStatus": True})
+        self.assertEqual(row["instrumentNaviStatus"]["original"], 4)
+        self.assertEqual(self.device.instrument_arm, row["armId"])
+        self.assertIsNone(self.device.navi_arm)
+        record = self.device.files[live.INSTRUMENT_NAVI_STATUS]
+        self.device.instrument = 2; record.update(dirty=True, state="WRITTEN")
+        self.device.instrument_reader_restores = False
+        result = live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertEqual(result["phase"], "RESTORED")
+        self.assertEqual(result["instrumentNaviStatusRestore"]["restoredBy"], "host")
+        self.assertEqual(self.device.instrument, 4)
+        self.assertNotIn(("navi_write", 4), self.device.calls)
+
+    def test_instrument_rollback_original_survives_missing_reader_ledger(self):
+        self.device.instrument = 4
+        row = self.arm(variant={"instrumentNaviStatus": True})
+        self.device.files.pop(live.INSTRUMENT_NAVI_STATUS)
+        self.device.instrument = 2
+        restored = live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertEqual(restored["instrumentNaviStatusRestore"]["original"], 4)
+        self.assertEqual(restored["instrumentNaviStatusRestore"]["after"], 4)
+        self.assertLess(self.device.calls.index(("instrument_write", 4)), self.device.calls.index(("stock_enabled", 0)))
+
+    def test_instrument_unknown_original_refuses_arm_without_writes(self):
+        self.device.instrument = 65535
+        with self.assertRaisesRegex(live.SessionError, "original read failed"):
+            self.arm(variant={"instrumentNaviStatus": True})
+        self.assertNotIn(live.ARM, self.device.files)
+        self.assertFalse(any(isinstance(c, tuple) and c[0] == "instrument_write" for c in self.device.calls))
+        self.assertEqual(json.loads(self.ledger.read_text())["phase"], "RESTORED")
+
+    def test_both_channel_restore_attempts_survive_independent_failures(self):
+        row = self.arm(variant={"naviSt": True, "instrumentNaviStatus": True})
+        self.assertEqual(self.device.navi_arm, self.device.instrument_arm)
+        self.device.guidance_write(); self.device.navi_reader_restores = False
+        self.device.instrument = 2
+        self.device.files[live.INSTRUMENT_NAVI_STATUS].update(dirty=True, state="WRITTEN")
+        self.device.instrument_reader_restores = False; self.device.navi_read_fails = True
+        with self.assertRaisesRegex(live.SessionError, "NaviSt read failed"):
+            live.restore(self.device, self.ledger, sleep=lambda _: None)
+        restored = json.loads(self.ledger.read_text())
+        self.assertEqual(restored["phase"], "ROLLBACK_PENDING")
+        self.assertNotIn(("stock_enabled", 0), self.device.calls, "no stock writer while any side restoration is pending")
+        self.assertTrue(restored["instrumentNaviStatusRestore"]["verified"])
+        self.assertEqual(self.device.instrument, 1)
+        self.device.navi_read_fails = False
+        self.assertEqual(live.restore(self.device, self.ledger, sleep=lambda _: None)["phase"], "RESTORED")
+
+    def test_first_channel_timeout_does_not_skip_instrument_rollback(self):
+        self.arm(variant={"naviSt": True})
+        self.device.instrument_reader_restores = False
+        self.device.instrument = 2
+        self.device.files[live.INSTRUMENT_NAVI_STATUS].update(state="WRITTEN", dirty=True)
+        with patch.object(self.device, "navi_st_read", side_effect=subprocess.TimeoutExpired("fixed getter", 1)):
+            with self.assertRaises(live.SessionError):
+                live.restore(self.device, self.ledger, sleep=lambda _: None)
+        row = json.loads(self.ledger.read_text())
+        self.assertEqual(row["phase"], "ROLLBACK_PENDING")
+        self.assertTrue(row["instrumentNaviStatusRestore"]["verified"])
+        self.assertEqual(self.device.instrument, 1)
+        self.assertNotIn(("stock_enabled", 0), self.device.calls)
+
+    def test_instrument_ledger_rejects_wrong_identity_and_failed_read(self):
+        row = self.arm(variant={"instrumentNaviStatus": True})
+        record = self.device.files[live.INSTRUMENT_NAVI_STATUS]
+        for key in ("bootId", "consumerSession", "readerSession", "armId"):
+            old = record[key]; record[key] = "wrong"
+            self.assertIsNone(live.instrument_navi_status_ledger(self.device, row)); record[key] = old
+        self.device.instrument_read_fails = True
+        with self.assertRaisesRegex(live.SessionError, "instrument navigation status read failed"):
+            live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertFalse(any(isinstance(c, tuple) and c[0] == "instrument_write" for c in self.device.calls))
+
     def test_arm_nine_field_schema_and_rollback_precedes_mutation(self):
         row = self.arm(); self.assertEqual(row["phase"], "ARMED")
         self.assertEqual(set(self.device.files[live.ARM]), {"schema", "bootId", "consumerSession", "readerSession", "armId",
-                         "issuedAtElapsedMs", "expiresAtElapsedMs", "stockPackage", "stockDisabled"})
+                         "issuedAtElapsedMs", "expiresAtElapsedMs", "stockPackage", "stockDisabled", "variant"})
         arm = self.device.files[live.ARM]
         self.assertEqual(arm["stockPackage"], "com.byd.launchermap"); self.assertIs(arm["stockDisabled"], True)
         self.assertEqual(arm["consumerSession"], CONSUMER); self.assertEqual(arm["bootId"], BOOT)
@@ -270,6 +382,8 @@ class ProcedureTests(unittest.TestCase):
             self.assertEqual(plan["readerJar"], str(self.jar))
             self.assertEqual(plan["readerSha256"], self.digest)
             self.assertEqual(plan["lifetimeMs"], 60000)
+            self.assertIs(plan["variant"]["instrumentNaviStatus"], True)
+            self.assertIs(plan["variantEffective"]["instrumentNaviStatus"], True)
             self.assertFalse(self.ledger.exists())
 
 
@@ -290,7 +404,7 @@ class VariantSchemaTests(unittest.TestCase):
         expect = {"baseline.json": [], "H1.json": ["frame"], "H2a.json": ["link.roadclass", "link.formway"],
                   "H2b.json": ["link.ownership"], "H2c.json": ["link.direction"], "H2d.json": ["link.laneNum"],
                   "H2e.json": ["link.adminCode", "region"], "H2f.json": ["position.ownership", "traffic.roadClass"],
-                  "H2g.json": ["speedLimit"], "H3.json": ["startProtocol"], "H6.json": ["naviSt"],
+                  "H2g.json": ["speedLimit"], "H3.json": ["startProtocol"], "H6.json": ["naviSt"], "H7.json": ["instrumentNaviStatus"],
                   "drive-ab-historyspeed.json": ["historySpeed"]}
         self.assertEqual(set(expect), {p.name for p in VARIANTS.glob("*.json")})
         for name, keys in expect.items():
@@ -306,7 +420,7 @@ class VariantSchemaTests(unittest.TestCase):
             with self.subTest(case=case):
                 with self.assertRaises(live.SessionError):
                     live.validate_variant(json.loads(case))
-        for case in ({"naviSt": 1}, {"link.laneNum": True}, {"historySpeed": {"mode": "fixed", "value": 25.0}},
+        for case in ({"instrumentNaviStatus": 1}, {"instrumentNaviStatus": None}, {"naviSt": 1}, {"link.laneNum": True}, {"historySpeed": {"mode": "fixed", "value": 25.0}},
                      {"region": 990001.0}, [], "H1", None):
             with self.subTest(case=case):
                 with self.assertRaises(live.SessionError):
@@ -329,6 +443,19 @@ class VariantSchemaTests(unittest.TestCase):
                 path.write_text(body)
                 with self.subTest(body=body), self.assertRaises(live.SessionError):
                     live.load_variant(path)
+
+    def test_instrument_status_is_strict_off_and_independent(self):
+        self.assertFalse(live.effective_variant({})["instrumentNaviStatus"])
+        self.assertFalse(live.effective_variant({"naviSt": True})["instrumentNaviStatus"])
+        self.assertFalse(live.effective_variant({"instrumentNaviStatus": True})["naviSt"])
+        for value in (None, 0, 1, "true", [], {}):
+            with self.subTest(value=value), self.assertRaises(live.SessionError):
+                live.validate_variant({"instrumentNaviStatus": value})
+        self.assertEqual(" ".join(live.instrument_navi_status_read_tokens()), "service call autoservice 5 i32 1007 i32 1138753594")
+        self.assertEqual(" ".join(live.instrument_navi_status_write_tokens(2)), "service call autoservice 6 i32 1007 i32 1138753594 i32 2 null")
+        for value in (-1, 5, 65535, True):
+            with self.assertRaises(live.SessionError):
+                live.instrument_navi_status_write_tokens(value)
 
     def test_navi_st_commands_are_the_parked_sessions(self):
         from tools.adas_bridge import parked_session
@@ -355,12 +482,12 @@ class VariantArmTests(unittest.TestCase):
         return live.restore(self.device, self.ledger, sleep=lambda _: None)
 
     def test_variant_rides_in_the_arm_and_the_ledger(self):
-        variant = {"id": "H1", "frame": "STOCK_GCJ"}
+        variant = {"id": "H1", "frame": "STOCK_GCJ", "instrumentNaviStatus": False}
         row = self.arm(variant)
         arm = self.device.files[live.ARM]
         self.assertEqual(len(arm), 10); self.assertEqual(arm["variant"], variant)
         self.assertEqual(row["variant"], variant); self.assertEqual(row["variantEffective"]["frame"], "STOCK_GCJ")
-        self.assertEqual(json.loads(self.ledger.read_text())["variantEffective"]["overrides"], ["frame"])
+        self.assertEqual(json.loads(self.ledger.read_text())["variantEffective"]["overrides"], ["frame", "instrumentNaviStatus"])
         self.assertIsNone(self.device.navi_arm, "no naviSt: the reader is the read-only one")
         self.assertNotIn("naviSt", row)
         self.restore()
@@ -407,7 +534,7 @@ class VariantArmTests(unittest.TestCase):
         self.assertEqual((result["before"], result["written"], result["after"], result["restoredBy"]), (2, True, 1, "host"))
         calls = [c for c in self.device.calls if isinstance(c, tuple) and c[0].startswith("navi")]
         self.assertEqual(calls, [("navi_read",), ("navi_write", 1), ("navi_read",)])
-        self.assertLess(self.device.calls.index(("stock_enabled", 0)), self.device.calls.index(("navi_read",)))
+        self.assertLess(self.device.calls.index(("navi_read",)), self.device.calls.index(("stock_enabled", 0)))
 
     def test_failed_host_read_writes_nothing_and_leaves_rollback_pending(self):
         self.arm({"naviSt": True}); self.device.guidance_write(); self.device.navi_reader_restores = False
@@ -429,7 +556,7 @@ class VariantArmTests(unittest.TestCase):
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                 self.assertEqual(live.main(base + ["--variant", str(VARIANTS / "H6.json")]), 0)
         plan = json.loads(out.getvalue())
-        self.assertEqual(plan["variant"], {"id": "H6", "naviSt": True}); self.assertIs(plan["variantEffective"]["naviSt"], True)
+        self.assertEqual(plan["variant"], {"id": "H6", "naviSt": True, "instrumentNaviStatus": True}); self.assertIs(plan["variantEffective"]["naviSt"], True)
         self.assertIn('effective variant: {"id":"H6"', err.getvalue())
         bad = self.root / "bad.json"; bad.write_text('{"id":"x","historySpeed":{"mode":"fixed","value":200}}')
         with patch.object(live, "Device", side_effect=AssertionError("must not create ADB device")):

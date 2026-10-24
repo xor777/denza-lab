@@ -82,7 +82,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         public final Double vehicleSpeedKmh;
         /** Amap LocMatchInfo of the road under the car: its class and ownership; the stock's NULL values when unmatched. */
         public int roadClass = FieldDefaults.ROAD_CLASS_UNMATCHED, ownership = FieldDefaults.OWNERSHIP_UNMATCHED;
-        /** Yandex polyline position of this fix on the guided route; NaN off it (rerouting, unmatched: frozen). */
+        /** Yandex guided-route scalar; NaN without route progress, retaining the last NaviInfo. */
         public double scalar = Double.NaN;
         public Fix(double matchedLon, double matchedLat, double rawLon, double rawLat, double speedMps, double heading, boolean simulated,
                    long ageMs, Double vehicleSpeedKmh) {
@@ -656,7 +656,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     /**
      * Amap NaviInfo for the route being guided (MmtSomeIpDataManager.v0 and DriveRouteManager.l):
      * placed on our link table; never behind the last placement on the same path, as Amap's own
-     * guidance never moves back (DYN-01). Not called while Navigator is off the route (frozen).
+     * guidance never moves back (DYN-01). Without guided progress the last NaviInfo is retained.
      */
     public void onProgress(Progress p) {
         Route r = route;
@@ -691,7 +691,6 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         int seg = ni[0], link = ni[1], linkRemain = ni[3], segRemain = ni[4], routeRemain = ni[5], remainLights = ni[6];
         StockPath.Segment segment = c.path.segments.get(seg);
         StockPath.Link l = segment.links.get(link);
-        double[] light = fontRoundLight(c, ni[2], linkRemain, remainLights);
         if (route == r && (niPathId != r.pathId() || laneScheduleGeneration != routeGeneration)) {
             scheduleAheadLanes(); laneScheduleGeneration = routeGeneration;
         }          // J0(pathInfo)
@@ -711,7 +710,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         distToDest = routeRemain;
         timeToDest = Double.isNaN(timeToFinish) ? 0 : (int) Math.max(0, RouteConverter.round(timeToFinish));
         solidLaneDistance();
-        setLightLocation(0, light[0], light[1]);
+        FontRound fontRound = fontRound(c, ni[2], linkRemain, remainLights, laneSeg, laneLink);
+        // e0.v0 passes dstLinkDistance, NOT FontRoundBean.lightDist, to LightParam.
+        setLightLocation(fontRound.dstLinkDistance, fontRound.lightLocation[0], fontRound.lightLocation[1]);
         // curLinkSpeed: the factory's typical link speed (ERAT 0x4269), not live traffic: the matched graph
         // road's, else the closest Yandex value, the section's free-flow speed (distance over time without traffic).
         double free = c.linkSpeedKmh != null && !Double.isNaN(c.linkSpeedKmh[ni[2]]) ? c.linkSpeedKmh[ni[2]] : c.segmentFreeFlowKmh[seg];
@@ -730,23 +731,40 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         publishStatus();
     }
 
-    /** FontRoundBean.lightLocation: the next light within 3 km ahead, from getAllTrafficLights(). */
-    private static double[] fontRoundLight(RouteConverter.Converted c, int globalLink, int linkRemain, int remainLights) {
-        double acc = 0;
-        int link = 0;
-        for (StockPath.Segment s : c.path.segments) for (StockPath.Link l : s.links) {
-            if (link >= globalLink) {
-                acc += link == globalLink ? linkRemain : l.length;
-                if (l.hasTrafficLight) {
-                    int index = c.path.trafficLights.size() - remainLights;
-                    if (index >= 0 && index < c.path.trafficLights.size()) return c.path.trafficLights.get(index);
-                    return new double[]{0, 0};
+    private static final class FontRound {
+        int dstLinkDistance; // default0: no lane target found, independently of lightDist
+        int lightDist = -1;
+        final double[] lightLocation = new double[2];
+    }
+
+    /** k.h.a0.d.c.c DEX: independent lane-target and light distances, over the same look-ahead scan. */
+    private static FontRound fontRound(RouteConverter.Converted c, int globalLink, int linkRemain, int remainLights, int laneSeg, int laneLink) {
+        FontRound out = new FontRound();
+        int acc = 0, link = 0, seg = 0;
+        boolean inTunnel = false, leftTunnel = false;
+        for (StockPath.Segment s : c.path.segments) {
+            int localLink = 0;
+            for (StockPath.Link l : s.links) {
+                if (link >= globalLink) {
+                    if (link == globalLink) inTunnel = l.linkType == 2;
+                    acc += link == globalLink ? linkRemain : l.length;
+                    if (inTunnel && l.linkType != 2 && l.lon.length > 0) leftTunnel = true;
+                    if (seg == laneSeg && localLink == laneLink) out.dstLinkDistance = acc;
+                    if (out.lightDist == -1 && l.hasTrafficLight) {
+                        int index = c.path.trafficLights.size() - remainLights;
+                        if (index >= 0 && index < c.path.trafficLights.size()) {
+                            double[] light = c.path.trafficLights.get(index);
+                            out.lightLocation[0] = light[0]; out.lightLocation[1] = light[1]; out.lightDist = acc;
+                        }
+                    }
+                    // Factory checks the limit after processing a link; in a tunnel it also waits for its exit.
+                    if (acc >= 3000 && (!inTunnel || leftTunnel)) return out;
                 }
-                if (acc >= 3000) return new double[]{0, 0};
+                link++; localLink++;
             }
-            link++;
+            seg++;
         }
-        return new double[]{0, 0};
+        return out;
     }
 
     /** TunnelDetector events from Yandex's tunnel ranges: near-enter under 2 km, enter, leave. */
@@ -822,8 +840,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
             next = null;
         }
         if (next == null) {
+            // A missing/hidden lane callback clears its target even when an earlier send was refused.
+            laneDist = -1; laneSeg = -1; laneLink = -1;
             if (shownLane != null) {
-                laneDist = -1; laneSeg = -1; laneLink = -1;
                 fire(Topics.SD_INTERSECTION,StockMessages.intersection(-1,new byte[0],new byte[0]));
                 fire(Topics.SD_NEXT_LANES,StockMessages.nextLanes(new byte[0],new byte[0],-1,-1,wallClock()));
                 shownLane = null;shownLaneKey=null;shownLaneTimestamp=0;
@@ -930,7 +949,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     /**
      * LIVE: the position carries the step, link and remaining distances of the fix it reports, as the
      * stock's LocInfo and NaviInfo come from the same Amap tick. Never behind the last placement on
-     * the path (DYN-01); off the route (rerouting) the indices stay frozen, as the stock's do.
+     * the path (DYN-01). Without a guided scalar the last NaviInfo remains; no endpoint is invented.
      */
     private void alignNaviInfo(Fix fix) {
         Route r = route;

@@ -100,6 +100,15 @@ final class AdasStateJournal {
         last.put("naviSt", values);
         return row("reader", "naviSt", values, null, elapsedMs, wallMs);
     }
+    synchronized Map<String, Object> instrumentNaviStatus(String armId, Map<String, Object> event, long elapsedMs, long wallMs) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("armId", armId); values.putAll(event);
+        Map<String, Object> previous = last.get("instrumentNaviStatus");
+        if (previous != null && java.util.Objects.equals(previous.get("n"), values.get("n"))
+                && java.util.Objects.equals(previous.get("armId"), armId)) return null;
+        last.put("instrumentNaviStatus", values);
+        return row("reader", "instrumentNaviStatus", values, null, elapsedMs, wallMs);
+    }
     private static Map<String, Object> row(String receiver, String what, Map<String, Object> values, Map<String, Object> previous, long at, long wall) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("kind", "adas_state"); row.put("what", what); row.put("receiver", receiver);

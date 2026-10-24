@@ -38,7 +38,7 @@ public final class ExperimentVariantTest {
         check(none.frame(Coordinates.Frame.WGS84) == Coordinates.Frame.WGS84, "no frame key keeps the default frame");
         Map<String, Object> e = none.effective();
         check("WGS84".equals(e.get("frame")) && "yandex".equals(e.get("link.roadclass")) && "bridge".equals(e.get("startProtocol"))
-                && Boolean.FALSE.equals(e.get("naviSt")) && ((java.util.List<?>) e.get("overrides")).isEmpty(),
+                && Boolean.FALSE.equals(e.get("naviSt")) && Boolean.FALSE.equals(e.get("instrumentNaviStatus")) && ((java.util.List<?>) e.get("overrides")).isEmpty(),
                 "effective variant names every switch at today's value: " + e);
         ExperimentVariant all = parse("{\"id\":\"all\",\"frame\":\"STOCK_GCJ\",\"link.roadclass\":9,\"link.formway\":15,\"link.ownership\":0,"
                 + "\"link.direction\":1,\"link.laneNum\":2,\"link.adminCode\":990001,\"region\":990001,\"position.ownership\":0,"
@@ -51,6 +51,12 @@ public final class ExperimentVariantTest {
                 && all.speedLimitZero && all.startProtocol == ExperimentVariant.StartProtocol.STOCK && all.naviSt, "values as given");
         check(all.historySpeed(0) == 25 && all.historySpeed(7) == 25, "fixed historySpeed on every route");
         check(((java.util.List<?>) all.effective().get("overrides")).size() == 14, "overrides list every key but id");
+        check(parse("{\"instrumentNaviStatus\":true}").instrumentNaviStatus && !parse("{\"instrumentNaviStatus\":true}").naviSt,
+                "instrument navigation status is independent of MPC NaviSt");
+        check(!parse("{\"naviSt\":true}").instrumentNaviStatus, "MPC switch does not enable the instrument channel");
+        check(parse("{\"instrumentNaviStatus\":false}").isDefault(), "instrument switch defaults off");
+        rejects("{\"instrumentNaviStatus\":1}", "instrument status number");
+        rejects("{\"instrumentNaviStatus\":\"true\"}", "instrument status string");
         ExperimentVariant ab = parse("{\"historySpeed\":{\"mode\":\"alternate\",\"values\":[null,25]}}");
         check(ab.historySpeed(0) == null && ab.historySpeed(1) == 25 && ab.historySpeed(2) == null && ab.historySpeed(3) == 25,
                 "alternate: route 1 Yandex's, route 2 the fixed value, and so on");
@@ -134,7 +140,7 @@ public final class ExperimentVariantTest {
                 {"baseline.json"}, {"H1.json", "frame"}, {"H2a.json", "link.roadclass", "link.formway"}, {"H2b.json", "link.ownership"},
                 {"H2c.json", "link.direction"}, {"H2d.json", "link.laneNum"}, {"H2e.json", "link.adminCode", "region"},
                 {"H2f.json", "position.ownership", "traffic.roadClass"}, {"H2g.json", "speedLimit"}, {"H3.json", "startProtocol"},
-                {"H6.json", "naviSt"}, {"drive-ab-historyspeed.json", "historySpeed"}};
+                {"H6.json", "naviSt"}, {"H7.json", "instrumentNaviStatus"}, {"drive-ab-historyspeed.json", "historySpeed"}};
         for (String[] row : expect) {
             File f = new File(dir, row[0]);
             check(f.isFile(), "example variant " + f);

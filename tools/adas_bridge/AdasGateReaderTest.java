@@ -51,24 +51,29 @@ public final class AdasGateReaderTest {
         naviStFailedReadsWriteNothing();
         naviStUnverifiedWriteRestores();
         naviStTrigger();
+        instrumentLifecycle();
+        instrumentTrigger();
         System.out.println("AdasGateReaderTest: " + checks + " checks passed");
     }
 
     /** The car's NaviSt property as autoservice answers it, with every command it was sent. */
     static final class Car implements AdasGateReader.NaviSt.Shell {
-        int value; String readReply; boolean failRead, ignoreWrites;
+        int value; String readReply; boolean failRead, ignoreWrites, failWrite;
+        final boolean instrument;
         final List<String> sent = new ArrayList<>();
-        Car(int value) { this.value = value; }
+        Car(int value) { this(value, false); }
+        Car(int value, boolean instrument) { this.value = value; this.instrument = instrument; }
         @Override public String run(byte[] input, String... args) throws Exception {
             if (input != null || !args[0].equals("/system/bin/service")) throw new AssertionError("only the fixed service commands");
             String line = String.join(" ", args).substring("/system/bin/".length());
             sent.add(line);
-            if (line.equals(READ)) {
+            if (line.equals(instrument ? INSTRUMENT_READ : READ)) {
                 if (failRead) throw new IllegalStateException("read timeout");
                 return readReply != null ? readReply : String.format("Result: Parcel(00000000 %08x   '........')%n", value);
             }
-            if (!line.startsWith("service call autoservice 6 i32 1023 i32 1285554251 i32 ") || !line.endsWith(" null"))
+            if (!line.startsWith(instrument ? "service call autoservice 6 i32 1007 i32 1138753594 i32 " : "service call autoservice 6 i32 1023 i32 1285554251 i32 ") || !line.endsWith(" null"))
                 throw new AssertionError("unexpected command " + line);
+            if (failWrite) throw new IllegalStateException("write failed");
             if (!ignoreWrites) value = Integer.parseInt(line.split(" ")[9]);
             return "Result: Parcel(00000000 00000000   '........')\n";
         }
@@ -78,6 +83,77 @@ public final class AdasGateReaderTest {
         long now = 5000; final AdasGateReader.NaviSt channel;
         Rig(int value) { car = new Car(value); channel = new AdasGateReader.NaviSt(car, () -> now, log::add, ledgers::add); }
         Map<String, Object> ledger() { return ledgers.get(ledgers.size() - 1); }
+    }
+
+    private static final String INSTRUMENT_READ = "service call autoservice 5 i32 1007 i32 1138753594";
+    static final class InstrumentRig {
+        final Car car; final List<Map<String, Object>> ledgers = new ArrayList<>();
+        final AdasGateReader.InstrumentNaviStatus channel;
+        InstrumentRig(int value) {
+            car = new Car(value, true);
+            channel = new AdasGateReader.InstrumentNaviStatus(car, () -> 5000, line -> { }, ledgers::add);
+        }
+    }
+    @SuppressWarnings("unchecked")
+    static void instrumentLifecycle() {
+        for (int original : new int[] {0, 1, 2, 3, 4}) {
+            InstrumentRig r = new InstrumentRig(original);
+            r.channel.start(); r.channel.step("path not confirmed");
+            check(r.car.sent.size() == 1 && r.car.value == original, "original read, then wait for confirmed guidance");
+            r.channel.step(null);
+            check(r.car.value == 2 && r.channel.dirty() && r.car.sent.size() == 4, "instrument writes 2 and verifies");
+            for (String stop : new String[] {"guidance ended", "arm expired", "live state stale", "session STOPPED"}) {
+                r.channel.step(stop);
+                check(r.car.value == original && !r.channel.dirty(), "instrument restores on " + stop);
+                r.channel.step(null);
+                check(r.car.value == 2, "instrument resumes only under confirmed guidance");
+            }
+            r.channel.close("reader exit");
+            check(r.car.value == original && !r.channel.dirty(), "instrument exit restores exact original");
+            int sent = r.car.sent.size(); r.channel.close("shutdown hook"); r.channel.step(null);
+            check(r.car.sent.size() == sent, "instrument close is idempotent");
+            check(r.car.sent.stream().allMatch(x -> x.contains("1007 i32 1138753594")), "instrument never writes MPC");
+            Map<String, Object> ledger = r.ledgers.get(r.ledgers.size() - 1);
+            check(Long.valueOf(original).equals(ledger.get("original")) && "CLOSED".equals(ledger.get("state")), "independent original ledger");
+            List<Object> events = (List<Object>) ledger.get("events");
+            check(events.size() > 1 && ((Map<?, ?>) events.get(0)).get("device").equals(1007L), "instrument events name the device");
+        }
+        for (int unknown : new int[] {-1, 5, 65535}) {
+            InstrumentRig r = new InstrumentRig(unknown); r.channel.start(); r.channel.step(null); r.channel.close("stop");
+            check(r.car.sent.equals(list(INSTRUMENT_READ)) && !r.channel.dirty(), "unknown original writes nothing: " + unknown);
+        }
+        InstrumentRig failed = new InstrumentRig(1); failed.car.failRead = true; failed.channel.start(); failed.channel.step(null);
+        check(failed.car.sent.equals(list(INSTRUMENT_READ)), "instrument failed original read writes nothing");
+        InstrumentRig changed = new InstrumentRig(1); changed.channel.start(); changed.car.value = 3; changed.channel.step(null);
+        check(changed.car.sent.size() == 2 && changed.car.value == 3, "external change since arm disables instrument write");
+        InstrumentRig writeFailed = new InstrumentRig(1); writeFailed.channel.start(); writeFailed.car.failWrite = true;
+        writeFailed.channel.step(null);
+        check(writeFailed.channel.state() == AdasGateReader.NaviSt.State.DISABLED && writeFailed.channel.dirty(), "uncertain write keeps restoration pending");
+        writeFailed.car.failWrite = false; writeFailed.channel.close("failure exit");
+        check(writeFailed.car.value == 1 && !writeFailed.channel.dirty(), "failure exit retries instrument original");
+        InstrumentRig readback = new InstrumentRig(1); readback.channel.start(); readback.car.ignoreWrites = true; readback.channel.step(null);
+        check(readback.channel.state() == AdasGateReader.NaviSt.State.DISABLED && !readback.channel.dirty(), "mismatching instrument readback restores and disables");
+        Rig mpc = new Rig(1); InstrumentRig instrument = new InstrumentRig(4);
+        mpc.channel.start(); instrument.channel.start(); mpc.channel.step(null); instrument.channel.step(null);
+        instrument.channel.step("arm expired");
+        check(mpc.car.value == 2 && instrument.car.value == 4, "instrument restore is independent of MPC lifecycle");
+        mpc.channel.close("stop");
+    }
+    static void instrumentTrigger() {
+        long now = 100000;
+        Map<String, Object> arm = map("schema", "denza-adas-live-arm-v1", "bootId", BOOT, "consumerSession", CONSUMER,
+                "readerSession", READER, "armId", ARM, "issuedAtElapsedMs", 1000L, "expiresAtElapsedMs", 200000L,
+                "variant", map("instrumentNaviStatus", true));
+        Map<String, Object> state = map("schema", "denza-adas-live-state-v1", "bootId", BOOT, "consumerSession", CONSUMER,
+                "armId", ARM, "elapsedMs", now - 900, "state", "LIVE", "guidanceActive", true, "confirmedPathId", 7L);
+        check(AdasGateReader.notGuiding(arm, state, BOOT, CONSUMER, READER, ARM, now, "instrumentNaviStatus") == null, "instrument owns live guidance");
+        check("arm without naviSt".equals(AdasGateReader.notGuiding(arm, state, BOOT, CONSUMER, READER, ARM, now)), "instrument arm does not enable MPC");
+        check("arm without instrumentNaviStatus".equals(AdasGateReader.notGuiding(with(arm, "variant", map("naviSt", true)), state,
+                BOOT, CONSUMER, READER, ARM, now, "instrumentNaviStatus")), "MPC arm does not enable instrument");
+        check("live state stale".equals(AdasGateReader.notGuiding(arm, with(state, "elapsedMs", now - 5001), BOOT, CONSUMER, READER, ARM, now,
+                "instrumentNaviStatus")), "instrument stale state restores");
+        check("another arm".equals(AdasGateReader.notGuiding(arm, state, "other-boot", CONSUMER, READER, ARM, now,
+                "instrumentNaviStatus")), "instrument cannot cross boot");
     }
 
     static void naviStCommands() {

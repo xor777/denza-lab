@@ -131,6 +131,11 @@ final class DriveEvidence {
         Map<String,Object> change=d.journal.naviSt(armId,event,android.os.SystemClock.elapsedRealtime(),System.currentTimeMillis());
         if(change!=null)d.enqueue(change);
     }
+    static void instrumentNaviStatus(String armId,Map<String,Object> event) {
+        DriveEvidence d=current;if(d==null||d.journal==null)return;
+        Map<String,Object> change=d.journal.instrumentNaviStatus(armId,event,android.os.SystemClock.elapsedRealtime(),System.currentTimeMillis());
+        if(change!=null)d.enqueue(change);
+    }
     /** Our live feed's state, into the change journal when it changes. */
     static void feedState(String state,String reason,String detail) {
         DriveEvidence d=current;if(d==null||d.journal==null)return;

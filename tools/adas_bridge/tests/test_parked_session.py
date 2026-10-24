@@ -257,6 +257,17 @@ class ParkedSessionTest(unittest.TestCase):
         self.assertIn("aborted",receipt)
         self.assertFalse(any("install" in c for c in armed.commands))
 
+    def test_listen_never_changes_a_side_channel(self):
+        for key in ("naviSt", "instrumentNaviStatus"):
+            tmp = self._scenario_dir()
+            (tmp / "scenario-LISTEN.json").write_text(json.dumps(
+                {"id":"LISTEN","listenOnly":True,"durationS":2,key:{"value":2}}))
+            fake = FakeAdb(stock_running=True, stock_enabled=0, answers_jsonl=_answers_jsonl())
+            receipt = ps.run(ps.Device("adb","car",runner=fake), __file__, tmp, ["LISTEN"], lambda m:None, sleep=lambda s:None)
+            self.assertEqual(receipt["stoppedAt"], "LISTEN", key)
+            self.assertIn("LISTEN cannot change", receipt["scenarios"][0]["error"], key)
+            self.assertFalse(any("service call autoservice" in " ".join(c) for c in fake.commands), key)
+
 
 READ_CMD = "service call autoservice 5 i32 1023 i32 1285554251"
 WRITE2_CMD = "service call autoservice 6 i32 1023 i32 1285554251 i32 2 null"
@@ -284,7 +295,7 @@ class NaviStRunnerTest(unittest.TestCase):
         _, path = self._h6()
         sleeps = []
         out = ps.run_scenario(device, path, {}, lambda m: None, sleep=sleeps.append)
-        self.assertEqual(fake.events, [("navi", READ_CMD), ("am", "start"), ("navi", WRITE2_CMD),
+        self.assertEqual(fake.events, [("navi", READ_CMD), ("am", "start"), ("navi", READ_CMD), ("navi", WRITE2_CMD), ("navi", READ_CMD),
                                        ("result", "read"), ("navi", RESTORE1_CMD), ("navi", READ_CMD)])
         self.assertEqual(sleeps[0], 5.0)       # write at the end of the 100/106 pre-route phase
         navi = out["naviSt"]
@@ -352,6 +363,80 @@ class NaviStRunnerTest(unittest.TestCase):
         (tmp / "scenario-H0.json").write_text(json.dumps({"id": "H0", "durationS": 2}))
         ps.run_scenario(device, tmp / "scenario-H0.json", {}, lambda m: None, sleep=lambda s: None)
         self.assertFalse(any(kind == "navi" for kind, _ in fake.events))
+
+    def test_h7_uses_only_instrument_channel_and_restores(self):
+        tmp = Path(tempfile.mkdtemp()); self.addCleanup(lambda: __import__("shutil").rmtree(tmp))
+        path = tmp / "scenario-H7.json"
+        path.write_text(json.dumps({"id": "H7", "durationS": 2, "instrumentNaviStatus": {"value": 2}}))
+        read = "service call autoservice 5 i32 1007 i32 1138753594"
+        write2 = "service call autoservice 6 i32 1007 i32 1138753594 i32 2 null"
+        for failure in (None, "unknown", "readback", "timeout", "interrupt"):
+            with self.subTest(failure=failure):
+                fake = FakeAdb(navi_value=65535 if failure == "unknown" else 4,
+                               timeout_result_read=failure == "timeout")
+                if failure == "readback":
+                    fake.navi_read_reply = b"Result: Parcel(00000000 00000004 '........')"
+                device = ps.Device("adb", "owned:5555", runner=fake)
+                def sleep(_):
+                    if failure == "interrupt" and any(kind == "navi" and cmd == write2 for kind, cmd in fake.events):
+                        raise KeyboardInterrupt
+                if failure in ("timeout", "interrupt", "readback"):
+                    with self.assertRaises((subprocess.TimeoutExpired, KeyboardInterrupt, ps.SessionError)):
+                        ps.run_scenario(device, path, {}, lambda _: None, sleep=sleep)
+                    self.assertEqual(fake.navi_value, 4)
+                else:
+                    out = ps.run_scenario(device, path, {}, lambda _: None, sleep=sleep)
+                    if failure == "unknown":
+                        self.assertTrue(out["notRun"])
+                        self.assertEqual(fake.events, [("navi", read)])
+                    else:
+                        self.assertEqual(out["instrumentNaviStatus"]["before"], 4)
+                        self.assertTrue(out["instrumentNaviStatus"]["restoreVerified"])
+                        self.assertEqual(fake.events[0], ("navi", read))
+                        self.assertFalse(any("1023" in cmd for kind, cmd in fake.events if kind == "navi"))
+        import io, contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            ps.main(["plan", "--scenario-dir", str(tmp), "--order", "H7"])
+        plan = json.loads(buffer.getvalue())
+        self.assertEqual(plan["instrumentNaviStatusByHost"]["scenarios"], ["H7"])
+        self.assertTrue(plan["instrumentNaviStatusByHost"]["runnable"])
+        self.assertEqual(plan["instrumentNaviStatusByHost"]["read"], read)
+
+    def test_changed_original_never_writes_after_player_start(self):
+        for key in ("naviSt", "instrumentNaviStatus"):
+            with self.subTest(key=key):
+                tmp, path = self._h6()
+                path.write_text(json.dumps({"id": "changed", "durationS": 1, key: {"value": 2}}))
+                fake = FakeAdb(navi_value=1)
+                device = ps.Device("adb", "owned:5555", runner=fake)
+                def sleep(_):
+                    fake.navi_value = 0
+                with self.assertRaisesRegex(ps.SessionError, "value changed since original read"):
+                    ps.run_scenario(device, path, {}, lambda _: None, sleep=sleep)
+                self.assertFalse(any("autoservice 6" in cmd for kind, cmd in fake.events if kind == "navi"))
+
+    def test_failed_restore_stops_chain_with_receipt_for_either_channel(self):
+        for key in ("naviSt", "instrumentNaviStatus"):
+            with self.subTest(key=key):
+                tmp, path = self._h6(); path.write_text(json.dumps({"id": "H6", "durationS": 1, key: {"value": 2}}))
+                (tmp / "scenario-next.json").write_text(json.dumps({"id": "next", "durationS": 1}))
+                fake = FakeAdb(navi_value=1)
+                class RestoreFailDevice(ps.Device):
+                    def navi_st_write(self, value):
+                        if value == 1:
+                            raise ps.SessionError("restore unavailable")
+                        return super().navi_st_write(value)
+                    def instrument_navi_status_write(self, value):
+                        if value == 1:
+                            raise ps.SessionError("restore unavailable")
+                        return super().instrument_navi_status_write(value)
+                device = RestoreFailDevice("adb", "owned:5555", runner=fake)
+                receipt = ps.run(device, __file__, tmp, ["H6", "next"], lambda _: None, sleep=lambda _: None)
+                self.assertEqual(receipt["stoppedAt"], "H6")
+                self.assertEqual(len(receipt["scenarios"]), 1)
+                self.assertTrue(receipt["scenarios"][0]["restorationPending"])
+                self.assertFalse(receipt["scenarios"][0][key]["restoreVerified"])
 
     def test_plan_lists_host_navi_st(self):
         tmp, _ = self._h6()

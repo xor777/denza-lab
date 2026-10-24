@@ -22,10 +22,10 @@ import java.util.regex.Pattern;
 
 /**
  * Bounded shell-UID reader for this vehicle's ten integer ADAS properties.
- * No SOME/IP publisher, generic command input or network listener, and no vehicle setter
- * except one: with the arm's {@code naviSt} switch ({@link NaviSt}, started with the arm's id and
- * {@code navi-st}) it drives the stock's SETTING_MPC_IFC_NAVI_ST_SET side channel, which the app
- * UID cannot write, and restores its original value on every way out it controls.
+ * No SOME/IP publisher, generic command input or network listener. Two fixed arm switches drive
+ * independent stock side channels: MPC {@code naviSt} ({@link NaviSt}, device 1023) and
+ * {@code instrumentNaviStatus} ({@link InstrumentNaviStatus}, device 1007). Each records its
+ * original before writing and restores that original on every way out it controls.
  * The debuggable Navigator consumes an atomic private-file snapshot. The heartbeat
  * names the boot's consumer, which a restarted Navigator process keeps: a restart
  * shorter than {@link #HEARTBEAT_MAX_AGE_MS} keeps this reader for the resumed arm.
@@ -37,9 +37,10 @@ public final class AdasGateReader {
     static final String SNAPSHOT = "files/denza-adas-gates.json";
     static final String ISOLATION = "files/denza-adas-stock-isolation.json";
     static final String ARM = "files/denza-adas-live-arm.json", STATE = "files/denza-adas-live-state.json",
-            NAVI_ST_LEDGER = "files/denza-adas-navi-st.json";
-    static final String NAVI_ST_ARG = "navi-st";
-    /** Covers a Navigator restart (12 s on 2026-10-24); the reader only reads, the consumer re-checks every input. */
+            NAVI_ST_LEDGER = "files/denza-adas-navi-st.json",
+            INSTRUMENT_NAVI_STATUS_LEDGER = "files/denza-adas-instrument-navi-status.json";
+    static final String NAVI_ST_ARG = "navi-st", INSTRUMENT_NAVI_STATUS_ARG = "instrument-navi-status", BOTH_ARG = "navi-st+instrument-navi-status";
+    /** Covers a Navigator restart (12 s on 2026-10-24); the consumer re-checks every input. */
     static final long HEARTBEAT_MAX_AGE_MS = 60000, MAX_LIFETIME_MS = 4L * 60 * 60 * 1000;
     /** Navigator's live state is written every second; older than this, guidance is not established. */
     static final long STATE_MAX_AGE_MS = 5000;
@@ -48,26 +49,31 @@ public final class AdasGateReader {
     private AdasGateReader() { }
 
     public static void main(String[] args) throws Exception {
-        boolean naviSt = args.length == 5;
-        if (!(args.length == 3 || naviSt && uuid(args[3]) && NAVI_ST_ARG.equals(args[4]))
+        boolean side = args.length == 5;
+        boolean naviSt = side && (NAVI_ST_ARG.equals(args[4]) || BOTH_ARG.equals(args[4]));
+        boolean instrument = side && (INSTRUMENT_NAVI_STATUS_ARG.equals(args[4]) || BOTH_ARG.equals(args[4]));
+        if (!(args.length == 3 || side && uuid(args[3]) && (naviSt || instrument))
                 || !uuid(args[0]) || !uuid(args[1]) || !args[2].matches("[0-9]{1,8}"))
-            throw new IllegalArgumentException("consumerSession readerSession lifetimeMs [armId navi-st]");
+            throw new IllegalArgumentException("consumerSession readerSession lifetimeMs [armId navi-st|instrument-navi-status|navi-st+instrument-navi-status]");
         if (Process.myUid() != 2000) throw new SecurityException("shell UID required");
         long lifetime = Long.parseLong(args[2]);
         if (lifetime < 1000 || lifetime > MAX_LIFETIME_MS) throw new IllegalArgumentException("lifetime bound");
-        final String consumer = args[0], reader = args[1], boot = bootId(), armId = naviSt ? args[3] : null;
+        final String consumer = args[0], reader = args[1], boot = bootId(), armId = side ? args[3] : null;
         final long began = SystemClock.elapsedRealtime();
         long sequence = 0;
         System.out.println("ADAS integer reader started " + reader + (naviSt ? " with NaviSt for arm " + armId : ""));
         final NaviSt channel = naviSt ? new NaviSt(AdasGateReader::command, SystemClock::elapsedRealtime,
-                line -> System.out.println("NaviSt " + line), row -> writeLedger(row, boot, consumer, reader, armId)) : null;
+                line -> System.out.println("NaviSt " + line), row -> writeLedger(row, boot, consumer, reader, armId, false)) : null;
+        final NaviSt instrumentChannel = instrument ? new InstrumentNaviStatus(AdasGateReader::command, SystemClock::elapsedRealtime,
+                line -> System.out.println("InstrumentNaviStatus " + line),
+                row -> writeLedger(row, boot, consumer, reader, armId, true)) : null;
         String exit = "lifetime over";
-        if (channel != null) {
+        for (NaviSt owned : new NaviSt[] {channel, instrumentChannel}) if (owned != null) {
             // Read and record the original at arm time (the host writes the arm right after this reader starts).
-            channel.start();
+            owned.start();
             // Every exit through the runtime (System.exit, an uncaught error) restores here too; whether
             // ART runs hooks on SIGTERM is not established, and SIGKILL never does: live_session.py restore.
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> channel.close("reader exit (shutdown hook)")));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> owned.close("reader exit (shutdown hook)")));
         }
         try {
             while (SystemClock.elapsedRealtime() - began < lifetime) {
@@ -99,6 +105,7 @@ public final class AdasGateReader {
                 row.put("completedAtElapsedMs", SystemClock.elapsedRealtime());
                 // The side channel's summary; Navigator journals the ledger's events when its number moves.
                 if (channel != null) row.put("naviSt", channel.snapshot());
+                if (instrumentChannel != null) row.put("instrumentNaviStatus", instrumentChannel.snapshot());
                 if (!consumerAlive(consumer, boot)) { exit = "consumer gone"; break; }
                 byte[] body = (Json.write(row) + "\n").getBytes(StandardCharsets.UTF_8);
                 command(body, "/system/bin/run-as", PACKAGE, "/system/bin/sh", "-c",
@@ -119,6 +126,8 @@ public final class AdasGateReader {
                 // After the snapshot is handed over: the side channel follows the bridge's guidance.
                 if (channel != null) channel.step(notGuiding(privateJson(ARM), privateJson(STATE), boot, consumer, reader, armId,
                         SystemClock.elapsedRealtime()));
+                if (instrumentChannel != null) instrumentChannel.step(notGuiding(privateJson(ARM), privateJson(STATE), boot, consumer, reader, armId,
+                        SystemClock.elapsedRealtime(), "instrumentNaviStatus"));
                 long remaining = 1000 - (SystemClock.elapsedRealtime() - cycle);
                 if (remaining > 0) Thread.sleep(remaining);
             }
@@ -127,6 +136,7 @@ public final class AdasGateReader {
             throw failed;
         } finally {
             if (channel != null) channel.close(exit);
+            if (instrumentChannel != null) instrumentChannel.close(exit);
             System.out.println("ADAS integer reader stopped " + reader + " snapshots=" + sequence + " (" + exit + ")");
         }
     }
@@ -137,15 +147,16 @@ public final class AdasGateReader {
         catch (Exception absent) { return null; }
     }
     /** The side channel's durable record in Navigator's files, for the host's restore. A failed write only logs. */
-    private static void writeLedger(Map<String, Object> ledger, String boot, String consumer, String reader, String armId) {
+    private static void writeLedger(Map<String, Object> ledger, String boot, String consumer, String reader, String armId, boolean instrument) {
+        String path = instrument ? INSTRUMENT_NAVI_STATUS_LEDGER : NAVI_ST_LEDGER;
         Map<String, Object> row = Json.object();
-        row.put("schema", NaviSt.SCHEMA); row.put("bootId", boot); row.put("consumerSession", consumer);
+        row.put("schema", instrument ? InstrumentNaviStatus.SCHEMA : NaviSt.SCHEMA); row.put("bootId", boot); row.put("consumerSession", consumer);
         row.put("readerSession", reader); row.put("armId", armId);
         row.putAll(ledger);
         try {
             command((Json.write(row) + "\n").getBytes(StandardCharsets.UTF_8), "/system/bin/run-as", PACKAGE, "/system/bin/sh", "-c",
-                    "umask 077; cat > " + NAVI_ST_LEDGER + ".tmp && mv " + NAVI_ST_LEDGER + ".tmp " + NAVI_ST_LEDGER);
-        } catch (Exception failed) { System.out.println("NaviSt ledger write failed: " + failed.getClass().getSimpleName()); }
+                    "umask 077; cat > " + path + ".tmp && mv " + path + ".tmp " + path);
+        } catch (Exception failed) { System.out.println((instrument ? "InstrumentNaviStatus" : "NaviSt") + " ledger write failed: " + failed.getClass().getSimpleName()); }
     }
 
     /**
@@ -154,6 +165,10 @@ public final class AdasGateReader {
      */
     @SuppressWarnings("unchecked")
     static String notGuiding(Object armFile, Object stateFile, String boot, String consumer, String reader, String armId, long now) {
+        return notGuiding(armFile, stateFile, boot, consumer, reader, armId, now, "naviSt");
+    }
+    @SuppressWarnings("unchecked")
+    static String notGuiding(Object armFile, Object stateFile, String boot, String consumer, String reader, String armId, long now, String key) {
         if (!(armFile instanceof Map)) return "no arm";
         Map<String, Object> arm = (Map<String, Object>) armFile;
         if (!"denza-adas-live-arm-v1".equals(arm.get("schema")) || !boot.equals(arm.get("bootId"))
@@ -162,7 +177,7 @@ public final class AdasGateReader {
         Object expires = arm.get("expiresAtElapsedMs");
         if (!(expires instanceof Long) || now >= (Long) expires) return "arm expired";
         Object variant = arm.get("variant");
-        if (!(variant instanceof Map) || !Boolean.TRUE.equals(((Map<String, Object>) variant).get("naviSt"))) return "arm without naviSt";
+        if (!(variant instanceof Map) || !Boolean.TRUE.equals(((Map<String, Object>) variant).get(key))) return "arm without " + key;
         if (!(stateFile instanceof Map)) return "no live state";
         Map<String, Object> state = (Map<String, Object>) stateFile;
         if (!"denza-adas-live-state-v1".equals(state.get("schema")) || !boot.equals(state.get("bootId"))
@@ -188,7 +203,7 @@ public final class AdasGateReader {
      * the flat summary (state, original, the last number), which the hardened gates parser admits, and
      * Navigator journals the ledger's new events when that number moves.
      */
-    static final class NaviSt {
+    static class NaviSt {
         static final String SCHEMA = "denza-adas-navi-st-v1";
         static final int DEVICE = 1023, FID = 1285554251, GUIDANCE = 2, KEPT = 48;
         /** The values the stock writes: 0 stopped, 1 cruise, 2 GPS navigation (parked_session.NAVI_ST_VALUES). */
@@ -198,6 +213,7 @@ public final class AdasGateReader {
         enum State { STARTING, IDLE, WRITTEN, DISABLED, CLOSED }
 
         private final Shell shell;
+        private final boolean instrument;
         private final LongSupplier clock;
         private final Consumer<String> log;
         private final Ledger ledger;
@@ -210,7 +226,10 @@ public final class AdasGateReader {
         private String reason = "starting";
 
         NaviSt(Shell shell, LongSupplier clock, Consumer<String> log, Ledger ledger) {
-            this.shell = shell; this.clock = clock; this.log = log; this.ledger = ledger;
+            this(shell, clock, log, ledger, false);
+        }
+        private NaviSt(Shell shell, LongSupplier clock, Consumer<String> log, Ledger ledger, boolean instrument) {
+            this.shell = shell; this.clock = clock; this.log = log; this.ledger = ledger; this.instrument = instrument;
         }
 
         static String[] readCommand() {
@@ -219,6 +238,16 @@ public final class AdasGateReader {
         static String[] writeCommand(int value) {
             return new String[] {"/system/bin/service", "call", "autoservice", "6", "i32", Integer.toString(DEVICE), "i32", Integer.toString(FID),
                     "i32", Integer.toString(value), "null"};
+        }
+
+        private String[] channelReadCommand() {
+            if (!instrument) return readCommand();
+            // IVI HAL registers this exact INT event in get and set maps, sharing the same cache.
+            return new String[] {"/system/bin/service", "call", "autoservice", "5", "i32", "1007", "i32", "1138753594"};
+        }
+        private String[] channelWriteCommand(int value) {
+            if (!instrument) return writeCommand(value);
+            return new String[] {"/system/bin/service", "call", "autoservice", "6", "i32", "1007", "i32", "1138753594", "i32", Integer.toString(value), "null"};
         }
 
         /** Arm time: the original value. Without it the channel never writes. */
@@ -283,9 +312,9 @@ public final class AdasGateReader {
             Map<String, Object> e = event("read", purpose);
             Integer value = null;
             try {
-                value = parseInteger(shell.run(null, readCommand()));
-                if (value == null) e.put("error", "reply not a status-0 integer");
-                else if (value < 0 || value > MAX_VALUE) { e.put("error", "unexpected value"); e.put("raw", (long) value); value = null; }
+                value = parseInteger(shell.run(null, channelReadCommand()));
+                if (value == null && !e.containsKey("error")) e.put("error", "reply not a status-0 integer");
+                else if (value < 0 || value > (instrument ? InstrumentNaviStatus.MAX_VALUE : MAX_VALUE)) { e.put("error", "unexpected value"); e.put("raw", (long) value); value = null; }
             } catch (Exception failed) { e.put("error", failed.getClass().getSimpleName()); }
             e.put("ok", value != null);
             if (value != null) e.put("value", (long) value);
@@ -297,7 +326,7 @@ public final class AdasGateReader {
             e.put("value", (long) value);
             boolean ok = false;
             try {
-                ok = parseInteger(shell.run(null, writeCommand(value))) != null;
+                ok = parseInteger(shell.run(null, channelWriteCommand(value))) != null;
                 if (!ok) e.put("error", "reply not a status-0 parcel");
             } catch (Exception failed) { e.put("error", failed.getClass().getSimpleName()); }
             e.put("ok", ok);
@@ -307,7 +336,8 @@ public final class AdasGateReader {
         private Map<String, Object> event(String op, String purpose) {
             Map<String, Object> e = Json.object();
             e.put("n", ++n); e.put("op", op); e.put("purpose", purpose); e.put("elapsedMs", clock.getAsLong());
-            e.put("device", (long) DEVICE); e.put("fid", (long) FID);
+            e.put("device", (long) (instrument ? InstrumentNaviStatus.DEVICE : DEVICE));
+            e.put("fid", (long) (instrument ? InstrumentNaviStatus.FID : FID));
             events.add(e);
             if (events.size() > KEPT) events.remove(0);
             return e;
@@ -317,6 +347,21 @@ public final class AdasGateReader {
             v.put("events", new ArrayList<Object>(events));
             v.put("updatedAtElapsedMs", clock.getAsLong());
             try { ledger.write(v); } catch (RuntimeException failed) { log.accept("ledger: " + failed.getClass().getSimpleName()); }
+        }
+    }
+
+    /**
+     * Independent instrument channel: PlatformApiImpl.setNaviState -> instrument device 1007,
+     * event 0x43E0003A. Stock guidance writes 2; stop writes 1. The framework admits 0..4.
+     * IVI HAL's parameter factory registers this event in both get and set maps with one INT
+     * parameter/cache (initial 65535, rejected here). Shell UID is admitted by native permissions.
+     * Every original/readback must be 0..4; this proves the local cache, not remote ECU acceptance.
+     */
+    static final class InstrumentNaviStatus extends NaviSt {
+        static final String SCHEMA = "denza-adas-instrument-navi-status-v1";
+        static final int DEVICE = 1007, FID = 1138753594, MAX_VALUE = 4;
+        InstrumentNaviStatus(Shell shell, LongSupplier clock, Consumer<String> log, Ledger ledger) {
+            super(shell, clock, log, ledger, true);
         }
     }
 

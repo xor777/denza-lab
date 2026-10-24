@@ -108,6 +108,7 @@ final class DynamicTests {
         sequences(root, m4);
         vanishing(m4);
         roadSpeedLimit(m4);
+        TrafficLightDynamicsTest.main(new String[0]);
     }
 
     /** TrafficInfo.SpdLmtSpeedValue: 0 by default even where Yandex posts a limit; the posted km/h only when enabled. */
