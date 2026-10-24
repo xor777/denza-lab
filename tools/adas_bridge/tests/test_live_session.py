@@ -405,7 +405,11 @@ class VariantSchemaTests(unittest.TestCase):
                   "H2b.json": ["link.ownership"], "H2c.json": ["link.direction"], "H2d.json": ["link.laneNum"],
                   "H2e.json": ["link.adminCode", "region"], "H2f.json": ["position.ownership", "traffic.roadClass"],
                   "H2g.json": ["speedLimit"], "H3.json": ["startProtocol"], "H6.json": ["naviSt"], "H7.json": ["instrumentNaviStatus"],
-                  "drive-ab-historyspeed.json": ["historySpeed"]}
+                  "drive-ab-historyspeed.json": ["historySpeed"],
+                  "drive-1.json": ["position.ownership", "traffic.roadClass", "region", "historySpeed", "startProtocol",
+                                   "naviSt", "instrumentNaviStatus"],
+                  "drive-2.json": ["frame", "position.ownership", "traffic.roadClass", "region", "historySpeed",
+                                   "startProtocol", "naviSt", "instrumentNaviStatus"]}
         self.assertEqual(set(expect), {p.name for p in VARIANTS.glob("*.json")})
         for name, keys in expect.items():
             with self.subTest(name=name):

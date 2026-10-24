@@ -131,6 +131,17 @@ arming protocol from candidate 9 is unchanged. The APK explicitly
 queries the stock package so its enabled-state check works under Android's
 package-visibility rules; no extra permission is added.
 
+After a drive, `drive_review.py` reads a directory of pulled evidence (Navigator's
+`files/denza-*` and `denza-drive-evidence/`, tars of them, the host ledgers and
+logcat) and answers, with the file and line of every number: sessions and their end,
+paths per Yandex route and why each new one appeared, topic cadence, pauses and
+position gaps, matched positions carrying unmatched markers, ADAS episodes against
+what was being sent, the side channels and their restore, and process health:
+
+```sh
+python3 tools/adas_bridge/drive_review.py <pulled-dir> --out <dir>   # review.json + review.md
+```
+
 ## Yandex-only data source
 
 The Navigator build now uses its own online graph and route annotations. It
