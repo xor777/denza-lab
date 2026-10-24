@@ -51,6 +51,8 @@ final class AdasOverlayState {
     /** Actual producer reason, retained even when the painter bounds the displayed text. */
     String feedReason;
     boolean awaitingGuidance;
+    /** The live feed holds its route through a prerequisite gap (no sending until it passes). */
+    boolean paused;
     String takeover;
     /** The details line, or null: label, value («0,4», «12»), whether it is the deviation. */
     List<Detail> details;
@@ -106,9 +108,14 @@ final class AdasOverlayState {
         }
         if (feed.explicitState()) {
             s.feedReason = feed.reason;
-            if ("STOPPED".equals(feed.runtimeState) || "DISARMED".equals(feed.runtimeState)) {
+            // A session that is not sending is a state with its own short reason, never an error sentence.
+            if ("STOPPED".equals(feed.runtimeState) || "DISARMED".equals(feed.runtimeState)
+                    || "BLOCKED".equals(feed.runtimeState) || "ENDING".equals(feed.runtimeState)) {
                 s.alarm = Alarm.FEED_STOPPED; s.route = null;
-            } else if ("BLOCKED".equals(feed.runtimeState) || "ERROR".equals(feed.runtimeState)) {
+            } else if ("PAUSED".equals(feed.runtimeState)) {
+                s.alarm = Alarm.FEED_WAITING; s.paused = true;
+                s.route = feed.confirmed() ? Route.SELECTED : null;
+            } else if ("ERROR".equals(feed.runtimeState)) {
                 s.alarm = Alarm.FEED_ERROR; s.route = null;
             } else if ("WAITING".equals(feed.runtimeState) || "LIVE".equals(feed.runtimeState) && !feed.feeding()) {
                 s.alarm = Alarm.FEED_WAITING; s.route = null;
@@ -145,7 +152,7 @@ final class AdasOverlayState {
         if (alarm==Alarm.WAITING_ACK) return "Ожидаем";
         if (alarm==Alarm.FEED_STOPPED) return "Передача остановлена";
         if (alarm==Alarm.FEED_ERROR) return "Ошибка передачи";
-        if (alarm==Alarm.FEED_WAITING) return awaitingGuidance ? "Ожидаем запуск маршрута" : "Подготовка передачи";
+        if (alarm==Alarm.FEED_WAITING) return paused ? "Пауза передачи" : awaitingGuidance ? "Ожидаем запуск маршрута" : "Подготовка передачи";
         return alarm==Alarm.STOCK_EMPTY?"Штатная карта":"Яндекс молчит";
     }
     String alarmSubtitle() {

@@ -74,9 +74,15 @@ public final class AdasOverlayTest {
         s=AdasOverlayState.of(o,stopped,T,false);
         check(s.alarm==AdasOverlayState.Alarm.FEED_STOPPED&&s.route==null&&s.alarmTitle().equals("Передача остановлена"),"closed session has explicit stopped panel, no receipt");
         check(s.alarmSubtitle().equals("Связь сеанса потеряна"),"stopped reason preserved");
-        AdasFeed.Snapshot blocked=new AdasFeed.Snapshot(AdasFeed.Mode.DISABLED,-1,-1,false,-1,"BLOCKED","Ошибка разрешения сеанса");
+        AdasFeed.Snapshot blocked=new AdasFeed.Snapshot(AdasFeed.Mode.DISABLED,-1,-1,false,-1,"BLOCKED","Разрешение не выдано");
         s=AdasOverlayState.of(o,blocked,T,false);
-        check(s.alarm==AdasOverlayState.Alarm.FEED_ERROR&&s.alarmSubtitle().equals("Ошибка разрешения сеанса"),"runtime error remains visible, no unknown fallback");
+        check(s.alarm==AdasOverlayState.Alarm.FEED_STOPPED&&s.alarmTitle().equals("Передача остановлена")&&s.alarmSubtitle().equals("Разрешение не выдано"),
+                "no valid arm is a state with its short reason, not an error");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"ENDING","Завершение маршрута для ADAS"),T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_STOPPED&&s.alarmSubtitle().equals("Завершение маршрута для ADAS"),"a session sending its end is shown as stopping");
+        s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,T-500,PATH,true,PATH,"PAUSED","Нет свежих сигналов машины"),T,false);
+        check(s.alarm==AdasOverlayState.Alarm.FEED_WAITING&&s.alarmTitle().equals("Пауза передачи")&&s.alarmSubtitle().equals("Нет свежих сигналов машины")
+                &&s.route==AdasOverlayState.Route.SELECTED,"a prerequisite gap is a pause that keeps the confirmed route");
         s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"WAITING","Ожидание маршрута Яндекса"),T,false);
         check(s.alarm==AdasOverlayState.Alarm.FEED_WAITING&&s.route==null&&s.alarmSubtitle().contains("маршрута"),"healthy idle waits for route, no fake ACK wait");
         s=AdasOverlayState.of(o,new AdasFeed.Snapshot(AdasFeed.Mode.LIVE,-1,-1,false,-1,"LIVE","Передача готова"),T,false);
