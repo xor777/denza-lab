@@ -63,11 +63,14 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         }
         /** A readiness that names only what failed, for callers that cannot evaluate the rest. */
         public static Readiness missing(String detail, boolean terminal) {
-            return new Readiness(-1,-1,-1,false,false,false,false,false,false,false,false,detail,terminal);
+            Readiness r=new Readiness(-1,-1,-1,false,false,false,false,false,false,false,false,detail,terminal);
+            r.missingOnly=true; return r;
         }
+        private boolean missingOnly;
         boolean allows(long now) { return failure(now) == null; }
         /** The first failing prerequisite at {@code now}, in the fixed order below; null when all hold. */
         public String failure(long now) {
+            if (missingOnly) return detail == null ? "prerequisites unavailable" : detail;
             String first = epoch <= 0 ? "transport epoch unknown"
                     : observedAtMs < 0 ? "inputs never observed"
                     : observedAtMs > now ? "inputs observed in the future"
@@ -570,8 +573,7 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
      */
     public void endSession(String why) {
         if (closed) return;
-        recordFailure(why);
-        if (terminalReason==null) terminalReason=why;
+        if (terminalReason==null) terminalReason=why; // An intended end, not a failure.
         if (currentPath>0 || hadRoute) navigationStopped(false);
         if (!endPending()) { close(); return; }
         closeAfterEnd=true;
