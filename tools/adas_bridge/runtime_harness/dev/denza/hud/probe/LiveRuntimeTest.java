@@ -69,12 +69,14 @@ public final class LiveRuntimeTest {
             offlineSubject=new OfflineMapGate.Subject(id,routeEpoch,id==null?null:GEOMETRY);bridge.sourceRoute(offlineSubject);}
         void offlineEvidence(){if(offlineSubject!=null)bridge.offlineMap(OfflineMapGate.Snapshot.available(offlineSubject,SystemClock.now,INVENTORY));}
         String routeId="actual-yandex-test";
+        /** Where the test route lies; the stock frame's envelope is Moscow's. */
+        double lon0=49.1,lat0=55.8;
         NavigatorDriver.Observation observation(boolean route){return observation(route,.2);}
         NavigatorDriver.Observation observation(boolean route,double scalar){
             NavigatorDriver.Observation o=new NavigatorDriver.Observation();o.monotonicMs=SystemClock.now;o.mode="guidance";o.routeId=routeId;
-            o.positionOnRoute=true;o.scalar=scalar;o.locationClass="FINE";o.lon=49.101;o.lat=55.801;o.speedMps=0;o.heading=90;
+            o.positionOnRoute=true;o.scalar=scalar;o.locationClass="FINE";o.lon=lon0+.001;o.lat=lat0+.001;o.speedMps=0;o.heading=90;
             o.stamp=SystemClock.now;o.fixAgeMs=0;
-            if(route)o.route=new YandexRoute(o.routeId,new double[]{49.1,49.101,49.102},new double[]{55.8,55.801,55.802},
+            if(route)o.route=new YandexRoute(o.routeId,new double[]{lon0,lon0+.001,lon0+.002},new double[]{lat0,lat0+.001,lat0+.002},
                     Collections.singletonList(new YandexRoute.Section(0,2,"STRAIGHT",null,60)),null,null,null,null,null,null);
             return o;
         }
@@ -201,6 +203,9 @@ public final class LiveRuntimeTest {
         restartResumesTheArm();
         endedArmStaysEnded();
         mandatoryOfflineInventory();
+        variantSession();
+        variantFrameAfterOfflineWithdrawal();
+        invalidVariantBlocks();
         System.out.println("LiveRuntimeTest: "+checks+" checks passed (fake Android/Binder boundary, production coordinator/protocol)");
     }
 
@@ -362,6 +367,122 @@ public final class LiveRuntimeTest {
         second.routeId="actual-yandex-after-restart";second.evidence(true);long next=second.route();second.ack(next);Handler.advance(1000);
         second.evidence(true);second.observe(false);Handler.advance(0);
         check(next>path&&tx.count(Topics.SD_VEHICLE_LOCATION)>=1,"a new route streams under the resumed arm");
+    }
+
+    @SuppressWarnings("unchecked") static Map<String,Object> object(Object v){return (Map<String,Object>)v;}
+    @SuppressWarnings("unchecked") static List<Object> list(Object v){return (List<Object>)v;}
+    /** Header rows of the live journal (one per feed start, so one per process of the arm). */
+    static List<Map<String,Object>> headers(Rig r)throws Exception {
+        List<Map<String,Object>> out=new ArrayList<>();
+        for(String line:r.journal().split("\n"))if(line.contains("\"kind\":\"header\""))out.add(object(Json.parse(line)));
+        return out;
+    }
+    /** {lon, lat} of the first point of the last actual route. */
+    static double[] firstRoutePoint(LiveMapTransport tx){
+        for(int i=tx.topics.size()-1;i>=0;i--)if(tx.topics.get(i)==Topics.ROUTE){
+            Map<String,Object> inner=object(Pb.NAVI_SD_ROUTE_NOTIFY.decode(tx.payloads.get(i)).get("naviSDRouteStruct"));
+            Map<String,Object> detail=object(Json.parse((String)inner.get("navigationSDLink2")));
+            Map<String,Object> send=object(Json.parse((String)detail.get("payload")));
+            Map<String,Object> p=object(list(object(list(send.get("data")).get(0)).get("pnts")).get(0));
+            return new double[]{((Number)p.get("x")).doubleValue(),((Number)p.get("y")).doubleValue()};
+        }
+        throw new AssertionError("no route sent");
+    }
+
+    /**
+     * The arm's variant drives the production coordinator: the feed header and the live state name it,
+     * startProtocol stock makes the one ODD request and the 100/106 phase before the route, the frame is
+     * the stock's, and a Navigator restart resumes the same arm with the same variant.
+     */
+    static void variantSession()throws Exception {
+        Rig plain=new Rig();plain.arm(true);plain.route();
+        check(AdasPassiveClient.latest.requests.isEmpty(),"no variant: no ODD request");
+        Map<String,Object> plainHeader=headers(plain).get(0);
+        check(list(object(plainHeader.get("variant")).get("overrides")).isEmpty(),"no variant: the header names the defaults");
+
+        Rig r=new Rig();r.lon0=37.07;r.lat0=55.52;r.routeId="actual-yandex-variant";
+        r.arm.put("variant",object(Json.parse("{\"id\":\"drive-1\",\"frame\":\"STOCK_GCJ\",\"startProtocol\":\"stock\","
+                +"\"historySpeed\":{\"mode\":\"fixed\",\"value\":25}}")));
+        r.arm(true);
+        check("LIVE".equals(r.state().get("state")),"a valid variant arms the session: "+r.state().get("reason"));
+        Map<String,Object> v=object(r.state().get("variant"));
+        check("STOCK_GCJ".equals(v.get("frame"))&&"drive-1".equals(v.get("id"))&&"stock".equals(v.get("startProtocol")),"the live state names the effective variant: "+v);
+        check(Boolean.FALSE.equals(r.state().get("guidanceActive")),"no guidance yet");
+        check(r.journal().contains("\"input\":\"liveSession.variant\""),"the live journal records the variant at arm time");
+        check(DriveEvidence.variants.stream().anyMatch(s->s.startsWith(r.armId+":")&&s.contains("STOCK_GCJ")),"the drive's change journal records it");
+        Map<String,Object> header=headers(r).get(0);
+        check("STOCK_GCJ".equals(object(header.get("variant")).get("frame"))&&"NATIVE_GCJ_UNRESTRICTED_CANDIDATE".equals(header.get("frame")),
+                "the feed's trace header carries the variant and its frame");
+        LiveMapTransport tx=LiveMapTransport.latest;AdasPassiveClient answers=AdasPassiveClient.latest;
+        long start=SystemClock.now;r.observe(true);Handler.advance(0);
+        check(answers.requests.size()==1&&answers.requests.get(0)==start,"the stock start's one ODD request at guidance start");
+        check(tx.count(Topics.ROUTE)==0,"the route waits for the pre-route phase");
+        for(int i=0;i<5;i++){r.evidence(true);Handler.advance(1000);}
+        check(tx.count(Topics.ROUTE)==1&&tx.count(Topics.PATH_SELECTED)==1,"then the route and its selection");
+        check(tx.statuses().subList(0,5).equals(Arrays.asList(100L,100L,106L,106L,106L)),"the stock's 100, 100, 106, 106, 106 first: "+tx.statuses());
+        check(tx.first(Topics.ROUTE,start)==start+5000,"the route 5 s after the start, as the stock's phase");
+        double[] p=firstRoutePoint(tx),gcj=Coordinates.toSdk(r.lon0,r.lat0,Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE);
+        check(Coordinates.distance(p[0],p[1],gcj[0],gcj[1])<0.5,"the route's points in the stock frame");
+        check(Boolean.TRUE.equals(r.state().get("guidanceActive")),"the live state reports guidance");
+        long path=tx.lastSelected();r.ack(path);Handler.advance(1000);r.evidence(true);r.observe(false);Handler.advance(0);
+        check(tx.count(Topics.SD_VEHICLE_LOCATION)>=1,"positions after the real ACK");
+        check(((Number)r.state().get("confirmedPathId")).longValue()==path,"the live state reports the confirmed path");
+        check(r.journal().contains("\"input\":\"liveEgress.request\"")&&r.journal().contains("\"input\":\"variantApplied\"")
+                &&r.journal().contains("\"historySpeed\":25")&&r.journal().contains("\"input\":\"stockStart\""),
+                "the request, the stock start and the variant's values are attributed in the journal");
+
+        Rig second=new Rig(r);second.lon0=r.lon0;second.lat0=r.lat0;Handler.advance(1000);second.evidence(true);Handler.advance(1000);
+        check("LIVE".equals(second.state().get("state"))&&((Number)second.state().get("armProcesses")).longValue()==2,"the restarted process resumes the arm");
+        check("STOCK_GCJ".equals(object(second.state().get("variant")).get("frame")),"with the same variant");
+        List<Map<String,Object>> both=headers(second);
+        check(both.size()>=2&&"STOCK_GCJ".equals(object(both.get(both.size()-1).get("variant")).get("frame")),"its own feed header carries the variant again");
+        check(DriveEvidence.variants.stream().filter(s->s.startsWith(r.armId+":")).count()>=2,"each process journals the arm's variant");
+        for(int i=0;i<4;i++){second.evidence(true);Handler.advance(1000);} // the end of the route the dead process left
+        LiveMapTransport tx2=LiveMapTransport.latest;AdasPassiveClient answers2=AdasPassiveClient.latest;
+        second.routeId="actual-yandex-variant-after-restart";long again=SystemClock.now;second.observe(true);Handler.advance(0);
+        check(answers2.requests.size()==1&&answers2.requests.get(0)==again,"the resumed arm's next guidance starts the stock's way");
+        for(int i=0;i<5;i++){second.evidence(true);Handler.advance(1000);}
+        check(tx2.count(Topics.ROUTE)==1,"the route after the restart's stock start");
+        p=firstRoutePoint(tx2);
+        check(Coordinates.distance(p[0],p[1],gcj[0],gcj[1])<0.5,"in the stock frame after the restart too");
+    }
+
+    /**
+     * An offline withdrawal recreates the driver: the republished route stays in the session's frame
+     * (the variant's STOCK_GCJ), not the build default. The default start protocol sends no ODD request.
+     */
+    static void variantFrameAfterOfflineWithdrawal()throws Exception {
+        Rig r=new Rig();r.lon0=37.07;r.lat0=55.52;r.routeId="actual-yandex-gcj-offline";
+        r.arm.put("variant",object(Json.parse("{\"id\":\"gcj\",\"frame\":\"STOCK_GCJ\"}")));
+        r.arm(true);check("LIVE".equals(r.state().get("state")),"a frame-only variant arms: "+r.state().get("reason"));
+        AdasPassiveClient answers=AdasPassiveClient.latest;
+        long old=r.streaming();LiveMapTransport tx=LiveMapTransport.latest;
+        double[] gcj=Coordinates.toSdk(r.lon0,r.lat0,Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE);
+        double[] p=firstRoutePoint(tx);
+        check(Coordinates.distance(p[0],p[1],gcj[0],gcj[1])<0.5,"the first route in the variant's frame");
+        r.automaticOffline=false;int before=tx.topics.size();
+        r.bridge.offlineMap(OfflineMapGate.Snapshot.unavailable(r.offlineSubject,SystemClock.now,Rig.INVENTORY,"missing","Офлайн-карта удалена"));
+        r.observe(false);Handler.advance(0);
+        for(int i=0;i<4;i++){r.evidence(true);Handler.advance(1000);r.observe(false);Handler.advance(0);}
+        check(tx.topics.size()>before&&r.journal().contains("offlineWithdrawal"),"fixture: the offline loss withdrew the route");
+        int routes=tx.count(Topics.ROUTE);
+        r.offlineEvidence();long fresh=r.route();
+        check(fresh>old&&tx.count(Topics.ROUTE)>routes,"restored inventory republishes the route on a fresh path");
+        p=firstRoutePoint(tx);
+        double[] wgs=Coordinates.toSdk(r.lon0,r.lat0,Coordinates.Frame.WGS84);
+        check(Coordinates.distance(p[0],p[1],gcj[0],gcj[1])<0.5&&Coordinates.distance(p[0],p[1],wgs[0],wgs[1])>100,
+                "the republished route stays in the session's STOCK_GCJ frame, not the build default");
+        check(answers.requests.isEmpty(),"the default start protocol sends no ODD request");
+    }
+
+    /** A variant the schema does not allow rejects the arm: nothing is offered or sent. */
+    static void invalidVariantBlocks()throws Exception {
+        Rig bad=new Rig();bad.arm.put("variant",object(Json.parse("{\"frame\":\"GCJ\"}")));bad.arm(true);
+        Map<String,Object> s=bad.state();
+        check("BLOCKED".equals(s.get("state"))&&Boolean.TRUE.equals(s.get("quiescent"))&&String.valueOf(s.get("blockedDetail")).contains("variant"),
+                "an invalid variant blocks the arm: "+s.get("state")+" "+s.get("blockedDetail"));
+        Rig unknown=new Rig();unknown.arm.put("variant",object(Json.parse("{\"naviSt\":true,\"extra\":1}")));unknown.arm(true);
+        check("BLOCKED".equals(unknown.state().get("state")),"an unknown switch blocks the arm");
     }
 
     /** A session that ended (any stop) is not reopened by a restart of the process. */

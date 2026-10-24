@@ -12,6 +12,7 @@ import dev.denza.adaslink.AndroidScheduler;
 import dev.denza.adaslink.BridgeStatus;
 import dev.denza.adaslink.BootIdentity;
 import dev.denza.adaslink.DryRunRecorder;
+import dev.denza.adaslink.ExperimentVariant;
 import dev.denza.adaslink.FieldDefaults;
 import dev.denza.adaslink.FixFreshness;
 import dev.denza.adaslink.Json;
@@ -104,6 +105,8 @@ final class LiveMapBridge {
     private long sourceEpoch = -1;
     private OfflineMapGate.Subject publishedSubject;
     private boolean offlineTeardown, offlineHold;
+    /** The live feed's config (the arm's frame and variant): every driver of this session converts in it. */
+    private StockFeed.Config feedConfig;
 
     /** Main-thread seam: publish identity before any queued route work, including a partial geometry read. */
     synchronized void sourceRoute(OfflineMapGate.Subject subject) {
@@ -132,7 +135,8 @@ final class LiveMapBridge {
         note("offlineWithdrawal", offline(now).reason);
         feed.endGuidance();
         guard.withdrawRoute("offline: " + offline(now).reason);
-        driver = new NavigatorDriver(feed, FieldDefaults.FRAME, scheduler);
+        // The session's frame and variant, not the build default: the next route goes out as the first did.
+        driver = newDriver();
         driver.setRoads(roads);
         publishedSubject = null; publishedTable = new Object[]{null, null};
         if (!guard.endPending()) { offlineTeardown = false; offlineHold = false; }
@@ -318,6 +322,10 @@ final class LiveMapBridge {
         transport.start(); answers.start();
         note("armed", incoming.armId + (resumed ? " resumed by process " + process + " after " + (processes.size() - 1) : " process " + process)
                 + (held > 0 ? ", route " + held + " may be at ADAS" : ""));
+        // The effective variant in this journal and the drive's change journal; every feed header repeats it.
+        note("variant", Json.write(incoming.variant.effective()));
+        try { DriveEvidence.variant(incoming.armId, incoming.variant.effective()); }
+        catch (RuntimeException ignored) { /* Recording must not change transport state. */ }
         return true;
     }
     private static boolean essential(long topic) {
@@ -419,10 +427,6 @@ final class LiveMapBridge {
         return r != null && r.failure(SystemClock.elapsedRealtime()) == null;
     }
     private void startFeed(LiveEgressGuard.Readiness ready) {
-        // The stock reads the ODD region list before its first route. This is a list query,
-        // never the 13/0x0001 DNP/ICC switch. Its raw reply is retained by the answer client.
-        int oddResult = answers.requestOddRegionCodes();
-        note("odd_region_query", "result=" + oddResult);
         guard = new LiveEgressGuard(transport, audit, scheduler, this::readiness, id -> {
             // Only the original callback bytes that passed RealPathAck reach the producer.
             if (feed != null && handlingAck != null) feed.onPathSelectConfirm(handlingAck);
@@ -432,9 +436,20 @@ final class LiveMapBridge {
         }, true);
         guard.setWallClock(wallClock::getAsLong);
         guard.setEndListener(() -> { heldPath = -1; lineageDirty = true; offlineTeardown = false; offlineHold = false; });
-        StockFeed.Config config = FieldDefaults.navigator(new StockFeed.Config());
+        // The arm's experiment switches (ExperimentVariant), the same after a Navigator restart: they are the arm's content.
+        ExperimentVariant variant = arm.variant;
+        // The stock reads the ODD region list (13/0x0002, a list query, never the 13/0x0001 DNP/ICC
+        // switch) before its route. Only the variant's stock start sends it: through the guard, once
+        // per fresh guidance start, never on a reroute. Without the switch no request goes out at all.
+        if (variant.startProtocol == ExperimentVariant.StartProtocol.STOCK) {
+            final AdasPassiveClient client = answers;
+            // The bridge session's own client, the one request it can make; its raw reply is retained there.
+            guard.admitStockStart(topic -> topic == Topics.ODD_REGION_REQUEST ? client.requestOddRegionCodes() : LiveEgressGuard.REJECTED);
+        }
+        StockFeed.Config config = FieldDefaults.navigator(new StockFeed.Config(), variant);
         config.acceptSimulatedLocations = false; config.emulatedAckDelayMs = -1; config.livePathIds = this::nextPathId;
-        feed = new StockFeed(scheduler, guard, config); driver = new NavigatorDriver(feed, config.frame, scheduler);
+        feedConfig = config;
+        feed = new StockFeed(scheduler, guard, config); driver = newDriver();
         driver.setRoads(roads); activeEpoch = ready.epoch; lastDnpSwitch = ready.dnpSwitch;
         feed.start(ready.dnpService, ready.dnpSwitch, ready.noSleep);
         if (!transport.servicesOffered()) { stop("Сервисы отправки не запущены", "own service offers incomplete", false); return; }
@@ -442,6 +457,7 @@ final class LiveMapBridge {
         if (resumedHeld > 0) { guard.requestEnd("route " + resumedHeld + " left by an earlier process of this arm"); resumedHeld = -1; }
         everStarted = true; state = "LIVE"; reason = "Ожидание маршрута Яндекса";
     }
+    private NavigatorDriver newDriver() { return new NavigatorDriver(feed, feedConfig.frame, feedConfig.variant, scheduler); }
     /** The stock resends its path 300 ms after the DNP switch comes back on. */
     private void gatesChanged() {
         Inputs in = inputs;
@@ -475,7 +491,10 @@ final class LiveMapBridge {
             Object[] sent = publishedTable;
             if (o.routeId.equals(sent[0])) { frozenRouteId = o.routeId; frozenRoads = (RoadNetwork) sent[1]; }
             else if (!o.routeId.equals(frozenRouteId)) { frozenRouteId = o.routeId; frozenRoads = currentRoads; }
-            NavigatorDriver.prepare(o, FieldDefaults.FRAME, currentRoads, frozenRoads);
+            // In the arm's frame and variant; the sender's driver converts again if the arm changed meanwhile.
+            LiveSessionLease owner = arm;
+            ExperimentVariant variant = owner == null ? ExperimentVariant.NONE : owner.variant;
+            NavigatorDriver.prepare(o, variant.frame(FieldDefaults.FRAME), variant, currentRoads, frozenRoads);
         }
         boolean post;
         synchronized (handoff) {
@@ -618,6 +637,9 @@ final class LiveMapBridge {
         value.put("lastActualSendElapsedMs", transport == null ? lastSend : Math.max(lastSend, transport.lastActualSend()));
         value.put("pathId", published.pathId); value.put("confirmedPathId", guard == null ? -1 : guard.confirmedPathId());
         value.put("heldPathId", heldPath);
+        // Navigator's guidance as the feed models it (onNavStart .. onNavStop): the gate reader's NaviSt trigger.
+        value.put("guidanceActive", feed != null && !finished && !ending && feed.naving());
+        value.put("variant", arm == null ? null : arm.variant.effective());
         value.put("reason", published.reason == null ? reason : published.reason);
         value.put("stopReason", stopReason); value.put("stopDetail", stopDetail); value.put("blockedDetail", blockedDetail);
         value.put("firstFailure", guard == null ? null : guard.firstFailure());

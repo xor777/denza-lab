@@ -48,13 +48,15 @@ public final class AdasPassiveClientTest {
             data.enforceInterface(CLIENT);
             if(tx==1||tx==2){IBinder cb=data.readStrongBinder(); if(tx==1)callback=cb;else{check(callback==cb,"Unregister own callback");callback=null;unregisters++;}reply.writeNoException();return true;}
             if(tx==3){queries++;reply.writeNoException();reply.writeInt(availableHal?1:0);return true;}
-            if(tx==10){
+            if(tx==10){ // request(SomeIpData in, SomeIpData out): only the ODD region read is ever expected here
                 check(data.readInt()==1,"ODD request object present");
                 long topic=data.readLong(),stamp=data.readLong();
-                check(topic==563005788848130L,"Only ODD region-list read, never the DNP switch");
+                check(topic==563005788848130L,"the only request is 13/0x0002, never 13/0x0001: "+Long.toHexString(topic));
+                check(refs(13)>0,"the request goes on a started service-13 client");
                 check(data.readInt()==0,"Empty protobuf request");data.readByteArray(new byte[0]);
                 check(data.readInt()==1,"Firmware requires a nonnull response object");
                 check(data.readLong()==0&&data.readLong()==0&&data.readInt()==-1,"Default response object");
+                calls.add(new Call(tx,topic));
                 oddRequests++;reply.writeNoException();reply.writeInt(oddResult);
                 reply.writeInt(1);reply.writeLong(topic);reply.writeLong(stamp);reply.writeInt(0);reply.writeByteArray(new byte[0]);
                 if(absentOddReply)reply.writeInt(0);
@@ -154,7 +156,22 @@ public final class AdasPassiveClientTest {
     }
     private static void passive()throws Exception {
         Fixture f=new Fixture(false);f.start();check(f.hal.count(4)==4&&f.hal.count(8)==8,"Passive overlay service/topic set unchanged");
-        check(!f.client.liveAnswersReady(),"Passive overlay never a live-answer readiness source");f.client.close();
+        check(!f.client.liveAnswersReady(),"Passive overlay never a live-answer readiness source");
+        check(f.client.requestOddRegionCodes()<0&&f.hal.count(10)==0,"the overlay's client never makes the ODD request");f.client.close();
+    }
+    /** The bridge's one request: the stock ODD region read on its own started service-13 client, once per call. */
+    private static void oddRequest()throws Exception {
+        Fixture before=new Fixture(true);before.client.start();
+        check(before.client.requestOddRegionCodes()<0&&before.hal.count(10)==0,"no binder yet: no request");before.client.close();
+        Fixture f=new Fixture(true);f.start();int fourBefore=f.hal.count(4),eightBefore=f.hal.count(8);
+        check(f.hal.count(10)==0,"setup makes no request");
+        check(f.client.requestOddRegionCodes()==0&&f.hal.count(10)==1,"one call, one transaction 10");
+        check(f.hal.calls.get(f.hal.calls.size()-1).value==AdasPassiveClient.ODD_REGION_REQUEST,"its topic is 13/0x0002");
+        check(f.hal.count(4)==fourBefore&&f.hal.count(8)==eightBefore,"the request changes no client or subscription");
+        check(f.sink.states.stream().anyMatch(s->s.startsWith("odd_region_response:")),"the request and its result are recorded");
+        Fixture failed=new Fixture(true);failed.hal.failStart=13;failed.start();
+        check(failed.client.requestOddRegionCodes()<0&&failed.hal.count(10)==0,"no started service-13 client: no request");failed.client.close();
+        f.client.close();check(f.client.requestOddRegionCodes()<0&&f.hal.count(10)==1,"a closed client makes no request");
     }
     private static void oddRegionQuery()throws Exception {
         Fixture passive=new Fixture(false);passive.start();
@@ -168,7 +185,7 @@ public final class AdasPassiveClientTest {
         f.client.close();check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==3,"Closed client never queries");
     }
     public static void main(String[] args)throws Exception {
-        fresh();existing();failures();epochs();admission();topics();passive();oddRegionQuery();
+        fresh();existing();failures();epochs();admission();topics();passive();oddRegionQuery();oddRequest();
         System.out.println("AdasPassiveClient production Binder harness: "+checks+" checks PASS");
     }
 }

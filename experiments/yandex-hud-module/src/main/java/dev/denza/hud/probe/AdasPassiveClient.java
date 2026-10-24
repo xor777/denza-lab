@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * experiments/adas-status-probe (PassiveClient) unchanged in its rules. Client-only transaction
  * allowlist 1/2/4/5/8/9 (register, unregister, startClient, stopClient, subscribe, unsubscribe);
  * no server, setAttribute or fire API exists here. Bridge mode alone also permits the fixed
- * read-only ODD region-list request (13/0x0002); passive mode permits no requests. Its own session (package + random
+ * read-only ODD region-list request (13/0x0002, {@link #requestOddRegionCodes}), which only the
+ * live guard's stock start makes; passive mode permits no requests. Its own session (package + random
  * UUID as the intent type), so it never merges into the stock map's or the HUD's session; on close
  * it removes only its own subscriptions and clients.
  *
@@ -93,17 +94,28 @@ final class AdasPassiveClient implements AutoCloseable {
         finally { reply.recycle(); data.recycle(); }
     }
 
-    /** The stock's list read, not a driving-control command. Both SomeIpData arguments are inout.
-     * SomeIpClientManagerImpl.request unconditionally fills the second object, so null crashes it.
-     * SomeIpData also writes BOTH its explicit payload length and writeByteArray's own length. */
+    /** The stock's ODD region-code read: service 13, method 0x0002 (Topics.ODD_REGION_REQUEST). */
+    static final long ODD_REGION_REQUEST = 0x0002000D000D0002L;
+    /**
+     * The bridge session's one client request: the stock's ODD region-list read (13/0x0002) on its
+     * own started service-13 client, transaction 10. A list read, not a driving-control command;
+     * there is no topic parameter and no 13/0x0001. Only the live guard calls it, once per fresh
+     * guidance start and only under the arm's {@code startProtocol: stock}; the overlay's client
+     * can never make it.
+     *
+     * <p>Both SomeIpData arguments are inout. SomeIpClientManagerImpl.request unconditionally fills
+     * the second object, so null crashes it (the old parcel's NullPointerException). SomeIpData also
+     * writes BOTH its explicit payload length and writeByteArray's own length. The raw answer is
+     * recorded as base64, bounded at 64 KiB.
+     */
     int requestOddRegionCodes() {
-        if (!bridgeMode || !liveAnswersReady()) return -1;
+        if (!bridgeMode || closed.get() || !accepting || !clients.contains(AdasWire.SERVICES[0]) || !liveAnswersReady()) return -1;
         IBinder binder = remote;
         if (binder == null) return -1;
         Parcel data = Parcel.obtain(), reply = Parcel.obtain();
         try {
             data.writeInterfaceToken(CLIENT);
-            writeSomeIpData(data, 563005788848130L, System.currentTimeMillis(), new byte[0]);
+            writeSomeIpData(data, ODD_REGION_REQUEST, System.currentTimeMillis(), new byte[0]);
             writeSomeIpData(data, 0, 0, null); // new SomeIpData(), present response object
             if (!binder.transact(10, data, reply, 0)) return -201;
             reply.readException();

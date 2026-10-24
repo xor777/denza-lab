@@ -119,6 +119,18 @@ final class DriveEvidence {
         d.enqueue(d.streams.passive(receiver,receiverSession,NavigationEvidence.SOURCE_SESSION_ID,topic,stamp,received,bytes,wall));
         if(d.journal!=null){Map<String,Object> change=d.journal.observe(receiver,topic,bytes,received,wall);if(change!=null)d.enqueue(change);}
     }
+    /** The live arm's effective experiment variant, into the change journal when the arm brings another. */
+    static void variant(String armId,Map<String,Object> effective) {
+        DriveEvidence d=current;if(d==null||d.journal==null)return;
+        Map<String,Object> change=d.journal.variant(armId,effective,android.os.SystemClock.elapsedRealtime(),System.currentTimeMillis());
+        if(change!=null)d.enqueue(change);
+    }
+    /** One read or write of the NaviSt side channel by the gate reader, as its gates file reports it. */
+    static void naviSt(String armId,Map<String,Object> event) {
+        DriveEvidence d=current;if(d==null||d.journal==null)return;
+        Map<String,Object> change=d.journal.naviSt(armId,event,android.os.SystemClock.elapsedRealtime(),System.currentTimeMillis());
+        if(change!=null)d.enqueue(change);
+    }
     /** Our live feed's state, into the change journal when it changes. */
     static void feedState(String state,String reason,String detail) {
         DriveEvidence d=current;if(d==null||d.journal==null)return;

@@ -81,6 +81,25 @@ final class AdasStateJournal {
         row.put("detail", detail);
         return row;
     }
+    /** The live arm's effective experiment variant, when the arm or its variant changes. */
+    synchronized Map<String, Object> variant(String armId, Map<String, Object> effective, long elapsedMs, long wallMs) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("armId", armId); values.put("variant", effective);
+        Map<String, Object> previous = last.get("variant");
+        if (values.equals(previous)) return null;
+        last.put("variant", values);
+        return row("live", "variant", values, null, elapsedMs, wallMs);
+    }
+    /** Each NaviSt read or write the gate reader reports (an event: every one counts, once by its number). */
+    synchronized Map<String, Object> naviSt(String armId, Map<String, Object> event, long elapsedMs, long wallMs) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("armId", armId); values.putAll(event);
+        Map<String, Object> previous = last.get("naviSt");
+        if (previous != null && java.util.Objects.equals(previous.get("n"), values.get("n"))
+                && java.util.Objects.equals(previous.get("armId"), armId)) return null;
+        last.put("naviSt", values);
+        return row("reader", "naviSt", values, null, elapsedMs, wallMs);
+    }
     private static Map<String, Object> row(String receiver, String what, Map<String, Object> values, Map<String, Object> previous, long at, long wall) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("kind", "adas_state"); row.put("what", what); row.put("receiver", receiver);

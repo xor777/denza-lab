@@ -64,6 +64,18 @@ public final class DriveJournalTest {
                 && journal.feed("PAUSED", "Нет свежих сигналов машины", "vehicle gates: stale", 211, 1111) == null, "our feed's state changes are journalled once");
         streams.append(on);
         check(read(log).contains("\"what\":\"pilot\"") && !read(raw).contains("\"what\":\"pilot\""), "journal rows go to the journal only");
+        Map<String, Object> effective = new java.util.LinkedHashMap<>(); effective.put("frame", "STOCK_GCJ");
+        Map<String, Object> variant = journal.variant("arm-1", effective, 220, 1120);
+        check(variant != null && "variant".equals(variant.get("what")) && effective.equals(variant.get("variant")) && "arm-1".equals(variant.get("armId")),
+                "the arm's variant is journalled");
+        check(journal.variant("arm-1", effective, 230, 1130) == null && journal.variant("arm-2", effective, 240, 1140) != null,
+                "once per arm and variant");
+        Map<String, Object> read = new java.util.LinkedHashMap<>(); read.put("n", 1L); read.put("op", "read"); read.put("value", 0L);
+        Map<String, Object> set = new java.util.LinkedHashMap<>(); set.put("n", 2L); set.put("op", "set"); set.put("value", 2L); set.put("readback", 2L);
+        check(journal.naviSt("arm-2", read, 250, 1150) != null && journal.naviSt("arm-2", read, 251, 1151) == null
+                && journal.naviSt("arm-2", set, 260, 1160) != null, "each NaviSt read and write is journalled once by its number");
+        streams.append(variant);
+        check(read(log).contains("\"what\":\"variant\""), "the variant row reaches the journal file");
 
         AdasStateJournal small = new AdasStateJournal(new File(dir, "small-journal.jsonl"), 1_000_000, 600);
         for (int i = 0; i < 50; i++) small.append("{\"kind\":\"adas_state\",\"n\":" + i + "}");
