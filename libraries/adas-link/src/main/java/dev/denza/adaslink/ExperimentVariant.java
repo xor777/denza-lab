@@ -49,8 +49,10 @@ public final class ExperimentVariant {
     public static final int HISTORY_MIN = 1, HISTORY_MAX = 120, ALTERNATE_MAX = 8;
     public static final String TRAFFIC_CLASS_LINK = "link";
     /**
-     * The stock's start before the route, as {@code scenario.py}'s STOCK_PRE_ROUTE_PHASE reads it from
-     * first-full: {status, hold ms}. The ODD request goes first; the route follows the last hold.
+     * The stock's start before the route, {status, hold ms}, the same as {@code scenario.py}'s
+     * STOCK_PRE_ROUTE_PHASE. The order (ODD request, 100, 106, route, 101) is the stock's; the holds
+     * are chosen, not measured: in first-full the stock held 106 for about 11 s, the time its route
+     * result stayed on screen before the driver started guidance.
      */
     public static final int[][] STOCK_PRE_ROUTE_PHASE = {{100, 2000}, {106, 3000}};
     /** The stock's 1 s status loop through that phase: one status per tick (100, 100, 106, 106, 106). */

@@ -138,7 +138,8 @@ STOCK_TIDAL = {"ramp": -1, "tidal": 1}
 # naviActionAndCamera 0x8202/0x800B: iconType 3, distance 38, cameraType 0, cameraDistance -1.
 STOCK_ACTION = {"icon": 3, "main": 0, "assistant": 0, "distance": 38, "cameraType": 0, "cameraDistance": -1}
 
-# NavigationStatus 7/0x8001 before the route: idle 100 then the route-result 106.
+# NavigationStatus 7/0x8001 before the route: idle 100 then the route-result 106. The order is the
+# stock's; the holds are chosen: first-full held 106 about 11 s, while its route result was on screen.
 STOCK_PRE_ROUTE_PHASE = [{"status": 100, "holdS": 2}, {"status": 106, "holdS": 3}]
 LOOP_STATUS = 101
 # The stock end: 110 for 3 s (its d() runnable counts 1..3 at 1 Hz), then back to 100.
