@@ -34,9 +34,21 @@ public final class FieldDefaults {
 
     /** The Navigator hosts' feed values; the library's own Config defaults stay the factory oracle's. */
     public static StockFeed.Config navigator(StockFeed.Config config) {
+        return navigator(config, ExperimentVariant.NONE);
+    }
+
+    /**
+     * As {@link #navigator(StockFeed.Config)}, then the live arm's experiment switches where it sets
+     * one ({@link ExperimentVariant}): the frame, a zero legal limit; the feed and the converter
+     * apply the rest and attribute every value they change to the variant.
+     */
+    public static StockFeed.Config navigator(StockFeed.Config config, ExperimentVariant variant) {
         config.frame = FRAME;
         config.roadSpeedLimit = ROAD_SPEED_LIMIT;
         config.roadFacilities = ROAD_FACILITIES;
+        config.variant = variant;
+        config.frame = variant.frame(config.frame);
+        if (variant.speedLimitZero) config.roadSpeedLimit = false;
         return config;
     }
 

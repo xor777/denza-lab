@@ -55,5 +55,6 @@ public final class AdasLinkTest {
         OfflineMapGateTest.main(new String[0]);
         LiveDriveRegressionTest.main(new String[0]);
         ExperimentVariantTest.main(new String[]{root.getAbsolutePath()});
+        VariantWireTest.main(new String[0]);
     }
 }

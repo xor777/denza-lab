@@ -81,10 +81,14 @@ public final class NavigatorDriver {
         final RouteConverter.Converted latest, frozen;
         final RuntimeException failure;
         final double durationMs;
+        /** The frame and variant the conversions were made in: a driver with others converts again. */
+        final Coordinates.Frame frame;
+        final ExperimentVariant variant;
         private Prepared(YandexRoute route, RoadNetwork latestRoads, RoadNetwork frozenRoads, RouteConverter.Converted latest,
-                RouteConverter.Converted frozen, RuntimeException failure, double durationMs) {
+                RouteConverter.Converted frozen, RuntimeException failure, double durationMs, Coordinates.Frame frame,
+                ExperimentVariant variant) {
             this.route = route; this.latestRoads = latestRoads; this.frozenRoads = frozenRoads; this.latest = latest;
-            this.frozen = frozen; this.failure = failure; this.durationMs = durationMs;
+            this.frozen = frozen; this.failure = failure; this.durationMs = durationMs; this.frame = frame; this.variant = variant;
         }
     }
 
@@ -95,18 +99,25 @@ public final class NavigatorDriver {
      * its inputs differ.
      */
     public static void prepare(Observation o, Coordinates.Frame frame, RoadNetwork latestRoads, RoadNetwork frozenRoads) {
+        prepare(o, frame, ExperimentVariant.NONE, latestRoads, frozenRoads);
+    }
+
+    /** As {@link #prepare(Observation, Coordinates.Frame, RoadNetwork, RoadNetwork)} under an experiment variant. */
+    public static void prepare(Observation o, Coordinates.Frame frame, ExperimentVariant variant, RoadNetwork latestRoads, RoadNetwork frozenRoads) {
         if (o.route == null) return;
         long start = System.nanoTime();
         RouteConverter.Converted latest = null, frozen = null; RuntimeException failure = null;
         try {
-            latest = RouteConverter.convert(o.route, frame, latestRoads);
-            frozen = frozenRoads == latestRoads ? null : RouteConverter.convert(o.route, frame, frozenRoads);
+            latest = RouteConverter.convert(o.route, frame, latestRoads, variant);
+            frozen = frozenRoads == latestRoads ? null : RouteConverter.convert(o.route, frame, frozenRoads, variant);
         } catch (RuntimeException error) { failure = error; }
-        o.prepared = new Prepared(o.route, latestRoads, frozenRoads, latest, frozen, failure, (System.nanoTime() - start) / 1e6);
+        o.prepared = new Prepared(o.route, latestRoads, frozenRoads, latest, frozen, failure, (System.nanoTime() - start) / 1e6,
+                frame, variant);
     }
 
     private final StockFeed feed;
     private final Coordinates.Frame frame;
+    private final ExperimentVariant variant;
     private final Scheduler clock;
     private boolean naving, sawReroute;
     private String mode = "off", currentRouteId, currentContent;
@@ -129,7 +140,13 @@ public final class NavigatorDriver {
     private final Object watchdog = "navigator-watchdog";
 
     public NavigatorDriver(StockFeed feed, Coordinates.Frame frame, Scheduler clock) {
-        this.feed = feed; this.frame = frame; this.clock = clock;
+        this(feed, frame, ExperimentVariant.NONE, clock);
+    }
+
+    /** Routes are converted in {@code frame} under {@code variant} (the feed's own config, for a live session). */
+    public NavigatorDriver(StockFeed feed, Coordinates.Frame frame, ExperimentVariant variant, Scheduler clock) {
+        if (variant == null) throw new IllegalArgumentException("variant");
+        this.feed = feed; this.frame = frame; this.variant = variant; this.clock = clock;
     }
 
     private volatile RoadNetwork roads;
@@ -329,12 +346,12 @@ public final class NavigatorDriver {
         Prepared p = o.prepared;
         long start = System.nanoTime();
         RouteConverter.Converted converted = null; RuntimeException failure = null; boolean ahead = false;
-        if (p != null && p.route == o.route && p.failure == null) {
+        if (p != null && p.route == o.route && p.failure == null && p.frame == frame && p.variant == variant) {
             if (!frozenGraph && p.latestRoads == with) { converted = p.latest; ahead = true; }
             else if (frozenGraph && p.frozenRoads == with) { converted = p.frozen != null ? p.frozen : p.latestRoads == with ? p.latest : null; ahead = converted != null; }
         }
         if (!ahead) {
-            try { converted = RouteConverter.convert(o.route, frame, with); }
+            try { converted = RouteConverter.convert(o.route, frame, with, variant); }
             catch (RuntimeException e) { failure = e; }
         }
         if (!frozenGraph) {

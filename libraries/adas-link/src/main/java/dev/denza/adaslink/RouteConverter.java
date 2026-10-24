@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -51,6 +52,10 @@ public final class RouteConverter {
         /** Actual point-scoped lane signs, independent of continuous link attributes. */
         public LaneGuidance laneGuidance;
         public RoadFacilities.View roadFacilities;
+        /** The variant's link overrides on this table: switch -> {value, links set, links that kept Yandex's}. Empty: none. */
+        public Map<String, Object> variantApplied = Json.object();
+        /** The variant the table was converted under. */
+        public ExperimentVariant variant = ExperimentVariant.NONE;
 
         Converted(String routeId, StockPath path, double totalM, int[] linkSegment, int[] linkInSegment, double[] linkBeginM, double[] linkEndM,
                   double[] linkBeginScalar, double[] linkEndScalar, double[] segmentBeginM, double[] segmentEndM, double[] lightM,
@@ -145,6 +150,15 @@ public final class RouteConverter {
      * changes and carry its attributes. {@code roads} null: Yandex data only.
      */
     public static Converted convert(YandexRoute route, Coordinates.Frame frame, RoadNetwork roads) {
+        return convert(route, frame, roads, ExperimentVariant.NONE);
+    }
+
+    /**
+     * As {@link #convert(YandexRoute, Coordinates.Frame, RoadNetwork)} under an experiment variant:
+     * its link overrides fill only the attributes Yandex left unknown ({@link #applyVariant}).
+     */
+    public static Converted convert(YandexRoute route, Coordinates.Frame frame, RoadNetwork roads, ExperimentVariant variant) {
+        if (variant == null) throw new IllegalArgumentException("variant");
         if (route.additionalAttributes != null && !route.additionalAttributes.matches(route))
             throw new IllegalArgumentException("additional attributes belong to another route geometry");
         int edges = route.edges();
@@ -270,7 +284,9 @@ public final class RouteConverter {
             all.get(owner).hasTrafficLight = true;
             path.segments.get(linkSegment.get(owner)).trafficLightNum++;
         }
-        double[] linkSpeed = attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative, match);
+        int[] sourced = new int[linkBeginS.size()];
+        double[] linkSpeed = attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative, match, sourced);
+        Map<String, Object> applied = applyVariant(path, sourced, variant);
         groups(sections, path);
         double[] segmentFree = new double[sections.size()];
         for (int i = 0; i < segmentFree.length; i++) segmentFree[i] = sections.get(i).freeFlowKmh;
@@ -299,6 +315,8 @@ public final class RouteConverter {
             for (int k = 0; k < linkSpeed.length; k++)
                 converted.linkLegalKmh[k] = match.legalKmhAt((linkBeginS.get(k) + linkEndS.get(k)) / 2);
         converted.roadMatch = match;
+        converted.variantApplied = applied;
+        converted.variant = variant;
         converted.laneGuidance = new LaneGuidance(route.laneGuidanceSource, converted);
         converted.roadFacilities = RoadFacilities.onRoute(route.roadFacilitiesSource, route, converted, frame);
         return converted;
@@ -324,6 +342,23 @@ public final class RouteConverter {
      */
     static double[] attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
                                List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative, RoadMatcher.Match match) {
+        return attributes(route, sections, path, beginS, endS, endM, cumulative, match, new int[beginS.size()]);
+    }
+
+    // Which attributes of a link Yandex gave a value (a complete or partial graph road, the offline
+    // maps' class and one-way, a roundabout): a variant never replaces them.
+    static final int SOURCED_CLASS = 1, SOURCED_FORMWAY = 2, SOURCED_OWNERSHIP = 4, SOURCED_DIRECTION = 8, SOURCED_LANES = 16;
+
+    /** The {@code SOURCED_*} bits of the fields a Yandex source knows. */
+    static int sourced(RoadNetwork.KnownAttributes known) {
+        return (known.roadClass != null ? SOURCED_CLASS : 0) | (known.formway != null ? SOURCED_FORMWAY : 0)
+                | (known.ownership != null ? SOURCED_OWNERSHIP : 0) | (known.direction != null ? SOURCED_DIRECTION : 0)
+                | (known.laneNum != null ? SOURCED_LANES : 0);
+    }
+
+    static double[] attributes(YandexRoute route, List<YandexRoute.Section> sections, StockPath path,
+                               List<Double> beginS, List<Double> endS, List<Double> endM, double[] cumulative, RoadMatcher.Match match,
+                               int[] sourced) {
         int link = 0;
         double[] speeds = new double[beginS.size()];
         for (int si = 0; si < path.segments.size(); si++) {
@@ -338,10 +373,13 @@ public final class RouteConverter {
                     if (road.knownAttributes.direction != null) l.direction = road.knownAttributes.direction;
                     l.ownership = road.ownership;
                     l.roadName = road.name;
+                    sourced[link] = SOURCED_CLASS | SOURCED_FORMWAY | SOURCED_OWNERSHIP | SOURCED_LANES
+                            | (road.knownAttributes.direction != null ? SOURCED_DIRECTION : 0);
                     link++;
                     continue;
                 }
                 if (roundabout) { l.formway = 4; l.direction = 1; }
+                if (roundabout) sourced[link] |= SOURCED_FORMWAY | SOURCED_DIRECTION;
                 // A partial source can confirm individual fields independently of the other
                 // attributes, preserving tunnel/ferry and roundabout annotations when absent.
                 if (road != null) {
@@ -352,6 +390,7 @@ public final class RouteConverter {
                     if (known.laneNum != null) l.laneNum = known.laneNum;
                     if (known.direction != null) l.direction = known.direction;
                     if (known.ownership != null) l.ownership = known.ownership;
+                    sourced[link] |= sourced(known);
                 }
                 // Legal limits and individually known fields do not establish historical speed.
                 if (road != null && (l.roadName == null || l.roadName.isEmpty())
@@ -363,12 +402,49 @@ public final class RouteConverter {
                     if (known != null) {
                         if (known.roadClass != null) l.roadClass = known.roadClass;
                         if (known.direction != null) l.direction = known.direction;
+                        sourced[link] |= sourced(known) & (SOURCED_CLASS | SOURCED_DIRECTION);
                     }
                 }
                 link++;
             }
         }
         return speeds;
+    }
+
+    /**
+     * The variant's link overrides, each on the links whose attribute Yandex left unknown: a value
+     * from a graph road, the offline maps' class and one-way or a roundabout is never replaced
+     * (adminCode has no source at all). Highway ranges only cut links and give no value.
+     * Returns, per switch that is set, {value, links it set, links that kept their own value}.
+     */
+    static Map<String, Object> applyVariant(StockPath path, int[] sourced, ExperimentVariant v) {
+        Map<String, Object> applied = Json.object();
+        if (!v.overridesLinks()) return applied;
+        String[] keys = {"link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum", "link.adminCode"};
+        Number[] values = {v.linkRoadClass, v.linkFormway, v.linkOwnership, v.linkDirection, v.linkLaneNum, v.linkAdminCode};
+        int[] bits = {SOURCED_CLASS, SOURCED_FORMWAY, SOURCED_OWNERSHIP, SOURCED_DIRECTION, SOURCED_LANES, 0};
+        for (int k = 0; k < keys.length; k++) {
+            if (values[k] == null) continue;
+            long set = 0, kept = 0;
+            int link = 0;
+            for (StockPath.Segment s : path.segments) for (StockPath.Link l : s.links) {
+                if ((sourced[link++] & bits[k]) != 0) { kept++; continue; }
+                int value = values[k].intValue();
+                switch (k) {
+                    case 0: l.roadClass = value; break;
+                    case 1: l.formway = value; break;
+                    case 2: l.ownership = value; break;
+                    case 3: l.direction = value; break;
+                    case 4: l.laneNum = value; break;
+                    default: l.adcode = values[k].longValue();
+                }
+                set++;
+            }
+            Map<String, Object> row = Json.object();
+            row.put("value", values[k].longValue()); row.put("links", set); row.put("keptSourced", kept);
+            applied.put(keys[k], row);
+        }
+        return applied;
     }
 
     /** The link's grid points: its begin, every vertex inside, its end; repeated grid points once. */

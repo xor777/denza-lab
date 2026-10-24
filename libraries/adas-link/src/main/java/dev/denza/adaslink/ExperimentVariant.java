@@ -15,8 +15,8 @@ import java.util.Map;
  * "Parked experiment kit"); an absent key keeps today's {@link FieldDefaults} behaviour.
  *
  * <p>Strict: an unknown key, a wrong type or a value outside the stock's own set rejects the
- * whole arm. Road-semantics overrides fill only what Yandex leaves without a value (a link the
- * highway rule, a roundabout or a complete graph road described keeps its value); every value a
+ * whole arm. Road-semantics overrides fill only what Yandex leaves without a value (a field a
+ * graph road, the offline maps' class and one-way or a roundabout gave keeps its value); every value a
  * switch puts on the wire is attributed to it in the trace ({@code variantApplied} notes) and the
  * effective variant heads every trace. {@code tools/adas_bridge/live_session.py} validates with
  * the same rules before it writes the arm.

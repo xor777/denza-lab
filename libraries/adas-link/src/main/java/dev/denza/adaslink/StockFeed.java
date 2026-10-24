@@ -60,6 +60,11 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         public int adasType = 1;
         /** LIVE only: a fresh persistent wire ID for every attempt, including identical route tables. */
         public LongSupplier livePathIds;
+        /**
+         * The live arm's experiment switches ({@link FieldDefaults#navigator(Config, ExperimentVariant)}):
+         * named in the trace header, and every value one of them changes is noted as {@code variantApplied}.
+         */
+        public ExperimentVariant variant = ExperimentVariant.NONE;
     }
 
     /** One location fix: Yandex's FINE location (route-matched), the raw GNSS fix when there is one. */
@@ -165,6 +170,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         public RouteConverter.Converted conditions;
         public final int amapRouteType;
         public final long requestId;
+        /** The variant's historySpeed for this route's Yandex route ID; null: Yandex's own. */
+        Integer historySpeed;
         Route(RouteConverter.Converted converted, int amapRouteType, long requestId) {
             this.converted = converted; this.conditions=converted; this.amapRouteType = amapRouteType; this.requestId = requestId;
         }
@@ -177,6 +184,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         if (live && (!(publisher instanceof GuardedLivePublisher) || config.emulatedAckDelayMs >= 0 || config.livePathIds == null))
             throw new IllegalArgumentException("LIVE requires guarded publisher, fresh path IDs and no emulated ACK");
         this.publisher = publisher; this.config = config; this.livePathIds = config.livePathIds;
+        if (config.variant == null) throw new IllegalArgumentException("Feed variant");
+        // regionalAndWeather ids where Yandex names no region: the variant's stock value (990001 on our roads).
+        if (config.variant.region != null) regionId = provinceCode = cityCode = config.variant.region;
         // Named tokens cancel normally; epoch guards also invalidate every anonymous queued task.
         this.clock = new Scheduler() {
             @Override public long now() { return clock.now(); }
@@ -208,7 +218,9 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         h.put("adasType", (long) config.adasType);
         h.put("publisher", publisher.mode().name());
         FieldDefaults.describe(h);
+        h.put("variant", config.variant.effective());
         publisher.note("header", h, clock.now());
+        if (config.variant.region != null) applied(-1, "region", (long) config.variant.region, "regionalAndWeather regionId/provinceCode/cityCode");
         for (long service : Topics.SERVICES) publisher.startService(service);
         this.dnpService = dnpService;
         this.dnpSwitchRaw = dnpSwitch;
@@ -357,6 +369,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         f.put("links", (long) converted.path.linkCount());
         f.put("segments", (long) converted.path.segments.size());
         publisher.note("routeResult", f, clock.now());
+        variantRoute(result);
         this.route = result;
         lastPublishAttempt = clock.now();
         // The new path's first position goes with the first fresh fix after its ACK, not a second later.
@@ -367,6 +380,70 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         if (gate()) clock.post(null, 0, () -> onRouteDataUpdate(result, generation));
         publishStatus();
         return result;
+    }
+
+    // ------------------------------------------------------------------ experiment variant
+
+    private final Map<String, Integer> routeOrdinals = new HashMap<>();
+    private final Set<String> appliedNoted = new HashSet<>();
+
+    /**
+     * The variant's per-route choices: historySpeed by the order of Yandex route IDs (a resend or a
+     * retry of the same route keeps its value), and the link overrides the converter made. Both are
+     * noted with the path they go out on.
+     */
+    private void variantRoute(Route r) {
+        ExperimentVariant v = config.variant;
+        if (v.isDefault()) return;
+        Integer ordinal = routeOrdinals.get(r.converted.routeId);
+        if (ordinal == null && routeOrdinals.size() < 4096) { ordinal = routeOrdinals.size(); routeOrdinals.put(r.converted.routeId, ordinal); }
+        if (ordinal == null) ordinal = 0;
+        r.historySpeed = v.historySpeed(ordinal);
+        Map<String, Object> f = Json.object();
+        f.put("pathId", r.pathId()); f.put("routeId", r.converted.routeId); f.put("routeOrdinal", (long) ordinal);
+        f.put("variantId", v.id);
+        if (v.historyMode != ExperimentVariant.HistoryMode.YANDEX)
+            f.put("historySpeed", r.historySpeed == null ? "yandex" : (Object) (long) r.historySpeed);
+        if (!r.converted.variantApplied.isEmpty()) f.put("links", r.converted.variantApplied);
+        if (f.containsKey("historySpeed") || f.containsKey("links")) publisher.note("variantApplied", f, clock.now());
+    }
+
+    /** One note per path, field and value the variant puts on the wire in a dynamic message. */
+    private void applied(long pathId, String field, Object value, String where) {
+        String key = pathId + "|" + field + "|" + value;
+        if (appliedNoted.contains(key) || appliedNoted.size() >= 4096) return;
+        appliedNoted.add(key);
+        Map<String, Object> f = Json.object();
+        f.put("pathId", pathId); f.put("field", field); f.put("value", value); f.put("where", where); f.put("variantId", config.variant.id);
+        publisher.note("variantApplied", f, clock.now());
+    }
+
+    /**
+     * On a matched position, per field: the variant's stock value replaces only an unmatched marker,
+     * so a class Yandex knows (graph road or offline maps) stays while an unknown ownership is
+     * filled (TrafficInfo class "link": the published link's, Yandex's first). Only a value the
+     * switch actually set is attributed.
+     */
+    private void variantPosition(Fix fix) {
+        ExperimentVariant v = config.variant;
+        Route r = route;
+        if (r == null || !Double.isFinite(fix.scalar) || niPathId != r.pathId()) return;
+        if (v.positionOwnership != null && niOwnership == FieldDefaults.OWNERSHIP_UNMATCHED) {
+            niOwnership = v.positionOwnership;
+            applied(niPathId, "position.ownership", (long) niOwnership, "sdVehicleLocation.currentRoadOwnership");
+        }
+        if (roadClass != FieldDefaults.ROAD_CLASS_UNMATCHED) return;
+        if (v.trafficRoadClass != null) {
+            roadClass = v.trafficRoadClass;
+            applied(niPathId, "traffic.roadClass", (long) roadClass, "TrafficInfo.roadClass");
+        } else if (v.trafficRoadClassFromLink && niSegIdx >= 0 && niSegIdx < r.converted.path.segments.size()) {
+            List<StockPath.Link> links = r.converted.path.segments.get(niSegIdx).links;
+            int linkClass = niLinkIdx >= 0 && niLinkIdx < links.size() ? links.get(niLinkIdx).roadClass : StockPath.ROAD_CLASS_NULL;
+            if (linkClass != StockPath.ROAD_CLASS_NULL) {
+                roadClass = linkClass;
+                applied(niPathId, "traffic.roadClass", "link:" + linkClass, "TrafficInfo.roadClass");
+            }
+        }
     }
 
     /** The actual link table/geometry is fixed; section travel times are conditions, not identity. */
@@ -599,6 +676,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         // road's, else the closest Yandex value, the section's free-flow speed (distance over time without traffic).
         double free = c.linkSpeedKmh != null && !Double.isNaN(c.linkSpeedKmh[ni[2]]) ? c.linkSpeedKmh[ni[2]] : c.segmentFreeFlowKmh[seg];
         historySpeed = Double.isNaN(free) ? 0 : RouteConverter.round(free);
+        // The variant's historySpeed for this Yandex route (fixed, or the A/B's turn); noted at the route result.
+        if (r.historySpeed != null) historySpeed = r.historySpeed;
         // Captured Yandex jam speed is retained in trafficContext diagnostics. The factory's
         // flow-speed setter has no callers; receiver units/mapping remain unproved, so keep 0.
         icon = cross;
@@ -797,6 +876,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         long previous = lastLocationSend;
         if (throttle()) {
             if (live) alignNaviInfo(fix);
+            variantPosition(fix);
             sendRegion();
             weather = FieldDefaults.WEATHER;
             int sent = locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course);
@@ -911,6 +991,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
         fields.put("source", kmh > 0 ? source : "unknown");
         fields.put("enabled", config.roadSpeedLimit);
         fields.put("wireValueKmh", config.roadSpeedLimit ? Math.max(kmh, 0) : 0);
+        if (config.variant.speedLimitZero) fields.put("variant", "speedLimit=zero");
         publisher.note("currentRoadSpeed", fields, clock.now());
         onCurrentRoadSpeed(kmh);
     }
