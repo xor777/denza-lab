@@ -1,7 +1,14 @@
 # YandexHUD — embedded Navigator HUD experiment
-Local candidate 13 adds continuing route-condition refresh, road-facility messages,
-partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
-build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
+Candidate 15 on `codex/stock-sender-parity` replaces the ADAS product path with
+`StockSender` and a unified Yandex → AutoSDK adapter. There is one sender, with
+no legacy runtime switch or fallback. Factory-core acceptance and current input
+limitations are recorded in the [product milestone](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze)
+and [field table](../../research/adas-bridge/README.md#product-adapter-field-table).
+Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is built locally and not
+installed. Its APK/report/reader pins are in
+`captures/stock-sender-parity-20261025/product/candidate15.json`.
+Local build and vehicle acceptance are separate; the historical results below
+do not establish acceptance of this candidate.
 
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
@@ -41,8 +48,8 @@ See the [native clock proof](../../research/adas-bridge/README.md#location-clock
 `observedStampAgeMs` is only how long ago the module first saw the current
 timestamp, not a fix age; an EXTRAPOLATED location is never fresh.
 
-This export is gated to `ranchu`/`goldfish`. The independent dry-run bridge
-records what the stock map would send to `files/denza-adas-dry-run.jsonl` and
+This export is gated to `ranchu`/`goldfish`. In historical builds the independent dry-run bridge
+recorded what the stock map would send to `files/denza-adas-dry-run.jsonl` and
 fires nothing. Historical build 8 had only that publication path. Installed build
 12 retains the separate `LiveMapBridge` introduced in candidate 9, armed for one process through the stationary
 host procedure; it never treats the dry run's assumed gates or emulated ACK as
@@ -50,7 +57,7 @@ live evidence. See [the live candidate](../../research/adas-bridge/README.md#gua
 and [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
 for actual city/M4 captures, the offline byte receiver and unresolved map fields.
 
-Build 5 also collects Navigator's own online graph through the embedded
+Historical build 5 also collected Navigator's own online graph through the embedded
 `libdenza_yandex_graph.so`, without root or Frida. `YandexGraphSource` decodes a
 bounded tile cache for the dry-run bridge; there is no OSM loader, packaged
 regional store or OSM fallback. The native graph supplies topology, names and
@@ -59,7 +66,7 @@ road class remain unknown. See [the embedded graph and emulator acceptance](../.
 
 ## Car trip recorder (2026-10-24)
 
-**Build 12 is installed; build 8 below is historical rollback evidence.** It uses actual
+**Historical build-12 acceptance; candidate 15 has not been tested on the car.** It used actual
 BYDAuto integer getter snapshots, remote SOME/IP availability, successful route
 chunk sends and an explicit status-200 acknowledgement of its fresh path ID.
 Dynamic messages additionally require a current FINE fix. A lost transport or

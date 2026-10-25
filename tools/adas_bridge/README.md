@@ -1,7 +1,13 @@
-# Yandex → ADAS host oracle and offline prototype
-Local candidate 13 adds continuing route-condition refresh, road-facility messages,
-partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
-build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
+# Yandex → ADAS host tools and retained research
+
+On `codex/stock-sender-parity`, candidate 15 replaces the product sender with
+`stocknative` and the unified `yandexnative` adapter. The previous feed and its
+variant/golden tests remain historical research, not product acceptance.
+The original-APK laboratory is frozen; current work is product integration,
+stationary acceptance and a first trip. Signed candidate 15 is built locally,
+not installed; `captures/stock-sender-parity-20261025/product/candidate15.json`
+pins its APK, gate reader and validation results.
+See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 
 The Python conversion/replay tools use the standard library and run offline;
@@ -15,7 +21,7 @@ are separate from the offline tools. The device-side library is
 compiled into Navigator by `tools/yandex_hud_build`; the durable research owner
 is [`research/adas-bridge/README.md`](../../research/adas-bridge/README.md).
 
-The current local follow-up adds embedded vector decoding, explicit functional
+The historical build-13 follow-up added embedded vector decoding, explicit functional
 road-class approximation and a separate full-route downloaded-map attribute
 provider. Automatic offscreen-camera requests have been retired from the active
 bridge. The provider uses standard pinned Zstd and a read-only catalog; route
@@ -33,8 +39,8 @@ unverified. See
 ## Preparing the real channel
 
 `live_session.py` is separate from the offline converter. It prepares one
-explicitly armed session of build 12; it is not an installer. Build 12 is
-installed and two stationary route ACKs were observed. Its
+explicitly armed factory-sender session; it is not an installer. Candidate 15
+must report `sender: stocknative` before the host accepts an arm. Its
 `plan` and `arm --dry-run` modes make **zero device calls**. `build-reader`
 compiles the fixed shell-UID getter helper into a DEX JAR, with source and
 artifact hashes. Use `--help` for the required APK version/hash, reader hash,
@@ -52,6 +58,20 @@ clients. Sessions 1–3 were restored with exact original package state; build-1
 was restored before installing build 12. The current two-hour trip ledger is
 `captures/yandex-feed12-20261024/session1.rollback.json`. Timeout closes the
 publisher but does not restore the stock package; run `restore` after the test.
+
+New `plan` and `arm` commands accept no `--variant` or sender switch. A legacy
+variant arm is rejected; the reader performs no new MPC/instrument side-channel
+writes. The adapter's missing-boolean test policy is explicit in source and logged
+per route. The reader also reads device 1038 FID `230686742`, the actual factory
+tip-support input. Its presence is required by the product environment.
+
+`restore` still understands historical rollback ledgers and restores their exact
+recorded MPC/instrument originals when necessary. This compatibility is cleanup
+for existing sessions, not an alternate sender path. The historical variant
+protocol below applies only to earlier builds and parked research tools.
+
+<details>
+<summary>Historical variant and side-channel protocol (not accepted by candidate 15)</summary>
 
 `arm --variant FILE.json` puts one experiment variant into the arm (examples in
 `variants/`: baseline, H1, H2a–H2g, H3, H6, H7, the historySpeed A/B). It is checked
@@ -95,6 +115,8 @@ stock map disabled and records `ROLLBACK_PENDING`. The parked runner uses the sa
 fixed read/write commands, verifies writes and restores after the player's end or
 on error, timeout and Ctrl-C. No generic device/FID setter or `fire13/0x0001` is added.
 
+</details>
+
 Private JSON writes use an atomic, bounded base64 command, avoiding an exec-out
 stdin EOF dependency. Getter subprocesses retain their one-second deadline but
 poll completion every 5 ms; a car batch measured 145 ms after this correction.
@@ -111,8 +133,8 @@ python3 tools/adas_bridge/passive_client_harness/run.py --out /tmp/denza-passive
 python3 -m unittest tools.adas_bridge.tests.test_live_session
 ```
 
-The reader's own test (NaviSt read → write 2 → restore, no write on a failed
-read) compiles against `android.jar` and runs on the host:
+The reader's own test (actual gate reads plus historical restoration behavior,
+including no write on a failed read) compiles against `android.jar` and runs on the host:
 
 ```sh
 A=$ANDROID_HOME/platforms/android-35/android.jar L=libraries/adas-link/src/main/java/dev/denza/adaslink
@@ -123,8 +145,8 @@ java -cp /tmp/denza-reader-test:$A dev.denza.adasprobe.AdasGateReaderTest
 The client harness executes the actual `AdasPassiveClient` against a fake Binder
 boundary; it exercises fresh/already-started service setup, availability replay,
 readiness loss and owned cleanup. Neither harness proves delivery on the car.
-The final local APK, source archive and pinned plan are recorded in
-`captures/yandex-feed12-20261024/candidate12.json`. Build 12 retains
+The historical build-12 APK, source archive and pinned plan are recorded in
+`captures/yandex-feed12-20261024/candidate12.json`. Build 12 retained
 separate bounded packet/history recording and captures the existing live
 client's actual responses independently of overlay visibility; the send and
 arming protocol from candidate 9 is unchanged. The APK explicitly

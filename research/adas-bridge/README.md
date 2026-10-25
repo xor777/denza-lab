@@ -6,8 +6,10 @@ car's ADAS (Momenta, `getAdasType` 1) in place of the stock map
 Navigator and the stock map left installed and unmodified? The initial firmware
 feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
-emulator; car builds also collect passive evidence. Build 13 is installed; build 14 (SHA-256 `c57a9b04…`), which adds the experiment variant to the
-whole-route offline attributes, is built for the drive and not installed. On build 12 the parked car acknowledged two distinct Yandex routes
+emulator; car builds also collect passive evidence. This branch replaces the
+product sender with `stocknative` for candidate 15. Build 13 is the last recorded
+installed version; build 14 and its experiment variants are historical local
+work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
 See [route replacement acceptance](#route-replacement-correction-build-12-2026-10-24).
@@ -20,7 +22,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | owner decision, 2026-10-25; implementation underway | [Product milestone](#product-milestone-and-bench-freeze) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | signed candidate 15 built; stationary receipt and drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | local code + independent input tests; vehicle untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
@@ -60,14 +62,14 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | Build 11 route and selection fires returned 0 with fresh hardware snapshots and actual remote-service availability; no matching service-44 ACK was received in the retained pre-departure window | historical build-11 parked car; superseded by build-12 ACKs below | [Build 11](#build-11-completeness-and-car-test-2026-10-24) |
 | Normal route cancellation closed the whole build-11 arm; build 12 keeps a healthy armed session idle between routes and distinguishes an ACK wait from send silence | host regression + two physical same-arm route ACKs and dynamics | [Route replacement](#route-replacement-correction-build-12-2026-10-24) |
 | Local candidate 13 refreshes same-route conditions, adds typed road facilities, preserves partial-source errors, latches terminal sender failures and clarifies the idle overlay | local host validation; not installed | [Local follow-up](#local-follow-up-candidate-13-2026-10-24) |
-| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 87 open after the local enrichment source audit; code anchors describe main with the experiment variant merged in; the engine rewrite at `6f97e3bb` and the merge have not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
+| Historical legacy-feed outbound registry has a contract row per value: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 87 open after the local enrichment source audit; code anchors describe main with the experiment variant merged in; the engine rewrite at `6f97e3bb` and the merge have not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
 | Historical first parked H0 obtained ACK 200 and PathMatch but its ODD request failed with NullPointerException. The owner confirms this car never activates or displays NOA while stationary: the proposed cluster-message criterion is inapplicable. The revised control compares internal ADAS replies against the actual stock map | physical car + owner-directed revised method, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Corrected H0 ODD returned 0 and retained its 1,743-byte response as `odd_response` hex. Actual LISTEN recorded 1,800 pilot samples with zero publisher calls; no stock-route ACK/PathMatch was received, so the paired guidance control is not established. Stock was disabled again and the probe removed | physical H0/LISTEN + 34 Python tests / 127 core checks, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
-| The live engine no longer dies on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route while its offline admission remains valid (proof withdrawal requires a fresh path), sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps evidence for a two-hour drive; not yet run on the car | code + host harnesses, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
+| Historical build-14 engine (superseded in candidate 15) no longer died on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route while its offline admission remains valid (proof withdrawal requires a fresh path), sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps evidence for a two-hour drive; not yet run on the car | code + host harnesses, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
 | Lane category 0/1/2 is supported by the recovered SDK enum and the stock's forwarding code; the Beijing sample's 255 is NULL, not a universal constant. TRAM/TAXI/BIKE → Other remains a declared coarse projection | corpus + source-oracle regression, 2026-10-24; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
-| Strict per-arm field switches and the separate MPC/instrument state switches are implemented for local controlled comparisons; instrument state is ON by default for new host sessions (explicit false disables it), MPC remains opt-in; their presence does not decide OPEN field rows | code + host harnesses; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
+| Historical per-arm field switches and separate MPC/instrument state switches (rejected by candidate 15) were implemented for local controlled comparisons; instrument state is ON by default for new host sessions (explicit false disables it), MPC remains opt-in; their presence does not decide OPEN field rows | code + host harnesses; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
 | Instrument `0x43E0003A` is registered for both SET and cached GET on device 1007 and shell UID is allowed; its initial 65535 is unknown. Cache readback does not prove ECU receipt or an ADAS gate; the inspected MPC `0x4CA0004B` registration is request-only | original native corpus + bounded offline replay, 2026-10-24 | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
-| The experiment variant (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
+| Historical experiment variant, not used by candidate 15 (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
 Contents: [Original sender parity](#original-sender-parity-2026-10-25) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
@@ -104,8 +106,9 @@ The owner established these rules for `codex/stock-sender-parity`:
    (`VariantWireTest`, golden routes, `test_stock_equivalence` and equivalents)
    must be retired for that path or rewritten from new original-APK evidence.
    A conflicting legacy expectation does not establish a defect in the new path.
-   The old product integration has not yet migrated; its tests do not gate
-   factory-core acceptance or supply its expected values.
+   The product integration now uses `StockSender`; Gradle and the APK builder
+   run native-core/input checks and the new lifecycle harness. Legacy golden
+   wrappers do not gate this path or supply its expected values.
 3. Every adapter decision needs a new account of the Yandex source, the AutoSDK
    field's meaning and its absence representation. Legacy behavior is not
    evidence. An unproved decision remains unknown rather than being copied.
@@ -125,9 +128,9 @@ explained from those inputs and the original source, with a bounded question
 and stopping condition. Missing coverage remains a stated limitation, not a
 reason to continue open-ended measurement work.
 
-The next implementation is one Yandex-to-AutoSDK adapter module with a field
-table (source, AutoSDK meaning, conversion, absence), then a complete replacement
-of the active product sender by `StockSender`. The owner explicitly withdrew the
+The implemented product has one Yandex-to-AutoSDK adapter module with a field
+table (source, AutoSDK meaning, conversion, absence) and a complete replacement
+of the active sender by `StockSender`. The owner explicitly withdrew the
 initial switch/legacy-fallback proposal: rollback belongs to Git and the previous
 APK, not a second runtime path. The milestone is a
 built candidate, stationary route receipt and a first owner-driven trip. No
@@ -149,6 +152,59 @@ conditions. Numeric enum mappings still require source evidence; unsupported
 native enums remain their SDK NULL values. The factory core is unchanged by
 this adapter policy. Computer vision being another ADAS input does not establish
 how the receiver uses these map hints.
+
+### Factory product candidate 15
+
+Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is built locally and
+**not installed or tested on the car**. APK SHA-256:
+`30725e9ee447719a8251fa78fb960f04e3fb887b14937df6751ace3cec23e3b2`.
+The APK, semantic packaging report and build log are retained under
+`captures/stock-sender-parity-20261025/product/build15/` and `product/build15.log`;
+`product/candidate15.json` pins the code checkpoint, APK and reader.
+The final gate-reader JAR for the factory-only session is `product/reader15-final/adas-gate-reader.dex.jar`,
+SHA-256 `44024e52867210a9cd109407298065e8a3e7352d1f6d83c8a6e9de73c52f0ac5`.
+No car command ran during this preparation. Stationary receipt and a drive remain
+pending; a local successful build is not either of those results.
+
+Code checkpoint `96957ac6` replaces the active product path completely:
+`AdasBridge` copies Yandex observations, `NativeMapSession` adapts them and
+invokes `StockSender`, and `LiveMapTransport` sends its bytes. There is no
+legacy feed, driver, converter or experiment selector in this call path.
+Rollback uses a prior APK/Git revision. Legacy source and old captures remain
+historical research; their goldens are not build gates.
+
+The product owns MMT, MAIN and SOMEIP Handler queues for each arm. Closing an
+arm fences its writer before disposing all queued work and both owned reader
+connections. A separate baseline reader keeps admission observations independent
+of the factory core's subscription/unsubscription maps. Normal route cancellation
+allows the original idle/reset outputs; temporary prerequisite gaps reject sends
+without treating a non-transaction as Binder failure. Route replacement retains
+the same core, allocates a fresh path ID and resets route state through its
+callback. The overlay reads the core's selected path from real ADAS receipts.
+A process crash requires a new arm rather than resurrecting the previous one.
+
+Each adapted route logs its field policy. GPS speed retains its original fix
+age; simulation cannot refresh it. Raw GNSS carries its own elapsed-time anchor,
+and stale/future raw coordinates omit the matched location callback. Off-route
+observations cannot become matched `LocInfo` inputs. The sender's host trace
+attachment is package-private and is never enabled by the product; processing
+hooks are no-ops in `AndroidStockRuntime`.
+
+The local checks are bounded product checks, not a new original-APK laboratory:
+20 Gradle JUnit tests, 32 product lifecycle/admission assertions and 392 actual
+client Binder assertions. The APK build also runs the existing HUD, source
+snapshot, storage and packaging checks. The host session/phase-1 runner suite
+passes 38 tests. These do not establish route receipt or NOA on the vehicle.
+
+Remaining integration limits are explicit: Android's distance calculation has
+not been proved equal to Amap's native helper; the fresh GPS ground-speed
+fallback has no reverse-gear sign; AutoType reflection must work in the injected
+process. The product has no Amap geocoder, native lane-query service or AVP
+identifier source. Rare camera, TTS, live signal phase, weather and native-lane
+callbacks are not yet adapted. Ordinary route/progress/location/legal-limit and
+navigation-lifecycle inputs are implemented. Full end-to-end equivalence is not
+claimed. The laboratory stays frozen while the candidate proceeds to stationary
+route receipt and an owner-driven test.
 
 ### Retained phase-1 native comparison
 
@@ -633,8 +689,9 @@ bounded polling with monotonic receipt timestamps alongside NOA transitions.
 Record null/error/stale data separately from an explicit zero. Determine whether
 the signal is live, latched or cached and what clears it before interpreting a
 value as the cause of a particular exit. A shell reader can be built on the
-host without rebuilding the navigation APK, but no reader or vehicle changes
-are made by this sender-parity task. A half-second exit and an unmeasured
+host without rebuilding the navigation APK. Candidate 15 adds the actual
+TIP_ISLAND support getter to its gate reader; it does not yet add QUIT_PROMPT
+polling or an exit decoder. A half-second exit and an unmeasured
 publication interval mean a next drive is not guaranteed to expose its cause.
 
 ## NOA gap audit of the build-12 trip (2026-10-24)
