@@ -101,7 +101,7 @@ def verify_manifest(original, candidate, env):
     if tree(before) != tree(after): raise RuntimeError('Unexpected manifest change')
 
 
-def public_road_catalog(path):
+def _edge_catalog(path, schema, asset, lane_count=None):
     """Validate and pin an optional owner-confirmed, private geometry evidence asset."""
     if path is None:
         return None, None
@@ -109,8 +109,14 @@ def public_road_catalog(path):
         raise ValueError('Public-road evidence exceeds 2 MB')
     content = path.read_bytes()
     data = json.loads(content)
-    if not isinstance(data, dict) or data.get('schema') != 'denza-owner-confirmed-public-roads-v1':
+    if not isinstance(data, dict) or data.get('schema') != schema:
         raise ValueError('Public-road evidence schema')
+    if lane_count is not None and (type(data.get('laneNum')) is not int or data['laneNum'] != lane_count):
+        raise ValueError('Owner lane evidence must have confirmed total laneNum=2')
+    for name, expected in [('coordinateFrame', 'WGS84'), ('pointOrder', 'lon,lat'),
+                           ('units', 'degrees'), ('endpointGridDegrees', 1e-7)]:
+        if name in data and data[name] != expected:
+            raise ValueError('Road evidence coordinate metadata: ' + name)
     edges = data.get('edges')
     if not isinstance(edges, list) or len(edges) > 10000:
         raise ValueError('Public-road evidence edge limit')
@@ -126,7 +132,17 @@ def public_road_catalog(path):
             raise ValueError('Public-road evidence degenerate edge')
         unique.add(tuple(sorted((q[:2], q[2:]))))
     return content, {'schema': data['schema'], 'sha256': hashlib.sha256(content).hexdigest(),
-                     'edges': len(unique), 'asset': 'assets/denza-hud/public-road-evidence.json'}
+                     'edges': len(unique), 'asset': asset, **({'laneNum': lane_count} if lane_count is not None else {})}
+
+
+def public_road_catalog(path):
+    return _edge_catalog(path, 'denza-owner-confirmed-public-roads-v1',
+                         'assets/denza-hud/public-road-evidence.json')
+
+
+def owner_lane_catalog(path):
+    return _edge_catalog(path, 'denza-owner-confirmed-lanes-v1',
+                         'assets/denza-hud/owner-lane-evidence.json', lane_count=2)
 
 
 def main():
@@ -136,6 +152,7 @@ def main():
     parser.add_argument('--abi', choices=('universal', 'arm64-v8a'), default='universal',
                         help='Keep all architectures, or only ARM64 native libraries')
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--owner-lane-evidence', type=Path, help='Owner-confirmed total laneNum=2 on exact WGS84 edges')
     parser.add_argument('--public-road-evidence', type=Path, help='Owner-confirmed exact WGS84 edge catalog, packaged and hash-pinned')
     parser.add_argument('--renderer-profile', choices=('current', 'stock-prototype'), default='current',
                         help='Opt-in map presentation; current keeps the existing owner design')
@@ -145,6 +162,7 @@ def main():
     if hashlib.sha256(args.apk.read_bytes()).hexdigest() != PIN:
         parser.error('Input APK is not the reviewed Navigator 29.8.1')
     public_roads, public_roads_report = public_road_catalog(args.public_road_evidence)
+    owner_lanes, owner_lanes_report = owner_lane_catalog(args.owner_lane_evidence)
     artwork, artwork_report = stock_art(args.stock_apk)
     args.out.mkdir(parents=True, exist_ok=False)
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
@@ -275,6 +293,8 @@ def main():
         changes['classes'+str(int(extra[7:-4])+1)+'.dex'] = (args.out/'guidance-hook.dex').read_bytes()
         if public_roads is not None:
             changes[public_roads_report['asset']] = public_roads
+        if owner_lanes is not None:
+            changes[owner_lanes_report['asset']] = owner_lanes
         changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs', args.renderer_profile], cwd=ROOT)
         # The ADAS overlay sets its words in the board's own Roboto (Apache 2.0, licence alongside),
         # not the system's: the glass and tools/design-canvas/adas-overlay then measure alike.
@@ -320,6 +340,7 @@ def main():
               'version': VERSION_NAME, 'version_code': VERSION_CODE, 'debuggable': True,
               'runtime': 'embedded Java and ARM64 graph/vector observers, no Frida or root', 'manifest_semantic_check': 'passed'}
     report['public_road_evidence'] = public_roads_report
+    report['owner_lane_evidence'] = owner_lanes_report
     report['native_graph'] = native_graph['report']
     report['native_vector'] = native_vector['report']
     report['offline_zstd'] = offline_zstd['report']
@@ -336,6 +357,8 @@ def main():
     report['resource_semantic_check'] = 'passed: only passport_account_type changed'
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
+        if owner_lanes is not None and after.read(owner_lanes_report['asset']) != owner_lanes:
+            raise RuntimeError('Owner lane evidence changed while packaging')
         if public_roads is not None and after.read(public_roads_report['asset']) != public_roads:
             raise RuntimeError('Public-road evidence changed while packaging')
         allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml','resources.arsc'}

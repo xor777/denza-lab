@@ -33,4 +33,14 @@ public final class PublicRoadEvidenceTest {
         try{PublicRoadEvidence.parse(catalog(edges.toString()));fail("raw duplicate records still count toward input bound");}catch(IllegalArgumentException expected){}
         assertEquals(0,PublicRoadEvidence.parse(catalog("[]")).edgeCount());
     }
+    @Test public void explicitCoordinateMetadataCannotContradictSharedExactWgs84Contract(){
+        String valid="{\"coordinateFrame\":\"WGS84\",\"pointOrder\":\"lon,lat\",\"units\":\"degrees\",\"endpointGridDegrees\":1e-7,";
+        String roads=valid+catalog("[[37,55,37.001,55]]").substring(1);
+        String lanes=roads.replace(PublicRoadEvidence.SCHEMA,OwnerLaneEvidence.SCHEMA).replace("\"edges\":","\"laneNum\":2,\"edges\":");
+        assertEquals(1,PublicRoadEvidence.parse(roads).edgeCount());assertEquals(1,OwnerLaneEvidence.parse(lanes).edgeCount());
+        for(String[] change:new String[][]{{"WGS84","GCJ02"},{"lon,lat","lat,lon"},{"degrees","radians"},{"1e-7","1e-6"}}){
+            try{PublicRoadEvidence.parse(roads.replace(change[0],change[1]));fail("contradictory roads metadata");}catch(IllegalArgumentException expected){}
+            try{OwnerLaneEvidence.parse(lanes.replace(change[0],change[1]));fail("contradictory lanes metadata");}catch(IllegalArgumentException expected){}
+        }
+    }
 }

@@ -197,6 +197,51 @@ public final class YandexNativeAdapterTest {
         @SuppressWarnings("unchecked")Map<String,Object> provenance=(Map<String,Object>)confirmed.attributeEvidence().get("publicRoadEvidence");
         assertEquals(full.sha256(),provenance.get("sha256"));assertTrue(provenance.get("source").toString().contains("owner-confirmed"));
     }
+    @Test public void ownerLaneEvidenceIsIndependentExactCoverageAndPreservesEveryOtherInput() throws Exception {
+        YandexRoute original=route();
+        YandexRoute source=new YandexRoute(original.routeId,original.lon,original.lat,
+            Collections.singletonList(new YandexRoute.Section(0,2,null,null,30,18)),null,new double[0],null,null,null,null);
+        String edges="[[37,55,37.001,55]]";
+        OwnerLaneEvidence partial=OwnerLaneEvidence.parse("{\"schema\":\"denza-owner-confirmed-lanes-v1\",\"laneNum\":2,\"edges\":"+edges+"}");
+        PublicRoadEvidence publicRoads=PublicRoadEvidence.parse("{\"schema\":\"denza-owner-confirmed-public-roads-v1\",\"edges\":"+edges+"}");
+        RouteAttributes cuts=new RouteAttributes(){
+            public boolean matches(YandexRoute r){return r==source;}public double[] cuts(){return new double[]{0.5,1};}
+            public RoadNetwork.KnownAttributes attributesBetween(double a,double b){throw new AssertionError("legacy attributes consulted");}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+        for(dev.denza.adaslink.Coordinates.Frame frame:dev.denza.adaslink.Coordinates.Frame.values()){
+            YandexNativeAdapter.Policy baseline=proxyPolicy().withFrame(frame).withPublicRoadEvidence(publicRoads);
+            YandexNativeAdapter.Policy policy=baseline.withLaneEvidence(partial);
+            assertSame(partial,policy.withHistorySpeed(YandexNativeAdapter.HistorySpeedPolicy.OBSERVED_HISTORY_ONLY).laneEvidence);
+            assertSame(partial,policy.withPublicRoadEvidence(PublicRoadEvidence.EMPTY).laneEvidence);assertSame(partial,policy.withFrame(frame).laneEvidence);
+            assertSame(publicRoads,policy.publicRoads);assertEquals(frame,policy.frame);assertEquals(baseline.historySpeed,policy.historySpeed);
+            YandexNativeAdapter.AdaptedRoute whole=YandexNativeAdapter.prepare(source,100,200,1,null,policy);
+            assertEquals(1,whole.getSegmentInfo(0).getLinkCount());assertEquals(0,whole.getSegmentInfo(0).getLinkInfo(0).getLaneNum());
+            YandexNativeAdapter.AdaptedRoute before=YandexNativeAdapter.prepare(source,100,200,1,cuts,baseline);
+            YandexNativeAdapter.AdaptedRoute after=YandexNativeAdapter.prepare(source,100,200,1,cuts,policy);
+            for(int i=0;i<3;i++){
+                NativePath.Link a=before.getSegmentInfo(0).getLinkInfo(i),b=after.getSegmentInfo(0).getLinkInfo(i);
+                assertEquals(0,a.getLaneNum());assertEquals(i<2?2:0,b.getLaneNum());
+                for(java.lang.reflect.Method method:NativePath.Link.class.getMethods())if(!method.getName().equals("getLaneNum")&&!method.getName().equals("getPoints"))
+                    assertEquals(method.getName(),method.invoke(a),method.invoke(b));
+                assertEquals(a.getPoints().size(),b.getPoints().size());for(int p=0;p<a.getPoints().size();p++){
+                    assertEquals(a.getPoints().get(p).lon,b.getPoints().get(p).lon);assertEquals(a.getPoints().get(p).lat,b.getPoints().get(p).lat);
+                }
+            }
+            NativeModels.NaviInfo a=YandexNativeAdapter.navi(before,freshGuidance(0.75)),b=YandexNativeAdapter.navi(after,freshGuidance(0.75));
+            for(java.lang.reflect.Field f:NativeModels.NaviInfo.class.getFields())if(f.getType().isPrimitive())assertEquals(f.getName(),f.get(a),f.get(b));
+            YandexNativeAdapter.Location l=new YandexNativeAdapter.Location();l.scalar=0.75;l.matchedLon=37.00075;l.matchedLat=55;l.rawLon=37.0007;l.rawLat=55;l.speedMps=10;l.headingDeg=90;
+            NativeModels.LocMatchInfo x=YandexNativeAdapter.location(before,l).matchInfo.get(0),y=YandexNativeAdapter.location(after,l).matchInfo.get(0);
+            assertEquals(x.linkId,y.linkId);assertEquals(x.ownership,y.ownership);assertEquals(x.stPos.lon,y.stPos.lon,0);assertEquals(x.stPos.lat,y.stPos.lat,0);
+            l.onRoute=false;x=YandexNativeAdapter.location(before,l).matchInfo.get(0);y=YandexNativeAdapter.location(after,l).matchInfo.get(0);
+            assertEquals(-1,y.linkId);assertEquals(Integer.MIN_VALUE,y.ownership);assertEquals(x.stPos.lon,y.stPos.lon,0);assertEquals(x.stPos.lat,y.stPos.lat,0);
+            assertNull(YandexNativeAdapter.location(null,l));
+            @SuppressWarnings("unchecked")Map<String,Object> provenance=(Map<String,Object>)after.attributeEvidence().get("ownerLaneEvidence");
+            assertEquals(partial.sha256(),provenance.get("sha256"));assertEquals(2,provenance.get("laneNum"));
+        }
+        YandexNativeAdapter.AdaptedRoute laneOnly=YandexNativeAdapter.prepare(source,100,200,1,cuts,proxyPolicy().withLaneEvidence(partial));
+        assertEquals(2,laneOnly.getSegmentInfo(0).getLinkInfo(0).getLaneNum());assertEquals(Integer.MIN_VALUE,laneOnly.getSegmentInfo(0).getLinkInfo(0).getOwnership());
+    }
     @Test public void locationRequiresIndependentRawFixAndDoesNotInventSpeed(){
         YandexNativeAdapter.AdaptedRoute r=hypothetical(route());YandexNativeAdapter.Location l=new YandexNativeAdapter.Location();
         l.scalar=0.75;l.matchedLon=37.00075;l.matchedLat=55;l.headingDeg=90;

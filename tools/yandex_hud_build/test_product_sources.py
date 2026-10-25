@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 
-from build import ROOT, LEGACY_ADAS_CLASSES, product_adas_sources, verify_product_classes, public_road_catalog
+from build import ROOT, LEGACY_ADAS_CLASSES, product_adas_sources, verify_product_classes, public_road_catalog, owner_lane_catalog
 
 
 class ProductSourceClosure(unittest.TestCase):
@@ -32,6 +32,26 @@ class ProductSourceClosure(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     public_road_catalog(path)
         self.assertEqual(public_road_catalog(None), (None, None))
+
+    def test_owner_lane_catalog_requires_confirmed_count_and_wgs_frame(self):
+        with tempfile.TemporaryDirectory() as out:
+            path = Path(out) / 'lanes.json'
+            data = {'schema': 'denza-owner-confirmed-lanes-v1', 'laneNum': 2,
+                    'coordinateFrame': 'WGS84', 'edges': [[37, 55, 37.001, 55.001]]}
+            path.write_text(json.dumps(data))
+            _, report = owner_lane_catalog(path)
+            self.assertEqual(report['laneNum'], 2)
+            self.assertEqual(report['edges'], 1)
+            for count in (0, 1, 3, 2.0, True, None):
+                data['laneNum'] = count
+                path.write_text(json.dumps(data))
+                with self.assertRaises(ValueError):
+                    owner_lane_catalog(path)
+            data.update(laneNum=2, coordinateFrame='NATIVE_GCJ_UNRESTRICTED_CANDIDATE')
+            path.write_text(json.dumps(data))
+            with self.assertRaises(ValueError):
+                owner_lane_catalog(path)
+        self.assertEqual(owner_lane_catalog(None), (None, None))
 
     def test_packaged_nested_legacy_class_is_rejected(self):
         verify_product_classes(['dev/denza/adaslink/stocknative/StockSender.class'])

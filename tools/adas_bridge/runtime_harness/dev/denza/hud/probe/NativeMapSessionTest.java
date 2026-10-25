@@ -43,13 +43,14 @@ public final class NativeMapSessionTest {
         final NativeMapSession session;final List<Map<String,Object>> audits=new ArrayList<>();
         Rig(){this(LiveSessionLease.FrameMode.WGS84);}
         Rig(LiveSessionLease.FrameMode mode){this(mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence.EMPTY);}
-        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode,evidence);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
+        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence){this(mode,evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence.EMPTY);}
+        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence lanes){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode,evidence,lanes);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
         NativeNavigationInput input(String id,long epoch,boolean route){NativeNavigationInput o=new NativeNavigationInput();o.routeId=id;o.routeEpoch=epoch;o.mode="guidance";o.routeStatus="ON_ROUTE";o.positionOnRoute=true;o.offlineGeometrySha256="geometry-"+id;o.monotonicMs=runtime.now;o.stamp=runtime.now;o.fixAgeMs=0;o.locationClass="FINE";o.scalar=.3;o.timeToFinishS=30;o.lon=37.6003;o.lat=55.7003;o.rawLon=37.60029;o.rawLat=55.70029;o.speedMps=3;o.heading=45;
             if(route)o.route=new YandexRoute(id,new double[]{37.6,37.601},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);return o;}
         void observe(NativeNavigationInput o){session.observe(o);runtime.advance(0);}
     }
     public static void main(String[] args){
-        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();sectionFreeFlowProxyReachesFactoryWire();catalogOwnershipStaysWithinConfirmedSourceEdges();
+        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();sectionFreeFlowProxyReachesFactoryWire();catalogOwnershipStaysWithinConfirmedSourceEdges();catalogLaneCountStaysWithinConfirmedSourceEdges();
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
@@ -234,6 +235,43 @@ public final class NativeMapSessionTest {
             check(fix.matchInfo.get(0).ownership==Integer.MIN_VALUE&&((Number)r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation").get("currentRoadOwnership")).intValue()==-1,
                     "off-route fix stays unknown even when its coordinates lie on a catalogued edge");
             check(r.session.pathId()==path&&r.transport.routes.size()==1,"ownership progress and off-route handling do not allocate or repartition a path");r.session.close();
+        }
+    }
+    @SuppressWarnings("unchecked")
+    static List<Map<String,Object>> serializedLinks(Rig r){
+        String wire=new String(r.transport.routes.get(0),java.nio.charset.StandardCharsets.UTF_8);
+        Map<String,Object> envelope=(Map<String,Object>)Json.parse(wire.substring(wire.indexOf('{'),wire.lastIndexOf('}')+1));
+        Map<String,Object> route=(Map<String,Object>)Json.parse((String)envelope.get("payload"));
+        return (List<Map<String,Object>>)((Map<String,Object>)((List<?>)route.get("data")).get(0)).get("links");
+    }
+    @SuppressWarnings("unchecked")
+    static void catalogLaneCountStaysWithinConfirmedSourceEdges(){
+        dev.denza.adaslink.yandexnative.OwnerLaneEvidence lanes=dev.denza.adaslink.yandexnative.OwnerLaneEvidence.parse(
+                "{\"schema\":\"denza-owner-confirmed-lanes-v1\",\"laneNum\":2,\"edges\":[[37.6,55.7,37.601,55.701]]}");
+        for(LiveSessionLease.FrameMode frame:new LiveSessionLease.FrameMode[]{LiveSessionLease.FrameMode.WGS84,LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE}){
+            Rig baseline=new Rig(frame),confirmed=new Rig(frame,dev.denza.adaslink.yandexnative.PublicRoadEvidence.EMPTY,lanes);
+            NativeNavigationInput input=baseline.input("local-street",1,false);
+            input.route=new YandexRoute(input.routeId,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},
+                    Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30,18),new YandexRoute.Section(1,2,"STRAIGHT",null,30,18)),
+                    null,new double[0],Collections.emptyList(),Collections.emptyList(),null,null);
+            baseline.observe(input);confirmed.observe(input.copy());
+            List<Map<String,Object>> before=serializedLinks(baseline),after=serializedLinks(confirmed);
+            check(after.size()==2&&((Number)after.get(0).get("laneNum")).intValue()==2&&((Number)after.get(1).get("laneNum")).intValue()==0,
+                    "actual factory route uses total laneNum2 only on exact fully catalogued first edge; future edge remains default0 in "+frame);
+            for(int i=0;i<before.size();i++){
+                Map<String,Object> a=new HashMap<>(before.get(i)),b=new HashMap<>(after.get(i));a.remove("laneNum");b.remove("laneNum");
+                check(a.equals(b),"lane evidence changes no other serialized link field, including IDs/point indexes/ownership");
+            }
+            NativePath beforePath=(NativePath)baseline.runtime.last(".v0")[2],afterPath=(NativePath)confirmed.runtime.last(".v0")[2];
+            for(int i=0;i<beforePath.getSegmentCount();i++){
+                List<NativePath.IntPoint> a=beforePath.getSegmentInfo(i).getLinkInfo(0).getPoints(),b=afterPath.getSegmentInfo(i).getLinkInfo(0).getPoints();
+                check(a.size()==b.size(),"lane evidence preserves native geometry point count");
+                for(int j=0;j<a.size();j++)check(a.get(j).lon==b.get(j).lon&&a.get(j).lat==b.get(j).lat,"lane evidence preserves selected-frame native geometry exactly");
+            }
+            Map<String,Object> attrs=(Map<String,Object>)confirmed.audits.get(0).get("attributeEvidence");
+            check(lanes.sha256().equals(((Map<?,?>)attrs.get("ownerLaneEvidence")).get("sha256")),"session audit pins exact lane catalog SHA");
+            check(((Number)after.get(0).get("ownership")).intValue()==Integer.MIN_VALUE,"lane catalog does not imply public ownership");
+            baseline.session.close();confirmed.session.close();
         }
     }
 }

@@ -28,6 +28,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 22 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
+| Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | local implementation; build and stationary receipt pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | 22 installed: ACK 200, actual historySpeed 7, public ownership on 4/42 route links; moving acceptance pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; no product or car change | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
@@ -563,6 +564,34 @@ state before reusing it; the timestamped receipt is not a permanent readiness cl
 Exact pins and receipts are under ignored `product/build22/`, `candidate22.json`
 and `live22/acceptance.json`. The original-APK laboratory remains frozen.
 
+#### Candidate 23: owner-confirmed lane count
+
+After the lane-source audit, the owner explicitly confirmed that the tested
+settlement streets have one row of traffic in each direction. Candidate 23 uses
+that observation as a total `laneNum=2`, not as a generic Amap fallback or a count
+inferred from a directional lane sign. This supersedes the earlier deferral only
+for the confirmed geometry; the rest of the route retains zero.
+
+The separate `denza-owner-confirmed-lanes-v1` catalog contains 18 original WGS84
+edges, a subset of the 57 public-road evidence edges, totaling about 512 m. The
+subset is the repeated local street geometry at source scalars 8..26 in the retained
+main route. Its navigation section annotation is Цветочная улица; that annotation
+is not itself proof of a continuous current-road name or an administrative boundary.
+The longer unnamed section leading outside and other unconfirmed connectors are
+excluded. This is explicitly partial coverage, not a claim about the entire settlement.
+
+`OwnerLaneEvidence` shares the exact endpoint matcher with the ownership catalog.
+Every original geometry edge touched by a native link must be covered; otherwise
+laneNum stays zero. It changes neither partition cuts, IDs nor coordinate-frame
+conversion. Policy cloning preserves speed, public-road and lane evidence together.
+The optional private asset is validated and SHA-pinned by `--owner-lane-evidence`;
+missing/malformed evidence remains zero with a diagnostic. No geometry is committed.
+
+The scope and provenance are retained in ignored `product/lane-roads21/`, while
+build and parked receipts belong in `product/build23/`, `candidate23.json`, `live23/`.
+Build/install/vehicle acceptance remain pending at this implementation checkpoint.
+Region/city remain unchanged at zero; no administrative equivalence is claimed.
+
 #### Lane input decision and targeted vector audit (2026-10-25)
 
 The owner supplied an inventory of original factory-map output on Beijing data:
@@ -573,8 +602,10 @@ not establish a receiver enum definition or prove that an all-zero route is
 rejected. Blanket replacement with one is not accepted. Count scope must also
 match: a directional approach sign cannot automatically represent both directions.
 
-The agreed next-drive priority is the sourced history-speed proxy and ownership
-already installed in candidate 22. Lane changes are deferred. For future mapping,
+The initially agreed next-drive priority was the sourced history-speed proxy and
+ownership installed in candidate 22, with lanes deferred. The later explicit
+owner confirmation supersedes that deferral for candidate 23
+([scope above](#candidate-23-owner-confirmed-lane-count)). For future mapping,
 a Yandex lane sign can supply a count only where both direction/count scope and
 its spatial validity are proved. One-way alone does not establish that the count
 extends all the way back to the preceding junction: additions and drops can occur
@@ -906,7 +937,7 @@ an SDK unknown or a receiver-accepted sentinel. The factory APK hash remains
 | `Link.getLinkType` | Reported containing tunnel range→`2`, ferry→`1` | SDK `LinkTypeNull=-1` otherwise. Not being tunnel/ferry does not establish common `0`: SDK also has bridge `3` and elevated `4` |
 | `Link.getFormway` | Explicit ENTER_ROUNDABOUT section→round circle `4` | SDK `FormayNULL=-1` elsewhere; renderer layers do not prove formway |
 | `Link.hasTrafficLight` | Reported light position at the link end; split there | Preserves source-known values. Unavailable source `false` is a named test assumption; L.b |
-| `Link.getLaneNum` | No continuous lane-count source | `LinkItem.laneNum` default `0`, forwarded literally by L.b; not a fact of zero lanes. Point lane-sign count is not substituted |
+| `Link.getLaneNum` | Optional owner-confirmed total count on exact WGS84 edges, candidate 23 | `2` only for fully covered links in the pinned owner catalog; otherwise `LinkItem.laneNum` default `0`, forwarded literally by L.b. Point lane-sign count is not substituted |
 | `Link.hasMultiOut` | No proved corresponding Yandex source | STRICT rejects; experimental `false` is an explicit unknown assumption, not observed absence; L.b |
 | `Link.getMainAction` | Endpoint action on its owning final link | SDK named mapping; `MainActionNULL=0` on other links; L.b/v0 |
 | `Link.getAssistantAction` | Same endpoint ownership | SDK named mapping; `AssiActionNULL=0` otherwise; L.b/v0 |

@@ -21,6 +21,7 @@ import dev.denza.adaslink.YandexRoute;
 import dev.denza.adaslink.Topics;
 import dev.denza.adaslink.stocknative.StockTransport;
 import dev.denza.adaslink.yandexnative.PublicRoadEvidence;
+import dev.denza.adaslink.yandexnative.OwnerLaneEvidence;
 import dev.denza.adaslink.stocknative.NativeEnvironment;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -333,25 +334,38 @@ final class LiveMapBridge {
             public int request(long topic,byte[] payload,boolean response){throw new UnsupportedOperationException("native request not present in selected sender closure");}
         };
         activeEpoch=epoch();publishedSubject=sourceSubject;publishedGeneration=sourceGeneration;
-        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence());
+        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence(),readOwnerLaneEvidence());
         AdasGateSnapshot.Snapshot g=inputs.gates;session.start(Boolean.TRUE.equals(g.dnpService),Boolean.TRUE.equals(g.dnpSwitchRaw),Boolean.TRUE.equals(g.noSleep));
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}
         state="LIVE";reason="Передача через штатный отправитель";
         updateVehicleSpeed();
     }
-    private PublicRoadEvidence readPublicRoadEvidence(){
-        // Packaged with this APK: no mutable on-device file can widen ownership coverage.
-        try(java.io.InputStream input=context.getAssets().open("denza-hud/public-road-evidence.json")){
+    private String readEvidenceAsset(String name)throws IOException{
+        // Packaged with this APK: mutable on-device files cannot widen evidence coverage.
+        try(java.io.InputStream input=context.getAssets().open(name)){
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();byte[] chunk=new byte[8192];int n;
             while((n=input.read(chunk))!=-1){
-                if(bytes.size()+n>2000000)throw new IOException("public-road catalog exceeds 2 MB");
+                if(bytes.size()+n>2000000)throw new IOException("road evidence catalog exceeds 2 MB");
                 bytes.write(chunk,0,n);
             }
-            PublicRoadEvidence evidence=PublicRoadEvidence.parse(new String(bytes.toByteArray(),StandardCharsets.UTF_8));
+            return new String(bytes.toByteArray(),StandardCharsets.UTF_8);
+        }
+    }
+    private PublicRoadEvidence readPublicRoadEvidence(){
+        try{
+            PublicRoadEvidence evidence=PublicRoadEvidence.parse(readEvidenceAsset("denza-hud/public-road-evidence.json"));
             note("publicRoadEvidence",Json.write(evidence.provenance()));return evidence;
         }catch(IOException|IllegalArgumentException error){
             note("publicRoadEvidenceUnavailable",error.toString());return PublicRoadEvidence.EMPTY;
+        }
+    }
+    private OwnerLaneEvidence readOwnerLaneEvidence(){
+        try{
+            OwnerLaneEvidence evidence=OwnerLaneEvidence.parse(readEvidenceAsset("denza-hud/owner-lane-evidence.json"));
+            note("ownerLaneEvidence",Json.write(evidence.provenance()));return evidence;
+        }catch(IOException|IllegalArgumentException error){
+            note("ownerLaneEvidenceUnavailable",error.toString());return OwnerLaneEvidence.EMPTY;
         }
     }
     private void updateVehicleSpeed(){
