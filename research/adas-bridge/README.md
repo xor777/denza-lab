@@ -7,9 +7,9 @@ Navigator and the stock map left installed and unmodified? The initial firmware
 feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
 emulator; car builds also collect passive evidence. This branch replaces the
-product sender with `stocknative` for candidate 15. Build 13 is the last recorded
-installed version; build 14 and its experiment variants are historical local
-work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
+product sender with `stocknative` for candidate 15, now installed and accepted
+for stationary route receipt on 2026-10-25. Build 14 and its experiment variants
+are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
 See [route replacement acceptance](#route-replacement-correction-build-12-2026-10-24).
@@ -22,8 +22,8 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | signed candidate 15 built; stationary receipt and drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
-| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | local code + independent input tests; vehicle untested | [Product adapter field table](#product-adapter-field-table) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 15 installed; stationary same-path ACK 200 and 126 s output observed; drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
+| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
@@ -155,16 +155,38 @@ how the receiver uses these map hints.
 
 ### Factory product candidate 15
 
-Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is built locally and
-**not installed or tested on the car**. APK SHA-256:
+Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` was installed on the
+owner's parked car on 2026-10-25. The installed APK hash matches the artifact.
+APK SHA-256:
 `30725e9ee447719a8251fa78fb960f04e3fb887b14937df6751ace3cec23e3b2`.
 The APK, semantic packaging report and build log are retained under
 `captures/stock-sender-parity-20261025/product/build15/` and `product/build15.log`;
 `product/candidate15.json` pins the code checkpoint, APK and reader.
 The final gate-reader JAR for the factory-only session is `product/reader15-final/adas-gate-reader.dex.jar`,
 SHA-256 `44024e52867210a9cd109407298065e8a3e7352d1f6d83c8a6e9de73c52f0ac5`.
-No car command ran during this preparation. Stationary receipt and a drive remain
-pending; a local successful build is not either of those results.
+The owner confirmed P and authorized choosing a suggested Navigator route.
+The factory core sent route path `1792935676744` at elapsed `19015426`;
+ADAS's raw service-44 / `0x8002` response at `19015546` explicitly returned that
+path with status `200` (120 ms after route output, 113 ms after selection).
+The complete 20-byte response is retained in `product/live15/denza-drive-evidence--progress.jsonl:624`,
+filtered by the current arm; old-session rows in the rings are not acceptance evidence.
+`product/live15/acceptance.json` pins the raw response, decoder result, state and evidence hashes.
+
+Over the following 126 s, the same path remained selected. NavigationStatus,
+TrafficInfo, vehicle position and traffic-light output each had 126 packets;
+their median intervals were 1,003–1,006 ms, maximum 1,030 ms. This proves observed
+output cadence, not separate ECU acknowledgement of every dynamic packet.
+Navigator retained PID 23040, callback drops/task failures were zero, and the
+crash buffer was empty. Fresh parked predicates remained 1 with speed 0.
+The injected process read actual `AutoType=170`, `PRODUCT=l5`, and `TIP_ISLAND=2`.
+
+The owned arm was then removed through `live_session.py restore`. The ledger
+reached RESTORED; a later snapshot confirmed STOPPED, writer and both owned
+answer connections closed, no arm file and the owned gate-reader PID absent.
+The final send timestamp remained unchanged. The stock map retained its original
+`disabled-user` state (3), with no stock-map process; Navigator remained installed
+and running. This closes the stationary test only. Moving NOA engagement and
+retention remain untested, and a new arm is required for the owner-driven trip.
 
 Code checkpoint `96957ac6` replaces the active product path completely:
 `AdasBridge` copies Yandex observations, `NativeMapSession` adapts them and
@@ -198,13 +220,13 @@ passes 38 tests. These do not establish route receipt or NOA on the vehicle.
 
 Remaining integration limits are explicit: Android's distance calculation has
 not been proved equal to Amap's native helper; the fresh GPS ground-speed
-fallback has no reverse-gear sign; AutoType reflection must work in the injected
-process. The product has no Amap geocoder, native lane-query service or AVP
-identifier source. Rare camera, TTS, live signal phase, weather and native-lane
+fallback has no reverse-gear sign. AutoType reflection was verified in the
+injected process during the stationary acceptance above. The product has no
+Amap geocoder, native lane-query service or AVP identifier source. Rare camera, TTS, live signal phase, weather and native-lane
 callbacks are not yet adapted. Ordinary route/progress/location/legal-limit and
 navigation-lifecycle inputs are implemented. Full end-to-end equivalence is not
-claimed. The laboratory stays frozen while the candidate proceeds to stationary
-route receipt and an owner-driven test.
+claimed. The laboratory stays frozen; the next vehicle milestone is an
+owner-driven test after the completed stationary receipt check.
 
 ### Retained phase-1 native comparison
 
@@ -679,7 +701,10 @@ Its string identifier is `0x1FF0201C` (decimal `535830556`), device `1038`.
 The retained `reports/coordinate-parity/parked/receiver-check.json` under
 `captures/drive-kit-20261025/postdrive-20261024-204337/` records transaction 5,
 `service call autoservice 5 i32 1038 i32 535830556`, returning a raw zero while
-stationary. This is a saved observation, not a fresh read in this branch.
+stationary. A fresh read during candidate-15 stationary acceptance also returned
+raw zero at elapsed `18846260`–`18846340`; see `product/live15/noa-quit-stationary.json`
+under the candidate corpus. This confirms a readable reply, not the meaning or
+freshness of an exit reason.
 Some decompiled SDK constant stubs are literal zero; use the recovered
 identifier/registration, not the placeholder Java constant.
 

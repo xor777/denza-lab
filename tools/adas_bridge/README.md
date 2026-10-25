@@ -3,10 +3,11 @@
 On `codex/stock-sender-parity`, candidate 15 replaces the product sender with
 `stocknative` and the unified `yandexnative` adapter. The previous feed and its
 variant/golden tests remain historical research, not product acceptance.
-The original-APK laboratory is frozen; current work is product integration,
-stationary acceptance and a first trip. Signed candidate 15 is built locally,
-not installed; `captures/stock-sender-parity-20261025/product/candidate15.json`
-pins its APK, gate reader and validation results.
+The original-APK laboratory is frozen; the next milestone is a first trip. Signed candidate 15 is installed and passed stationary same-path
+ACK 200 with 126 s of observed dynamic output; its test session is closed.
+`captures/stock-sender-parity-20261025/product/candidate15.json` pins its APK,
+gate reader and validation results; `product/live15/acceptance.json` records
+stationary evidence. Moving NOA engagement and retention remain untested.
 See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 

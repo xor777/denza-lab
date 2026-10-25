@@ -4,8 +4,9 @@ Candidate 15 on `codex/stock-sender-parity` replaces the ADAS product path with
 no legacy runtime switch or fallback. Factory-core acceptance and current input
 limitations are recorded in the [product milestone](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze)
 and [field table](../../research/adas-bridge/README.md#product-adapter-field-table).
-Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is built locally and not
-installed. Its APK/report/reader pins are in
+Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is installed. The parked
+car returned a same-path ACK 200, followed by 126 s of observed dynamic output;
+the test session is closed. Moving NOA remains untested. Its APK/report/reader pins are in
 `captures/stock-sender-parity-20261025/product/candidate15.json`.
 Local build and vehicle acceptance are separate; the historical results below
 do not establish acceptance of this candidate.
@@ -66,7 +67,7 @@ road class remain unknown. See [the embedded graph and emulator acceptance](../.
 
 ## Car trip recorder (2026-10-24)
 
-**Historical build-12 acceptance; candidate 15 has not been tested on the car.** It used actual
+**Historical build-12 acceptance; candidate-15 stationary acceptance is recorded above.** It used actual
 BYDAuto integer getter snapshots, remote SOME/IP availability, successful route
 chunk sends and an explicit status-200 acknowledgement of its fresh path ID.
 Dynamic messages additionally require a current FINE fix. A lost transport or
