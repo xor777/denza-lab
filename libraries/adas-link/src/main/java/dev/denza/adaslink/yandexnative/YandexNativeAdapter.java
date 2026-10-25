@@ -22,6 +22,7 @@ import java.util.TreeSet;
 public final class YandexNativeAdapter {
     public enum MissingBooleans { REJECT, EXPLICIT_FALSE }
     public enum RoadClassPolicy { UNKNOWN, EXPERIMENTAL_FUNCTIONAL }
+    public enum HistorySpeedPolicy { OBSERVED_HISTORY_ONLY, EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY }
     public static final class Policy {
         public static final Policy STRICT=new Policy(MissingBooleans.REJECT);
         /** Owner-selected experimental assumption, not a claim about eligibility or road facts. */
@@ -31,16 +32,25 @@ public final class YandexNativeAdapter {
         public final MissingBooleans missingBooleans;
         public final RoadClassPolicy roadClass;
         public final Coordinates.Frame frame;
+        public final HistorySpeedPolicy historySpeed;
+        public final PublicRoadEvidence publicRoads;
         public Policy(MissingBooleans value){this(value,RoadClassPolicy.UNKNOWN);}
         public Policy(MissingBooleans value,RoadClassPolicy roadClass){this(value,roadClass,Coordinates.Frame.WGS84);}
-        public Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame){if(value==null||roadClass==null||frame==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;this.frame=frame;}
-        public Policy withFrame(Coordinates.Frame value){return new Policy(missingBooleans,roadClass,value);}
+        public Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame){this(value,roadClass,frame,HistorySpeedPolicy.OBSERVED_HISTORY_ONLY);}
+        private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed){this(value,roadClass,frame,historySpeed,PublicRoadEvidence.EMPTY);}
+        private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads){if(value==null||roadClass==null||frame==null||historySpeed==null||publicRoads==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;this.frame=frame;this.historySpeed=historySpeed;this.publicRoads=publicRoads;}
+        public Policy withFrame(Coordinates.Frame value){return new Policy(missingBooleans,roadClass,value,historySpeed,publicRoads);}
+        public Policy withHistorySpeed(HistorySpeedPolicy value){return new Policy(missingBooleans,roadClass,frame,value,publicRoads);}
+        public Policy withPublicRoadEvidence(PublicRoadEvidence value){return new Policy(missingBooleans,roadClass,frame,historySpeed,value);}
     }
     /** Current source observations; NaN remains absent and is never made stationary/arrived. */
     public static final class Guidance {
         public double scalar=Double.NaN,timeToFinishS=Double.NaN;
         /** Actual corresponding source only. Yandex free-flow/traffic speed is not historical speed. */
         public Integer historicalSpeedKmh;
+        /** Current position freshness/association required for the experimental section proxy. */
+        public long fixAgeMs=-1;
+        public boolean onRoute;
     }
     public static final class Location {
         public double scalar=Double.NaN,matchedLon=Double.NaN,matchedLat=Double.NaN;
@@ -80,10 +90,15 @@ public final class YandexNativeAdapter {
         private final List<String> blockers;
         private final java.util.Map<String,Object> attributeEvidence;
         private final boolean emptyUnavailableLightProjection;
+        private final HistorySpeedPolicy historySpeedPolicy;
+        private final double[] sectionFreeFlowKmh;
+        private final boolean conditionsOutdated;
         private AdaptedRoute(YandexRoute source,long id,long request,int type,RouteAttributes attributes,Policy policy){
             if(source==null||policy==null)throw new IllegalArgumentException("route and policy required");
             if(id<=0)throw new IllegalArgumentException("positive synthetic path identity required");
             routeId=source.routeId;pathId=id;requestId=request;routeType=type;frame=policy.frame;
+            historySpeedPolicy=policy.historySpeed;
+            conditionsOutdated=Boolean.TRUE.equals(source.conditionsProvenance().get("conditionsOutdated"));
             emptyUnavailableLightProjection=policy.missingBooleans==MissingBooleans.EXPLICIT_FALSE;
             lon=source.lon.clone();lat=source.lat.clone();cumulative=new double[lon.length];
             if(lon.length>100000)throw new IllegalArgumentException("route point limit 100000");
@@ -108,7 +123,9 @@ public final class YandexNativeAdapter {
             ds.add(d("roadClass","whole-interval typed renderer class/fc; no legacy converted roadClass","policy="+policy.roadClass+"; experimental functional projection is approximate, not native topology or NOA eligibility","RoadClassNULL=-1 for missing/conflicting source or UNKNOWN policy",FieldDecision.Kind.SDK_NULL));
             ds.add(d("formway","Yandex section ENTER_ROUNDABOUT","FormwayRoundCircle=4 only on the explicitly entered roundabout section","FormayNULL=-1 otherwise; renderer layers do not prove formway",FieldDecision.Kind.SDK_NULL));
             ds.add(d("linkType","Yandex route tunnel/ferry ranges","Tunnel=2 / Ferry=1 for reported containing range","LinkTypeNULL=-1 elsewhere; absence of these two structures does not prove common/bridge/elevated",FieldDecision.Kind.SDK_NULL));
-            ds.add(d("ownership","no corresponding Yandex public/private source","OwnershipPublicRoad=0 is a road fact and cannot be an unknown fill","AUTO_UNKNOWN_ERROR=MIN_VALUE; original P maps it to -1",FieldDecision.Kind.SDK_NULL));
+            ds.add(d("ownership","owner-confirmed exact traversed WGS84 source-edge catalog; SHA256="+policy.publicRoads.sha256()+"; edges="+policy.publicRoads.edgeCount(),
+                "OwnershipPublicRoad=0 only when every intersecting original source edge is catalogued; owner evidence, not a Yandex public/private fact; no proximity or on-route fill",
+                "AUTO_UNKNOWN_ERROR=MIN_VALUE for incomplete/no coverage and off-route; original P maps it to -1",policy.publicRoads.edgeCount()==0?FieldDecision.Kind.SDK_NULL:FieldDecision.Kind.FACT));
             ds.add(d("laneNum","no continuous lane-count source","point lane signs cannot provide a continuous link lane count","LinkItem.laneNum model default 0, literal l.b forwarding; not a lane count fact",FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
             ds.add(d("direction","Yandex oneway source retained but native field semantics unproved","directed-edge presence and old 0/1 conversion do not establish SDK roadDirection","LinkItem.direction model default 0; this default does not prove two-way travel",FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
             ds.add(d("adminCode/URID","no Yandex-to-Amap administrative namespace mapping","Amap identifiers; Yandex region/package/ISO IDs are not interchangeable","LinkItem.adminCode and region/ODD model defaults 0; not an administrative fact",FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
@@ -124,8 +141,14 @@ public final class YandexNativeAdapter {
             ds.add(d("mainAction/assistantAction/crossManeuverID","Yandex section-entry Action + original SDK enum names","next section action owns prior section end; explicit matching enum names only","AutoSDK MainActionNULL/AssiActionNULL/ManeuverIconNull = 0; unmapped action diagnosed",FieldDecision.Kind.ENUM_MAPPING));
             ds.add(d("LocInfo.speed/gpsPos/matchInfo","current guided fix plus independent raw GNSS","m/s × 3.6 km/h; raw remains separate; road attributes from exact same path partition","missing speed/raw/matched position/heading rejects current matched callback",FieldDecision.Kind.DERIVED));
             ds.add(d("NaviInfo.routeRemain/linkRemainDist/NaviInfoData","current scalar + route metric + Yandex timeToFinishS","all distances use same partition; NaviInfoFlag=0 selects single current panel","missing scalar/ETA rejects callback; never NaN→0",FieldDecision.Kind.DERIVED));
-            ds.add(d("NaviInfo.curLinkSpeed","no historical-speed observation","original v0 forwards value as historySpeed; free-flow and jam speed are different concepts","original NaviInfo constructor default 0 until an explicit historical observation",FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
+            boolean freeFlowProxy=historySpeedPolicy==HistorySpeedPolicy.EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY;
+            ds.add(d("NaviInfo.curLinkSpeed",freeFlowProxy?"Yandex section.metadata.weight.distance.value metres / weight.time.value seconds × 3.6":"no historical-speed observation",
+                "policy="+historySpeedPolicy+"; original v0 forwards as historySpeed; section-average static routing estimate rounded to nearest integer km/h is an experimental proxy, not observed historical or per-edge speed; fix age checks current association, not underlying speed measurement age; never timeWithTraffic or legal limit",
+                "0 for absent/negative/nonfinite/out-of-int-range value, outdated conditions, stale/off-route fix or route end; observed historical input takes precedence",
+                freeFlowProxy?FieldDecision.Kind.DERIVED:FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
             List<YandexRoute.Section> sections=checkedSections(source);
+            sectionFreeFlowKmh=new double[sections.size()];
+            for(int i=0;i<sections.size();i++)sectionFreeFlowKmh[i]=sections.get(i).freeFlowKmh;
             // A polyline vertex is geometry, not a road-property boundary. Keep those points
             // inside links instead of multiplying native link records by the point count.
             TreeSet<Double> cuts=new TreeSet<>();cuts.add(0d);cuts.add((double)lon.length-1);
@@ -170,7 +193,8 @@ public final class YandexNativeAdapter {
                     int length=nonnegativeInt(Math.round(metres(end)-metres(begin)));
                     int lightCount=0;if(lights!=null)for(double at:lights)if(at>begin&&at<=end)lightCount++;
                     NativeEnums.Action linkAction=li+2==part.size()?action:NativeEnums.action(null);
-                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,section.toponym,lightCount,linkAction,geometryBetween(begin,end),frame,geometrySupported));
+                    int ownership=policy.publicRoads.covers(lon,lat,begin,end)?0:NativeEnums.OWNERSHIP_ERROR;
+                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,ownership,section.toponym,lightCount,linkAction,geometryBetween(begin,end),frame,geometrySupported));
                 }
                 built.add(new NativeSegment(si,section.begin,section.end,section.timeS,action,links));
             }
@@ -180,7 +204,7 @@ public final class YandexNativeAdapter {
             projection.put("nativeClassCounts",Collections.unmodifiableMap(projectedCounts));
             projection.put("rawQualityCounts",Collections.unmodifiableMap(rawQualityCounts));
             projection.put("diagnosticLimit",diagnosticLimit);projection.put("retainedDecisions",retainedClassDecisions);projection.put("omittedDecisions",omittedClassDecisions);
-            evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));evidence.put("coordinateFrame",frame.name());attributeEvidence=Collections.unmodifiableMap(evidence);
+            evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));evidence.put("coordinateFrame",frame.name());evidence.put("publicRoadEvidence",policy.publicRoads.provenance());attributeEvidence=Collections.unmodifiableMap(evidence);
             segments=Collections.unmodifiableList(built);decisions=Collections.unmodifiableList(ds);blockers=Collections.unmodifiableList(bs);
         }
         public String routeId(){return routeId;}
@@ -217,6 +241,12 @@ public final class YandexNativeAdapter {
             return new Position(si,li,pointIndex,lr,nonnegativeInt(sr),nonnegativeInt(rr),bearing(a[0],a[1],b[0],b[1]),scalar);
         }
         public double[] coordinate(double scalar){requireScalar(scalar);return point(scalar);}
+        private int freeFlowProxy(Guidance input,Position p){
+            if(historySpeedPolicy!=HistorySpeedPolicy.EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY||conditionsOutdated
+                    ||!input.onRoute||input.fixAgeMs<0||input.fixAgeMs>1500||input.scalar>=lon.length-1)return 0;
+            double speed=sectionFreeFlowKmh[p.segmentIndex];
+            return finiteNonnegative(speed)&&speed<=Integer.MAX_VALUE?(int)Math.round(speed):0;
+        }
         public int remainingLights(double scalar){requireScalar(scalar);int n=0;if(lights!=null)for(double at:lights)if(at>scalar)n++;return n;}
         public long getPathID(){return pathId;}public long getSegmentCount(){return segments.size();}
         public Segment getSegmentInfo(long index){return index>=0&&index<segments.size()?segments.get((int)index):null;}
@@ -245,7 +275,7 @@ public final class YandexNativeAdapter {
         out.routeRemain=new NativeModels.TimeAndDist(p.routeRemainM,(int)Math.round(input.timeToFinishS));
         out.curSegIdx=p.segmentIndex;out.curLinkIdx=p.linkIndex;out.curPointIdx=p.pointIndex;out.linkRemainDist=p.linkRemainM;
         out.routeRemainLightCount=route.remainingLights(input.scalar);out.crossManeuverID=route.segments.get(p.segmentIndex).action.icon;
-        out.curLinkSpeed=input.historicalSpeedKmh==null?0:input.historicalSpeedKmh;
+        out.curLinkSpeed=input.historicalSpeedKmh==null?route.freeFlowProxy(input,p):input.historicalSpeedKmh;
         if(out.curLinkSpeed<0)throw new IllegalArgumentException("historical speed must be nonnegative");
         out.NaviInfoFlag=0;out.NaviInfoData=new ArrayList<>();NativeModels.NaviInfoPanel panel=new NativeModels.NaviInfoPanel();
         panel.segmentRemain=new NativeModels.TimeAndDist(p.segmentRemainM,0);out.NaviInfoData.add(panel);return out;
@@ -293,9 +323,9 @@ public final class YandexNativeAdapter {
     private static final class NativeLink implements NativePath.Link {
         final double begin,end;final int length,roadClass,formway,type,lanes,direction,ownership;final BigInteger id;
         final String name;final int lightCount;final NativeEnums.Action action;final int[] lons,lats;final double[] scalars;
-        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,String n,int tl,NativeEnums.Action act,double[][] geometry,Coordinates.Frame frame,boolean supported){
+        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,int ownership,String n,int tl,NativeEnums.Action act,double[][] geometry,Coordinates.Frame frame,boolean supported){
             begin=b;end=e;length=len;id=identity;this.roadClass=roadClass;formway=form;type=t;
-            lanes=0;direction=0;ownership=NativeEnums.OWNERSHIP_ERROR;
+            lanes=0;direction=0;this.ownership=ownership;
             name=n==null?"":n;lightCount=tl;action=act;lons=new int[supported?geometry.length:0];lats=new int[lons.length];scalars=new double[geometry.length];
             for(int i=0;i<geometry.length;i++){scalars[i]=geometry[i][0];if(supported){double[] p=sdkCoordinate(geometry[i][1],geometry[i][2],frame);lons[i]=units(p[0]);lats[i]=units(p[1]);}}
         }

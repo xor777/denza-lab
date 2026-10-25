@@ -27,6 +27,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 21 installed; stationary acceptance and first drive retained; ICC observed, sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | 21 installed; two routes accepted, 152 positions, original terminal 100 and closed endpoints verified | [Candidate 19](#coordinate-and-road-data-candidate-19) |
+| Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | local implementation; build/parked receipt pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
@@ -495,6 +496,48 @@ read on the parked car; its enum meaning and freshness are not yet established.
 The control WGS84 and per-route alternation remain available for a subsequent
 comparison, rather than changing this candidate's first-drive condition.
 
+#### Candidate 22: free-flow proxy and confirmed public roads
+
+The owner requested one combined drive candidate rather than a separate drive
+for each field. Two adapter inputs change from candidate 21:
+
+- `NaviInfo.curLinkSpeed → SpeedIntersection.historySpeed` uses the current Yandex
+  section's base travel estimate, `weight.distance.value / weight.time.value × 3.6`,
+  under `EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY`. This is a section-average
+  routing estimate, not measured historical speed for each native link. It never
+  uses timeWithTraffic, the legal limit, actual vehicle speed or a fixed favorable
+  number. The route conditions must not be marked outdated, and current progress
+  must be on-route, FINE and at most 1.5 s old. Missing/invalid inputs produce 0
+  when the adapter is called; the product does not call NaviInfo while off-route,
+  so this is not a promise that its last transmitted speed clears off-route.
+- Ownership is public `0` only when **every original WGS84 geometry edge** touched
+  by the native link appears in the owner's public-road evidence catalog. The
+  catalog contains fully traversed edges from drive 21, whose public status the
+  owner confirmed. Endpoints match exactly after `1e-7` degree quantization, in
+  either direction; there is no proximity corridor, general on-route assumption
+  or extension onto untraveled roads. Partial coverage and off-route positions
+  retain unknown. Static and dynamic ownership use the same published link.
+
+The optional private catalog is packaged with `--public-road-evidence`, validated
+as `denza-owner-confirmed-public-roads-v1` (at most 10,000 edges and 2 MB), and pinned
+by SHA256 in the APK build report and route-policy audit. Missing or malformed
+assets yield an empty catalog plus a diagnostic; they do not stop navigation.
+Coordinates remain in ignored captures and the local APK, not in tracked source.
+
+Both policies survive coordinate-frame selection. Partition cuts, synthetic IDs,
+geometry, legal limits and native core remain unchanged; only ownership changes
+static route data. No continuous-lane estimate or foreign administrative/open-city
+identifier is introduced. `laneNum=0` is a model default, not a proved receiver
+unknown token. A proposed `1` is an exact numeric field, not an encoding of
+“at least one”; the retained SDK interfaces do not settle directional scope.
+The older 25-versus-40 observation motivates a speed hypothesis but retained logs
+alone do not establish an otherwise identical A/B protocol.
+
+Build and parked acceptance are recorded separately under ignored
+`product/build22/`, `candidate22.json` and `live22/`. Vehicle acceptance is pending
+until exact installed identity, actual speed/ownership output and same-path ACK
+are read back. The original-APK laboratory remains frozen.
+
 #### Candidate 21 first drive (2026-10-25)
 
 The owner reports no visible ICC/NOA proposal in the settlement, then a working
@@ -809,7 +852,7 @@ an SDK unknown or a receiver-accepted sentinel. The factory APK hash remains
 | `Link.getMainAction` | Endpoint action on its owning final link | SDK named mapping; `MainActionNULL=0` on other links; L.b/v0 |
 | `Link.getAssistantAction` | Same endpoint ownership | SDK named mapping; `AssiActionNULL=0` otherwise; L.b/v0 |
 | `Link.getAdcode` | No Yandex-to-Amap administrative namespace mapping | `LinkItem.adminCode` default `0`; literal L.b forwarding; not a Yandex region/package/ISO ID |
-| `Link.getOwnership` | No public/private-road source | SDK `Ownership.AUTO_UNKNOWN_ERROR=MIN_VALUE`; P explicitly maps that error to `-1`. Public `0` is not invented |
+| `Link.getOwnership` | Optional packaged owner-confirmed WGS84 source-edge catalog | Public `0` only when every intersecting original edge is covered; otherwise SDK `Ownership.AUTO_UNKNOWN_ERROR=MIN_VALUE`, which original P maps to `-1`. Catalog SHA/count are audited |
 | `Link.hasParallelRoad` | No verified equivalent source | STRICT rejects; experimental `false`. v0 transforms false→`2`, true→`1`, so false is not SDK unknown |
 | `Link.getRoadDirection` | Raw oneway acquisition evidence retained; native enum semantics unresolved | `LinkItem.direction` default `0`; literal L.b forwarding, not a proved two-way fact. Old converted `0/1` is not consumed |
 | `Link.hasMixFork` | No verified equivalent source | STRICT rejects; experimental `false`. v0 transforms false→`2`, true→`1` |
@@ -847,7 +890,7 @@ partition is shared by static getters and dynamic callbacks.
 | `NaviInfo.NaviInfoData` | One current segment panel | Fresh list, not a native SDK panel identity; A |
 | `NaviInfoPanel.segmentRemain.dist` | Remaining distance in current adapted segment | Derived metres; v0 reads this as action distance |
 | `NaviInfoPanel.segmentRemain.time` | Not consumed by the sender | Model-default `0`; not observed zero time; v0 reads only dist |
-| `NaviInfo.curLinkSpeed` | No proved historical-speed observation | Original SDK NaviInfo default `0`; v0 forwards as historySpeed. Yandex free-flow and jam speed are not substituted |
+| `NaviInfo.curLinkSpeed` | Actual history when available; candidate 22 explicitly selects current-section distance/base-time ×3.6 as an experimental free-flow proxy | Default policy keeps SDK `0`; proxy requires current route conditions and fresh on-route progress, otherwise `0`. Traffic time, legal limit and actual vehicle speed are not substituted |
 | `LocInfo.isSimulate` | Actual observation's simulation flag | `1` makes original P return before other fields; no synthetic non-simulation fact |
 | `LocInfo.speed` | Current actual observed speed in m/s | ×`3.6` to SDK km/h float; missing speed omits matched callback, never stationary `0`; P casts to int |
 | `LocInfo.sourType` | No verified source-type enum mapping | SDK LocInfo constructor default `0`; P reads it only for logging |

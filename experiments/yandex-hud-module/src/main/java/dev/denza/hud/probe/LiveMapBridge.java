@@ -20,6 +20,7 @@ import dev.denza.adaslink.RoadNetwork;
 import dev.denza.adaslink.YandexRoute;
 import dev.denza.adaslink.Topics;
 import dev.denza.adaslink.stocknative.StockTransport;
+import dev.denza.adaslink.yandexnative.PublicRoadEvidence;
 import dev.denza.adaslink.stocknative.NativeEnvironment;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -332,12 +333,26 @@ final class LiveMapBridge {
             public int request(long topic,byte[] payload,boolean response){throw new UnsupportedOperationException("native request not present in selected sender closure");}
         };
         activeEpoch=epoch();publishedSubject=sourceSubject;publishedGeneration=sourceGeneration;
-        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode);
+        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence());
         AdasGateSnapshot.Snapshot g=inputs.gates;session.start(Boolean.TRUE.equals(g.dnpService),Boolean.TRUE.equals(g.dnpSwitchRaw),Boolean.TRUE.equals(g.noSleep));
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}
         state="LIVE";reason="Передача через штатный отправитель";
         updateVehicleSpeed();
+    }
+    private PublicRoadEvidence readPublicRoadEvidence(){
+        // Packaged with this APK: no mutable on-device file can widen ownership coverage.
+        try(java.io.InputStream input=context.getAssets().open("denza-hud/public-road-evidence.json")){
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();byte[] chunk=new byte[8192];int n;
+            while((n=input.read(chunk))!=-1){
+                if(bytes.size()+n>2000000)throw new IOException("public-road catalog exceeds 2 MB");
+                bytes.write(chunk,0,n);
+            }
+            PublicRoadEvidence evidence=PublicRoadEvidence.parse(new String(bytes.toByteArray(),StandardCharsets.UTF_8));
+            note("publicRoadEvidence",Json.write(evidence.provenance()));return evidence;
+        }catch(IOException|IllegalArgumentException error){
+            note("publicRoadEvidenceUnavailable",error.toString());return PublicRoadEvidence.EMPTY;
+        }
     }
     private void updateVehicleSpeed(){
         if(finished||draining||session==null||!session.navigating()||inputs==null||inputs.gates==null)return;

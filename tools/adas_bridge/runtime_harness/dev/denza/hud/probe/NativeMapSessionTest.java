@@ -33,7 +33,7 @@ public final class NativeMapSessionTest {
     }
     static final class Transport implements StockTransport {
         final List<byte[]> routes=new ArrayList<>();int locations;final Map<Long,Map<String,Object>> decoded=new HashMap<>();final List<Long> order=new ArrayList<>();
-        public int fire(long topic,byte[] payload){order.add(topic);if(topic==Topics.ROUTE)routes.add(payload.clone());if(topic==Topics.SD_VEHICLE_LOCATION)locations++;if(topic==Topics.SD_VEHICLE_LOCATION||topic==Topics.TRAFFIC_INFO)decoded.put(topic,Topics.schema(topic).decode(payload));return 0;}
+        public int fire(long topic,byte[] payload){order.add(topic);if(topic==Topics.ROUTE)routes.add(payload.clone());if(topic==Topics.SD_VEHICLE_LOCATION)locations++;if(topic==Topics.SD_VEHICLE_LOCATION||topic==Topics.TRAFFIC_INFO||topic==Topics.SD_SPEED_INTERSECTION)decoded.put(topic,Topics.schema(topic).decode(payload));return 0;}
         @SuppressWarnings("unchecked")Map<String,Object> fields(long topic,String key){return (Map<String,Object>)decoded.get(topic).get(key);}
         public int startService(long topic){return 0;}public int stopService(long topic){return 0;}public int request(long topic,byte[] payload,boolean response){return 0;}
         @SuppressWarnings("unchecked")int routeType(){String raw=new String(routes.get(routes.size()-1),java.nio.charset.StandardCharsets.UTF_8);Map<String,Object> outer=(Map<String,Object>)Json.parse(raw.substring(raw.indexOf('{'),raw.lastIndexOf('}')+1));Map<String,Object> inner=(Map<String,Object>)Json.parse((String)outer.get("payload"));return ((Number)inner.get("RouteType")).intValue();}
@@ -42,13 +42,14 @@ public final class NativeMapSessionTest {
         final Runtime runtime=new Runtime();final Environment environment=new Environment();final Transport transport=new Transport();long ids=2000;
         final NativeMapSession session;final List<Map<String,Object>> audits=new ArrayList<>();
         Rig(){this(LiveSessionLease.FrameMode.WGS84);}
-        Rig(LiveSessionLease.FrameMode mode){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
+        Rig(LiveSessionLease.FrameMode mode){this(mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence.EMPTY);}
+        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode,evidence);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
         NativeNavigationInput input(String id,long epoch,boolean route){NativeNavigationInput o=new NativeNavigationInput();o.routeId=id;o.routeEpoch=epoch;o.mode="guidance";o.routeStatus="ON_ROUTE";o.positionOnRoute=true;o.offlineGeometrySha256="geometry-"+id;o.monotonicMs=runtime.now;o.stamp=runtime.now;o.fixAgeMs=0;o.locationClass="FINE";o.scalar=.3;o.timeToFinishS=30;o.lon=37.6003;o.lat=55.7003;o.rawLon=37.60029;o.rawLat=55.70029;o.speedMps=3;o.heading=45;
             if(route)o.route=new YandexRoute(id,new double[]{37.6,37.601},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);return o;}
         void observe(NativeNavigationInput o){session.observe(o);runtime.advance(0);}
     }
     public static void main(String[] args){
-        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();
+        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();sectionFreeFlowProxyReachesFactoryWire();catalogOwnershipStaysWithinConfirmedSourceEdges();
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
@@ -163,5 +164,76 @@ public final class NativeMapSessionTest {
         r.runtime.advance(1001);NativeNavigationInput off=r.input("b",2,false);off.positionOnRoute=false;off.routeStatus="NOT_ON_ROUTE";off.scalar=Double.NaN;off.timeToFinishS=Double.NaN;off.lon=37.61;
         int beforeOff=r.transport.locations;r.observe(off);position=r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation");
         check(r.transport.locations>beforeOff&&((Number)position.get("locationLongitudeAssociateRoad")).doubleValue()==37.61,"off-route current positions continue after first B progress despite unavailable new ETA");r.session.close();
+    }
+    static int historyOnWire(Rig r){return ((Number)r.transport.fields(Topics.SD_SPEED_INTERSECTION,"speedIntersectionInformation").getOrDefault("historySpeed",0)).intValue();}
+    static void sectionFreeFlowProxyReachesFactoryWire(){
+        for(LiveSessionLease.FrameMode frame:new LiveSessionLease.FrameMode[]{LiveSessionLease.FrameMode.WGS84,LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE}){
+            Rig r=new Rig(frame);NativeNavigationInput first=r.input("free-flow",1,false);
+            // Source section means seen in drive21: 5 m/s =18 km/h, 2 m/s =7.2 km/h.
+            first.route=new YandexRoute(first.routeId,new double[]{37.6,37.601,37.602,37.603},new double[]{55.7,55.701,55.702,55.703},
+                    Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30,18),
+                            new YandexRoute.Section(1,2,"STRAIGHT",null,30,7.2),
+                            new YandexRoute.Section(2,3,"STRAIGHT",null,30,Double.NaN)),
+                    null,new double[0],Collections.emptyList(),Collections.emptyList(),null,null);
+            first.speedLimitMps=20/3.6;r.observe(first);long path=r.session.pathId();
+            NativeModels.NaviInfo navi=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
+            check(navi.curLinkSpeed==18&&navi.curSegIdx==0,"session supplies current first-section free-flow proxy to original v0 in "+frame);
+            check(historyOnWire(r)==18,"original sender forwards source proxy18 to SpeedIntersection wire");
+            Map<String,Object> otherSpeedFields=new HashMap<>(r.transport.fields(Topics.SD_SPEED_INTERSECTION,"speedIntersectionInformation"));otherSpeedFields.remove("historySpeed");
+            check(((Integer)r.runtime.last(".J")[1])==20,"legal limit remains independent from free-flow proxy18");
+            r.runtime.advance(1001);NativeNavigationInput second=r.input("free-flow",1,false);second.scalar=1;second.speedLimitMps=20/3.6;r.observe(second);
+            navi=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
+            check(navi.curLinkSpeed==7&&navi.curSegIdx==1&&navi.pathID==path,"exact section boundary chooses next source7.2 rounded7 on same path");
+            check(historyOnWire(r)==7,"source section transition reaches actual wire7 instead of retaining18");
+            Map<String,Object> secondFields=new HashMap<>(r.transport.fields(Topics.SD_SPEED_INTERSECTION,"speedIntersectionInformation"));secondFields.remove("historySpeed");
+            check(otherSpeedFields.equals(secondFields),"proxy transition changes no other SpeedIntersection field");
+            NativeModels.LocInfo fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];
+            Coordinates.Frame coordinate=Coordinates.Frame.valueOf(frame.name());double[] expected=Coordinates.toSdk(second.lon,second.lat,coordinate);
+            check(fix.matchInfo.get(0).stPos.lon==expected[0]&&fix.matchInfo.get(0).stPos.lat==expected[1],"history proxy preserves independent selected coordinate frame");
+            check(fix.matchInfo.get(0).ownership==Integer.MIN_VALUE&&fix.matchInfo.get(0).roadClass==-1,"history proxy fills no ownership or road class");
+            long locations=r.runtime.count(".P");r.runtime.advance(1001);NativeNavigationInput stale=r.input("free-flow",1,false);stale.scalar=1.25;stale.fixAgeMs=1501;stale.speedLimitMps=20/3.6;r.observe(stale);
+            check(((NativeModels.NaviInfo)r.runtime.last(".v0")[1]).curLinkSpeed==0&&historyOnWire(r)==0,"stale source explicitly clears prior7 in v0 and actual wire");
+            check(r.runtime.count(".P")==locations,"stale proxy reset does not turn expired fix into a location");
+            r.runtime.advance(1001);NativeNavigationInput fresh=r.input("free-flow",1,false);fresh.scalar=1.5;r.observe(fresh);
+            check(historyOnWire(r)==7,"fresh current source recovers its own section value");
+            r.runtime.advance(1001);NativeNavigationInput absent=r.input("free-flow",1,false);absent.scalar=2;r.observe(absent);
+            navi=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
+            check(navi.curSegIdx==2&&navi.curLinkSpeed==0&&historyOnWire(r)==0,"missing next-section free-flow clears old proxy instead of inventing a global default");
+            check(r.session.pathId()==path&&r.transport.routes.size()==1,"speed section/freshness changes never rebuild the static path");r.session.close();
+        }
+    }
+    @SuppressWarnings("unchecked")
+    static void catalogOwnershipStaysWithinConfirmedSourceEdges(){
+        dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence=dev.denza.adaslink.yandexnative.PublicRoadEvidence.parse(
+                "{\"schema\":\"denza-owner-confirmed-public-roads-v1\",\"edges\":[[37.6,55.7,37.601,55.701]]}");
+        for(LiveSessionLease.FrameMode frame:new LiveSessionLease.FrameMode[]{LiveSessionLease.FrameMode.WGS84,LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE}){
+            Rig r=new Rig(frame,evidence);NativeNavigationInput first=r.input("catalog",1,false);
+            first.route=new YandexRoute(first.routeId,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},
+                    Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30,18),new YandexRoute.Section(1,2,"STRAIGHT",null,30,18)),
+                    null,new double[0],Collections.emptyList(),Collections.emptyList(),null,null);
+            r.observe(first);long path=r.session.pathId();
+            String wire=new String(r.transport.routes.get(0),java.nio.charset.StandardCharsets.UTF_8);
+            Map<String,Object> envelope=(Map<String,Object>)Json.parse(wire.substring(wire.indexOf('{'),wire.lastIndexOf('}')+1));
+            Map<String,Object> route=(Map<String,Object>)Json.parse((String)envelope.get("payload"));
+            List<Map<String,Object>> links=(List<Map<String,Object>>)((Map<String,Object>)((List<?>)route.get("data")).get(0)).get("links");
+            check(links.size()==2&&((Number)links.get(0).get("ownership")).intValue()==0&&((Number)links.get(1).get("ownership")).intValue()==Integer.MIN_VALUE,
+                    "factory route marks only exact catalogued WGS edge public; next untraversed edge remains unknown in "+frame);
+            NativeModels.LocInfo fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];
+            check(fix.matchInfo.get(0).ownership==0&&((Number)r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation").getOrDefault("currentRoadOwnership",0)).intValue()==0,
+                    "catalogued edge public ownership reaches original location processor and actual wire");
+            Coordinates.Frame selected=Coordinates.Frame.valueOf(frame.name());double[] point=Coordinates.toSdk(first.lon,first.lat,selected);
+            check(fix.matchInfo.get(0).stPos.lon==point[0]&&fix.matchInfo.get(0).stPos.lat==point[1],"catalog matching uses original WGS edges independently of output-frame conversion");
+            Map<String,Object> attrs=(Map<String,Object>)r.audits.get(0).get("attributeEvidence");
+            check(evidence.sha256().equals(((Map<?,?>)attrs.get("publicRoadEvidence")).get("sha256")),"route audit pins the exact immutable owner catalog");
+            r.runtime.advance(1001);NativeNavigationInput future=r.input("catalog",1,false);future.scalar=1.25;future.lon=37.60125;future.lat=55.70125;r.observe(future);
+            fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];
+            check(fix.matchInfo.get(0).ownership==Integer.MIN_VALUE&&((Number)r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation").get("currentRoadOwnership")).intValue()==-1,
+                    "progress onto an uncatalogued future edge stays SDK unknown and original wire -1");
+            r.runtime.advance(1001);NativeNavigationInput off=r.input("catalog",1,false);off.routeStatus="NOT_ON_ROUTE";off.positionOnRoute=false;off.scalar=Double.NaN;r.observe(off);
+            fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];
+            check(fix.matchInfo.get(0).ownership==Integer.MIN_VALUE&&((Number)r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation").get("currentRoadOwnership")).intValue()==-1,
+                    "off-route fix stays unknown even when its coordinates lie on a catalogued edge");
+            check(r.session.pathId()==path&&r.transport.routes.size()==1,"ownership progress and off-route handling do not allocate or repartition a path");r.session.close();
+        }
     }
 }

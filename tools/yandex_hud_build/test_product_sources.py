@@ -1,11 +1,12 @@
 """Product compilation boundary, independent of historical sender goldens or private corpus."""
 import os
+import json
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
-from build import ROOT, LEGACY_ADAS_CLASSES, product_adas_sources, verify_product_classes
+from build import ROOT, LEGACY_ADAS_CLASSES, product_adas_sources, verify_product_classes, public_road_catalog
 
 
 class ProductSourceClosure(unittest.TestCase):
@@ -13,6 +14,24 @@ class ProductSourceClosure(unittest.TestCase):
         names = {p.stem for p in product_adas_sources()}
         self.assertFalse(names & LEGACY_ADAS_CLASSES)
         self.assertTrue({'StockSender', 'YandexNativeAdapter', 'OfflineVectorPackage', 'YandexRoute'} <= names)
+
+    def test_private_road_catalog_is_pinned_and_invalid_evidence_rejected(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as out:
+            path = Path(out) / 'roads.json'
+            data = {'schema': 'denza-owner-confirmed-public-roads-v1',
+                    'edges': [[37, 55, 37.001, 55.001], [37.001, 55.001, 37, 55]]}
+            path.write_text(json.dumps(data))
+            content, report = public_road_catalog(path)
+            self.assertEqual(report['edges'], 1)
+            self.assertEqual(report['sha256'], hashlib.sha256(path.read_bytes()).hexdigest())
+            self.assertEqual(content, path.read_bytes())
+            for invalid in ([[181, 55, 37, 55]], [[37, 55, 37.00000001, 55]], [[True, 55, 37, 55]]):
+                data['edges'] = invalid
+                path.write_text(json.dumps(data))
+                with self.assertRaises(ValueError):
+                    public_road_catalog(path)
+        self.assertEqual(public_road_catalog(None), (None, None))
 
     def test_packaged_nested_legacy_class_is_rejected(self):
         verify_product_classes(['dev/denza/adaslink/stocknative/StockSender.class'])

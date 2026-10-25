@@ -11,6 +11,7 @@ public class Context {
     public Context(File files){this.files=files;files.mkdirs();}
     public Context getApplicationContext(){return this;}
     public File getFilesDir(){return files;}
+    public android.content.res.AssetManager getAssets(){return new android.content.res.AssetManager(new File(files,"test-assets"));}
     public PackageManager getPackageManager(){return pm;}
     public ContentResolver getContentResolver(){return new ContentResolver();}
     public SharedPreferences getSharedPreferences(String name,int mode){return new SharedPreferences(){

@@ -6,6 +6,7 @@ import dev.denza.adaslink.stocknative.StockRuntime;
 import dev.denza.adaslink.stocknative.StockSender;
 import dev.denza.adaslink.stocknative.StockTransport;
 import dev.denza.adaslink.yandexnative.YandexNativeAdapter;
+import dev.denza.adaslink.yandexnative.PublicRoadEvidence;
 import dev.denza.adaslink.Coordinates;
 import dev.denza.adaslink.LiveSessionLease;
 import java.util.function.LongSupplier;
@@ -19,6 +20,7 @@ final class NativeMapSession implements AutoCloseable {
     private final java.util.function.Consumer<java.util.Map<String,Object>> routeAudit;
     static final int FRAME_ROUTE_LIMIT=4096;
     private final LiveSessionLease.FrameMode frameMode;
+    private final PublicRoadEvidence publicRoadEvidence;
     private final java.util.Map<String,RouteFrame> routeFrames=new java.util.LinkedHashMap<>();
     private static final class RouteFrame {
         final Coordinates.Frame frame;final int ordinal;
@@ -57,6 +59,12 @@ final class NativeMapSession implements AutoCloseable {
     NativeMapSession(StockRuntime runtime,AutoCloseable owner,NativeEnvironment environment,
                      StockTransport transport,LongSupplier ids,java.util.function.Consumer<java.util.Map<String,Object>> routeAudit,
                      LiveSessionLease.FrameMode frameMode){
+        this(runtime,owner,environment,transport,ids,routeAudit,frameMode,PublicRoadEvidence.EMPTY);
+    }
+    NativeMapSession(StockRuntime runtime,AutoCloseable owner,NativeEnvironment environment,
+                     StockTransport transport,LongSupplier ids,java.util.function.Consumer<java.util.Map<String,Object>> routeAudit,
+                     LiveSessionLease.FrameMode frameMode,PublicRoadEvidence publicRoadEvidence){
+        this.publicRoadEvidence=java.util.Objects.requireNonNull(publicRoadEvidence,"public-road evidence");
         this.runtime=runtime;this.runtimeOwner=owner; this.ids=ids;this.routeAudit=routeAudit;
         if(frameMode==null)throw new IllegalArgumentException("coordinate frame mode required");this.frameMode=frameMode;
         sender=new StockSender(runtime,environment,transport);
@@ -97,7 +105,7 @@ final class NativeMapSession implements AutoCloseable {
             // Original RouteRequestController.requestRoute chooses RouteTypeCommon=1 for
             // new ordinary guidance. The retained bench's initial 0 was an unset seed field.
             int nativeRouteType=route!=null&&offRouteReplacementPending?2:1;
-            YandexNativeAdapter.AdaptedRoute candidate=YandexNativeAdapter.prepare(o.route,pathId,pathId,nativeRouteType,o.route.additionalAttributes,YandexNativeAdapter.Policy.TEST_ROAD_DATA.withFrame(selected.frame));
+            YandexNativeAdapter.AdaptedRoute candidate=YandexNativeAdapter.prepare(o.route,pathId,pathId,nativeRouteType,o.route.additionalAttributes,YandexNativeAdapter.Policy.TEST_ROAD_DATA.withHistorySpeed(YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY).withPublicRoadEvidence(publicRoadEvidence).withFrame(selected.frame));
             java.util.Map<String,Object> policy=dev.denza.adaslink.Json.object();
             policy.put("routeId",o.routeId);policy.put("pathId",pathId);policy.put("epoch",o.routeEpoch);
             policy.put("nativeRouteType",nativeRouteType);policy.put("routeStatus",o.routeStatus);
@@ -105,6 +113,7 @@ final class NativeMapSession implements AutoCloseable {
             policy.put("coordinateFrameMode",frameMode.name());policy.put("coordinateFrame",selected.frame.name());policy.put("coordinateRouteOrdinal",(long)selected.ordinal);
             policy.put("missingBooleanPolicy","explicit_false_test_policy");
             policy.put("roadClassPolicy",YandexNativeAdapter.Policy.TEST_ROAD_DATA.roadClass.name());
+            policy.put("historySpeedPolicy",YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY.name());
             policy.put("attributeEvidence",candidate.attributeEvidence());
             java.util.List<Object> decisions=new java.util.ArrayList<>();
             for(dev.denza.adaslink.yandexnative.FieldDecision decision:candidate.fieldDecisions()){
@@ -134,6 +143,7 @@ final class NativeMapSession implements AutoCloseable {
                 ? (int)Math.min(Integer.MAX_VALUE,Math.round(o.speedLimitMps*3.6)):0);
         if(o.positionOnRoute&&o.monotonicMs-lastNavi>=1000){
             YandexNativeAdapter.Guidance g=new YandexNativeAdapter.Guidance();g.scalar=o.scalar;g.timeToFinishS=o.timeToFinishS;
+            g.onRoute=o.positionOnRoute&&!offRoute&&"FINE".equals(o.locationClass);g.fixAgeMs=o.fixAgeMs;
             NativeModels.NaviInfo info=YandexNativeAdapter.navi(route,g);
             if(info!=null){sender.progressUpdated(info,route);lastNavi=o.monotonicMs;routeProgressReady=true;}
         }
