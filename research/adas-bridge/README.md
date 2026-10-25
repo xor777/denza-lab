@@ -11,8 +11,8 @@ product sender with `stocknative`. Candidate 15 passed stationary route receipt
 on 2026-10-25. Candidate 21 passed two same-arm stationary
 route selections, continuous output and graceful closure. Its first drive is
 retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
-see the separate drive analysis below. Candidate 22 is now installed, with parked
-ACK and the new sourced speed/ownership inputs verified; its drive is pending. Build 14 and its experiment variants
+see the separate drive analysis below. Candidate 23 is now installed, with parked
+ACK and sourced speed/ownership plus owner-confirmed lane inputs verified; its drive is pending. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -26,14 +26,14 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 22 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 23 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
-| Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | local implementation; build and stationary receipt pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
-| Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | 22 installed: ACK 200, actual historySpeed 7, public ownership on 4/42 route links; moving acceptance pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
-| Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; no product or car change | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
+| Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | installed: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; moving acceptance pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
+| Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
+| Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
-| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Seventeen independent adapter tests, two catalog tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests; candidate-22 stationary route accepted; its moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
+| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Seventeen independent adapter tests, two catalog tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests; candidate-23 stationary route accepted; its moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
@@ -589,7 +589,33 @@ missing/malformed evidence remains zero with a diagnostic. No geometry is commit
 
 The scope and provenance are retained in ignored `product/lane-roads21/`, while
 build and parked receipts belong in `product/build23/`, `candidate23.json`, `live23/`.
-Build/install/vehicle acceptance remain pending at this implementation checkpoint.
+Candidate 23 was built from `2195393d`, installed and hash-verified on the parked
+car: versionCode `739494323`, SHA256
+`7bf3c1266fa409a47b0a9027de0ccfc6cfb2e4469e8bcecdfcb7fcf1f5d22c2f`.
+All 178 module source pins matched. Validation passed: 58 JUnit tests including
+the finite saved factory corpus, 116 runtime checks, 128 session checks, 400 Binder
+checks and six build-host tests. No original-APK bench work was added.
+
+The previous arm closed gracefully with `original terminal output sent` and both
+endpoints closed before installation. Navigator initially resumed a retained route
+with 18 links; no ACK was observed before it was cancelled. That observation is
+retained, with no assumed cause. A freshly selected first home suggestion,
+Луговая ул., вл20Ас1, was then started in the same arm. Path `1792944098079`
+received explicit status 200, 82 ms after selection. The actual 53-link route
+contained laneNum 2 on five fully covered links and 0 on the other 48; public
+ownership 0 on 11 links and MIN_VALUE on the other 42. This differing partition
+does not expand the exact 18-edge lane catalog. The catalog's packaged SHA was
+also read back from the live input-policy audit.
+
+In the bounded acceptance window after the new route publication, 35 positions
+had a maximum gap of 1,013 ms; all 33 speed packets contained historySpeed 7.
+Current position ownership remained -1 at the uncovered starting edge. Callback
+failures/drops, recorder losses and the crash buffer were zero. The final parked
+snapshot had LIVE state and equal current/confirmed/held path IDs. The two-hour
+arm `94fccf97-1eb4-44fd-8e4c-87f5b7bd25a4` was left active with about 118 minutes
+remaining for the requested drive. Read current state before reuse; this is
+stationary receipt, not moving NOA acceptance.
+
 Region/city remain unchanged at zero; no administrative equivalence is claimed.
 
 #### Lane input decision and targeted vector audit (2026-10-25)
