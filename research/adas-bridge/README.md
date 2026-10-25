@@ -18,8 +18,12 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
-| On one factory start/arrival case, the native-getter-driven port emits exactly the original 3,122-byte route JSON payload; only envelope wall time differs. All 61 raw NaviInfo calls have the same three-topic order, with 154/183 payloads byte-identical. Remaining camera/voice differences involve recorded callbacks without faithful port inputs; full sender equivalence is not established | code | [Measured comparison](#measured-startarrival-comparison) |
-| A separate original-input bench records the original APK's native route getters and processed SDK callbacks, then replays them directly into StockFeed without NavigatorDriver or RouteConverter.convert. Missing callbacks, unsupported inputs, startup phase and byte/order/timing differences remain explicit; this is not NOA acceptance | code | [Original sender parity](#original-sender-parity-2026-10-25) |
+| Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
+| The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, an opt-in `StockSender` product path with the legacy path retained, build and stationary route receipt before the drive | owner decision, 2026-10-25; implementation next | [Product milestone](#product-milestone-and-bench-freeze) |
+| Yandex → AutoSDK has a separate field-policy boundary: source, conversion, validity/scope and a source-proven unknown per field. Synthetic identifiers/geometry and declared enum approximations are distinct from road facts. Current decisions remain distributed; consolidating them is an implementation target, not a completed adapter refactor | contract; implementation open | [Adapter contract](#literal-sender-boundary-and-adapter-contract) |
+| Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
+| Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
 | `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
@@ -87,6 +91,186 @@ Paths below: `LM` = `captures/hud-firmware-20260923/jadx/BydLaunchermap/sources`
 `YN` = `captures/firmware/yandexnavi-29.8.1-3b0dec32` (all git-ignored).
 
 ## Original sender parity (2026-10-25)
+
+### Oracle and migration rules
+
+The owner established these rules for `codex/stock-sender-parity`:
+
+1. The only sender reference is output of the original factory map APK executed
+   on the emulator. `StockFeed`, `RouteConverter`, `NavigatorDriver`, old test
+   expectations and prior drives are objects to check, not targets to reproduce.
+2. When an integration migrates to the new core, legacy byte/field tests
+   (`VariantWireTest`, golden routes, `test_stock_equivalence` and equivalents)
+   must be retired for that path or rewritten from new original-APK evidence.
+   A conflicting legacy expectation does not establish a defect in the new path.
+   The old product integration has not yet migrated; its tests do not gate
+   factory-core acceptance or supply its expected values.
+3. Every adapter decision needs a new account of the Yandex source, the AutoSDK
+   field's meaning and its absence representation. Legacy behavior is not
+   evidence. An unproved decision remains unknown rather than being copied.
+4. The factory core contains no `ExperimentVariant`, `loop-*` policy or values
+   taken from them. An experiment belongs in an explicitly named adapter layer.
+5. Past NOA exits, offer frequency and ACKs are retained observations, never the
+   target behavior of the new path.
+
+### Product milestone and bench freeze
+
+The owner froze bench development on 2026-10-25. Preserve the existing raw
+captures, source and failed captures; do not expand callback coverage or repair
+Frida/JVMTI/ART instrumentation as an independent workstream. Compare sender
+output against the already recorded original-APK start/arrival and reroute
+cases. Reopen phase 2 only for a named output discrepancy that cannot be
+explained from those inputs and the original source, with a bounded question
+and stopping condition. Missing coverage remains a stated limitation, not a
+reason to continue open-ended measurement work.
+
+The next implementation is one Yandex-to-AutoSDK adapter module with a field
+table (source, AutoSDK meaning, conversion, absence), then `StockSender` behind
+an explicit product switch while retaining the old path. The milestone is a
+built candidate, stationary route receipt and a first owner-driven trip. No
+emulator result establishes that NOA will remain active.
+
+Keep the pinned private-ART runtime and local paths in research tooling, outside
+product dependencies. Host tracing must be optional and must not affect
+production state or scheduling. Commit the current core, laboratory tooling and
+findings separately before integration. Preserve original names for this parity
+checkpoint; readability cleanup is a separate change after reference behavior
+has been fixed. The adapter consolidation remains required implementation.
+
+### Literal sender boundary and adapter contract
+
+The second-stage port lives in `libraries/adas-link/src/main/java/dev/denza/adaslink/stocknative/`.
+Its finite scope is the original supplier-1 / SOME-IP-v1 sender: `e0/f0`,
+`g/f`, `k/l/n`, the recovered lookahead and the process-lifetime open-city
+cache. Native SDK getters, preference storage, resources and the bound
+transport are explicit environment interfaces. The original sender owns its
+mutable beans, callback wrappers, timers and navigation lifecycle. The
+existing Yandex `StockFeed` is not switched to this core by this work.
+
+The phase-2 recorder captures **actual original reads**, not a second traversal
+of a native path before conversion. Each read has an entry and a completion,
+receiver identity and native pointer; raw numeric types, clocks and three
+Handler queues remain explicit. Processing-time snapshots may describe a
+mutable SDK input at dispatch. Original post-call input mutations are
+assertions against the port, never replacement sender state. A quiet terminal
+record preserves future pending timer occurrences without inventing their
+execution. Capture integrity and sender equality are separate acceptance
+results; neither establishes live NOA behavior.
+
+DTO extraction caches immutable reflection descriptors by actual Java `Class`
+identity, including distinct class loaders. Each field value is still read
+fresh once with its typed getter. Boxed `Short`, `Byte` and `Integer` keep their
+runtime type; primitive bit patterns and collection/object identities remain
+explicit. The lane wire bean is observed as a structure, including its
+transient request identity for assertions; that identity is still omitted by
+the original-equivalent wire serializer.
+
+For finite acceptance the input fixture delivers exactly the declared number
+of successful original `PosService.setSignInfo` calls, waits for actual stopped
+SDK guidance and successful callback-fixture completion, then calls the original
+position service's `removeLocInfoObserver` once for the original GaoDe observer.
+This bounds the otherwise continuous native position input. Already queued
+sender work still executes. The terminal policy requires every remaining due
+time to be strictly later than the observer's monotonic timestamp, with no
+unclosed frames, recorder diagnostics or missing sequence numbers. The SDK
+remove method catches its own exceptions: its return alone does not prove the
+unsubscribe worked; subsequent inputs and queue drain supply that evidence.
+
+The supplier boundary is the **outer SDK operation actually invoked by the
+sender**. JVMTI observes its entry, original argument objects, actual completion
+and return once. Nested SDK plumbing (`getCPtr`, private `get*Native` and SDK
+internal clocks) belongs to that opaque operation. A reentrant original sender
+callback opens a new observed sender frame, including its own reads. A directly
+consumed native operation whose arguments cannot be observed remains a capture
+error. The terminal observer inventory names and counts omitted SDK descendants;
+it does not remove missing source callbacks or unsupported sender inputs.
+
+The ignored `phase2/debug-28` capture is the first structurally complete JVMTI
+diagnostic: startup `p(100)`, `d.i` → `NoaState.r` / `g` constructor,
+registered route result → `g.t`, server offers, and destruction receipts pass
+their predeclared gates. Its initial strict replay matches all 314 captured
+queue/output effects, but has unconsumed lifecycle reads and a type-zero gate
+assertion. This is not an equivalence result. It also exposes that the old
+emulator vehicle-getter hooks did not reliably supply their declared values;
+active supplier-1 acceptance requires actual getter receipts from a working
+vehicle-provider fixture, not writes to sender state.
+
+The first accepted replay using the full factory scenario input is
+`phase2/start-arrival-active-03` against `phase2/port/start-arrival-active-03-v2`:
+**162/162 outputs and 766/766 combined effects**, zero mismatches, zero capture
+or driver gaps. These counts include seven verified SDK side effects. The
+original provider receipts establish ADAS type 1 and active tip support; vehicle
+speed is delivered through the original speed listener. No source clock, packet
+field, timer due time or startup phase is masked. The full 74 samples are used;
+shortened diagnostic profiles do not supply arrival evidence. Its terminal
+record still has 43 pending posts: `e0.R`, `e0.b0` and `e0.F` never executed.
+Equality of this recorded prefix therefore does not prove arrival, reroute
+processing or lane flush. Completion needs a stronger drain boundary and
+separate actual processing receipts, not merely callback delivery or posting.
+
+The stronger boundary is accepted in `phase2/reset-offcourse-04` against
+`phase2/port/reset-offcourse-04-v1`: **213/213 outputs and 1,024/1,024 combined
+effects**, zero mismatches and zero capture/driver gaps. Both original route
+types (offcourse 2 and ordinary 1) reached `e0.b0`; SDK-created `RouteOption`
+getters supply their values. The terminal inventory contains one strictly
+future timer. This proves the finite reset/offcourse scenario, not the still
+separate arrival, lane-flush or distinct-native-path branches.
+
+This result required preserving the original lazy transport constructor's clock,
+AVP support resets and the DEX order of lane-query argument reads. Six methods
+of `NaviInfoParam`/`FontRoundBean` have optional host barriers: original entry,
+arguments, receiver/array identity and computed return are assertions, never
+bean-state inputs. This orders the observed MAIN/MMT interleaving without
+copying original sender state into the port. Intramethod races that these
+barriers cannot represent remain failures. Earlier failed captures and replays
+are retained; they are not rewritten or realigned into accepted results.
+
+The Yandex-to-AutoSDK adapter has a separate contract: for each road fact,
+record its Yandex source, conversion to the AutoSDK domain, validity/scope,
+and the **field-specific, source-proven unknown representation**. Do not turn
+an unavailable fact into an asserted road property. A zero, minus one, absent
+value or unmatched value is not interchangeable across fields. Enum mapping
+and source-supported derivation remain necessary; copying an unrelated Yandex
+enum integer verbatim is not a conversion rule.
+
+Stable session/path/link identifiers and geometry segmentation are necessary
+adapter constructions. Identify them as synthetic identities or derived
+geometry, distinct from physical road facts and factory topology IDs. The
+existing `field-contract-20261024.json` registry and `FieldDefaults` are useful
+starting points, but field decisions still span the converter, driver, feed,
+offline/graph readers and experiment overrides. The implementation target is
+one auditable adapter module backed by the field table and independent input
+fixtures. This port does not yet consolidate that adapter or validate its
+road semantics.
+
+The adapter audit against committed `3bb6089c` covers 71 field decisions in 21
+tracked files. The compact implementation map below is a starting point for
+consolidation, not a blanket approval of present defaults. Exact rows and file
+hashes are retained in
+`captures/stock-sender-parity-20261025/phase2/inventory/adapter-field-audit.md`
+and `adapter-field-audit-files.json`.
+
+| Input family | Present decision owners | Contract that the consolidated adapter must expose |
+| --- | --- | --- |
+| Path/link IDs, link cuts, lengths, coordinate grid | `RouteConverter`, `StockPath`, `StockFeed`, `FieldDefaults` | Stable synthetic namespaces; named geometry and distance arithmetic; explicit frame and partition rules. These are constructed inputs, not native AutoSDK road identities |
+| Class, formway, link type, direction | `YandexRoadClass`, `RouteConverter`, `RoadNetwork`, `RouteVectorAttributes` | Source interval and quality, explicit enum mapping, field-specific unknown. Current functional-class mapping is an approximation; default common-link/two-way values must not silently become known facts |
+| Continuous lanes and ownership | `StockPath`, `RouteConverter`, `NavigatorDriver`, `StockFeed` | Point-scoped lane signs do not prove continuous lane count. Unknown static ownership and dynamic ownership need independent source proof; SDK public ownership `0` is a road property |
+| Region/admin code | `StockRouteJson`, `StockFeed`, `FieldDefaults`, `ExperimentVariant` | Declare the namespace and source; a Yandex region ID is not an Amap adcode. Existing `0`/`990001` fills do not establish receiver meaning |
+| Legal limit, vehicle speed, course and match state | `NavigatorDriver`, `StockFeed`, `FieldDefaults` | Preserve source presence, units, freshness and match scope. GNSS speed standing in for vehicle speed is an explicit policy. Static route `speedLimit=0` is a stock serializer constant, separate from the dynamic legal limit |
+| Signals, junction lanes, facilities and incidents | `RouteConverter`, `LaneGuidance`, `RoadFacilities`, `YandexTrafficContext`, `StockFeed` | Preserve point/interval ownership and known-empty versus unavailable source data; name event derivation and clear behavior |
+| Experimental fills | `ExperimentVariant`, converter, driver and feed | Apply only to fields whose source is absent, with the exact changed field visible in evidence; do not overwrite a known source value |
+
+The existing 252-row outbound registry remains historical evidence; several
+`today`/build-12 descriptions predate the present code. It is not the executable
+adapter contract. Independent adapter fixtures must check Yandex inputs against
+declared AutoSDK inputs before the sender bench checks those inputs against
+original sender behavior.
+
+The cause of the short NOA activation remains unproved. Sender parity would
+remove a class of sender differences within the tested domain; it would not
+exclude integration, adapter data, freshness/gates or ADAS conditions, and is
+not a promise of sustained NOA. The [exit-reason signal](#exit-reason-diagnostic-candidate)
+remains a read-only diagnostic candidate with unverified meaning/publication.
 
 This work is isolated on `codex/stock-sender-parity`, from committed baseline
 `b46acae3`. Concurrent uncommitted vehicle/build-17 work is not part of that

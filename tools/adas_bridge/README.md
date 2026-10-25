@@ -376,6 +376,13 @@ or live read-only logcat.
 
 ## Differential bench (stock map ↔ bridge)
 
+**Frozen on 2026-10-25.** Preserve recorded original-APK start/arrival and
+reroute outputs as the immediate comparison corpus. The next milestone is the
+product adapter and opt-in factory sender, then stationary receipt and a first
+drive. Phase 2 is reopened only for a specific unexplained output discrepancy;
+the commands below document the retained laboratory, not a continuing coverage
+campaign. See the [owner decision](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
+
 For an independent **original-input sender** comparison, use
 [`sender_parity.capture`](sender_parity/capture.py) and
 [`sender_parity.bench`](sender_parity/bench.py). That bench records native
@@ -386,6 +393,58 @@ strict byte/order/timing differences. The first factory start/arrival case
 confirms the exact native route JSON payload, not complete sender equivalence.
 Commands, measured results and limitations are in
 [Original sender parity](../../research/adas-bridge/README.md#original-sender-parity-2026-10-25).
+
+The second-stage literal core is `stocknative`, with raw native SDK getter seams
+instead of Yandex inputs. `sender_parity.phase2_run` captures original method
+entries/exits, getter and clock reads, mutable callback inputs, and individual
+Handler post/cancel/dispatch occurrences. `sender_parity.phase2_bench` replays
+that ledger and compares every output and queue effect without startup clipping
+or packet alignment. `CAPTURED` establishes transcript integrity only; a passing
+comparison is a separate result. A missing mandatory original callback makes
+the capture incomplete. Finite captures use an explicit original SDK position
+observer unsubscribe after all declared inputs return and guidance stops, then
+require all due sender work to drain; only strictly future timers may remain.
+The opt-in JVMTI recorder and calibration are described
+in [the runtime notes](sender_parity/runtime/README.md). These sender benches do
+not validate the Yandex-to-AutoSDK field policies or establish vehicle behavior.
+
+For this branch only original factory-APK execution supplies sender reference
+values. Legacy `StockFeed`/converter/driver goldens and drive logs are not new-core
+targets; their tests must be retired for a migrated path or rewritten against
+new factory evidence. Adapter fields require fresh source/meaning/absence
+evidence; experiments stay outside the factory core. The complete owner rules
+are [recorded with the sender boundary](../../research/adas-bridge/README.md#oracle-and-migration-rules).
+
+The accepted runtime path is explicit: `--observer-backend jvmti
+--vehicle-provider virtual` with the pinned Frida-16 runtime configuration. For
+an already prepared, exclusively owned emulator, use fresh output directories:
+
+```sh
+python3 -m tools.adas_bridge.sender_parity.phase2_run \
+  --build captures/stock-map-beijing-pack/car-01 \
+  --case captures/adas-bench/beijing/catalog-sel/cases/catalog-01-c019.json \
+  --out captures/sender-parity-new-capture \
+  --serial emulator-5614 --frida-port 27094 \
+  --runtime-config captures/stock-sender-parity-20261025/phase2/runtime16-debug/runtime-config.json \
+  --observer-backend jvmti --vehicle-provider virtual --callback-case arrival-idle
+python3 -m tools.adas_bridge.sender_parity.phase2_bench run \
+  --capture-manifest captures/sender-parity-new-capture/capture-manifest.json \
+  --port captures/sender-parity-new-port/port.jsonl \
+  --report captures/sender-parity-new-port/report.json \
+  --build captures/sender-parity-new-port/classes
+```
+
+Use the configured runtime's Python environment for capture. Callback profiles
+are immutable input fixtures: `rare-active`, `reset-offcourse`, `lane-query`,
+`city-odd`, `route-change` and `arrival-idle`. Their actual original processing
+receipts determine coverage. `route-change` needs the retained 160-sample reroute
+case and two distinct actual SDK routes; an ordinary route or a same-ID reset
+does not satisfy it. Defaults leave a drain tail after GNSS delivery (at least
+540 seconds total for route changes, 240 for lane queries). Route-change uses
+`--no-arrive`, with SDK stop gated on actual fixture processing; arrival-idle
+allows 120 seconds for setup. An expired fixture or capture deadline
+remains incomplete. Keep failed raw evidence and use a fresh directory for a
+retry; never edit the reference to make comparison pass.
 
 The existing integration bench below has a different input boundary:
 
