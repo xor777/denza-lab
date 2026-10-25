@@ -8,6 +8,9 @@ Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is installed. The parked
 car returned a same-path ACK 200, followed by 126 s of observed dynamic output;
 the test session is closed. Moving NOA remains untested. Its APK/report/reader pins are in
 `captures/stock-sender-parity-20261025/product/candidate15.json`.
+Candidate 18 contains local pre-drive fixes, excludes the legacy sender from
+the APK, and requires its new reader; its artifacts are pinned in
+`product/candidate18.json`. It is not installed.
 Local build and vehicle acceptance are separate; the historical results below
 do not establish acceptance of this candidate.
 

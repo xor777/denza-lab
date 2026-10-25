@@ -7,8 +7,9 @@ Navigator and the stock map left installed and unmodified? The initial firmware
 feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
 emulator; car builds also collect passive evidence. This branch replaces the
-product sender with `stocknative` for candidate 15, now installed and accepted
-for stationary route receipt on 2026-10-25. Build 14 and its experiment variants
+product sender with `stocknative`. Candidate 15 is installed and accepted
+for stationary route receipt on 2026-10-25; candidate 18 contains local pre-drive
+corrections and has separate build/test evidence below. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -23,11 +24,12 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 15 installed; stationary same-path ACK 200 and 126 s output observed; drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
+| Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
-| `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
+| `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | stationary raw reply observed; candidate-18 reader polls and journals it, meaning still open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
 | There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
@@ -205,10 +207,11 @@ the same core, allocates a fresh path ID and resets route state through its
 callback. The overlay reads the core's selected path from real ADAS receipts.
 A process crash requires a new arm rather than resurrecting the previous one.
 
-Each adapted route logs its field policy. GPS speed retains its original fix
-age; simulation cannot refresh it. Raw GNSS carries its own elapsed-time anchor,
-and stale/future raw coordinates omit the matched location callback. Off-route
-observations cannot become matched `LocInfo` inputs. The sender's host trace
+Each adapted route logs its field policy. Candidate 15 admitted only on-route
+location and used fresh GPS ground speed for the vehicle-speed input. Those
+integration limits are corrected in candidate 18 below. Raw GNSS carries its
+own elapsed-time anchor; simulation and stale/future raw coordinates remain
+inadmissible. The sender's host trace
 attachment is package-private and is never enabled by the product; processing
 hooks are no-ops in `AndroidStockRuntime`.
 
@@ -219,14 +222,95 @@ snapshot, storage and packaging checks. The host session/phase-1 runner suite
 passes 38 tests. These do not establish route receipt or NOA on the vehicle.
 
 Remaining integration limits are explicit: Android's distance calculation has
-not been proved equal to Amap's native helper; the fresh GPS ground-speed
-fallback has no reverse-gear sign. AutoType reflection was verified in the
+not been proved equal to Amap's native helper. Candidate 15's unsigned GPS
+ground-speed fallback is replaced by an independent vehicle getter in candidate 18. AutoType reflection was verified in the
 injected process during the stationary acceptance above. The product has no
 Amap geocoder, native lane-query service or AVP identifier source. Rare camera, TTS, live signal phase, weather and native-lane
 callbacks are not yet adapted. Ordinary route/progress/location/legal-limit and
 navigation-lifecycle inputs are implemented. Full end-to-end equivalence is not
 claimed. The laboratory stays frozen; the next vehicle milestone is an
 owner-driven test after the completed stationary receipt check.
+
+### Pre-drive corrections: candidate 18
+
+This is a local product correction, not another measurement phase or a vehicle
+acceptance claim. Candidate 15 remains the last installed version. Build 18
+uses a new version code (`739494318`); it must be paired with its new gate reader.
+Artifacts and validation receipts are under
+`captures/stock-sender-parity-20261025/product/`, with the final identities in
+`candidate18.json`. The original-APK bench remains frozen.
+
+Signed APK SHA-256 is
+`11f099dc24fc7ffee3e2b8c5f2e8d38a39dc83fcf720ef034fc4177114c66b76`;
+reader SHA-256 is
+`a95bc51f5ac51283f3c844eb009dcc85a68d5d2189a8f7c0ce18df4f8cc7bbda`.
+Code checkpoints: `3ae0f9e5` (runtime/input/reader) and `e307d3df`
+(analysis/input-test selection/product packaging). Validation passed: 34 Gradle
+JUnit tests with local corpus enabled, 87 runtime + 35 session assertions,
+400 actual client Binder assertions, 174 reader assertions and 66 host tests.
+All 175 compiled module source hashes match the retained build report.
+
+- Missing or stale speed pauses dynamic publication and cancels the old
+  stationary-position task. A fresh observation resumes the same arm. A queued
+  location is checked again before native processing; typed data unavailability
+  no longer destroys the runtime. Revocation, expiry and transport faults still
+  close it immediately.
+- Current FINE off-route coordinates and independent raw GNSS reach the unchanged
+  location processor. Unknown road identity uses SDK NULL fields. The original
+  processor retains its last path/indices until replacement; no fabricated
+  unmatched progress is injected. Invalid fixes cancel repeats and publish no
+  stale coordinates. This is not a claim to emit valid position when GNSS is absent.
+- Explicit Yandex `NOT_ON_ROUTE` / `ROUTE_LOST` invokes the original off-course
+  callback; the resulting replacement uses native route type 2. Initial type 0
+  (wire 50) is retained: the saved original `reroute-02` also emits 50 initially,
+  so the audit's universal initial-type-1 requirement was not established.
+  Route publication precedes dependent progress/location on the owned queues;
+  ACK behavior remains the factory policy, without a new ACK gate.
+- Missing legal limit clears the prior limit to the native callback's 0.
+  Fork/exit direction maps only to native left/right branch assistant 8/7;
+  main action and icon remain NULL because no turn angle or ramp fact is known.
+- `NativeEnvironment.realSpeed` now uses the separate read-only FLOAT7 getter
+  on device 1013, FID `0x94400008`, already in km/h. The reader records each read's
+  start/end and error; age is not renewed by another gate snapshot. GNSS speed
+  remains separate. Actual speed changes also reach the original route policy.
+- The live client requests the original service-13 open-city list, decodes the
+  original repeated-message schema, and supplies the native cache. Success is
+  cached for the connection epoch; failures receive bounded backoff retries.
+  No fake city list or current-city code is supplied.
+- Explicit host `restore` first requests an arm-bound, at-most-six-second drain
+  while the arm remains valid. Ordinary cancellation sends native resets and
+  status 100; arrival retains 110 × 3 then 100. The host then removes the arm
+  and proves endpoint closure. Removal/expiry/fault is immediate and silent;
+  it never grants a terminal-send exception after authority ends.
+- `drive_review` reads actual native `fire` rows and current-arm input policy,
+  matches the actual path/selection/ACK, and analyzes native terminal drain.
+  Replaying retained live15 selects its 126 current positions and matching
+  ACK 200, excluding 2,698 older-arm rows in the same retained rings.
+- Active input/parser/cache/admission tests run in default Gradle acceptance;
+  actual local corpus tests are explicitly enabled with `-PadasCorpus`.
+  Legacy output goldens remain excluded. An explicit APK source closure and
+  JAR check exclude the old sender, converter, guard and experiment variants.
+  Session code now calls descriptive sender facade methods.
+
+The alleged `NativeLookahead` index-reset difference was checked against the
+saved original fallback source and was not confirmed; no speculative one-line
+change was made. Original MMT, route-policy and lookahead implementations are
+unchanged by this correction.
+
+Road class, continuous lane count, ownership, historical speed and the
+Yandex-to-Amap administrative namespace still lack proved corresponding sources.
+They remain explicit unknown/default entries in the field table, not copied
+values 9 / 25 / 990001 / 372 from a previous successful route. The private
+map-package source does explain 990001/372: `amap-injector`'s
+`global_db_moscow_bound372.py` assigns experimental administrative coverage to
+990001 and binds its graph/drawing package to 372. These are package-specific
+identities, not universal city IDs; applying them to a Yandex route still needs
+that package's coordinate/coverage contract. The real city list
+can change ODD decisions near a boundary/end; city 0 does not universally imply
+rejection because the original lookahead can return distance MAX first.
+The WGS84/native coordinate-frame contract and receiver eligibility are still
+unproved. These open data semantics prevent a claim that every NOA blocker is
+fixed or that full end-to-end equivalence has been reached.
 
 ### Retained phase-1 native comparison
 
@@ -471,7 +555,7 @@ partition is shared by static getters and dynamic callbacks.
 | `getPathInfos` | One selected adapted path | Fresh `ArrayList` retaining that path identity; original k.f casts to ArrayList |
 | `getFocusIndex` | Only path in this result | `0`, derived single-path representation |
 | `getRequestId` | Product route epoch/request identity | Synthetic, not a native request recovered from Yandex |
-| `getRouteType` | Driver's explicit route-event type | Forwarded without copying a legacy route-state policy |
+| `getRouteType` | Explicit source deviation event, not route ID alone | Normal native type 0→wire 50; replacement after observed off-course type 2; saved original initial 50 retained |
 | `getToPOI` | No compatible native POI ID namespace | `null`; Yandex route ID is not an AVP POI; original k.b skips lookup for null POI |
 | `Poi.getId/getCreateID` | Not constructed by this adapter | Unreached for null ToPOI; no fabricated AVP ID |
 
@@ -497,7 +581,7 @@ partition is shared by static getters and dynamic callbacks.
 | `LocInfo.alt` | Actual altitude when supplied | Otherwise constructor-default `0`; P reads it only for logging, not ADAS state |
 | `LocInfo.gpsPos.lon/lat` | Separate raw platform GNSS observation | WGS84 doubles; raw absence omits matched callback, never copied from matched position; P/H0 |
 | `LocInfo.gpsPos.z` | No altitude contract for this source coordinate | Coord3DDouble default `0`, not consumed by P/H0 |
-| `LocInfo.matchInfo` | Current accepted guided match | Fresh one-element list; missing required match data omits callback; original P returns for empty/no match |
+| `LocInfo.matchInfo` | Current accepted FINE guided coordinate, including off-route | Fresh one-element list; off-route road metadata is NULL and link ID −1; original last path/indices remain until replacement |
 | `LocMatchInfo.stPos.lon/lat` | Actual FINE Yandex matched position | WGS84 doubles, distinct from raw GNSS; P |
 | `LocMatchInfo.stPos.z` | No corresponding matched-altitude observation | Coord3DDouble default `0`, not consumed by P |
 | `LocMatchInfo.course` | Actual current heading | Normalized to `[0,360)`; missing heading omits callback; P casts to int |
@@ -507,13 +591,13 @@ partition is shared by static getters and dynamic callbacks.
 | `LocMatchInfo.formway` | Same current published link getter | SDK FormayNULL `-1` unless source roundabout; P |
 | `LocMatchInfo.linkType` | Same current published link getter | SDK LinkTypeNull `-1` unless reported tunnel/ferry; P uses tunnel type `2` |
 | `LocMatchInfo.ownership` | Same current published link getter | SDK AUTO_UNKNOWN_ERROR→original P normalizes to `-1` |
-| `LocMatchInfo.linkId` | Same current static synthetic link ID | Derived identity coherence, not native topology; P |
+| `LocMatchInfo.linkId` | Same current static synthetic link ID when on route | Off-route −1; does not clear the original last path/indices; P |
 
 Exact action mapping covers STRAIGHT, LEFT/RIGHT, SLIGHT/HARD turns, UTURN,
 roundabout entry/exit, ferry entry/exit, WAYPOINT and FINISH using the original
 named `MainAction`, `AssistantAction` and `ManeuverIconID` values. FORK/EXIT
-instructions are retained as unsupported NULL rather than guessed slight
-turns. The SDK has no separate leave-ferry maneuver icon, so that icon is NULL.
+LEFT/RIGHT retain branch direction as assistant 8/7, with main action and icon
+NULL; this projection does not assert a ramp, merge or turn angle. The SDK has no separate leave-ferry maneuver icon, so that icon is NULL.
 Static `speedLimit=0`, route envelopes and serializer ownership normalization
 belong to the factory core, not a second adapter policy.
 
@@ -527,7 +611,7 @@ belong to the factory core, not a second adapter policy.
 | `isNaving` | Product driver's actual guidance lifecycle | No fabricated running SDK navigation state |
 | `isKD` | Exact original map `PRODUCT` metadata equals case-sensitive `kd` | Original CommonUtil.isTargetProject / BuildConfig; no variant knob |
 | `isMainThread` | Android current/main Looper identity | Actual platform observation |
-| `realSpeed` | Driver-admitted fresh original-compatible speed input | Missing/nonfinite throws; no silent zero. Vehicle and GNSS sources must remain distinguished by integration |
+| `realSpeed` | Fresh independent device 1013 / FID 0x94400008 FLOAT7, km/h | Missing/nonfinite/older than 1.5 s raises recoverable DataUnavailable; no GPS or zero substitution |
 | `lastLocation` | Last driver-supplied coordinate copy | `null` when absent; no sender-bean state supplied |
 | `startClientOrSubscribe` | Exact source-computed subscription map delegated to transport | No altered topics/map values |
 | `stopClient` | Exact source-computed map delegated to transport | No altered topics/map values |
@@ -715,8 +799,10 @@ Record null/error/stale data separately from an explicit zero. Determine whether
 the signal is live, latched or cached and what clears it before interpreting a
 value as the cause of a particular exit. A shell reader can be built on the
 host without rebuilding the navigation APK. Candidate 15 adds the actual
-TIP_ISLAND support getter to its gate reader; it does not yet add QUIT_PROMPT
-polling or an exit decoder. A half-second exit and an unmeasured
+TIP_ISLAND support getter to its gate reader. Candidate 18 additionally polls
+QUIT_PROMPT read-only in each reader cycle and logs raw value/error with read
+timestamps as `nativeVehicleRead`; it does not claim an exit decoder or a fresh
+ECU event merely because a cached getter was read. A half-second exit and an unmeasured
 publication interval mean a next drive is not guaranteed to expose its cause.
 
 ## NOA gap audit of the build-12 trip (2026-10-24)

@@ -7,7 +7,9 @@ The original-APK laboratory is frozen; the next milestone is a first trip. Signe
 ACK 200 with 126 s of observed dynamic output; its test session is closed.
 `captures/stock-sender-parity-20261025/product/candidate15.json` pins its APK,
 gate reader and validation results; `product/live15/acceptance.json` records
-stationary evidence. Moving NOA engagement and retention remain untested.
+stationary evidence. Candidate 18 adds local pre-drive corrections and requires
+its matching reader; `product/candidate18.json` pins the new artifacts. It has
+not been installed. Moving NOA engagement and retention remain untested.
 See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 
@@ -51,8 +53,9 @@ assumes an installed version.
 The actual arm operation requires human stationary confirmation, the narrowly
 tested park predicate and measured speed zero. It preserves the stock map's
 enabled state before disabling it, proves process absence, validates the
-reader and waits for the matching runtime to accept the arm. `restore` disarms
-first, asks the owned reader to stop, proves runtime quiescence, then restores
+reader and waits for the matching runtime to accept the arm. `restore` requests
+a bounded native terminal drain while the exact arm is still valid, then removes
+the arm, asks the owned reader to stop, proves runtime quiescence, and restores
 the exact original package state. Failure to prove closure is reported as
 pending restoration. It does not reset ADB keys, tunnels or global SOME/IP
 clients. Sessions 1–3 were restored with exact original package state; build-11 session 4
@@ -64,7 +67,10 @@ New `plan` and `arm` commands accept no `--variant` or sender switch. A legacy
 variant arm is rejected; the reader performs no new MPC/instrument side-channel
 writes. The adapter's missing-boolean test policy is explicit in source and logged
 per route. The reader also reads device 1038 FID `230686742`, the actual factory
-tip-support input. Its presence is required by the product environment.
+tip-support input. Its presence is required by the product environment. The
+candidate-18 reader separately reads actual vehicle speed (device 1013, FLOAT7
+FID 0x94400008, km/h) and raw NOA exit prompt (device 1038, INT5 FID 0x1FF0201C).
+Each has independent read timestamps/errors; the latter has no proved enum decoder.
 
 `restore` still understands historical rollback ledgers and restores their exact
 recorded MPC/instrument originals when necessary. This compatibility is cleanup
