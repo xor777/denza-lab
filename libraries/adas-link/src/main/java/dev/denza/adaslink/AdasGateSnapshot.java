@@ -28,6 +28,10 @@ public final class AdasGateSnapshot {
             HNP_CONFIG, UNP_CONFIG, E2E_CONFIG, HNP_SWITCH, UNP_SWITCH, E2E_SWITCH,
             ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS, DISCONNECTION_STATUS, TIP_ISLAND_SUPPORT));
     public static final int MAX_JSON_CHARS = 16384;
+    // Root: ten base keys and four optional keys. Each FID adds its map key and
+    // up to four entry fields; the two scalar reads have eight fields each,
+    // and the two optional reader side-channel summaries have five each.
+    private static final int MAX_JSON_MEMBERS = 10 + 4 + ALL_FIDS.size() * (1 + 4) + 2 * 8 + 2 * 5;
     public static final long MAX_AGE_MS = 5000;
     /** The optional key of tools/adas_bridge/AdasGateReader.NaviSt's view. */
     public static final String NAVI_ST = "naviSt", INSTRUMENT_NAVI_STATUS = "instrumentNaviStatus";
@@ -267,7 +271,7 @@ public final class AdasGateSnapshot {
                 if (c == '[' || c == ']') throw new IllegalArgumentException("arrays forbidden");
                 if (c == '{' && (++depth > 4 || ++objects > 24)) throw new IllegalArgumentException("object cap");
                 if (c == '}' && --depth < 0) throw new IllegalArgumentException("unbalanced JSON");
-                if (c == ':' && ++members > 4 * ALL_FIDS.size() + 24) throw new IllegalArgumentException("member cap");
+                if (c == ':' && ++members > MAX_JSON_MEMBERS) throw new IllegalArgumentException("member cap");
                 if (c == '"') quoted = true;
                 out.append(c);
             }

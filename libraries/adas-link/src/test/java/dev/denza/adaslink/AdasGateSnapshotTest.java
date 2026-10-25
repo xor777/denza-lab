@@ -10,6 +10,7 @@ public final class AdasGateSnapshotTest {
     private static int checks;
 
     public static void main(String[] args) {
+        fullReaderBatch();
         vehicleSpeedRead();
         Map<String, Object> row = row();
         AdasGateSnapshot.Snapshot on = read(row, 1200);
@@ -173,6 +174,52 @@ public final class AdasGateSnapshotTest {
         System.out.println("AdasGateSnapshotTest: " + checks + " checks passed");
     }
 
+    private static void fullReaderBatch() {
+        // AdasGateReader emits all 11 FIDs plus both eight-member scalar reads.
+        // The live19 retained batch had this 72-member shape, exceeding the old cap of 68.
+        Map<String,Object> batch=row();
+        set(batch,AdasGateSnapshot.DISCONNECTION_STATUS,1);
+        set(batch,AdasGateSnapshot.TIP_ISLAND_SUPPORT,2);
+        batch.put("vehicleSpeed",scalarRead(true));batch.put("noaQuit",scalarRead(false));
+        check(members(batch)==72,"full successful reader batch has 72 members");
+        AdasGateSnapshot.Snapshot snapshot=read(batch,1200);
+        check(snapshot.valid&&snapshot.hardwareGateOpen(),"all reader fields admitted: "+snapshot.reason);
+        check(snapshot.rawValues.size()==11&&snapshot.vehicleSpeedKmh(1200,1500)==0.0,
+                "all raw FIDs and independently measured standstill retained");
+        check(((Number)snapshot.noaQuit.get("value")).longValue()==0,"NOA quit raw observation retained");
+        for(String key:new String[]{AdasGateSnapshot.NAVI_ST,AdasGateSnapshot.INSTRUMENT_NAVI_STATUS}) {
+            Map<String,Object> summary=Json.object();
+            summary.put("state","WRITTEN");summary.put("original",1L);summary.put("dirty",true);
+            summary.put("reason","guidance on a confirmed path");summary.put("n",4L);
+            batch.put(key,summary);
+        }
+        snapshot=read(batch,1200);
+        check(members(batch)==84&&snapshot.valid&&snapshot.naviSt!=null&&snapshot.instrumentNaviStatus!=null,
+                "both reader side-channel summaries coexist with scalar reads: "+snapshot.reason);
+        // The integer-entry schema also permits its fourth diagnostic error field.
+        for(int fid:AdasGateSnapshot.ALL_FIDS)entry(batch,fid).put("error","retained diagnostic");
+        check(members(batch)==95&&read(batch,1200).valid,"maximum supported schema shape is bounded at 95 members");
+        @SuppressWarnings("unchecked") Map<String,Object> side=(Map<String,Object>)batch.get(AdasGateSnapshot.NAVI_ST);
+        side.put("excess",0L);
+        check("malformed_snapshot".equals(read(batch,1200).reason),"96th member still hits bounded parser cap");
+    }
+    private static Map<String,Object> scalarRead(boolean speed) {
+        Map<String,Object> value=Json.object();
+        value.put("device",speed?1013L:1038L);
+        value.put("fid",(long)(speed?AdasGateSnapshot.VEHICLE_SPEED_FID:AdasGateSnapshot.NOA_QUIT_FID));
+        value.put("transact",speed?7L:5L);value.put("unit",speed?"km/h":"raw");
+        value.put("startedAtElapsedMs",1010L);value.put("completedAtElapsedMs",1040L);
+        value.put("value",speed?(Object)Double.valueOf(0):Long.valueOf(0));value.put("status","ok");
+        return value;
+    }
+    private static int members(Map<String,Object> value) {
+        int count=value.size();
+        for(Object nested:value.values())if(nested instanceof Map) {
+            @SuppressWarnings("unchecked") Map<String,Object> map=(Map<String,Object>)nested;
+            count+=members(map);
+        }
+        return count;
+    }
     private static void vehicleSpeedRead() {
         Map<String,Object> row = row(), speed = Json.object();
         speed.put("status", "ok"); speed.put("device", 1013L); speed.put("fid", -1807745016L);
