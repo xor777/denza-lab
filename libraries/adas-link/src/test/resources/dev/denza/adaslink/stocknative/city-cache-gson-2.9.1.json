@@ -1,0 +1,467 @@
+{
+  "oracle": "Gson2.9.1 original GsonUtils.jsonToList path; m.i empty-value bypass",
+  "cases": [
+    {
+      "input": null,
+      "success": true,
+      "values": []
+    },
+    {
+      "input": "",
+      "success": true,
+      "values": []
+    },
+    {
+      "input": "[]",
+      "success": true,
+      "values": []
+    },
+    {
+      "input": " [110000,110100] ",
+      "success": true,
+      "values": [
+        110000,
+        110100
+      ]
+    },
+    {
+      "input": "[110000,110000,null]",
+      "success": true,
+      "values": [
+        110000,
+        110000,
+        null
+      ]
+    },
+    {
+      "input": "[NULL,nUlL]",
+      "success": true,
+      "values": [
+        null,
+        null
+      ]
+    },
+    {
+      "input": "[1.9,-1.9,1e2,4294967296,9223372036854775808]",
+      "success": true,
+      "values": [
+        1,
+        -1,
+        100,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "[\"+1\",\"01\",\"-01\",\"１２\"]",
+      "success": true,
+      "values": [
+        1,
+        1,
+        -1,
+        12
+      ]
+    },
+    {
+      "input": "['110000',+110100,0110200]",
+      "success": true,
+      "values": [
+        110000,
+        110100,
+        110200
+      ]
+    },
+    {
+      "input": "[1;2;3]",
+      "success": true,
+      "values": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "input": "[,1,,2,]",
+      "success": true,
+      "values": [
+        null,
+        1,
+        null,
+        2,
+        null
+      ]
+    },
+    {
+      "input": "[;]",
+      "success": true,
+      "values": [
+        null,
+        null
+      ]
+    },
+    {
+      "input": "[1,/*missing*/]",
+      "success": true,
+      "values": [
+        1,
+        null
+      ]
+    },
+    {
+      "input": "/*before*/[1,//line\n2,#hash\n3]",
+      "success": true,
+      "values": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "input": "﻿[1]",
+      "success": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "input": ")]}'\n[1,2]",
+      "success": true,
+      "values": [
+        1,
+        2
+      ]
+    },
+    {
+      "input": " // before\n)]}'\n#after\n[1]",
+      "success": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "input": "[\"\\u0031\\u0032\"]",
+      "success": true,
+      "values": [
+        12
+      ]
+    },
+    {
+      "input": "['\\u0031']",
+      "success": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "input": "[1e2147483647]",
+      "success": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "input": "[0e2147483647]",
+      "success": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "input": "[1e-2147483647]",
+      "success": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "input": "[1e2147483648]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[true]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[false]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[{}]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[[]]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "null",
+      "success": false,
+      "error_class": "java.lang.IllegalStateException"
+    },
+    {
+      "input": "NULL",
+      "success": false,
+      "error_class": "java.lang.IllegalStateException"
+    },
+    {
+      "input": "1",
+      "success": false,
+      "error_class": "java.lang.IllegalStateException"
+    },
+    {
+      "input": "{}",
+      "success": false,
+      "error_class": "java.lang.IllegalStateException"
+    },
+    {
+      "input": "[1] trailing",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1] /*after*/",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1] //after",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1] #after",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1] \t\n",
+      "success": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "input": "[1,",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1 2]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1:2]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1=2]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[0x10]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[01e1]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[+1.0]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[\"1.0\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[\"2147483648\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[2147483648]",
+      "success": true,
+      "values": [
+        -2147483648
+      ]
+    },
+    {
+      "input": "[-2147483649]",
+      "success": true,
+      "values": [
+        2147483647
+      ]
+    },
+    {
+      "input": "[\"null\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[NaN]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[Infinity]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[\"\\x31\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[\"\\uZZZZ\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[\"\\u0031\n\"]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1\f]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1\u000b]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "﻿/*comment*/[1]",
+      "success": true,
+      "values": [
+        1
+      ]
+    },
+    {
+      "input": " ﻿[1]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[] []",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "/*unterminated",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[/*unterminated]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[1,/*ok*/2]",
+      "success": true,
+      "values": [
+        1,
+        2
+      ]
+    },
+    {
+      "input": "[1/,2]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[--1]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[-0,0,-0.0]",
+      "success": true,
+      "values": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "input": "[0.00e+03,1E-01]",
+      "success": true,
+      "values": [
+        0,
+        0
+      ]
+    },
+    {
+      "input": "[\"١٢\"]",
+      "success": true,
+      "values": [
+        12
+      ]
+    },
+    {
+      "input": "[١٢]",
+      "success": true,
+      "values": [
+        12
+      ]
+    },
+    {
+      "input": "[\"\\u0030\"]",
+      "success": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "input": "[999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999]",
+      "success": true,
+      "values": [
+        -1
+      ]
+    },
+    {
+      "input": "[9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    },
+    {
+      "input": "[0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001]",
+      "success": true,
+      "values": [
+        0
+      ]
+    },
+    {
+      "input": "[0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001]",
+      "success": false,
+      "error_class": "com.google.gson.JsonSyntaxException"
+    }
+  ],
+  "oracle_artifact_sha256": "378534e339e6e6d50b1736fb3abb76f1c15d1be3f4c13cec6d536412e23da603",
+  "comparison_scope": "accepted integer values/insertion order; rejected inputs do not partially populate or retry; exception class/message identity is explicitly not asserted"
+}
