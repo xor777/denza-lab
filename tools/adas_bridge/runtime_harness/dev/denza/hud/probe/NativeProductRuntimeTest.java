@@ -58,7 +58,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
-        freshnessRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();
+        freshnessRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();refreshLatency();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
         try{LiveSessionLease.read(Json.write(invalid),BOOT,disarmed.consumer,SystemClock.now);}catch(IllegalArgumentException expected){rejected=true;}check(rejected,"legacy variant arm rejected");
@@ -205,6 +205,16 @@ public final class NativeProductRuntimeTest {
         r.close();
     }
     static YandexRoute twoSections(String id){return new YandexRoute(id,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30),new YandexRoute.Section(1,2,"STRAIGHT",null,30)),null,null,null,null,null,null);}
+    static void refreshLatency()throws Exception{
+        Rig fast=new Rig();fast.arm();fast.evidence(true);fast.context.pm.nextReadDelayMs=20;fast.route();Handler.advance(0);LiveMapTransport wire=LiveMapTransport.latest;
+        check(wire.count(Topics.ROUTE)>0&&wire.count(Topics.SD_VEHICLE_LOCATION)>0,"real refresh latency cannot make its new readiness snapshot look future");fast.close();
+        Rig slow=new Rig();slow.arm();slow.evidence(true);slow.context.pm.nextReadDelayMs=1600;slow.context.pm.afterReadDelay=()->{try{slow.evidence(true);}catch(Exception error){throw new AssertionError(error);}};slow.route();Handler.advance(0);wire=LiveMapTransport.latest;
+        check(wire.count(Topics.ROUTE)>0&&!wire.closed,"static route still admits after bounded slow refresh");
+        check(wire.count(Topics.SD_VEHICLE_LOCATION)==0,"slow refresh cannot extend source-fix/raw-slot lease before native consumption");
+        slow.evidence(true);slow.observe(false);Handler.advance(0);check(wire.count(Topics.SD_VEHICLE_LOCATION)>0&&!wire.closed,"fresh source recovers after refresh latency without a new arm");slow.close();
+        Rig fallback=new Rig();fallback.arm();fallback.evidence(true);NativeNavigationInput input=fallback.input(true);input.fixAgeMs=200;fallback.context.pm.nextReadDelayMs=700;fallback.bridge.observe(input,null,null);Handler.advance(0);Handler.advance(0);wire=LiveMapTransport.latest;
+        check(wire.count(Topics.SD_VEHICLE_LOCATION)>0,"fallback fix age remains bound to immutable input clock and is not counted twice");fallback.close();
+    }
     static void gracefulShutdown()throws Exception{
         Rig cancel=new Rig();cancel.arm();cancel.route();LiveMapTransport wire=LiveMapTransport.latest;
         Map<String,Object> fractional=new LinkedHashMap<>(cancel.arm);fractional.put("schema","denza-adas-live-stop-v1");fractional.put("requestedAtElapsedMs",SystemClock.now+.5);cancel.write(LiveMapBridge.STOP,fractional);cancel.advanceEvidence(1000);

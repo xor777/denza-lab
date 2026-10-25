@@ -22,5 +22,5 @@ public class Handler {
     public static void killAll(){tasks.clear();}
     /** Overdue tasks run at the current time, as on a worker that was blocked. */
     public static void block(long ms){SystemClock.now+=ms;}
-    public static void advance(long ms){long end=SystemClock.now+ms;int runs=0;while(true){Task next=null;for(Task t:tasks)if(t.at<=end&&(next==null||t.at<next.at||t.at==next.at&&t.serial<next.serial))next=t;if(next==null)break;tasks.remove(next);SystemClock.now=Math.max(SystemClock.now,next.at);Looper previous=Looper.current;Looper.current=next.owner.looper;try{next.action.run();}finally{Looper.current=previous;}if(++runs>20000)throw new AssertionError("runaway scheduler");}SystemClock.now=end;}
+    public static void advance(long ms){long end=SystemClock.now+ms;int runs=0;while(true){Task next=null;for(Task t:tasks)if(t.at<=end&&(next==null||t.at<next.at||t.at==next.at&&t.serial<next.serial))next=t;if(next==null)break;tasks.remove(next);SystemClock.now=Math.max(SystemClock.now,next.at);Looper previous=Looper.current;Looper.current=next.owner.looper;try{next.action.run();}finally{Looper.current=previous;}if(++runs>20000)throw new AssertionError("runaway scheduler");}SystemClock.now=Math.max(SystemClock.now,end);}
 }

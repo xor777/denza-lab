@@ -91,8 +91,8 @@ final class LiveMapBridge {
         int stockState;long readAt,isolationStart=-1;AdasGateSnapshot.Snapshot gates;boolean server,replies;
     }
     private static final class Pending {
-        final NativeNavigationInput input;final FixFreshness.Sample fix;final long generation;
-        Pending(NativeNavigationInput input,FixFreshness.Sample fix,long generation){this.input=input;this.fix=fix;this.generation=generation;}
+        final NativeNavigationInput input;final FixFreshness.Sample fix;final long generation,fixAgeAtInput,inputAt;
+        Pending(NativeNavigationInput input,FixFreshness.Sample fix,long generation){this.input=input;this.fix=fix;this.generation=generation;fixAgeAtInput=input.fixAgeMs;inputAt=input.monotonicMs;}
     }
     LiveMapBridge(Context context,Handler worker)throws IOException{this(context,worker,bootIdentity(context));}
     LiveMapBridge(Context context,Handler worker,String boot)throws IOException{this(context,worker,boot,System::currentTimeMillis);}
@@ -380,17 +380,22 @@ final class LiveMapBridge {
         if(!o.simulated&&"FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&Double.isFinite(o.speedMps)&&o.speedMps>=0){gpsSpeedKmh=o.speedMps*3.6;gpsSpeedAt=lastObservation-o.fixAgeMs;}
         if(finished||draining)return;
         try{refresh(lastObservation);reconcile();if(finished||session==null||next.generation!=sourceGeneration)return;
+            // Refresh performs real file/Binder reads. Its snapshot is newer than the receipt
+            // timestamp, so admit against the consumption clock and age the original anchors.
+            final long admissionNow=SystemClock.elapsedRealtime();
+            o.fixAgeMs=inputAge(next,admissionNow);
+            if(o.rawAtElapsedMs<0||o.rawAtElapsedMs>admissionNow||admissionNow-o.rawAtElapsedMs>1500){o.rawLon=Double.NaN;o.rawLat=Double.NaN;}
             runtime.inputScope(next.generation,()->{
                 if(next.generation!=sourceGeneration)return;
                 if(deliveredSourceGeneration!=next.generation){session.sourceGenerationChanged();deliveredSourceGeneration=next.generation;}
                 if(o.routeId==null||"off".equals(o.mode)||o.finished){session.observe(o);return;}
-                if(!offline(lastObservation).ready||hardwareFailure(lastObservation)!=null)return;
-                if(!locationFresh(lastObservation)||!o.positionOnRoute)session.invalidateLocation();
-                if(environment!=null&&locationFresh(lastObservation)){double[] sdk=session.sdkCoordinate(o.routeId,o.lon,o.lat);if(sdk!=null)environment.location(sdk[0],sdk[1]);}
+                if(!offline(admissionNow).ready||hardwareFailure(admissionNow)!=null)return;
+                if(!locationFresh(admissionNow)||!o.positionOnRoute)session.invalidateLocation();
+                if(environment!=null&&locationFresh(admissionNow)){double[] sdk=session.sdkCoordinate(o.routeId,o.lon,o.lat);if(sdk!=null)environment.location(sdk[0],sdk[1]);}
                 session.observe(o);
                 if(o.route!=null&&session.acceptsRoute(o.routeId,o.routeEpoch,o.offlineGeometrySha256)){publishedSubject=subject;publishedGeneration=next.generation;}
                 updateVehicleSpeed();
-                if(locationFresh(lastObservation))dataUnavailable=null;
+                if(locationFresh(admissionNow))dataUnavailable=null;
             });
             if(session.blocked()!=null){state="BLOCKED";reason=session.blocked();}
             publish();
@@ -403,12 +408,14 @@ final class LiveMapBridge {
         OfflineMapGate.Subject subject=sourceSubject;
         if(subject==null||subject.epoch!=o.routeEpoch||!java.util.Objects.equals(subject.routeId,o.routeId)
                 ||!java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256)||o.simulated||!"FINE".equals(o.locationClass))return false;
-        long age=current.fix==null?(now<o.monotonicMs||o.fixAgeMs<0||o.fixAgeMs>1500?Long.MAX_VALUE:o.fixAgeMs+now-o.monotonicMs):current.fix.ageMs(now,wallClock.getAsLong());
+        long age=inputAge(current,now);
         return age>=0&&age<=1500&&o.rawAtElapsedMs>=0&&now>=o.rawAtElapsedMs&&now-o.rawAtElapsedMs<=1500
                 &&coordinate(o.rawLon,o.rawLat)&&coordinate(o.lon,o.lat)
                 &&Double.isFinite(o.speedMps)&&o.speedMps>=0&&Double.isFinite(o.heading)
                 &&(session==null||session.supportsCoordinates(o.routeId,o.lon,o.lat,o.rawLon,o.rawLat));
     }
+    private long inputAge(Pending input,long now){return input.fix!=null?input.fix.ageMs(now,wallClock.getAsLong())
+            :now<input.inputAt||input.fixAgeAtInput<0||input.fixAgeAtInput>1500?Long.MAX_VALUE:input.fixAgeAtInput+now-input.inputAt;}
     private static boolean coordinate(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&lon>=-180&&lon<=180&&lat>=-90&&lat<=90;}
     private boolean dynamicFresh(long now){return locationFresh(now)&&inputs!=null&&inputs.gates!=null&&inputs.gates.vehicleSpeedKmh(now,1500)!=null;}
     private void readStopRequest(){
