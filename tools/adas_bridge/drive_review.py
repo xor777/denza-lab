@@ -439,6 +439,7 @@ class Drive:
             if row.get("kind") == "fire" and row.get("_sender") == "stocknative" and row.get("_armId"):
                 native.append(dict(row, input="liveEgress.packet", result=0, source="stocknative_transport_success", _stocknative=True))
         self.native_sends = native
+        self.sender = "stocknative" if any(r.get("_sender") == "stocknative" for r in self.live) else None
         self.journal = evidence.streams["journal"]
         self.packets = evidence.streams["packets"]
         self.progress = evidence.streams["progress"]
@@ -602,6 +603,27 @@ class Drive:
 
     def _guided_windows(self):
         """Navigator guidance as the feed models it: navStart .. navStop (or the session's end)."""
+        if self.sender == "stocknative":
+            # The literal sender does not journal legacy navStart/navStop inputs. Use
+            # observed transport boundaries without claiming when Navigator guidance began.
+            windows, opened = [], None
+            starts = {item["t"] for item in self.route_json.values()}
+            for row in self.live:
+                t = row["_t"]
+                if t is None:
+                    continue
+                if t in starts and opened is None:
+                    opened = t
+                terminal = (row.get("kind") == "fire" and _topic(row.get("topic")) == NAVIGATION_STATUS
+                            and (decode_out(row) or {}).get("navigationStatus") in END_STATUSES)
+                if opened is not None and (terminal or row.get("input") in ("liveSession.draining", "liveSession.stopped")):
+                    windows.append((opened, t))
+                    opened = None
+            if opened is not None:
+                windows.append((opened, self.live[-1]["_t"]))
+            self.window_source = "native_route_transport_to_terminal_or_capture_end"
+            return windows, False
+        self.window_source = "legacy_nav_start_stop"
         windows, open_at, state, inferred = [], None, None, False
         first_t = next((r["_t"] for r in self.live if r["_t"] is not None), None)
         for r in self.live:
@@ -731,6 +753,7 @@ def sessions(drive, clock):
     out, ordered = [], list(by_arm.items())
     for index, (arm_id, rows) in enumerate(ordered):
         s = {"armId": arm_id}
+        s["sender"] = next((r.get("_sender") for r in reversed(rows) if r.get("_sender")), None)
         armed = [r for r in rows if r.get("input") == "liveSession.armed"]
         stopping = [r for r in rows if r.get("input") == "liveSession.stopping"]
         draining = [r for r in rows if r.get("input") == "liveSession.draining"]
@@ -865,6 +888,8 @@ def _release(drive, clock, paths, sequences, stop_t, end, end_statuses):
 
 
 def _session_variant(drive, arm_id, rows, start, end):
+    if any(r.get("_sender") == "stocknative" for r in rows):
+        return None  # The fixed native product has no experiment variant contract.
     for r in rows:
         if r.get("input") == "liveSession.variant":
             value = _json_detail(r.get("detail"))
@@ -1060,8 +1085,11 @@ def cadence(drive, clock):
                        "files": sorted({r["_ref"].rsplit(":", 1)[0] for r in rows})})
     return {"guidedWindows": [{"from": at(a, None, clock), "to": at(b, None, clock), "ms": b - a} for a, b in drive.windows],
             "guidedWindowsInferred": drive.windows_inferred,
-            "guidedDefinition": "navStart .. navStop of the feed (or the session's end); a window opened before the "
-                                "retained journal is inferred from its first navStop",
+            "windowSource": drive.window_source,
+            "guidedDefinition": ("observed native route publication .. terminal status/drain/session end (or capture end); "
+                                 "not the start of Navigator guidance" if drive.sender == "stocknative" else
+                                 "navStart .. navStop of the feed (or the session's end); a window opened before the "
+                                 "retained journal is inferred from its first navStop"),
             "topics": topics}
 
 
@@ -1201,7 +1229,11 @@ def semantics(drive, clock):
         for key in ("roadclass", "formway", "direction", "ownership", "laneNum"):
             counter = collections.Counter(link.get(key) for link in route_links if isinstance(link, dict))
             dist[key] = {"counts": {str(k): v for k, v in sorted(counter.items(), key=lambda kv: str(kv[0]))},
-                         "minus1": counter.get(-1, 0), "zero": counter.get(0, 0)}
+                         "minus1": counter.get(-1, 0), "zero": counter.get(0, 0), "missing": counter.get(None, 0)}
+            if key == "ownership":
+                dist[key].update(unknown=counter.get(-1, 0)+counter.get(-2147483648, 0),
+                                 nativeUnknown=counter.get(-2147483648, 0),
+                                 definition="unavailable: legacy -1 or native SDK Integer.MIN_VALUE (-2147483648); missing is counted separately")
         links.append({"pathId": pid, "links": len(route_links), "ref": item["ref"], "fields": dist})
     if not drive.route_json:
         drive.missing.append("не разобран ни один отправленный маршрут: атрибуты звеньев неизвестны")
@@ -1423,7 +1455,7 @@ def side_channels(drive, clock):
 
 
 SIDE_VERDICTS = {
-    "not_journalled": ("not journalled (variant switch off, or a build without the channel)", "не записывался (переключатель варианта выключен или сборка без канала)"),
+    "not_journalled": ("no channel records in this capture; implementation or enablement is not established", "записей канала в этой выгрузке нет; наличие и включение канала не установлены"),
     "host_verified": ("restored and verified by the host's read-back", "восстановлен, хост перечитал и подтвердил"),
     "never_written": ("read, never written", "читался, но не записывался"),
     "ledger_clean_no_restore": ("ledger says clean, but no restore write is journalled after the last guidance write",
@@ -1655,9 +1687,11 @@ def markdown(result, clock):
         cause = (s.get("firstCause") or {}).get("detail")
         start = s.get("start") or {}
         issued = s.get("armIssued")
-        lines.append("- Сеанс `%s`, вариант **%s**%s: %s%s до %s. Первая причина конца: «%s»." % (
-            s["armId"][:8], v.get("id") or "не записан",
-            " (" + ", ".join(v.get("overrides") or []) + ")" if v.get("overrides") else "",
+        policy = ("отправитель **stocknative**" if s.get("sender") == "stocknative" else
+                  "вариант **%s**%s" % (v.get("id") or "не записан",
+                  " (" + ", ".join(v.get("overrides") or []) + ")" if v.get("overrides") else ""))
+        lines.append("- Сеанс `%s`, %s: %s%s до %s. Первая причина конца: «%s»." % (
+            s["armId"][:8], policy,
             "разрешение выдано " + t(issued["elapsedMs"]) + ", " if issued else "",
             ("журнал с " if start.get("how") != "liveSession.armed" else "с ") + t(start.get("elapsedMs")),
             t((s.get("end") or {}).get("elapsedMs")), cause or "не записана"))
@@ -1680,7 +1714,8 @@ def markdown(result, clock):
             "" if ok else " Причины: " + ", ".join("%s ×%d" % (NEW_PATH_RU.get(k, k), n) for k, n in route["reasons"].items()) + "."))
     lines.append("")
 
-    lines += ["## 3. Частота отправки (во время ведения)", "", "| Тема | всего | медиана | p95 | макс | > 2,5 с |", "|---|---|---|---|---|---|"]
+    native_windows = result["cadence"].get("windowSource") == "native_route_transport_to_terminal_or_capture_end"
+    lines += ["## 3. Частота отправки (%s)" % ("при опубликованном native-маршруте" if native_windows else "во время ведения"), "", "| Тема | всего | медиана | p95 | макс | > 2,5 с |", "|---|---|---|---|---|---|"]
     for topic in result["cadence"].get("topics", []):
         if topic["intervalsWhileGuided"] == 0 and not topic["expectedAbout1s"]:
             continue
@@ -1689,7 +1724,9 @@ def markdown(result, clock):
                                                       _s(topic["p95Ms"]), _s(topic["maxMs"]), len(topic["over2500ms"])))
     if result["cadence"].get("guidedWindowsInferred"):
         lines.append("")
-        lines.append("Начало ведения выведено из первого navStop: журнал начинается посреди ведения.")
+        lines.append("Границы ведения определены косвенно по сохранённым событиям; точное начало ведения не установлено.")
+    if native_windows:
+        lines += ["", "Окна считаются от фактической публикации native-маршрута до terminal-статуса, остановки или конца записи. Это не время начала ведения Яндекса."]
     lines.append("")
 
     lines += ["## 4. Паузы и разрывы", ""]
@@ -1715,18 +1752,21 @@ def markdown(result, clock):
 
     sem = result["semantics"]
     pos, tr = sem["positions"], sem["trafficInfo"]
+    native_session = any(s.get("sender") == "stocknative" for s in result["sessions"])
     lines += ["## 5. Смысл полей", "",
-              "Позиций отправлено %d, на нашем пути %d; ownership −1 (у Яндекса нет значения): %d, заполнено вариантом: %d." % (
-                  pos["sent"], pos["matched"], pos["ownershipMinus1"], pos["ownershipVariantFilled"]),
-              "TrafficInfo %d, на пути %d; roadClass −1: %d, заполнено вариантом: %d." % (
-                  tr["sent"], tr["matched"], tr["roadClassMinus1"], tr["roadClassVariantFilled"]), ""]
+              "Позиций отправлено %d, на нашем пути %d; ownership −1 (значение недоступно): %d%s." % (
+                  pos["sent"], pos["matched"], pos["ownershipMinus1"],
+                  "" if native_session else ", заполнено вариантом: %d" % pos["ownershipVariantFilled"]),
+              "TrafficInfo %d, на пути %d; roadClass −1: %d%s." % (
+                  tr["sent"], tr["matched"], tr["roadClassMinus1"],
+                  "" if native_session else ", заполнено вариантом: %d" % tr["roadClassVariantFilled"]), ""]
     if sem["linksPerPath"]:
-        lines += ["| Путь | звеньев | class −1 | dir 0 | own −1 | lanes 0 |", "|---|---|---|---|---|---|"]
+        lines += ["| Путь | звеньев | class −1 | dir 0 | own unknown | lanes 0 |", "|---|---|---|---|---|---|"]
         for item in sem["linksPerPath"][:40]:
             f = item["fields"]
             lines.append("| %s | %d | %d | %d | %d | %d |" % (item["pathId"], item["links"], f["roadclass"]["minus1"],
-                                                          f["direction"]["zero"], f["ownership"]["minus1"], f["laneNum"]["zero"]))
-        lines.append("")
+                                                          f["direction"]["zero"], f["ownership"]["unknown"], f["laneNum"]["zero"]))
+        lines += ["", "Для route ownership unknown: −1 или native SDK −2147483648; отсутствующие JSON-поля учитываются отдельно в review.json.", ""]
 
     lines += ["## 6. Что делал ADAS", ""]
     eps = result["adasState"]["episodes"]

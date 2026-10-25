@@ -587,6 +587,57 @@ class StockNativeCapture(unittest.TestCase):
 
 
 class StockNativeJournal(unittest.TestCase):
+    def test_full_native_arm_uses_transport_windows_without_legacy_variant_or_navstop_claims(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            car.live.append({"kind": "input", "input": "liveSession.armed", "monotonicMs": 1900,
+                             "armId": "native-full", "sender": "stocknative", "detail": "native-full"})
+            self.native(car, "native-full", 2000, 222)
+            car.live.pop()  # check1 is an in-progress capture, with the arm start retained.
+            car.write()
+            result, clock = review.review(tmp)
+            text = review.markdown(result, clock)
+            self.assertEqual(result["sessions"][0]["sender"], "stocknative")
+            self.assertIsNone(result["sessions"][0]["variant"])
+            self.assertFalse(any("вариант не записан" in item for item in result["missing"]))
+            self.assertFalse(result["cadence"]["guidedWindowsInferred"])
+            self.assertEqual(result["cadence"]["windowSource"], "native_route_transport_to_terminal_or_capture_end")
+            window = result["cadence"]["guidedWindows"][0]
+            self.assertEqual((window["from"]["elapsedMs"], window["to"]["elapsedMs"]), (2002, 3100))
+            self.assertIn("отправитель **stocknative**", text)
+            self.assertNotIn("вариант", text)
+            self.assertNotIn("первого navStop", text)
+            self.assertIn("adas-journal.jsonl не найден", result["missing"])
+            self.assertTrue(any("crash/logcat" in item for item in result["missing"]))
+
+    def test_native_route_ownership_sentinel_is_unknown_without_guessing_missing_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-own", 2000, 222)
+            # Factory route JSON uses Integer.MIN_VALUE, while VehicleLocation uses -1.
+            car.write()
+            result = run(tmp)
+            fields = result["semantics"]["linksPerPath"][0]["fields"]["ownership"]
+            self.assertEqual((fields["unknown"], fields["nativeUnknown"], fields["minus1"], fields["missing"]), (1, 1, 0, 0))
+            self.assertEqual(result["semantics"]["positions"]["ownershipMinus1"], 2)
+            evidence = review.Evidence(tmp)
+            drive = review.Drive(evidence, review.Clock(evidence, 3))
+            drive.route_json[222]["route"]["links"].extend([link(ownership=-1), link(ownership=0), {}])
+            fields = review.semantics(drive, drive.clock)["linksPerPath"][0]["fields"]["ownership"]
+            self.assertEqual((fields["unknown"], fields["nativeUnknown"], fields["minus1"], fields["zero"], fields["missing"]), (2, 1, 1, 1, 1))
+
+    def test_native_terminal_packet_closes_observed_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-stop", 2000, 222)
+            car.live.pop()
+            car.live.append({"kind": "fire", "monotonicMs": 3150, "topic": review.NAVIGATION_STATUS,
+                             "payloadHex": stock.navigation_status(100).hex()})
+            car.live.append({"kind": "fire", "monotonicMs": 4150, "topic": review.NAVIGATION_STATUS,
+                             "payloadHex": stock.navigation_status(100).hex()})
+            result = run(car.write())
+            self.assertEqual(result["cadence"]["guidedWindows"][0]["to"]["elapsedMs"], 3150)
+
     def test_native_source_lifetime_restart_preserves_route_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             car = Car(tmp)
