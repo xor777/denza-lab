@@ -24,6 +24,36 @@ def run(args, **kwargs):
     subprocess.run([str(x) for x in args], check=True, **kwargs)
 
 
+# Explicit product closure. Historical senders/converters remain in research source,
+# but cannot silently return to the module DEX when that tree gains a new Java file.
+ADAS_PRODUCT_SHARED = (
+    'AdasGateSnapshot', 'BootIdentity', 'BridgeStatus', 'Coordinates', 'DryRunRecorder',
+    'FixFreshness', 'GraphRoadNetwork', 'GraphTile', 'GraphTileCache', 'Json', 'LaneGuidance',
+    'LiveSessionLease', 'OfflineMapGate', 'OfflineVectorPackage', 'Pb', 'Publisher',
+    'RoadFacilities', 'RoadNetwork', 'RouteAttributes', 'RouteVectorAttributes', 'RouteVectorTilePlan',
+    'StockMessages', 'StockPath', 'StockRouteJson', 'Topics', 'VectorRoadEnrichment',
+    'VectorRoadTile', 'VectorRoadTileCache', 'VectorTilePacket', 'YandexRoadClass', 'YandexRoute',
+    'YandexTrafficContext',
+)
+LEGACY_ADAS_CLASSES = frozenset(('StockFeed', 'NavigatorDriver', 'LiveEgressGuard', 'RouteConverter',
+                                'FieldDefaults', 'ExperimentVariant', 'LegacyRoadFacilities', 'LegacyLaneGuidance'))
+
+
+def product_adas_sources(root=ROOT):
+    base = root / 'libraries/adas-link/src/main/java/dev/denza/adaslink'
+    return sorted([base / (name + '.java') for name in ADAS_PRODUCT_SHARED]
+                  + list((base / 'stocknative').glob('*.java'))
+                  + list((base / 'yandexnative').glob('*.java')))
+
+
+def verify_product_classes(entries):
+    for name in entries:
+        if name.startswith('dev/denza/adaslink/') and name.endswith('.class'):
+            simple = name.rsplit('/', 1)[-1].split('$', 1)[0].removesuffix('.class')
+            if simple in LEGACY_ADAS_CLASSES:
+                raise RuntimeError('Historical sender class leaked into product module: ' + name)
+
+
 def excluded_native_entries(archive, abi):
     """Filter only ABI-specific lib/ entries; never trim code, resources or assets."""
     names = {info.filename for info in archive.infolist()
@@ -168,7 +198,7 @@ def main():
          '-d', sdk_stubs, *stub_sources])
     stub_jar = args.out/'sdk-compile-only.jar'
     run([java/'bin/jar', 'cf', stub_jar, '-C', sdk_stubs, '.'])
-    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java')) + sorted(adas.rglob('*.java'))
+    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java')) + product_adas_sources()
     source_hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8',
          '-classpath', os.pathsep.join(map(str, (android, stub_jar, offline_zstd['classes_jar']))), '-d', classes, *sources])
@@ -181,6 +211,7 @@ def main():
          'dev.denza.hud.probe.RotatingWriterTest'])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
     with zipfile.ZipFile(args.out/'module.jar') as module:
+        verify_product_classes(module.namelist())
         if any(name.startswith('com/yandex/') for name in module.namelist()):
             raise RuntimeError('SDK compile-only classes leaked into module.jar')
     dex = args.out/'module-dex'; dex.mkdir()

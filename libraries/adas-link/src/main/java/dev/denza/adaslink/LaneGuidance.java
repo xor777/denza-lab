@@ -51,18 +51,9 @@ public final class LaneGuidance {
     public final boolean known;
     public final int rawSignCount;
     public final List<Map<String,Object>> diagnostics;
-    LaneGuidance(Source source, RouteConverter.Converted c) {
+    LaneGuidance(Source source, List<Placed> placed) {
         known=source!=null && source.complete; rawSignCount=source==null?-1:source.rawSignCount;
         diagnostics=source==null?Collections.singletonList(issue(-1,"source unavailable",null)):source.diagnostics;
-        List<Placed> placed=new ArrayList<>();
-        if(source!=null)for(Sign s:source.signs) {
-            double at=c.metres(s.scalar); int owner=-1;
-            // A sign at an exact link end belongs to that approach link, not the following one.
-            for(int i=0;i<c.linkEndScalar.length;i++)
-                if(s.scalar>c.linkBeginScalar[i] && s.scalar<=c.linkEndScalar[i]) { owner=i; break; }
-            if(owner<0 && s.scalar==0)owner=0;
-            if(owner>=0)placed.add(new Placed(s,at,c.linkSegment[owner],c.linkInSegment[owner]));
-        }
         placed.sort((a,b)->Double.compare(a.metres,b.metres)); signs=Collections.unmodifiableList(placed);
     }
     /** Nearest actual sign, including an unsupported barrier; never skips to a later intersection. */

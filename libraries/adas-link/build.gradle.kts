@@ -33,5 +33,9 @@ dependencies {
 tasks.withType<Test>().configureEach {
     // Legacy bridge/golden/variant wrappers remain historical diagnostics,
     // not acceptance targets or fixture dependencies for the new product path.
-    include("dev/denza/adaslink/stocknative/**", "dev/denza/adaslink/yandexnative/**")
+    include("dev/denza/adaslink/stocknative/**", "dev/denza/adaslink/yandexnative/**",
+        "dev/denza/adaslink/ActiveInputJUnitTest.class")
+    if (providers.gradleProperty("adasCorpus").isPresent) {
+        include("dev/denza/adaslink/ActiveCorpusJUnitTest.class")
+    }
 }

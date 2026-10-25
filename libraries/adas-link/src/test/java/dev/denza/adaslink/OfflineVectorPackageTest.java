@@ -54,7 +54,7 @@ public final class OfflineVectorPackageTest {
     }
     private static ByteBuffer le(byte[] bytes) { return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN); }
     private static OfflineVectorPackage read(byte[] bytes) { return new OfflineVectorPackage(ByteBuffer.wrap(bytes).asReadOnlyBuffer()); }
-    private static void synthetic() {
+    static void synthetic() {
         byte[] raw=tiny();OfflineVectorPackage p=read(raw);
         check(p.size()==2&&p.entry(0).packedId==0,"omitted first field0 defaults to zero");
         check(p.entry(1).tile.equals(new VectorRoadTile.TileId(1,0,1)),"native packed golden key");
@@ -88,7 +88,7 @@ public final class OfflineVectorPackageTest {
         ByteBuffer direct=ByteBuffer.allocateDirect(raw.length);direct.put(raw).flip();check(new OfflineVectorPackage(direct.asReadOnlyBuffer()).size()==2,"read-only direct buffer supported");
         malformed();
     }
-    private static void malformed() {
+    static void malformed() {
         fails(()->read(new byte[7]),"truncated file header");fails(()->new OfflineVectorPackage(null),"null buffer");
         fails(()->read(Arrays.copyOf(tiny(),970)),"truncated last payload");
         byte[] b=tiny();le(b).putInt(0,Integer.MAX_VALUE);fails(()->read(b),"root outside file");
@@ -108,7 +108,7 @@ public final class OfflineVectorPackageTest {
         byte[] relative=tiny();le(relative).putInt(FIRST+16,2);fails(()->read(relative),"invalid relative reference");
         byte[] terminated=tiny();terminated[933]=1;fails(()->read(terminated),"string terminator required");
     }
-    private static void corpus(Path root)throws Exception {
+    static void corpus(Path root)throws Exception {
         Path packagePath=root.resolve("captures/yandex-offline-region-20261024/region-43/vmap3fb.fb");
         Path fixtures=root.resolve("captures/yandex-vector-enrichment-20261024/offline-vmap");
         byte[] bytes=Files.readAllBytes(packagePath);check(bytes.length==66793664&&VectorRoadTile.digest(bytes).equals(PACKAGE_SHA),"pinned package identity");

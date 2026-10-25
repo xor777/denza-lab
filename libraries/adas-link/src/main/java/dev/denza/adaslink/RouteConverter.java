@@ -317,8 +317,8 @@ public final class RouteConverter {
         converted.roadMatch = match;
         converted.variantApplied = applied;
         converted.variant = variant;
-        converted.laneGuidance = new LaneGuidance(route.laneGuidanceSource, converted);
-        converted.roadFacilities = RoadFacilities.onRoute(route.roadFacilitiesSource, route, converted, frame);
+        converted.laneGuidance = LegacyLaneGuidance.create(route.laneGuidanceSource, converted);
+        converted.roadFacilities = LegacyRoadFacilities.onRoute(route.roadFacilitiesSource, route, converted, frame);
         return converted;
     }
 

@@ -8,6 +8,7 @@ import base64
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import tarfile
 import tempfile
@@ -555,7 +556,7 @@ class HealthAndInputs(unittest.TestCase):
         self.assertFalse(eps[("DNP", 1)]["aligned"]["known"])
 
 
-@unittest.skipUnless((ROOT / "captures/adas-live-drive-20261024/files/denza-adas-live.jsonl").is_file(), "build-12 capture absent")
+@unittest.skipUnless(os.environ.get("DENZA_INPUT_CORPUS") == "1", "retained corpus: set DENZA_INPUT_CORPUS=1 explicitly")
 class Build12Capture(unittest.TestCase):
     """The retained 2026-10-24 build-12 rings (git-ignored) reproduce the audit's numbers."""
 
@@ -569,6 +570,145 @@ class Build12Capture(unittest.TestCase):
         (dnp,) = [e for e in result["adasState"]["episodes"] if e["function"] == "DNP" and e["value"] == 1]
         self.assertEqual(dnp["aligned"]["sinceSessionStoppedMs"], 77_545)
         self.assertEqual(dnp["lengthMs"], 474)
+
+
+@unittest.skipUnless(os.environ.get("DENZA_INPUT_CORPUS") == "1", "retained corpus: set DENZA_INPUT_CORPUS=1 explicitly")
+class StockNativeCapture(unittest.TestCase):
+    def test_live15_uses_current_arm_and_actual_published_route(self):
+        result = run(ROOT / "captures/stock-sender-parity-20261025/product/live15")
+        self.assertEqual(result["attribution"]["armId"], "edb4501b-1cb9-4e5f-b1c0-f9faba63843b")
+        self.assertEqual(result["attribution"]["excludedLiveRows"], 2698)
+        self.assertEqual(result["semantics"]["positions"]["sent"], 126)
+        self.assertEqual(result["paths"]["publications"], 1)
+        item = result["paths"]["routes"][0]["items"][0]
+        self.assertEqual((item["pathId"], item["links"], item["wireRouteType"]), (1792935676744, 11, 50))
+        self.assertEqual(item["ack200"]["afterSelectionMs"], 113)
+        self.assertEqual(result["sessions"][0]["pathsConfirmed"], [1792935676744])
+
+
+class StockNativeJournal(unittest.TestCase):
+    @staticmethod
+    def native(car, arm, start, path):
+        car.live.append({"kind": "input", "input": "liveSession.prerequisite", "monotonicMs": start,
+                         "armId": arm, "sender": "stocknative", "detail": "all prerequisites hold"})
+        car.note("nativeInputPolicy", start + 1, pathId=path, routeId="native-" + arm,
+                 missingBooleanPolicy="explicit_false_test_policy", fields=[{"field": "ownership", "kind": "SDK_NULL"}], blockers=[])
+        data = {"code": 200, "RouteType": 50, "data": [{"pathID": path, "links": [link(ownership=-2147483648)],
+                                                         "guideGroups": [], "pnts": []}]}
+        def fire(t, topic, payload):
+            car.live.append({"kind": "fire", "monotonicMs": t, "topic": topic, "payloadHex": payload.hex()})
+        for chunk in stock.chunks(json.dumps(data), 1, OFFSET + start):
+            fire(start + 2, review.ROUTE, stock.route(chunk, 1))
+        fire(start + 3, review.PATH_SELECTED, stock.path_selected(path))
+        for t in (start + 100, start + 1100):
+            fire(t, review.VEHICLE_LOCATION, stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, path, 0, 0, 10, 10, -1))
+        car.passive(start + 40, review.SELECTED, selected(path, 200))
+        car.guidance(start + 100, route_id="native-" + arm)
+        car.live.append({"kind": "input", "input": "liveSession.stopped", "monotonicMs": start + 1200,
+                         "armId": arm, "sender": "stocknative", "detail": "closed"})
+
+    def test_latest_native_arm_cannot_use_old_sends_and_aliases_keep_ack(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            car.arm(100)
+            car.publish(200, "old", 111, [link()])
+            car.tick(500, 111)
+            self.native(car, "native-a", 2000, 222)
+            self.native(car, "native-b", 4000, 333)
+            car.passive(5300, review.SELECTED, selected(333, 200))  # after final live stop: still this arm
+            car.write()
+            for name in ("adas-packets.jsonl", "progress.jsonl"):
+                source = car.evidence / name
+                source.rename(car.files / ("denza-drive-evidence--" + name))
+            result = run(tmp)
+            self.assertEqual(result["attribution"]["armId"], "native-b")
+            self.assertGreater(result["attribution"]["excludedLiveRows"], 0)
+            self.assertEqual(result["semantics"]["positions"]["sent"], 2)
+            self.assertEqual([r["pathId"] for r in result["semantics"]["linksPerPath"]], [333])
+            route = result["paths"]["routes"][0]["items"][0]
+            self.assertEqual((route["pathId"], route["wireRouteType"], route["ack200"]["afterSelectionMs"]), (333, 50, 37))
+            self.assertEqual(len(result["semantics"]["nativeInputPolicies"]), 1)
+            evidence = review.Evidence(tmp)
+            model = review.Drive(evidence, review.Clock(evidence, 3))
+            self.assertTrue(any(a["t"] == 5300 for a in model.answers))
+            self.assertFalse(any(a["t"] < 4000 for a in model.answers))
+            prior, _ = review.review(tmp, arm_id="native-a")
+            self.assertEqual([r["pathId"] for r in prior["semantics"]["linksPerPath"]], [222])
+            with self.assertRaises(review.InputError):
+                review.review(tmp, arm_id="unknown")
+
+    def test_native_terminal_status_is_observed_from_fire_and_timeout_is_not_complete(self):
+        for complete in (True, False):
+            with self.subTest(complete=complete), tempfile.TemporaryDirectory() as tmp:
+                car = Car(tmp)
+                self.native(car, "native-a", 2000, 222)
+                car.live.pop()  # replace fixture's immediate stop by actual drain
+                car.live.append({"kind": "input", "input": "liveSession.draining", "monotonicMs": 3200,
+                                 "armId": "native-a", "sender": "stocknative", "detail": "original cancellation completion"})
+                if complete:
+                    car.live.append({"kind": "fire", "monotonicMs": 3210, "topic": review.NAVIGATION_STATUS,
+                                     "payloadHex": stock.navigation_status(100).hex()})
+                for kind, t in (("stopping", 3220), ("stopped", 3230)):
+                    car.live.append({"kind": "input", "input": "liveSession." + kind, "monotonicMs": t,
+                                     "armId": "native-a", "sender": "stocknative",
+                                     "detail": "original terminal output sent" if complete else "drain timeout"})
+                result = run(car.write())
+                session = result["sessions"][0]
+                self.assertEqual(session["pathsConfirmed"], [222])
+                self.assertEqual(session["endStatuses"]["sent"], complete)
+                self.assertEqual(session["endStatuses"]["values"], [100] if complete else [])
+
+    def native_end(self, *, before=(), after=(), arrival=False, terminal_receipt=True):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-a", 2000, 222)
+            car.live.pop()
+            for i, value in enumerate(before):
+                car.live.append({"kind": "fire", "monotonicMs": 3150 + i, "topic": review.NAVIGATION_STATUS,
+                                 "payloadHex": stock.navigation_status(value).hex()})
+            car.live.append({"kind": "input", "input": "liveSession.draining", "monotonicMs": 3200,
+                             "armId": "native-a", "sender": "stocknative",
+                             "detail": "original arrival completion" if arrival else "original cancellation completion"})
+            for i, value in enumerate(after):
+                car.live.append({"kind": "fire", "monotonicMs": 3210 + i, "topic": review.NAVIGATION_STATUS,
+                                 "payloadHex": stock.navigation_status(value).hex()})
+            for kind, t in (("stopping", 3250), ("stopped", 3260)):
+                car.live.append({"kind": "input", "input": "liveSession." + kind, "monotonicMs": t,
+                                 "armId": "native-a", "sender": "stocknative",
+                                 "detail": "Сеанс завершён:original terminal output sent" if terminal_receipt else "drain timeout"})
+            return run(car.write())["sessions"][0]
+
+    def test_partial_arrival_suffix_completes_without_inventing_missing_pulses(self):
+        for before, after, full in (([110], [110, 110, 100], False),
+                                    ([110, 110, 110], [100], False),
+                                    ([], [110, 110, 110, 100], True)):
+            with self.subTest(before=before, after=after):
+                session = self.native_end(before=before, after=after, arrival=True)
+                end = session["endStatuses"]
+                self.assertTrue(end["sent"])
+                self.assertTrue(end["compatibleSuffix"])
+                self.assertEqual(end["fullSequenceObserved"], full)
+                self.assertEqual(end["values"], after)
+                self.assertEqual(session["endSequences"][0]["sent"], after)
+        self.assertFalse(self.native_end(after=[110, 110], arrival=True)["endStatuses"]["sent"])
+        self.assertFalse(self.native_end(after=[100, 110, 100], arrival=True)["endStatuses"]["sent"])
+
+    def test_repeated_idle_before_ready_is_compatible_but_requires_terminal_receipt(self):
+        session = self.native_end(after=[100, 100])
+        self.assertTrue(session["endStatuses"]["sent"])
+        self.assertTrue(session["endStatuses"]["fullSequenceObserved"])
+        self.assertEqual(session["endStatuses"]["values"], [100, 100])
+        self.assertFalse(self.native_end(after=[100, 100], terminal_receipt=False)["endStatuses"]["sent"])
+        self.assertFalse(self.native_end(after=[100, 101, 100])["endStatuses"]["sent"])
+
+    def test_dry_run_fire_is_never_transport_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            car.arm(100)
+            car.live.append({"kind": "fire", "monotonicMs": 200, "topic": review.PATH_SELECTED,
+                             "payloadHex": stock.path_selected(123).hex()})
+            result = run(car.write())
+            self.assertEqual(result["cadence"]["topics"], [])
 
 
 if __name__ == "__main__":

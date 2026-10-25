@@ -29,7 +29,7 @@ The answers (review.json keys):
   paths           per Yandex route ID its ADAS pathIds, why each new one was made, its selection ACK
   cadence         per outbound topic median/p95 interval while guided, intervals above 2.5 s
   pausesAndGaps   LIVE pauses (named prerequisite, length, FINE guidance) and position gaps > 2.5 s
-  semantics       matched positions/TrafficInfo carrying the unmatched markers; link attribute mix
+  semantics       route-attributed positions/TrafficInfo carrying unavailable attribute markers; link attribute mix
   adasState       DNP/ICC/ACC episodes from service-13 PilotStatus, aligned to what was being sent
   sideChannels    NaviSt (0x4CA0004B) and instrument navigation status (0x43E0003A) writes/restores
   health          processes, resumed arms, dropped callbacks, ring coverage, crash markers
@@ -91,9 +91,9 @@ END_STATUSES = (110, 100)
 NAVI_ST_FID, INSTRUMENT_FID = 0x4CA0004B, 0x43E0003A
 STREAMS = (("live", re.compile(r"^denza-adas-live\.jsonl(?:\.(\d+))?$")),
            ("dryRun", re.compile(r"^denza-adas-dry-run\.jsonl(?:\.(\d+))?$")),
-           ("journal", re.compile(r"^adas-journal\.jsonl(?:\.(\d+))?$")),
-           ("packets", re.compile(r"^adas-packets\.jsonl(?:\.(\d+))?$")),
-           ("progress", re.compile(r"^progress\.jsonl(?:\.(\d+))?$")))
+           ("journal", re.compile(r"^(?:denza-drive-evidence--)?adas-journal\.jsonl(?:\.(\d+))?$")),
+           ("packets", re.compile(r"^(?:denza-drive-evidence--)?adas-packets\.jsonl(?:\.(\d+))?$")),
+           ("progress", re.compile(r"^(?:denza-drive-evidence--)?progress\.jsonl(?:\.(\d+))?$")))
 STATE_FILES = {"denza-adas-live-state.json": "liveState", "denza-adas-live-arm.json": "arm",
                "denza-adas-live-lineage.json": "lineage", "denza-adas-consumer.json": "consumer",
                "denza-adas-gates.json": "gates", "denza-adas-navi-st.json": "naviStLedger",
@@ -410,14 +410,48 @@ def _json_detail(text):
 class Drive:
     """The parsed evidence: sends, routes, answers, pilot observations, windows."""
 
-    def __init__(self, evidence, clock):
+    def __init__(self, evidence, clock, arm_id=None):
         self.e, self.clock = evidence, clock
-        self.live = evidence.streams["live"]
+        all_live = evidence.streams["live"]
+        current_arm, sender = None, None
+        native_arms, arm_boundaries = [], []
+        for row in all_live:
+            if row.get("armId") and str(row.get("input", "")).startswith("liveSession."):
+                if current_arm != row["armId"]:
+                    arm_boundaries.append((row["_t"], row["armId"]))
+                    sender = None
+                current_arm = row["armId"]
+                sender = row.get("sender", sender)
+                if sender == "stocknative":
+                    native_arms.append(current_arm)
+            row["_armId"], row["_sender"] = row.get("armId", current_arm), sender
+        # A mixed retained ring must never describe a prior bridge as the current native arm.
+        self.arm_id = arm_id or (native_arms[-1] if native_arms else None)
+        self.live = [r for r in all_live if self.arm_id is None or r.get("_armId") == self.arm_id]
+        self.attribution = {"armId": self.arm_id, "selection": "explicit" if arm_id else "latest_stocknative" if native_arms else "legacy_all",
+                            "excludedLiveRows": len(all_live) - len(self.live)}
+        if arm_id and not self.live:
+            raise InputError("requested arm has no retained live rows: " + arm_id)
+        native = []
+        for row in self.live:
+            # LiveMapTransport audits a fire only after Binder returned 0. Dry-run fire
+            # rows without an identified stocknative live arm are never transport proof.
+            if row.get("kind") == "fire" and row.get("_sender") == "stocknative" and row.get("_armId"):
+                native.append(dict(row, input="liveEgress.packet", result=0, source="stocknative_transport_success", _stocknative=True))
+        self.native_sends = native
         self.journal = evidence.streams["journal"]
         self.packets = evidence.streams["packets"]
         self.progress = evidence.streams["progress"]
+        if self.arm_id and self.live:
+            boundary_times = [t for t, _ in arm_boundaries]
+            def belongs(t):
+                i = bisect.bisect_right(boundary_times, t) - 1
+                return i >= 0 and arm_boundaries[i][1] == self.arm_id
+            def retained(rows):
+                return [r for r in rows if r["_t"] is not None and belongs(r["_t"])]
+            self.journal, self.packets, self.progress = map(retained, (self.journal, self.packets, self.progress))
         self.missing = []
-        self.sends = [r for r in self.live if r.get("input") == "liveEgress.packet" and r.get("result") == 0]
+        self.sends = sorted([r for r in self.live if r.get("input") == "liveEgress.packet" and r.get("result") == 0] + native, key=lambda r: (r["_t"], r["_seq"]))
         for r in self.sends:
             r["_topic"] = _topic(r.get("topic"))
         self.guidance = [r for r in self.progress if r.get("kind") == "guidance" and r["_t"] is not None]
@@ -458,7 +492,7 @@ class Drive:
             if isinstance(payload, dict) and isinstance(payload.get("data"), list) and payload["data"]:
                 route = payload["data"][0]
                 if isinstance(route, dict) and _number(route.get("pathID")) is not None:
-                    self.route_json[int(route["pathID"])] = {"route": route, "t": r["_t"], "ref": r["_ref"]}
+                    self.route_json[int(route["pathID"])] = {"route": route, "t": r["_t"], "ref": r["_ref"], "wireRouteType": payload.get("RouteType"), "native": r.get("_stocknative", False)}
 
     # Every service-44 answer, from every recorder, one entry per receipt.
     def _answers(self):
@@ -620,11 +654,31 @@ def _b64(text):
 
 # ---------------------------------------------------------------------------------------- 1 sessions
 
+def _native_terminal_shape(values, arrival):
+    """Only the suffix observed after draining; never manufacture preceding arrival pulses."""
+    arrivals = 0
+    while arrivals < len(values) and values[arrivals] == 110:
+        arrivals += 1
+    idle = values[arrivals:]
+    compatible = bool(idle) and all(value == 100 for value in idle) and (arrivals <= 3 if arrival else arrivals == 0)
+    return {"compatibleSuffix": compatible,
+            "fullSequenceObserved": compatible and (arrivals == 3 if arrival else True),
+            "terminal100Observed": bool(values) and values[-1] == 100}
+
+
 def _end_sequences(drive):
     sequences, current = [], None
-    for r in drive.live:
+    native_by_ref = {r["_ref"]: r for r in drive.native_sends}
+    for original in drive.live:
+        r = native_by_ref.get(original["_ref"], original)
         inp = r.get("input")
-        if inp == "liveEgress.end":
+        if inp == "liveSession.draining" and r.get("_sender") == "stocknative":
+            reason = str(r.get("detail") or "")
+            current = {"start": r["_t"], "ref": r["_ref"], "reason": reason,
+                       "expected": [110, 110, 110, 100] if "arrival" in reason else [100],
+                       "sent": [], "outcome": None, "native": True}
+            sequences.append(current)
+        elif inp == "liveEgress.end":
             reason = str(r.get("reason") or "")
             m = re.search(r"\[([\d,\s]+)\]", reason)
             expected = [int(x) for x in m.group(1).split(",")] if m else None
@@ -634,8 +688,14 @@ def _end_sequences(drive):
             continue
         elif inp == "liveEgress.packet" and r.get("result") == 0 and _topic(r.get("topic")) == NAVIGATION_STATUS:
             status = (decode_out(r) or {}).get("navigationStatus")
-            if status in END_STATUSES:
+            if status in END_STATUSES or current.get("native"):
                 current["sent"].append({"status": status, "elapsedMs": r["_t"], "ref": r["_ref"]})
+        elif current.get("native") and inp == "liveSession.stopping":
+            values = [x["status"] for x in current["sent"]]
+            shape = _native_terminal_shape(values, current["expected"][0] == 110)
+            terminal_receipt = str(r.get("stopDetail") or r.get("detail") or "").split(":")[-1] == "original terminal output sent"
+            complete = terminal_receipt and shape["terminal100Observed"] and shape["compatibleSuffix"]
+            current.update(outcome="complete" if complete else "closedBeforeComplete", end=r["_t"], endRef=r["_ref"])
         elif inp == "liveEgress.idle" and "end sequence sent" in str(r.get("reason")):
             current.update(outcome="complete", end=r["_t"], endRef=r["_ref"])
         elif inp in ("liveEgress.endCancelled", "liveEgress.endTimeout"):
@@ -646,8 +706,12 @@ def _end_sequences(drive):
     for s in sequences:
         values = [x["status"] for x in s["sent"]]
         s["sentValues"] = values
-        s["stockShape"] = values in ([110, 110, 110, 100, 100, 100], [100, 100, 100]) or (
-            len(values) >= 3 and values[-3:] == [100, 100, 100] and all(v in END_STATUSES for v in values))
+        if s.get("native"):
+            s.update(_native_terminal_shape(values, s["expected"][0] == 110))
+            s["stockShape"] = s["fullSequenceObserved"]
+        else:
+            s["stockShape"] = values in ([110, 110, 110, 100, 100, 100], [100, 100, 100]) or (
+                len(values) >= 3 and values[-3:] == [100, 100, 100] and all(v in END_STATUSES for v in values))
     return sequences
 
 
@@ -669,6 +733,7 @@ def sessions(drive, clock):
         s = {"armId": arm_id}
         armed = [r for r in rows if r.get("input") == "liveSession.armed"]
         stopping = [r for r in rows if r.get("input") == "liveSession.stopping"]
+        draining = [r for r in rows if r.get("input") == "liveSession.draining"]
         stopped = [r for r in rows if r.get("input") == "liveSession.stopped"]
         arm_obj, arm_obj_ref = e.state("arm", arm_id)
         if armed:
@@ -714,7 +779,7 @@ def sessions(drive, clock):
         live_headers = [r for r in drive.live if r.get("kind") == "header" and r.get("publisher") == "LIVE" and lo <= (r["_t"] or -1) <= hi]
         s["feedStarted"] = at(live_headers[0]["_t"], live_headers[0], clock) if live_headers else None
         # End statuses: the session's last end sequence that begins at its first stop (or the arm's expiry lead).
-        stop_t = stopping[0]["_t"] if stopping else end
+        stop_t = draining[0]["_t"] if draining else stopping[0]["_t"] if stopping else end
         final = [q for q in sequences if stop_t is not None and stop_t - 1 <= q["start"] <= (end if end is not None else math.inf) + 1]
         within = [q for q in sequences if lo <= q["start"] <= hi]
         s["endSequences"] = [_sequence_view(q, clock) for q in within]
@@ -724,6 +789,8 @@ def sessions(drive, clock):
             q = final[-1]
             s["endStatuses"] = {"sent": q["outcome"] == "complete", "values": q["sentValues"], "expected": q["expected"],
                                 "stockShape": q["stockShape"], "outcome": q["outcome"], "ref": q["ref"]}
+            if q.get("native"):
+                s["endStatuses"].update({key: q[key] for key in ("compatibleSuffix", "fullSequenceObserved", "terminal100Observed")})
         elif stop_t is None:
             s["endStatuses"] = {"sent": None, "why": "the session's end is not retained"}
         else:
@@ -740,9 +807,12 @@ def sessions(drive, clock):
 
 
 def _sequence_view(q, clock):
-    return {"start": at(q["start"], None, clock) | {"ref": q["ref"]}, "reason": q["reason"], "expected": q["expected"],
+    view = {"start": at(q["start"], None, clock) | {"ref": q["ref"]}, "reason": q["reason"], "expected": q["expected"],
             "sent": q["sentValues"], "outcome": q["outcome"], "stockShape": q["stockShape"],
             "end": at(q.get("end"), None, clock) | {"ref": q.get("endRef")} if q.get("end") is not None else None}
+    if q.get("native"):
+        view.update({key: q[key] for key in ("compatibleSuffix", "fullSequenceObserved", "terminal100Observed")})
+    return view
 
 
 def _session_acked_paths(drive, lo, hi):
@@ -752,6 +822,17 @@ def _session_acked_paths(drive, lo, hi):
             pid = r.get("pathId")
             if isinstance(pid, int) and pid > 0 and pid not in paths:
                 paths.append(pid)
+    selections = {}
+    for row in drive.native_sends:
+        if row["_topic"] == PATH_SELECTED and lo <= row["_t"] <= hi:
+            pid = (decode_out(row) or {}).get("pathIDReq")
+            if pid in drive.route_json:
+                selections[pid] = row["_t"]
+    for answer in drive.answers:
+        if answer["kind"] == "selected" and answer["status"] == 200 and answer["t"] is not None and lo <= answer["t"] <= hi:
+            for pid in answer["pathIds"]:
+                if pid in selections and selections[pid] <= answer["t"] and pid not in paths:
+                    paths.append(pid)
     return paths
 
 
@@ -830,6 +911,13 @@ def paths(drive, clock):
                    if r.get("input") == "liveEgress.route"]
         if results:
             drive.missing.append("нет строк routeResult: пути только из liveEgress.route, без ID маршрутов Яндекса")
+    if not results and drive.native_sends:
+        for pid, published in drive.route_json.items():
+            policy = next((r for r in reversed(drive.live) if r.get("input") == "nativeInputPolicy"
+                           and r.get("pathId") == pid and r["_t"] <= published["t"]), {})
+            row = dict(policy, pathId=pid, routeId=policy.get("routeId"), _t=published["t"], _ref=published["ref"],
+                       wireRouteType=published["wireRouteType"], links=len(published["route"].get("links", [])), _native=True)
+            results.append((next(i for i, r in enumerate(drive.live) if r["_ref"] == published["ref"]), row))
     if not results:
         drive.missing.append("в журнале передачи нет публикаций маршрута")
         return {"routes": [], "publications": 0}
@@ -850,12 +938,17 @@ def paths(drive, clock):
         route_id, pid = row.get("routeId"), row.get("pathId")
         entry = {"pathId": pid, "routeId": route_id, "published": at(row["_t"], row, clock),
                  "amapRouteType": row.get("amapRouteType"), "links": row.get("links"), "segments": row.get("segments")}
+        if row.get("_native"):
+            entry["wireRouteType"] = row.get("wireRouteType")
+            entry["sender"] = "stocknative"
         prior = previous_by_route.get(route_id) if route_id is not None else None
         if prior is None:
             between = drive.live[(previous_any + 1 if previous_any is not None else 0):index]
             kinds = {r.get("input") for r in between}
             entry["reason"] = "first_for_route"
             entry["routeKind"] = {1: "new guidance", 2: "yaw reroute", 5: "route replacement (traffic)"}.get(row.get("amapRouteType"), "type " + str(row.get("amapRouteType")))
+            if row.get("_native"):
+                entry["routeKind"] = "wire RouteType " + str(row.get("wireRouteType")) + "; native input type not retained"
             if previous_any is not None:
                 entry["afterYandexReroute"] = "reroute" in kinds or row.get("amapRouteType") == 2
             entry["expected"] = True
@@ -1092,7 +1185,7 @@ def semantics(drive, clock):
                 traffic["roadClassVariantFilled"] += 1
             else:
                 traffic["roadClassFromYandex"] += 1
-    positions["definition"] = ("matched: curSDRouteID > 0; -1 = the unmatched marker Yandex left (no variant filled it); "
+    positions["definition"] = ("matched: curSDRouteID > 0; -1 = an unavailable ownership value, not proof of an unmatched fix; "
                                "variantFilled = equals the variant's variantApplied value for that path (sent after its note); "
                                "zeroOnWire = the field is absent, which proto3 means 0")
     traffic["definition"] = ("attributed to the path of the position sent within 1.5 s before it; "
@@ -1109,7 +1202,12 @@ def semantics(drive, clock):
     if not drive.route_json:
         drive.missing.append("не разобран ни один отправленный маршрут: атрибуты звеньев неизвестны")
     variants = {str(pid): items for pid, items in notes.items()}
-    return {"positions": positions, "trafficInfo": traffic, "linksPerPath": links, "variantApplied": variants}
+    policies = [{"pathId": r.get("pathId"), "routeId": r.get("routeId"), "ref": r["_ref"],
+                 "fields": r.get("fields", []), "blockers": r.get("blockers", []),
+                 "missingBooleanPolicy": r.get("missingBooleanPolicy")}
+                for r in drive.live if r.get("input") == "nativeInputPolicy"]
+    return {"positions": positions, "trafficInfo": traffic, "linksPerPath": links, "variantApplied": variants,
+            "nativeInputPolicies": policies}
 
 
 # ---------------------------------------------------------------------------------------- 6 ADAS state
@@ -1469,10 +1567,10 @@ def _rings(drive, clock, sessions_out):
 
 # ---------------------------------------------------------------------------------------- review
 
-def review(root, tz_hours=3):
+def review(root, tz_hours=3, arm_id=None):
     evidence = Evidence(root)
     clock = Clock(evidence, tz_hours)
-    drive = Drive(evidence, clock)
+    drive = Drive(evidence, clock, arm_id)
     for name, label in (("live", "denza-adas-live.jsonl"), ("journal", "adas-journal.jsonl"),
                         ("packets", "adas-packets.jsonl"), ("progress", "progress.jsonl")):
         if not evidence.streams[name]:
@@ -1487,7 +1585,7 @@ def review(root, tz_hours=3):
     health_out = health(drive, clock, sessions_out)
     for s in sessions_out:
         s.pop("_window", None)
-    return {"schema": SCHEMA, "evidence": str(root), "clock": clock.describe(),
+    return {"schema": SCHEMA, "evidence": str(root), "clock": clock.describe(), "attribution": drive.attribution,
             "inventory": evidence.inventory, "parseErrors": capped(evidence.parse_errors, 100),
             "sessions": sessions_out, "paths": paths_out, "cadence": cadence_out, "pausesAndGaps": pauses_out,
             "semantics": semantics_out, "adasState": adas_out, "sideChannels": side_out, "health": health_out,
@@ -1520,6 +1618,10 @@ def markdown(result, clock):
     lines = ["# Разбор поездки: мост Яндекс → ADAS", "",
              "Источник: `%s`. Время — %s (UTC%+d), получено из часов самих записей." % (
                  result["evidence"], "местное" if clock.offset is not None else "только elapsed", clock.tz_hours), ""]
+    attribution = result.get("attribution") or {}
+    if attribution.get("armId"):
+        lines += ["Разбирается arm `%s`; исключено строк других сеансов: %d." %
+                  (attribution["armId"], attribution["excludedLiveRows"]), ""]
     if result["missing"]:
         lines += ["**Нет данных:** " + "; ".join(result["missing"]) + ".", ""]
 
@@ -1671,9 +1773,10 @@ def main(argv=None):
     parser.add_argument("evidence", help="directory with the files pulled from the car")
     parser.add_argument("--out", required=True, help="directory for review.json and review.md")
     parser.add_argument("--tz-hours", type=int, default=3, help="wall-time zone offset (default 3, Moscow)")
+    parser.add_argument("--arm-id", help="review one retained arm; default: latest identified stocknative arm, otherwise all legacy sessions")
     args = parser.parse_args(argv)
     try:
-        result, clock = review(args.evidence, args.tz_hours)
+        result, clock = review(args.evidence, args.tz_hours, args.arm_id)
     except InputError as error:
         print("drive_review: " + str(error), file=sys.stderr)
         return 2
