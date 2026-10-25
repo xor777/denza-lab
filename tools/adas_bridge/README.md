@@ -6,16 +6,21 @@ variant/golden tests remain historical research, not product acceptance.
 The original-APK laboratory is frozen; the next milestone is a first trip.
 Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
 Candidates 18–21 add pre-drive corrections, explicit coordinate-frame selection
-and approximate typed road-class projection. Candidate 21 is installed and
+and approximate typed road-class projection. Candidate 21 was installed and
 passed two same-arm parked route selections (explicit ACK 200), 152 positions
 at about 1 Hz and original terminal status 100 followed by closed endpoints.
 The real reader-size and readiness-timestamp defects exposed by candidates
-19/20 are corrected. The test arm was removed; a fresh arm is needed for a drive.
+19/20 are corrected. That test arm was removed.
 Exact APK/reader pins and separate vehicle receipts live under
 `captures/stock-sender-parity-20261025/product/candidate*.json` and `live*/`.
 The first drive is retained: 9 ACKed paths, 975 continuous positions, ICC active
 and one 95 ms DNP-available response, with no DNP-active response. Sustained CNOA
 was not achieved. See the [first-drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25).
+Candidate 22 is now installed and passed parked ACK 200 with actual historySpeed 7
+and public ownership on four covered route links. Its route and a fresh two-hour
+arm were left active for the requested drive; region/city and continuous lanes
+remain 0. Read current state before reusing this timestamped preparation. See the
+[candidate-22 receipt](../../research/adas-bridge/README.md#candidate-22-free-flow-proxy-and-confirmed-public-roads).
 See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 

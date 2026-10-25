@@ -8,10 +8,11 @@ feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
 emulator; car builds also collect passive evidence. This branch replaces the
 product sender with `stocknative`. Candidate 15 passed stationary route receipt
-on 2026-10-25. Candidate 21 is now installed and passed two same-arm stationary
-route selections, continuous output and graceful closure. Its first drive is now
+on 2026-10-25. Candidate 21 passed two same-arm stationary
+route selections, continuous output and graceful closure. Its first drive is
 retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
-see the separate drive analysis below. Build 14 and its experiment variants
+see the separate drive analysis below. Candidate 22 is now installed, with parked
+ACK and the new sourced speed/ownership inputs verified; its drive is pending. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -25,12 +26,12 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 21 installed; stationary acceptance and first drive retained; ICC observed, sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
-| Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | 21 installed; two routes accepted, 152 positions, original terminal 100 and closed endpoints verified | [Candidate 19](#coordinate-and-road-data-candidate-19) |
-| Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | local implementation; build/parked receipt pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 22 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
+| Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
+| Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | 22 installed: ACK 200, actual historySpeed 7, public ownership on 4/42 route links; moving acceptance pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
-| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
+| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Seventeen independent adapter tests, two catalog tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests; candidate-22 stationary route accepted; its moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
@@ -533,10 +534,33 @@ unknown token. A proposed `1` is an exact numeric field, not an encoding of
 The older 25-versus-40 observation motivates a speed hypothesis but retained logs
 alone do not establish an otherwise identical A/B protocol.
 
-Build and parked acceptance are recorded separately under ignored
-`product/build22/`, `candidate22.json` and `live22/`. Vehicle acceptance is pending
-until exact installed identity, actual speed/ownership output and same-path ACK
-are read back. The original-APK laboratory remains frozen.
+Candidate 22 was installed and checked on the stationary car on 2026-10-25.
+APK `29.8.1-YandexHUD.22` / `739494322` has SHA256
+`41d54d94e476141a8418a65650747bfcf69ed146f0699f103d3dfdd71c7afd43`;
+all 177 module source hashes match code commit `e9637dce`. Reader 20 is unchanged,
+with all source pins rechecked. Validation passed: 54 JUnit tests including the
+retained local corpus, 116 runtime / 106 session assertions, 400 Binder assertions
+and five product-boundary/catalog host tests. No new original-APK capture was made.
+
+At 18:45:51 Moscow, the first suggested 12 km route to Луговая ул., вл20Ас1
+was published as path `1792943151253`; ADAS returned same-path ACK 200 after 53 ms.
+The retained parked sample contains 20 positions, maximum gap 1,011 ms, and
+19 speed messages with actual `historySpeed=7`. The loaded catalog SHA is
+`02be2f4d50e007202debd41c6238f059530620247fe3eadd288e626174003da4`.
+Its 57 edges cover four of this route's 42 complete links, which have public `0`;
+38 links remain unknown. The current parked position is on an uncovered starting
+edge and retains ownership `-1`; moving dynamic ownership `0` is not yet proved.
+Region/city and continuous lane count remain `0`; their receiver interpretation
+and contribution to NOA availability remain unresolved.
+
+The final check found LIVE, published/confirmed/held path IDs equal, fresh output,
+no callback failures/drops and an empty crash buffer. Arm
+`ceb3d017-fea5-48da-bf5e-0e3be19e7e1c` was left active for the requested next drive,
+with a two-hour lifetime and fixed native coordinate candidate. This records
+preparation and parked receipt only, not moving NOA acceptance. Read current
+state before reusing it; the timestamped receipt is not a permanent readiness claim.
+Exact pins and receipts are under ignored `product/build22/`, `candidate22.json`
+and `live22/acceptance.json`. The original-APK laboratory remains frozen.
 
 #### Candidate 21 first drive (2026-10-25)
 

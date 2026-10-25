@@ -6,15 +6,19 @@ limitations are recorded in the [product milestone](../../research/adas-bridge/R
 and [field table](../../research/adas-bridge/README.md#product-adapter-field-table).
 Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
 Candidates 18–21 add pre-drive fixes, remove the legacy sender from the APK,
-and select a fixed coordinate frame or route-ID alternation. Candidate 21 is
+and select a fixed coordinate frame or route-ID alternation. Candidate 21 was
 installed: two same-arm routes obtained ACK 200, 152 positions went out at about
 1 Hz, and terminal 100 preceded endpoint closure. The parked check used fixed
-native mode. Its arm is now removed and Navigator has no active route.
+native mode. That arm was subsequently removed.
 Exact artifact pins and separate stationary receipts are
 under `captures/stock-sender-parity-20261025/product/`.
 The first moving drive recorded ICC and one 95 ms DNP-available response, with
 no DNP-active response. See the [drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25);
-sustained CNOA is not established.
+sustained CNOA is not established. Candidate 22 is now installed: parked ACK,
+actual historySpeed 7 and four public route links are verified. Its route and
+two-hour arm were left active for the requested next drive; current runtime
+state must be read before reuse. Region/city and continuous lane count remain 0.
+See the [candidate-22 receipt](../../research/adas-bridge/README.md#candidate-22-free-flow-proxy-and-confirmed-public-roads).
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into
