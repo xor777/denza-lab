@@ -742,8 +742,28 @@ class StockNativeJournal(unittest.TestCase):
             alignment = review._align(model, clock, 3100, [])
             self.assertEqual(alignment["coordinatePolicy"]["coordinateFrame"], fields["coordinateFrame"])
 
+    def test_native_experimental_donor_is_not_attributed_to_yandex(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-donor", 2000, 222, ownership=0, road_class=7)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            policy["compatibilityProfile"] = "compatibility-cn"
+            policy["fields"] = [
+                {"field": "ownership", "kind": "EXPERIMENTAL_DONOR",
+                 "source": "declared compatibility experiment; original Beijing survey-01-p006 donor",
+                 "meaning": "forced OwnershipPublicRoad=0 on every on-route link", "absence": "off-route remains SDK unknown"},
+                {"field": "roadClass", "kind": "EXPERIMENTAL_DONOR",
+                 "source": "declared compatibility experiment; original Beijing survey-01-p006 donor",
+                 "meaning": "forced RoadMain=7 on every link", "absence": "donor attribute, not a Yandex observation"}]
+            result = run(car.write())
+        pos, tr = result["semantics"]["positions"], result["semantics"]["trafficInfo"]
+        self.assertEqual((pos["matched"], pos["ownershipExperimentalDonor"], pos["ownershipFromYandex"],
+                          pos["ownershipVariantFilled"], pos["ownershipZeroOnWire"]), (2, 2, 0, 0, 2))
+        self.assertEqual((tr["matched"], tr["roadClassExperimentalDonor"], tr["roadClassFromYandex"],
+                          tr["roadClassVariantFilled"]), (2, 2, 0, 0))
+
     @staticmethod
-    def native(car, arm, start, path):
+    def native(car, arm, start, path, ownership=-1, road_class=None):
         car.live.append({"kind": "input", "input": "liveSession.prerequisite", "monotonicMs": start,
                          "armId": arm, "sender": "stocknative", "detail": "all prerequisites hold"})
         car.note("nativeInputPolicy", start + 1, pathId=path, routeId="native-" + arm,
@@ -756,7 +776,10 @@ class StockNativeJournal(unittest.TestCase):
             fire(start + 2, review.ROUTE, stock.route(chunk, 1))
         fire(start + 3, review.PATH_SELECTED, stock.path_selected(path))
         for t in (start + 100, start + 1100):
-            fire(t, review.VEHICLE_LOCATION, stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, path, 0, 0, 10, 10, -1))
+            fire(t, review.VEHICLE_LOCATION, stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, path, 0, 0, 10, 10, ownership))
+            if road_class is not None:
+                fire(t + 1, review.TRAFFIC_INFO,
+                     stock.traffic_info(0, -1, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, False, 900, 60, road_class))
         car.passive(start + 40, review.SELECTED, selected(path, 200))
         car.guidance(start + 100, route_id="native-" + arm)
         car.live.append({"kind": "input", "input": "liveSession.stopped", "monotonicMs": start + 1200,

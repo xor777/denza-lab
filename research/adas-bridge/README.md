@@ -29,7 +29,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 23 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | installed: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; moving acceptance pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
-| The active native adapter now has a declared `COMPATIBILITY_CN` donor experiment for the first sustained-NOA attempt. It keeps real Yandex geometry/progress but substitutes selected Beijing attributes, Region 110000 and link URID 1; the factory `StockSender` is unchanged | local unit/runtime/protocol checks pass; not built into an installed car candidate or driven yet; no NOA benefit established | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
+| The active native adapter now has a declared `COMPATIBILITY_CN` donor experiment for the first sustained-NOA attempt. It keeps real Yandex geometry/progress but substitutes selected Beijing attributes, Region 110000 and link URID 1; the factory `StockSender` is unchanged. Drive review attributes these dynamic values from `nativeInputPolicy`, not as Yandex observations | candidate 24 built and package-checked; not installed or driven; donor-attribution regression passes; no NOA benefit established | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
@@ -652,6 +652,12 @@ Region and ODD wire values, 400 passive-client Binder checks and 41 live-session
 Python tests. Production wiring is checked through `LiveMapBridge`, not merely by
 calling the adapter directly. No vehicle installation, fresh ACK or moving NOA
 result exists for this profile yet.
+
+`drive_review` attributes non-unknown dynamic ownership and road-class values from
+this profile to `EXPERIMENTAL_DONOR` using the path's `nativeInputPolicy`; they are
+not counted as Yandex observations. Legacy `variantApplied` attribution remains
+separate. Serialized native-packet regression coverage includes donor ownership 0
+and road class 7.
 
 The next vehicle check remains bounded: parked in P, obtain a fresh `SELECTED 200`,
 then drive the same settlement route where the stock map provided the positive

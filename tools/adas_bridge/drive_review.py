@@ -1169,9 +1169,19 @@ def semantics(drive, clock):
         for item in items:
             if item.get("field") in ("position.ownership", "traffic.roadClass"):
                 filled[pid].setdefault(item["field"], (item.get("value"), item["elapsedMs"], item["ref"]))
-    positions = {"sent": 0, "matched": 0, "ownershipMinus1": 0, "ownershipVariantFilled": 0, "ownershipFromYandex": 0,
+    donors = collections.defaultdict(dict)
+    for r in drive.live:
+        if r.get("input") != "nativeInputPolicy":
+            continue
+        for item in r.get("fields", []):
+            if (isinstance(item, dict) and item.get("kind") == "EXPERIMENTAL_DONOR"
+                    and item.get("field") in ("ownership", "roadClass")):
+                donors[r.get("pathId")].setdefault(item["field"], (r["_t"], r["_ref"]))
+    positions = {"sent": 0, "matched": 0, "ownershipMinus1": 0, "ownershipVariantFilled": 0,
+                 "ownershipExperimentalDonor": 0, "ownershipFromYandex": 0,
                  "ownershipZeroOnWire": 0, "firstMinus1": None}
-    traffic = {"sent": 0, "matched": 0, "roadClassMinus1": 0, "roadClassVariantFilled": 0, "roadClassFromYandex": 0,
+    traffic = {"sent": 0, "matched": 0, "roadClassMinus1": 0, "roadClassVariantFilled": 0,
+               "roadClassExperimentalDonor": 0, "roadClassFromYandex": 0,
                "roadClassZeroOnWire": 0, "unattributed": 0, "firstMinus1": None}
     last_position = None
     for r in drive.sends:
@@ -1190,9 +1200,12 @@ def semantics(drive, clock):
                 positions["ownershipZeroOnWire"] += 1
                 value = 0
             fill = filled.get(pid, {}).get("position.ownership")
+            donor = donors.get(pid, {}).get("ownership")
             if value == -1:
                 positions["ownershipMinus1"] += 1
                 positions["firstMinus1"] = positions["firstMinus1"] or r["_ref"]
+            elif donor and donor[0] <= r["_t"]:
+                positions["ownershipExperimentalDonor"] += 1
             elif fill and fill[1] <= r["_t"] and str(fill[0]) == str(value):
                 positions["ownershipVariantFilled"] += 1
             else:
@@ -1211,18 +1224,24 @@ def semantics(drive, clock):
             if value is None:
                 traffic["roadClassZeroOnWire"] += 1
                 value = 0
-            fill = filled.get(int(path), {}).get("traffic.roadClass")
+            pid = int(path)
+            fill = filled.get(pid, {}).get("traffic.roadClass")
+            donor = donors.get(pid, {}).get("roadClass")
             if value == -1:
                 traffic["roadClassMinus1"] += 1
                 traffic["firstMinus1"] = traffic["firstMinus1"] or r["_ref"]
+            elif donor and donor[0] <= r["_t"]:
+                traffic["roadClassExperimentalDonor"] += 1
             elif fill and fill[1] <= r["_t"] and str(fill[0]).replace("link:", "") == str(value):
                 traffic["roadClassVariantFilled"] += 1
             else:
                 traffic["roadClassFromYandex"] += 1
     positions["definition"] = ("matched: curSDRouteID > 0; -1 = an unavailable ownership value, not proof of an unmatched fix; "
+                               "experimentalDonor = the path's nativeInputPolicy declares ownership EXPERIMENTAL_DONOR before the send; "
                                "variantFilled = equals the variant's variantApplied value for that path (sent after its note); "
                                "zeroOnWire = the field is absent, which proto3 means 0")
     traffic["definition"] = ("attributed to the path of the position sent within 1.5 s before it; "
+                             "experimentalDonor = the path's nativeInputPolicy declares roadClass EXPERIMENTAL_DONOR before the send; "
                              "unattributed = no such position")
     links = []
     for pid, item in sorted(drive.route_json.items(), key=lambda kv: kv[1]["t"]):
@@ -1772,10 +1791,12 @@ def markdown(result, clock):
     lines += ["## 5. Смысл полей", "",
               "Позиций отправлено %d, на нашем пути %d; ownership −1 (значение недоступно): %d%s." % (
                   pos["sent"], pos["matched"], pos["ownershipMinus1"],
-                  "" if native_session else ", заполнено вариантом: %d" % pos["ownershipVariantFilled"]),
+                  ", подставлено donor-политикой: %d" % pos["ownershipExperimentalDonor"] if native_session
+                  else ", заполнено вариантом: %d" % pos["ownershipVariantFilled"]),
               "TrafficInfo %d, на пути %d; roadClass −1: %d%s." % (
                   tr["sent"], tr["matched"], tr["roadClassMinus1"],
-                  "" if native_session else ", заполнено вариантом: %d" % tr["roadClassVariantFilled"]), ""]
+                  ", подставлено donor-политикой: %d" % tr["roadClassExperimentalDonor"] if native_session
+                  else ", заполнено вариантом: %d" % tr["roadClassVariantFilled"]), ""]
     if sem["linksPerPath"]:
         lines += ["| Путь | звеньев | class −1 | dir 0 | own unknown | lanes 0 |", "|---|---|---|---|---|---|"]
         for item in sem["linksPerPath"][:40]:
