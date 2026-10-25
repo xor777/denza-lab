@@ -18,12 +18,14 @@ public final class AdasGateSnapshot {
             E2E_CONFIG = 1126170664, HNP_SWITCH = 700448824, UNP_SWITCH = 700448826,
             E2E_SWITCH = 481296416, ASSIST_MODE = 535830576, NOA_UI_TYPE = 535838789,
             SLEEP_STATUS = 535842878, DISCONNECTION_STATUS = -1728052359;
+    /** NoaState.r -> BydAutoNoaProxy.G/a0: device 1038 INT, support is exactly value 2. */
+    public static final int TIP_ISLAND_SUPPORT = 230686742;
     public static final List<Integer> REQUIRED_FIDS = Collections.unmodifiableList(Arrays.asList(
             HNP_CONFIG, UNP_CONFIG, E2E_CONFIG, HNP_SWITCH, UNP_SWITCH, E2E_SWITCH,
             ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS));
     public static final List<Integer> ALL_FIDS = Collections.unmodifiableList(Arrays.asList(
             HNP_CONFIG, UNP_CONFIG, E2E_CONFIG, HNP_SWITCH, UNP_SWITCH, E2E_SWITCH,
-            ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS, DISCONNECTION_STATUS));
+            ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS, DISCONNECTION_STATUS, TIP_ISLAND_SUPPORT));
     public static final int MAX_JSON_CHARS = 16384;
     public static final long MAX_AGE_MS = 5000;
     /** The optional key of tools/adas_bridge/AdasGateReader.NaviSt's view. */
@@ -166,6 +168,9 @@ public final class AdasGateSnapshot {
                         raw.put(DISCONNECTION_STATUS, value); outage = "ok";
                     } else outage = "read_or_domain_unknown";
                 }
+                // Optional for historical snapshots; the factory product path requires its presence.
+                Integer tipIsland = readValue(values.get(Integer.toString(TIP_ISLAND_SUPPORT)));
+                if (tipIsland != null && tipIsland >= 0) raw.put(TIP_ISLAND_SUPPORT, tipIsland);
                 Snapshot candidate = new Snapshot(root, raw, outage);
                 if (last != null) {
                     if (start < last.startedAtElapsedMs || end < last.completedAtElapsedMs
@@ -236,7 +241,7 @@ public final class AdasGateSnapshot {
                 if (c == '[' || c == ']') throw new IllegalArgumentException("arrays forbidden");
                 if (c == '{' && (++depth > 4 || ++objects > 24)) throw new IllegalArgumentException("object cap");
                 if (c == '}' && --depth < 0) throw new IllegalArgumentException("unbalanced JSON");
-                if (c == ':' && ++members > 64) throw new IllegalArgumentException("member cap");
+                if (c == ':' && ++members > 4 * ALL_FIDS.size() + 24) throw new IllegalArgumentException("member cap");
                 if (c == '"') quoted = true;
                 out.append(c);
             }

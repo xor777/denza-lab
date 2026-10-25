@@ -22,6 +22,14 @@ public final class AdasGateSnapshotTest {
         try { AdasGateSnapshot.ALL_FIDS.add(0); throw new AssertionError("mutable whitelist"); }
         catch (UnsupportedOperationException expected) { checks++; }
 
+        Map<String,Object> tip = row();
+        set(tip, AdasGateSnapshot.TIP_ISLAND_SUPPORT, 2);
+        check(read(tip,1200).rawValues.get(AdasGateSnapshot.TIP_ISLAND_SUPPORT)==2,
+                "actual optional tip-island getter retained independently of UI type");
+        entry(tip,AdasGateSnapshot.TIP_ISLAND_SUPPORT).put("status","error");
+        check(!read(tip,1200).rawValues.containsKey(AdasGateSnapshot.TIP_ISLAND_SUPPORT),
+                "failed optional getter stays absent, never inferred from other UI fields");
+
         set(row, AdasGateSnapshot.HNP_SWITCH, 0);
         check(!read(row, 1200).hardwareGateOpen(), "actual switch OFF blocks");
         row = row(); set(row, AdasGateSnapshot.HNP_CONFIG, 1);

@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Bounded shell-UID reader for this vehicle's ten integer ADAS properties.
+ * Bounded shell-UID reader for this vehicle's whitelisted integer ADAS properties.
  * No SOME/IP publisher, generic command input or network listener. Two fixed arm switches drive
  * independent stock side channels: MPC {@code naviSt} ({@link NaviSt}, device 1023) and
  * {@code instrumentNaviStatus} ({@link InstrumentNaviStatus}, device 1007). Each records its
