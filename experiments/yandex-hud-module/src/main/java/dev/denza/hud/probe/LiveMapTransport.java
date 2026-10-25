@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** App-owned map-event transport. The separate LiveEgressGuard owns admission and route policy. */
+/** App-owned map-event transport. NativeTransportAdmission owns only prerequisites, never packet contents. */
 final class LiveMapTransport implements Publisher, AutoCloseable {
     interface Listener { void changed(String state); }
     interface Admission { boolean allow(long topic); }
@@ -97,6 +97,13 @@ final class LiveMapTransport implements Publisher, AutoCloseable {
         return result;
     }
 
+    int stopService(long topic) {
+        if(!serviceAllowed(topic))return -100;
+        int result=call(binder,5,topic,null);
+        if(result==0){offered.remove(topic);requested.remove(topic);}
+        return result;
+    }
+
     @Override public int fire(long topic, byte[] payload, long now) {
         IBinder remote=binder;
         if (!eventAllowed(topic) || payload == null || payload.length > MAX_PAYLOAD || closed
@@ -106,7 +113,7 @@ final class LiveMapTransport implements Publisher, AutoCloseable {
         // Guard already queried the actual HAL. Do not insert another blocking query
         // between its freshness decision and TX6; recheck the leases after marshalling.
         int result=call(remote, 6, topic, payload);
-        if (result==0) lastActualSend=android.os.SystemClock.elapsedRealtime();
+        if (result==0) { lastActualSend=android.os.SystemClock.elapsedRealtime(); audit.fire(topic,payload,lastActualSend); }
         return result;
     }
     @Override public void note(String kind, Map<String, Object> fields, long now) { audit.note(kind, fields, now); }
@@ -119,7 +126,7 @@ final class LiveMapTransport implements Publisher, AutoCloseable {
         if (topic == Topics.PATH_SELECT_CONFIRM) return false; // Inbound, never fire it.
         int service = Topics.service(topic);
         return (service == 7 || service == 43 || service == 45 || service == 0x8202)
-                && (topic >>> 48) == 4 && Topics.schema(topic) != null;
+                && (topic >>> 48) == 4;
     }
 
     /** The only transactions here are ready(3), start(4), stop-own-service(5) and fire-map-event(6). */
@@ -129,7 +136,7 @@ final class LiveMapTransport implements Publisher, AutoCloseable {
         try {
             data.writeInterfaceToken(DESCRIPTOR);
             if (transaction == 6) {
-                data.writeInt(1); data.writeLong(topic); data.writeLong(0);
+                data.writeInt(1); data.writeLong(topic); data.writeLong(System.currentTimeMillis());
                 data.writeInt(payload.length); data.writeByteArray(payload);
             } else data.writeLong(topic);
             if(transaction==6 && (closed || binder!=remote || !admission.allow(topic))) return -203;

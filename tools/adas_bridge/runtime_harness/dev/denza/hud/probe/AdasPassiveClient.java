@@ -1,14 +1,17 @@
 package dev.denza.hud.probe;
-import android.content.Context;import android.os.SystemClock;
+import android.content.Context;import android.os.SystemClock;import java.util.*;
 final class AdasPassiveClient implements AutoCloseable {
     interface Sink {boolean enqueue(Runnable task);default boolean enqueue(long topic,Runnable task){return enqueue(task);}void state(String event,String detail);void event(long topic,long timestamp,long receivedAt,byte[] payload);}
-    static AdasPassiveClient latest;final Sink sink;boolean closed,ready=true;long epoch=1;
-    /** The bridge's ODD region requests actually made, with the clock at each. */
-    final java.util.List<Long> requests=new java.util.ArrayList<>();
-    AdasPassiveClient(Context c,Sink s,boolean mode){if(!mode)throw new AssertionError("bridge subscription");sink=s;latest=this;}
-    void start(){sink.state("binder_connected","fake boundary");}
-    boolean liveAnswersReady(){return ready&&!closed;}long epoch(){return epoch;}boolean isClosed(){return closed;}
-    int requestOddRegionCodes(){if(closed)throw new AssertionError("request after close");if(!liveAnswersReady())throw new AssertionError("ODD before readiness");requests.add(SystemClock.now);sink.state("odd_region_response","result=0");return 0;}
-    void answer(long t,byte[] b){long now=SystemClock.now;sink.enqueue(t,()->sink.event(t,0,now,b));}
-    public void close(){closed=true;epoch++;sink.state("closed","own session");}
+    static AdasPassiveClient latest,answers,core;final Sink sink;final boolean coreMode;boolean closed,ready=true;long epoch=1;
+    final List<Map<Long,Long[]>> starts=new ArrayList<>(),stops=new ArrayList<>(),unsubscribes=new ArrayList<>();
+    AdasPassiveClient(Context c,Sink s,boolean mode){this(c,s,mode,false);}
+    AdasPassiveClient(Context c,Sink s,boolean mode,boolean coreMode){sink=s;this.coreMode=coreMode;latest=this;if(coreMode)core=this;else answers=this;}
+    void start(){sink.state("binder_connected","fake SDK boundary");sink.state("subscribed","fake SDK boundary");}
+    boolean liveAnswersReady(){return ready&&!closed;}boolean binderAlive(){return ready&&!closed;}long epoch(){return epoch;}boolean isClosed(){return closed;}
+    void nativeStart(Map<Long,Long[]> values){if(closed)throw new AssertionError("subscriptions after close");starts.add(values);}
+    void nativeStop(Map<Long,Long[]> values){if(closed)throw new AssertionError("stop after close");stops.add(values);}
+    void nativeUnsubscribe(Map<Long,Long[]> values){if(closed)throw new AssertionError("unsubscribe after close");unsubscribes.add(values);}
+    void stopAdmission(){ready=false;}
+    void answer(long topic,byte[] payload){long at=SystemClock.now;sink.enqueue(topic,()->sink.event(topic,0,at,payload));}
+    public void close(){closed=true;epoch++;}
 }

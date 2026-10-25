@@ -3,30 +3,23 @@ package dev.denza.adaslink;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Explicit host arm for one consumer process, boot and reader. No device operations. An arm may
- * carry one {@link ExperimentVariant} ({@code "variant"}, strictly parsed: a variant it cannot
- * validate rejects the arm). The variant is part of the arm's content, so a changed variant is a
- * changed arm, and a restarted Navigator resumes the unexpired arm with the same variant.
- */
+/** Explicit factory-sender arm bound to one consumer, boot and reader.
+ * Legacy experiment variants are rejected rather than entering the native sender. */
 public final class LiveSessionLease {
     public static final String STOCK_PACKAGE="com.byd.launchermap";
     public static final long MAX_LIFETIME_MS=4L*60*60*1000, INPUT_TTL_MS=2500;
     public final String bootId, consumerSession, readerSession, armId;
     public final long issuedAt, expiresAt;
     public final String canonical;
-    /** The arm's experiment switches; {@link ExperimentVariant#NONE} when it carries none. */
-    public final ExperimentVariant variant;
     private LiveSessionLease(Map<String,Object> m) {
         bootId=(String)m.get("bootId"); consumerSession=(String)m.get("consumerSession");
         readerSession=(String)m.get("readerSession"); armId=(String)m.get("armId");
         issuedAt=integer(m,"issuedAtElapsedMs"); expiresAt=integer(m,"expiresAtElapsedMs");
-        variant=m.containsKey(ExperimentVariant.KEY) ? ExperimentVariant.parse(m.get(ExperimentVariant.KEY)) : ExperimentVariant.NONE;
         canonical=Json.write(m);
     }
     public static LiveSessionLease read(String text,String boot,String consumer,long now) {
         Map<String,Object> m=object(text);
-        if(m.size()!=(m.containsKey(ExperimentVariant.KEY)?10:9) || !"denza-adas-live-arm-v1".equals(m.get("schema"))
+        if(m.containsKey("variant") || m.size()!=9 || !"denza-adas-live-arm-v1".equals(m.get("schema"))
                 || !uuid(boot) || !uuid(consumer) || !boot.equals(m.get("bootId")) || !consumer.equals(m.get("consumerSession"))
                 || !uuid(m.get("readerSession")) || !uuid(m.get("armId"))
                 || !STOCK_PACKAGE.equals(m.get("stockPackage")) || !Boolean.TRUE.equals(m.get("stockDisabled")))

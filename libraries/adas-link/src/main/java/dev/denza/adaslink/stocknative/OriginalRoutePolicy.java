@@ -12,6 +12,8 @@ public final class OriginalRoutePolicy {
     private RouteCarResultData route;
     private boolean listenerRegistered=true;
     private final StockLifecycle lifecycle;
+    /** Read-only producer state for the product overlay; never an ACK generator. */
+    public long selectedPathId(){return selected;}
     boolean listenerRegistered(){return listenerRegistered;}
     OriginalRoutePolicy(StockRuntime clock,NativeEnvironment env,NativeRouteSender sender,OriginalOddSender odd,StockSender.Gates gates,StockLifecycle lifecycle){this.lifecycle=lifecycle;this.clock=clock;this.env=env;this.sender=sender;this.odd=odd;this.gates=gates;}
     private void post(String suffix,String purpose,Object token,long delay,Runnable body){StockTask task=new StockTask("k.h.e0.c."+suffix,purpose,body);clock.post(SOMEIP,task,token,delay,task);}

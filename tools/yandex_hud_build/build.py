@@ -125,25 +125,10 @@ def main():
          *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits', 'CallbackQueue')],
          *[p for p in sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))
            if p.name != 'YandexOfflineMapSourceHashTest.java']])
-    # The map-to-ADAS bridge (libraries/adas-link): its plain-Java part and its tests, which read the
-    # car's stock route and the recorded Navigator routes from the git-ignored captures/ corpus.
+    # Factory sender and the independent Yandex input policy own ADAS acceptance.
+    # Historical StockFeed/variant goldens are intentionally not targets for this path.
     adas = ROOT / 'libraries/adas-link/src/main/java'
-    adas_android = {'AndroidScheduler.java', 'SomeIpPublisher.java'}
-    adas_classes = args.out / 'adas-test-classes'; adas_classes.mkdir()
-    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', adas_classes,
-         *[p for p in sorted((adas/'dev/denza/adaslink').glob('*.java')) if p.name not in adas_android],
-         *sorted((ROOT/'libraries/adas-link/src/test/java/dev/denza/adaslink').glob('*.java'))])
-    run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.AdasLinkTest', ROOT])
-    for suite in ('DynamicLegalLimitTest', 'LaneGuidanceTest', 'YandexTrafficContextTest', 'RoadFacilitiesTest', 'ConditionsRefreshTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite, ROOT])
-    for suite in ('VectorRoadTileTest', 'VectorRoadTileCacheTest', 'VectorTilePacketTest',
-                  'VectorRoadEnrichmentTest', 'RouteVectorTilePlanTest', 'OfflineMapGateTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite, ROOT])
-    run(['python3', '-m', 'unittest', 'tools.adas_bridge.tests.test_lane_wire', 'tools.adas_bridge.tests.test_facilities_wire'], cwd=ROOT)
-    run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.FixFreshnessTest'])
-    for suite in ('AdasGateSnapshotTest', 'RealPathAckTest', 'LiveStockFeedTest', 'LiveEgressGuardTest', 'LiveSessionLeaseTest', 'LiveDriveRegressionTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite,
-             *([ROOT] if suite == 'RealPathAckTest' else [])])
+    run([ROOT/'gradlew', ':adas-link:test'], cwd=ROOT, env=env)
     run(['python3', ROOT/'tools/adas_bridge/runtime_harness/run.py', '--out', args.out/'live-runtime-harness'])
     run(['python3', ROOT/'tools/adas_bridge/passive_client_harness/run.py', '--out', args.out/'passive-client-harness'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])

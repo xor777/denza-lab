@@ -105,32 +105,13 @@ public final class ExperimentVariantTest {
     }
 
     static void arm() {
-        Map<String, Object> m = LiveSessionLeaseTest.arm();
-        check(LiveSessionLeaseTest.read(m, 1000).variant == ExperimentVariant.NONE, "an arm without a variant is today's build");
-        m.put("variant", json("{\"id\":\"H1\",\"frame\":\"STOCK_GCJ\"}"));
-        LiveSessionLease a = LiveSessionLeaseTest.read(m, 1000);
-        check(a.variant.frame == ExperimentVariant.Frame.STOCK_GCJ && "H1".equals(a.variant.id), "the arm carries its variant");
-        check(a.same(LiveSessionLeaseTest.read(m, 5000)), "the same arm with the same variant is the same session");
-        Map<String, Object> other = LiveSessionLeaseTest.arm();
-        other.put("variant", json("{\"frame\":\"WGS84\"}"));
-        check(!a.same(LiveSessionLeaseTest.read(other, 1000)), "a changed variant is a changed arm");
-        for (String invalid : Arrays.asList("{\"frame\":\"GCJ\"}", "{\"x\":1}", "{\"region\":1}")) {
-            Map<String, Object> bad = LiveSessionLeaseTest.arm();
-            bad.put("variant", json(invalid));
-            checks++;
-            try { LiveSessionLeaseTest.read(bad, 1000); throw new AssertionError("arm with invalid variant accepted: " + invalid); }
-            catch (IllegalArgumentException expected) { /* rejected */ }
+        Map<String,Object> plain=LiveSessionLeaseTest.arm();
+        check(LiveSessionLeaseTest.read(plain,1000).same(LiveSessionLeaseTest.read(plain,5000)),"factory arm identity stable");
+        for(String variant:Arrays.asList("{}","{\"id\":\"H1\"}","{\"frame\":\"STOCK_GCJ\"}")){
+            Map<String,Object> bad=LiveSessionLeaseTest.arm();bad.put("variant",json(variant));checks++;
+            try{LiveSessionLeaseTest.read(bad,1000);throw new AssertionError("legacy variant arm accepted");}
+            catch(IllegalArgumentException expected){}
         }
-        Map<String, Object> scalar = LiveSessionLeaseTest.arm();
-        scalar.put("variant", "H1");
-        checks++;
-        try { LiveSessionLeaseTest.read(scalar, 1000); throw new AssertionError("a scalar variant accepted"); }
-        catch (IllegalArgumentException expected) { /* rejected */ }
-        Map<String, Object> eleven = LiveSessionLeaseTest.arm();
-        eleven.put("variant", Json.object()); eleven.put("extra", true);
-        checks++;
-        try { LiveSessionLeaseTest.read(eleven, 1000); throw new AssertionError("an extra key beside the variant accepted"); }
-        catch (IllegalArgumentException expected) { /* rejected */ }
     }
 
     /** Every example file is valid; each sets exactly the parked chain's variable(s) of its step. */

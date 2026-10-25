@@ -16,6 +16,7 @@ final class LiveMapTransport implements Publisher,AutoCloseable {
     boolean isClosed(){return closed;}long lastActualSend(){return last;}
     public BridgeStatus.Mode mode(){return BridgeStatus.Mode.LIVE;}
     public int startService(long t){if(!ready())return -1;offered.add(t);return 0;}
+    int stopService(long t){offered.remove(t);return 0;}
     public int fire(long t,byte[] b,long now){if(!ready())throw new AssertionError("fire after close");Runnable before=beforeAdmission;beforeAdmission=null;if(before!=null)before.run();if(!admission.allow(t))return -203;topics.add(t);payloads.add(b);times.add(SystemClock.now);if(result==0)last=SystemClock.now;return result;}
     public void note(String k,Map<String,Object> f,long n){}
     public void close(){closed=true;generation++;}

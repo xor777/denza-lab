@@ -184,7 +184,20 @@ public final class AdasPassiveClientTest {
         f.hal.oddResult=0;f.hal.absentOddReply=true;check(f.client.requestOddRegionCodes()==-200,"Absent response is not a successful read");
         f.client.close();check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==3,"Closed client never queries");
     }
+    private static void coreMaps()throws Exception {
+        App app=new App();Sink sink=new Sink();Hal hal=new Hal();
+        AdasPassiveClient core=new AdasPassiveClient(app,sink,false,true);core.start();app.connect(hal);sink.drain();
+        check(hal.count(4)==0&&hal.count(8)==0,"core connection has no admission bootstrap subscriptions");
+        Map<Long,Long[]> map=new LinkedHashMap<>();map.put(0x000B000D000D0000L,new Long[]{PA});
+        core.nativeStart(map);sink.drain();check(hal.refs(13)==1&&sink.topics.contains(PA),"computed availability subscription reaches core callback");
+        int starts=hal.count(4),subs=hal.count(8);core.nativeStart(map);check(hal.count(4)==starts&&hal.count(8)==subs,"same core map does not acquire duplicate references");
+        core.nativeUnsubscribe(map);check(hal.subs.get(PA)==0,"core unsubscribe releases exact subscription");
+        core.nativeStop(map);check(hal.refs(13)==0,"core stop releases its own service");core.close();sink.drain();
+        check(app.unbinds==1,"core connection independently closed");
+    }
+
     public static void main(String[] args)throws Exception {
+        coreMaps();
         fresh();existing();failures();epochs();admission();topics();passive();oddRegionQuery();oddRequest();
         System.out.println("AdasPassiveClient production Binder harness: "+checks+" checks PASS");
     }

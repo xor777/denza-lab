@@ -11,18 +11,14 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
-import dev.denza.adaslink.AndroidScheduler;
 import dev.denza.adaslink.BridgeStatus;
-import dev.denza.adaslink.FieldDefaults;
 import dev.denza.adaslink.DryRunRecorder;
 import dev.denza.adaslink.FixFreshness;
 import dev.denza.adaslink.Json;
-import dev.denza.adaslink.NavigatorDriver;
 import dev.denza.adaslink.GraphRoadNetwork;
 import dev.denza.adaslink.GraphTileCache;
 import dev.denza.adaslink.VectorRoadTile;
 import dev.denza.adaslink.VectorRoadTileCache;
-import dev.denza.adaslink.StockFeed;
 import dev.denza.adaslink.YandexRoute;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,28 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Collections;
 
-/**
- * Host of the map-to-ADAS bridge inside Navigator (libraries/adas-link). On the main thread it
- * looks at Navigator once a module tick - route, route status, the classified location with its
- * class, the route position, the posted limit - and periodically copies bounded route conditions; on its
- * own thread the {@link NavigatorDriver} turns that into the stock map's events and the
- * {@link StockFeed} into the messages the stock map would fire. They go to a {@link DryRunRecorder}
- * (files/denza-adas-dry-run.jsonl, five 8 MiB files). A separate, explicitly armed
- * {@link LiveMapBridge} uses real gates and acknowledgements for actual publication.
- *
- * <p>DNP service, DNP switch and NOA no-sleep come from BYDAuto on the stock map; Navigator cannot
- * read them, so the dry run assumes all three on (said in the trace header). Raw GNSS for the
- * position's GPS slot comes from a passive listener: no GPS request of our own.
- */
+/** Copies Yandex SDK inputs; the exclusively armed LiveMapBridge owns the factory sender. */
 final class AdasBridge {
     static final String TAG = "DenzaAdasBridge";
     private static AdasBridge instance;
-
-    /** The overlay's view of the bridge; DISABLED until the bridge runs. */
-    static BridgeStatus status() {
-        AdasBridge bridge = instance;
-        return bridge == null ? null : bridge.feed;
-    }
 
     /** One module tick (main thread): starts the bridge on first use, then samples Navigator. */
     static void sample(Context context, Reflect api, Object guidance, NavigatorSource.Frame frame) {
@@ -70,8 +48,6 @@ final class AdasBridge {
     private final Context context;
     private final boolean emulator = Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("goldfish");
     private final Handler worker;
-    private final StockFeed feed;
-    private final NavigatorDriver driver;
     private final LiveMapBridge live;
     private final YandexOfflineMapSource offlineMaps;
     private final YandexOfflineCachePath offlinePath = new YandexOfflineCachePath();
@@ -89,38 +65,19 @@ final class AdasBridge {
 
     private AdasBridge(Context context) throws IOException {
         this.context = context.getApplicationContext();
-        // The dry run, route copies, conversion and the graph: background work. Live sends have their own thread.
+        // SDK route copies and local metadata stay off the sender queues.
         HandlerThread thread = new HandlerThread("denza-adas", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         thread.start();
         worker = new Handler(thread.getLooper());
-        AndroidScheduler scheduler = new AndroidScheduler(worker);
-        // Frame, legal limit and facilities come from the one named place (FieldDefaults).
-        StockFeed.Config config = FieldDefaults.navigator(new StockFeed.Config());
-        // Navigator's route simulation is the only way to drive the emulator; the stock map would skip it.
-        config.acceptSimulatedLocations = emulator;
-        // Nothing reaches ADAS in a dry run, so its answer is emulated as the car gave it (about 110 ms).
-        config.emulatedAckDelayMs = 110;
-        DryRunRecorder recorder = new DryRunRecorder(new RotatingWriter(new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl"), DRY_RUN_GENERATIONS), false);
-        feed = new StockFeed(scheduler, recorder, config);
-        driver = new NavigatorDriver(feed, config.frame, scheduler);
         // Actual sends on their own normal-priority thread: conversion, graph work and the dry run stay here.
         HandlerThread sender = new HandlerThread("denza-adas-live", android.os.Process.THREAD_PRIORITY_DEFAULT);
         sender.start();
         live = new LiveMapBridge(this.context, new Handler(sender.getLooper()));
         offlineMaps = new YandexOfflineMapSource(live);
-        worker.post(() -> {
-            Map<String, Object> f = Json.object();
-            f.put("gatesAssumed", "dnpService, dnpSwitch, noSleep on: Navigator cannot read BYDAuto");
-            f.put("emulator", emulator);
-            f.put("roads", "yandex-native-online");
-            f.put("coordinateFrame",config.frame.name());
-            recorder.note("state", f, SystemClock.elapsedRealtime());
-            feed.start(true, true, true);
-        });
-        // The overlay shows only actual transmission; the independent dry run stays in its log.
+        // The overlay shows actual transmission only.
         AdasFeed.install(live::status);
         listenRaw();
-        Log.i(TAG, "ADAS bridge running: dry-run trace " + new File(this.context.getFilesDir(), "denza-adas-dry-run.jsonl"));
+        Log.i(TAG, "ADAS bridge ready: factory sender, explicit arm required");
     }
 
     private void listenRaw() {
@@ -136,14 +93,14 @@ final class AdasBridge {
                 @Override public void onProviderDisabled(String provider) { }
             }, Looper.getMainLooper());
         } catch (SecurityException | IllegalArgumentException error) {
-            Log.w(TAG, "no passive GNSS: the GPS slot carries Navigator's location", error);
+            Log.w(TAG, "no passive GNSS: the raw GPS slot stays unavailable", error);
         }
     }
 
     /** Main thread: one look at Navigator, posted to the bridge thread as an immutable observation. */
     private void look(Reflect api, Object guidance, NavigatorSource.Frame frame) {
         long now = SystemClock.elapsedRealtime();
-        final NavigatorDriver.Observation o = new NavigatorDriver.Observation();
+        final NativeNavigationInput o = new NativeNavigationInput();
         o.monotonicMs = now;
         Map<String, Object> copy = null;
         Object route = frame.route;
@@ -209,7 +166,10 @@ final class AdasBridge {
             }
         }
         Location gps = raw;
-        if (gps != null && now - gps.getElapsedRealtimeNanos() / 1_000_000 <= 1500) { o.rawLon = gps.getLongitude(); o.rawLat = gps.getLatitude(); }
+        if (gps != null) {
+            long rawAt=gps.getElapsedRealtimeNanos()/1_000_000,age=now-rawAt;
+            if(age>=0&&age<=1500){o.rawLon=gps.getLongitude();o.rawLat=gps.getLatitude();o.rawAtElapsedMs=rawAt;}
+        }
         final Map<String, Object> routeCopy = copy;
         final FixFreshness.Sample fix = sampledFix;
         worker.post(() -> {
@@ -225,7 +185,7 @@ final class AdasBridge {
                     graphRoute = o.route;
                 }
                 if (o.routeId == null || o.mode.equals("off")) {
-                    graphRoute = null; graphGeneration = -1; vectorGeneration = -1; currentRoads=null; driver.setRoads(null);
+                    graphRoute = null; graphGeneration = -1; vectorGeneration = -1; currentRoads=null;
                     attributesAppliedKey = null;
                 } else if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
                     GraphTileCache.Snapshot graph = YandexGraphSource.snapshot();
@@ -236,7 +196,6 @@ final class AdasBridge {
                         GraphRoadNetwork roads = new GraphRoadNetwork(graph.tiles, graphRoute,
                                 vectors == null || vectors.released ? Collections.<VectorRoadTile>emptyList() : vectors.tiles);
                         currentRoads=roads.fragmentCount()==0 ? null : roads;
-                        driver.setRoads(currentRoads);
                         graphGeneration=graph.generation; graphAppliedAt=o.monotonicMs;
                         vectorGeneration=observedVectorGeneration;
                         o.route=graphRoute;
@@ -267,14 +226,12 @@ final class AdasBridge {
                 // Include queue/conversion delay and suspend since the original, immutable anchor.
                 o.monotonicMs = SystemClock.elapsedRealtime();
                 o.fixAgeMs = fix.ageMs(o.monotonicMs, System.currentTimeMillis());
-                driver.observe(o);
                 live.observe(o,fix,currentRoads);
                 if (offlineStatus != null)
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-offline-map-status.json"), offlineStatus);
                 if (offlineStatus != null)
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-yandex-route-vector-status.json"), attributes.status);
                 if(graphSummary!=null) {
-                    graphSummary.put("conversion",driver.conversionSummary());
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(),"denza-yandex-graph-route.json"),graphSummary);
                 }
             } catch (IOException | RuntimeException error) { Log.w(TAG, "ADAS bridge step failed", error); }

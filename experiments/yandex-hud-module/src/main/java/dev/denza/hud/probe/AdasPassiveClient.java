@@ -46,11 +46,11 @@ final class AdasPassiveClient implements AutoCloseable {
     private final Context context;
     private final Sink sink;
     private final String session;
-    private final boolean bridgeMode;
+    private final boolean bridgeMode, coreMode;
     private volatile boolean pilotAvailable, pathAvailable, requiredSubscribed;
     private static final long PILOT_AVAILABLE = 0x0001000D000D0001L, PILOT_UNAVAILABLE = 0x0001000D000D0002L;
     private static final long PATH_AVAILABLE = 0x0001002C002C0001L, PATH_UNAVAILABLE = 0x0001002C002C0002L;
-    private final List<Long> subscriptions = new ArrayList<>(), clients = new ArrayList<>();
+    private final List<Long> subscriptions = new java.util.concurrent.CopyOnWriteArrayList<>(), clients = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private volatile IBinder remote;
     private volatile boolean bound;
@@ -71,9 +71,11 @@ final class AdasPassiveClient implements AutoCloseable {
         this(context, sink, false);
     }
 
-    AdasPassiveClient(Context context, Sink sink, boolean bridgeMode) {
+    AdasPassiveClient(Context context, Sink sink, boolean bridgeMode) { this(context,sink,bridgeMode,false); }
+
+    AdasPassiveClient(Context context, Sink sink, boolean bridgeMode, boolean coreMode) {
         this.context = context.getApplicationContext(); this.sink = sink;
-        this.bridgeMode = bridgeMode;
+        this.bridgeMode = bridgeMode; this.coreMode=coreMode;
         session = context.getPackageName() + ".session-" + UUID.randomUUID();
     }
 
@@ -226,6 +228,44 @@ final class AdasPassiveClient implements AutoCloseable {
     }
     void stopAdmission() { accepting = false; invalidateReadiness(); readinessEpoch.incrementAndGet(); }
 
+    /** Dedicated core SDK connection: preserve computed map/array iteration and own references. */
+    void nativeStart(java.util.Map<Long,Long[]> values) {
+        if(!coreMode)throw new IllegalStateException("core client required");
+        if(!transportAlive())throw new IllegalStateException("core client unavailable");
+        try {
+            for(java.util.Map.Entry<Long,Long[]> entry:values.entrySet()){
+                long service=entry.getKey();int started=0;
+                if(!clients.contains(service)){
+                    started=integerCall(4,service);
+                    if(started!=0&&started!=13)continue;
+                    clients.add(service);
+                }
+                if(entry.getValue()==null)throw new IllegalArgumentException("null subscription array");
+                for(Long topic:entry.getValue()){
+                    if(topic==null)throw new IllegalArgumentException("null subscription topic");
+                    if(subscriptions.contains(topic))continue;
+                    if(started==13)integerCall(9,topic);
+                    subscriptions.add(topic);
+                    if(integerCall(8,topic)!=0)subscriptions.remove(topic);
+                }
+            }
+        }catch(android.os.RemoteException error){throw new IllegalStateException("native subscriptions",error);}
+    }
+    void nativeStop(java.util.Map<Long,Long[]> values){
+        if(!coreMode)throw new IllegalStateException("core client required");
+        try{for(java.util.Map.Entry<Long,Long[]> entry:values.entrySet()){
+            integerCall(5,entry.getKey());clients.remove(entry.getKey());
+            final int service=(int)(entry.getKey()>>>32)&0xffff;
+            subscriptions.removeIf(topic->((int)(topic>>>32)&0xffff)==service);
+        }}catch(android.os.RemoteException error){throw new IllegalStateException("native stop client",error);}
+    }
+    void nativeUnsubscribe(java.util.Map<Long,Long[]> values){
+        if(!coreMode)throw new IllegalStateException("core client required");
+        try{for(java.util.Map.Entry<Long,Long[]> entry:values.entrySet())for(Long topic:entry.getValue()){
+            integerCall(9,topic);subscriptions.remove(topic);
+        }}catch(android.os.RemoteException error){throw new IllegalStateException("native unsubscribe",error);}
+    }
+
     private int integerCall(int transaction, long value) throws RemoteException {
         if (transaction != 4 && transaction != 5 && transaction != 8 && transaction != 9)
             throw new IllegalArgumentException("Client transaction outside allowlist");
@@ -322,9 +362,10 @@ final class AdasPassiveClient implements AutoCloseable {
         return all;
     }
     private long[] serviceTopics() {
-        return bridgeMode ? new long[]{AdasWire.SERVICES[0], AdasWire.SERVICES[1]} : AdasWire.SERVICES;
+        return coreMode ? new long[0] : bridgeMode ? new long[]{AdasWire.SERVICES[0], AdasWire.SERVICES[1]} : AdasWire.SERVICES;
     }
     private long[] subscriptionTopics() {
+        if(coreMode)return new long[0];
         if (!bridgeMode) return topics();
         long[] topics = new long[AdasWire.ANSWERS.length + 4];
         System.arraycopy(AdasWire.ANSWERS, 0, topics, 0, AdasWire.ANSWERS.length);
@@ -341,6 +382,7 @@ final class AdasPassiveClient implements AutoCloseable {
         return false;
     }
     private boolean allowed(long topic) {
+        if(coreMode)return subscriptions.contains(topic);
         if (!bridgeMode) return AdasWire.allowed(topic);
         for (long allowed : subscriptionTopics()) if (topic == allowed) return true;
         return false;
@@ -352,7 +394,7 @@ final class AdasPassiveClient implements AutoCloseable {
         long topic = data.readLong(), timestamp = data.readLong(); int length = data.readInt();
         // SomeIpData encodes a null availability payload as -1 without an array.
         // Data events still require actual bytes; preserve null for the SDK echo.
-        if (length == -1 && isAvailability(topic)) return new Frame(topic, timestamp, null);
+        if (length == -1 && (topic >>> 48) == 1) return new Frame(topic, timestamp, null);
         if (length < 0 || length > AdasWire.MAX_PAYLOAD) throw new IllegalArgumentException("Callback payload cap");
         byte[] payload = new byte[length]; data.readByteArray(payload); // validates encoded byte-array length without attacker-sized allocation.
         return new Frame(topic, timestamp, payload);

@@ -3,7 +3,7 @@ package dev.denza.adaslink.stocknative;
 import static dev.denza.adaslink.stocknative.NativeModels.*;
 
 /** Independent native sender core for the ORIGINAL classic EHP/SOMEIPv1 branch.
- * This is a host-verifiable model, not a replacement wired into NavigatorDriver or the product. */
+ * The product supplies Yandex inputs through its explicit native adapter and owned runtime. */
 public final class StockSender {
     /** Distinct original globals: service b, effective switch a; f0 sleeping is separate. p is NOT noSleep. */
     public static final class Gates {public boolean service,effectiveSwitch,memory;public int noOddRegionDistance=-1;}
@@ -38,6 +38,7 @@ public final class StockSender {
     public void openCitiesUpdated(java.util.List<Integer> values){cities.a(values);}
     /** Original global gate writes. No implicit callbacks: replay the actual observer receipts separately. */
     public void gates(boolean service,boolean effectiveSwitch){gates.service=service;gates.effectiveSwitch=effectiveSwitch;}
+    public long selectedPathId(){return policy==null?-1:policy.selectedPathId();}
     public int noOddRegionDistance(){return gates.noOddRegionDistance;}
     public void noSleep(boolean enabled){wire.t(enabled);}
     public void multipleRoutes(RouteCarResultData result){routes.f(result);}
