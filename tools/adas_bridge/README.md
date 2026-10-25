@@ -13,7 +13,9 @@ The real reader-size and readiness-timestamp defects exposed by candidates
 19/20 are corrected. The test arm was removed; a fresh arm is needed for a drive.
 Exact APK/reader pins and separate vehicle receipts live under
 `captures/stock-sender-parity-20261025/product/candidate*.json` and `live*/`.
-Moving NOA engagement and retention remain untested.
+The first drive is retained: 9 ACKed paths, 975 continuous positions, ICC active
+and one 95 ms DNP-available response, with no DNP-active response. Sustained CNOA
+was not achieved. See the [first-drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25).
 See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 

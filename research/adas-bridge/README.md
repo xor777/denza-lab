@@ -9,7 +9,9 @@ converter and a local mock receiver. Conversion benches run on a disposable
 emulator; car builds also collect passive evidence. This branch replaces the
 product sender with `stocknative`. Candidate 15 passed stationary route receipt
 on 2026-10-25. Candidate 21 is now installed and passed two same-arm stationary
-route selections, continuous output and graceful closure; see the receipt below. Build 14 and its experiment variants
+route selections, continuous output and graceful closure. Its first drive is now
+retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
+see the separate drive analysis below. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -23,14 +25,15 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 21 installed; two same-arm stationary ACK 200 routes and graceful closure; drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 21 installed; stationary acceptance and first drive retained; ICC observed, sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | 21 installed; two routes accepted, 152 positions, original terminal 100 and closed endpoints verified | [Candidate 19](#coordinate-and-road-data-candidate-19) |
+| Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
-| `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | stationary raw reply observed; candidate-18 reader polls and journals it, meaning still open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
+| `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, was read throughout drive 21: 938 samples, 924 raw 0, ten raw 18 and four raw 19. Meaning and event-latching semantics are not established | real read-only moving samples; not yet a decoded NOA refusal reason | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
 | There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
@@ -491,6 +494,87 @@ position cadence and the raw exit-reason getter together. Raw quit value 0 was
 read on the parked car; its enum meaning and freshness are not yet established.
 The control WGS84 and per-route alternation remain available for a subsequent
 comparison, rather than changing this candidate's first-drive condition.
+
+#### Candidate 21 first drive (2026-10-25)
+
+The owner reports no visible ICC/NOA proposal in the settlement, then a working
+ICC proposal on the road outside it. This is a different acceptance result from
+parked route receipt. The exact same installed APK hash was verified after the
+drive. Arm `c835f6cb-b184-403d-a892-d6d6a15e2cc6` ran 18:06:20.777–18:21:57.955
+(Moscow); positive vehicle-speed samples span 18:09:07.780–18:17:49.245.
+The original fixed native coordinate candidate remained selected.
+
+The captured sender stayed alive: 9 published paths, all with explicit same-path
+ACK 200; the first type 1 and subsequent eight type 2, with continuous output
+through route/source transitions. All 975 VehicleLocation outputs carry a
+published path; the largest interval is 1,289 ms. TrafficInfo/TrafficLight also
+have 975 outputs. No callback drop, task/post failure, process restart or crash
+was recorded. NextAction/SpeedIntersection have several gaps up to 7.7 s around
+route transitions; this does not establish full callback equivalence. On return,
+measured speed was 0 and the legacy park predicate 1. Host restore sent terminal
+100, closed both endpoints and removed the arm; no later sends were observed.
+
+| Observed ADAS response | Start (Moscow) | To next different response | Latest vehicle speed / dynamic class |
+| --- | --- | ---: | --- |
+| DNP available, CNOA family | 18:12:45.108 | 95 ms | 17 km/h / 9 |
+| ICC active | 18:13:06.601 | 6.393 s | 31 km/h / 8 |
+| ICC active | 18:13:20.605 | 4.486 s | 52 km/h / 8 |
+| ICC active | 18:14:02.194 | 1.703 s | 39 km/h / unknown |
+
+There is no DNP-active response in the retained drive. The brief DNP-available
+packet is not proof that the UI displayed an offer; it is consistent with the
+owner seeing none. Each listed response follows a fresh native position on a
+published, ACKed path. A legacy-only episode formatter initially said “no path”;
+this was a report bug, now corrected to distinguish the actual sent native
+position, publication and ACK from the ECU's unobserved internal state.
+Absent outgoing proto3 historySpeed is now reported as wire default 0 with its
+presence flag, rather than None.
+
+Current dynamic road class was 9 in 831/975 outputs, 8 in 54, unknown in 90
+(82 on-route and 8 off-course). In particular, most of the early settlement
+segment had known class 9. Static routes still have many unknown future links,
+all continuous lane counts 0, ownership unknown and direction 0. These inputs
+are incomplete; the experiment does not prove which ones the ECU uses as gates.
+
+The city-list hypothesis has a narrower answer than “city 0 forbids NOA.” The
+real response contains 374 unique codes 1–375 excluding 0. Nevertheless all
+1,341 AdvAutoFunInfo packets in this drive carry noODDRegionDist=2147483647.
+All 850 Region packets carry country=1 with region/province/city omitted
+(proto3 zero). Those values did not change between settlement and the ICC-active
+road. `OriginalOddSender` uses URID, independently from route adminCode and Region;
+its scan returns MAX after accumulating over 2 km before the route end. The
+zero-at-short-route-end branch was not observed. Thus no transmitted “ODD ends
+here” explains this drive, while the ECU's use of Region remains unknown.
+
+A concrete older comparison exists at almost the same associated-road point
+(1.82 m in the shared SDK frame):
+`captures/stock-map-review-20261023/car/drive-02/drive.log:2064–2079` records
+CNOA with the original factory sender **on custom OSM data**, class unknown,
+ownership 0, historySpeed 25, legal limit 0 and region 990001. Current
+`post-drive/denza-adas-live.jsonl:11265–11269` carries class 9, ownership -1,
+historySpeed 0, legal limit 20 and region 0. The headings are opposite (88/269°),
+and dates/speeds differ: this is not a causal A/B. It does establish real remaining
+input differences and shows known motorway class/nonzero legal limit are not
+universal prerequisites for the older village CNOA. The old administrative and
+URID identifiers belong to that custom package, not a proven Yandex namespace.
+
+The reader captured 938 quit-prompt samples: 924×0, 10×18, 4×19. Nonzero samples
+occur before and after the outside-road ICC episodes, including at speed 0;
+none by itself establishes an actual exit from active NOA. A bounded corpus
+search confirmed the same FID as native cluster
+`DOMAIN_1FF_SUB02_34_41_NOA_EXITSTYLE` (UINT8), but found no exact value mapping
+for 18/19 in framework, SystemUI, stock map, AdasAgent, retained cluster DWARF
+or decoded HMI scripts. Exact enum and latching semantics remain unknown.
+
+Evidence: ignored `product/drive21/post-drive/` contains 22 hashed source files
+(about 27 MB), `report/review.{json,md}`, `trip-timeline.json`, `quit-events.json`,
+`returned-state.json`, `restore-result.json` and `post-drive-closure.json`.
+One historical malformed line predates the selected arm. The current SDKframe
+matches the older near-point comparison; this is not proof of global coordinate
+correctness or receiver eligibility. The next diagnostic priority is the meaning
+of quit codes 18/19 and justified sources for the remaining road inputs, followed
+by a single-variable comparison. No blanket favorable city/ownership/speed fill
+was installed during this review.
 
 The coordinate recommendation is retained at
 `captures/stock-sender-parity-20261025/RECOMMENDATION-20261025.md`.

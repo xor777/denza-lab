@@ -12,7 +12,9 @@ installed: two same-arm routes obtained ACK 200, 152 positions went out at about
 native mode. Its arm is now removed and Navigator has no active route.
 Exact artifact pins and separate stationary receipts are
 under `captures/stock-sender-parity-20261025/product/`.
-Local checks and vehicle acceptance remain separate; moving NOA is unproved.
+The first moving drive recorded ICC and one 95 ms DNP-available response, with
+no DNP-active response. See the [drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25);
+sustained CNOA is not established.
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into
