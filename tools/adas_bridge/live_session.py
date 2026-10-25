@@ -36,6 +36,8 @@ PACKAGE = "ru.yandex.yandexnavi"
 STOCK = "com.byd.launchermap"
 ARM = "files/denza-adas-live-arm.json"
 LIVE_STOP = "files/denza-adas-live-stop.json"
+COORDINATE_FRAMES = ("WGS84", "NATIVE_GCJ_UNRESTRICTED_CANDIDATE", "ALTERNATE_ROUTES")
+DEFAULT_COORDINATE_FRAME = "NATIVE_GCJ_UNRESTRICTED_CANDIDATE"
 HEARTBEAT = "files/denza-adas-consumer.json"
 STATE = "files/denza-adas-live-state.json"
 GATES = "files/denza-adas-gates.json"
@@ -313,7 +315,7 @@ class Device:
         if legacy_park(park_reply) != 1:
             raise SessionError("legacy parked predicate is not1")
         return {"legacyParkRaw": 1, "legacyParkDevice": 1011, "legacyParkFid": PARK_FID, "legacyParkTransact": 5,
-                "speedMps": zero_speed(speed_reply), "speedDevice": 1013, "speedFid": SPEED_FID_SIGNED, "speedTransact": 7,
+                "speedKmh": zero_speed(speed_reply), "speedDevice": 1013, "speedFid": SPEED_FID_SIGNED, "speedTransact": 7,
                 "meaning": "Human stationary confirmation + legacy parked predicate + measured zero speed; not independent selector-P proof"}
 
     def stock_pids(self):
@@ -616,8 +618,11 @@ def navi_st_original(device, row, *, sleep=time.sleep):
     raise SessionError("reader's NaviSt original not recorded; the naviSt variant cannot run")
 
 
-def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep, variant=None):
+def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep, variant=None,
+        coordinate_frame=DEFAULT_COORDINATE_FRAME):
     integer(lifetime, "arm lifetime", 1000, MAX_LIFETIME_MS)
+    if coordinate_frame not in COORDINATE_FRAMES:
+        raise SessionError("unknown coordinate frame")
     if variant is not None:
         raise SessionError("factory sender does not accept legacy experiment variants")
     checked_sha(jar_sha)
@@ -642,7 +647,7 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
            "apk": {"sha256": expected.sha256, "versionCode": expected.version_code, "versionName": expected.version_name},
            "stockPackage": STOCK, "originalStock": stock, "stockPidsBefore": device.stock_pids(),
            "initialQuiescence": initial, "stationary": stationary, "lifetimeMs": lifetime,
-           "readerJarSha256": jar_sha, "sender": "stocknative", "phase": "ROLLBACK_RECORDED", "armWritten": False}
+           "readerJarSha256": jar_sha, "sender": "stocknative", "coordinateFrame": coordinate_frame, "phase": "ROLLBACK_RECORDED", "armWritten": False}
     save_ledger(ledger_path, row, create=True)  # Must precede the first package or device-file mutation.
     try:
         device.stock_enabled(3); row["phase"] = "STOCK_DISABLED"; save_ledger(ledger_path, row)
@@ -659,7 +664,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
         issued = device.elapsed()
         record = {"schema": "denza-adas-live-arm-v1", "bootId": boot, "consumerSession": consumer,
                   "readerSession": row["readerSession"], "armId": row["armId"], "issuedAtElapsedMs": issued,
-                  "expiresAtElapsedMs": issued + lifetime, "stockPackage": STOCK, "stockDisabled": True}
+                  "expiresAtElapsedMs": issued + lifetime, "stockPackage": STOCK, "stockDisabled": True,
+                  "coordinateFrame": coordinate_frame}
         # Unknown outcome after write must take the normal disarm/closure-proof rollback path.
         row["phase"] = "ARM_WRITE_PENDING"; row["armWritten"] = True; row["arm"] = record; save_ledger(ledger_path, row)
         device.write_private(ARM, record)
@@ -824,6 +830,7 @@ def main(argv=None):
             command.add_argument("--lifetime-ms", required=True, type=int)
             command.add_argument("--stationary-confirmed", action="store_true")
             command.add_argument("--dry-run", action="store_true")
+            command.add_argument("--coordinate-frame", choices=COORDINATE_FRAMES, default=DEFAULT_COORDINATE_FRAME)
     args = parser.parse_args(argv)
     try:
         if args.command == "build-reader":
@@ -840,7 +847,7 @@ def main(argv=None):
                 result = {"schema": "denza-adas-live-plan-v1", "deviceCalls": 0, "serial": args.serial,
                           "stockPackage": STOCK, "apk": expected.__dict__, "ledger": str(args.ledger),
                           "readerJar": str(args.reader_jar), "readerSha256": args.reader_sha256,
-                          "lifetimeMs": args.lifetime_ms, "sender": "stocknative",
+                          "lifetimeMs": args.lifetime_ms, "sender": "stocknative", "coordinateFrame": args.coordinate_frame,
                           "stationaryConfirmationRequired": True,
                           "steps": ["Verify exact APK SHA/version, boot and fresh consumer", "Require human stationary confirmation, legacy park raw1 and FLOAT speed0",
                                     "Require no existing arm and fresh quiescent/closed runtime", "Durably record original stock enabled state and identity",
@@ -849,7 +856,7 @@ def main(argv=None):
                           "limits": ["No independent selector-P proof", "No process-absence/Binder-cleanup restore fallback; missing closure proof leaves explicit rollback pending"]}
             else:
                 result = arm(Device(args.adb, args.serial), expected, args.reader_jar, args.reader_sha256, args.lifetime_ms,
-                             args.ledger, stationary_confirmed=args.stationary_confirmed)
+                             args.ledger, stationary_confirmed=args.stationary_confirmed, coordinate_frame=args.coordinate_frame)
         print(json.dumps(result, indent=2, allow_nan=False)); return 0
     except (SessionError, OSError, subprocess.SubprocessError) as error:
         parser.exit(2, str(error) + "\n")

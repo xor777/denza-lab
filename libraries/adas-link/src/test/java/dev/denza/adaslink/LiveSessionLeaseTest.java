@@ -16,6 +16,14 @@ public final class LiveSessionLeaseTest {
     static void bad(Runnable r){checks++;try{r.run();}catch(IllegalArgumentException expected){return;}throw new AssertionError("lease must reject "+checks);}
     public static void main(String[] args) {
         LiveSessionLease a=read(arm(),1000);check(a.same(read(arm(),9000)));
+        check(a.frameMode==LiveSessionLease.FrameMode.WGS84);
+        for(LiveSessionLease.FrameMode mode:LiveSessionLease.FrameMode.values()){
+            Map<String,Object> framed=arm();framed.put("coordinateFrame",mode.name());LiveSessionLease lease=read(framed,1000);
+            check(lease.frameMode==mode);check(!lease.same(a));check(lease.same(read(framed,1000)));
+        }
+        for(Object value:new Object[]{"GCJ02","alternate_routes",null,1L}){Map<String,Object> invalid=arm();invalid.put("coordinateFrame",value);bad(()->read(invalid,1000));}
+        Map<String,Object> unexpected=arm();unexpected.put("coordinateFrame","WGS84");unexpected.put("frame","WGS84");bad(()->read(unexpected,1000));
+        Map<String,Object> nativeFrame=arm();nativeFrame.put("coordinateFrame","NATIVE_GCJ_UNRESTRICTED_CANDIDATE");Map<String,Object> controlFrame=arm();controlFrame.put("coordinateFrame","WGS84");check(!read(nativeFrame,1000).same(read(controlFrame,1000)));
         bad(()->read(arm(),999));bad(()->read(arm(),10000));
         for(String key:new String[]{"schema","bootId","consumerSession","readerSession","armId","stockPackage"}) {
             Map<String,Object> m=arm();m.put(key,"other");bad(()->read(m,1000));

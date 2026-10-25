@@ -52,7 +52,7 @@ class FakeDevice:
         self.calls.append("stationary")
         if self.park != 1 or self.speed != 0:
             raise live.SessionError("not stationary")
-        return {"legacyParkRaw": self.park, "speedMps": self.speed, "independentSelectorProof": False}
+        return {"legacyParkRaw": self.park, "speedKmh": self.speed, "independentSelectorProof": False}
 
     def private(self, name):
         self.calls.append(("read", name))
@@ -194,6 +194,8 @@ class ProcedureTests(unittest.TestCase):
     def test_factory_arm_has_no_legacy_policy_or_side_channel_writes(self):
         row = self.arm()
         self.assertEqual(row["sender"], "stocknative")
+        self.assertEqual(row["coordinateFrame"], live.DEFAULT_COORDINATE_FRAME)
+        self.assertEqual(self.device.files[live.ARM]["coordinateFrame"], live.DEFAULT_COORDINATE_FRAME)
         self.assertNotIn("variant", row)
         self.assertNotIn("variant", self.device.files[live.ARM])
         self.assertIsNone(self.device.navi_arm)
@@ -205,6 +207,14 @@ class ProcedureTests(unittest.TestCase):
                 self.arm(variant=variant)
         self.assertEqual(self.device.calls, [])
         self.assertFalse(self.ledger.exists())
+
+    def test_coordinate_modes_are_explicit_and_unknown_mode_never_calls_device(self):
+        with self.assertRaisesRegex(live.SessionError, "unknown coordinate frame"):
+            self.arm(coordinate_frame="GCJ02")
+        self.assertEqual(self.device.calls, [])
+        row = self.arm(coordinate_frame="ALTERNATE_ROUTES")
+        self.assertEqual(row["coordinateFrame"], "ALTERNATE_ROUTES")
+        self.assertEqual(self.device.files[live.ARM]["coordinateFrame"], "ALTERNATE_ROUTES")
 
     def test_factory_runtime_confirmation_is_required(self):
         original = self.device.private
@@ -288,10 +298,10 @@ class ProcedureTests(unittest.TestCase):
             live.restore(self.device, self.ledger, sleep=lambda _: None)
         self.assertFalse(any(isinstance(c, tuple) and c[0] == "instrument_write" for c in self.device.calls))
 
-    def test_arm_nine_field_schema_and_rollback_precedes_mutation(self):
+    def test_arm_explicit_frame_schema_and_rollback_precedes_mutation(self):
         row = self.arm(); self.assertEqual(row["phase"], "ARMED")
         self.assertEqual(set(self.device.files[live.ARM]), {"schema", "bootId", "consumerSession", "readerSession", "armId",
-                         "issuedAtElapsedMs", "expiresAtElapsedMs", "stockPackage", "stockDisabled"})
+                         "issuedAtElapsedMs", "expiresAtElapsedMs", "stockPackage", "stockDisabled", "coordinateFrame"})
         arm = self.device.files[live.ARM]
         self.assertEqual(arm["stockPackage"], "com.byd.launchermap"); self.assertIs(arm["stockDisabled"], True)
         self.assertEqual(arm["consumerSession"], CONSUMER); self.assertEqual(arm["bootId"], BOOT)
@@ -438,8 +448,23 @@ class ProcedureTests(unittest.TestCase):
             self.assertEqual(plan["readerSha256"], self.digest)
             self.assertEqual(plan["lifetimeMs"], 60000)
             self.assertEqual(plan["sender"], "stocknative")
+            self.assertEqual(plan["coordinateFrame"], live.DEFAULT_COORDINATE_FRAME)
             self.assertNotIn("variant", plan)
             self.assertFalse(self.ledger.exists())
+
+    def test_coordinate_frame_dry_run_choices_make_zero_device_calls(self):
+        args = ["arm", "--serial", "owned:5555", "--ledger", str(self.ledger), "--apk-sha256", APK.sha256,
+                "--version-code", str(APK.version_code), "--version-name", APK.version_name,
+                "--reader-jar", str(self.jar), "--reader-sha256", self.digest, "--lifetime-ms", "60000", "--dry-run"]
+        with patch.object(live, "Device", side_effect=AssertionError("must not create ADB device")):
+            for mode in live.COORDINATE_FRAMES:
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):self.assertEqual(live.main(args + ["--coordinate-frame", mode]), 0)
+                plan = json.loads(out.getvalue())
+                self.assertEqual(plan["coordinateFrame"], mode);self.assertEqual(plan["deviceCalls"], 0)
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                live.main(args + ["--coordinate-frame", "GCJ02"])
+        self.assertFalse(self.ledger.exists())
 
 
 class ParsingAndCommandTests(unittest.TestCase):

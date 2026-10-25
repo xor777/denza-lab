@@ -40,14 +40,15 @@ public final class NativeMapSessionTest {
     }
     static final class Rig {
         final Runtime runtime=new Runtime();final Environment environment=new Environment();final Transport transport=new Transport();long ids=2000;
-        final NativeMapSession session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids);
-        Rig(){environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
+        final NativeMapSession session;final List<Map<String,Object>> audits=new ArrayList<>();
+        Rig(){this(LiveSessionLease.FrameMode.WGS84);}
+        Rig(LiveSessionLease.FrameMode mode){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
         NativeNavigationInput input(String id,long epoch,boolean route){NativeNavigationInput o=new NativeNavigationInput();o.routeId=id;o.routeEpoch=epoch;o.mode="guidance";o.routeStatus="ON_ROUTE";o.positionOnRoute=true;o.offlineGeometrySha256="geometry-"+id;o.monotonicMs=runtime.now;o.stamp=runtime.now;o.fixAgeMs=0;o.locationClass="FINE";o.scalar=.3;o.timeToFinishS=30;o.lon=37.6003;o.lat=55.7003;o.rawLon=37.60029;o.rawLat=55.70029;o.speedMps=3;o.heading=45;
             if(route)o.route=new YandexRoute(id,new double[]{37.6,37.601},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);return o;}
         void observe(NativeNavigationInput o){session.observe(o);runtime.advance(0);}
     }
     public static void main(String[] args){
-        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();
+        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
@@ -98,5 +99,53 @@ public final class NativeMapSessionTest {
             check(action.mapped&&action.assistant==(name.endsWith("LEFT")?8:7),"branch direction retained for "+name);
             check(action.main==0&&action.icon==0,"no invented angle/merge/icon for "+name);
         }
+    }
+    static void coordinateModes(){
+        for(LiveSessionLease.FrameMode mode:new LiveSessionLease.FrameMode[]{LiveSessionLease.FrameMode.WGS84,LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE}){
+            Rig r=new Rig(mode);r.observe(r.input("a",1,true));Coordinates.Frame expected=Coordinates.Frame.valueOf(mode.name());
+            check(r.session.frame()==expected&&r.session.frameOrdinal()==1,"fixed arm chooses declared frame");
+            NativeModels.LocInfo fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];double[] point=Coordinates.toSdk(37.6003,55.7003,expected);
+            check(fix.matchInfo.get(0).stPos.lon==point[0]&&fix.matchInfo.get(0).stPos.lat==point[1],"core receives selected coordinate frame once");
+            r.runtime.advance(1000);r.observe(r.input("b",2,true));check(r.session.frame()==expected&&r.session.frameOrdinal()==2,"fixed frame remains fixed for new route ID");r.session.close();
+        }
+        Rig alternate=new Rig(LiveSessionLease.FrameMode.ALTERNATE_ROUTES);alternate.observe(alternate.input("a",1,true));
+        check(alternate.session.frame()==Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE,"alternate starts in native candidate");
+        NativeNavigationInput refresh=alternate.input("a",2,true);refresh.offlineGeometrySha256="new-a-geometry";alternate.observe(refresh);
+        check(alternate.session.frame()==Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE&&alternate.session.frameOrdinal()==1,"same route geometry refresh retains original frame/ordinal");
+        alternate.runtime.advance(1000);NativeNavigationInput progress=alternate.input("a",2,false);progress.offlineGeometrySha256="new-a-geometry";alternate.observe(progress);
+        check(alternate.session.frameOrdinal()==1,"progress never advances alternating ordinal");
+        alternate.observe(alternate.input("b",3,true));check(alternate.session.frame()==Coordinates.Frame.WGS84&&alternate.session.frameOrdinal()==2,"next Yandex route gets WGS control");
+        alternate.observe(alternate.input("a",4,true));check(alternate.session.frame()==Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE&&alternate.session.frameOrdinal()==1,"returning Yandex ID retains pinned frame");
+        Map<String,Object> audit=alternate.audits.get(alternate.audits.size()-1);check("ALTERNATE_ROUTES".equals(audit.get("coordinateFrameMode"))&&"NATIVE_GCJ_UNRESTRICTED_CANDIDATE".equals(audit.get("coordinateFrame"))&&Long.valueOf(1).equals(audit.get("coordinateRouteOrdinal")),"route policy journals mode, selected frame and ordinal");alternate.session.close();
+        Rig blocked=new Rig(LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE);NativeNavigationInput outside=blocked.input("outside",1,true);outside.route=new YandexRoute("outside",new double[]{41,41.001},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);blocked.observe(outside);
+        check(blocked.session.blocked()!=null&&!blocked.runtime.closed&&blocked.transport.routes.isEmpty(),"outside candidate route is blocked without terminating runtime");
+        blocked.observe(blocked.input("outside",2,true));check(blocked.session.frameOrdinal()==1&&blocked.session.navigating(),"same ID retry keeps its first pinned frame/ordinal");
+        for(int i=1;i<NativeMapSession.FRAME_ROUTE_LIMIT;i++)blocked.session.sdkCoordinate("id-"+i,37.6,55.7);
+        check(blocked.session.sdkCoordinate("overflow",37.6,55.7)==null,"route-frame association has a bounded capacity");
+        check(blocked.session.sdkCoordinate("outside",37.6,55.7)!=null,"existing association survives capacity limit");blocked.session.close();
+    }
+    static void rejectedPreparationIsMemoized(){
+        Rig r=new Rig(LiveSessionLease.FrameMode.NATIVE_GCJ_UNRESTRICTED_CANDIDATE);
+        NativeNavigationInput outside=r.input("outside",1,true);
+        outside.route=new YandexRoute("outside",new double[]{41,41.001},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);
+        r.observe(outside);long firstId=r.ids;String reason=r.session.blocked();
+        for(int i=0;i<30;i++){r.runtime.advance(100);NativeNavigationInput fix=outside.copy();fix.monotonicMs=r.runtime.now;fix.stamp=r.runtime.now;r.observe(fix);}
+        check(r.ids==firstId&&r.audits.size()==1,"repeated fixes on one rejected snapshot allocate/prepare/audit once");
+        check(reason.equals(r.session.blocked())&&!r.runtime.closed&&r.transport.routes.isEmpty(),"cached rejection preserves blocked reason and authorized runtime");
+        outside.route.additionalAttributes=new RouteAttributes(){
+            public boolean matches(YandexRoute route){return route==outside.route;}
+            public double[] cuts(){return new double[0];}
+            public RoadNetwork.KnownAttributes attributesBetween(double a,double b){return RoadNetwork.KnownAttributes.NONE;}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+        r.observe(outside.copy());check(r.ids==firstId+1&&r.audits.size()==2,"changed immutable attributes retry rejected preparation");
+        NativeNavigationInput newSource=outside.copy();newSource.route=new YandexRoute("outside",new double[]{41,41.001},new double[]{55.7,55.701},outside.route.sections,null,null,null,null,null,null);
+        r.observe(newSource);check(r.ids==firstId+2&&r.audits.size()==3,"new route snapshot retries even when subject hashes agree");
+        newSource.offlineGeometrySha256="updated-source-geometry";r.observe(newSource.copy());
+        check(r.ids==firstId+3&&r.audits.size()==4,"changed source geometry identity retries");
+        newSource.routeEpoch=2;r.observe(newSource.copy());check(r.ids==firstId+4&&r.audits.size()==5,"new route epoch retries");
+        NativeNavigationInput valid=r.input("outside",2,true);r.observe(valid);
+        check(r.session.blocked()==null&&r.session.navigating()&&!r.runtime.closed&&r.transport.routes.size()==1,"valid same-ID replacement resumes without rearming");
+        check(r.session.frameOrdinal()==1,"rejection retry does not advance same-ID frame policy");r.session.close();
     }
 }

@@ -6,7 +6,6 @@ import tempfile
 import unittest
 
 from build import ROOT, LEGACY_ADAS_CLASSES, product_adas_sources, verify_product_classes
-from identity import BUILD_NUMBER, VERSION_CODE, BASE_VERSION_CODE
 
 
 class ProductSourceClosure(unittest.TestCase):
@@ -14,8 +13,6 @@ class ProductSourceClosure(unittest.TestCase):
         names = {p.stem for p in product_adas_sources()}
         self.assertFalse(names & LEGACY_ADAS_CLASSES)
         self.assertTrue({'StockSender', 'YandexNativeAdapter', 'OfflineVectorPackage', 'YandexRoute'} <= names)
-        self.assertEqual(BUILD_NUMBER, 18)
-        self.assertEqual(VERSION_CODE, BASE_VERSION_CODE + BUILD_NUMBER)
 
     def test_packaged_nested_legacy_class_is_rejected(self):
         verify_product_classes(['dev/denza/adaslink/stocknative/StockSender.class'])

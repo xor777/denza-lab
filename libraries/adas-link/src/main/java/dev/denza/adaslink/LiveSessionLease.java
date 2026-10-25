@@ -6,20 +6,25 @@ import java.util.UUID;
 /** Explicit factory-sender arm bound to one consumer, boot and reader.
  * Legacy experiment variants are rejected rather than entering the native sender. */
 public final class LiveSessionLease {
+    public enum FrameMode { WGS84, NATIVE_GCJ_UNRESTRICTED_CANDIDATE, ALTERNATE_ROUTES }
     public static final String STOCK_PACKAGE="com.byd.launchermap";
     public static final long MAX_LIFETIME_MS=4L*60*60*1000, INPUT_TTL_MS=2500;
     public final String bootId, consumerSession, readerSession, armId;
     public final long issuedAt, expiresAt;
     public final String canonical;
+    public final FrameMode frameMode;
     private LiveSessionLease(Map<String,Object> m) {
         bootId=(String)m.get("bootId"); consumerSession=(String)m.get("consumerSession");
         readerSession=(String)m.get("readerSession"); armId=(String)m.get("armId");
         issuedAt=integer(m,"issuedAtElapsedMs"); expiresAt=integer(m,"expiresAtElapsedMs");
+        frameMode=m.containsKey("coordinateFrame")?FrameMode.valueOf((String)m.get("coordinateFrame")):FrameMode.WGS84;
         canonical=Json.write(m);
     }
     public static LiveSessionLease read(String text,String boot,String consumer,long now) {
         Map<String,Object> m=object(text);
-        if(m.containsKey("variant") || m.size()!=9 || !"denza-adas-live-arm-v1".equals(m.get("schema"))
+        if(m.containsKey("variant") || m.size()!=(m.containsKey("coordinateFrame")?10:9)
+                ||m.containsKey("coordinateFrame")&&!(m.get("coordinateFrame") instanceof String)
+                || !"denza-adas-live-arm-v1".equals(m.get("schema"))
                 || !uuid(boot) || !uuid(consumer) || !boot.equals(m.get("bootId")) || !consumer.equals(m.get("consumerSession"))
                 || !uuid(m.get("readerSession")) || !uuid(m.get("armId"))
                 || !STOCK_PACKAGE.equals(m.get("stockPackage")) || !Boolean.TRUE.equals(m.get("stockDisabled")))
