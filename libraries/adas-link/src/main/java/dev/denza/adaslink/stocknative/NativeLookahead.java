@@ -63,7 +63,7 @@ public final class NativeLookahead {
                 }
                 if (distance >= 3000 && (!inTunnel || exitDistance != -1)) break scan;
             }
-            firstLink = 0;
+            if ((long) firstLink < linkCount) firstLink = 0;
         }
         if (rampDistance > 2000) rampDistance = -1;
         if (inTunnel || enterDistance > 2000) enterDistance = -1;

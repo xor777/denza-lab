@@ -29,7 +29,7 @@ final class NativeMapSession implements AutoCloseable {
     private String routeId, geometry, blocked;
     private YandexNativeAdapter.AdaptedRoute route;
     private Boolean service, effectiveSwitch, awake;
-    private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining;
+    private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining,routeProgressReady;
     private Float latestVehicleSpeed;private long vehicleSpeedObservedAt=-1;
     private RejectedPreparation rejectedPreparation;
     /** Source snapshots and their attribute results are owned immutable observations. A new
@@ -94,7 +94,9 @@ final class NativeMapSession implements AutoCloseable {
             RouteFrame selected=routeFrame(o.routeId,true);
             if(selected==null){invalidateLocation();blocked="coordinate frame route association limit";return;}
             long pathId=ids.getAsLong();
-            int nativeRouteType=route!=null&&offRouteReplacementPending?2:0;
+            // Original RouteRequestController.requestRoute chooses RouteTypeCommon=1 for
+            // new ordinary guidance. The retained bench's initial 0 was an unset seed field.
+            int nativeRouteType=route!=null&&offRouteReplacementPending?2:1;
             YandexNativeAdapter.AdaptedRoute candidate=YandexNativeAdapter.prepare(o.route,pathId,pathId,nativeRouteType,o.route.additionalAttributes,YandexNativeAdapter.Policy.TEST_ROAD_DATA.withFrame(selected.frame));
             java.util.Map<String,Object> policy=dev.denza.adaslink.Json.object();
             policy.put("routeId",o.routeId);policy.put("pathId",pathId);policy.put("epoch",o.routeEpoch);
@@ -114,6 +116,7 @@ final class NativeMapSession implements AutoCloseable {
             rejectedPreparation=null;
             long previous=route==null?-1:route.getPathID();
             route=candidate;routeId=o.routeId;geometry=o.offlineGeometrySha256;routeEpoch=o.routeEpoch;
+            routeProgressReady=false;
             blocked=null;lastFix=Long.MIN_VALUE;lastNavi=-1;arrivalPending=false;offRouteReplacementPending=false;
             if(!navigating){navigating=true;sender.navigationCreated();sender.navigationStarted();sender.navigationReset();
                 if(latestVehicleSpeed!=null&&runtime.elapsedRealtime()>=vehicleSpeedObservedAt&&runtime.elapsedRealtime()-vehicleSpeedObservedAt<=1500)sender.vehicleSpeedUpdated(latestVehicleSpeed);
@@ -130,8 +133,12 @@ final class NativeMapSession implements AutoCloseable {
         if(o.positionOnRoute&&o.monotonicMs-lastNavi>=1000){
             YandexNativeAdapter.Guidance g=new YandexNativeAdapter.Guidance();g.scalar=o.scalar;g.timeToFinishS=o.timeToFinishS;
             NativeModels.NaviInfo info=YandexNativeAdapter.navi(route,g);
-            if(info!=null){sender.progressUpdated(info,route);lastNavi=o.monotonicMs;}
+            if(info!=null){sender.progressUpdated(info,route);lastNavi=o.monotonicMs;routeProgressReady=true;}
         }
+        // Original H does not clear its prior path/indices. The ordered facade queues v0
+        // before P, so the first coherent progress input owns this route's location envelope.
+        // Once initialized, off-route fixes keep the factory's last current-route envelope.
+        if(!routeProgressReady){invalidateLocation();return;}
         if("FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&!o.simulated){
             YandexNativeAdapter.Location l=new YandexNativeAdapter.Location();
             l.scalar=o.scalar;l.matchedLon=o.lon;l.matchedLat=o.lat;l.rawLon=o.rawLon;l.rawLat=o.rawLat;
@@ -163,6 +170,7 @@ final class NativeMapSession implements AutoCloseable {
         invalidateLocation();
         if(navigating){navigating=false;sender.navigationCancelled();sender.navigationStopped();sender.navigationDestroyed();}
         route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;
+        routeProgressReady=false;
         rejectedPreparation=null;
         offRouteActive=false;offRouteReplacementPending=false;
     }

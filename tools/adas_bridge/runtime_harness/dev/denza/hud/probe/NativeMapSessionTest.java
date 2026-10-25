@@ -48,12 +48,12 @@ public final class NativeMapSessionTest {
         void observe(NativeNavigationInput o){session.observe(o);runtime.advance(0);}
     }
     public static void main(String[] args){
-        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();
+        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
-        Rig r=new Rig();r.observe(r.input("a",1,true));check(r.transport.routeType()==50,"normal native type0 preserves original wire50");
-        r.observe(r.input("b",2,true));check(r.transport.routeType()==50,"identity replacement does not invent offcourse reason");
+        Rig r=new Rig();r.observe(r.input("a",1,true));check(r.transport.routeType()==1,"ordinary guidance uses source RouteTypeCommon1, not the bench seed default0");
+        r.observe(r.input("b",2,true));check(r.transport.routeType()==1,"ordinary identity replacement remains Common1 without inventing offcourse reason");
         NativeNavigationInput off=r.input("b",2,false);off.routeStatus="NOT_ON_ROUTE";off.positionOnRoute=false;off.scalar=Double.NaN;off.lon=37.61;off.lat=55.71;off.stamp++;
         long navi=r.runtime.count(".v0"),location=r.runtime.count(".P");r.observe(off);
         check(r.runtime.count(".b0")==1,"observed source deviation invokes reroute once");
@@ -147,5 +147,21 @@ public final class NativeMapSessionTest {
         NativeNavigationInput valid=r.input("outside",2,true);r.observe(valid);
         check(r.session.blocked()==null&&r.session.navigating()&&!r.runtime.closed&&r.transport.routes.size()==1,"valid same-ID replacement resumes without rearming");
         check(r.session.frameOrdinal()==1,"rejection retry does not advance same-ID frame policy");r.session.close();
+    }
+    static void replacementWaitsForOwnProgress(){
+        Rig r=new Rig(LiveSessionLease.FrameMode.ALTERNATE_ROUTES);r.observe(r.input("a",1,true));
+        long oldPath=r.session.pathId();int oldLocations=r.transport.locations;
+        check(r.session.frame()==Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE,"A uses native frame before replacement");
+        r.runtime.advance(1001);NativeNavigationInput missingEta=r.input("b",2,true);missingEta.timeToFinishS=Double.NaN;r.observe(missingEta);
+        check(r.session.pathId()!=oldPath&&r.session.frame()==Coordinates.Frame.WGS84,"B route itself is accepted in alternate WGS frame");
+        check(r.transport.locations==oldLocations,"new B coordinates cannot use old A path envelope before B progress");
+        r.runtime.advance(1001);NativeNavigationInput stillMissing=r.input("b",2,false);stillMissing.timeToFinishS=Double.NaN;r.observe(stillMissing);
+        check(r.transport.locations==oldLocations&&!r.runtime.closed,"missing ETA keeps B location paused without closing arm");
+        r.runtime.advance(1001);r.observe(r.input("b",2,false));Map<String,Object> position=r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation");
+        check(r.transport.locations>oldLocations&&((Number)position.get("curSDRouteID")).longValue()==r.session.pathId(),"first valid B progress enables B position with its own native path envelope");
+        check(((Number)position.get("locationLongitudeAssociateRoad")).doubleValue()==37.6003,"resumed B position uses B WGS control frame exactly once");
+        r.runtime.advance(1001);NativeNavigationInput off=r.input("b",2,false);off.positionOnRoute=false;off.routeStatus="NOT_ON_ROUTE";off.scalar=Double.NaN;off.timeToFinishS=Double.NaN;off.lon=37.61;
+        int beforeOff=r.transport.locations;r.observe(off);position=r.transport.fields(Topics.SD_VEHICLE_LOCATION,"sdVehicleLocation");
+        check(r.transport.locations>beforeOff&&((Number)position.get("locationLongitudeAssociateRoad")).doubleValue()==37.61,"off-route current positions continue after first B progress despite unavailable new ETA");r.session.close();
     }
 }
