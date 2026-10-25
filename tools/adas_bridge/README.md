@@ -376,6 +376,19 @@ or live read-only logcat.
 
 ## Differential bench (stock map ↔ bridge)
 
+For an independent **original-input sender** comparison, use
+[`sender_parity.capture`](sender_parity/capture.py) and
+[`sender_parity.bench`](sender_parity/bench.py). That bench records native
+PathInfo getters and processed SDK callbacks before original conversion, then
+replays the retained inputs directly into StockFeed without a Yandex adapter.
+It retains unsupported callbacks, service lifecycle, startup/timer phase and
+strict byte/order/timing differences. The first factory start/arrival case
+confirms the exact native route JSON payload, not complete sender equivalence.
+Commands, measured results and limitations are in
+[Original sender parity](../../research/adas-bridge/README.md#original-sender-parity-2026-10-25).
+
+The existing integration bench below has a different input boundary:
+
 The acceptance bench records what the original map fires toward ADAS and what
 the bridge would fire for the same route and position trace, in one trace format
 (`feed.py`, decoded with `someip_schema.json`, regenerated from the stock classes

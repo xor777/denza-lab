@@ -14,10 +14,13 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
+| On one factory start/arrival case, the native-getter-driven port emits exactly the original 3,122-byte route JSON payload; only envelope wall time differs. All 61 raw NaviInfo calls have the same three-topic order, with 154/183 payloads byte-identical. Remaining camera/voice differences involve recorded callbacks without faithful port inputs; full sender equivalence is not established | code | [Measured comparison](#measured-startarrival-comparison) |
+| A separate original-input bench records the original APK's native route getters and processed SDK callbacks, then replays them directly into StockFeed without NavigatorDriver or RouteConverter.convert. Missing callbacks, unsupported inputs, startup phase and byte/order/timing differences remain explicit; this is not NOA acceptance | code | [Original sender parity](#original-sender-parity-2026-10-25) |
+| `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
 | There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
@@ -62,7 +65,7 @@ Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 | The experiment variant (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
-Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
+Contents: [Original sender parity](#original-sender-parity-2026-10-25) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
@@ -82,6 +85,175 @@ Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-2
 Paths below: `LM` = `captures/hud-firmware-20260923/jadx/BydLaunchermap/sources`,
 `SIP` = `captures/hud-firmware-20260923/jadx/SomeIpService/sources`,
 `YN` = `captures/firmware/yandexnavi-29.8.1-3b0dec32` (all git-ignored).
+
+## Original sender parity (2026-10-25)
+
+This work is isolated on `codex/stock-sender-parity`, from committed baseline
+`b46acae3`. Concurrent uncommitted vehicle/build-17 work is not part of that
+baseline. The bench uses the already extracted original APK (SHA-256
+`3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793`),
+factory Beijing data, a dedicated ARM64 emulator and the existing explicit
+AOSP/BYDAuto/transport fixture. Original code executes in ART; no new car
+commands, product APK, live publisher or vehicle acceptance are involved.
+
+### Independent input and output
+
+`tools/adas_bridge/sender_parity/stock_inputs.js` observes the original
+`DriveRouteManager.G`, processed `MmtSomeIpDataManager.P/v0`, guidance lifecycle,
+inbound answers, speed and gate events. It snapshots native `PathInfo` getters
+before original conversion, preserving native IDs, integer geometry, raw enums,
+remaining distances and SDK-frame location doubles. Other encountered processed
+callbacks are recorded explicitly, including callbacks the port cannot replay.
+The existing transport fixture separately records the original `fireEvent`
+bytes and stubs transmission; its ACKs and vehicle flags remain labelled
+fixture inputs. SDK route/location inputs are never reconstructed from output;
+the scripted protocol ACK echoes the selected native path ID explicitly.
+
+`capture.py` retains raw Frida events, exact installed/restored file hashes,
+the actual combined observer, all original DEX hashes, callback and egress
+sequences, three clock observations and a required-hook inventory. A failed
+hook, reader error or lost sequence fails capture acceptance. Only the primary
+sender DEX is retained as a separate shared artifact; the other DEX hashes are
+verified directly in the pinned APK. The first diagnostic capture is retained
+as invalid: JADX collision aliases differed from actual DEX field names.
+
+The host Java `NativeSenderReplay` constructs `StockPath` and the package-local
+container directly from these inputs. It uses a local recorder and
+`ManualScheduler`, bypasses `NavigatorDriver` and `RouteConverter.convert`, and
+discloses its reflection into existing StockFeed entry points. Raw native
+km/h values reach the original-equivalent integer casts without an m/s
+round-trip. `bench.py` compares every fire by ordinal, full payload and topic,
+with exact integer monotonic milliseconds by default. Extra packets and tails
+are retained. Wall-clock and timing exceptions require explicit switches and
+remain listed; they do not erase coverage gaps. A supplemental thread-local
+call comparison attributes synchronous location/progress outputs to their
+actual input, without using nearest timestamps to invent an association.
+Frida delivery can reorder reports from different original threads. FIRE
+boundary sequence must be unique and contiguous; normalization retains the
+raw delivery stream and explicitly orders FIRE rows by that boundary sequence.
+It does not call a delivery-order swap packet loss. Service lifecycle entries
+are compared separately; unrepresented requests, internal processing and
+asynchronous state changes remain gaps.
+
+### Measured start/arrival comparison
+
+The corrected original `catalog-01-c019` run retained 599 processed locations,
+61 raw NaviInfo callbacks, one native route, one scripted selection reply and
+arrival/stop. All 38 hooks installed, with no input-reader errors. The original
+runner returned success and restored every map-file hash. Raw evidence is
+`original-start-arrival-02/` under the capture root below.
+
+Against the existing committed StockFeed:
+
+- The sole `MessageSend` JSON payload is exactly 3,122 UTF-8 bytes on each
+  side, byte-identical from independently captured native getters. The full
+  route protobuf differs only in `NaviDataDetail.time`. The strict global
+  comparison still retains this timestamp difference.
+- All 61 NaviInfo calls emit the same ordered tidal/action/speed triplet.
+  154 of 183 payloads agree byte for byte; 36 entire triplets agree. The other
+  29 payloads differ in camera state (23) or retained voice text (6), with
+  preceding original `e0.f0` / `e0.X` inputs explicitly recorded but unsupported
+  by the raw port interface. These are input-model limitations, not isolated
+  serializer defects.
+- The first attributable moving location bundle has four byte-identical
+  payloads. The first region reply differs because original `P` performs a
+  native map lookup after the pre-P bean snapshot; that difference cannot be
+  called a pure port defect. Queued stationary sends have no synchronous
+  input-call attribution and are not assigned a cause by proximity.
+
+Overall stream equality is **not established**: 792 in-window original FIREs
+versus 618 port FIREs in this replay, plus explicitly unmodelled callbacks,
+constructor/timer phase and asynchronous work. No coordinate-quantization
+effect was demonstrated by this case: these native SDK coordinates already
+lie on the grid. The evidence justifies separating source-neutral callback
+inputs from adapter-derived work, not changing vehicle field values or
+claiming a NOA fix. Exact inputs, packet references, diffs and build hashes are
+in `port/start-arrival-final/{report.json,findings.json,FINDINGS.md}`.
+
+The bounded missed-turn case (`original-reroute-02/`, first 160 samples of the
+retained factory scenario, with the source hash and slice recorded) then
+captured one automatic reroute, two native paths and two scripted ACKs,
+1,588 locations and 165 NaviInfo calls. All 38 hooks installed with no reader
+errors, and the original file baseline was restored. Its strict replay is
+also DIFFERENT: 2,022 original FIREs versus 1,534 port FIREs. The first route's
+19,793-byte inner JSON agrees exactly. The second route differs in five lane
+count/admin-code values: the pre-G getter snapshot itself has different
+values from those serialized later by the original. Original `l.b` directly
+copies these getters. Without a transcript of the getters actually consumed
+inside that call, this is a snapshot/native-object timing or identity gap,
+not evidence of a serializer bug. Some v0 processing also precedes the first
+G snapshot; the replay records the missing prior PathInfo explicitly instead
+of borrowing a later route. See `port/reroute-final/`. No earlier invalid
+diagnostic capture is used as the reference for these results.
+
+### Scope and limits
+
+This measurement deliberately tests the existing port before changing its
+production APIs. Its public route/progress interfaces currently depend on
+the Yandex-oriented converted route. The raw replay therefore cannot establish
+complete SDK-callback equivalence: point indices, lookahead, native ODD/URID,
+some callbacks and source-specific route fields have no faithful port input.
+These remain coverage gaps, not fabricated defaults or a passing result.
+The original constructors and status timer may precede the capture's gate
+snapshot; the port starts its timer at that snapshot. Global order/timing
+differences therefore also contain a documented initialization-phase gap and
+are not all automatically sender defects. A native getter snapshot reads the
+path before original conversion; it is not a transcript proving that a
+concurrently mutable path returned the same getters throughout conversion.
+
+The older [differential bench](../../tools/adas_bridge/README.md#differential-bench-stock-map--bridge)
+remains an integration test: its synthetic Yandex input derives from stock
+output. Passing it or a Python-versus-Java encoder test is not independent
+same-input sender equivalence. A failing original-input comparison localizes
+differences in producer behavior; it does not identify Momenta's NOA-exit
+predicate.
+
+Reproduction (an explicitly owned, prepared emulator is required only for capture):
+
+```sh
+python3 -m tools.adas_bridge.sender_parity.capture run \
+  --build captures/stock-map-beijing-pack/car-01 \
+  --case captures/adas-bench/beijing/catalog-sel/cases/catalog-01-c019.json \
+  --serial emulator-5612 --frida-port 27092 \
+  --out captures/stock-sender-parity-20261025/original-start-arrival-02
+python3 -m tools.adas_bridge.sender_parity.capture normalize \
+  --raw captures/stock-sender-parity-20261025/original-start-arrival-02/run/app/events.jsonl \
+  --recorder captures/stock-sender-parity-20261025/original-start-arrival-02/run/observer.js \
+  --receipt captures/stock-sender-parity-20261025/original-start-arrival-02/run/receipt.json \
+  --out captures/stock-sender-parity-20261025/normalized-start-arrival-02
+python3 -m tools.adas_bridge.sender_parity.bench \
+  captures/stock-sender-parity-20261025/normalized-start-arrival-02/inputs.jsonl \
+  --reference captures/stock-sender-parity-20261025/normalized-start-arrival-02/reference.jsonl \
+  --artifact-manifest captures/stock-sender-parity-20261025/normalized-start-arrival-02/capture-manifest.json \
+  --scenario start-arrival --out captures/stock-sender-parity-20261025/port/start-arrival-final
+python3 -m unittest tools.adas_bridge.sender_parity.test_bench \
+  tools.adas_bridge.sender_parity.test_capture tools.adas_bridge.sender_parity.test_recorder
+```
+
+Outputs stay in ignored `captures/stock-sender-parity-20261025/`. Reuse a retained
+capture for host replay; `capture run` refuses an existing output directory.
+Exit 1 from the comparison means DIFFERENT/INCOMPLETE, not a test-run crash.
+
+### Exit-reason diagnostic candidate
+
+The owner highlighted `ADAS_NOA_QUIT_PROMPT` as a future independent observation.
+Its string identifier is `0x1FF0201C` (decimal `535830556`), device `1038`.
+The retained `reports/coordinate-parity/parked/receiver-check.json` under
+`captures/drive-kit-20261025/postdrive-20261024-204337/` records transaction 5,
+`service call autoservice 5 i32 1038 i32 535830556`, returning a raw zero while
+stationary. This is a saved observation, not a fresh read in this branch.
+Some decompiled SDK constant stubs are literal zero; use the recovered
+identifier/registration, not the placeholder Java constant.
+
+Next steps are read-only: establish the signal's framework/native registration,
+find an enum/consumer decoder if available, then observe event publication or
+bounded polling with monotonic receipt timestamps alongside NOA transitions.
+Record null/error/stale data separately from an explicit zero. Determine whether
+the signal is live, latched or cached and what clears it before interpreting a
+value as the cause of a particular exit. A shell reader can be built on the
+host without rebuilding the navigation APK, but no reader or vehicle changes
+are made by this sender-parity task. A half-second exit and an unmeasured
+publication interval mean a next drive is not guaranteed to expose its cause.
 
 ## NOA gap audit of the build-12 trip (2026-10-24)
 
@@ -932,6 +1104,10 @@ and the limitations of the bbox count.
 > **Qualified 2026-10-24:** serializer and dry-run oracle correspondence is not
 > LIVE producer equivalence. The [build-12 trip audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24)
 > measures different frames, cadence and graph-driven path replacement.
+> **Qualified 2026-10-25:** this is a handwritten adapted port, not an isolated
+> unchanged stock sender. The [original-input measurement](#original-sender-parity-2026-10-25)
+> confirms one route encoder case while keeping native callback/helper and
+> asynchronous lifecycle gaps explicit.
 
 `libraries/adas-link` (plain Java 8, compiled into Navigator's dex like
 `:hud-link`, and a Gradle library) is the stock map's feed code, ported class by
