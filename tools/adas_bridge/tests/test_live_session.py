@@ -564,6 +564,50 @@ class ParsingAndCommandTests(unittest.TestCase):
             self.assertFalse((root / "injected").exists())
             self.assertFalse((root / (live.STOP + ".tmp")).exists())
 
+    def test_graceful_stop_uses_real_device_allowlists_atomic_write_and_readback(self):
+        # FakeDevice bypasses Device's allowlists. Exercise the actual fixed command
+        # builders, running their private-file scripts only in a temporary directory.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root / "files").mkdir(); calls = []
+            row = {"bootId": BOOT, "consumerSession": CONSUMER, "readerSession": OTHER,
+                   "armId": "44444444-4444-4444-8444-444444444444"}
+            (root / live.ARM).write_text(json.dumps({**row, "expiresAtElapsedMs": 20000}))
+
+            def runner(args, **kwargs):
+                calls.append(args)
+                self.assertLessEqual(len(calls), 8)
+                self.assertGreater(kwargs["timeout"], 0); self.assertLessEqual(kwargs["timeout"], 5)
+                self.assertEqual(args[:3], ["unused-adb", "-s", "owned:5555"])
+                tokens = shlex.split(args[4])
+                if args[3] == "shell":
+                    self.assertEqual(tokens, ["cat", "/proc/uptime"])
+                    return types.SimpleNamespace(returncode=0, stdout=b"10.0 0.0\n", stderr=b"")
+                self.assertEqual(args[3], "exec-out")
+                self.assertEqual(tokens[:4], ["run-as", live.PACKAGE, "sh", "-c"])
+                result = subprocess.run(["sh", "-c", tokens[4]], cwd=root, stdin=subprocess.DEVNULL,
+                                        capture_output=True, timeout=min(2, kwargs["timeout"]), check=False)
+                if (root / live.LIVE_STOP).exists():
+                    (root / live.STATE).write_text(json.dumps({
+                        **row, "schema": "denza-adas-live-state-v1", "elapsedMs": 10000,
+                        "state": "STOPPED", "quiescent": True, "stopDetail": "original terminal output sent"}))
+                return result
+
+            device = live.Device("unused-adb", "owned:5555", runner=runner)
+            result = live.graceful_stop(device, row, sleep=lambda _: self.fail("completed stop must not poll again"))
+            self.assertTrue(result["requested"]); self.assertTrue(result["completed"])
+            expected = {**row, "schema": "denza-adas-live-stop-v1", "requestedAtElapsedMs": 10000}
+            self.assertEqual(json.loads((root / live.LIVE_STOP).read_text()), expected)
+            self.assertFalse((root / (live.LIVE_STOP + ".tmp")).exists())
+            self.assertEqual(len(calls), 6)  # elapsed, arm, atomic write, readback, state, elapsed.
+            self.assertEqual(live.FILES, frozenset((live.ARM, live.HEARTBEAT, live.STATE, live.GATES,
+                             live.STOP, live.ISOLATION, live.NAVI_ST, live.INSTRUMENT_NAVI_STATUS, live.LIVE_STOP)))
+            for name in live.FILES - {live.ARM, live.STOP, live.LIVE_STOP}:
+                with self.subTest(name=name), self.assertRaisesRegex(live.SessionError, "private-write allowlist"):
+                    device.write_private(name, {})
+            with self.assertRaisesRegex(live.SessionError, "private-file allowlist"):
+                device.private("files/unrelated.json")
+            self.assertEqual(len(calls), 6, "denied paths never reach the runner")
+
     def test_reader_launch_ignores_hup_and_detaches_all_standard_descriptors(self):
         calls = []; digest = "a" * 64
         def runner(args, **kwargs):

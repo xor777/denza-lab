@@ -45,7 +45,7 @@ STOP = "files/denza-adas-reader-stop.json"
 ISOLATION = "files/denza-adas-stock-isolation.json"
 NAVI_ST = "files/denza-adas-navi-st.json"
 INSTRUMENT_NAVI_STATUS = "files/denza-adas-instrument-navi-status.json"
-FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, ISOLATION, NAVI_ST, INSTRUMENT_NAVI_STATUS))
+FILES = frozenset((ARM, HEARTBEAT, STATE, GATES, STOP, LIVE_STOP, ISOLATION, NAVI_ST, INSTRUMENT_NAVI_STATUS))
 MAX_JSON = 16384
 MAX_LIFETIME_MS = 4 * 60 * 60 * 1000
 MAX_AGE_MS = 5000
@@ -270,7 +270,7 @@ class Device:
         return decode_json(data) if data else None
 
     def write_private(self, name, row):
-        if name not in (ARM, STOP):
+        if name not in (ARM, STOP, LIVE_STOP):
             raise SessionError("private-write allowlist")
         data = (json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n").encode()
         if len(data) > MAX_JSON:
