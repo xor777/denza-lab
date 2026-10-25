@@ -16,12 +16,15 @@ Exact APK/reader pins and separate vehicle receipts live under
 The first drive is retained: 9 ACKed paths, 975 continuous positions, ICC active
 and one 95 ms DNP-available response, with no DNP-active response. Sustained CNOA
 was not achieved. See the [first-drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25).
-Candidate 22 is now installed and passed parked ACK 200 with actual historySpeed 7
-and public ownership on four covered route links. Its route and a fresh two-hour
-arm were left active for the requested drive; region/city and continuous lanes
-remain 0. Read current state before reusing this timestamped preparation. See the
-[candidate-22 receipt](../../research/adas-bridge/README.md#candidate-22-free-flow-proxy-and-confirmed-public-roads).
-See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
+Candidate 23 passed parked ACK 200 with sourced speed/ownership and the narrow
+owner-confirmed lane catalog; its moving acceptance is still pending. The current
+local `LiveMapBridge` selects the declared `COMPATIBILITY_CN` experiment: real Yandex
+geometry/progress, Beijing donor road fields and Region, link URID 1 and the unchanged
+factory sender. This is an adapter policy, not a legacy `--variant` and not evidence
+of vehicle NOA acceptance. Local adapter/runtime/protocol checks pass; installation
+and a fresh parked ACK followed by the sustained-NOA drive remain separate steps.
+See the [compatibility profile and test protocol](../../research/adas-bridge/README.md#compatibility-cn-donor-profile-local-2026-10-25)
+and the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 
 The Python conversion/replay tools use the standard library and run offline;

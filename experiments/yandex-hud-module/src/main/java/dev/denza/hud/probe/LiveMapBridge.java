@@ -309,6 +309,7 @@ final class LiveMapBridge {
         final AndroidStockRuntime ownedRuntime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
                 missing->worker.post(()->{if(arm==owner&&!finished&&!dynamicFresh(SystemClock.elapsedRealtime())){dataUnavailable=missing.getMessage();if(session!=null)session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}}));
         synchronized(this){ownedRuntime.inputGeneration(sourceGeneration);runtime=ownedRuntime;}
+        final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.COMPATIBILITY_CN;
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
             AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
             Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
@@ -317,7 +318,7 @@ final class LiveMapBridge {
             public void startClientOrSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStart(values);return null;});}
             public void stopClient(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStop(values);return null;});}
             public void unSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeUnsubscribe(values);return null;});}
-        });
+        },routePolicy.compatibilityCn);
         if(!env.ready())throw new IllegalStateException("actual AutoType unavailable");
         environment=env;note("environment",Json.write(env.sourceStatus()));
         StockTransport wire=new StockTransport(){
@@ -334,7 +335,7 @@ final class LiveMapBridge {
             public int request(long topic,byte[] payload,boolean response){throw new UnsupportedOperationException("native request not present in selected sender closure");}
         };
         activeEpoch=epoch();publishedSubject=sourceSubject;publishedGeneration=sourceGeneration;
-        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence(),readOwnerLaneEvidence());
+        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence(),readOwnerLaneEvidence(),routePolicy);
         AdasGateSnapshot.Snapshot g=inputs.gates;session.start(Boolean.TRUE.equals(g.dnpService),Boolean.TRUE.equals(g.dnpSwitchRaw),Boolean.TRUE.equals(g.noSleep));
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}

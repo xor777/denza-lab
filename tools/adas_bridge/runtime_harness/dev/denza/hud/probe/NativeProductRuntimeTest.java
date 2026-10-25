@@ -63,6 +63,11 @@ public final class NativeProductRuntimeTest {
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
         try{LiveSessionLease.read(Json.write(invalid),BOOT,disarmed.consumer,SystemClock.now);}catch(IllegalArgumentException expected){rejected=true;}check(rejected,"legacy variant arm rejected");
         Rig r=new Rig();r.arm();long path=r.route();LiveMapTransport old=LiveMapTransport.latest;AdasPassiveClient oldAnswers=AdasPassiveClient.answers;AdasPassiveClient oldCore=AdasPassiveClient.core;
+        Object nativeSession=field(r.bridge,"session");
+        dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy productionPolicy=(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy)field(nativeSession,"routePolicy");
+        ProductNativeEnvironment productionEnvironment=(ProductNativeEnvironment)field(r.bridge,"environment");
+        check(productionPolicy.compatibilityCn&&productionPolicy.historySpeed==dev.denza.adaslink.yandexnative.YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_FIXED_25,"LiveMapBridge wires compatibility donor policy into actual NativeMapSession");
+        check(productionEnvironment.hasMapDataService()&&productionEnvironment.getAdcodeByLonLat(37.6,55.7)==110000&&Integer.valueOf(110000).equals(productionEnvironment.getCityProvince(110000)),"LiveMapBridge wires matching declared Region donor environment");
         check(old.count(Topics.ROUTE)>0,"factory route reaches owned transport");
         check(AdasPassiveClient.answers!=AdasPassiveClient.core,"subscription maps have separate reader ownership");
         oldAnswers.answer(Topics.PATH_SELECT_CONFIRM,StockMessages.pathSelectConfirm(path,200));Handler.advance(0);r.observe(false);

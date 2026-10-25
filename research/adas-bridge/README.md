@@ -29,6 +29,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 23 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | installed: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; moving acceptance pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
+| The active native adapter now has a declared `COMPATIBILITY_CN` donor experiment for the first sustained-NOA attempt. It keeps real Yandex geometry/progress but substitutes selected Beijing attributes, Region 110000 and link URID 1; the factory `StockSender` is unchanged | local unit/runtime/protocol checks pass; not built into an installed car candidate or driven yet; no NOA benefit established | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
@@ -617,6 +618,47 @@ remaining for the requested drive. Read current state before reuse; this is
 stationary receipt, not moving NOA acceptance.
 
 Region/city remain unchanged at zero; no administrative equivalence is claimed.
+
+#### Compatibility-CN donor profile (local, 2026-10-25)
+
+The owner reprioritized the next experiment from further map-evidence refinement to
+maximizing the chance of the first sustained NOA run. `LiveMapBridge` therefore now
+selects `YandexNativeAdapter.Policy.COMPATIBILITY_CN` explicitly. This is in the active
+`NativeMapSession → YandexNativeAdapter → NativeRouteSerializer / OriginalMmtSender →
+StockSender` path. It does not use the legacy `ExperimentVariant`, `RouteConverter` or
+`StockFeed`, and it does not modify the recovered factory sender.
+
+The profile substitutes a declared set of values observed in the retained Beijing
+donor, rather than claiming that Amap or Yandex supplied these facts for Russia:
+`roadclass=7`, `formway=1`, `ownership=0`, `direction=1`, `laneNum=0`,
+`adminCode=110000`, `hasMultiOut=true`, link `URID=1`, history speed 25 and dynamic
+legal limit 0. The native Region boundary reports region/province/city 110000 and
+country 1. These are experiment inputs, not geocoder results or evidence that a
+Russian road is inside Chinese NOA coverage. Actual measured historical speed still
+has priority; stale/off-route/end-of-route history output clears to zero, and an
+off-route location keeps unknown road identity.
+
+Real Yandex coordinates, geometry, synthetic route/link identity, distances,
+manoeuvres, names, tunnel/ferry ranges and traffic-light positions remain in use.
+`adminCode=110000` and `URID=1` are deliberately separate namespaces. URID 1 was
+present in this car's retained ODD response. With the actual open-city list supplied
+to the unchanged `OriginalOddSender`, even a short all-URID-1 test route produces
+`noODDRegionDist=2147483647`; this checks the factory calculation path rather than
+hard-coding that outgoing distance in the adapter.
+
+Local validation passed on 2026-10-25: `:adas-link:testDebugUnitTest`, 118 actual
+product-runtime checks, 144 native-session checks including the serialized route,
+Region and ODD wire values, 400 passive-client Binder checks and 41 live-session
+Python tests. Production wiring is checked through `LiveMapBridge`, not merely by
+calling the adapter directly. No vehicle installation, fresh ACK or moving NOA
+result exists for this profile yet.
+
+The next vehicle check remains bounded: parked in P, obtain a fresh `SELECTED 200`,
+then drive the same settlement route where the stock map provided the positive
+CNOA control. Record availability, NOA-active/ICC and every transition/quit reason;
+ACK alone is not success. Export the evidence promptly (within about 20 minutes)
+before the ring logs overwrite it. A sustained NOA result, not packet similarity,
+is the acceptance criterion.
 
 #### Lane input decision and targeted vector audit (2026-10-25)
 

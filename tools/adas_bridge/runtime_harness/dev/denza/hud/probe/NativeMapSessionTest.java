@@ -23,17 +23,17 @@ public final class NativeMapSessionTest {
         Object[] last(String suffix){for(int i=entries.size()-1;i>=0;i--)if(((String)entries.get(i)[0]).endsWith(suffix))return entries.get(i);throw new AssertionError(suffix);}
     }
     static final class Environment implements NativeEnvironment {
-        NativeMapSession session;double speed=10;
+        NativeMapSession session;double speed=10;boolean compatibilityCn;
         public int adasType(){return 1;}public boolean tipIsland(){return true;}public boolean laneUi(){return false;}public boolean noaConfigured(){return true;}
         public void startClientOrSubscribe(Map<Long,Long[]> x){}public void stopClient(Map<Long,Long[]> x){}public void unSubscribe(Map<Long,Long[]> x){}
         public void resetRouteSignals(){}public void setAvpSupport(int x){}public boolean someIpV2(){return false;}public boolean isNaving(){return session!=null&&session.navigating();}public boolean isKD(){return false;}public boolean isMainThread(){return false;}public double realSpeed(){return speed;}
-        public boolean hasMapDataService(){return false;}public int getAdcodeByLonLat(double x,double y){return -1;}public int getTownAdcodeByLonLat(double x,double y){return -1;}public Integer getCityProvince(int x){return null;}
+        public boolean hasMapDataService(){return compatibilityCn;}public int getAdcodeByLonLat(double x,double y){return compatibilityCn?110000:-1;}public int getTownAdcodeByLonLat(double x,double y){return compatibilityCn?110000:-1;}public Integer getCityProvince(int x){return compatibilityCn?110000:null;}
         public long queryAppointLanesInfo(int a,int b,int c){return -1;}public String cachedOpenCityJson(){return "";}public void writeCachedOpenCityJson(String x){}public List<Integer> avpMapIds(String id){return Collections.emptyList();}
         public double distanceBetweenPoints(double a,double b,double c,double d){return Coordinates.distance(a,b,c,d);}public NativeModels.Coord2DDouble lastLocation(){return null;}public void setLeaveTunnelDist(int x){}public void setEnterTunnelDist(int x){}public String stringResource(String name){return dev.denza.adaslink.yandexnative.NativeResources.get(name,false);}
     }
     static final class Transport implements StockTransport {
         final List<byte[]> routes=new ArrayList<>();int locations;final Map<Long,Map<String,Object>> decoded=new HashMap<>();final List<Long> order=new ArrayList<>();
-        public int fire(long topic,byte[] payload){order.add(topic);if(topic==Topics.ROUTE)routes.add(payload.clone());if(topic==Topics.SD_VEHICLE_LOCATION)locations++;if(topic==Topics.SD_VEHICLE_LOCATION||topic==Topics.TRAFFIC_INFO||topic==Topics.SD_SPEED_INTERSECTION)decoded.put(topic,Topics.schema(topic).decode(payload));return 0;}
+        public int fire(long topic,byte[] payload){order.add(topic);if(topic==Topics.ROUTE)routes.add(payload.clone());if(topic==Topics.SD_VEHICLE_LOCATION)locations++;if(topic==Topics.SD_VEHICLE_LOCATION||topic==Topics.TRAFFIC_INFO||topic==Topics.SD_SPEED_INTERSECTION||topic==Topics.SD_REGION||topic==Topics.ADV_AUTO_FUN_INFO)decoded.put(topic,Topics.schema(topic).decode(payload));return 0;}
         @SuppressWarnings("unchecked")Map<String,Object> fields(long topic,String key){return (Map<String,Object>)decoded.get(topic).get(key);}
         public int startService(long topic){return 0;}public int stopService(long topic){return 0;}public int request(long topic,byte[] payload,boolean response){return 0;}
         @SuppressWarnings("unchecked")int routeType(){String raw=new String(routes.get(routes.size()-1),java.nio.charset.StandardCharsets.UTF_8);Map<String,Object> outer=(Map<String,Object>)Json.parse(raw.substring(raw.indexOf('{'),raw.lastIndexOf('}')+1));Map<String,Object> inner=(Map<String,Object>)Json.parse((String)outer.get("payload"));return ((Number)inner.get("RouteType")).intValue();}
@@ -44,13 +44,15 @@ public final class NativeMapSessionTest {
         Rig(){this(LiveSessionLease.FrameMode.WGS84);}
         Rig(LiveSessionLease.FrameMode mode){this(mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence.EMPTY);}
         Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence){this(mode,evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence.EMPTY);}
-        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence lanes){session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode,evidence,lanes);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
+        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence lanes){this(mode,evidence,lanes,dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.TEST_ROAD_DATA.withHistorySpeed(dev.denza.adaslink.yandexnative.YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_YANDEX_SECTION_FREE_FLOW_PROXY));}
+        Rig(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy policy){this(LiveSessionLease.FrameMode.WGS84,dev.denza.adaslink.yandexnative.PublicRoadEvidence.EMPTY,dev.denza.adaslink.yandexnative.OwnerLaneEvidence.EMPTY,policy);}
+        Rig(LiveSessionLease.FrameMode mode,dev.denza.adaslink.yandexnative.PublicRoadEvidence evidence,dev.denza.adaslink.yandexnative.OwnerLaneEvidence lanes,dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy policy){environment.compatibilityCn=policy.compatibilityCn;session=new NativeMapSession(runtime,runtime,environment,transport,()->++ids,audits::add,mode,evidence,lanes,policy);environment.session=session;session.start(true,true,true);session.clientInitialized(true);runtime.advance(0);}
         NativeNavigationInput input(String id,long epoch,boolean route){NativeNavigationInput o=new NativeNavigationInput();o.routeId=id;o.routeEpoch=epoch;o.mode="guidance";o.routeStatus="ON_ROUTE";o.positionOnRoute=true;o.offlineGeometrySha256="geometry-"+id;o.monotonicMs=runtime.now;o.stamp=runtime.now;o.fixAgeMs=0;o.locationClass="FINE";o.scalar=.3;o.timeToFinishS=30;o.lon=37.6003;o.lat=55.7003;o.rawLon=37.60029;o.rawLat=55.70029;o.speedMps=3;o.heading=45;
             if(route)o.route=new YandexRoute(id,new double[]{37.6,37.601},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);return o;}
         void observe(NativeNavigationInput o){session.observe(o);runtime.advance(0);}
     }
     public static void main(String[] args){
-        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();sectionFreeFlowProxyReachesFactoryWire();catalogOwnershipStaysWithinConfirmedSourceEdges();catalogLaneCountStaysWithinConfirmedSourceEdges();
+        routeReasonsAndOffRoute();stationaryInvalidationAndRecovery();offRouteWireAfterStationary();queuedExpiry();limitClear();gracefulStop();branchActions();coordinateModes();rejectedPreparationIsMemoized();replacementWaitsForOwnProgress();sectionFreeFlowProxyReachesFactoryWire();catalogOwnershipStaysWithinConfirmedSourceEdges();catalogLaneCountStaysWithinConfirmedSourceEdges();compatibilityCnReachesFactoryWire();
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
@@ -273,5 +275,41 @@ public final class NativeMapSessionTest {
             check(((Number)after.get(0).get("ownership")).intValue()==Integer.MIN_VALUE,"lane catalog does not imply public ownership");
             baseline.session.close();confirmed.session.close();
         }
+    }
+    static void compatibilityCnReachesFactoryWire(){
+        Rig r=new Rig(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.COMPATIBILITY_CN);
+        r.session.openCitiesUpdated(Arrays.asList(1,372));
+        NativeNavigationInput input=r.input("compatibility-cn",1,true);
+        input.route=new YandexRoute(input.routeId,new double[]{37.6,37.601},new double[]{55.7,55.701},
+                Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT","Real Russian road",30,18)),
+                null,new double[0],Collections.emptyList(),Collections.emptyList(),null,null);
+        input.speedLimitMps=20/3.6;r.observe(input);
+        List<Map<String,Object>> links=serializedLinks(r);check(links.size()==1,"compatibility test retains one real source link");
+        Map<String,Object> link=links.get(0);
+        check(((Number)link.get("roadclass")).intValue()==7&&((Number)link.get("formway")).intValue()==1,"factory route receives donor road class/formway");
+        check(((Number)link.get("ownership")).intValue()==0&&((Number)link.get("direction")).intValue()==1,"factory route receives donor ownership/direction");
+        check(((Number)link.get("laneNum")).intValue()==0&&((Number)link.get("adminCode")).intValue()==110000,"factory route receives donor lanes/admin code");
+        check(Boolean.TRUE.equals(link.get("hasMultiOut"))&&((Number)link.get("speedLimit")).intValue()==0,"factory route receives donor multi-out and zero static speed limit");
+        check("Real Russian road".equals(link.get("roadname"))&&((Number)link.get("len")).intValue()>0,"real road name and metric length survive donor profile");
+        NativePath path=(NativePath)r.runtime.last(".v0")[2];NativePath.Link nativeLink=path.getSegmentInfo(0).getLinkInfo(0);
+        check(nativeLink.getURID()==1&&nativeLink.get64TopoID().longValue()==((Number)link.get("linkID")).longValue(),"original ODD sender reads donor URID from the same native link/identity");
+        List<NativePath.IntPoint> points=nativeLink.getPoints();
+        check(points.size()==2&&points.get(0).lon==Math.round(37.6*3600000)&&points.get(0).lat==Math.round(55.7*3600000)
+                &&points.get(1).lon==Math.round(37.601*3600000)&&points.get(1).lat==Math.round(55.701*3600000),"actual Russian WGS84 route geometry is not replaced by Beijing geometry");
+        NativeModels.NaviInfo navi=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
+        check(navi.curLinkSpeed==25&&historyOnWire(r)==25,"fixed donor history speed reaches original NaviInfo and actual SpeedIntersection wire");
+        check(((Integer)r.runtime.last(".J")[1])==0,"compatibility profile overrides source legal limit20 with donor zero");
+        NativeModels.LocInfo fix=(NativeModels.LocInfo)r.runtime.last(".P")[1];
+        check(fix.matchInfo.get(0).roadClass==7&&fix.matchInfo.get(0).formway==1&&fix.matchInfo.get(0).ownership==0,"current matched location receives the same donor attributes");
+        check(fix.matchInfo.get(0).stPos.lon==input.lon&&fix.matchInfo.get(0).stPos.lat==input.lat&&fix.gpsPos.lon==input.rawLon&&fix.gpsPos.lat==input.rawLat,"current real WGS84 matched/raw fixes remain unchanged");
+        Map<String,Object> region=r.transport.fields(Topics.SD_REGION,"regionalAndWeather");
+        check(((Number)region.get("regionId")).longValue()==110000&&((Number)region.get("provinceCode")).longValue()==110000
+                &&((Number)region.get("cityCode")).longValue()==110000&&((Number)region.get("countryCode")).longValue()==1,"original MMT Region path emits declared Beijing donor identity");
+        Map<String,Object> odd=r.transport.fields(Topics.ADV_AUTO_FUN_INFO,"advAutoFunInfo");
+        check(((Number)odd.get("noODDRegionDist")).longValue()==Integer.MAX_VALUE,"URID1 in actual open-city response yields MAX even at end of short route");
+        Map<String,Object> audit=r.audits.get(0);
+        check("compatibility-cn".equals(audit.get("compatibilityProfile"))&&"EXPERIMENTAL_FIXED_25".equals(audit.get("historySpeedPolicy")),"route audit exposes active donor profile and history policy");
+        check(((Map<?,?>)audit.get("attributeEvidence")).containsKey("compatibilityProfile"),"route audit records exact donor values and provenance");
+        r.session.close();
     }
 }
