@@ -4,16 +4,14 @@ Candidate 15 on `codex/stock-sender-parity` replaces the ADAS product path with
 no legacy runtime switch or fallback. Factory-core acceptance and current input
 limitations are recorded in the [product milestone](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze)
 and [field table](../../research/adas-bridge/README.md#product-adapter-field-table).
-Signed ARM64 build `29.8.1-YandexHUD.15` / `739494315` is installed. The parked
-car returned a same-path ACK 200, followed by 126 s of observed dynamic output;
-the test session is closed. Moving NOA remains untested. Its APK/report/reader pins are in
-`captures/stock-sender-parity-20261025/product/candidate15.json`.
-Candidate 18 contains local pre-drive fixes, excludes the legacy sender from
-the APK, and requires its new reader; its artifacts are pinned in
-`product/candidate18.json`. It is not installed.
-Local build and vehicle acceptance are separate; the historical results below
-do not establish acceptance of this candidate.
-
+Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
+Candidates 18–21 add pre-drive fixes, remove the legacy sender from the APK,
+and select a fixed coordinate frame or route-ID alternation. Candidate 20 is
+installed; its reader and terminal stop passed, while route admission exposed
+a timestamp defect corrected in candidate 21. The first coordinate test uses
+fixed native mode. Exact artifact pins and separate stationary receipts are
+under `captures/stock-sender-parity-20261025/product/`.
+Local checks and vehicle acceptance remain separate; moving NOA is unproved.
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into

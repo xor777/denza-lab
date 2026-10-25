@@ -3,13 +3,15 @@
 On `codex/stock-sender-parity`, candidate 15 replaces the product sender with
 `stocknative` and the unified `yandexnative` adapter. The previous feed and its
 variant/golden tests remain historical research, not product acceptance.
-The original-APK laboratory is frozen; the next milestone is a first trip. Signed candidate 15 is installed and passed stationary same-path
-ACK 200 with 126 s of observed dynamic output; its test session is closed.
-`captures/stock-sender-parity-20261025/product/candidate15.json` pins its APK,
-gate reader and validation results; `product/live15/acceptance.json` records
-stationary evidence. Candidate 18 adds local pre-drive corrections and requires
-its matching reader; `product/candidate18.json` pins the new artifacts. It has
-not been installed. Moving NOA engagement and retention remain untested.
+The original-APK laboratory is frozen; the next milestone is a first trip.
+Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
+Candidates 18–21 add pre-drive corrections, explicit coordinate-frame selection
+and approximate typed road-class projection. Candidate 20 is installed; its
+reader and original terminal stop passed, but route admission failed on a
+pre-read/post-read timestamp comparison. Candidate 21 corrects that defect.
+Exact APK/reader pins and separate vehicle receipts live under
+`captures/stock-sender-parity-20261025/product/candidate*.json` and `live*/`.
+Moving NOA engagement and retention remain untested.
 See the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 
@@ -62,6 +64,8 @@ clients. Sessions 1–3 were restored with exact original package state; build-1
 was restored before installing build 12. The current two-hour trip ledger is
 `captures/yandex-feed12-20261024/session1.rollback.json`. Timeout closes the
 publisher but does not restore the stock package; run `restore` after the test.
+
+New `plan` and `arm` commands accept `--coordinate-frame` with `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` (default), `WGS84`, or explicit `ALTERNATE_ROUTES`. Alternation starts native and pins the frame per Yandex route ID for the arm; progress, retry and geometry refresh do not toggle it. Legacy arms without the field retain WGS84. Effective frames appear in route input policy and trip reports. The first stationary candidate uses fixed native mode.
 
 New `plan` and `arm` commands accept no `--variant` or sender switch. A legacy
 variant arm is rejected; the reader performs no new MPC/instrument side-channel
