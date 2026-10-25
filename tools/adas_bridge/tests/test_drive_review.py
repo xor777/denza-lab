@@ -587,6 +587,24 @@ class StockNativeCapture(unittest.TestCase):
 
 
 class StockNativeJournal(unittest.TestCase):
+    def test_native_coordinate_policy_is_attributed_to_published_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-frame", 2000, 222)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            fields = dict(coordinateFrame="NATIVE_GCJ_UNRESTRICTED_CANDIDATE", coordinateFrameMode="ALTERNATE_ROUTES",
+                          coordinateRouteOrdinal=1, nativeRouteType=0, roadClassPolicy="EXPERIMENTAL_FUNCTIONAL")
+            policy.update(fields)
+            policy["attributeEvidence"] = {"rendererClassProjection": {"nativeClassCounts": {"9": 1}}}
+            car.write()
+            result = run(tmp)
+            route = result["paths"]["routes"][0]["items"][0]
+            for key, value in fields.items():
+                self.assertEqual(route[key], value)
+            retained = result["semantics"]["nativeInputPolicies"][0]
+            self.assertEqual(retained["coordinateFrame"], fields["coordinateFrame"])
+            self.assertEqual(retained["attributeEvidence"], policy["attributeEvidence"])
+
     @staticmethod
     def native(car, arm, start, path):
         car.live.append({"kind": "input", "input": "liveSession.prerequisite", "monotonicMs": start,

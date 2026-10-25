@@ -941,6 +941,8 @@ def paths(drive, clock):
         if row.get("_native"):
             entry["wireRouteType"] = row.get("wireRouteType")
             entry["sender"] = "stocknative"
+            for key in ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "nativeRouteType", "roadClassPolicy"):
+                entry[key] = row.get(key)
         prior = previous_by_route.get(route_id) if route_id is not None else None
         if prior is None:
             between = drive.live[(previous_any + 1 if previous_any is not None else 0):index]
@@ -948,7 +950,7 @@ def paths(drive, clock):
             entry["reason"] = "first_for_route"
             entry["routeKind"] = {1: "new guidance", 2: "yaw reroute", 5: "route replacement (traffic)"}.get(row.get("amapRouteType"), "type " + str(row.get("amapRouteType")))
             if row.get("_native"):
-                entry["routeKind"] = "wire RouteType " + str(row.get("wireRouteType")) + "; native input type not retained"
+                entry["routeKind"] = "wire RouteType " + str(row.get("wireRouteType")) + "; native input " + str(row.get("nativeRouteType", "not retained"))
             if previous_any is not None:
                 entry["afterYandexReroute"] = "reroute" in kinds or row.get("amapRouteType") == 2
             entry["expected"] = True
@@ -1204,7 +1206,10 @@ def semantics(drive, clock):
     variants = {str(pid): items for pid, items in notes.items()}
     policies = [{"pathId": r.get("pathId"), "routeId": r.get("routeId"), "ref": r["_ref"],
                  "fields": r.get("fields", []), "blockers": r.get("blockers", []),
-                 "missingBooleanPolicy": r.get("missingBooleanPolicy")}
+                 "missingBooleanPolicy": r.get("missingBooleanPolicy"),
+                 "coordinateFrame": r.get("coordinateFrame"), "coordinateFrameMode": r.get("coordinateFrameMode"),
+                 "coordinateRouteOrdinal": r.get("coordinateRouteOrdinal"), "roadClassPolicy": r.get("roadClassPolicy"),
+                 "attributeEvidence": r.get("attributeEvidence")}
                 for r in drive.live if r.get("input") == "nativeInputPolicy"]
     return {"positions": positions, "trafficInfo": traffic, "linksPerPath": links, "variantApplied": variants,
             "nativeInputPolicies": policies}

@@ -16,8 +16,8 @@ import java.util.TreeSet;
 
 /** The single Yandex-to-native input policy. It does not publish, schedule, handle ACKs,
  * or use the historical bridge's converter, feed, variants, or expected output bytes.
- * Geometry and indices are an adapter partition, not Amap topology. Coordinates stay
- * WGS84; quantization alone does not establish equivalence with Amap's coordinate frame.
+ * Geometry and indices are an adapter partition, not Amap topology. Internal geometry stays
+ * WGS84; the explicit frame policy converts only native output coordinate boundaries.
  */
 public final class YandexNativeAdapter {
     public enum MissingBooleans { REJECT, EXPLICIT_FALSE }
@@ -30,8 +30,11 @@ public final class YandexNativeAdapter {
         public static final Policy TEST_ROAD_DATA=new Policy(MissingBooleans.EXPLICIT_FALSE,RoadClassPolicy.EXPERIMENTAL_FUNCTIONAL);
         public final MissingBooleans missingBooleans;
         public final RoadClassPolicy roadClass;
+        public final Coordinates.Frame frame;
         public Policy(MissingBooleans value){this(value,RoadClassPolicy.UNKNOWN);}
-        public Policy(MissingBooleans value,RoadClassPolicy roadClass){if(value==null||roadClass==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;}
+        public Policy(MissingBooleans value,RoadClassPolicy roadClass){this(value,roadClass,Coordinates.Frame.WGS84);}
+        public Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame){if(value==null||roadClass==null||frame==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;this.frame=frame;}
+        public Policy withFrame(Coordinates.Frame value){return new Policy(missingBooleans,roadClass,value);}
     }
     /** Current source observations; NaN remains absent and is never made stationary/arrived. */
     public static final class Guidance {
@@ -69,6 +72,8 @@ public final class YandexNativeAdapter {
         private final String routeId;
         private final long pathId,requestId;
         private final int routeType;
+        private final Coordinates.Frame frame;
+        private final boolean geometrySupported;
         private final double[] lon,lat,cumulative,lights;
         private final List<NativeSegment> segments;
         private final List<FieldDecision> decisions;
@@ -78,22 +83,26 @@ public final class YandexNativeAdapter {
         private AdaptedRoute(YandexRoute source,long id,long request,int type,RouteAttributes attributes,Policy policy){
             if(source==null||policy==null)throw new IllegalArgumentException("route and policy required");
             if(id<=0)throw new IllegalArgumentException("positive synthetic path identity required");
-            routeId=source.routeId;pathId=id;requestId=request;routeType=type;
+            routeId=source.routeId;pathId=id;requestId=request;routeType=type;frame=policy.frame;
             emptyUnavailableLightProjection=policy.missingBooleans==MissingBooleans.EXPLICIT_FALSE;
             lon=source.lon.clone();lat=source.lat.clone();cumulative=new double[lon.length];
             if(lon.length>100000)throw new IllegalArgumentException("route point limit 100000");
+            boolean frameSupported=true;
             for(int i=0;i<lon.length;i++){
                 requireCoordinate(lon[i],lat[i]);
+                if(!supportsCoordinate(lon[i],lat[i]))frameSupported=false;
                 if(i>0)cumulative[i]=cumulative[i-1]+Coordinates.distance(lon[i-1],lat[i-1],lon[i],lat[i]);
             }
+            geometrySupported=frameSupported;
             if(!(cumulative[cumulative.length-1]>0))throw new IllegalArgumentException("zero length route");
             lights=source.trafficLights==null?null:source.trafficLights.clone();
             if(lights!=null){for(double at:lights)requireScalar(at);java.util.Arrays.sort(lights);}
             if(attributes!=null&&!attributes.matches(source))throw new IllegalArgumentException("attributes belong to another route snapshot");
             java.util.Map<String,Object> evidence=new java.util.LinkedHashMap<>();if(attributes!=null)evidence.putAll(attributes.summary());
             List<FieldDecision> ds=new ArrayList<>();List<String> bs=new ArrayList<>();
+            if(!geometrySupported)bs.add("coordinate frame "+frame+": route outside supported envelope");
             ds.add(d("pathID/requestID","driver route epoch","synthetic transport identity; never native topology","new identity for replacement route",FieldDecision.Kind.SYNTHETIC_ID));
-            ds.add(d("points","YandexRoute.lon/lat WGS84","lon/lat × 3600000, rounded into Coord2DInt32","nonfinite/out-of-range geometry rejected",FieldDecision.Kind.DERIVED));
+            ds.add(d("points","YandexRoute.lon/lat WGS84","frame="+frame+"; one Coordinates.toSdk conversion at native boundary, then ×3600000 rounded; internal metric/scalars/IDs/bearings remain WGS84","route outside selected frame envelope blocks admission; no fallback frame",FieldDecision.Kind.DERIVED));
             ds.add(d("segment/link/point indices","Yandex sections and interval cuts","one coherent synthetic partition for route, location and guidance","invalid scalar rejects current callback",FieldDecision.Kind.DERIVED));
             ds.add(d("linkID","route epoch + segment/link + WGS84 endpoints SHA-256","positive signed-64 synthetic identity shared by static and dynamic inputs","never copied from Yandex package-local/native IDs",FieldDecision.Kind.SYNTHETIC_ID));
             ds.add(d("roadClass","whole-interval typed renderer class/fc; no legacy converted roadClass","policy="+policy.roadClass+"; experimental functional projection is approximate, not native topology or NOA eligibility","RoadClassNULL=-1 for missing/conflicting source or UNKNOWN policy",FieldDecision.Kind.SDK_NULL));
@@ -161,7 +170,7 @@ public final class YandexNativeAdapter {
                     int length=nonnegativeInt(Math.round(metres(end)-metres(begin)));
                     int lightCount=0;if(lights!=null)for(double at:lights)if(at>begin&&at<=end)lightCount++;
                     NativeEnums.Action linkAction=li+2==part.size()?action:NativeEnums.action(null);
-                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,section.toponym,lightCount,linkAction,geometryBetween(begin,end)));
+                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,section.toponym,lightCount,linkAction,geometryBetween(begin,end),frame,geometrySupported));
                 }
                 built.add(new NativeSegment(si,section.begin,section.end,section.timeS,action,links));
             }
@@ -171,10 +180,14 @@ public final class YandexNativeAdapter {
             projection.put("nativeClassCounts",Collections.unmodifiableMap(projectedCounts));
             projection.put("rawQualityCounts",Collections.unmodifiableMap(rawQualityCounts));
             projection.put("diagnosticLimit",diagnosticLimit);projection.put("retainedDecisions",retainedClassDecisions);projection.put("omittedDecisions",omittedClassDecisions);
-            evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));attributeEvidence=Collections.unmodifiableMap(evidence);
+            evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));evidence.put("coordinateFrame",frame.name());attributeEvidence=Collections.unmodifiableMap(evidence);
             segments=Collections.unmodifiableList(built);decisions=Collections.unmodifiableList(ds);blockers=Collections.unmodifiableList(bs);
         }
         public String routeId(){return routeId;}
+        public Coordinates.Frame frame(){return frame;}
+        /** Source coordinates in, selected native frame out; unsupported fixes stay absent. */
+        public double[] sdkCoordinate(double lon,double lat){return YandexNativeAdapter.sdkCoordinate(lon,lat,frame);}
+        public boolean supportsCoordinate(double lon,double lat){return YandexNativeAdapter.supportsCoordinate(lon,lat,frame);}
         public boolean admitted(){return blockers.isEmpty();}
         public List<String> blockers(){return blockers;}
         public List<FieldDecision> fieldDecisions(){return decisions;}
@@ -208,7 +221,7 @@ public final class YandexNativeAdapter {
         public long getPathID(){return pathId;}public long getSegmentCount(){return segments.size();}
         public Segment getSegmentInfo(long index){return index>=0&&index<segments.size()?segments.get((int)index):null;}
         public long getGroupSegmentCount(){return 0;}public Group getGroupSegment(long index){return null;}
-        public List<Point> getAllTrafficLights(){if(lights==null)return emptyUnavailableLightProjection?Collections.<Point>emptyList():null;List<Point> out=new ArrayList<>();for(double at:lights){double[] p=point(at);out.add(new Point(p[0],p[1]));}return out;}
+        public List<Point> getAllTrafficLights(){if(!geometrySupported)return Collections.emptyList();if(lights==null)return emptyUnavailableLightProjection?Collections.<Point>emptyList():null;List<Point> out=new ArrayList<>();for(double at:lights){double[] p=point(at),nativePoint=sdkCoordinate(p[0],p[1]);out.add(new Point(nativePoint[0],nativePoint[1]));}return out;}
         public List<ViaRoad> getPathViaRoadInfo(){return Collections.emptyList();}public boolean isValid(){return admitted();}
         private void requireScalar(double value){if(!Double.isFinite(value)||value<0||value>lon.length-1)throw new IllegalArgumentException("scalar outside route: "+value);}
         private double metres(double scalar){int i=Math.min((int)scalar,lon.length-2);double f=scalar-i;return cumulative[i]+(cumulative[i+1]-cumulative[i])*f;}
@@ -245,12 +258,14 @@ public final class YandexNativeAdapter {
         NativeModels.LocInfo out=new NativeModels.LocInfo();out.isSimulate=input.simulated?1:0;
         if(input.simulated)return out; // Original P returns before reading any other field.
         if(!coordinateValid(input.matchedLon,input.matchedLat)||!coordinateValid(input.rawLon,input.rawLat)||!finiteNonnegative(input.speedMps)||!Double.isFinite(input.headingDeg))return null;
+        double[] raw=route.sdkCoordinate(input.rawLon,input.rawLat),matched=route.sdkCoordinate(input.matchedLon,input.matchedLat);
+        if(raw==null||matched==null)return null;
         Position p=null;if(input.onRoute)try{p=route.position(input.scalar);}catch(IllegalArgumentException missing){return null;}
         double kmh=input.speedMps*3.6;if(kmh>Integer.MAX_VALUE)return null;
         out.speed=(float)kmh;out.alt=Double.isFinite(input.altitudeM)?(float)input.altitudeM:0;
         out.sourType=0; // LocInfo constructor default; P reads this only for logging.
-        out.gpsPos=new NativeModels.Coord3DDouble(input.rawLon,input.rawLat);
-        NativeModels.LocMatchInfo match=new NativeModels.LocMatchInfo();match.stPos=new NativeModels.Coord3DDouble(input.matchedLon,input.matchedLat);
+        out.gpsPos=new NativeModels.Coord3DDouble(raw[0],raw[1]);
+        NativeModels.LocMatchInfo match=new NativeModels.LocMatchInfo();match.stPos=new NativeModels.Coord3DDouble(matched[0],matched[1]);
         match.course=(float)((input.headingDeg%360+360)%360);
         if(input.onRoute){
             NativeLink link=route.segments.get(p.segmentIndex).links.get(p.linkIndex);
@@ -278,11 +293,11 @@ public final class YandexNativeAdapter {
     private static final class NativeLink implements NativePath.Link {
         final double begin,end;final int length,roadClass,formway,type,lanes,direction,ownership;final BigInteger id;
         final String name;final int lightCount;final NativeEnums.Action action;final int[] lons,lats;final double[] scalars;
-        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,String n,int tl,NativeEnums.Action act,double[][] geometry){
+        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,String n,int tl,NativeEnums.Action act,double[][] geometry,Coordinates.Frame frame,boolean supported){
             begin=b;end=e;length=len;id=identity;this.roadClass=roadClass;formway=form;type=t;
             lanes=0;direction=0;ownership=NativeEnums.OWNERSHIP_ERROR;
-            name=n==null?"":n;lightCount=tl;action=act;lons=new int[geometry.length];lats=new int[geometry.length];scalars=new double[geometry.length];
-            for(int i=0;i<geometry.length;i++){scalars[i]=geometry[i][0];lons[i]=units(geometry[i][1]);lats[i]=units(geometry[i][2]);}
+            name=n==null?"":n;lightCount=tl;action=act;lons=new int[supported?geometry.length:0];lats=new int[lons.length];scalars=new double[geometry.length];
+            for(int i=0;i<geometry.length;i++){scalars[i]=geometry[i][0];if(supported){double[] p=sdkCoordinate(geometry[i][1],geometry[i][2],frame);lons[i]=units(p[0]);lats[i]=units(p[1]);}}
         }
         public BigInteger get64TopoID(){return id;}public int getRoadClass(){return roadClass;}public String getRoadName(){return name;}
         public int getLength(){return length;}public int getLinkType(){return type;}public int getFormway(){return formway;}
@@ -293,6 +308,13 @@ public final class YandexNativeAdapter {
         public List<NativePath.IntPoint> getPoints(){List<NativePath.IntPoint> out=new ArrayList<>();for(int i=0;i<lons.length;i++)out.add(new NativePath.IntPoint(lons[i],lats[i]));return out;}
     }
     private static FieldDecision d(String f,String s,String m,String a,FieldDecision.Kind k){return new FieldDecision(f,s,m,a,k);}
+    public static boolean supportsCoordinate(double lon,double lat,Coordinates.Frame frame){
+        return frame!=null&&coordinateValid(lon,lat)&&(frame==Coordinates.Frame.WGS84||lon>=35&&lon<=40&&lat>=54&&lat<=58);
+    }
+    /** The formula remains in Coordinates; product admission prevents it throwing on unavailable inputs. */
+    public static double[] sdkCoordinate(double lon,double lat,Coordinates.Frame frame){
+        return supportsCoordinate(lon,lat,frame)?Coordinates.toSdk(lon,lat,frame):null;
+    }
     /** Independent official functional grouping -> named AutoSDK classes. Category 1 remains
      * ambiguous between Freeway=0 and CitySpeedway=6; the test policy chooses 6 explicitly. */
     private static int projectRoadClass(RouteAttributes.RendererClass raw,RoadClassPolicy policy){
