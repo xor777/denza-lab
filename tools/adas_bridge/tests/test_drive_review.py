@@ -587,6 +587,18 @@ class StockNativeCapture(unittest.TestCase):
 
 
 class StockNativeJournal(unittest.TestCase):
+    def test_native_source_lifetime_restart_preserves_route_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-restart", 2000, 222)
+            self.native(car, "native-restart", 4000, 333)
+            next(r for r in car.live if r.get("input") == "nativeInputPolicy" and r["pathId"] == 333)["nativePathReason"] = "source_lifetime_restart"
+            car.write()
+            items = run(tmp)["paths"]["routes"][0]["items"]
+            self.assertEqual(len(items), 2)
+            self.assertEqual(items[1]["reason"], "source_lifetime_restart")
+            self.assertTrue(items[1]["expected"])
+
     def test_native_coordinate_policy_is_attributed_to_published_path(self):
         with tempfile.TemporaryDirectory() as tmp:
             car = Car(tmp)
@@ -604,6 +616,11 @@ class StockNativeJournal(unittest.TestCase):
             retained = result["semantics"]["nativeInputPolicies"][0]
             self.assertEqual(retained["coordinateFrame"], fields["coordinateFrame"])
             self.assertEqual(retained["attributeEvidence"], policy["attributeEvidence"])
+            evidence = review.Evidence(tmp)
+            clock = review.Clock(evidence, 3)
+            model = review.Drive(evidence, clock)
+            alignment = review._align(model, clock, 3100, [])
+            self.assertEqual(alignment["coordinatePolicy"]["coordinateFrame"], fields["coordinateFrame"])
 
     @staticmethod
     def native(car, arm, start, path):

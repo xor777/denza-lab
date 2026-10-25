@@ -9,6 +9,7 @@ final class LiveMapTransport implements Publisher,AutoCloseable {
     final List<Long> topics=new ArrayList<>();final List<byte[]> payloads=new ArrayList<>();final List<Long> times=new ArrayList<>();final Set<Long> offered=new HashSet<>();
     boolean closed,ready=true;long generation=1,last=-1;int result;final Listener listener;final Admission admission;
     Runnable beforeAdmission;
+    long beforeAdmissionTopic=-1;
     LiveMapTransport(Context c,Handler h,Listener l,Publisher p,Admission a){latest=this;listener=l;admission=a;}
     void start(){listener.changed("server_connected");}
     boolean ready(){return ready&&!closed;}long generation(){return generation;}
@@ -17,7 +18,7 @@ final class LiveMapTransport implements Publisher,AutoCloseable {
     public BridgeStatus.Mode mode(){return BridgeStatus.Mode.LIVE;}
     public int startService(long t){if(!ready())return -1;offered.add(t);return 0;}
     int stopService(long t){offered.remove(t);return 0;}
-    public int fire(long t,byte[] b,long now){if(!ready())throw new AssertionError("fire after close");Runnable before=beforeAdmission;beforeAdmission=null;if(before!=null)before.run();if(!admission.allow(t))return -203;topics.add(t);payloads.add(b);times.add(SystemClock.now);if(result==0)last=SystemClock.now;return result;}
+    public int fire(long t,byte[] b,long now){if(!ready())throw new AssertionError("fire after close");Runnable before=beforeAdmission;if(before!=null&&(beforeAdmissionTopic==-1||beforeAdmissionTopic==t)){beforeAdmission=null;before.run();}if(!admission.allow(t))return -203;topics.add(t);payloads.add(b);times.add(SystemClock.now);if(result==0)last=SystemClock.now;return result;}
     public void note(String k,Map<String,Object> f,long n){}
     public void close(){closed=true;generation++;}
     int count(long t){int count=0;for(long x:topics)if(x==t)count++;return count;}

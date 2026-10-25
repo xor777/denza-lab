@@ -51,7 +51,8 @@ public final class StockSender {
     public void navigationArrived(long path){mmt.onNaviArrive(path,0);}
     public void navigationCancelled(){routeGeneration.incrementAndGet();invalidateLocation();mmt.onNavStop();}
     public void pathChanged(long previous,long current){invalidateLocation();mmt.onChangeNaviPath(previous,current);}
-    public void routeUpdated(RouteCarResultData result,NativePath path){routeGeneration.incrementAndGet();mmt.t(result);if(policy!=null)policy.t(result);mmt.J0(path);}
+    /** Original v0 starts lane queries after computing lookahead for the changed path. */
+    public void routeUpdated(RouteCarResultData result,NativePath path){routeGeneration.incrementAndGet();mmt.t(result);if(policy!=null)policy.t(result);}
     public void progressUpdated(NaviInfo info,NativePath path){
         long generation=routeGeneration.get();Object task=new Object();runtime.post(StockRuntime.Queue.SOMEIP,task,null,0,()->{
             if(generation!=routeGeneration.get())return;

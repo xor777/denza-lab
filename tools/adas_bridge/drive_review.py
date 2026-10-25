@@ -901,7 +901,7 @@ def _variant_view(value, ref, effective=True):
 
 # ---------------------------------------------------------------------------------------- 2 paths
 
-ALLOWED_NEW_PATH = {"offline_withdrawal", "new_session", "dnp_switch_resend", "retry_unsent"}
+ALLOWED_NEW_PATH = {"offline_withdrawal", "new_session", "dnp_switch_resend", "retry_unsent", "source_lifetime_restart"}
 
 
 def paths(drive, clock):
@@ -941,7 +941,7 @@ def paths(drive, clock):
         if row.get("_native"):
             entry["wireRouteType"] = row.get("wireRouteType")
             entry["sender"] = "stocknative"
-            for key in ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "nativeRouteType", "roadClassPolicy"):
+            for key in ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "nativeRouteType", "roadClassPolicy", "nativePathReason"):
                 entry[key] = row.get(key)
         prior = previous_by_route.get(route_id) if route_id is not None else None
         if prior is None:
@@ -952,10 +952,12 @@ def paths(drive, clock):
             if row.get("_native"):
                 entry["routeKind"] = "wire RouteType " + str(row.get("wireRouteType")) + "; native input " + str(row.get("nativeRouteType", "not retained"))
             if previous_any is not None:
-                entry["afterYandexReroute"] = "reroute" in kinds or row.get("amapRouteType") == 2
+                entry["afterYandexReroute"] = "reroute" in kinds or row.get("amapRouteType") == 2 or row.get("nativeRouteType") == 2
             entry["expected"] = True
         else:
             entry["reason"], entry["evidence"] = _new_path_reason(drive.live[prior + 1:index])
+            if row.get("_native") and row.get("nativePathReason") == "source_lifetime_restart":
+                entry["reason"] = "source_lifetime_restart"
             entry["expected"] = entry["reason"] in ALLOWED_NEW_PATH
             entry["sincePreviousPathMs"] = row["_t"] - drive.live[prior]["_t"] if row["_t"] is not None else None
         sel = selections.get(pid)
@@ -1313,6 +1315,19 @@ def _align(drive, clock, t, sessions_out):
         out["stoppedSession"] = {"armId": s["armId"], "endStatusesSent": (s.get("endStatuses") or {}).get("sent"),
                                  "ref": s["end"]["ref"]}
     route_path = out["livePath"] or out["lastPathOfOursAtAdas"]
+    if drive.native_sends:
+        position = drive.last_send(t, VEHICLE_LOCATION)
+        route_path = (decode_out(position) or {}).get("curSDRouteID") if position else None
+        # Attribute the frame to an actual sent position, not an input-policy proposal
+        # (which can have been rejected). Age is explicit; this is not current ECU state.
+        out["lastNativePosition"] = {"pathId": route_path, "ageMs": t - position["_t"],
+                                     "ref": position["_ref"]} if position else None
+    policy = next((r for r in reversed(drive.live) if r.get("input") == "nativeInputPolicy"
+                   and r.get("pathId") == route_path and r["_t"] <= t), None)
+    if policy is not None:
+        out["coordinatePolicy"] = {key: policy.get(key) for key in
+                                   ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "routeId")}
+        out["coordinatePolicy"]["ref"] = policy["_ref"]
     for note in _variant_notes_cached(drive).get(route_path, []):
         if "historySpeed" in note:
             out["historySpeedVariant"] = {"value": note["historySpeed"], "routeOrdinal": note.get("routeOrdinal"),

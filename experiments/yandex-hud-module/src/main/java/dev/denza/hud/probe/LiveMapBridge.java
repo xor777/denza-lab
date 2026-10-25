@@ -62,7 +62,7 @@ final class LiveMapBridge {
     private AdasPassiveClient answers,coreClients;
     private ProductNativeEnvironment environment;
     private CallbackQueue callbacks;
-    private AndroidStockRuntime runtime;
+    private volatile AndroidStockRuntime runtime;
     private NativeMapSession session;
     private NativeTransportAdmission admission;
     private List<String> lineageProcesses=new ArrayList<>();
@@ -72,9 +72,12 @@ final class LiveMapBridge {
     private volatile double gpsSpeedKmh=Double.NaN;
     private volatile long gpsSpeedAt=-1;
     private OfflineMapGate.Subject publishedSubject;
+    private long publishedGeneration=-1;
     private final Object handoff=new Object();
     private Pending pending;
     private long coalesced;
+    private volatile long sourceGeneration;
+    private long deliveredSourceGeneration=-1;
     private volatile Pending locationInput;
     private boolean draining,drainArrival,drainIdle,drainTunnel,drainIncidents,drainReady;
     private int drainArrivals;
@@ -88,8 +91,8 @@ final class LiveMapBridge {
         int stockState;long readAt,isolationStart=-1;AdasGateSnapshot.Snapshot gates;boolean server,replies;
     }
     private static final class Pending {
-        final NativeNavigationInput input;final FixFreshness.Sample fix;
-        Pending(NativeNavigationInput input,FixFreshness.Sample fix){this.input=input;this.fix=fix;}
+        final NativeNavigationInput input;final FixFreshness.Sample fix;final long generation;
+        Pending(NativeNavigationInput input,FixFreshness.Sample fix,long generation){this.input=input;this.fix=fix;this.generation=generation;}
     }
     LiveMapBridge(Context context,Handler worker)throws IOException{this(context,worker,bootIdentity(context));}
     LiveMapBridge(Context context,Handler worker,String boot)throws IOException{this(context,worker,boot,System::currentTimeMillis);}
@@ -127,6 +130,7 @@ final class LiveMapBridge {
     synchronized void sourceRoute(OfflineMapGate.Subject subject){
         if(subject!=null&&subject.epoch<sourceEpoch)return;
         if(subject!=null)sourceEpoch=subject.epoch;
+        if(!java.util.Objects.equals(subject,sourceSubject)){sourceGeneration++;AndroidStockRuntime owned=runtime;if(owned!=null)owned.inputGeneration(sourceGeneration);}
         sourceSubject=subject;
     }
     void offlineMap(OfflineMapGate.Snapshot snapshot){offlineSnapshot=snapshot;}
@@ -174,7 +178,7 @@ final class LiveMapBridge {
         }
         processes.add(process);lineageProcesses=processes;arm=incoming;lastArmId=incoming.armId;attempted.add(incoming.armId);
         session=null;runtime=null;environment=null;
-        finished=false;fault=null;stopReason=null;stopDetail=null;activeEpoch=-1;inputs=null;publishedSubject=null;
+        finished=false;fault=null;stopReason=null;stopDetail=null;activeEpoch=-1;inputs=null;publishedSubject=null;publishedGeneration=-1;deliveredSourceGeneration=-1;
         draining=false;drainDeadline=-1;vehicleReadSequence=-1;resetCityRequest();speedSequence=-1;speedPolicyPath=-1;dataUnavailable=null;
         state="WAITING";reason="Ожидание сигналов машины и ADAS";
         gates=new AdasGateSnapshot.Tracker(boot,consumer,LiveSessionLease.INPUT_TTL_MS);
@@ -250,6 +254,9 @@ final class LiveMapBridge {
     private boolean finalAdmission(long topic){
         long now=SystemClock.elapsedRealtime();
         if(hardwareFailure(now)!=null||activeEpoch!=epoch())return false;
+        // Status is the original process-wide timer; every path-owned payload must still
+        // belong to the input subject whose callback produced it at this final TX boundary.
+        if(topic!=Topics.NAVIGATION_STATUS&&runtime!=null&&!runtime.currentInput(runtime.inputGeneration()))return false;
         if(draining)return NativeTransportAdmission.terminal(topic);
         // The original idle/arrival status and reset callbacks may finish after route withdrawal.
         // Route/location/lookahead egress stays closed until the replacement subject is admitted.
@@ -264,7 +271,7 @@ final class LiveMapBridge {
         if(finished)return;long now=SystemClock.elapsedRealtime();String failure=hardwareFailure(now);
         if(!java.util.Objects.equals(failure,lastPrerequisite)){lastPrerequisite=failure;prerequisiteChanges++;note("prerequisite",failure==null?"all prerequisites hold":failure);}
         if(session!=null){
-            Inputs in=inputs;if(in!=null&&in.gates!=null&&in.gates.valid)session.gates(Boolean.TRUE.equals(in.gates.dnpService),Boolean.TRUE.equals(in.gates.dnpSwitchRaw),Boolean.TRUE.equals(in.gates.noSleep));
+            Inputs in=inputs;if(in!=null&&in.gates!=null&&in.gates.valid)runtime.inputScope(publishedGeneration,()->session.gates(Boolean.TRUE.equals(in.gates.dnpService),Boolean.TRUE.equals(in.gates.dnpSwitchRaw),Boolean.TRUE.equals(in.gates.noSleep)));
             if(fault!=null||inputs!=null&&inputs.armFailure!=null||inputs!=null&&inputs.stockState!=PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER||activeEpoch!=epoch()){
                 stop("Сеанс передачи остановлен",failure==null?"transport epoch changed":failure);return;
             }
@@ -297,8 +304,9 @@ final class LiveMapBridge {
     private void resetCityRequest(){oddRequestedEpoch=oddAttemptEpoch=oddNextAttemptAt=-1;oddAttempts=0;}
     private void startSender(){
         final LiveSessionLease owner=arm;final LiveMapTransport ownedTransport=transport;final AdasPassiveClient ownedAnswers=coreClients;
-        runtime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
+        final AndroidStockRuntime ownedRuntime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
                 missing->worker.post(()->{if(arm==owner&&!finished&&!dynamicFresh(SystemClock.elapsedRealtime())){dataUnavailable=missing.getMessage();if(session!=null)session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}}));
+        synchronized(this){ownedRuntime.inputGeneration(sourceGeneration);runtime=ownedRuntime;}
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
             AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
             Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
@@ -311,20 +319,20 @@ final class LiveMapBridge {
         if(!env.ready())throw new IllegalStateException("actual AutoType unavailable");
         environment=env;note("environment",Json.write(env.sourceStatus()));
         StockTransport wire=new StockTransport(){
-            public int fire(long topic,byte[] payload){return onWorker(()->{
-                if(arm!=owner||finished||transport!=ownedTransport)return -203;
+            public int fire(long topic,byte[] payload){final long generation=ownedRuntime.inputGeneration();return onWorker(()->ownedRuntime.inputScope(generation,()->{
+                if(arm!=owner||finished||transport!=ownedTransport||runtime!=ownedRuntime||topic!=Topics.NAVIGATION_STATUS&&!ownedRuntime.currentInput(generation))return -203;
                 if(draining&&topic==Topics.NAVIGATION_STATUS){long status=navigationStatus(payload);if(status!=100&&status!=110)return -203;}
                 int result=ownedTransport.fire(topic,payload,SystemClock.elapsedRealtime());
                 if(result==0&&draining)terminalSent(topic,payload);
                 if(result!=0&&result!=-203){fault="map fire result "+result;worker.post(()->{if(arm==owner&&!finished)stop("Ошибка отправки",fault);});}
                 return result;
-            });}
+            }));}
             public int startService(long topic){return onWorker(()->arm==owner&&hardwareFailure(SystemClock.elapsedRealtime())==null?ownedTransport.startService(topic):-203);}
             public int stopService(long topic){return onWorker(()->ownedTransport.stopService(topic));}
             public int request(long topic,byte[] payload,boolean response){throw new UnsupportedOperationException("native request not present in selected sender closure");}
         };
-        activeEpoch=epoch();publishedSubject=sourceSubject;
-        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()));
+        activeEpoch=epoch();publishedSubject=sourceSubject;publishedGeneration=sourceGeneration;
+        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode);
         AdasGateSnapshot.Snapshot g=inputs.gates;session.start(Boolean.TRUE.equals(g.dnpService),Boolean.TRUE.equals(g.dnpSwitchRaw),Boolean.TRUE.equals(g.noSleep));
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}
@@ -333,9 +341,11 @@ final class LiveMapBridge {
     }
     private void updateVehicleSpeed(){
         if(finished||draining||session==null||!session.navigating()||inputs==null||inputs.gates==null)return;
+        OfflineMapGate.Subject subject=sourceSubject;
+        if(!java.util.Objects.equals(publishedSubject,subject)||subject==null||!session.acceptsRoute(subject.routeId,subject.epoch,subject.geometrySha256))return;
         AdasGateSnapshot.Snapshot snapshot=inputs.gates;Double value=snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
         if(value!=null&&(snapshot.sequence!=speedSequence||session.pathId()!=speedPolicyPath)){
-            speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();session.vehicleSpeedUpdated(value.floatValue());
+            long generation=publishedGeneration;speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();runtime.inputScope(generation,()->session.vehicleSpeedUpdated(value.floatValue()));
         }
     }
     private <T>T onWorker(Callable<T> task){
@@ -351,14 +361,16 @@ final class LiveMapBridge {
     }
     void observe(NativeNavigationInput original,FixFreshness.Sample fix,RoadNetwork unusedRoads){
         NativeNavigationInput copy=original.copy();boolean post;
-        locationInput=new Pending(copy,fix);
-        synchronized(handoff){if(pending!=null){coalesced++;if(copy.route==null&&pending.input.route!=null&&java.util.Objects.equals(copy.routeId,pending.input.routeId)&&copy.routeEpoch==pending.input.routeEpoch)copy.route=pending.input.route;}post=pending==null;pending=new Pending(copy,fix);}
+        final Pending observation;
+        synchronized(this){if(!matchesSubject(copy,sourceSubject))return;observation=new Pending(copy,fix,sourceGeneration);}
+        locationInput=observation;
+        synchronized(handoff){if(pending!=null){coalesced++;if(copy.route==null&&pending.input.route!=null&&java.util.Objects.equals(copy.routeId,pending.input.routeId)&&copy.routeEpoch==pending.input.routeEpoch)copy.route=pending.input.route;}post=pending==null;pending=observation;}
         if(post)worker.post(this::observePending);
     }
     private void observePending(){
         Pending next;synchronized(handoff){next=pending;pending=null;}if(next==null)return;
-        NativeNavigationInput o=next.input;OfflineMapGate.Subject subject=sourceSubject;
-        if(subject==null||subject.epoch!=o.routeEpoch||!java.util.Objects.equals(subject.routeId,o.routeId)||!java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256))return;
+        NativeNavigationInput o=next.input;final OfflineMapGate.Subject subject;
+        synchronized(this){subject=sourceSubject;if(next.generation!=sourceGeneration||!matchesSubject(o,subject))return;}
         latest=o;lastObservation=SystemClock.elapsedRealtime();
         if(o.route!=null){retainedRoute=o.route;retainedRouteEpoch=o.routeEpoch;}
         if(o.routeId==null){retainedRoute=null;retainedRouteEpoch=-1;}
@@ -367,20 +379,25 @@ final class LiveMapBridge {
         if(o.rawAtElapsedMs<0||o.rawAtElapsedMs>lastObservation||lastObservation-o.rawAtElapsedMs>1500){o.rawLon=Double.NaN;o.rawLat=Double.NaN;}
         if(!o.simulated&&"FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&Double.isFinite(o.speedMps)&&o.speedMps>=0){gpsSpeedKmh=o.speedMps*3.6;gpsSpeedAt=lastObservation-o.fixAgeMs;}
         if(finished||draining)return;
-        try{refresh(lastObservation);reconcile();if(finished||session==null)return;
-            if(o.routeId==null||"off".equals(o.mode)||o.finished){session.observe(o);publish();return;}
-            if(!offline(lastObservation).ready||hardwareFailure(lastObservation)!=null)return;
-            if(o.route!=null)publishedSubject=subject;
-            if(!locationFresh(lastObservation)||!o.positionOnRoute)session.invalidateLocation();
-            if(environment!=null&&locationFresh(lastObservation))environment.location(o.lon,o.lat);
-            session.observe(o);
-            updateVehicleSpeed();
-            if(locationFresh(lastObservation))dataUnavailable=null;
+        try{refresh(lastObservation);reconcile();if(finished||session==null||next.generation!=sourceGeneration)return;
+            runtime.inputScope(next.generation,()->{
+                if(next.generation!=sourceGeneration)return;
+                if(deliveredSourceGeneration!=next.generation){session.sourceGenerationChanged();deliveredSourceGeneration=next.generation;}
+                if(o.routeId==null||"off".equals(o.mode)||o.finished){session.observe(o);return;}
+                if(!offline(lastObservation).ready||hardwareFailure(lastObservation)!=null)return;
+                if(!locationFresh(lastObservation)||!o.positionOnRoute)session.invalidateLocation();
+                if(environment!=null&&locationFresh(lastObservation)){double[] sdk=session.sdkCoordinate(o.routeId,o.lon,o.lat);if(sdk!=null)environment.location(sdk[0],sdk[1]);}
+                session.observe(o);
+                if(o.route!=null&&session.acceptsRoute(o.routeId,o.routeEpoch,o.offlineGeometrySha256)){publishedSubject=subject;publishedGeneration=next.generation;}
+                updateVehicleSpeed();
+                if(locationFresh(lastObservation))dataUnavailable=null;
+            });
             if(session.blocked()!=null){state="BLOCKED";reason=session.blocked();}
             publish();
         }catch(NativeEnvironment.DataUnavailable missing){dataUnavailable=missing.getMessage();session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}
         catch(Exception error){stop("Ошибка входных данных",error.toString());}
     }
+    private static boolean matchesSubject(NativeNavigationInput o,OfflineMapGate.Subject subject){return subject!=null&&subject.epoch==o.routeEpoch&&java.util.Objects.equals(subject.routeId,o.routeId)&&java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256);}
     private boolean locationFresh(long now){
         Pending current=locationInput;if(current==null)return false;NativeNavigationInput o=current.input;
         OfflineMapGate.Subject subject=sourceSubject;
@@ -389,7 +406,8 @@ final class LiveMapBridge {
         long age=current.fix==null?(now<o.monotonicMs||o.fixAgeMs<0||o.fixAgeMs>1500?Long.MAX_VALUE:o.fixAgeMs+now-o.monotonicMs):current.fix.ageMs(now,wallClock.getAsLong());
         return age>=0&&age<=1500&&o.rawAtElapsedMs>=0&&now>=o.rawAtElapsedMs&&now-o.rawAtElapsedMs<=1500
                 &&coordinate(o.rawLon,o.rawLat)&&coordinate(o.lon,o.lat)
-                &&Double.isFinite(o.speedMps)&&o.speedMps>=0&&Double.isFinite(o.heading);
+                &&Double.isFinite(o.speedMps)&&o.speedMps>=0&&Double.isFinite(o.heading)
+                &&(session==null||session.supportsCoordinates(o.routeId,o.lon,o.lat,o.rawLon,o.rawLat));
     }
     private static boolean coordinate(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&lon>=-180&&lon<=180&&lat>=-90&&lat<=90;}
     private boolean dynamicFresh(long now){return locationFresh(now)&&inputs!=null&&inputs.gates!=null&&inputs.gates.vehicleSpeedKmh(now,1500)!=null;}
@@ -455,6 +473,7 @@ final class LiveMapBridge {
         published=liveSnapshot();Map<String,Object> value=Json.object();value.put("schema","denza-adas-live-state-v1");value.put("sender","stocknative");
         value.put("bootId",boot);value.put("consumerSession",consumer);value.put("processSession",process);value.put("armId",lastArmId);value.put("armProcesses",(long)lineageProcesses.size());value.put("elapsedMs",SystemClock.elapsedRealtime());value.put("state",state);value.put("reason",reason);value.put("stopReason",stopReason);value.put("stopDetail",stopDetail);
         boolean serverClosed=transport==null||transport.isClosed(),answersClosed=(answers==null||answers.isClosed())&&(coreClients==null||coreClients.isClosed());
+        value.put("coordinateFrameMode",arm==null?null:arm.frameMode.name());value.put("coordinateFrame",session==null||session.frame()==null?null:session.frame().name());value.put("coordinateRouteOrdinal",session==null?-1:session.frameOrdinal());
         value.put("quiescent",serverClosed&&answersClosed&&(runtime==null||!runtime.active()));value.put("serverClosed",serverClosed);value.put("answersClosed",answersClosed);value.put("lastActualSendElapsedMs",published.lastSendMs);value.put("pathId",published.pathId);value.put("confirmedPathId",published.confirmedPathId);value.put("heldPathId",published.pathId);value.put("guidanceActive",session!=null&&session.navigating());value.put("prerequisite",lastPrerequisite);value.put("prerequisiteChanges",prerequisiteChanges);value.put("callbacks",callbacks==null?null:callbacks.stats());
         OfflineMapGate.Decision offline=offline(SystemClock.elapsedRealtime());value.put("offlineReady",offline.ready);value.put("offlineCode",offline.code);value.put("offlineReason",offline.reason);synchronized(handoff){value.put("observationsCoalesced",coalesced);}
         RouteSnapshot.writeAtomic(file("denza-adas-live-state.json"),value);

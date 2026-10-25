@@ -29,7 +29,7 @@ final class NativeMapSession implements AutoCloseable {
     private String routeId, geometry, blocked;
     private YandexNativeAdapter.AdaptedRoute route;
     private Boolean service, effectiveSwitch, awake;
-    private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining,routeProgressReady;
+    private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining,routeProgressReady,forceRouteRefresh;
     private Float latestVehicleSpeed;private long vehicleSpeedObservedAt=-1;
     private RejectedPreparation rejectedPreparation;
     /** Source snapshots and their attribute results are owned immutable observations. A new
@@ -86,7 +86,7 @@ final class NativeMapSession implements AutoCloseable {
         // observed deviation status starts the native off-course callback/type policy.
         if(offRoute&&!offRouteActive){sender.rerouteStarted(2);offRouteReplacementPending=true;}
         offRouteActive=offRoute;
-        if(o.route!=null&&(route==null||o.routeEpoch!=routeEpoch||!o.routeId.equals(routeId)
+        if(o.route!=null&&(forceRouteRefresh||route==null||o.routeEpoch!=routeEpoch||!o.routeId.equals(routeId)
                 ||!java.util.Objects.equals(geometry,o.offlineGeometrySha256))){
             if(rejectedPreparation!=null&&rejectedPreparation.matches(o)){
                 invalidateLocation();blocked=rejectedPreparation.reason;return;
@@ -101,6 +101,7 @@ final class NativeMapSession implements AutoCloseable {
             java.util.Map<String,Object> policy=dev.denza.adaslink.Json.object();
             policy.put("routeId",o.routeId);policy.put("pathId",pathId);policy.put("epoch",o.routeEpoch);
             policy.put("nativeRouteType",nativeRouteType);policy.put("routeStatus",o.routeStatus);
+            policy.put("nativePathReason",forceRouteRefresh?"source_lifetime_restart":"route_observation");
             policy.put("coordinateFrameMode",frameMode.name());policy.put("coordinateFrame",selected.frame.name());policy.put("coordinateRouteOrdinal",(long)selected.ordinal);
             policy.put("missingBooleanPolicy","explicit_false_test_policy");
             policy.put("roadClassPolicy",YandexNativeAdapter.Policy.TEST_ROAD_DATA.roadClass.name());
@@ -116,6 +117,7 @@ final class NativeMapSession implements AutoCloseable {
             rejectedPreparation=null;
             long previous=route==null?-1:route.getPathID();
             route=candidate;routeId=o.routeId;geometry=o.offlineGeometrySha256;routeEpoch=o.routeEpoch;
+            forceRouteRefresh=false;
             routeProgressReady=false;
             blocked=null;lastFix=Long.MIN_VALUE;lastNavi=-1;arrivalPending=false;offRouteReplacementPending=false;
             if(!navigating){navigating=true;sender.navigationCreated();sender.navigationStarted();sender.navigationReset();
@@ -149,6 +151,7 @@ final class NativeMapSession implements AutoCloseable {
         }else invalidateLocation();
     }
     void clientInitialized(boolean ready){if(!closed)sender.clientInitialized(ready);}
+    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;routeProgressReady=false;invalidateLocation();}
     private RouteFrame routeFrame(String id,boolean remember){
         if(id==null)return null;RouteFrame existing=routeFrames.get(id);if(existing!=null)return existing;
         if(routeFrames.size()>=FRAME_ROUTE_LIMIT)return null;
@@ -171,6 +174,7 @@ final class NativeMapSession implements AutoCloseable {
         if(navigating){navigating=false;sender.navigationCancelled();sender.navigationStopped();sender.navigationDestroyed();}
         route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;
         routeProgressReady=false;
+        forceRouteRefresh=false;
         rejectedPreparation=null;
         offRouteActive=false;offRouteReplacementPending=false;
     }

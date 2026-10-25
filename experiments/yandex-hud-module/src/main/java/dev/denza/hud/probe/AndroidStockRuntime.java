@@ -6,10 +6,12 @@ import android.os.Looper;
 import android.os.SystemClock;
 import dev.denza.adaslink.stocknative.StockRuntime;
 import dev.denza.adaslink.stocknative.NativeEnvironment;
+import dev.denza.adaslink.stocknative.StockTask;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /** Three owned Handler queues. Disposal fences dequeued work as well as pending callbacks. */
@@ -19,6 +21,12 @@ final class AndroidStockRuntime implements StockRuntime, AutoCloseable {
     private final EnumMap<Queue, IdentityHashMap<Runnable,Object>> tokens = new EnumMap<>(Queue.class);
     private final HandlerThread mmt = new HandlerThread("denza-stock-mmt"), someip = new HandlerThread("denza-stock-someip");
     private final AtomicBoolean active = new AtomicBoolean(true);
+    private final AtomicLong inputGeneration=new AtomicLong();
+    private final ThreadLocal<InputScope> inputScope=new ThreadLocal<>();
+    private static final class InputScope {
+        final long generation;final Looper looper;
+        InputScope(long generation,Looper looper){this.generation=generation;this.looper=looper;}
+    }
     private final Consumer<Throwable> failure;
     private final Consumer<NativeEnvironment.DataUnavailable> unavailable;
     AndroidStockRuntime(Consumer<Throwable> failure) {
@@ -35,13 +43,28 @@ final class AndroidStockRuntime implements StockRuntime, AutoCloseable {
     public long uptimeMillis(){return SystemClock.uptimeMillis();}
     public long elapsedRealtime(){return SystemClock.elapsedRealtime();}
     public long currentTimeMillis(){return System.currentTimeMillis();}
+    void inputGeneration(long value){inputGeneration.set(value);}
+    long inputGeneration(){InputScope scope=inputScope.get();return scope!=null&&scope.looper==Looper.myLooper()?scope.generation:inputGeneration.get();}
+    boolean currentInput(long value){return value==inputGeneration.get();}
+    void inputScope(long generation,Runnable action){
+        InputScope previous=inputScope.get();inputScope.set(new InputScope(generation,Looper.myLooper()));
+        try{action.run();}finally{if(previous==null)inputScope.remove();else inputScope.set(previous);}
+    }
+    int inputScope(long generation,java.util.function.IntSupplier action){
+        InputScope previous=inputScope.get();inputScope.set(new InputScope(generation,Looper.myLooper()));
+        try{return action.getAsInt();}finally{if(previous==null)inputScope.remove();else inputScope.set(previous);}
+    }
     public void post(Queue q,Object identity,Object token,long delay,Runnable action){
         if(delay<0)throw new IllegalArgumentException("negative delay");
+        final long generation=inputGeneration();
+        // This one original process singleton reads the current isNaving state. Path-owned
+        // lane timers, ODD timers and captured stationary locations are recreated by new inputs.
+        final boolean globalStatus=identity instanceof StockTask&&"k.h.a0.c.c.a.e0$d".equals(((StockTask)identity).originalClass);
         final Runnable[] slot=new Runnable[1];
         slot[0]=()->{
             synchronized(this){tokens.get(q).remove(slot[0]);java.util.List<Runnable> list=callbacks.get(q).get(identity);if(list!=null){list.remove(slot[0]);if(list.isEmpty())callbacks.get(q).remove(identity);}}
-            if(!active.get())return;
-            try{action.run();}
+            if(!active.get()||!globalStatus&&!currentInput(generation))return;
+            try{inputScope(globalStatus?inputGeneration.get():generation,action);}
             catch(NativeEnvironment.DataUnavailable missing){if(active.get())unavailable.accept(missing);}
             catch(Throwable error){if(active.getAndSet(false))failure.accept(error);close();}
         };

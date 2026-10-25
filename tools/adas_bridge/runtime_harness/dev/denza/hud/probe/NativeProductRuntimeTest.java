@@ -21,7 +21,7 @@ public final class NativeProductRuntimeTest {
     static void check(boolean value,String reason){checks++;if(!value)throw new AssertionError(reason);}
     static final class Rig {
         final Context context;final LiveMapBridge bridge;final String reader=UUID.randomUUID().toString();
-        final Map<String,Object> arm=Json.object();String consumer;long seq,epoch;String routeId="route-a";
+        final Map<String,Object> arm=Json.object();String consumer;long seq,epoch;String routeId="route-a";double vehicleKmh=18;
         OfflineMapGate.Subject subject;
         Rig()throws Exception{
             Handler.reset();context=new Context(new File(root,"case-"+(++serial)));
@@ -42,7 +42,7 @@ public final class NativeProductRuntimeTest {
             row.put("startedAtElapsedMs",SystemClock.now);row.put("completedAtElapsedMs",SystemClock.now);row.put("startedAtUptimeMs",SystemClock.now);row.put("completedAtUptimeMs",SystemClock.now);
             for(int fid:AdasGateSnapshot.ALL_FIDS){long value=fid==AdasGateSnapshot.HNP_CONFIG?3:fid==AdasGateSnapshot.UNP_CONFIG||fid==AdasGateSnapshot.E2E_CONFIG?1:fid==AdasGateSnapshot.NOA_UI_TYPE||fid==AdasGateSnapshot.TIP_ISLAND_SUPPORT?2:fid==AdasGateSnapshot.HNP_SWITCH&&enabled?1:0;
                 Map<String,Object> v=Json.object();v.put("status","ok");v.put("transact",5L);v.put("value",value);values.put(Integer.toString(fid),v);}
-            row.put("values",values);Map<String,Object> speed=Json.object();speed.put("status","ok");speed.put("device",1013L);speed.put("fid",-1807745016L);speed.put("transact",7L);speed.put("unit","km/h");speed.put("value",18.0);speed.put("startedAtElapsedMs",SystemClock.now);speed.put("completedAtElapsedMs",SystemClock.now);row.put("vehicleSpeed",speed);write("denza-adas-gates.json",row);
+            row.put("values",values);Map<String,Object> speed=Json.object();speed.put("status","ok");speed.put("device",1013L);speed.put("fid",-1807745016L);speed.put("transact",7L);speed.put("unit","km/h");speed.put("value",vehicleKmh);speed.put("startedAtElapsedMs",SystemClock.now);speed.put("completedAtElapsedMs",SystemClock.now);row.put("vehicleSpeed",speed);write("denza-adas-gates.json",row);
             Map<String,Object> isolation=Json.object();isolation.put("schema","denza-adas-stock-isolation-v1");isolation.put("bootId",BOOT);isolation.put("consumerSession",consumer);isolation.put("readerSession",reader);isolation.put("stockAbsent",true);isolation.put("startedAtElapsedMs",SystemClock.now);isolation.put("completedAtElapsedMs",SystemClock.now);write("denza-adas-stock-isolation.json",isolation);
         }
         void arm()throws Exception{subject(routeId);evidence(true);write("denza-adas-live-arm.json",arm);Handler.advance(1000);}
@@ -58,7 +58,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
-        freshnessRecovery();gracefulShutdown();cityRequestRecovery();
+        freshnessRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
         try{LiveSessionLease.read(Json.write(invalid),BOOT,disarmed.consumer,SystemClock.now);}catch(IllegalArgumentException expected){rejected=true;}check(rejected,"legacy variant arm rejected");
@@ -112,6 +112,14 @@ public final class NativeProductRuntimeTest {
         recoverable.post(StockRuntime.Queue.MMT,new Object(),null,0,()->{throw new dev.denza.adaslink.stocknative.NativeEnvironment.DataUnavailable("stale measured speed");});
         recoverable.post(StockRuntime.Queue.MMT,new Object(),null,1,()->effects.add("fresh"));Handler.advance(1);
         check(recoverable.active()&&effects.equals(Collections.singletonList("fresh")),"missing external data does not dispose native runtime");recoverable.close();
+        effects.clear();AndroidStockRuntime scoped=new AndroidStockRuntime(error->{throw new AssertionError(error);});scoped.inputGeneration(1);
+        scoped.post(StockRuntime.Queue.MAIN,new Object(),null,1,()->effects.add("obsolete mutation"));
+        scoped.post(StockRuntime.Queue.SOMEIP,new Object(),null,0,()->{scoped.inputGeneration(2);scoped.post(StockRuntime.Queue.MMT,new Object(),null,0,()->effects.add("obsolete nested mutation"));});
+        Handler.advance(2);check(effects.isEmpty(),"stale queued and inherited nested callbacks cannot mutate new route state");
+        final dev.denza.adaslink.stocknative.StockTask[] status=new dev.denza.adaslink.stocknative.StockTask[1];
+        status[0]=new dev.denza.adaslink.stocknative.StockTask("k.h.a0.c.c.a.e0$d","navigation status",()->{effects.add("global status");scoped.post(StockRuntime.Queue.MMT,status[0],null,1000,status[0]);});
+        scoped.post(StockRuntime.Queue.MMT,status[0],null,0,status[0]);scoped.inputGeneration(3);Handler.advance(1001);
+        check(effects.size()==2,"original process-global status timer survives route generation changes");scoped.close();
     }
     static void freshnessRecovery()throws Exception{
         Rig r=new Rig();r.arm();r.route();LiveMapTransport wire=LiveMapTransport.latest;
@@ -152,6 +160,51 @@ public final class NativeProductRuntimeTest {
         client.answer(0x0001000D000D0002L,new byte[0]);Handler.advance(0);client.answer(0x0001000D000D0001L,new byte[0]);Handler.advance(0);
         check(client.oddRequests==4,"service13 availability cycle opens a fresh bounded request budget");permanent.close();AdasPassiveClient.nextOddResult=0;
     }
+    @SuppressWarnings("unchecked")static void coordinateArm()throws Exception{
+        Rig r=new Rig();r.arm.put("coordinateFrame","NATIVE_GCJ_UNRESTRICTED_CANDIDATE");r.arm();r.route();LiveMapTransport wire=LiveMapTransport.latest;
+        ProductNativeEnvironment env=(ProductNativeEnvironment)field(r.bridge,"environment");double[] expected=Coordinates.toSdk(37.6002,55.7002,Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE);
+        check(env.locationLon==expected[0]&&env.locationLat==expected[1],"environment lastLocation uses selected source frame once");
+        Map<String,Object> position=null;for(int i=wire.topics.size()-1;i>=0;i--)if(wire.topics.get(i)==Topics.SD_VEHICLE_LOCATION){position=(Map<String,Object>)Topics.schema(Topics.SD_VEHICLE_LOCATION).decode(wire.payloads.get(i)).get("sdVehicleLocation");break;}
+        check(position!=null&&((Number)position.get("locationLongitudeAssociateRoad")).doubleValue()==env.locationLon,"environment and actual core output share one coordinate frame");
+        check("NATIVE_GCJ_UNRESTRICTED_CANDIDATE".equals(r.state().get("coordinateFrame"))&&"NATIVE_GCJ_UNRESTRICTED_CANDIDATE".equals(r.state().get("coordinateFrameMode")),"readiness state exposes selected arm frame");
+        NativeNavigationInput outsideFix=r.input(false);outsideFix.lon=41;int before=wire.count(Topics.SD_VEHICLE_LOCATION);r.observe(outsideFix);r.advanceEvidence(250);
+        check(!wire.closed&&"PAUSED".equals(r.state().get("state"))&&wire.count(Topics.SD_VEHICLE_LOCATION)==before,"outside native fix pauses same arm before transformation/core");
+        check(env.locationLon==expected[0],"outside native fix cannot poison environment location");r.evidence(true);r.observe(false);r.advanceEvidence(1000);r.observe(false);
+        check(!wire.closed&&wire.count(Topics.SD_VEHICLE_LOCATION)>before,"fresh in-envelope fix resumes same native arm");
+        r.subject("outside-route");r.evidence(true);NativeNavigationInput outsideRoute=r.input(true);outsideRoute.route=new YandexRoute("outside-route",new double[]{41,41.001},new double[]{55.7,55.701},Collections.singletonList(new YandexRoute.Section(0,1,"STRAIGHT",null,30)),null,null,null,null,null,null);int routes=wire.count(Topics.ROUTE);r.observe(outsideRoute);
+        check(!wire.closed&&"BLOCKED".equals(r.state().get("state"))&&wire.count(Topics.ROUTE)==routes,"outside native route blocks admission without replacing runtime");r.advanceEvidence(1000);
+        check(wire.count(Topics.ROUTE)==routes,"blocked replacement cannot publish a route through old subject admission");r.close();
+    }
+    @SuppressWarnings("unchecked")static void inflightGeneration()throws Exception{
+        Rig r=new Rig();r.vehicleKmh=0;r.arm.put("coordinateFrame","ALTERNATE_ROUTES");r.arm();NativeNavigationInput first=r.input(true);first.route=twoSections(r.routeId);r.observe(first);LiveMapTransport wire=LiveMapTransport.latest;r.advanceEvidence(1000);
+        final long[] pathB={-1};final int[] boundary={-1};wire.beforeAdmissionTopic=Topics.SD_VEHICLE_LOCATION;
+        wire.beforeAdmission=()->{try{
+            r.subject("route-b");r.evidence(true);NativeNavigationInput b=r.input(true);b.route=twoSections(r.routeId);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);
+            pathB[0]=r.bridge.status().pathId;boundary[0]=wire.topics.size();
+        }catch(Exception error){throw new AssertionError(error);}};
+        NativeNavigationInput a=r.input(false);a.speedMps=0;a.lon=37.6004;a.lat=55.7004;a.rawLon=37.60039;a.rawLat=55.70039;r.observe(a);
+        check(pathB[0]>0&&boundary[0]>=0&&wire.topics.size()==boundary[0],"A payload already at transport boundary cannot enter accepted B after swap");
+        int locations=wire.count(Topics.SD_VEHICLE_LOCATION),lanes=wire.count(Topics.SD_AHEAD_LANES),odd=wire.count(Topics.ADV_AUTO_FUN_INFO),statuses=wire.count(Topics.NAVIGATION_STATUS);
+        r.advanceEvidence(1000);
+        r.evidence(true);NativeNavigationInput b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);
+        int recreated=wire.count(Topics.SD_VEHICLE_LOCATION);r.advanceEvidence(1000);
+        check(recreated>locations&&wire.count(Topics.SD_VEHICLE_LOCATION)>recreated,"fresh B input recreates its stationary timer after original throttle");
+        check(wire.count(Topics.ADV_AUTO_FUN_INFO)>odd,"B actual-speed input recreates stationary ODD timer");
+        check(wire.count(Topics.NAVIGATION_STATUS)>statuses,"global status timer remains live after B swap");
+        r.evidence(true);b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);r.advanceEvidence(250);
+        check(wire.count(Topics.SD_AHEAD_LANES)>lanes,"B path recreates lane query/flush after generation change");
+        for(int i=boundary[0];i<wire.topics.size();i++)if(wire.topics.get(i)==Topics.SD_VEHICLE_LOCATION){Map<String,Object> point=(Map<String,Object>)Topics.schema(Topics.SD_VEHICLE_LOCATION).decode(wire.payloads.get(i)).get("sdVehicleLocation");
+            check(((Number)point.get("curSDRouteID")).longValue()==pathB[0]&&((Number)point.get("locationLongitudeAssociateRoad")).doubleValue()==37.6015,"post-swap position belongs to B and its WGS control frame");}
+        long previous=pathB[0];OfflineMapGate.Subject sameB=r.subject;
+        r.bridge.sourceRoute(new OfflineMapGate.Subject(null,r.epoch,null));r.bridge.sourceRoute(sameB);
+        r.evidence(true);b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);
+        check(r.bridge.status().pathId!=previous&&r.bridge.status().pathId>0,"withdrawal/reappearance gives same Yandex ID a fresh native lifetime/path");
+        check("WGS84".equals(r.state().get("coordinateFrame"))&&((Number)r.state().get("coordinateRouteOrdinal")).longValue()==2,"source lifetime restart retains Yandex frame/ordinal association");
+        int restartedLanes=wire.count(Topics.SD_AHEAD_LANES);r.advanceEvidence(1000);r.evidence(true);b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);r.advanceEvidence(1000);
+        check(wire.count(Topics.SD_AHEAD_LANES)>restartedLanes,"fresh source lifetime lets original v0 recreate its lane timer");
+        r.close();
+    }
+    static YandexRoute twoSections(String id){return new YandexRoute(id,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30),new YandexRoute.Section(1,2,"STRAIGHT",null,30)),null,null,null,null,null,null);}
     static void gracefulShutdown()throws Exception{
         Rig cancel=new Rig();cancel.arm();cancel.route();LiveMapTransport wire=LiveMapTransport.latest;
         Map<String,Object> fractional=new LinkedHashMap<>(cancel.arm);fractional.put("schema","denza-adas-live-stop-v1");fractional.put("requestedAtElapsedMs",SystemClock.now+.5);cancel.write(LiveMapBridge.STOP,fractional);cancel.advanceEvidence(1000);
