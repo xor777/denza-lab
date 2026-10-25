@@ -13,6 +13,14 @@ public final class RouteVectorAttributesTest {
     private static final VectorRoadTile.TileId TILE = new VectorRoadTile.TileId(20000, 10000, 15);
 
     private static VectorRoadTile tile(int[][] paths, String[] classes, Object[] ways, String[] structures, int[] levels) {
+        Object[] rawClasses=classes.clone(),fc=new Object[classes.length];
+        for(int i=0;i<classes.length;i++)fc[i]=(long)(classes[i].charAt(0)>='1'&&classes[i].charAt(0)<='9'?classes[i].charAt(0)-'0':4);
+        return typedTile(paths,rawClasses,fc,ways,structures,levels);
+    }
+    private static byte[] literal(Object value){
+        return value instanceof String?str(1,(String)value):value instanceof Float?float32(5,(Float)value):v(3,((Number)value).longValue());
+    }
+    private static VectorRoadTile typedTile(int[][] paths,Object[] classes,Object[] fc,Object[] ways,String[] structures,int[] levels){
         byte[] keys = msg(4, join(str(1, "class"), str(1, "fc"), str(1, "oneway"), str(1, "struct"),
                 str(1, "zlev"), str(1, "min_zlev"), str(1, "max_zlev"), str(1, "z_level")));
         byte[] values = new byte[0], roads = new byte[0]; List<Integer> coordinates = new ArrayList<>();
@@ -20,9 +28,8 @@ public final class RouteVectorAttributesTest {
         for (int i = 0; i < paths.length; i++) {
             int[] p = paths[i]; lengths[i] = 2;
             coordinates.add(p[0]); coordinates.add(p[1]); coordinates.add(p[2] - p[0]); coordinates.add(p[3] - p[1]);
-            int fc = classes[i].charAt(0) >= '1' && classes[i].charAt(0) <= '9' ? classes[i].charAt(0) - '0' : 4;
             byte[] way = ways[i] instanceof String ? str(1, (String)ways[i]) : v(3, ((Number)ways[i]).longValue());
-            values = join(values, msg(5, str(1, classes[i])), msg(5, v(3, fc)), msg(5, way), msg(5, str(1, structures[i])), msg(5, v(3, levels[i])));
+            values = join(values, msg(5, literal(classes[i])), msg(5, literal(fc[i])), msg(5, way), msg(5, str(1, structures[i])), msg(5, v(3, levels[i])));
             int base = i * 5;
             byte[] attributes = msg(6, join(v(1, 0), packed(2, base, base + 1, base + 2, base + 3, base + 4, base + 4, base + 4, base + 4)));
             roads = join(roads, msg(2, join(feature(line(1), 100 + i), attributes)));
@@ -135,8 +142,52 @@ public final class RouteVectorAttributesTest {
         YandexRoute large = route("hash-utility-sdk-bound", new double[200000], new double[200000]);
         expect(RouteVectorAttributes.geometryFingerprint(large).length() == 64, "hash utility accepts SDK 200000 point bound independently of matcher budget");
     }
+    private static void typedRendererClassConsensus(){
+        VectorRoadTile base=single("1","1",false);YandexRoute route=route(base,false);
+        RouteAttributes.RendererClass raw=match(route,base).rendererClassBetween(0,1);
+        expect("1".equals(raw.rawClass)&&"string".equals(raw.classType)&&Long.valueOf(1).equals(raw.rawFc)&&"uint32".equals(raw.fcType),"source carries literal class/fc and protobuf types separately from legacy roadClass");
+        expect(raw.functionalClass()==1,"ambiguous category1 survives raw contract even when old converted class is null");
+        expect(match(route,base,single("1","0",false)).rendererClassBetween(0,1).functionalClass()==1,"oneway-only conflict does not erase independently unanimous class/fc");
+        VectorRoadTile link=single("1_link","1",false);
+        expect(match(route,link).rendererClassBetween(0,1).functionalClass()==1,"typed _link class retains functional group");
+        for(Object[] values:new Object[][]{{1L,1L},{"1","1"},{"1",1.0f},{"1",2L},{"pedestrian",1L}}){
+            VectorRoadTile bad=typedTile(new int[][]{{-5000,0,5000,0}},new Object[]{values[0]},new Object[]{values[1]},new Object[]{"1"},new String[]{"none"},new int[]{0});
+            expect(match(route,bad).rendererClassBetween(0,1).functionalClass()==null,"wrong class/fc type, inconsistent fc, and non-driving source stay unknown");
+        }
+        VectorRoadTile incompatibleType=typedTile(new int[][]{{-5000,0,5000,0}},new Object[]{"1"},new Object[]{1.0f},new Object[]{"1"},new String[]{"none"},new int[]{0});
+        expect(match(route,base,incompatibleType).rendererClassBetween(0,1).functionalClass()==null,"matching numeric-looking competitor with wrong protobuf type invalidates consensus");
+        VectorRoadTile overpass=tile(new int[][]{{-5000,0,5000,0},{-5000,0,5000,0}},new String[]{"1","1"},new Object[]{"1","1"},new String[]{"bridge","none"},new int[]{2,0});
+        RouteAttributes.RendererClass level=match(route,overpass).rendererClassBetween(0,1);
+        expect(level.functionalClass()==null&&"level_structure_conflict".equals(level.quality),"overlapping different levels cannot supply an invented route class");
+        RouteVectorAttributes.Limits noEvidence=new RouteVectorAttributes.Limits(10,10000,10,100,100,100000,100000,1000,0,100000);
+        RouteVectorAttributes.Builder builder=new RouteVectorAttributes.Builder(route,noEvidence);expect(builder.accept(base),"raw source within work budget");
+        RouteVectorAttributes.Result withoutEvidence=builder.finish();expect(withoutEvidence.evidence.isEmpty()&&withoutEvidence.rendererClassBetween(0,1).functionalClass()==1,"complete raw consensus does not depend on bounded evidence snippets");
+    }
+    private static void rawBoundariesGapsAndRetraction(){
+        VectorRoadTile base=single("2","1",false);YandexRoute route=route(base,false);
+        VectorRoadTile changes=tile(new int[][]{{-5000,0,-300,0},{-300,0,5000,0}},new String[]{"2","4"},new Object[]{"1","1"},new String[]{"none","none"},new int[]{0,0});
+        RouteVectorAttributes.Result result=match(route,changes);
+        expect(result.attributesBetween(0,1).roadClass==7,"legacy converted class intentionally same on both sides");
+        expect(result.rendererClassBetween(.01,.1).functionalClass()==2&&result.rendererClassBetween(.8,.9).functionalClass()==4,"raw classes remain distinct despite equal old numeric conversion");
+        expect(result.rendererClassBetween(0,1).functionalClass()==null,"whole interval cannot take one midpoint class");
+        expect(result.cuts().length>=2,"raw-only change contributes partition boundaries including unknown transition bin");
+        for(int i=1;i<result.spans.size();i++){
+            RouteVectorAttributes.Span before=result.spans.get(i-1),after=result.spans.get(i);
+            if(!before.rendererClass.equals(after.rendererClass)){
+                expect(result.rendererClassBetween(before.begin,before.end).equals(before.rendererClass),"half-open interval ending at boundary uses preceding bin only");
+                expect(result.rendererClassBetween(after.begin,after.end).equals(after.rendererClass),"interval starting at boundary uses following bin only");
+            }
+        }
+        VectorRoadTile gaps=tile(new int[][]{{-5000,0,-500,0},{500,0,5000,0}},new String[]{"2","2"},new Object[]{"1","1"},new String[]{"none","none"},new int[]{0,0});
+        RouteVectorAttributes.Result gap=match(route,gaps);
+        expect(gap.rendererClassBetween(.01,.1).functionalClass()==2&&gap.rendererClassBetween(.4,.6).functionalClass()==null&&gap.rendererClassBetween(0,1).functionalClass()==null,"unmatched gap remains local and cannot be promoted by interval midpoint");
+        RouteVectorAttributes.Builder limited=new RouteVectorAttributes.Builder(route,new RouteVectorAttributes.Limits(10,10000,1,100,100,100000,100000,1000,2,100000));
+        expect(limited.accept(base)&&!limited.accept(single("3","1",false)),"late raw competitor triggers bounded truncation");
+        expect(limited.finish().rendererClassBetween(0,1).functionalClass()==null,"late truncation retracts all raw class consensus");
+        expect(match(route,base,single("3","1",false)).rendererClassBetween(0,1).functionalClass()==null,"different raw classes conflict even when legacy converted number agrees");
+    }
     public static void main(String[] args) {
-        independentFieldsAndIdentity(); competingCandidatesAndRawLevels(); wholeRouteCutsAndGaps(); budgetRetractionAndDefensiveRouteCopy(); thresholdsAndSdkHash();
+        independentFieldsAndIdentity(); competingCandidatesAndRawLevels(); wholeRouteCutsAndGaps(); budgetRetractionAndDefensiveRouteCopy(); thresholdsAndSdkHash(); typedRendererClassConsensus();rawBoundariesGapsAndRetraction();
         System.out.println("RouteVectorAttributesTest: " + checks + " checks");
     }
 }

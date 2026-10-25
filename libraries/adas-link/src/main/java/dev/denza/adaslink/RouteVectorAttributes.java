@@ -64,12 +64,13 @@ public final class RouteVectorAttributes {
         public final int originalEdge, maximumCandidates;
         public final String state;
         public final RoadNetwork.KnownAttributes attributes;
+        public final RouteAttributes.RendererClass rendererClass;
         public final boolean ambiguous, levelStructureConflict, literalConflict, exactNativeId = false;
         private Span(double begin, double end, int edge, int candidates, String state,
-                     RoadNetwork.KnownAttributes attributes, boolean ambiguous, boolean levelConflict, boolean literalConflict) {
+                     RoadNetwork.KnownAttributes attributes, boolean ambiguous, boolean levelConflict, boolean literalConflict, RouteAttributes.RendererClass rendererClass) {
             this.begin = begin; this.end = end; originalEdge = edge; maximumCandidates = candidates;
             this.state = state; this.attributes = attributes; this.ambiguous = ambiguous;
-            levelStructureConflict = levelConflict; this.literalConflict = literalConflict;
+            levelStructureConflict = levelConflict; this.literalConflict = literalConflict; this.rendererClass=rendererClass;
         }
     }
     public static final class Result implements RouteAttributes {
@@ -91,7 +92,7 @@ public final class RouteVectorAttributes {
             List<Double> boundaries = new ArrayList<>();
             for (int i = 1; i < spans.size(); i++) {
                 Span before = spans.get(i - 1), after = spans.get(i);
-                if (!same(before.attributes, after.attributes) && before.end == after.begin) boundaries.add(after.begin);
+                if ((!same(before.attributes, after.attributes)||!before.rendererClass.equals(after.rendererClass)) && before.end == after.begin) boundaries.add(after.begin);
             }
             cuts = new double[boundaries.size()]; for (int i = 0; i < cuts.length; i++) cuts[i] = boundaries.get(i);
             Map<String,Object> s = new LinkedHashMap<>();
@@ -122,6 +123,12 @@ public final class RouteVectorAttributes {
             s.put("continuousLaneCountKnown", false); s.put("laneDecision", "no_continuous_lane_source");
             s.put("formwayOwnershipAccessDecision", "not_inferred_from_renderer_levels_or_structure");
             s.put("roadClassMapping", YandexRoadClass.VERSION);
+            int rawKnown=0,rawSpans=0;
+            for(Sample sample:b.samples)if(!truncated&&sample.rendererClass().functionalClass()!=null)rawKnown++;
+            for(Span span:spans)if(span.rendererClass.functionalClass()!=null)rawSpans++;
+            s.put("rendererClassSource","whole_interval_typed_class_fc_consensus");
+            s.put("rendererClassKnownSamples",rawKnown);s.put("rendererClassUnknownSamples",b.samples.size()-rawKnown);
+            s.put("rendererClassKnownSpans",rawSpans);s.put("rendererClassUnknownSpans",spans.size()-rawSpans);
             s.put("decisions", Collections.unmodifiableMap(new LinkedHashMap<>(b.decisions)));
             s.put("retainedEvidence", evidence.size()); s.put("droppedEvidence", b.droppedEvidence);
             summary = Collections.unmodifiableMap(s);
@@ -155,6 +162,21 @@ public final class RouteVectorAttributes {
             }
             return through < end || common == null ? RoadNetwork.KnownAttributes.NONE : common;
         }
+        /** Every overlapping sampled bin must agree on the raw literals and their protobuf types. */
+        public RouteAttributes.RendererClass rendererClassBetween(double begin,double end) {
+            if(!Double.isFinite(begin)||!Double.isFinite(end)||begin<0||end<=begin||end>edges.size())
+                throw new IllegalArgumentException("nonempty route scalar interval");
+            if(truncated)return RouteAttributes.RendererClass.unknown("truncated");
+            RouteAttributes.RendererClass common=null;double through=begin;
+            int low=0,high=spans.size();
+            while(low<high){int mid=(low+high)>>>1;if(spans.get(mid).end<=begin)low=mid+1;else high=mid;}
+            for(int i=low;i<spans.size()&&spans.get(i).begin<end;i++){
+                Span span=spans.get(i);if(span.begin>through)return RouteAttributes.RendererClass.unknown("interval_gap");
+                common=common==null?span.rendererClass:RouteAttributes.RendererClass.consensus(common,span.rendererClass);
+                through=Math.max(through,span.end);if(through>=end)break;
+            }
+            return through<end||common==null?RouteAttributes.RendererClass.unknown("interval_gap"):common;
+        }
         public boolean matches(YandexRoute route) {
             if (route == null || !routeId.equals(route.routeId)) return false;
             try { return geometryFingerprint.equals(RouteVectorAttributes.geometryFingerprint(route)); }
@@ -167,10 +189,12 @@ public final class RouteVectorAttributes {
     private static final class Sample {
         final double lon, lat, dx, dy;
         int count, stamp, flags, roadClass = -1, direction = -1, levelId = -1, literalId = -1;
+        RouteAttributes.RendererClass rawClass;
         Sample(double lon, double lat, double dx, double dy) { this.lon = lon; this.lat = lat; this.dx = dx; this.dy = dy; }
-        void add(int roadClass, int direction, int level, int literal, int stamp) {
+        void add(int roadClass, int direction, int level, int literal, int stamp, RouteAttributes.RendererClass raw) {
             if (this.stamp == stamp) return;
             this.stamp = stamp; count++;
+            rawClass=rawClass==null?raw:RouteAttributes.RendererClass.consensus(rawClass,raw);
             if (roadClass < 0) flags |= CLASS_UNKNOWN;
             else if (this.roadClass < 0) this.roadClass = roadClass;
             else if (this.roadClass != roadClass) flags |= CLASS_CONFLICT;
@@ -179,6 +203,10 @@ public final class RouteVectorAttributes {
             else if (this.direction != direction) flags |= DIR_CONFLICT;
             if (levelId < 0) levelId = level; else if (levelId != level) flags |= LEVEL_CONFLICT;
             if (literalId < 0) literalId = literal; else if (literalId != literal) flags |= LITERAL_CONFLICT;
+        }
+        RouteAttributes.RendererClass rendererClass(){
+            return count==0?RouteAttributes.RendererClass.unknown("unmatched"):(flags&LEVEL_CONFLICT)!=0
+                    ?RouteAttributes.RendererClass.unknown("level_structure_conflict"):rawClass;
         }
         RoadNetwork.KnownAttributes attributes() {
             return known(count == 0 || (flags & (CLASS_UNKNOWN | CLASS_CONFLICT)) != 0 ? null : roadClass,
@@ -262,6 +290,8 @@ public final class RouteVectorAttributes {
                     literalBytes += cost;
                     YandexRoadClass.Decision mapped = YandexRoadClass.map(feature.attributes);
                     int roadClass = mapped.roadClass == null ? -1 : mapped.roadClass;
+                    RouteAttributes.RendererClass rawClass=RouteAttributes.RendererClass.literal(feature.attributes.get("class"),
+                            feature.attributeTypes.get("class"),feature.attributes.get("fc"),feature.attributeTypes.get("fc"));
                     Object rawDirection = feature.attributes.get("oneway");
                     int direction = driving(feature.attributes.get("class"))
                             ? "0".equals(rawDirection) ? 0 : "1".equals(rawDirection) ? 1 : -1 : -1;
@@ -271,7 +301,7 @@ public final class RouteVectorAttributes {
                     int matched = 0;
                     for (int point = 1; point < feature.points.size(); point++) {
                         if (++segments > limits.maxSegments) throw new Budget("segment_budget");
-                        matched += associate(feature.points.get(point - 1), feature.points.get(point), roadClass, direction, level, literal, features);
+                        matched += associate(feature.points.get(point - 1), feature.points.get(point), roadClass, direction, level, literal, features,rawClass);
                     }
                     if (matched > 0) retain(tile, feature, mapped, direction, matched);
                 }
@@ -301,16 +331,20 @@ public final class RouteVectorAttributes {
                 edges.add(new Edge(edge, lengths[edge], end - begin, matched, ambiguous, conflicts, state, a));
                 if (any(a)) knownEdges++; if (matched == 0 && lengths[edge] > 1e-6) unmatchedEdges++; if (conflicts > 0) conflictEdges++;
                 if (!truncated && end - begin < 2) append(spans, new Span(edge, edge + 1, edge, 0, state,
-                        RoadNetwork.KnownAttributes.NONE, false, false, false));
+                        RoadNetwork.KnownAttributes.NONE, false, false, false,RouteAttributes.RendererClass.unknown("unmatched")));
                 else if (!truncated) for (int i = begin; i < end - 1; i++) {
                     Sample left = samples.get(i), right = samples.get(i + 1);
                     RoadNetwork.KnownAttributes spanAttributes = consensus(left.attributes(), right.attributes());
                     String spanState = left.count == 0 || right.count == 0 ? "unmatched" : any(spanAttributes) ? "known_fields" : "unresolved_or_change";
+                    boolean levelConflict=((left.flags|right.flags)&LEVEL_CONFLICT)!=0
+                            ||left.count>0&&right.count>0&&left.levelId!=right.levelId;
+                    RouteAttributes.RendererClass rawClass=levelConflict?RouteAttributes.RendererClass.unknown("level_structure_conflict")
+                            :RouteAttributes.RendererClass.consensus(left.rendererClass(),right.rendererClass());
                     append(spans, new Span(edge + (double)(i - begin) / (end - begin - 1),
                             edge + (double)(i - begin + 1) / (end - begin - 1), edge, Math.max(left.count, right.count), spanState,
                             spanAttributes, left.count > 1 || right.count > 1,
-                            ((left.flags | right.flags) & LEVEL_CONFLICT) != 0 || left.count > 0 && right.count > 0 && left.levelId != right.levelId,
-                            ((left.flags | right.flags) & LITERAL_CONFLICT) != 0 || left.count > 0 && right.count > 0 && left.literalId != right.literalId));
+                            levelConflict,
+                            ((left.flags | right.flags) & LITERAL_CONFLICT) != 0 || left.count > 0 && right.count > 0 && left.literalId != right.literalId,rawClass));
                     if (spans.size() > limits.maxSpans) { truncate("span_budget"); break; }
                 }
                 if (spans.size() > limits.maxSpans) truncate("span_budget");
@@ -322,14 +356,14 @@ public final class RouteVectorAttributes {
                         edge.ambiguousSamples, edge.conflictSamples, "truncated", RoadNetwork.KnownAttributes.NONE));
                 edges = unknown; spans.clear();
                 // One all-route unknown span keeps the result bounded even with a tiny maxSpans.
-                spans.add(new Span(0, lengths.length, -1, 0, "truncated", RoadNetwork.KnownAttributes.NONE, false, false, false));
+                spans.add(new Span(0, lengths.length, -1, 0, "truncated", RoadNetwork.KnownAttributes.NONE, false, false, false,RouteAttributes.RendererClass.unknown("truncated")));
                 knownEdges = 0; knownSamples = 0;
             }
             return result = new Result(this, edges, spans, knownEdges, unmatchedEdges, conflictEdges, knownSamples, unmatchedSamples, conflictSamples);
         }
 
         private int associate(VectorRoadTile.Point a, VectorRoadTile.Point b, int roadClass, int direction,
-                              int level, int literal, int stamp) {
+                              int level, int literal, int stamp, RouteAttributes.RendererClass rawClass) {
             double length = Coordinates.distance(a.lon, a.lat, b.lon, b.lat);
             if (length <= 1e-6) return 0;
             double longitudeDelta = delta(a.lon, b.lon), latitudeDelta = b.lat - a.lat;
@@ -361,7 +395,7 @@ public final class RouteVectorAttributes {
                         double t = Math.max(0, Math.min(1, (sx * dx + sy * dy) / squared));
                         double distance = Coordinates.distance(sample.lon, sample.lat, wrap(a.lon + longitudeDelta * t), a.lat + latitudeDelta * t);
                         if (distance > DISTANCE) continue;
-                        sample.add(roadClass, direction, level, literal, stamp); matched++;
+                        sample.add(roadClass, direction, level, literal, stamp,rawClass); matched++;
                     }
                 }
             }
@@ -399,10 +433,11 @@ public final class RouteVectorAttributes {
             Span before = spans.get(spans.size() - 1);
             if (before.originalEdge == next.originalEdge && before.end == next.begin && same(before.attributes, next.attributes)
                     && before.state.equals(next.state) && before.ambiguous == next.ambiguous
-                    && before.levelStructureConflict == next.levelStructureConflict && before.literalConflict == next.literalConflict) {
+                    && before.levelStructureConflict == next.levelStructureConflict && before.literalConflict == next.literalConflict
+                    &&before.rendererClass.equals(next.rendererClass)) {
                 spans.set(spans.size() - 1, new Span(before.begin, next.end, next.originalEdge,
                         Math.max(before.maximumCandidates, next.maximumCandidates), next.state, next.attributes,
-                        next.ambiguous, next.levelStructureConflict, next.literalConflict)); return;
+                        next.ambiguous, next.levelStructureConflict, next.literalConflict,next.rendererClass)); return;
             }
         }
         spans.add(next);

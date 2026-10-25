@@ -5,6 +5,7 @@ package dev.denza.adaslink.yandexnative;
  * are not silently recoded as slight turns. No legacy converter is consulted. */
 public final class NativeEnums {
     public static final int ROAD_NULL=-1, FORMWAY_NULL=-1, LINK_NULL=-1;
+    public static final int ROAD_FREEWAY=0, ROAD_CITY_SPEEDWAY=6, ROAD_MAIN=7, ROAD_SECONDARY=8, ROAD_COMMON=9;
     public static final int OWNERSHIP_ERROR=Integer.MIN_VALUE;
     public static final int LINK_COMMON=0, LINK_FERRY=1, LINK_TUNNEL=2;
     public static final int FORMWAY_ROUNDABOUT=4;

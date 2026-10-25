@@ -119,6 +119,27 @@ public final class YandexNativeAdapterTest {
         assertEquals("declared-test-evidence",r.attributeEvidence().get("quality"));
         try{YandexNativeAdapter.prepare(route(),100,200,0,attrs);fail("wrong route");}catch(IllegalArgumentException expected){}
     }
+    @Test public void roadClassDiagnosticsAreBoundedWithoutTruncatingData(){
+        final YandexRoute source=route();
+        RouteAttributes attrs=new RouteAttributes(){
+            public boolean matches(YandexRoute r){return r==source;}
+            public double[] cuts(){double[] cuts=new double[140];for(int i=0;i<cuts.length;i++)cuts[i]=2.0*(i+1)/141;return cuts;}
+            public RoadNetwork.KnownAttributes attributesBetween(double a,double b){throw new AssertionError("legacy class consulted");}
+            public RendererClass rendererClassBetween(double a,double b){return RendererClass.literal("1","string",1L,"uint32");}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+        YandexNativeAdapter.AdaptedRoute adapted=YandexNativeAdapter.prepare(source,100,200,0,attrs,YandexNativeAdapter.Policy.TEST_ROAD_DATA);
+        int links=0,examples=0;
+        for(int si=0;si<adapted.getSegmentCount();si++)for(int li=0;li<adapted.getSegmentInfo(si).getLinkCount();li++){
+            links++;assertEquals(6,adapted.getSegmentInfo(si).getLinkInfo(li).getRoadClass());
+        }
+        for(FieldDecision d:adapted.fieldDecisions())if(d.field.startsWith("segment[")&&d.field.endsWith(".roadClass"))examples++;
+        assertTrue(links>128);assertEquals(128,examples);
+        @SuppressWarnings("unchecked")Map<String,Object> projection=(Map<String,Object>)adapted.attributeEvidence().get("rendererClassProjection");
+        assertEquals(links,projection.get("links"));assertEquals(links-128,projection.get("omittedDecisions"));
+        assertEquals(Collections.singletonMap("6",links),projection.get("nativeClassCounts"));
+        assertNotNull(dev.denza.adaslink.Json.parse(dev.denza.adaslink.Json.write(adapted.attributeEvidence())));
+    }
     @Test public void namedEnumMappingsPreserveBranchDirectionWithoutGuessingAnglesOrUnknowns(){
         assertEquals(1,NativeEnums.action("LEFT").main);assertEquals(19,NativeEnums.action("UTURN_RIGHT").icon);
         assertEquals(19,NativeEnums.action("BOARD_FERRY").assistant);

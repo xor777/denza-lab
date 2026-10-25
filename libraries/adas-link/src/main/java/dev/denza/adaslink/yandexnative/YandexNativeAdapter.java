@@ -21,12 +21,17 @@ import java.util.TreeSet;
  */
 public final class YandexNativeAdapter {
     public enum MissingBooleans { REJECT, EXPLICIT_FALSE }
+    public enum RoadClassPolicy { UNKNOWN, EXPERIMENTAL_FUNCTIONAL }
     public static final class Policy {
         public static final Policy STRICT=new Policy(MissingBooleans.REJECT);
         /** Owner-selected experimental assumption, not a claim about eligibility or road facts. */
         public static final Policy EXPLICIT_FALSE=new Policy(MissingBooleans.EXPLICIT_FALSE);
+        /** Test-ground approximation of source functional groups; not an exact native class. */
+        public static final Policy TEST_ROAD_DATA=new Policy(MissingBooleans.EXPLICIT_FALSE,RoadClassPolicy.EXPERIMENTAL_FUNCTIONAL);
         public final MissingBooleans missingBooleans;
-        public Policy(MissingBooleans value){if(value==null)throw new IllegalArgumentException("missingBooleans");missingBooleans=value;}
+        public final RoadClassPolicy roadClass;
+        public Policy(MissingBooleans value){this(value,RoadClassPolicy.UNKNOWN);}
+        public Policy(MissingBooleans value,RoadClassPolicy roadClass){if(value==null||roadClass==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;}
     }
     /** Current source observations; NaN remains absent and is never made stationary/arrived. */
     public static final class Guidance {
@@ -85,13 +90,13 @@ public final class YandexNativeAdapter {
             lights=source.trafficLights==null?null:source.trafficLights.clone();
             if(lights!=null){for(double at:lights)requireScalar(at);java.util.Arrays.sort(lights);}
             if(attributes!=null&&!attributes.matches(source))throw new IllegalArgumentException("attributes belong to another route snapshot");
-            attributeEvidence=attributes==null?Collections.<String,Object>emptyMap():Collections.unmodifiableMap(new java.util.LinkedHashMap<>(attributes.summary()));
+            java.util.Map<String,Object> evidence=new java.util.LinkedHashMap<>();if(attributes!=null)evidence.putAll(attributes.summary());
             List<FieldDecision> ds=new ArrayList<>();List<String> bs=new ArrayList<>();
             ds.add(d("pathID/requestID","driver route epoch","synthetic transport identity; never native topology","new identity for replacement route",FieldDecision.Kind.SYNTHETIC_ID));
             ds.add(d("points","YandexRoute.lon/lat WGS84","lon/lat × 3600000, rounded into Coord2DInt32","nonfinite/out-of-range geometry rejected",FieldDecision.Kind.DERIVED));
             ds.add(d("segment/link/point indices","Yandex sections and interval cuts","one coherent synthetic partition for route, location and guidance","invalid scalar rejects current callback",FieldDecision.Kind.DERIVED));
             ds.add(d("linkID","route epoch + segment/link + WGS84 endpoints SHA-256","positive signed-64 synthetic identity shared by static and dynamic inputs","never copied from Yandex package-local/native IDs",FieldDecision.Kind.SYNTHETIC_ID));
-            ds.add(d("roadClass","Yandex renderer class/fc retained in RouteAttributes evidence","old functional 1..9 → native 7/8/9 conversion is unproved and is not used","RoadClassNULL=-1",FieldDecision.Kind.SDK_NULL));
+            ds.add(d("roadClass","whole-interval typed renderer class/fc; no legacy converted roadClass","policy="+policy.roadClass+"; experimental functional projection is approximate, not native topology or NOA eligibility","RoadClassNULL=-1 for missing/conflicting source or UNKNOWN policy",FieldDecision.Kind.SDK_NULL));
             ds.add(d("formway","Yandex section ENTER_ROUNDABOUT","FormwayRoundCircle=4 only on the explicitly entered roundabout section","FormayNULL=-1 otherwise; renderer layers do not prove formway",FieldDecision.Kind.SDK_NULL));
             ds.add(d("linkType","Yandex route tunnel/ferry ranges","Tunnel=2 / Ferry=1 for reported containing range","LinkTypeNULL=-1 elsewhere; absence of these two structures does not prove common/bridge/elevated",FieldDecision.Kind.SDK_NULL));
             ds.add(d("ownership","no corresponding Yandex public/private source","OwnershipPublicRoad=0 is a road fact and cannot be an unknown fill","AUTO_UNKNOWN_ERROR=MIN_VALUE; original P maps it to -1",FieldDecision.Kind.SDK_NULL));
@@ -120,6 +125,9 @@ public final class YandexNativeAdapter {
             if(lights!=null)for(double at:lights)cuts.add(at);
             for(YandexRoute.Section s:sections){cuts.add(s.begin);cuts.add(s.end);}
             List<NativeSegment> built=new ArrayList<>();
+            final int diagnosticLimit=128;int retainedClassDecisions=0,omittedClassDecisions=0,totalLinks=0;
+            java.util.Map<String,Integer> projectedCounts=new java.util.LinkedHashMap<>();
+            java.util.Map<String,Integer> rawQualityCounts=new java.util.LinkedHashMap<>();
             for(int si=0;si<sections.size();si++){
                 YandexRoute.Section section=sections.get(si);
                 String endAction=si+1<sections.size()?sections.get(si+1).action:"FINISH";
@@ -134,6 +142,18 @@ public final class YandexNativeAdapter {
                     // The existing attribute DTO already contains the old bridge's converted
                     // numeric class/direction. Its acquisition evidence and cuts are reusable;
                     // these numbers are not independent proof of an AutoSDK enum mapping.
+                    RouteAttributes.RendererClass raw=attributes==null?RouteAttributes.RendererClass.unknown("source_unavailable"):attributes.rendererClassBetween(begin,end);
+                    if(raw==null)raw=RouteAttributes.RendererClass.unknown("source_unavailable");
+                    int roadClass=projectRoadClass(raw,policy.roadClass);
+                    totalLinks++;String nativeClassKey=Integer.toString(roadClass);projectedCounts.put(nativeClassKey,projectedCounts.getOrDefault(nativeClassKey,0)+1);
+                    rawQualityCounts.put(raw.quality,rawQualityCounts.getOrDefault(raw.quality,0)+1);
+                    Integer functional=raw.functionalClass();
+                    String candidates=functional!=null&&functional==1?"[0,6]":roadClass<0?"[]":"["+roadClass+"]";
+                    if(retainedClassDecisions<diagnosticLimit){retainedClassDecisions++;
+                        ds.add(d("segment["+si+"].link["+li+"].roadClass","interval=["+begin+","+end+"]; class="+raw.rawClass+" type="+raw.classType+"; fc="+raw.rawFc+" type="+raw.fcType+"; quality="+raw.quality,
+                            "policy="+policy.roadClass+"; chosen="+roadClass+"; nativeCandidates="+candidates+(functional!=null&&functional==1?"; canonical CitySpeedway=6 represents ambiguous freeway/urban expressway group; exact 0 versus 6 unknown":"; coarse functional-group approximation, not an exact native road-class observation"),
+                            "unknown/type conflict/gap/non-driving/truncation or UNKNOWN policy -> -1; no NOA-success inference",roadClass<0?FieldDecision.Kind.SDK_NULL:FieldDecision.Kind.ENUM_MAPPING));
+                    }else omittedClassDecisions++;
                     int linkType=contains(source.tunnels,middle)?NativeEnums.LINK_TUNNEL:contains(source.ferries,middle)?NativeEnums.LINK_FERRY:
                             NativeEnums.LINK_NULL;
                     int formway="ENTER_ROUNDABOUT".equals(section.action)?NativeEnums.FORMWAY_ROUNDABOUT:NativeEnums.FORMWAY_NULL;
@@ -141,11 +161,17 @@ public final class YandexNativeAdapter {
                     int length=nonnegativeInt(Math.round(metres(end)-metres(begin)));
                     int lightCount=0;if(lights!=null)for(double at:lights)if(at>begin&&at<=end)lightCount++;
                     NativeEnums.Action linkAction=li+2==part.size()?action:NativeEnums.action(null);
-                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),linkType,formway,section.toponym,lightCount,linkAction,geometryBetween(begin,end)));
+                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,section.toponym,lightCount,linkAction,geometryBetween(begin,end)));
                 }
                 built.add(new NativeSegment(si,section.begin,section.end,section.timeS,action,links));
             }
             long totalLength=0;for(NativeSegment s:built)totalLength+=s.length;nonnegativeInt(totalLength);
+            java.util.Map<String,Object> projection=new java.util.LinkedHashMap<>();
+            projection.put("policy",policy.roadClass.name());projection.put("links",totalLinks);
+            projection.put("nativeClassCounts",Collections.unmodifiableMap(projectedCounts));
+            projection.put("rawQualityCounts",Collections.unmodifiableMap(rawQualityCounts));
+            projection.put("diagnosticLimit",diagnosticLimit);projection.put("retainedDecisions",retainedClassDecisions);projection.put("omittedDecisions",omittedClassDecisions);
+            evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));attributeEvidence=Collections.unmodifiableMap(evidence);
             segments=Collections.unmodifiableList(built);decisions=Collections.unmodifiableList(ds);blockers=Collections.unmodifiableList(bs);
         }
         public String routeId(){return routeId;}
@@ -252,8 +278,8 @@ public final class YandexNativeAdapter {
     private static final class NativeLink implements NativePath.Link {
         final double begin,end;final int length,roadClass,formway,type,lanes,direction,ownership;final BigInteger id;
         final String name;final int lightCount;final NativeEnums.Action action;final int[] lons,lats;final double[] scalars;
-        NativeLink(double b,double e,int len,BigInteger identity,int t,int form,String n,int tl,NativeEnums.Action act,double[][] geometry){
-            begin=b;end=e;length=len;id=identity;roadClass=NativeEnums.ROAD_NULL;formway=form;type=t;
+        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,String n,int tl,NativeEnums.Action act,double[][] geometry){
+            begin=b;end=e;length=len;id=identity;this.roadClass=roadClass;formway=form;type=t;
             lanes=0;direction=0;ownership=NativeEnums.OWNERSHIP_ERROR;
             name=n==null?"":n;lightCount=tl;action=act;lons=new int[geometry.length];lats=new int[geometry.length];scalars=new double[geometry.length];
             for(int i=0;i<geometry.length;i++){scalars[i]=geometry[i][0];lons[i]=units(geometry[i][1]);lats[i]=units(geometry[i][2]);}
@@ -267,6 +293,14 @@ public final class YandexNativeAdapter {
         public List<NativePath.IntPoint> getPoints(){List<NativePath.IntPoint> out=new ArrayList<>();for(int i=0;i<lons.length;i++)out.add(new NativePath.IntPoint(lons[i],lats[i]));return out;}
     }
     private static FieldDecision d(String f,String s,String m,String a,FieldDecision.Kind k){return new FieldDecision(f,s,m,a,k);}
+    /** Independent official functional grouping -> named AutoSDK classes. Category 1 remains
+     * ambiguous between Freeway=0 and CitySpeedway=6; the test policy chooses 6 explicitly. */
+    private static int projectRoadClass(RouteAttributes.RendererClass raw,RoadClassPolicy policy){
+        if(policy!=RoadClassPolicy.EXPERIMENTAL_FUNCTIONAL)return NativeEnums.ROAD_NULL;
+        Integer category=raw.functionalClass();if(category==null)return NativeEnums.ROAD_NULL;
+        return category==1?NativeEnums.ROAD_CITY_SPEEDWAY:category<=4?NativeEnums.ROAD_MAIN
+                :category<=6?NativeEnums.ROAD_SECONDARY:NativeEnums.ROAD_COMMON;
+    }
     private static boolean contains(List<double[]> ranges,double at){if(ranges!=null)for(double[] r:ranges)if(at>=r[0]&&at<r[1])return true;return false;}
     private static boolean finiteNonnegative(double v){return Double.isFinite(v)&&v>=0;}
     private static boolean coordinateValid(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&lon>=-180&&lon<=180&&lat>=-90&&lat<=90;}
