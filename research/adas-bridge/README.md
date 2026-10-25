@@ -8,8 +8,8 @@ feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
 emulator; car builds also collect passive evidence. This branch replaces the
 product sender with `stocknative`. Candidate 15 passed stationary route receipt
-on 2026-10-25. Candidate 20 is installed but failed route acceptance; candidate 21
-corrects the live-discovered input timestamp defect, with separate evidence below. Build 14 and its experiment variants
+on 2026-10-25. Candidate 21 is now installed and passed two same-arm stationary
+route selections, continuous output and graceful closure; see the receipt below. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -23,8 +23,8 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 15 installed; stationary same-path ACK 200 and 126 s output observed; drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
-| Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | 20 installed; stop verified, route blocked; 21 validation pending | [Candidate 19](#coordinate-and-road-data-candidate-19) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 21 installed; two same-arm stationary ACK 200 routes and graceful closure; drive pending | [Product milestone](#product-milestone-and-bench-freeze) |
+| Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | 21 installed; two routes accepted, 152 positions, original terminal 100 and closed endpoints verified | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests + one stationary route accepted; moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
 | Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
@@ -235,7 +235,8 @@ owner-driven test after the completed stationary receipt check.
 ### Pre-drive corrections: candidate 18
 
 This is a local product correction, not another measurement phase or a vehicle
-acceptance claim. Candidate 15 remains the last installed version. Build 18
+acceptance claim. At that checkpoint candidate 15 was the last installed version;
+candidate 21 is now installed as recorded below. Build 18
 uses a new version code (`739494318`); it must be paired with its new gate reader.
 Artifacts and validation receipts are under
 `captures/stock-sender-parity-20261025/product/`, with the final identities in
@@ -425,6 +426,72 @@ The trip analyzer successfully retains this arm and reports one malformed
 historical line with embedded NUL bytes; that earlier corruption has no established
 cause and is not silently treated as valid evidence.
 
+#### Candidate 21 stationary acceptance (2026-10-25)
+
+Installed `29.8.1-YandexHUD.21` / `739494321`, APK SHA-256
+`c515b5faa4f1452245016eef80cfe8dae1e30909c13024064beed10872e63cbc`.
+The installed APK matched the built artifact; all 176 module source hashes
+matched its build report. Product code is `e8ae37cb`; host analysis subsequently
+changed without changing the APK. Reader 20 is paired by its exact artifact and
+four source hashes. Final local checks: 48 JUnit tests with retained original
+corpus, 116 runtime + 66 session + 400 passive-Binder + 29 observed-vector
+assertions, and the host suite recorded in `product/host21-final.log`.
+
+The owner-authorized stationary arm used fixed
+`NATIVE_GCJ_UNRESTRICTED_CANDIDATE`, with measured vehicle speed 0 and the legacy
+park predicate 1 before and after. Two destinations offered by Navigator were
+started through its UI, with ordinary cancellation between them. Both native
+routes used wire type 1 and obtained explicit same-path status 200:
+
+| Native path | Links | ACK after selection | Observed route-to-terminal window |
+| --- | ---: | ---: | ---: |
+| 1792940201431 | 14 | 103 ms | 88.446 s |
+| 1792940408939 | 53 | 65 ms | 52.248 s |
+
+Route publication preceded position in both cases. First positions preceded the
+ACK (19/27 ms after publication, with ACK at 110/81 ms): the original sender's
+`onLocInfoUpdate → P → H0 → sendBundle` path has no ACK gate. The product preserves
+its route/progress-before-location queue barrier. An extra wait for ACK would
+change the factory policy; this conclusion is source-backed, not an additional
+emulator experiment.
+
+The same process and arm handled both routes. The journal contains 152 positions,
+all on the corresponding path, at about 1 Hz, with no position interval over
+2.5 s. TrafficInfo and TrafficLight also have 152 outputs; lanes ahead retain
+the original 10 s timer. No callback drops, post failures, task failures or
+process restarts were observed. The crash buffer is empty. Cancelling a route
+kept the arm available for the next route. Final host restore while the second
+route was active sent original terminal status 100, then closed both endpoints
+and removed the arm. This is cancellation/stop evidence; arrival's 110×3 → 100
+sequence remains covered locally, not exercised by pretending the parked car
+arrived. `lastActualSendElapsedMs` stayed unchanged for at least 59 s after stop.
+The rollback ledger is RESTORED and the stock map's original disabled-user state
+was preserved. Navigator was left with no active route; the next drive needs a
+fresh arm.
+
+The raw-vector fallback really reached the native inputs. The first route used
+19 observed tiles and had class evidence for 4/14 links (10 unknown); the second
+had 21/53 known (32 unknown). All current-position TrafficInfo outputs had class9.
+This is partial observed coverage, not full-route coverage. Administrative codes,
+ownership, historical speed and continuous lane count remain unresolved; no city
+whitelist substitution or universal favorable road value was introduced. Moving
+reroute recovery, NOA eligibility and sustained CNOA still require a real drive.
+
+Evidence is local and ignored under `product/live21/`: `acceptance.json`,
+`final/` (raw files with hashes), `final-report/review.{json,md}`,
+`restore-result.json` and `after-ui-cleanup.json`.
+The native analyzer now uses actual route publication/terminal boundaries and
+recognizes static ownership `Integer.MIN_VALUE` as unknown. One malformed
+historical line in the overall retained journal predates this arm; it is reported
+separately and is not evidence of a failure in this stationary session.
+
+For the first drive, keep the tested native coordinate frame fixed and use the
+same local streets. Record actual CNOA activation and retention, route identity,
+position cadence and the raw exit-reason getter together. Raw quit value 0 was
+read on the parked car; its enum meaning and freshness are not yet established.
+The control WGS84 and per-route alternation remain available for a subsequent
+comparison, rather than changing this candidate's first-drive condition.
+
 The coordinate recommendation is retained at
 `captures/stock-sender-parity-20261025/RECOMMENDATION-20261025.md`.
 Its build-15 correction is accepted: that recorded drive also used WGS84.
@@ -610,8 +677,9 @@ three Android queues and transport are separate integration responsibilities.
 `fieldDecisions()` and retained attribute evidence are logged for each route.
 The default `Policy.STRICT` rejects native road booleans whose source is
 unavailable. The experimental product selects the owner-authorized
-`Policy.EXPLICIT_FALSE`: missing road booleans become explicit test assumptions.
-Known signal positions are preserved. Neither policy claims that false improves
+`Policy.TEST_ROAD_DATA`: missing road booleans retain the explicit test assumptions
+of `EXPLICIT_FALSE`, with the typed experimental road-class projection described
+above. Known signal positions are preserved. No policy claims that false improves
 NOA eligibility. Invalid geometry, incompatible sections and overflowing native
 distances are rejected; missing current progress, ETA or required fix data
 omits the corresponding callback instead of fabricating zero values.

@@ -6,9 +6,11 @@ variant/golden tests remain historical research, not product acceptance.
 The original-APK laboratory is frozen; the next milestone is a first trip.
 Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
 Candidates 18–21 add pre-drive corrections, explicit coordinate-frame selection
-and approximate typed road-class projection. Candidate 20 is installed; its
-reader and original terminal stop passed, but route admission failed on a
-pre-read/post-read timestamp comparison. Candidate 21 corrects that defect.
+and approximate typed road-class projection. Candidate 21 is installed and
+passed two same-arm parked route selections (explicit ACK 200), 152 positions
+at about 1 Hz and original terminal status 100 followed by closed endpoints.
+The real reader-size and readiness-timestamp defects exposed by candidates
+19/20 are corrected. The test arm was removed; a fresh arm is needed for a drive.
 Exact APK/reader pins and separate vehicle receipts live under
 `captures/stock-sender-parity-20261025/product/candidate*.json` and `live*/`.
 Moving NOA engagement and retention remain untested.

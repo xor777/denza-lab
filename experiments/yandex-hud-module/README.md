@@ -6,10 +6,11 @@ limitations are recorded in the [product milestone](../../research/adas-bridge/R
 and [field table](../../research/adas-bridge/README.md#product-adapter-field-table).
 Candidate 15 passed stationary same-path ACK 200 and 126 s of dynamic output.
 Candidates 18–21 add pre-drive fixes, remove the legacy sender from the APK,
-and select a fixed coordinate frame or route-ID alternation. Candidate 20 is
-installed; its reader and terminal stop passed, while route admission exposed
-a timestamp defect corrected in candidate 21. The first coordinate test uses
-fixed native mode. Exact artifact pins and separate stationary receipts are
+and select a fixed coordinate frame or route-ID alternation. Candidate 21 is
+installed: two same-arm routes obtained ACK 200, 152 positions went out at about
+1 Hz, and terminal 100 preceded endpoint closure. The parked check used fixed
+native mode. Its arm is now removed and Navigator has no active route.
+Exact artifact pins and separate stationary receipts are
 under `captures/stock-sender-parity-20261025/product/`.
 Local checks and vehicle acceptance remain separate; moving NOA is unproved.
 
