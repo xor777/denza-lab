@@ -52,6 +52,7 @@ final class AdasBridge {
     private final YandexOfflineMapSource offlineMaps;
     private final YandexOfflineCachePath offlinePath = new YandexOfflineCachePath();
     private final YandexOfflineAttributes offlineAttributes = new YandexOfflineAttributes();
+    private final ObservedVectorRouteAttributes observedAttributes = new ObservedVectorRouteAttributes();
     private String attributesAppliedKey;
     private long offlineReportedAt;
     private final FixFreshness.Tracker fixes = new FixFreshness.Tracker();
@@ -188,6 +189,7 @@ final class AdasBridge {
                 if (o.routeId == null || o.mode.equals("off")) {
                     graphRoute = null; graphGeneration = -1; vectorGeneration = -1; currentRoads=null;
                     attributesAppliedKey = null;
+                    observedAttributes.clear();
                 } else if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
                     GraphTileCache.Snapshot graph = YandexGraphSource.snapshot();
                     VectorRoadTileCache.Snapshot vectors = YandexVectorSource.snapshot();
@@ -219,7 +221,10 @@ final class AdasBridge {
                     // an invented full-coverage percentage. Partial results keep explicit gaps.
                     if (!attributes.settled) o.route = null;
                     else {
-                        graphRoute.additionalAttributes = attributes.attributes;
+                        dev.denza.adaslink.RouteAttributes selected=attributes.attributes;
+                        if(selected==null)selected=observedAttributes.prepare(graphRoute,o.routeEpoch,o.offlineGeometrySha256,
+                                YandexVectorSource.snapshot(),String.valueOf(attributes.status.get("reason")));
+                        graphRoute.additionalAttributes = selected;
                         String key = o.routeEpoch + "|" + o.offlineGeometrySha256;
                         if (!key.equals(attributesAppliedKey)) { o.route = graphRoute; attributesAppliedKey = key; }
                     }
@@ -230,8 +235,12 @@ final class AdasBridge {
                 live.observe(o,fix,currentRoads);
                 if (offlineStatus != null)
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-offline-map-status.json"), offlineStatus);
-                if (offlineStatus != null)
-                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-yandex-route-vector-status.json"), attributes.status);
+                if (offlineStatus != null) {
+                    Map<String,Object> status=new java.util.LinkedHashMap<>(attributes.status);
+                    if(graphRoute!=null&&graphRoute.additionalAttributes!=null)
+                        status.put("selectedAttributes",graphRoute.additionalAttributes.summary());
+                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-yandex-route-vector-status.json"), status);
+                }
                 if(graphSummary!=null) {
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(),"denza-yandex-graph-route.json"),graphSummary);
                 }

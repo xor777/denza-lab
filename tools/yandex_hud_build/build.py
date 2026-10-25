@@ -140,9 +140,7 @@ def main():
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
          *sorted((link/'dev/denza/hudlink/camera').glob('*.java')),
-         ROOT/'libraries/adas-link/src/main/java/dev/denza/adaslink/FixFreshness.java',
-         *[ROOT/'libraries/adas-link/src/main/java/dev/denza/adaslink'/(name+'.java')
-           for name in ('VectorRoadTile', 'VectorRoadTileCache', 'RouteVectorTilePlan')],
+         *product_adas_sources(),
          camera_tests/'CameraTest.java', camera_tests/'StockCameraTest.java',
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
          package/'StockHudSymbols.java', package/'RouteSnapshot.java', package/'GuidanceSnapshot.java', package/'TrafficSignalSnapshot.java',
@@ -150,6 +148,7 @@ def main():
          package/'YandexVectorPrefetch.java',
          package/'YandexRouteVectorSource.java',
          package/'YandexOfflineInventory.java',
+         package/'ObservedVectorRouteAttributes.java',
          package/'EvidencePolicy.java', package/'DriveEvidenceLog.java', package/'DriveEvidenceStreams.java', package/'AdasStateJournal.java',
          # The ADAS status overlay's plain-Java part: wire, observations, rules, figures.
          *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits', 'CallbackQueue')],
@@ -167,6 +166,7 @@ def main():
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexVectorPrefetchTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexRouteVectorSourceTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexOfflineInventoryTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ObservedVectorRouteAttributesTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.GuidanceSnapshotTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.TrafficSignalSnapshotTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.EvidencePolicyTest'])

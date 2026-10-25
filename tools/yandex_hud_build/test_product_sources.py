@@ -28,6 +28,18 @@ class ProductSourceClosure(unittest.TestCase):
             verify_product_classes(entries)
             self.assertTrue(entries)
 
+    def test_observed_raw_vector_fallback_product_input(self):
+        java = Path(os.environ.get('JAVA_HOME', '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home'))
+        module = ROOT / 'experiments/yandex-hud-module/src'
+        with tempfile.TemporaryDirectory() as out:
+            subprocess.run([str(java / 'bin/javac'), '--release', '8', '-encoding', 'UTF-8', '-d', out,
+                            *map(str, product_adas_sources()),
+                            str(module/'main/java/dev/denza/hud/probe/ObservedVectorRouteAttributes.java'),
+                            str(module/'test/java/dev/denza/hud/probe/ObservedVectorRouteAttributesTest.java')],
+                           check=True, capture_output=True, text=True)
+            subprocess.run([str(java/'bin/java'), '-cp', out, 'dev.denza.hud.probe.ObservedVectorRouteAttributesTest'],
+                           check=True, capture_output=True, text=True)
+
 
 if __name__ == '__main__':
     unittest.main()
