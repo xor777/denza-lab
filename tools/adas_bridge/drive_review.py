@@ -874,6 +874,8 @@ def _release(drive, clock, paths, sequences, stop_t, end, end_statuses):
     covering = [r["_t"] for s in (drive.packets, drive.journal, drive.progress) for r in s
                 if r["_t"] is not None and r["_t"] > finish and r.get("kind") in ("adas_passive_packet", "adas_passive_repeat", "adas_state")]
     result = {"heldPathId": held, "after": at(finish, None, clock), "laterAnswersOnOurPaths": len(later),
+              "receiverReleaseProved": False,
+              "definition": "released is a legacy summary of absent late selected/pathMatch answers during passive coverage; it does not prove internal ECU path release",
               "answers": capped([{"kind": a["kind"], "pathIds": a["pathIds"], "status": a["status"], "elapsedMs": a["t"],
                                   "wall": clock.wall(a["t"]), "ref": a["ref"]} for a in later], 50),
               "passiveCoverageUntil": at(max(covering), None, clock) if covering else None}
@@ -1639,6 +1641,7 @@ def review(root, tz_hours=3, arm_id=None):
         s.pop("_window", None)
     return {"schema": SCHEMA, "evidence": str(root), "clock": clock.describe(), "attribution": drive.attribution,
             "inventory": evidence.inventory, "parseErrors": capped(evidence.parse_errors, 100),
+            "parseErrorCount": len(evidence.parse_errors),
             "sessions": sessions_out, "paths": paths_out, "cadence": cadence_out, "pausesAndGaps": pauses_out,
             "semantics": semantics_out, "adasState": adas_out, "sideChannels": side_out, "health": health_out,
             "missing": sorted(set(drive.missing))}, clock
@@ -1698,8 +1701,8 @@ def markdown(result, clock):
         held = rel.get("heldPathId")
         lines.append("  Конечные статусы стока: %s%s. Ответы ADAS (выбор/PathMatch) о нашем пути после конца: %s%s." % (
             _yes(es.get("sent")), " (" + ", ".join(map(str, es.get("values") or [])) + ")" if es.get("values") else "",
-            {True: "нет" + (" — путь отпущен" if es.get("sent") else ""),
-             False: "есть, %d — путь не отпущен" % rel.get("laterAnswersOnOurPaths", 0),
+            {True: "не записаны (внутреннее состояние пути в ECU не измерено)",
+             False: "записаны, %d (внутреннее состояние пути в ECU не измерено)" % rel.get("laterAnswersOnOurPaths", 0),
              None: "неизвестно"}[rel.get("released")],
             " (но без конечных статусов путь %s мог остаться у ADAS)" % held if held and es.get("sent") is False else ""))
         if s.get("resumedArms"):
@@ -1812,6 +1815,12 @@ def markdown(result, clock):
             cb.get("droppedOldest"), cb.get("postFailures"), cb.get("taskFailures")))
     if h["recorderLosses"]:
         lines.append("- Потери записи: " + ", ".join("%s %s" % kv for kv in h["recorderLosses"].items() if kv[1]) + "." if any(h["recorderLosses"].values()) else "- Потерь записи нет.")
+    parse_errors = result.get("parseErrors") or []
+    if parse_errors:
+        first = parse_errors[0]
+        ref = str(first.get("file", "?")) + (":" + str(first["line"]) if "line" in first else "")
+        lines.append("- Ошибок разбора общей выгрузки: %d (первая `%s`). Это отдельно от счётчиков потерь записи; повреждённые строки не приписываются выбранному arm." % (
+            result.get("parseErrorCount", len(parse_errors)), ref))
     for ring in h["rings"]["streams"]:
         if ring.get("lostDriveStart"):
             lines.append("- Кольцо %s начинается через %s после начала поездки — начало потеряно." % (

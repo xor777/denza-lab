@@ -587,6 +587,35 @@ class StockNativeCapture(unittest.TestCase):
 
 
 class StockNativeJournal(unittest.TestCase):
+    def test_no_late_answers_does_not_claim_internal_ecu_path_release(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-release", 2000, 222)
+            car.passive(3500, review.PILOT, pilot(0, 0))
+            result, clock = review.review(car.write())
+            release = result["sessions"][0]["release"]
+            self.assertEqual(release["laterAnswersOnOurPaths"], 0)
+            self.assertFalse(release["receiverReleaseProved"])
+            text = review.markdown(result, clock)
+            self.assertNotIn("путь отпущен", text)
+            self.assertIn("внутреннее состояние пути в ECU не измерено", text)
+
+    def test_historical_corrupt_row_is_visible_separately_from_selected_arm_recorder_losses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "native-clean", 2000, 222)
+            car.write()
+            path = car.files / "denza-adas-live.jsonl"
+            path.write_bytes(b'{"kind":"input","input":"historical\x00broken"\n' + path.read_bytes())
+            result, clock = review.review(tmp)
+            text = review.markdown(result, clock)
+            self.assertEqual(result["attribution"]["armId"], "native-clean")
+            self.assertEqual(result["semantics"]["positions"]["sent"], 2)
+            self.assertEqual(result["parseErrorCount"], 1)
+            self.assertIn("Ошибок разбора общей выгрузки: 1", text)
+            self.assertIn("denza-adas-live.jsonl:1", text)
+            self.assertIn("повреждённые строки не приписываются выбранному arm", text)
+
     def test_full_native_arm_uses_transport_windows_without_legacy_variant_or_navstop_claims(self):
         with tempfile.TemporaryDirectory() as tmp:
             car = Car(tmp)
