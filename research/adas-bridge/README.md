@@ -20,8 +20,9 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, an opt-in `StockSender` product path with the legacy path retained, build and stationary route receipt before the drive | owner decision, 2026-10-25; implementation next | [Product milestone](#product-milestone-and-bench-freeze) |
-| Yandex → AutoSDK has a separate field-policy boundary: source, conversion, validity/scope and a source-proven unknown per field. Synthetic identifiers/geometry and declared enum approximations are distinct from road facts. Current decisions remain distributed; consolidating them is an implementation target, not a completed adapter refactor | contract; implementation open | [Adapter contract](#literal-sender-boundary-and-adapter-contract) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | owner decision, 2026-10-25; implementation underway | [Product milestone](#product-milestone-and-bench-freeze) |
+| Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Twelve independent adapter tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | local code + independent input tests; vehicle untested | [Product adapter field table](#product-adapter-field-table) |
+| Saved phase-1 inputs run directly through `NativeRouteSerializer`: start-arrival and the first reroute path match exactly; the second reroute path differs in five adminCode/laneNum fields. These snapshots do not establish the getters consumed by the original sender | 2/3 paths equal; full sender comparison unsupported from phase 1 | [Retained phase-1 native comparison](#retained-phase-1-native-comparison) |
 | Historical phase-1 `StockFeed` comparison: the original 3,122-byte route JSON and 154/183 dynamic payloads matched. The legacy bridge is the object tested here, not the reference or acceptance target for `stocknative` | historical code measurement | [Measured comparison](#measured-startarrival-comparison) |
 | Historical phase-1 original-input bench replays original APK getters/callbacks into `StockFeed`. Its remaining differences diagnose that legacy path; neither its expected values nor its passing tests accept the new factory core | historical diagnostic tool | [Original sender parity](#original-sender-parity-2026-10-25) |
 | `ADAS_NOA_QUIT_PROMPT`, device 1038 / FID `0x1FF0201C`, has a retained read-only stationary raw-0 reply. Value meaning, event publication and freshness are unknown; reading it does not yet explain a NOA exit | open | [Exit-reason diagnostic](#exit-reason-diagnostic-candidate) |
@@ -125,8 +126,10 @@ and stopping condition. Missing coverage remains a stated limitation, not a
 reason to continue open-ended measurement work.
 
 The next implementation is one Yandex-to-AutoSDK adapter module with a field
-table (source, AutoSDK meaning, conversion, absence), then `StockSender` behind
-an explicit product switch while retaining the old path. The milestone is a
+table (source, AutoSDK meaning, conversion, absence), then a complete replacement
+of the active product sender by `StockSender`. The owner explicitly withdrew the
+initial switch/legacy-fallback proposal: rollback belongs to Git and the previous
+APK, not a second runtime path. The milestone is a
 built candidate, stationary route receipt and a first owner-driven trip. No
 emulator result establishes that NOA will remain active.
 
@@ -135,7 +138,39 @@ product dependencies. Host tracing must be optional and must not affect
 production state or scheduling. Commit the current core, laboratory tooling and
 findings separately before integration. Preserve original names for this parity
 checkpoint; readability cleanup is a separate change after reference behavior
-has been fixed. The adapter consolidation remains required implementation.
+has been fixed. The product input policy is now consolidated in `yandexnative`;
+its field table and remaining source limitations are recorded below.
+
+For the experimental candidate the owner prioritizes the first test over clean
+absence semantics. `EXPLICIT_FALSE` is a named adapter test policy for native
+road booleans with no unknown representation. Its substitutions must be logged
+as assumptions, never as Yandex observations or demonstrated NOA-enabling
+conditions. Numeric enum mappings still require source evidence; unsupported
+native enums remain their SDK NULL values. The factory core is unchanged by
+this adapter policy. Computer vision being another ADAS input does not establish
+how the receiver uses these map hints.
+
+### Retained phase-1 native comparison
+
+`tools/adas_bridge/sender_parity/phase1_native.py` reuses saved original-APK
+path snapshots and compares only the computed inner route JSON, without
+`StockFeed`. The three focused runner tests pass. Evidence lives under
+`captures/stock-sender-parity-20261025/phase1-native/`:
+
+| Retained scenario | Direct native serializer result |
+| --- | --- |
+| `start-arrival-02`, path 100002 | EQUAL, 3,002 inner-JSON bytes |
+| `reroute-02`, path 100002 | EQUAL, 19,673 bytes |
+| `reroute-02`, path 100003 | DIFFERENT, 20,460 bytes; first difference at byte 2,249 |
+
+The last path has original `adminCode=110102` versus snapshot input `110000`
+on links 0/1, and original `laneNum=4` versus snapshot input `0` on links 0/1/2.
+The port is not adjusted to those expected outputs. A pre-send snapshot may
+differ from a getter consumed later; these retained phase-1 recordings cannot
+distinguish that input change from a port defect. Reports mark the scope
+`PATH_SERIALIZATION_ONLY` and full-sender replay `UNSUPPORTED`: consumed reads,
+clocks, timer occurrences and helper replies are absent. This bounded result
+does not reopen phase 2 or establish full equivalence.
 
 ### Literal sender boundary and adapter contract
 
@@ -145,7 +180,8 @@ Its finite scope is the original supplier-1 / SOME-IP-v1 sender: `e0/f0`,
 cache. Native SDK getters, preference storage, resources and the bound
 transport are explicit environment interfaces. The original sender owns its
 mutable beans, callback wrappers, timers and navigation lifecycle. The
-existing Yandex `StockFeed` is not switched to this core by this work.
+historical Yandex `StockFeed` remains a diagnostic object. The product integration
+uses `StockSender` directly; no legacy sender fallback is selected on this branch.
 
 The phase-2 recorder captures **actual original reads**, not a second traversal
 of a native path before conversion. Each read has an entry and a completion,
@@ -236,16 +272,17 @@ enum integer verbatim is not a conversion rule.
 Stable session/path/link identifiers and geometry segmentation are necessary
 adapter constructions. Identify them as synthetic identities or derived
 geometry, distinct from physical road facts and factory topology IDs. The
-existing `field-contract-20261024.json` registry and `FieldDefaults` are useful
-starting points, but field decisions still span the converter, driver, feed,
-offline/graph readers and experiment overrides. The implementation target is
-one auditable adapter module backed by the field table and independent input
-fixtures. This port does not yet consolidate that adapter or validate its
-road semantics.
+existing `field-contract-20261024.json` registry and `FieldDefaults` describe
+the historical bridge. The production input module is now
+`dev.denza.adaslink.yandexnative.YandexNativeAdapter`, with independent input
+invariant tests and the [product field table](#product-adapter-field-table).
+It does not call `RouteConverter`, `StockFeed`, `NavigatorDriver` or
+`ExperimentVariant`. This consolidation does not validate the receiver's road
+semantics or establish vehicle acceptance.
 
-The adapter audit against committed `3bb6089c` covers 71 field decisions in 21
-tracked files. The compact implementation map below is a starting point for
-consolidation, not a blanket approval of present defaults. Exact rows and file
+The historical adapter audit against committed `3bb6089c` covers 71 field
+decisions in 21 tracked files. The compact implementation map below describes
+that earlier distribution, not the new adapter or approval of its defaults. Exact rows and file
 hashes are retained in
 `captures/stock-sender-parity-20261025/phase2/inventory/adapter-field-audit.md`
 and `adapter-field-audit-files.json`.
@@ -278,7 +315,168 @@ baseline. The bench uses the already extracted original APK (SHA-256
 `3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793`),
 factory Beijing data, a dedicated ARM64 emulator and the existing explicit
 AOSP/BYDAuto/transport fixture. Original code executes in ART; no new car
-commands, product APK, live publisher or vehicle acceptance are involved.
+commands or vehicle acceptance are involved in the laboratory results. The
+product candidate and its separate acceptance are described above.
+
+### Product adapter field table
+
+The product adapter owns one immutable route partition and builds fresh
+`NativeModels.NaviInfo` and `LocInfo` inputs from current observations. It owns
+no sender packet, ACK, timer or mutable sender bean. Product lifecycle, the
+three Android queues and transport are separate integration responsibilities.
+`fieldDecisions()` and retained attribute evidence are logged for each route.
+The default `Policy.STRICT` rejects native road booleans whose source is
+unavailable. The experimental product selects the owner-authorized
+`Policy.EXPLICIT_FALSE`: missing road booleans become explicit test assumptions.
+Known signal positions are preserved. Neither policy claims that false improves
+NOA eligibility. Invalid geometry, incompatible sections and overflowing native
+distances are rejected; missing current progress, ETA or required fix data
+omits the corresponding callback instead of fabricating zero values.
+
+Evidence abbreviations below: **YR** is `YandexRoute.java` and its
+`denza-yandex-driving-route-v1` source snapshot; **A** is the new
+`yandexnative/YandexNativeAdapter.java`; **SDK** is the pinned original APK's
+`com/autonavi/gbl/common/path/model` or `guide/model` class named in the row;
+**L** is original `k/h/e0/d/f/l.java` (`b` consumes link getters, `y/r` support
+ungrouped paths); **P/v0** are original `k/h/a0/c/c/a/e0.java` processing
+methods. `LinkItem` means original
+`com/byd/noa/plan/data/sdroute/LinkItem.java`. A model default is not automatically
+an SDK unknown or a receiver-accepted sentinel. The factory APK hash remains
+`3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793`.
+
+| Native path input | Source and meaning / conversion | Missing value, quality and evidence |
+| --- | --- | --- |
+| `Path.getPathID` | Product route-epoch ID | Synthetic transport identity, not Yandex or Amap topology; A |
+| `Path.getSegmentCount` | Number of adapter sections | Derived partition; gaps/overlap rejected; A |
+| `Path.getSegmentInfo` | Segment in that same partition | `null` outside valid indices; A |
+| `Path.getGroupSegmentCount` | Adapter deliberately uses ungrouped paths | `0` is a chosen representation, not a road fact; L.y/r |
+| `Path.getGroupSegment` | No groups in this representation | `null`; not consumed when count is zero; L.y/r |
+| `Path.getAllTrafficLights` | Reported YR light scalars interpolated onto WGS84 geometry | Known empty remains empty. Unavailable list is projected to empty only by the named test policy; not an observation of no signals; A |
+| `Path.getPathViaRoadInfo` | No compatible native way-road aggregate source | Empty unavailable-list projection. A Yandex waypoint does not supply native lane/speed aggregates; L.n |
+| `Path.isValid` | Structural/admission result | Adapter policy, never forced vehicle availability; A |
+| `Segment.getSegmentIndex` | Stable sequential section index | Derived and shared with guidance/location; A |
+| `Segment.getLinkCount` | Cuts at sections, retained attribute boundaries, structures and signal positions | Derived. Ordinary polyline vertices stay inside links; A |
+| `Segment.getLinkInfo` | Immutable link in the same table | `null` outside valid indices; A |
+| `Segment.getLength` | Sum of rounded link lengths | Derived WGS84 haversine metric; total native-int overflow rejected; A |
+| `Segment.getTravelTime` | YR section traffic time, else base time, rounded seconds | Unknown becomes model-default `0`, explicitly not observed zero time; L.a group-time accumulation |
+| `Segment.getMainAction` | Next section-entry action owns this section end | Explicit matching SDK `MainAction` names; unmapped instruction uses `MainActionNULL=0`; `NativeEnums` |
+| `Segment.getAssistantAction` | Same endpoint ownership; final route endpoint is FINISH | SDK `AssistantAction` named mapping, otherwise NULL `0`; `NativeEnums` |
+| `Segment.getTrafficLightNum` | Count of reported signal positions owned by this section | Derived; unavailable count `0` retains unavailable-source provenance; L.a/d |
+| `Link.get64TopoID` | SHA-256 of route ID, epoch, section/link and source endpoints | Synthetic positive signed-64 ID, stable for one published route; A |
+| `Link.getRoadClass` | Raw Yandex renderer class/fc evidence retained separately | `RoadClass.RoadClassNULL=-1`. Old functional `1..9→7/8/9` mapping is unproved and unused |
+| `Link.getRoadName` | Current YR section toponym | Empty string for unnamed/unreported road; no generated road name; A |
+| `Link.getLength` | Rounded cumulative-source-distance delta | Derived metres; L.b forwards this value |
+| `Link.getLinkType` | Reported containing tunnel range→`2`, ferry→`1` | SDK `LinkTypeNull=-1` otherwise. Not being tunnel/ferry does not establish common `0`: SDK also has bridge `3` and elevated `4` |
+| `Link.getFormway` | Explicit ENTER_ROUNDABOUT section→round circle `4` | SDK `FormayNULL=-1` elsewhere; renderer layers do not prove formway |
+| `Link.hasTrafficLight` | Reported light position at the link end; split there | Preserves source-known values. Unavailable source `false` is a named test assumption; L.b |
+| `Link.getLaneNum` | No continuous lane-count source | `LinkItem.laneNum` default `0`, forwarded literally by L.b; not a fact of zero lanes. Point lane-sign count is not substituted |
+| `Link.hasMultiOut` | No proved corresponding Yandex source | STRICT rejects; experimental `false` is an explicit unknown assumption, not observed absence; L.b |
+| `Link.getMainAction` | Endpoint action on its owning final link | SDK named mapping; `MainActionNULL=0` on other links; L.b/v0 |
+| `Link.getAssistantAction` | Same endpoint ownership | SDK named mapping; `AssiActionNULL=0` otherwise; L.b/v0 |
+| `Link.getAdcode` | No Yandex-to-Amap administrative namespace mapping | `LinkItem.adminCode` default `0`; literal L.b forwarding; not a Yandex region/package/ISO ID |
+| `Link.getOwnership` | No public/private-road source | SDK `Ownership.AUTO_UNKNOWN_ERROR=MIN_VALUE`; P explicitly maps that error to `-1`. Public `0` is not invented |
+| `Link.hasParallelRoad` | No verified equivalent source | STRICT rejects; experimental `false`. v0 transforms false→`2`, true→`1`, so false is not SDK unknown |
+| `Link.getRoadDirection` | Raw oneway acquisition evidence retained; native enum semantics unresolved | `LinkItem.direction` default `0`; literal L.b forwarding, not a proved two-way fact. Old converted `0/1` is not consumed |
+| `Link.hasMixFork` | No verified equivalent source | STRICT rejects; experimental `false`. v0 transforms false→`2`, true→`1` |
+| `Link.getURID` | No source in Amap city-URID namespace | Unknown model-default `0`; not a Yandex region identifier; original ODD getter consumer |
+| `Link.getPoints` | Original WGS84 vertices plus interpolated interval endpoints | Derived `round(degrees×3600000)` grid. No GCJ experiment; equality with Amap's coordinate frame is unproved; L.o |
+
+`RouteAttributes` is reused for source acquisition cuts and retained evidence.
+Its existing preconverted class/direction numbers are deliberately not consumed:
+the old bridge's decision is not proof of a native enum conversion. No new
+road class, continuous lane count, ownership or speed is guessed from renderer
+levels, a graph edge, neighbouring roads or an old trip. The synthetic link
+partition is shared by static getters and dynamic callbacks.
+
+| Route-result input | Source / meaning | Missing value and evidence |
+| --- | --- | --- |
+| `getPathInfos` | One selected adapted path | Fresh `ArrayList` retaining that path identity; original k.f casts to ArrayList |
+| `getFocusIndex` | Only path in this result | `0`, derived single-path representation |
+| `getRequestId` | Product route epoch/request identity | Synthetic, not a native request recovered from Yandex |
+| `getRouteType` | Driver's explicit route-event type | Forwarded without copying a legacy route-state policy |
+| `getToPOI` | No compatible native POI ID namespace | `null`; Yandex route ID is not an AVP POI; original k.b skips lookup for null POI |
+| `Poi.getId/getCreateID` | Not constructed by this adapter | Unreached for null ToPOI; no fabricated AVP ID |
+
+| Current callback field | Source and meaning / conversion | Missing value, quality and evidence |
+| --- | --- | --- |
+| `NaviInfo.pathID` | Published adapted path ID | Same synthetic identity as static route; v0 |
+| `NaviInfo.routeRemain.dist` | Remaining lengths in the same partition | Derived metres; absent/out-of-route scalar omits callback; A/v0 |
+| `NaviInfo.routeRemain.time` | Current Yandex time-to-finish | Rounded seconds; absent/invalid ETA omits callback, never NaN→0; A/v0.y |
+| `NaviInfo.routeRemainLightCount` | Reported light scalars after current position | Derived count; unavailable source uses labelled model-default `0`; SDK NaviInfo constructor |
+| `NaviInfo.linkRemainDist` | Current synthetic link end minus current metric position | Derived metres, coherent with static link lengths; v0 |
+| `NaviInfo.curSegIdx` | Current scalar in adapted section table | Derived; absent scalar is not replaced by index zero; A/v0 |
+| `NaviInfo.curLinkIdx` | Current scalar in that section's link table | Derived from the same published partition; A/v0 |
+| `NaviInfo.curPointIdx` | Current source vertex within that link geometry | Derived local index; original lookahead accepts but does not read this argument |
+| `NaviInfo.crossManeuverID` | Same upcoming action used by segment endpoint | Explicit SDK `ManeuverIconID` mapping; NULL `0` for unsupported/unreported instruction |
+| `NaviInfo.NaviInfoFlag` | Adapter provides one current panel | `0` selects it; derived representation, not a traffic status; v0 |
+| `NaviInfo.NaviInfoData` | One current segment panel | Fresh list, not a native SDK panel identity; A |
+| `NaviInfoPanel.segmentRemain.dist` | Remaining distance in current adapted segment | Derived metres; v0 reads this as action distance |
+| `NaviInfoPanel.segmentRemain.time` | Not consumed by the sender | Model-default `0`; not observed zero time; v0 reads only dist |
+| `NaviInfo.curLinkSpeed` | No proved historical-speed observation | Original SDK NaviInfo default `0`; v0 forwards as historySpeed. Yandex free-flow and jam speed are not substituted |
+| `LocInfo.isSimulate` | Actual observation's simulation flag | `1` makes original P return before other fields; no synthetic non-simulation fact |
+| `LocInfo.speed` | Current actual observed speed in m/s | ×`3.6` to SDK km/h float; missing speed omits matched callback, never stationary `0`; P casts to int |
+| `LocInfo.sourType` | No verified source-type enum mapping | SDK LocInfo constructor default `0`; P reads it only for logging |
+| `LocInfo.alt` | Actual altitude when supplied | Otherwise constructor-default `0`; P reads it only for logging, not ADAS state |
+| `LocInfo.gpsPos.lon/lat` | Separate raw platform GNSS observation | WGS84 doubles; raw absence omits matched callback, never copied from matched position; P/H0 |
+| `LocInfo.gpsPos.z` | No altitude contract for this source coordinate | Coord3DDouble default `0`, not consumed by P/H0 |
+| `LocInfo.matchInfo` | Current accepted guided match | Fresh one-element list; missing required match data omits callback; original P returns for empty/no match |
+| `LocMatchInfo.stPos.lon/lat` | Actual FINE Yandex matched position | WGS84 doubles, distinct from raw GNSS; P |
+| `LocMatchInfo.stPos.z` | No corresponding matched-altitude observation | Coord3DDouble default `0`, not consumed by P |
+| `LocMatchInfo.course` | Actual current heading | Normalized to `[0,360)`; missing heading omits callback; P casts to int |
+| `LocMatchInfo.roadCourse` | Current source geometry edge tangent | Derived bearing, not a measured native match course; P reads only for logging |
+| `LocMatchInfo.roadLen` | Current synthetic link length | Derived metres, not original native topology length; P reads only for logging |
+| `LocMatchInfo.roadClass` | Same current published link getter | SDK RoadClassNULL `-1`; no later graph-class overwrite; P |
+| `LocMatchInfo.formway` | Same current published link getter | SDK FormayNULL `-1` unless source roundabout; P |
+| `LocMatchInfo.linkType` | Same current published link getter | SDK LinkTypeNull `-1` unless reported tunnel/ferry; P uses tunnel type `2` |
+| `LocMatchInfo.ownership` | Same current published link getter | SDK AUTO_UNKNOWN_ERROR→original P normalizes to `-1` |
+| `LocMatchInfo.linkId` | Same current static synthetic link ID | Derived identity coherence, not native topology; P |
+
+Exact action mapping covers STRAIGHT, LEFT/RIGHT, SLIGHT/HARD turns, UTURN,
+roundabout entry/exit, ferry entry/exit, WAYPOINT and FINISH using the original
+named `MainAction`, `AssistantAction` and `ManeuverIconID` values. FORK/EXIT
+instructions are retained as unsupported NULL rather than guessed slight
+turns. The SDK has no separate leave-ferry maneuver icon, so that icon is NULL.
+Static `speedLimit=0`, route envelopes and serializer ownership normalization
+belong to the factory core, not a second adapter policy.
+
+| Product NativeEnvironment method | Actual source / behavior | Absence or limit |
+| --- | --- | --- |
+| `adasType` | Explicit supplier-1 core domain | `1` is selected implementation scope, not a measured vehicle getter |
+| `someIpV2` | Explicit classic SOME/IP-v1 domain | `false` is selected scope, not a forced service-availability observation |
+| `tipIsland` | Valid current gate snapshot raw FID 230686742 equals `2` | Invalid/missing stays unavailable in diagnostics; source NoaState.r / BydAutoNoaProxy.G |
+| `laneUi` | Actual cached `persist.sys.AutoType==210` | Missing/malformed property blocks environment readiness; original k.h.e0.g.n.a/b |
+| `noaConfigured` | Valid current snapshot DNP service gate | Missing/invalid does not become configured; original NoaState.q |
+| `isNaving` | Product driver's actual guidance lifecycle | No fabricated running SDK navigation state |
+| `isKD` | Exact original map `PRODUCT` metadata equals case-sensitive `kd` | Original CommonUtil.isTargetProject / BuildConfig; no variant knob |
+| `isMainThread` | Android current/main Looper identity | Actual platform observation |
+| `realSpeed` | Driver-admitted fresh original-compatible speed input | Missing/nonfinite throws; no silent zero. Vehicle and GNSS sources must remain distinguished by integration |
+| `lastLocation` | Last driver-supplied coordinate copy | `null` when absent; no sender-bean state supplied |
+| `startClientOrSubscribe` | Exact source-computed subscription map delegated to transport | No altered topics/map values |
+| `stopClient` | Exact source-computed map delegated to transport | No altered topics/map values |
+| `unSubscribe` | Exact source-computed map delegated to transport | No altered topics/map values |
+| `resetRouteSignals` | Local upstream receiver-state reset counter | Does not reset or overwrite factory sender beans |
+| `setAvpSupport` | Local upstream support state | Not evidence of AVP availability |
+| `hasMapDataService` | No bound Amap geocoder | `false`; no force-available service |
+| `getAdcodeByLonLat` | No matching administrative source | `-1`, not a Yandex region ID; unreachable when service absent |
+| `getTownAdcodeByLonLat` | No matching administrative source | `-1`; same absence boundary |
+| `getCityProvince` | No Amap city/province lookup | `null` |
+| `queryAppointLanesInfo` | No Amap GuideService | `-1`; no fake request or synthesized lane result |
+| `cachedOpenCityJson` | Product SharedPreferences `open_city_json` | Actual empty initial cache, not an invented open-city list |
+| `writeCachedOpenCityJson` | Writes that same product preference | Factory cache parser/retention remains in core |
+| `avpMapIds` | No compatible native POI mapping | Empty list, not fabricated AVP IDs |
+| `distanceBetweenPoints` | Android `Location.distanceBetween`, float metres | Explicit environment approximation: original LocationUtil delegates native BizLayerUtil; numerical equivalence unproved |
+| `setLeaveTunnelDist` | Stores local environment value supplied by core | No sender-bean injection |
+| `setEnterTunnelDist` | Stores local environment value supplied by core | No sender-bean injection |
+| `stringResource` | `NativeResources`, 18 exact original APK default/en strings | Original English NBSP/wording preserved; unknown name throws; other locales not represented |
+
+The new product currently adapts route results, progress and location. It does
+not reconstruct native camera, live-light-phase, weather, traffic-flow,
+incidents or lane-query callbacks from unrelated values. Yandex point-lane
+observations are not silently promoted to continuous lanes. These unavailable
+callback families, WGS84/native-frame uncertainty and model-default numeric
+interpretations remain product limitations. The independent adapter tests check
+source presence, units, indices, identity and unknown handling; their passing
+result is neither a new factory-output oracle nor proof of NOA operation.
 
 ### Independent input and output
 
