@@ -13,12 +13,14 @@ public final class AdasPassiveClientTest {
     private static final class Sink implements AdasPassiveClient.Sink {
         final ArrayDeque<Runnable> queue=new ArrayDeque<>(); final List<Long> topics=new ArrayList<>();
         final List<byte[]> payloads=new ArrayList<>(); final List<String> states=new ArrayList<>(); boolean admit=true;
+        List<Integer> cities; int cityUpdates;
         final List<Long> enqueuedTopics=new ArrayList<>(); int lifecycle;
         public boolean enqueue(Runnable task) { lifecycle++; return add(task); }
         public boolean enqueue(long topic,Runnable task) { enqueuedTopics.add(topic); return add(task); }
         boolean add(Runnable task) { if(!admit)return false; if(queue.size()>=1000)throw new AssertionError("Queue cap"); queue.add(task); return true; }
         public void state(String event,String detail) { states.add(event+":"+detail); }
         public void event(long topic,long stamp,long at,byte[] payload) { topics.add(topic); payloads.add(payload); }
+        public void oddRegionCodes(List<Integer> codes) { cities=new ArrayList<>(codes); cityUpdates++; }
         void drain() { int n=0; while(!queue.isEmpty()) { if(++n>1000)throw new AssertionError("Drain cap"); queue.remove().run(); } }
     }
     private static final class App extends Context {
@@ -36,6 +38,7 @@ public final class AdasPassiveClientTest {
         final Map<Integer,Integer> references=new HashMap<>(); final Map<Long,Integer> subs=new HashMap<>();
         final Set<Integer> available=new HashSet<>(Arrays.asList(13,44)); final List<Call> calls=new ArrayList<>();
         IBinder callback; int failStart=-1, queries, unregisters, oddRequests, oddResult; long failTopic=-1; boolean alive=true, availableHal=true, absentOddReply;
+        byte[] oddPayload = new byte[]{10,2,8,1,10,3,8,(byte)244,2};
         @Override public boolean isBinderAlive(){return alive;}
         static int service(long topic){return (int)((topic>>>32)&0xffff);}
         int refs(int id){return references.getOrDefault(id,0);}
@@ -60,7 +63,7 @@ public final class AdasPassiveClientTest {
                 oddRequests++;reply.writeNoException();reply.writeInt(oddResult);
                 reply.writeInt(1);reply.writeLong(topic);reply.writeLong(stamp);reply.writeInt(0);reply.writeByteArray(new byte[0]);
                 if(absentOddReply)reply.writeInt(0);
-                else{reply.writeInt(1);reply.writeLong(0x0003000D000D0002L);reply.writeLong(123);reply.writeInt(2);reply.writeByteArray(new byte[]{8,1});}
+                else{reply.writeInt(1);reply.writeLong(0x0003000D000D0002L);reply.writeLong(123);reply.writeInt(oddPayload.length);reply.writeByteArray(oddPayload);}
                 return true;
             }
             long value=data.readLong();int id=service(value),result=0;calls.add(new Call(tx,value));
@@ -179,10 +182,13 @@ public final class AdasPassiveClientTest {
         Fixture f=new Fixture(true);
         check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==0,"No query before readiness");
         f.start();check(f.client.requestOddRegionCodes()==0&&f.hal.oddRequests==1,"Actual Binder codec receives ODD response");
-        check(f.sink.states.stream().anyMatch(s->s.startsWith("odd_region_response:")&&s.contains("payloadBase64=CAE=")),"Raw response retained");
+        check(f.sink.states.stream().anyMatch(s->s.startsWith("odd_region_response:")&&s.contains("payloadBase64=CgIIAQoDCPQC")),"Raw response retained");
+        check(f.sink.cities.equals(Arrays.asList(1,372)) && f.sink.cityUpdates==1,"Decoded actual response reaches typed SDK boundary");
         f.hal.oddResult=11;check(f.client.requestOddRegionCodes()==11,"Nonzero SDK result is preserved");
         f.hal.oddResult=0;f.hal.absentOddReply=true;check(f.client.requestOddRegionCodes()==-200,"Absent response is not a successful read");
-        f.client.close();check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==3,"Closed client never queries");
+        f.hal.absentOddReply=false;f.hal.oddPayload=new byte[]{10,5,8};
+        check(f.client.requestOddRegionCodes()==-200&&f.sink.cityUpdates==1,"Malformed response preserves previous city cache");
+        f.client.close();check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==4,"Closed client never queries");
     }
     private static void coreMaps()throws Exception {
         App app=new App();Sink sink=new Sink();Hal hal=new Hal();

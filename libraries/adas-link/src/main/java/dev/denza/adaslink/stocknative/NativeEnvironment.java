@@ -6,6 +6,10 @@ import java.util.Set;
 /** Original SDK getter inputs and public receiver/subscription operations.
  * No emitted packet or post-processing sender bean enters this API. */
 public interface NativeEnvironment {
+    /** A transient missing external observation, not a failure of the factory sender. */
+    final class DataUnavailable extends RuntimeException {
+        public DataUnavailable(String message) { super(message); }
+    }
     int adasType();
     boolean tipIsland();
     boolean laneUi();

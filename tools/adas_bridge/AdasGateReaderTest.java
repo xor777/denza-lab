@@ -18,6 +18,7 @@ public final class AdasGateReaderTest {
     private static String write(int value) { return "service call autoservice 6 i32 1023 i32 1285554251 i32 " + value + " null"; }
 
     public static void main(String[] args) throws Exception {
+        vehicleScalars();
         check(AdasGateReader.parseInteger("Result: Parcel(00000000 00000001   '........')\n") == 1);
         check(AdasGateReader.parseInteger("Result: Parcel(00000000 00000000   '........')") == 0);
         check(AdasGateReader.parseInteger("Result: Parcel(00000000 ffffd8e5   '........')") == -10011);
@@ -54,6 +55,26 @@ public final class AdasGateReaderTest {
         instrumentLifecycle();
         instrumentTrigger();
         System.out.println("AdasGateReaderTest: " + checks + " checks passed");
+    }
+
+    private static void vehicleScalars() {
+        long[] now = {1000};
+        List<String> commands = new ArrayList<>();
+        AdasGateReader.NaviSt.Shell shell = (body, args) -> {
+            check(body == null); commands.add(String.join(" ", args)); now[0] += 30;
+            return args[3].equals("7") ? "Result: Parcel(00000000 42340000 '........')" : "Result: Parcel(00000000 ffffffff '........')";
+        };
+        Map<String,Object> speed = AdasGateReader.readVehicleScalar(shell, () -> now[0], true);
+        check("ok".equals(speed.get("status")) && ((Number)speed.get("value")).doubleValue() == 45.0);
+        check(speed.get("startedAtElapsedMs").equals(1000L) && speed.get("completedAtElapsedMs").equals(1030L));
+        check(commands.get(0).equals("/system/bin/service call autoservice 7 i32 1013 i32 -1807745016"));
+        Map<String,Object> quit = AdasGateReader.readVehicleScalar(shell, () -> now[0], false);
+        check("ok".equals(quit.get("status")) && ((Number)quit.get("value")).intValue() == -1);
+        check(commands.get(1).equals("/system/bin/service call autoservice 5 i32 1038 i32 535830556"));
+        Map<String,Object> invalid = AdasGateReader.readVehicleScalar((b,a) -> "Result: Parcel(00000000 7fc00000 '........')", () -> now[0], true);
+        check("error".equals(invalid.get("status")) && !invalid.containsKey("value"));
+        invalid = AdasGateReader.readVehicleScalar((b,a) -> "Result: Parcel(ffffffff 00000000 '........')", () -> now[0], true);
+        check("error".equals(invalid.get("status")) && !invalid.containsKey("value"));
     }
 
     /** The car's NaviSt property as autoservice answers it, with every command it was sent. */

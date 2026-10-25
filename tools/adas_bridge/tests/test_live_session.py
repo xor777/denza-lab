@@ -28,6 +28,7 @@ class FakeDevice:
         self.enabled = original; self.running = True; self.calls = []; self.files = {}; self.reader_id = None
         self.failure = None; self.closed = True; self.actual_send = -1; self.change_last_send = False
         self.block_arm = False; self.wrong_arm_id = False
+        self.graceful_stopped = False; self.graceful_enabled = True
         self.changed_consumer = False; self.park = 1; self.speed = 0; self.keep_stock_pid = False
         # NaviSt (device 1023) as the car holds it, and the gate reader's side of it.
         self.navi = 1; self.navi_reader_read_fails = False; self.navi_reader_restores = True
@@ -62,11 +63,12 @@ class FakeDevice:
             if self.change_last_send:
                 self.actual_send += 1
             arm = self.files.get(live.ARM)
-            closed = self.closed and arm is None
+            closed = self.closed and (arm is None or self.graceful_stopped)
             return {"schema": "denza-adas-live-state-v1", "bootId": self.boot_id, "consumerSession": self.consumer,
                     "armId": (OTHER if self.wrong_arm_id else arm["armId"]) if arm else None,
                     "sender": "stocknative",
-                    "elapsedMs": self.now, "state": ("BLOCKED" if self.block_arm else "WAITING") if arm else ("DISARMED" if closed else "LIVE"),
+                    "elapsedMs": self.now, "state": "STOPPED" if self.graceful_stopped else ("BLOCKED" if self.block_arm else "WAITING") if arm else ("DISARMED" if closed else "LIVE"),
+                    "stopDetail": "original terminal output sent" if self.graceful_stopped else None,
                     "quiescent": closed, "serverClosed": closed, "answersClosed": closed, "lastActualSendElapsedMs": self.actual_send}
         if name in (live.GATES, live.ISOLATION):
             if self.reader_id is None:
@@ -81,6 +83,8 @@ class FakeDevice:
 
     def write_private(self, name, row):
         self.calls.append(("write", name)); self.files[name] = copy.deepcopy(row)
+        if name == live.LIVE_STOP and self.closed and self.graceful_enabled:
+            self.graceful_stopped = True
         instrument = self.files.get(live.INSTRUMENT_NAVI_STATUS)
         if name == live.STOP and instrument is not None and self.instrument_reader_restores:
             if instrument["dirty"]:
@@ -301,16 +305,44 @@ class ProcedureTests(unittest.TestCase):
         self.assertEqual(row["acceptance"]["armId"], row["armId"])
         self.assertEqual(row["acceptance"]["state"], "WAITING")
 
-    def test_restore_disarms_first_proves_closed_then_restores_exact_default(self):
+    def test_restore_drains_original_output_then_disarms_and_restores_exact_default(self):
         row = self.arm(); self.device.calls.clear()
         restored = live.restore(self.device, self.ledger, sleep=lambda _: None)
         self.assertEqual(restored["phase"], "RESTORED"); self.assertEqual(self.device.enabled, 0)
         self.assertNotIn(live.ARM, self.device.files)
         calls = self.device.calls
+        self.assertTrue(restored["gracefulStop"]["completed"])
+        self.assertLess(calls.index(("write", live.LIVE_STOP)), calls.index("disarm"))
         self.assertLess(calls.index("disarm"), calls.index(("write", live.STOP)))
         self.assertLess(calls.index(("read", live.STATE)), calls.index(("stock_enabled", 0)))
         self.assertEqual(self.device.files[live.STOP], {"schema": "denza-adas-reader-stop-v1", "bootId": BOOT,
                          "consumerSession": CONSUMER, "readerSession": row["readerSession"]})
+
+    def test_restore_falls_back_to_immediate_disarm_after_bounded_drain(self):
+        self.arm();self.device.graceful_enabled = False;self.device.calls.clear()
+        restored = live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertFalse(restored["gracefulStop"]["completed"])
+        self.assertEqual(restored["phase"], "RESTORED")
+        self.assertLess(self.device.calls.index(("write", live.LIVE_STOP)), self.device.calls.index("disarm"))
+
+    def test_expired_authorization_skips_graceful_output_and_disarms(self):
+        self.arm();self.device.files[live.ARM]["expiresAtElapsedMs"] = self.device.now;self.device.calls.clear()
+        restored = live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertFalse(restored["gracefulStop"]["requested"])
+        self.assertNotIn(("write", live.LIVE_STOP), self.device.calls)
+        self.assertIn("disarm", self.device.calls)
+
+    def test_restore_never_removes_replacement_arm_after_drain_wait(self):
+        self.arm();self.device.calls.clear();write = self.device.write_private
+        def replace(name, row):
+            write(name, row)
+            if name == live.LIVE_STOP:
+                self.device.graceful_stopped = False
+                self.device.files[live.ARM]["armId"] = OTHER
+        self.device.write_private = replace
+        with self.assertRaisesRegex(live.SessionError, "replaced the arm"):
+            live.restore(self.device, self.ledger, sleep=lambda _: None)
+        self.assertNotIn("disarm", self.device.calls)
 
     def test_exact_enabled_and_original_disabled_user_states_restore(self):
         for original in (1, 3):

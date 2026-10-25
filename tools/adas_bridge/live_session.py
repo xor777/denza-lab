@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = "ru.yandex.yandexnavi"
 STOCK = "com.byd.launchermap"
 ARM = "files/denza-adas-live-arm.json"
+LIVE_STOP = "files/denza-adas-live-stop.json"
 HEARTBEAT = "files/denza-adas-consumer.json"
 STATE = "files/denza-adas-live-state.json"
 GATES = "files/denza-adas-gates.json"
@@ -430,7 +431,7 @@ def quiescent(device, boot, consumer, *, stable=False, sleep=time.sleep):
         row = device.private(STATE)
         if row is not None:
             fresh_tuple(row, "denza-adas-live-state-v1", boot, consumer, device.elapsed())
-            if row.get("state") not in ("DISARMED", "WAITING", "STOPPED", "BLOCKED", "LIVE"):
+            if row.get("state") not in ("DISARMED", "WAITING", "STOPPED", "BLOCKED", "LIVE", "PAUSED", "DRAINING"):
                 raise SessionError("unknown runtime state")
             if not stable and row.get("state") == "LIVE":
                 raise SessionError("runtime not in a stopped/waiting state")
@@ -448,6 +449,33 @@ def quiescent(device, boot, consumer, *, stable=False, sleep=time.sleep):
                 previous = row
         sleep(0.25)
     raise SessionError("fresh stable quiescence/closed-endpoint proof missing; stock restore pending")
+
+
+def graceful_stop(device, row, *, sleep=time.sleep):
+    """Request original terminal output while this exact arm still authorizes it.
+
+    Expiry/revocation and an unresponsive runtime fall back to immediate disarm.
+    This request never extends the arm or grants output after its removal.
+    """
+    now = device.elapsed()
+    active = device.private(ARM)
+    if active is None or active.get("expiresAtElapsedMs", -1) <= now:
+        return {"requested": False, "completed": False, "reason": "arm absent or expired"}
+    device.write_private(LIVE_STOP, {"schema": "denza-adas-live-stop-v1",
+                                    **{key: row[key] for key in ("bootId", "consumerSession", "readerSession", "armId")},
+                                    "requestedAtElapsedMs": now})
+    for _ in range(32):
+        state = device.private(STATE)
+        if state is not None:
+            try:
+                fresh_tuple(state, "denza-adas-live-state-v1", row["bootId"], row["consumerSession"], device.elapsed())
+                if state.get("armId") == row["armId"] and state.get("state") == "STOPPED" and state.get("quiescent") is True:
+                    return {"requested": True, "completed": state.get("stopDetail") == "original terminal output sent",
+                            "state": state}
+            except SessionError:
+                pass
+        sleep(0.25)
+    return {"requested": True, "completed": False, "reason": "bounded terminal drain unavailable; immediate disarm"}
 
 
 def reader_ready(device, row, *, sleep=time.sleep):
@@ -671,7 +699,15 @@ def restore(device, ledger_path, *, sleep=time.sleep):
     if active is not None and any(active.get(k) != row[k] for k in ("bootId", "consumerSession", "readerSession", "armId")):
         raise SessionError("another session owns the current arm; refusing to remove it")
     try:
-        device.remove_arm()  # Always first device mutation. No package restore before proven egress closure.
+        try:
+            row["gracefulStop"] = graceful_stop(device, row, sleep=sleep)
+        except Exception as drain_error:
+            row["gracefulStop"] = {"requested": False, "completed": False, "reason": str(drain_error)[:300]}
+        save_ledger(path, row)
+        current = device.private(ARM)
+        if current is not None and any(current.get(k) != row[k] for k in ("bootId", "consumerSession", "readerSession", "armId")):
+            raise SessionError("another session replaced the arm during drain; refusing to remove it")
+        device.remove_arm()  # Revoke even if the bounded original terminal drain could not finish.
         row["phase"] = "DISARMED"; save_ledger(path, row)
         device.write_private(STOP, {"schema": "denza-adas-reader-stop-v1", "bootId": row["bootId"],
                                    "consumerSession": row["consumerSession"], "readerSession": row["readerSession"]})

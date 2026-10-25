@@ -39,6 +39,7 @@ final class AdasPassiveClient implements AutoCloseable {
         default boolean enqueue(long topic, Runnable task) { return enqueue(task); }
         void state(String event, String detail);
         void event(long topic, long timestamp, long receivedAt, byte[] payload);
+        default void oddRegionCodes(List<Integer> codes) { }
     }
     private static final String CLIENT = "ts.car.someip.sdk.ISomeIpClientInterface";
     private static final String CALLBACK = "ts.car.someip.sdk.ISomeIpCallback";
@@ -129,6 +130,10 @@ final class AdasPassiveClient implements AutoCloseable {
             sink.state("odd_region_response", "result=" + result + " topic="
                     + (response == null ? "absent" : Long.toHexString(response.topic)) + " payloadBase64="
                     + (response == null || response.payload == null ? "null" : Base64.getEncoder().encodeToString(response.payload)));
+            if (result == 0) {
+                if (response.topic != 0x0003000D000D0002L) throw new IllegalArgumentException("ODD response topic");
+                sink.oddRegionCodes(dev.denza.adaslink.stocknative.NativeOpenCities.parse(response.payload));
+            }
             return result;
         } catch (Exception failure) {
             sink.state("odd_region_error", failure.getClass().getSimpleName());

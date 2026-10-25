@@ -119,10 +119,16 @@ public final class YandexNativeAdapterTest {
         assertEquals("declared-test-evidence",r.attributeEvidence().get("quality"));
         try{YandexNativeAdapter.prepare(route(),100,200,0,attrs);fail("wrong route");}catch(IllegalArgumentException expected){}
     }
-    @Test public void namedEnumMappingsDoNotGuessForksOrUnknowns(){
+    @Test public void namedEnumMappingsPreserveBranchDirectionWithoutGuessingAnglesOrUnknowns(){
         assertEquals(1,NativeEnums.action("LEFT").main);assertEquals(19,NativeEnums.action("UTURN_RIGHT").icon);
         assertEquals(19,NativeEnums.action("BOARD_FERRY").assistant);
-        assertFalse(NativeEnums.action("FORK_LEFT").mapped);assertEquals(0,NativeEnums.action("EXIT_RIGHT").main);
+        // Original SDK AssistantAction names identify branch direction. They do not establish
+        // a merge, a freeway/ramp classification, a turn angle or a corresponding native icon.
+        for(String name:new String[]{"FORK_LEFT","FORK_RIGHT","EXIT_LEFT","EXIT_RIGHT"}){
+            NativeEnums.Action branch=NativeEnums.action(name);
+            assertTrue(branch.mapped);assertEquals(name.endsWith("LEFT")?8:7,branch.assistant);
+            assertEquals(0,branch.main);assertEquals(0,branch.icon);
+        }
         assertFalse(NativeEnums.action("future-enum").mapped);assertEquals(0,NativeEnums.action(null).icon);
     }
     @Test public void polylineVerticesRemainGeometryInsteadOfOneLinkEach(){

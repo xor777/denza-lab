@@ -101,6 +101,12 @@ public final class AdasGateReader {
                     if (SystemClock.elapsedRealtime() - cycle > 2500) break;
                 }
                 row.put("values", values);
+                // Independent measured speed, not Navigator/GNSS speed. Keep receipt times
+                // and source identity so a slow batch cannot rejuvenate an older reading.
+                row.put("vehicleSpeed", readVehicleScalar(AdasGateReader::command,
+                        SystemClock::elapsedRealtime, true));
+                row.put("noaQuit", readVehicleScalar(AdasGateReader::command,
+                        SystemClock::elapsedRealtime, false));
                 row.put("completedAtUptimeMs", SystemClock.uptimeMillis());
                 row.put("completedAtElapsedMs", SystemClock.elapsedRealtime());
                 // The side channel's summary; Navigator journals the ledger's events when its number moves.
@@ -393,6 +399,30 @@ public final class AdasGateReader {
         Matcher found = PARCEL.matcher(text);
         if (!found.matches() || !found.group(1).equals("00000000")) return null;
         return (int) Long.parseLong(found.group(2), 16);
+    }
+    /** Two fixed read-only getters. QUIT is raw: no enum, latching or freshness inference. */
+    static Map<String,Object> readVehicleScalar(NaviSt.Shell shell, LongSupplier clock, boolean speed) {
+        Map<String,Object> value = Json.object();
+        int device = speed ? 1013 : 1038, transact = speed ? 7 : 5;
+        int fid = speed ? AdasGateSnapshot.VEHICLE_SPEED_FID : AdasGateSnapshot.NOA_QUIT_FID;
+        value.put("device", device); value.put("fid", fid); value.put("transact", transact);
+        value.put("unit", speed ? "km/h" : "raw");
+        value.put("startedAtElapsedMs", clock.getAsLong());
+        try {
+            Integer bits = parseInteger(shell.run(null, "/system/bin/service", "call", "autoservice",
+                    Integer.toString(transact), "i32", Integer.toString(device), "i32", Integer.toString(fid)));
+            if (bits == null) throw new IllegalArgumentException("invalid parcel");
+            if (speed) {
+                float actual = Float.intBitsToFloat(bits);
+                if (!Float.isFinite(actual)) throw new IllegalArgumentException("nonfinite speed");
+                value.put("value", (double)actual);
+            } else value.put("value", bits);
+            value.put("status", "ok");
+        } catch (Exception failed) {
+            value.put("status", "error"); value.put("error", failed.getClass().getSimpleName());
+        }
+        value.put("completedAtElapsedMs", clock.getAsLong());
+        return value;
     }
     static boolean stockAbsent(String text) {
         if (text == null || text.length() > MAX_OUTPUT) return false;

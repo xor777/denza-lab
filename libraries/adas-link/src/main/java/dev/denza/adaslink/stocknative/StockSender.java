@@ -13,6 +13,8 @@ public final class StockSender {
     private final StockRuntime runtime;private final NativeEnvironment environment;private final StockTransport transport;
     private final NativeCityCache cities;
     private final StockLifecycle lifecycle;
+    private final java.util.concurrent.atomic.AtomicLong locationGeneration=new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong routeGeneration=new java.util.concurrent.atomic.AtomicLong();
     public final OriginalMmtSender mmt;
     public OriginalRoutePolicy policy;
     public StockSender(StockRuntime runtime,NativeEnvironment environment,StockTransport transport){
@@ -42,6 +44,43 @@ public final class StockSender {
     public int noOddRegionDistance(){return gates.noOddRegionDistance;}
     public void noSleep(boolean enabled){wire.t(enabled);}
     public void multipleRoutes(RouteCarResultData result){routes.f(result);}
+    // Product vocabulary at the SDK callback boundary; literal methods remain replayable above.
+    public void senderType(int type){mmt.I0(type);}
+    public void idleStatus(){mmt.p(100);}
+    public void navigationReset(){mmt.d();}
+    public void navigationArrived(long path){mmt.onNaviArrive(path,0);}
+    public void navigationCancelled(){routeGeneration.incrementAndGet();invalidateLocation();mmt.onNavStop();}
+    public void pathChanged(long previous,long current){invalidateLocation();mmt.onChangeNaviPath(previous,current);}
+    public void routeUpdated(RouteCarResultData result,NativePath path){routeGeneration.incrementAndGet();mmt.t(result);if(policy!=null)policy.t(result);mmt.J0(path);}
+    public void progressUpdated(NaviInfo info,NativePath path){
+        long generation=routeGeneration.get();Object task=new Object();runtime.post(StockRuntime.Queue.SOMEIP,task,null,0,()->{
+            if(generation!=routeGeneration.get())return;
+            runtime.post(StockRuntime.Queue.MMT,task,null,0,()->{if(generation==routeGeneration.get())mmt.v0(info,path);});
+            if(policy!=null)policy.l(info,path);
+        });
+    }
+    public void vehicleSpeedUpdated(float kmh){if(policy!=null)policy.onSpeedChange(kmh);}
+    public void roadSpeedLimit(int kmh){mmt.onCurrentRoadSpeed(kmh);}
+    public void rerouteStarted(int type){routeGeneration.incrementAndGet();invalidateLocation();mmt.onReroute(()->type);}
+    public void effectiveSwitchChanged(boolean enabled){linkSwitchChanged(enabled);if(policy!=null)policy.onDnpSwitchState(enabled,false,false);}
+    /** Cancel product-owned input work as well as the original stationary repeat. The queued
+     * barrier also catches a repeat posted by a P invocation already executing at revocation. */
+    public void invalidateLocation(){
+        locationGeneration.incrementAndGet();runtime.removeToken(StockRuntime.Queue.MMT,"MSG_TOKEN_SEG");
+        Object task=new Object();runtime.post(StockRuntime.Queue.MMT,task,null,0,()->runtime.removeToken(StockRuntime.Queue.MMT,"MSG_TOKEN_SEG"));
+    }
+    /** Freshness belongs to product input admission, before invoking the unchanged original P.
+     * Original stationary repeats remain unchanged while the driver's egress lease is valid. */
+    public void locationUpdated(LocInfo info,long validUntilElapsedMs){
+        long generation=locationGeneration.get();Object task=new Object();
+        // The route policy's data callback is already queued on SOMEIP. This barrier preserves
+        // route publication -> current progress/location input order without waiting for ACKs.
+        runtime.post(StockRuntime.Queue.SOMEIP,task,null,0,()->runtime.post(StockRuntime.Queue.MMT,task,null,0,()->{
+            if(generation!=locationGeneration.get())return;
+            if(runtime.elapsedRealtime()>validUntilElapsedMs){invalidateLocation();return;}
+            mmt.P(info);
+        }));
+    }
     /** Raw original PathSelectedProxy.d response; proto absence/default behavior is retained. */
     public void pathSelected(byte[] payload){if(policy==null||!policy.listenerRegistered())return;try{NativeAck ack=NativeAck.parse(payload);if(!ack.present)return;if(ack.status==200)policy.g(ack.path);else policy.w();}catch(IllegalArgumentException malformed){/* Original generated parser catches malformed protobuf. */}}
 }

@@ -16,6 +16,10 @@ public final class NativeEnums {
     public static Action action(String value){
         if(value==null)return new Action(0,0,0,false);
         switch(value){
+            // Preserve observed branch direction only. This does not identify a merge,
+            // freeway ramp, a turn angle, or a matching native maneuver icon.
+            case "FORK_LEFT":case "EXIT_LEFT":return new Action(0,8,0,true);
+            case "FORK_RIGHT":case "EXIT_RIGHT":return new Action(0,7,0,true);
             case "STRAIGHT":return new Action(8,0,9,true);
             case "LEFT":return new Action(1,0,2,true);
             case "RIGHT":return new Action(2,0,3,true);

@@ -20,6 +20,7 @@ import dev.denza.adaslink.RoadNetwork;
 import dev.denza.adaslink.YandexRoute;
 import dev.denza.adaslink.Topics;
 import dev.denza.adaslink.stocknative.StockTransport;
+import dev.denza.adaslink.stocknative.NativeEnvironment;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,7 +40,8 @@ import java.util.concurrent.TimeUnit;
 final class LiveMapBridge {
     static final long REFRESH_MS=250;
     static final int RESTART_LIMIT=8;
-    static final String ARM="denza-adas-live-arm.json",LINEAGE="denza-adas-live-lineage.json",CONSUMER_ID="denza-adas-consumer-id.json";
+    static final String ARM="denza-adas-live-arm.json",STOP="denza-adas-live-stop.json",LINEAGE="denza-adas-live-lineage.json",CONSUMER_ID="denza-adas-consumer-id.json";
+    static final long DRAIN_MS=6000;
     private final Context context;
     private final Handler worker;
     private final String consumer,boot,process=UUID.randomUUID().toString();
@@ -73,6 +75,14 @@ final class LiveMapBridge {
     private final Object handoff=new Object();
     private Pending pending;
     private long coalesced;
+    private volatile Pending locationInput;
+    private boolean draining,drainArrival,drainIdle,drainTunnel,drainIncidents,drainReady;
+    private int drainArrivals;
+    private long drainDeadline=-1,vehicleReadSequence=-1,oddRequestedEpoch=-1;
+    private long oddAttemptEpoch=-1,oddNextAttemptAt=-1;
+    private int oddAttempts;
+    private long speedSequence=-1,speedPolicyPath=-1;
+    private String dataUnavailable;
     private static final class Inputs {
         LiveSessionLease arm; String armFailure,isolationFailure,gatesFailure;
         int stockState;long readAt,isolationStart=-1;AdasGateSnapshot.Snapshot gates;boolean server,replies;
@@ -148,7 +158,7 @@ final class LiveMapBridge {
                 if(!finished)stop("Сеанс заменён","new arm");
                 if(!begin(incoming)){publish();return;}
             }else if(!arm.same(incoming)&&!finished)stop("Параметры сеанса изменились","arm content changed");
-            if(!finished){refresh(now);reconcile();}
+            if(!finished){refresh(now);readStopRequest();reconcile();}
         }
         publish();
     }
@@ -165,6 +175,7 @@ final class LiveMapBridge {
         processes.add(process);lineageProcesses=processes;arm=incoming;lastArmId=incoming.armId;attempted.add(incoming.armId);
         session=null;runtime=null;environment=null;
         finished=false;fault=null;stopReason=null;stopDetail=null;activeEpoch=-1;inputs=null;publishedSubject=null;
+        draining=false;drainDeadline=-1;vehicleReadSequence=-1;resetCityRequest();speedSequence=-1;speedPolicyPath=-1;dataUnavailable=null;
         state="WAITING";reason="Ожидание сигналов машины и ADAS";
         gates=new AdasGateSnapshot.Tracker(boot,consumer,LiveSessionLease.INPUT_TTL_MS);
         final LiveSessionLease owner=incoming;final CallbackQueue queue=new CallbackQueue(worker::post);callbacks=queue;
@@ -180,7 +191,10 @@ final class LiveMapBridge {
                 if(arm!=owner||finished)return;
                 try{DriveEvidence.passive("live",owner.armId,topic,timestamp,receivedAt,payload);}catch(RuntimeException ignored){}
                 if(topic==Topics.PATH_SELECT_CONFIRM&&payload!=null&&session!=null)session.pathSelected(payload);
+                if(topic==0x0001000D000D0002L)resetCityRequest();
+                if(topic==0x0001000D000D0001L)requestCities();
             }
+            public void oddRegionCodes(List<Integer> codes){if(arm==owner&&!finished&&!draining&&session!=null&&hardwareFailure(SystemClock.elapsedRealtime())==null)session.cityCodes(codes);}
         },true);
         coreClients=new AdasPassiveClient(context,new AdasPassiveClient.Sink(){
             public boolean enqueue(Runnable task){return arm==owner&&!finished&&queue.enqueue(true,()->{if(arm==owner&&!finished)task.run();});}
@@ -206,6 +220,12 @@ final class LiveMapBridge {
         }catch(Exception error){in.gatesFailure=error.toString();}
         in.server=transport!=null&&transport.ready();in.replies=answers!=null&&answers.liveAnswersReady()&&coreClients!=null&&coreClients.binderAlive();
         in.readAt=SystemClock.elapsedRealtime();if(arm==checked)inputs=in;
+        if(in.gates!=null&&in.gates.valid&&in.gates.sequence!=vehicleReadSequence){
+            vehicleReadSequence=in.gates.sequence;Map<String,Object> row=Json.object();row.put("armId",checked.armId);
+            row.put("sequence",vehicleReadSequence);row.put("vehicleSpeed",in.gates.vehicleSpeed);row.put("noaQuit",in.gates.noaQuit);
+            audit.note("nativeVehicleRead",row,in.readAt);
+        }
+        updateVehicleSpeed();
     }
     private String hardwareFailure(long now){
         Inputs in=inputs;
@@ -230,12 +250,14 @@ final class LiveMapBridge {
     private boolean finalAdmission(long topic){
         long now=SystemClock.elapsedRealtime();
         if(hardwareFailure(now)!=null||activeEpoch!=epoch())return false;
+        if(draining)return NativeTransportAdmission.terminal(topic);
         // The original idle/arrival status and reset callbacks may finish after route withdrawal.
         // Route/location/lookahead egress stays closed until the replacement subject is admitted.
         boolean withdrawn=sourceSubject!=null&&sourceSubject.routeId==null;
         boolean arrived=latest!=null&&latest.finished;
         if(session!=null&&!session.navigating()&&(withdrawn||arrived))
-            return topic==Topics.NAVIGATION_STATUS||topic==Topics.SD_TUNNEL||topic==Topics.SD_TRAFFIC_INCIDENT;
+            return NativeTransportAdmission.terminal(topic);
+        if(topic!=Topics.NAVIGATION_STATUS&&topic!=Topics.ROUTE&&topic!=Topics.PATH_SELECTED&&!dynamicFresh(now))return false;
         return offline(now).ready&&java.util.Objects.equals(publishedSubject,sourceSubject);
     }
     private void reconcile(){
@@ -246,8 +268,14 @@ final class LiveMapBridge {
             if(fault!=null||inputs!=null&&inputs.armFailure!=null||inputs!=null&&inputs.stockState!=PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER||activeEpoch!=epoch()){
                 stop("Сеанс передачи остановлен",failure==null?"transport epoch changed":failure);return;
             }
+            if(draining){
+                if(failure!=null){stop("Остановка без завершения передачи",failure);return;}
+                if(now>=drainDeadline){stop("Остановка без завершения передачи","original terminal output deadline");return;}
+                state="DRAINING";reason="Завершение штатной передачи";return;
+            }
+            if(!dynamicFresh(now))session.invalidateLocation();
             if(lastObservation>=0&&now-lastObservation>10000){stop("Нет данных Яндекса","observation watchdog");return;}
-            state=failure==null?"LIVE":"PAUSED";reason=failure==null?"Передача через штатный отправитель":pauseLabel(failure);
+            state=failure==null&&dynamicFresh(now)?"LIVE":"PAUSED";reason=failure!=null?pauseLabel(failure):dynamicFresh(now)?"Передача через штатный отправитель":"Нет свежих данных положения или скорости";
         }
         if(failure!=null){if(session==null){state="WAITING";reason=pauseLabel(failure);}return;}
         OfflineMapGate.Decision decision=offline(now);
@@ -256,12 +284,25 @@ final class LiveMapBridge {
                 reason=decision.reason;state="PAUSED";
             }else{reason=decision.reason;state="WAITING";}return;}
         if(session==null)startSender();
+        requestCities();
     }
+    private void requestCities(){
+        long now=SystemClock.elapsedRealtime();
+        if(finished||draining||session==null||answers==null||hardwareFailure(now)!=null||activeEpoch!=epoch()||oddRequestedEpoch==activeEpoch)return;
+        if(oddAttemptEpoch!=activeEpoch){oddAttemptEpoch=activeEpoch;oddAttempts=0;oddNextAttemptAt=-1;}
+        if(oddAttempts>=3||now<oddNextAttemptAt)return;
+        oddAttempts++;oddNextAttemptAt=now+5000;
+        if(answers.requestOddRegionCodes()==0)oddRequestedEpoch=activeEpoch;
+    }
+    private void resetCityRequest(){oddRequestedEpoch=oddAttemptEpoch=oddNextAttemptAt=-1;oddAttempts=0;}
     private void startSender(){
         final LiveSessionLease owner=arm;final LiveMapTransport ownedTransport=transport;final AdasPassiveClient ownedAnswers=coreClients;
-        runtime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}));
+        runtime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
+                missing->worker.post(()->{if(arm==owner&&!finished&&!dynamicFresh(SystemClock.elapsedRealtime())){dataUnavailable=missing.getMessage();if(session!=null)session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}}));
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
-            long now=SystemClock.elapsedRealtime();if(gpsSpeedAt<0||now<gpsSpeedAt||now-gpsSpeedAt>1500||!Double.isFinite(gpsSpeedKmh))throw new IllegalStateException("fresh GPS speed unavailable");return gpsSpeedKmh;
+            AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
+            Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
+            if(speed==null)throw new NativeEnvironment.DataUnavailable("vehicle speed unavailable");return speed;
         },new ProductNativeEnvironment.ClientOperations(){
             public void startClientOrSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStart(values);return null;});}
             public void stopClient(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStop(values);return null;});}
@@ -272,7 +313,9 @@ final class LiveMapBridge {
         StockTransport wire=new StockTransport(){
             public int fire(long topic,byte[] payload){return onWorker(()->{
                 if(arm!=owner||finished||transport!=ownedTransport)return -203;
+                if(draining&&topic==Topics.NAVIGATION_STATUS){long status=navigationStatus(payload);if(status!=100&&status!=110)return -203;}
                 int result=ownedTransport.fire(topic,payload,SystemClock.elapsedRealtime());
+                if(result==0&&draining)terminalSent(topic,payload);
                 if(result!=0&&result!=-203){fault="map fire result "+result;worker.post(()->{if(arm==owner&&!finished)stop("Ошибка отправки",fault);});}
                 return result;
             });}
@@ -286,6 +329,14 @@ final class LiveMapBridge {
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}
         state="LIVE";reason="Передача через штатный отправитель";
+        updateVehicleSpeed();
+    }
+    private void updateVehicleSpeed(){
+        if(finished||draining||session==null||!session.navigating()||inputs==null||inputs.gates==null)return;
+        AdasGateSnapshot.Snapshot snapshot=inputs.gates;Double value=snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
+        if(value!=null&&(snapshot.sequence!=speedSequence||session.pathId()!=speedPolicyPath)){
+            speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();session.vehicleSpeedUpdated(value.floatValue());
+        }
     }
     private <T>T onWorker(Callable<T> task){
         try{if(Looper.myLooper()==worker.getLooper())return task.call();
@@ -300,6 +351,7 @@ final class LiveMapBridge {
     }
     void observe(NativeNavigationInput original,FixFreshness.Sample fix,RoadNetwork unusedRoads){
         NativeNavigationInput copy=original.copy();boolean post;
+        locationInput=new Pending(copy,fix);
         synchronized(handoff){if(pending!=null){coalesced++;if(copy.route==null&&pending.input.route!=null&&java.util.Objects.equals(copy.routeId,pending.input.routeId)&&copy.routeEpoch==pending.input.routeEpoch)copy.route=pending.input.route;}post=pending==null;pending=new Pending(copy,fix);}
         if(post)worker.post(this::observePending);
     }
@@ -314,16 +366,61 @@ final class LiveMapBridge {
         if(next.fix!=null)o.fixAgeMs=next.fix.ageMs(lastObservation,wallClock.getAsLong());
         if(o.rawAtElapsedMs<0||o.rawAtElapsedMs>lastObservation||lastObservation-o.rawAtElapsedMs>1500){o.rawLon=Double.NaN;o.rawLat=Double.NaN;}
         if(!o.simulated&&"FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&Double.isFinite(o.speedMps)&&o.speedMps>=0){gpsSpeedKmh=o.speedMps*3.6;gpsSpeedAt=lastObservation-o.fixAgeMs;}
-        if(finished)return;
+        if(finished||draining)return;
         try{refresh(lastObservation);reconcile();if(finished||session==null)return;
             if(o.routeId==null||"off".equals(o.mode)||o.finished){session.observe(o);publish();return;}
             if(!offline(lastObservation).ready||hardwareFailure(lastObservation)!=null)return;
             if(o.route!=null)publishedSubject=subject;
-            if(environment!=null&&Double.isFinite(o.lon)&&Double.isFinite(o.lat))environment.location(o.lon,o.lat);
+            if(!locationFresh(lastObservation)||!o.positionOnRoute)session.invalidateLocation();
+            if(environment!=null&&locationFresh(lastObservation))environment.location(o.lon,o.lat);
             session.observe(o);
+            updateVehicleSpeed();
+            if(locationFresh(lastObservation))dataUnavailable=null;
             if(session.blocked()!=null){state="BLOCKED";reason=session.blocked();}
             publish();
-        }catch(Exception error){stop("Ошибка входных данных",error.toString());}
+        }catch(NativeEnvironment.DataUnavailable missing){dataUnavailable=missing.getMessage();session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}
+        catch(Exception error){stop("Ошибка входных данных",error.toString());}
+    }
+    private boolean locationFresh(long now){
+        Pending current=locationInput;if(current==null)return false;NativeNavigationInput o=current.input;
+        OfflineMapGate.Subject subject=sourceSubject;
+        if(subject==null||subject.epoch!=o.routeEpoch||!java.util.Objects.equals(subject.routeId,o.routeId)
+                ||!java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256)||o.simulated||!"FINE".equals(o.locationClass))return false;
+        long age=current.fix==null?(now<o.monotonicMs||o.fixAgeMs<0||o.fixAgeMs>1500?Long.MAX_VALUE:o.fixAgeMs+now-o.monotonicMs):current.fix.ageMs(now,wallClock.getAsLong());
+        return age>=0&&age<=1500&&o.rawAtElapsedMs>=0&&now>=o.rawAtElapsedMs&&now-o.rawAtElapsedMs<=1500
+                &&coordinate(o.rawLon,o.rawLat)&&coordinate(o.lon,o.lat)
+                &&Double.isFinite(o.speedMps)&&o.speedMps>=0&&Double.isFinite(o.heading);
+    }
+    private static boolean coordinate(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&lon>=-180&&lon<=180&&lat>=-90&&lat<=90;}
+    private boolean dynamicFresh(long now){return locationFresh(now)&&inputs!=null&&inputs.gates!=null&&inputs.gates.vehicleSpeedKmh(now,1500)!=null;}
+    private void readStopRequest(){
+        if(finished||draining||arm==null||!file(STOP).isFile())return;
+        try{Map<String,Object> request=LiveSessionLease.object(read(file(STOP),4096));long now=SystemClock.elapsedRealtime();
+            if(!"denza-adas-live-stop-v1".equals(request.get("schema"))||!boot.equals(request.get("bootId"))
+                    ||!consumer.equals(request.get("consumerSession"))||!arm.armId.equals(request.get("armId"))
+                    ||!arm.readerSession.equals(request.get("readerSession")))return;
+            Object stamp=request.get("requestedAtElapsedMs");if(!(stamp instanceof Long)&&!(stamp instanceof Integer))return;long at=((Number)stamp).longValue();
+            if(at<arm.issuedAt||at>now||now-at>10000)return;
+            if(hardwareFailure(now)!=null||session==null){stop("Сеанс завершён","explicit stop without active sender");return;}
+            draining=true;drainDeadline=Math.min(arm.expiresAt,now+DRAIN_MS);drainIdle=drainTunnel=drainIncidents=drainReady=false;drainArrivals=0;
+            drainArrival=session.beginGracefulStop();state="DRAINING";reason="Завершение штатной передачи";note("draining",drainArrival?"original arrival completion":"original cancellation completion");
+            Object barrier=new Object();runtime.post(dev.denza.adaslink.stocknative.StockRuntime.Queue.MMT,barrier,null,0,
+                    ()->worker.post(()->{if(draining&&!finished)drainReady=true;}));
+        }catch(IOException|IllegalArgumentException ignored){/* An unrelated/stale request cannot authorize output. */}
+    }
+    private static long navigationStatus(byte[] payload){
+        try{Map<?,?> body=(Map<?,?>)Pb.NAVIGATION_STATUS_NOTIFY.decode(payload).get("navigationStatusLinkInfoNotifyStruct");return ((Number)body.get("navigationStatus")).longValue();}
+        catch(RuntimeException malformed){return -1;}
+    }
+    private void terminalSent(long topic,byte[] payload){
+        if(topic==Topics.SD_TUNNEL)drainTunnel=true;
+        if(topic==Topics.SD_TRAFFIC_INCIDENT)drainIncidents=true;
+        if(topic==Topics.NAVIGATION_STATUS){long status=navigationStatus(payload);if(status==110)drainArrivals++;
+            // The original reset runs after any queued arrival receipt. An older idle timer
+            // cannot complete a drain before that receipt has reached the MMT queue.
+            if(status==100&&drainReady&&drainTunnel&&drainIncidents)drainIdle=true;
+        }
+        if(drainIdle&&drainTunnel&&drainIncidents)worker.post(()->{if(draining&&!finished)stop("Сеанс завершён","original terminal output sent");});
     }
     static String pauseLabel(String detail){
         if(detail==null)return "Ожидание данных";
@@ -341,7 +438,7 @@ final class LiveMapBridge {
         try{if(session!=null)session.close();}catch(RuntimeException error){note("shutdown",error.toString());}
         finally{if(runtime!=null)runtime.close();if(callbacks!=null)callbacks.close();
             if(answers!=null){answers.stopAdmission();answers.close();}if(coreClients!=null){coreClients.stopAdmission();coreClients.close();}if(transport!=null){lastSend=Math.max(lastSend,transport.lastActualSend());transport.close();}}
-        state="STOPPED";reason=stopReason;writeLineageQuiet();try{publish();}catch(IOException error){Log.w(AdasBridge.TAG,"native state write",error);}
+        state="STOPPED";reason=stopReason;note("stopped",stopReason+":"+stopDetail);writeLineageQuiet();try{publish();}catch(IOException error){Log.w(AdasBridge.TAG,"native state write",error);}
     }
     private AdasFeed.Snapshot liveSnapshot(){
         boolean active=!finished&&session!=null&&transport!=null&&!transport.isClosed();

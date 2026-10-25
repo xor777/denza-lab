@@ -5,6 +5,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
 import dev.denza.adaslink.stocknative.StockRuntime;
+import dev.denza.adaslink.stocknative.NativeEnvironment;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -19,8 +20,12 @@ final class AndroidStockRuntime implements StockRuntime, AutoCloseable {
     private final HandlerThread mmt = new HandlerThread("denza-stock-mmt"), someip = new HandlerThread("denza-stock-someip");
     private final AtomicBoolean active = new AtomicBoolean(true);
     private final Consumer<Throwable> failure;
+    private final Consumer<NativeEnvironment.DataUnavailable> unavailable;
     AndroidStockRuntime(Consumer<Throwable> failure) {
-        this.failure=failure;
+        this(failure,error->{});
+    }
+    AndroidStockRuntime(Consumer<Throwable> failure,Consumer<NativeEnvironment.DataUnavailable> unavailable) {
+        this.failure=failure;this.unavailable=unavailable;
         mmt.start(); someip.start();
         handlers.put(Queue.MMT,new Handler(mmt.getLooper()));
         handlers.put(Queue.MAIN,new Handler(Looper.getMainLooper()));
@@ -36,7 +41,9 @@ final class AndroidStockRuntime implements StockRuntime, AutoCloseable {
         slot[0]=()->{
             synchronized(this){tokens.get(q).remove(slot[0]);java.util.List<Runnable> list=callbacks.get(q).get(identity);if(list!=null){list.remove(slot[0]);if(list.isEmpty())callbacks.get(q).remove(identity);}}
             if(!active.get())return;
-            try{action.run();}catch(Throwable error){if(active.getAndSet(false))failure.accept(error);close();}
+            try{action.run();}
+            catch(NativeEnvironment.DataUnavailable missing){if(active.get())unavailable.accept(missing);}
+            catch(Throwable error){if(active.getAndSet(false))failure.accept(error);close();}
         };
         synchronized(this){
             if(!active.get())return;

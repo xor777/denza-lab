@@ -19,6 +19,7 @@ def main():
     harness = Path(__file__).resolve().parent
     production = ROOT / "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe"
     sources = sorted(harness.rglob("*.java")) + [production / "AdasPassiveClient.java", production / "AdasWire.java"]
+    sources.append(ROOT / "libraries/adas-link/src/main/java/dev/denza/adaslink/stocknative/NativeOpenCities.java")
     receipt = {"schema": "denza-passive-client-host-test-v1", "deviceCalls": 0,
                "boundary": "In-memory typed Parcel/Binder fake; native replay/start-order behavior is an explicit fixture, not new device evidence",
                "runnerSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

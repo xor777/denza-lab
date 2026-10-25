@@ -12,4 +12,5 @@ def main():
     jdk=pathlib.Path('/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home/bin')
     subprocess.run([str(jdk/'javac'),'--release','8','-encoding','UTF-8','-d',str(classes),*map(str,sources)],check=True)
     subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.NativeProductRuntimeTest',str(a.out/'fixtures')],check=True)
+    subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.NativeMapSessionTest'],check=True)
 if __name__=='__main__':main()

@@ -7,4 +7,6 @@ final class NativeTransportAdmission {
     NativeTransportAdmission(java.util.function.LongPredicate prerequisites){this.prerequisites=prerequisites;}
     boolean allow(long topic){return !closed&&prerequisites.test(topic);}
     void close(){closed=true;}
+    static boolean terminal(long topic){return topic==dev.denza.adaslink.Topics.NAVIGATION_STATUS
+            ||topic==dev.denza.adaslink.Topics.SD_TUNNEL||topic==dev.denza.adaslink.Topics.SD_TRAFFIC_INCIDENT;}
 }

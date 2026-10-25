@@ -20,6 +20,7 @@ public final class AdasGateSnapshot {
             SLEEP_STATUS = 535842878, DISCONNECTION_STATUS = -1728052359;
     /** NoaState.r -> BydAutoNoaProxy.G/a0: device 1038 INT, support is exactly value 2. */
     public static final int TIP_ISLAND_SUPPORT = 230686742;
+    public static final int VEHICLE_SPEED_FID = -1807745016, NOA_QUIT_FID = 535830556;
     public static final List<Integer> REQUIRED_FIDS = Collections.unmodifiableList(Arrays.asList(
             HNP_CONFIG, UNP_CONFIG, E2E_CONFIG, HNP_SWITCH, UNP_SWITCH, E2E_SWITCH,
             ASSIST_MODE, NOA_UI_TYPE, SLEEP_STATUS));
@@ -43,13 +44,13 @@ public final class AdasGateSnapshot {
          * The reader's NaviSt side channel (the arm's {@code naviSt} switch): its state and recent
          * read/write events, each with its number; null when the reader does not drive it.
          */
-        public final Map<String, Object> naviSt, instrumentNaviStatus;
+        public final Map<String, Object> naviSt, instrumentNaviStatus, vehicleSpeed, noaQuit;
 
         private Snapshot(String error) {
             valid = false; reason = error; outageReason = "snapshot_invalid"; readerSession = null;
             sequence = startedAtElapsedMs = completedAtElapsedMs = startedAtUptimeMs = completedAtUptimeMs = -1;
             dnpService = dnpSwitchRaw = startupDnpSwitchRaw = noSleep = stockNoSleep = downtime = null;
-            rawValues = Collections.emptyMap(); naviSt = instrumentNaviStatus = null;
+            rawValues = Collections.emptyMap(); naviSt = instrumentNaviStatus = vehicleSpeed = noaQuit = null;
         }
 
         private Snapshot(Map<String, Object> root, Map<Integer, Integer> raw, String outage) {
@@ -62,6 +63,8 @@ public final class AdasGateSnapshot {
             rawValues = Collections.unmodifiableMap(new LinkedHashMap<>(raw));
             naviSt = root.containsKey(NAVI_ST) ? Collections.unmodifiableMap(object(root.get(NAVI_ST))) : null;
             instrumentNaviStatus = root.containsKey(INSTRUMENT_NAVI_STATUS) ? Collections.unmodifiableMap(object(root.get(INSTRUMENT_NAVI_STATUS))) : null;
+            vehicleSpeed = optionalRead(root, "vehicleSpeed");
+            noaQuit = optionalRead(root, "noaQuit");
             int h = raw.get(HNP_CONFIG), u = raw.get(UNP_CONFIG), e = raw.get(E2E_CONFIG),
                     hs = raw.get(HNP_SWITCH), us = raw.get(UNP_SWITCH), es = raw.get(E2E_SWITCH),
                     mode = raw.get(ASSIST_MODE), ui = raw.get(NOA_UI_TYPE), sleep = raw.get(SLEEP_STATUS);
@@ -84,6 +87,27 @@ public final class AdasGateSnapshot {
         public boolean hardwareGateOpen() {
             return valid && Boolean.TRUE.equals(dnpService) && Boolean.TRUE.equals(dnpSwitchRaw)
                     && Boolean.TRUE.equals(noSleep) && !Boolean.TRUE.equals(downtime);
+        }
+
+        /** Actual float getter, in km/h. A held/failed reply never refreshes its age. */
+        public Double vehicleSpeedKmh(long nowElapsedMs, long maxAgeMs) {
+            if (!valid || vehicleSpeed == null || maxAgeMs <= 0) return null;
+            try {
+                Map<String,Object> r = vehicleSpeed;
+                if (!"ok".equals(r.get("status")) || integer(r,"device") != 1013
+                        || integer(r,"fid") != VEHICLE_SPEED_FID || integer(r,"transact") != 7
+                        || !"km/h".equals(r.get("unit"))) return null;
+                long start = integer(r,"startedAtElapsedMs"), end = integer(r,"completedAtElapsedMs");
+                if (start < startedAtElapsedMs || end < start || end > completedAtElapsedMs
+                        || nowElapsedMs < end || nowElapsedMs - start > maxAgeMs) return null;
+                Object v = r.get("value");
+                if (!(v instanceof Number)) return null;
+                double value = ((Number)v).doubleValue();
+                return Double.isFinite(value) ? value : null;
+            } catch (IllegalArgumentException malformed) { return null; }
+        }
+        private static Map<String,Object> optionalRead(Map<String,Object> root, String key) {
+            return root.get(key) instanceof Map ? Collections.unmodifiableMap(new LinkedHashMap<>(object(root.get(key)))) : null;
         }
     }
 
@@ -114,7 +138,9 @@ public final class AdasGateSnapshot {
                 Map<String, Object> root = object(parsed);
                 // The eleventh key exists only when the reader drives NaviSt, and is then an object.
                 boolean side = root.containsKey(NAVI_ST), instrument = root.containsKey(INSTRUMENT_NAVI_STATUS);
-                if (root.size() != 10 + (side ? 1 : 0) + (instrument ? 1 : 0) || !SCHEMA.equals(root.get("schema"))) return invalid("schema");
+                boolean speed = root.containsKey("vehicleSpeed"), quit = root.containsKey("noaQuit");
+                if (root.size() != 10 + (side ? 1 : 0) + (instrument ? 1 : 0) + (speed ? 1 : 0) + (quit ? 1 : 0) || !SCHEMA.equals(root.get("schema"))) return invalid("schema");
+                if (speed && !(root.get("vehicleSpeed") instanceof Map) || quit && !(root.get("noaQuit") instanceof Map)) return invalid("vehicle_read");
                 if (side && !(root.get(NAVI_ST) instanceof Map)) return invalid("navi_st");
                 if (instrument && !(root.get(INSTRUMENT_NAVI_STATUS) instanceof Map)) return invalid("instrument_navi_status");
                 if (!boot.equals(root.get("bootId"))) return invalid("boot_mismatch");

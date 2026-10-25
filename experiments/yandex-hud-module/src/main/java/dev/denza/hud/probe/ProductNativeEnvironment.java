@@ -77,6 +77,7 @@ final class ProductNativeEnvironment implements NativeEnvironment {
         result.put("tip_island_raw",snapshot!=null&&snapshot.valid?snapshot.rawValues.get(AdasGateSnapshot.TIP_ISLAND_SUPPORT):null);
         result.put("geocoder","absent: no Amap MapDataService");result.put("lane_query","absent: no Amap GuideService; returns -1");
         result.put("city_cache","actual product private preferences; empty until supplied");
+        result.put("vehicle_speed","autoservice FLOAT7 device1013 FID0x94400008, km/h; independent timestamped read");
         result.put("distance_provider","Android Location.distanceBetween; not established equivalent to Amap BizLayerUtil native calculation");
         result.put("route_signal_resets",routeSignalResetCount);result.put("avp_support",avpSupport);
         result.put("leave_tunnel_distance",leaveTunnelDistance);result.put("enter_tunnel_distance",enterTunnelDistance);
@@ -95,7 +96,7 @@ final class ProductNativeEnvironment implements NativeEnvironment {
     public boolean isNaving(){return naving.getAsBoolean();}
     public boolean isKD(){return "kd".equals(product);}
     public boolean isMainThread(){return Looper.myLooper()==Looper.getMainLooper();}
-    public double realSpeed(){double value=speed.getAsDouble();if(!Double.isFinite(value))throw new IllegalStateException("fresh original-compatible speed unavailable");return value;}
+    public double realSpeed(){double value=speed.getAsDouble();if(!Double.isFinite(value))throw new NativeEnvironment.DataUnavailable("vehicle speed unavailable");return value;}
     public boolean hasMapDataService(){return false;}
     public int getAdcodeByLonLat(double lon,double lat){return -1;}
     public int getTownAdcodeByLonLat(double lon,double lat){return -1;}

@@ -10,6 +10,7 @@ public final class AdasGateSnapshotTest {
     private static int checks;
 
     public static void main(String[] args) {
+        vehicleSpeedRead();
         Map<String, Object> row = row();
         AdasGateSnapshot.Snapshot on = read(row, 1200);
         check(on.valid && on.hardwareGateOpen(), "explicit HNP config/switch plus awake");
@@ -172,6 +173,28 @@ public final class AdasGateSnapshotTest {
         System.out.println("AdasGateSnapshotTest: " + checks + " checks passed");
     }
 
+    private static void vehicleSpeedRead() {
+        Map<String,Object> row = row(), speed = Json.object();
+        speed.put("status", "ok"); speed.put("device", 1013L); speed.put("fid", -1807745016L);
+        speed.put("transact", 7L); speed.put("unit", "km/h"); speed.put("value", 45.0);
+        speed.put("startedAtElapsedMs", 1010L); speed.put("completedAtElapsedMs", 1040L);
+        row.put("vehicleSpeed", speed);
+        AdasGateSnapshot.Snapshot s = read(row, 1200);
+        check(s.valid && s.vehicleSpeedKmh(1200,1500) == 45.0, "actual vehicle km/h is not multiplied or replaced by GPS");
+        check(s.vehicleSpeedKmh(2510,1500) == 45.0 && s.vehicleSpeedKmh(2511,1500) == null,
+                "held speed ages from read start independently of parent batch");
+        check(s.vehicleSpeedKmh(1039,1500) == null, "future receipt rejected");
+        speed.put("transact",5L);
+        check(read(row,1200).valid && read(row,1200).vehicleSpeedKmh(1200,1500)==null, "int getter cannot masquerade as measured float speed");
+        speed.put("transact",7L); speed.put("unit","m/s");
+        check(read(row,1200).vehicleSpeedKmh(1200,1500)==null, "unknown units stay unavailable");
+        speed.put("unit","km/h"); speed.put("status","error");
+        check(read(row,1200).vehicleSpeedKmh(1200,1500)==null, "failed reply does not become a standstill");
+        speed.put("status","ok"); speed.put("startedAtElapsedMs",999L);
+        check(read(row,1200).vehicleSpeedKmh(1200,1500)==null, "speed cannot predate its source batch");
+        row.remove("vehicleSpeed");
+        check(read(row,1200).vehicleSpeedKmh(1200,1500)==null, "historical batches do not invent vehicle speed");
+    }
     private static void check(boolean ok, String message) { checks++; if (!ok) throw new AssertionError(message); }
     private static AdasGateSnapshot.Tracker tracker() { return new AdasGateSnapshot.Tracker(BOOT, CONSUMER, 5000); }
     private static AdasGateSnapshot.Snapshot read(Map<String, Object> row, long now) {

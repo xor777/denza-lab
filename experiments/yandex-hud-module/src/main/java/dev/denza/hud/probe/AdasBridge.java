@@ -107,6 +107,7 @@ final class AdasBridge {
         if (route != null && frame.resumed && Boolean.TRUE.equals(api.call(guidance, "isValid"))) {
             // Route status only once a route exists and guidance is resumed (NavigatorSource's rule).
             String status = String.valueOf(api.call(api.call(api.call(guidance, "navigation"), "getGuidance"), "getRouteStatus"));
+            o.routeStatus = status;
             o.routeId = (String) api.call(route, "getRouteId");
             offlineMaps.routeIdentity(o.routeId, routeRefresh.route(o.routeId));
             o.finished = status.equals("ROUTE_FINISHED");

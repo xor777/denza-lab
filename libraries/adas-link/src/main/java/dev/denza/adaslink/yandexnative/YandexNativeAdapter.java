@@ -38,6 +38,9 @@ public final class YandexNativeAdapter {
         public double scalar=Double.NaN,matchedLon=Double.NaN,matchedLat=Double.NaN;
         public double rawLon=Double.NaN,rawLat=Double.NaN,speedMps=Double.NaN,headingDeg=Double.NaN,altitudeM=Double.NaN;
         public boolean simulated;
+        /** False omits old-link attributes. The original sender retains its last progress
+         * envelope until replacement; this flag does not clear the factory route/indices. */
+        public boolean onRoute=true;
     }
     public static final class Position {
         public final int segmentIndex,linkIndex,pointIndex,linkRemainM,segmentRemainM,routeRemainM;
@@ -121,6 +124,8 @@ public final class YandexNativeAdapter {
                 YandexRoute.Section section=sections.get(si);
                 String endAction=si+1<sections.size()?sections.get(si+1).action:"FINISH";
                 NativeEnums.Action action=NativeEnums.action(endAction);
+                if(endAction!=null&&(endAction.startsWith("FORK_")||endAction.startsWith("EXIT_")))
+                    ds.add(d("segment["+si+"].action",endAction,"directional branch projection only: AutoSDK AssiActionEntryLeftBranch=8 / RightBranch=7; no inferred merge, freeway/ramp or turn angle","MainActionNULL=0 and ManeuverIconNull=0; native icon semantics unavailable",FieldDecision.Kind.ENUM_MAPPING));
                 if(!action.mapped)ds.add(d("segment["+si+"].action",String.valueOf(endAction),"unmapped instruction retained as SDK NULL","0, no guessed turn projection",FieldDecision.Kind.UNAVAILABLE));
                 List<NativeLink> links=new ArrayList<>();
                 List<Double> part=new ArrayList<>(cuts.subSet(section.begin,true,section.end,true));
@@ -214,15 +219,24 @@ public final class YandexNativeAdapter {
         NativeModels.LocInfo out=new NativeModels.LocInfo();out.isSimulate=input.simulated?1:0;
         if(input.simulated)return out; // Original P returns before reading any other field.
         if(!coordinateValid(input.matchedLon,input.matchedLat)||!coordinateValid(input.rawLon,input.rawLat)||!finiteNonnegative(input.speedMps)||!Double.isFinite(input.headingDeg))return null;
-        Position p;try{p=route.position(input.scalar);}catch(IllegalArgumentException missing){return null;}
+        Position p=null;if(input.onRoute)try{p=route.position(input.scalar);}catch(IllegalArgumentException missing){return null;}
         double kmh=input.speedMps*3.6;if(kmh>Integer.MAX_VALUE)return null;
         out.speed=(float)kmh;out.alt=Double.isFinite(input.altitudeM)?(float)input.altitudeM:0;
         out.sourType=0; // LocInfo constructor default; P reads this only for logging.
         out.gpsPos=new NativeModels.Coord3DDouble(input.rawLon,input.rawLat);
-        NativeLink link=route.segments.get(p.segmentIndex).links.get(p.linkIndex);
         NativeModels.LocMatchInfo match=new NativeModels.LocMatchInfo();match.stPos=new NativeModels.Coord3DDouble(input.matchedLon,input.matchedLat);
-        match.course=(float)((input.headingDeg%360+360)%360);match.roadCourse=(float)p.bearingDeg;match.roadLen=link.length;
-        match.roadClass=link.roadClass;match.formway=link.formway;match.linkType=link.type;match.ownership=link.ownership;match.linkId=link.id.longValue();
+        match.course=(float)((input.headingDeg%360+360)%360);
+        if(input.onRoute){
+            NativeLink link=route.segments.get(p.segmentIndex).links.get(p.linkIndex);
+            match.roadCourse=(float)p.bearingDeg;match.roadLen=link.length;
+            match.roadClass=link.roadClass;match.formway=link.formway;match.linkType=link.type;match.ownership=link.ownership;match.linkId=link.id.longValue();
+        }else{
+            // A current FINE source coordinate is usable even while Yandex reports deviation.
+            // There is no source for its road identity. The unchanged sender still uses its
+            // last native path/progress envelope and the reroute callback's offCourse state.
+            match.roadClass=NativeEnums.ROAD_NULL;match.formway=NativeEnums.FORMWAY_NULL;
+            match.linkType=NativeEnums.LINK_NULL;match.ownership=NativeEnums.OWNERSHIP_ERROR;match.linkId=-1;
+        }
         out.matchInfo=new ArrayList<>();out.matchInfo.add(match);return out;
     }
 
