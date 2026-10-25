@@ -29,6 +29,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 22 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | 22 installed: ACK 200, actual historySpeed 7, public ownership on 4/42 route links; moving acceptance pending | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
+| Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; no product or car change | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
 | Candidate 18 fixes stale-input recovery, off-route location, observed reroute callbacks, terminal drain, actual vehicle-speed input, open-city requests and native-log analysis; the product APK excludes the historical sender classes | local product tests/build; not installed or driven | [Candidate 18](#pre-drive-corrections-candidate-18) |
 | Yandex → AutoSDK is consolidated in `yandexnative`: one immutable path partition, navigation/location inputs, field decisions and exact factory resource strings. Seventeen independent adapter tests, two catalog tests and four resource tests pass. Missing native booleans use a named, logged experimental false policy; no measured NOA benefit is claimed | independent input tests; candidate-22 stationary route accepted; its moving behavior untested | [Product adapter field table](#product-adapter-field-table) |
@@ -561,6 +562,40 @@ preparation and parked receipt only, not moving NOA acceptance. Read current
 state before reusing it; the timestamped receipt is not a permanent readiness claim.
 Exact pins and receipts are under ignored `product/build22/`, `candidate22.json`
 and `live22/acceptance.json`. The original-APK laboratory remains frozen.
+
+#### Lane input decision and targeted vector audit (2026-10-25)
+
+The owner supplied an inventory of original factory-map output on Beijing data:
+161 of 1,118 link instances in 16 runs have `laneNum=0`, including 7 of 61 common
+street links. Those counts were supplied by the owner, not independently recounted
+in this audit. They establish that zero is emitted by the original stack; they do
+not establish a receiver enum definition or prove that an all-zero route is
+rejected. Blanket replacement with one is not accepted. Count scope must also
+match: a directional approach sign cannot automatically represent both directions.
+
+The agreed next-drive priority is the sourced history-speed proxy and ownership
+already installed in candidate 22. Lane changes are deferred. For future mapping,
+a Yandex lane sign can supply a count only where both direction/count scope and
+its spatial validity are proved. One-way alone does not establish that the count
+extends all the way back to the preceding junction: additions and drops can occur
+between junctions. Missing facts retain zero. A later controlled lane comparison
+is conditional on the drive result, not a requirement for one drive per field.
+
+A targeted host-only audit parsed the **full** protobuf dictionaries of 21 retained
+offline tiles and eight retained online tiles, before the product's ROAD attribute
+allowlist. All 29 parsed successfully: 63,704 feature instances and 84 distinct
+attribute keys. No explicit lane-count key was found. The sample does contain
+5,203 `hd_road_marking_l` and 4,152 `hd_road_marking_a` features, alongside 552 road
+surfaces and 1,028 surface borders. A marking example has `ft_type_name` equal to
+`hdmap-road-marking-linear-lane-1` and a string `width`; neither the name suffix nor
+that width has been established as a lane count. Typed geometry, actual road
+association, coverage and count semantics would need separate proof before use.
+These are feature instances in a finite retained sample, not deduplicated physical
+lanes or a claim that the current settlement route has this coverage.
+
+Inputs, hashes, dictionary counts and examples are retained under ignored
+`product/lane-source-audit/vector-dictionaries.json`. No new device/emulator
+capture, APK modification or installation was made for this audit.
 
 #### Candidate 21 first drive (2026-10-25)
 
