@@ -1356,6 +1356,13 @@ def _align(drive, clock, t, sessions_out):
         # (which can have been rejected). Age is explicit; this is not current ECU state.
         out["lastNativePosition"] = {"pathId": route_path, "ageMs": t - position["_t"],
                                      "ref": position["_ref"]} if position else None
+        published = drive.route_json.get(route_path)
+        if published is not None and published["t"] <= t:
+            ack = next((a for a in drive.answers if a["kind"] == "selected" and route_path in a["pathIds"]
+                        and a["status"] == 200 and published["t"] <= a["t"] <= t), None)
+            out["nativePublishedPath"] = {"pathId": route_path, "ref": published["ref"],
+                                          "ageMs": t - published["t"],
+                                          "ack200": {"elapsedMs": ack["t"], "ref": ack["ref"]} if ack else None}
     policy = next((r for r in reversed(drive.live) if r.get("input") == "nativeInputPolicy"
                    and r.get("pathId") == route_path and r["_t"] <= t), None)
     if policy is not None:
@@ -1368,8 +1375,14 @@ def _align(drive, clock, t, sessions_out):
                                           "routeId": note.get("routeId"), "ref": note["ref"]}
     speed = drive.last_send(t, SPEED_INTERSECTION)
     if speed is not None:
-        out["historySpeedSent"] = {"value": (decode_out(speed) or {}).get("historySpeed"), "ref": speed["_ref"],
-                                   "ageMs": t - speed["_t"]}
+        fields = decode_out(speed)
+        present = "historySpeed" in fields if fields is not None else None
+        # The stock schema's proto3 int32 getter defaults to 0 when the field is omitted.
+        # Preserve presence and decode failure separately; this says nothing about ECU state.
+        out["historySpeedSent"] = {"value": fields.get("historySpeed", 0) if fields is not None else None,
+                                   "fieldPresent": present,
+                                   "interpretation": "explicit" if present else "proto3_default_zero" if fields is not None else "decode_failed",
+                                   "ref": speed["_ref"], "ageMs": t - speed["_t"]}
     under = _road_under(drive, t)
     if under:
         out["roadUnderCar"] = under
@@ -1784,12 +1797,24 @@ def markdown(result, clock):
             what = ("наш путь %s%s" % (a["livePath"], "" if a["livePathConfirmed"] else " (без ACK)")) if a.get("livePath") else (
                 "сеанс остановлен %s назад, у ADAS может оставаться путь %s" % (_s(a["sinceSessionStoppedMs"]), a.get("lastPathOfOursAtAdas"))
                 if a.get("sinceSessionStoppedMs") is not None else "нашего пути нет")
+            native_position, native_path = a.get("lastNativePosition"), a.get("nativePublishedPath")
+            if native_position is not None:
+                what = "последняя отправленная native-позиция: путь %s, %s назад%s" % (
+                    native_position["pathId"], _s(native_position["ageMs"]),
+                    "; маршрут опубликован%s" % (", ACK200 получен" if native_path.get("ack200") else ", ACK200 не наблюдался")
+                    if native_path else "; публикация маршрута не найдена")
+                if a.get("sinceSessionStoppedMs") is not None:
+                    what += "; сеанс остановлен %s назад" % _s(a["sinceSessionStoppedMs"])
+            history = a.get("historySpeedSent") or {}
+            history_text = str(history.get("value", "—"))
+            if history.get("interpretation") == "proto3_default_zero":
+                history_text += " (proto3 default, поле отсутствует)"
             road = a.get("roadUnderCar") or {}
             link = road.get("link") or {}
             lines.append("- %s %s (%s) %s, %s%s: %s; последняя отправка %s назад; вариант %s; historySpeed %s%s; класс звена %s." % (
                 ep["function"], MEANING_RU[ep["meaning"]], ep["value"], t(ep["start"]["elapsedMs"]), _length(ep),
                 ", " + noa if noa else "", what, _s(a.get("sinceLastActualSendMs")), a.get("variant") or "—",
-                (a.get("historySpeedSent") or {}).get("value", "—"),
+                history_text,
                 " (вариант для маршрута: %s)" % a["historySpeedVariant"]["value"] if a.get("historySpeedVariant") else "",
                 link.get("roadclass", road.get("trafficRoadClass", "—"))))
         else:

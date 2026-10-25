@@ -587,6 +587,46 @@ class StockNativeCapture(unittest.TestCase):
 
 
 class StockNativeJournal(unittest.TestCase):
+    def test_native_episode_reports_sent_position_and_published_path_without_ecu_state_claim(self):
+        for pilot_at, ack_observed in ((2020, False), (2500, True)):
+            with self.subTest(pilot_at=pilot_at), tempfile.TemporaryDirectory() as tmp:
+                car = Car(tmp)
+                self.native(car, "native-episode", 2000, 222)
+                # Include a position before the ACK to prove that later ACKs are not joined backwards.
+                car.live.append({"kind": "fire", "monotonicMs": 2010, "topic": review.VEHICLE_LOCATION,
+                                 "payloadHex": stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, 222, 0, 0, 10, 10, -1).hex()})
+                car.passive(pilot_at, review.PILOT, pilot(0, 1))
+                car.passive(pilot_at + 20, review.PILOT, pilot(0, 0))
+                result, clock = review.review(car.write())
+                episode = next(ep for ep in result["adasState"]["episodes"] if ep["function"] == "ICC")
+                alignment = episode["aligned"]
+                self.assertEqual(alignment["lastNativePosition"]["pathId"], 222)
+                self.assertEqual(alignment["nativePublishedPath"]["pathId"], 222)
+                self.assertEqual(bool(alignment["nativePublishedPath"]["ack200"]), ack_observed)
+                self.assertIsNone(alignment["livePath"])  # no legacy guard/current ECU state invented
+                text = review.markdown(result, clock)
+                self.assertIn("последняя отправленная native-позиция: путь 222", text)
+                self.assertNotIn("нашего пути нет", text)
+
+    def test_history_speed_proto3_zero_keeps_wire_presence_and_decode_failure(self):
+        for payload, value, presence, interpretation in (
+                (stock.speed_intersection(0, 0, 0, 0, 0, -1, ""), 0, False, "proto3_default_zero"),
+                (stock.speed_intersection(0, 25, 0, 0, 0, -1, ""), 25, True, "explicit"),
+                (b"\x80", None, None, "decode_failed")):
+            with self.subTest(interpretation=interpretation), tempfile.TemporaryDirectory() as tmp:
+                car = Car(tmp)
+                self.native(car, "native-history", 2000, 222)
+                car.live.append({"kind": "fire", "monotonicMs": 2200, "topic": review.SPEED_INTERSECTION,
+                                 "payloadHex": payload.hex()})
+                car.passive(2500, review.PILOT, pilot(0, 1))
+                result, clock = review.review(car.write())
+                episode = next(ep for ep in result["adasState"]["episodes"] if ep["function"] == "ICC")
+                speed = episode["aligned"]["historySpeedSent"]
+                self.assertEqual((speed["value"], speed["fieldPresent"], speed["interpretation"]),
+                                 (value, presence, interpretation))
+                if interpretation == "proto3_default_zero":
+                    self.assertIn("historySpeed 0 (proto3 default, поле отсутствует)", review.markdown(result, clock))
+
     def test_no_late_answers_does_not_claim_internal_ecu_path_release(self):
         with tempfile.TemporaryDirectory() as tmp:
             car = Car(tmp)
