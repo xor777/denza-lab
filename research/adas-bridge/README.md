@@ -636,7 +636,10 @@ legal limit 0. The native Region boundary reports region/province/city 110000 an
 country 1. These are experiment inputs, not geocoder results or evidence that a
 Russian road is inside Chinese NOA coverage. Actual measured historical speed still
 has priority; stale/off-route/end-of-route history output clears to zero, and an
-off-route location keeps unknown road identity.
+off-route location keeps unknown road identity. When off-route input has no usable
+scalar/ETA, the session sends one copy of the last admitted NaviInfo envelope with
+only history speed cleared; it does not invent new off-route distances or indices,
+and repeated off-route input does not duplicate an already-zero reset.
 
 Real Yandex coordinates, geometry, synthetic route/link identity, distances,
 manoeuvres, names, tunnel/ferry ranges and traffic-light positions remain in use.
@@ -646,12 +649,12 @@ to the unchanged `OriginalOddSender`, even a short all-URID-1 test route produce
 `noODDRegionDist=2147483647`; this checks the factory calculation path rather than
 hard-coding that outgoing distance in the adapter.
 
-Local validation passed on 2026-10-25: `:adas-link:testDebugUnitTest`, 118 actual
-product-runtime checks, 144 native-session checks including the serialized route,
-Region and ODD wire values, 400 passive-client Binder checks and 41 live-session
-Python tests. Production wiring is checked through `LiveMapBridge`, not merely by
-calling the adapter directly. No vehicle installation, fresh ACK or moving NOA
-result exists for this profile yet.
+Local validation passed on 2026-10-25: `:adas-link:testDebugUnitTest`, 121 actual
+product-runtime checks, 146 native-session checks including the serialized route,
+Region, ODD and off-route history-reset wire values, 400 passive-client Binder
+checks and 41 live-session Python tests. Production wiring is checked through
+`LiveMapBridge`, not merely by calling the adapter directly. No vehicle installation,
+fresh ACK or moving NOA result exists for this profile yet.
 
 `drive_review` attributes non-unknown dynamic ownership and road-class values from
 this profile to `EXPERIMENTAL_DONOR` using the path's `nativeInputPolicy`; they are

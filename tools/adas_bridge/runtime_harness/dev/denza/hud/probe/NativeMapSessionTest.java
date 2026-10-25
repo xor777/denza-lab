@@ -56,12 +56,18 @@ public final class NativeMapSessionTest {
         System.out.println("NativeMapSessionTest: "+checks+" checks passed");
     }
     static void routeReasonsAndOffRoute(){
-        Rig r=new Rig();r.observe(r.input("a",1,true));check(r.transport.routeType()==1,"ordinary guidance uses source RouteTypeCommon1, not the bench seed default0");
+        Rig r=new Rig(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.COMPATIBILITY_CN);r.observe(r.input("a",1,true));check(r.transport.routeType()==1,"ordinary guidance uses source RouteTypeCommon1, not the bench seed default0");
         r.observe(r.input("b",2,true));check(r.transport.routeType()==1,"ordinary identity replacement remains Common1 without inventing offcourse reason");
-        NativeNavigationInput off=r.input("b",2,false);off.routeStatus="NOT_ON_ROUTE";off.positionOnRoute=false;off.scalar=Double.NaN;off.lon=37.61;off.lat=55.71;off.stamp++;
+        NativeNavigationInput off=r.input("b",2,false);off.routeStatus="NOT_ON_ROUTE";off.positionOnRoute=false;off.scalar=Double.NaN;off.timeToFinishS=Double.NaN;off.lon=37.61;off.lat=55.71;off.stamp++;
+        NativeModels.NaviInfo before=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
         long navi=r.runtime.count(".v0"),location=r.runtime.count(".P");r.observe(off);
         check(r.runtime.count(".b0")==1,"observed source deviation invokes reroute once");
-        check(r.runtime.count(".v0")==navi,"off-route does not invent path progress");check(r.runtime.count(".P")==location+1,"current FINE off-route coordinate still reaches native location processing");
+        check(before.curLinkSpeed>0&&r.runtime.count(".v0")==navi+1,"off-route reuses last progress once to clear history speed");
+        NativeModels.NaviInfo reset=(NativeModels.NaviInfo)r.runtime.last(".v0")[1];
+        check(reset.curLinkSpeed==0&&historyOnWire(r)==0,"off-route reset reaches original NaviInfo and actual speed wire despite missing scalar/ETA");
+        check(reset.pathID==before.pathID&&reset.curSegIdx==before.curSegIdx&&reset.curLinkIdx==before.curLinkIdx
+                &&reset.routeRemain.dist==before.routeRemain.dist&&reset.routeRemain.time==before.routeRemain.time,"off-route reset preserves the admitted path, indices and distances");
+        check(r.runtime.count(".P")==location+1,"current FINE off-route coordinate still reaches native location processing");
         NativeModels.LocInfo info=(NativeModels.LocInfo)r.runtime.last(".P")[1];
         check(info.matchInfo.get(0).linkId==-1&&info.matchInfo.get(0).roadClass==-1,"off-route source does not invent current road identity");check(info.matchInfo.get(0).stPos.lon==37.61,"actual current coordinate preserved");
         r.observe(off.copy());check(r.runtime.count(".b0")==1,"repeated deviation status does not duplicate reroute callbacks");

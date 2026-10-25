@@ -316,6 +316,25 @@ public final class YandexNativeAdapter {
         panel.segmentRemain=new NativeModels.TimeAndDist(p.segmentRemainM,0);out.NaviInfoData.add(panel);return out;
     }
 
+    /** Clear only historical speed on the last admitted progress envelope, without inventing off-route progress. */
+    public static NativeModels.NaviInfo clearHistorySpeed(NativeModels.NaviInfo current){
+        if(current==null)return null;
+        NativeModels.NaviInfo out=new NativeModels.NaviInfo();out.pathID=current.pathID;
+        if(current.routeRemain!=null)out.routeRemain=new NativeModels.TimeAndDist(current.routeRemain.dist,current.routeRemain.time);
+        out.routeRemainLightCount=current.routeRemainLightCount;out.linkRemainDist=current.linkRemainDist;
+        out.curSegIdx=current.curSegIdx;out.curLinkIdx=current.curLinkIdx;out.curPointIdx=current.curPointIdx;
+        out.crossManeuverID=current.crossManeuverID;out.NaviInfoFlag=current.NaviInfoFlag;out.curLinkSpeed=0;
+        if(current.NaviInfoData!=null){
+            out.NaviInfoData=new ArrayList<>();
+            for(NativeModels.NaviInfoPanel panel:current.NaviInfoData){
+                NativeModels.NaviInfoPanel copy=new NativeModels.NaviInfoPanel();
+                if(panel.segmentRemain!=null)copy.segmentRemain=new NativeModels.TimeAndDist(panel.segmentRemain.dist,panel.segmentRemain.time);
+                out.NaviInfoData.add(copy);
+            }
+        }
+        return out;
+    }
+
     /** Raw GNSS and matched Yandex fix are independent required observations. Vehicle speed
      * belongs to NativeEnvironment.realSpeed and never falls back to this GPS speed. */
     public static NativeModels.LocInfo location(AdaptedRoute route,Location input){

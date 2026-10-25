@@ -33,6 +33,7 @@ final class NativeMapSession implements AutoCloseable {
     private long routeEpoch=-1, lastFix=Long.MIN_VALUE, lastNavi=-1;
     private String routeId, geometry, blocked;
     private YandexNativeAdapter.AdaptedRoute route;
+    private NativeModels.NaviInfo lastNaviInfo;
     private Boolean service, effectiveSwitch, awake;
     private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining,routeProgressReady,forceRouteRefresh;
     private Float latestVehicleSpeed;private long vehicleSpeedObservedAt=-1;
@@ -145,7 +146,7 @@ final class NativeMapSession implements AutoCloseable {
             long previous=route==null?-1:route.getPathID();
             route=candidate;routeId=o.routeId;geometry=o.offlineGeometrySha256;routeEpoch=o.routeEpoch;
             forceRouteRefresh=false;
-            routeProgressReady=false;
+            routeProgressReady=false;lastNaviInfo=null;
             blocked=null;lastFix=Long.MIN_VALUE;lastNavi=-1;arrivalPending=false;offRouteReplacementPending=false;
             if(!navigating){navigating=true;sender.navigationCreated();sender.navigationStarted();sender.navigationReset();
                 if(latestVehicleSpeed!=null&&runtime.elapsedRealtime()>=vehicleSpeedObservedAt&&runtime.elapsedRealtime()-vehicleSpeedObservedAt<=1500)sender.vehicleSpeedUpdated(latestVehicleSpeed);
@@ -163,7 +164,12 @@ final class NativeMapSession implements AutoCloseable {
             YandexNativeAdapter.Guidance g=new YandexNativeAdapter.Guidance();g.scalar=o.scalar;g.timeToFinishS=o.timeToFinishS;
             g.onRoute=o.positionOnRoute&&!offRoute&&"FINE".equals(o.locationClass);g.fixAgeMs=o.fixAgeMs;
             NativeModels.NaviInfo info=YandexNativeAdapter.navi(route,g);
-            if(info!=null){sender.progressUpdated(info,route);lastNavi=o.monotonicMs;routeProgressReady=true;}
+            if(info!=null){sender.progressUpdated(info,route);lastNaviInfo=info;lastNavi=o.monotonicMs;routeProgressReady=true;}
+        }else if(!o.positionOnRoute&&lastNaviInfo!=null&&lastNaviInfo.curLinkSpeed!=0){
+            // Off-route often has no usable scalar/ETA. Reuse only the last admitted progress
+            // envelope and clear its historical speed; do not invent new off-route distances.
+            NativeModels.NaviInfo reset=YandexNativeAdapter.clearHistorySpeed(lastNaviInfo);
+            sender.progressUpdated(reset,route);lastNaviInfo=reset;
         }
         // Original H does not clear its prior path/indices. The ordered facade queues v0
         // before P, so the first coherent progress input owns this route's location envelope.
@@ -179,7 +185,7 @@ final class NativeMapSession implements AutoCloseable {
         }else invalidateLocation();
     }
     void clientInitialized(boolean ready){if(!closed)sender.clientInitialized(ready);}
-    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;routeProgressReady=false;invalidateLocation();}
+    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;lastNaviInfo=null;routeProgressReady=false;invalidateLocation();}
     private RouteFrame routeFrame(String id,boolean remember){
         if(id==null)return null;RouteFrame existing=routeFrames.get(id);if(existing!=null)return existing;
         if(routeFrames.size()>=FRAME_ROUTE_LIMIT)return null;
@@ -200,7 +206,7 @@ final class NativeMapSession implements AutoCloseable {
     private void stopNavigation(){
         invalidateLocation();
         if(navigating){navigating=false;sender.navigationCancelled();sender.navigationStopped();sender.navigationDestroyed();}
-        route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;
+        route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;lastNaviInfo=null;
         routeProgressReady=false;
         forceRouteRefresh=false;
         rejectedPreparation=null;

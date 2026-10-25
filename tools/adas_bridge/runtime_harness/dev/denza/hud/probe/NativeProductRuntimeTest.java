@@ -83,10 +83,13 @@ public final class NativeProductRuntimeTest {
         check(Double.isNaN(retained.rawLon),"future raw-GNSS sample omitted");
         NativeNavigationInput staleRaw=r.input(false);staleRaw.rawAtElapsedMs=SystemClock.now-1600;r.observe(staleRaw);
         check(Double.isNaN(((NativeNavigationInput)field(r.bridge,"latest")).rawLon),"raw-GNSS ages independently at consumption");
-        r.observe(false);
+        r.observe(false);check(historySpeed(old)==25,"LiveMapBridge sends donor history speed before deviation");
         int nativeLocations=ProductNativeEnvironment.realSpeedReads;
-        NativeNavigationInput offRoad=r.input(false);offRoad.positionOnRoute=false;offRoad.stamp++;
-        r.observe(offRoad);check(ProductNativeEnvironment.realSpeedReads>nativeLocations,"off-route FINE fix keeps truthful coordinates without fabricated NaviInfo");
+        NativeNavigationInput offRoad=r.input(false);offRoad.positionOnRoute=false;offRoad.routeStatus="NOT_ON_ROUTE";offRoad.scalar=Double.NaN;offRoad.timeToFinishS=Double.NaN;offRoad.stamp++;
+        r.observe(offRoad);check(ProductNativeEnvironment.realSpeedReads>nativeLocations,"off-route FINE fix keeps truthful coordinates");
+        check(historySpeed(old)==0,"LiveMapBridge clears donor history speed on actual off-route wire without new scalar/ETA");
+        int resets=old.count(Topics.SD_SPEED_INTERSECTION);r.observe(offRoad);
+        check(old.count(Topics.SD_SPEED_INTERSECTION)==resets,"repeated off-route observation does not duplicate an already-zero reset");
         r.evidence(false);Handler.advance(1000);check(!old.closed,"temporary gate gap retains same arm");
         r.evidence(true);r.observe(false);Handler.advance(300);check(!old.closed,"switch recovery stays in same core");
         int calls=old.topics.size();r.subject("route-b");
@@ -240,6 +243,13 @@ public final class NativeProductRuntimeTest {
         check(wire.closed,"expiry during terminal drain closes immediately");for(long sent:wire.times)check(sent<((Number)expired.arm.get("expiresAtElapsedMs")).longValue(),"expired authorization never permits terminal packets");
         Rig fault=new Rig();fault.arm();fault.route();wire=LiveMapTransport.latest;fault.graceful();fault.advanceEvidence(1000);int beforeFault=wire.topics.size();wire.ready=false;Handler.advance(250);
         check(wire.closed&&wire.topics.size()==beforeFault,"transport failure aborts drain without bypassing admission");
+    }
+    @SuppressWarnings("unchecked")static int historySpeed(LiveMapTransport wire){
+        for(int i=wire.topics.size()-1;i>=0;i--)if(wire.topics.get(i)==Topics.SD_SPEED_INTERSECTION){
+            Map<String,Object> fields=(Map<String,Object>)Topics.schema(Topics.SD_SPEED_INTERSECTION).decode(wire.payloads.get(i)).get("speedIntersectionInformation");
+            return ((Number)fields.getOrDefault("historySpeed",0)).intValue();
+        }
+        throw new AssertionError("no SpeedIntersection packet");
     }
     static Object field(Object owner,String name)throws Exception{java.lang.reflect.Field f=owner.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(owner);}
     static long fieldLong(Object owner,String name)throws Exception{return ((Number)field(owner,name)).longValue();}
