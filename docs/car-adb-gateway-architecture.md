@@ -525,8 +525,20 @@ computer did not answer: Wi-Fi to mobile data 27 s, mobile data back to Wi-Fi
 was then installed on the owner's car remotely, with keys and registration
 kept.
 
+On a phone's mobile hotspot (an operator in Russia) the car never got in: on
+2026-10-26 twelve connections in five minutes reached the relay's sshd and each
+ended in `Timeout before authentication`. The same car on home Wi-Fi logs in
+within a second, and the 14:30 false wipe came from the same operator address.
+The relay is a Vultr server in Amsterdam (AS20473). The likely cause is the
+operator throttling traffic to foreign hosting, perhaps also because port 443
+carries SSH rather than TLS. Lost large packets on the mobile path are not ruled
+out. Not yet confirmed from a computer on the same hotspot. If confirmed, the
+fix is a relay hosted in Russia that takes over `adbgw.ru` with the same host
+key, so the pin in the app and the CLI still holds (CAG-003).
+
 Required before production:
 
+- a relay reachable from Russian mobile networks (see above);
 - a wake from the car's sleep (quickboot) without opening the app;
 - the same network-change timings measured on the head unit;
 - verify API levels 26, 31, 34 and 36 (33 on the head unit and 35 on the emulator are done);
