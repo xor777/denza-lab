@@ -86,8 +86,8 @@ second login prompt.
 TTY, shell, X11, agent forwarding, tunnel devices, user RC files, and Unix
 socket forwarding are disabled. The control key stays registered while access
 is disabled so the user can enable it manually again; that key cannot forward
-traffic. A vehicle session that stops answering is dropped after about 45
-seconds (`ClientAliveInterval 15`, `ClientAliveCountMax 3` for `cag-device`), so
+traffic. A vehicle session that stops answering is dropped after about 15
+seconds (`ClientAliveInterval 5`, `ClientAliveCountMax 3` for `cag-device`), so
 a reconnecting vehicle can bind its port again within the recovery target.
 
 ### 3.2 State, Codes, and Rate Limiting
@@ -362,7 +362,7 @@ stale file never orphans a master and never makes our own listener look like
 somebody else's.
 
 `cag connect --watch` is the supervisor: one per config, held by `watch.lock`.
-It polls every 10 seconds, reconnects with jittered backoff from 1 to 60
+It polls every 10 seconds, reconnects with jittered backoff from 1 to 10
 seconds, waits quietly while another program holds the port, and attaches the
 adb serial when it is not `device`. A master that stops answering gets two more
 polls before it is replaced. On SIGTERM the supervisor closes the masters it

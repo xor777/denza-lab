@@ -26,9 +26,9 @@ Match User cag-device
     PermitTunnel no
     PermitUserRC no
     ForceCommand /bin/false
-    # A vanished vehicle must release its relay port within about 45 s, or its
+    # A vanished vehicle must release its relay port within about 15 s, or its
     # reconnect fails to bind the same port until the old session times out.
-    ClientAliveInterval 15
+    ClientAliveInterval 5
     ClientAliveCountMax 3
 
 Match User cag-client

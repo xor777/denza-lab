@@ -58,7 +58,7 @@ remote access must stay disabled after a reboot.
 
 `cag connect --watch` is a foreground supervisor. Every 10 seconds it checks the
 tunnel and, in raw mode, that `adb devices` lists the serial as `device`. A dead
-tunnel is reopened with jittered backoff from 1 to 60 seconds, but only while
+tunnel is reopened with jittered backoff from 1 to 10 seconds, but only while
 the port is free; while another program holds it, the watch waits. A missing or
 offline serial gets `adb connect`. The watch never stops or disconnects
 anything it did not start, closes its own tunnel on SIGTERM, and writes one

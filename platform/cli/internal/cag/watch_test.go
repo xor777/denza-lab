@@ -54,13 +54,13 @@ func TestWatchDecisions(t *testing.T) {
 	}
 }
 
-func TestReconnectBackoffGrowsFromOneSecondToAMinute(t *testing.T) {
+func TestReconnectBackoffGrowsFromOneSecondToTenSeconds(t *testing.T) {
 	backoff := &reconnectBackoff{random: func() float64 { return 1 }}
 	var delays []time.Duration
 	for range 9 {
 		delays = append(delays, backoff.next())
 	}
-	want := []time.Duration{1, 2, 4, 8, 16, 32, 60, 60, 60}
+	want := []time.Duration{1, 2, 4, 8, 10, 10, 10, 10, 10}
 	for index, delay := range delays {
 		if delay != want[index]*time.Second {
 			t.Fatalf("delays = %v", delays)
@@ -74,8 +74,8 @@ func TestReconnectBackoffGrowsFromOneSecondToAMinute(t *testing.T) {
 	for range 8 {
 		backoff.next()
 	}
-	if delay := backoff.next(); delay != 30*time.Second {
-		t.Fatalf("jittered cap = %s, want half of a minute", delay)
+	if delay := backoff.next(); delay != 5*time.Second {
+		t.Fatalf("jittered cap = %s, want half of ten seconds", delay)
 	}
 }
 

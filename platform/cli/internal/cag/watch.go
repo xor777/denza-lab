@@ -16,7 +16,7 @@ import (
 const (
 	watchPollInterval = 10 * time.Second
 	watchMinBackoff   = time.Second
-	watchMaxBackoff   = 60 * time.Second
+	watchMaxBackoff   = 10 * time.Second
 	watchLogName      = "watch.log"
 	watchLockName     = "watch.lock"
 	// watchGracePolls is how many more polls a master that runs but does not
@@ -78,7 +78,7 @@ func decideWatch(obs watchObservation) watchAction {
 	}
 }
 
-// reconnectBackoff grows from one second to a minute with jitter, so a fleet
+// reconnectBackoff grows from one second to ten seconds with jitter, so a fleet
 // of computers does not hit the relay in step after an outage.
 type reconnectBackoff struct {
 	failures int

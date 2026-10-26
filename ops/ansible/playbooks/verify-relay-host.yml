@@ -94,7 +94,7 @@
           - "'allowstreamlocalforwarding no' in relay_verify_device_sshd.stdout"
           - "'permitlisten 127.0.0.1:*' in relay_verify_device_sshd.stdout"
           - "'forcecommand /bin/false' in relay_verify_device_sshd.stdout"
-          - "'clientaliveinterval 15' in relay_verify_device_sshd.stdout"
+          - "'clientaliveinterval 5' in relay_verify_device_sshd.stdout"
           - "'clientalivecountmax 3' in relay_verify_device_sshd.stdout"
           - "'allowtcpforwarding local' in relay_verify_client_sshd.stdout"
           - "'allowstreamlocalforwarding no' in relay_verify_client_sshd.stdout"
