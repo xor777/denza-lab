@@ -6,10 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -29,16 +32,134 @@ type fakeRunner struct {
 	detachedCalls    [][]string
 	pipeCalls        [][]string
 	interactiveCalls [][]string
+	// runCalls records every Run call other than ssh-keygen, name first.
+	runCalls         [][]string
+	adbDevicesOutput string
+	launchctlLoaded  bool
+	onDetached       func(args []string)
+	// procs models the ssh masters that Detached leaves behind.
+	procs     *fakeProcesses
+	masterPID int
+	// unresponsivePID is a master that runs but no longer answers -O check
+	// or -O exit, as after its socket broke.
+	unresponsivePID int
+}
+
+// fakeProcesses is a process table for the tests.
+type fakeProcesses struct {
+	mu       sync.Mutex
+	commands map[int]string
+	next     int
+	signals  []string
+}
+
+func newFakeProcesses() *fakeProcesses {
+	return &fakeProcesses{commands: map[int]string{}, next: 4000}
+}
+
+func (procs *fakeProcesses) start(command string) int {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	procs.next++
+	procs.commands[procs.next] = command
+	return procs.next
+}
+
+func (procs *fakeProcesses) exit(pid int) {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	delete(procs.commands, pid)
+}
+
+func (procs *fakeProcesses) alive(pid int) bool { return procs.Command(pid) != "" }
+
+func (procs *fakeProcesses) Command(pid int) string {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	return procs.commands[pid]
+}
+
+func (procs *fakeProcesses) List() []processInfo {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	var list []processInfo
+	for pid, command := range procs.commands {
+		list = append(list, processInfo{PID: pid, Command: command})
+	}
+	return list
+}
+
+func (procs *fakeProcesses) Signal(pid int, sig syscall.Signal) error {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	if _, ok := procs.commands[pid]; !ok {
+		return syscall.ESRCH
+	}
+	procs.signals = append(procs.signals, fmt.Sprintf("%d %s", pid, sig))
+	if sig == syscall.SIGTERM || sig == syscall.SIGKILL {
+		delete(procs.commands, pid)
+	}
+	return nil
+}
+
+func (procs *fakeProcesses) signalled() []string {
+	procs.mu.Lock()
+	defer procs.mu.Unlock()
+	return append([]string{}, procs.signals...)
+}
+
+// fakeMux answers ssh -O check and -O exit the way a master would.
+func (runner *fakeRunner) fakeMux(args []string) ([]byte, error) {
+	socket := argAfter(args, "-S")
+	pid := runner.masterPID
+	if _, err := os.Stat(socket); err != nil || pid == 0 || !runner.procs.alive(pid) || pid == runner.unresponsivePID {
+		return nil, errors.New("Control socket connect(" + socket + "): No such file or directory")
+	}
+	switch argAfter(args, "-O") {
+	case "check":
+		return []byte(fmt.Sprintf("Master running (pid=%d)\r\n", pid)), nil
+	case "exit":
+		runner.procs.exit(pid)
+		os.Remove(socket)
+		return []byte("Exit request sent.\r\n"), nil
+	}
+	return nil, errors.New("unexpected mux command")
+}
+
+// startFakeMaster is what ssh -M -f leaves: a process and its socket.
+func (runner *fakeRunner) startFakeMaster(args []string) int {
+	socket := argAfter(args, "-S")
+	os.WriteFile(socket, nil, 0o600)
+	runner.masterPID = runner.procs.start("ssh " + strings.Join(args, " "))
+	return runner.masterPID
 }
 
 func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
 	if name == "ssh-keygen" {
 		return exec.CommandContext(ctx, name, args...).CombinedOutput()
 	}
-	if name == "adb" {
+	runner.runCalls = append(runner.runCalls, append([]string{name}, args...))
+	switch name {
+	case "adb":
+		if len(args) > 0 && args[0] == "devices" {
+			return []byte(runner.adbDevicesOutput), nil
+		}
 		return []byte(runner.adbConnectOutput), nil
-	}
-	if name != "ssh" {
+	case "launchctl":
+		if len(args) > 0 && args[0] == "print" {
+			if runner.launchctlLoaded {
+				return []byte("gui/501/ru.adbgw.cag = {\n\tstate = running\n\tpid = 42\n}\n"), nil
+			}
+			return nil, errors.New("exit status 113")
+		}
+		return nil, nil
+	case "systemctl":
+		if containsArg(args, "is-active") {
+			return []byte("active\n"), nil
+		}
+		return nil, nil
+	case "ssh":
+	default:
 		return nil, nil
 	}
 	joined := strings.Join(args, " ")
@@ -91,6 +212,9 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 		}
 		return nil, errors.New("confirmation failed")
 	}
+	if argAfter(args, "-O") != "" {
+		return runner.fakeMux(args)
+	}
 	return nil, nil
 }
 
@@ -102,6 +226,9 @@ func (runner *fakeRunner) Interactive(_ context.Context, _ map[string]string, na
 func (runner *fakeRunner) Detached(_ context.Context, _ map[string]string, logPath string, name string, args ...string) error {
 	index := len(runner.detachedCalls)
 	runner.detachedCalls = append(runner.detachedCalls, append([]string{name}, args...))
+	if runner.onDetached != nil {
+		runner.onDetached(args)
+	}
 	failure := ""
 	if index < len(runner.detachedFailures) {
 		failure = runner.detachedFailures[index]
@@ -111,6 +238,9 @@ func (runner *fakeRunner) Detached(_ context.Context, _ map[string]string, logPa
 	}
 	if failure != "" {
 		return errors.New("exit status 255")
+	}
+	if containsArg(args, "-M") {
+		runner.startFakeMaster(args)
 	}
 	return nil
 }
@@ -123,9 +253,11 @@ func (runner *fakeRunner) Pipe(_ context.Context, _ map[string]string, _ string,
 func newTestApp(t *testing.T, confirmation bool) (*App, *fakeRunner, *bytes.Buffer) {
 	t.Helper()
 	config := t.TempDir()
-	runner := &fakeRunner{configDir: config, pairConfirmation: confirmation}
+	runner := &fakeRunner{configDir: config, pairConfirmation: confirmation, procs: newFakeProcesses()}
 	output := &bytes.Buffer{}
-	return newForTest(runner, config, "/usr/local/bin/cag", output), runner, output
+	app := newForTest(runner, config, "/usr/local/bin/cag", output)
+	app.processes = runner.procs
+	return app, runner, output
 }
 
 func TestNormalizeCode(t *testing.T) {

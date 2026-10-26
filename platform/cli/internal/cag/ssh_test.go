@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,9 +18,11 @@ import (
 func newSpacedTestApp(t *testing.T, executable string) (*App, *fakeRunner, *bytes.Buffer) {
 	t.Helper()
 	config := filepath.Join(t.TempDir(), "Application Support", "cag")
-	runner := &fakeRunner{configDir: config, pairConfirmation: true}
+	runner := &fakeRunner{configDir: config, pairConfirmation: true, procs: newFakeProcesses()}
 	output := &bytes.Buffer{}
-	return newForTest(runner, config, executable, output), runner, output
+	app := newForTest(runner, config, executable, output)
+	app.processes = runner.procs
+	return app, runner, output
 }
 
 func testBundle(mode, host string) DeviceBundle {
@@ -76,7 +79,13 @@ func TestSSHArgumentsQuoteAConfigDirWithSpaces(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"connect"}); err != nil {
 		t.Fatal(err)
 	}
-	calls := append(append([][]string{}, runner.sshArgs...), runner.detachedCalls[0][1:])
+	var calls [][]string
+	for _, args := range runner.sshArgs {
+		if argAfter(args, "-O") == "" { // mux checks only ask the master
+			calls = append(calls, args)
+		}
+	}
+	calls = append(calls, runner.detachedCalls[0][1:])
 	if len(calls) != 3 {
 		t.Fatalf("expected pair submit, pair-complete and tunnel; got %d calls", len(calls))
 	}
@@ -238,25 +247,27 @@ func killLoggedPID(t *testing.T, path string) {
 	}
 }
 
-func TestTunnelRetriesOnlyWhenTheLocalPortIsTaken(t *testing.T) {
-	app, runner, output := newTestApp(t, true)
+func TestTunnelFailsFastWhenSshCannotBindThePort(t *testing.T) {
+	app, runner, _ := newTestApp(t, true)
 	writeTestBundle(t, app, testBundle("smart", "127.0.0.1"))
 	runner.detachedFailures = []string{
 		"bind [127.0.0.1]:41000: Address already in use\r\n" +
 			"channel_setup_fwd_listener_tcpip: cannot listen to port: 41000\r\n" +
 			"Could not request local forwarding.\r\n",
 	}
-	if err := app.Run(context.Background(), []string{"connect"}); err != nil {
-		t.Fatal(err)
+	err := app.Run(context.Background(), []string{"connect"})
+	var busy *portBusyError
+	if !errors.As(err, &busy) || busy.port != app.defaultPort {
+		t.Fatalf("a bind failure was not reported as the busy port: %v", err)
 	}
-	if len(runner.detachedCalls) != 2 || !strings.Contains(output.String(), "Connected.") {
-		t.Fatalf("expected one retry after a bind failure; calls=%d output=%q", len(runner.detachedCalls), output)
+	if len(runner.detachedCalls) != 1 {
+		t.Fatalf("a bind failure fell back to another attempt: %d calls", len(runner.detachedCalls))
 	}
 
 	app, runner, _ = newTestApp(t, true)
 	writeTestBundle(t, app, testBundle("smart", "127.0.0.1"))
 	runner.detachedFailures = []string{"Host key verification failed.\r\n"}
-	err := app.Run(context.Background(), []string{"connect"})
+	err = app.Run(context.Background(), []string{"connect"})
 	if err == nil || !strings.Contains(err.Error(), "Host key verification failed") {
 		t.Fatalf("a non-port failure was not reported: %v", err)
 	}
@@ -285,7 +296,7 @@ func TestRawConnectRequiresAdbToReportTheConnection(t *testing.T) {
 			t.Fatalf("%q: %v", reply, err)
 		}
 		call := runner.interactiveCalls[0]
-		if call[0] != "adb" || call[1] != "-s" || !strings.HasPrefix(call[2], "127.0.0.1:") || call[3] != "devices" {
+		if call[0] != "adb" || call[1] != "-s" || call[2] != loopbackAddress(app.defaultPort) || call[3] != "devices" {
 			t.Fatalf("unexpected adb call: %q", call)
 		}
 	}
