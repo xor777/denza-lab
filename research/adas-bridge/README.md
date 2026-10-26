@@ -36,6 +36,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
+| Owner paused the minimal build-15 experiment after reboot and explicitly requested build 26 with live feed for a longer trip | APK hash verified, second route SELECTED 200, arm active until about 21:13 Moscow; moving result pending | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3490,6 +3491,35 @@ subsets, not paired trials or causal estimates; speed-bin tables and ambiguous
 nearby directional support are retained in `analysis-metric/spatial-report.md`
 and `spatial-result.json`. Direction grouping thresholds were declared during
 analysis and are not an acceptance criterion.
+
+#### Build 26 longer-trip departure (2026-10-26)
+
+The owner cancelled the minimal build-15 test before any arm and requested
+candidate 26 with live feed for an ordinary longer Kievskoye trip. Reboot identity
+changed to `b8a62b28-1e9b-3c70-9f2b-48ca4603ca97`; this proves the head-unit boot
+changed, not an ECU state reset. Build 26 was reinstalled with data preserved and
+its installed SHA `cf71e0d2…` verified. Stock map remained disabled (3), no stock
+process, no optional vehicle side channels. The earlier highway classification
+limitation remains unresolved; no classification or readiness check was changed.
+
+The standard product host armed `f83adea1-4799-47fa-9b0a-ecc0826f82a1`, native
+coordinate frame, four-hour lease (estimated expiry 21:13 Moscow). The first
+path `1793024006774` had no observed SELECTED acknowledgement. A replacement
+route to Vnukovo Country, path `1793024279416`, received SELECTED 200 from both
+receivers at 17:17:59 Moscow; state LIVE, guidance active, prepared offline maps.
+The foreground remained `ru.yandex.yandexmaps.app.MapActivity`. Packet/progress
+journals were fresh with zero recorded write/queue errors; crash buffer unchanged.
+
+Evidence and the owned restore command are in
+`captures/stock-sender-parity-20261025/product/drive26-kiev-20261026/`.
+A bounded read-only host recorder follows the four evidence streams by name,
+including rotation, to preserve early data. It retries only the existing ADB
+transport, never arms or changes the car, stops after four hours or 512 MiB,
+and can be stopped by creating that directory's `stream.stop` before further
+ADB work. Sleep/network gaps may still lose data; no uninterrupted capture or
+wake recovery is claimed. The arm is active at this checkpoint; post-drive
+export and restore remain pending. The minimal build-15 test is cancelled,
+not an observed negative result.
 
 ### Regional offline graph (2026-10-24)
 
