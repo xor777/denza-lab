@@ -33,6 +33,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | historical installed candidate: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; superseded by 25 before a drive | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
 | The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 26 parked route ACKed 200; 129 links in classes 7/8/9 and zero class-6 metres; moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
+| A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction, independent duration check; replay kit prepared, no new install or arm | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3340,8 +3341,8 @@ samples by path with wire speed >5 km/h and a preceding ADAS status younger
 than 1 s; missing statuses are excluded from the denominator. The plan instead
 names Yandex speed >1.5 m/s, elapsed-time share and `adas-days-20261026/compare.py`,
 which counts packets over whole-drive windows without a first-path filter.
-Before another run, choose one metric and recompute both baselines, reporting
-unknown coverage and active retention separately from offered-or-active share.
+This mismatch is corrected by the elapsed-time calculation below; the old
+sample percentages remain historical results of a different metric.
 
 The preparation sequence is a testable hypothesis, not the only remaining
 explanation. A high-share repeat would establish reproducibility under that
@@ -3353,6 +3354,44 @@ an unverified receiver-state hypothesis; enabled package state alone does not
 prove absence of a competing publisher. The replay plan's claim that the
 26 October packet ring was overwritten is superseded by the complete retained
 live-receiver coverage and verified post-drive export documented above.
+
+**Prepared repeat, 26 October.** The revised plan is retained in the same
+`PLAN.md`, with its original beside it. The pinned APK, reader and four variants
+have verified hashes. A compatible legacy host is copied and hashed under
+`preparation/host/`; its 51 host tests pass and four `plan` runs make zero
+device calls. Its exact byte identity with the unarchived historical host is
+not established. The current product host is not used for legacy variant arms.
+The read-only 15:46 Moscow snapshot still has build 26 with its expected hash,
+park raw 1, speed 0, no arm, STOPPED and both endpoints closed; stock map state
+3 and no stock process. No installation or new publication was performed.
+
+[`availability_metric.py`](../../tools/adas_bridge/availability_metric.py)
+integrates intervals on one millisecond clock, restricting the selected path
+and Yandex speed >1.5 m/s. Only past samples apply: speed expires at 1500 ms,
+pilot at 1000 ms. Missing/invalid observations stay unknown. Coverage and
+uncertainty bounds are reported separately; each stream needs 95% coverage
+for threshold classification. Active intervals retain observed endpoints and
+censoring rather than claiming exact ECU transition times.
+
+The corpus builder `captures/replay-20261024-evening/metric/build_baselines.py`
+reads pinned raw logs without pickle, resolves repeated packets across rotation
+with source/receiver identity, and preserves proto3 default zero only when the
+parent PilotStatus structure is present. Windows end at a new complete path or
+terminal navigation status, whichever comes first. An independent interval
+sweep reproduces the following duration totals exactly:
+
+| First path | Measured moving time | Offered or active | Share | Moving pilot coverage |
+| --- | ---: | ---: | ---: | ---: |
+| Build 15 `1792861607` | 455.107 s | 371.536 s | 81.6371% | 100% |
+| A1 `1792915887` | 173.659 s | 6.172 s | 3.5541% | 100% |
+
+Speed coverage of the respective selected-path windows is 99.980% / 99.851%.
+Across those windows, independent of movement, build 15 has 69 active episodes
+(median observed-to-next-state interval 720 ms, maximum 2904 ms), A1 has 7
+(495 ms / 500 ms); none is boundary-censored. High availability therefore did
+not establish sustained retention. JSON inputs, output reports, source hashes,
+decoder snapshot and normalization notes are under the same `metric/` directory.
+These percentages describe that first path, not the whole trip.
 
 ### Regional offline graph (2026-10-24)
 
