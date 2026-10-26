@@ -140,7 +140,7 @@ to the replacement. The normative current design lives in
 <a id="cag-012"></a>
 ## CAG-012 — Self-Healing Boundaries
 
-- **Status / date:** Accepted — 2026-07-18.
+- **Status / date:** Accepted — 2026-07-18. Amended 2026-10-26: a relay rejection of the vehicle key no longer fails closed at once ([CAG-018](#cag-018)).
 - **Context:** Network, relay, sleep, and adbd failures are normal, but identity and key errors must not retry forever.
 - **Decision:** Supervise ADB/inner SSH independently from the relay; retry transient failures with bounded jitter; fail closed on mismatch, revocation, or corruption. Force Stop requires manual launch.
 - **Rationale:** Healthy components remain available and security failures stay visible.
@@ -208,3 +208,15 @@ to the replacement. The normative current design lives in
 - **Consequences and risks:** A prompt that never appears, or was dismissed, needs the person to tap the retry button.
 - **Evidence:** `AdbProvisioner` (passive by default, `requestAuthorization()` the one offer) and `GatewayRepository.prepareAdb()`; the supervisor builds only the passive client. On the owner's DiLink 5.1 on 2026-10-26 the first launch offered the key once, the dialog showed the app's own fingerprint, and the app went on by itself after Allow ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
 - **Revisit if:** Firmware offers a documented way to read the prompt queue.
+
+<a id="cag-018"></a>
+## CAG-018 — A Relay Rejection Is Confirmed Before the Car Forgets Itself
+
+- **Status / date:** Accepted — 2026-10-26. Amends [CAG-012](#cag-012).
+- **Context:** On 2026-10-26 the owner's car wiped its registration and rotated its keys although the relay had rejected nothing. While the car changed networks, a reconnect reached the relay but did not finish key exchange within 12 seconds; the relay logged `Timeout before authentication`, and the app took any authentication failure for a rejected key. Recovery needed a new invite, a new pairing code and a trip to the car.
+- **Decision:** Only MINA's definitive refusal - no authentication methods left (`SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE`) - counts as a rejection; timeouts, resets and sessions closed during authentication are transient and retried. Even a rejection is acted on only when confirmed: at least three, the first at least 15 minutes old, with no successful authentication in between. Until then the app keeps its registration and retries. Host-key mismatch and corrupt keys still fail closed at once.
+- **Rationale:** A false wipe costs a person at the car; waiting a quarter of an hour on a genuinely removed registration costs nothing.
+- **Alternatives:** Keep failing closed on the first failure; never wipe and leave removal to a person.
+- **Consequences and risks:** A removed or expired car keeps trying for about 15 minutes before it shows the code screen.
+- **Evidence:** `RelayAuthClassificationTest` (rejected key, stalled authentication, dropped connection, session closed during authentication) and `RegistrationRejectionGateTest`. Live: the fix was installed remotely on the owner's car, its Wi-Fi was switched off for two minutes and back on, and the car came back with the same keys, registration and trusted computer.
+- **Revisit if:** The relay gains an explicit "unknown device" answer the app can read before authentication fails.

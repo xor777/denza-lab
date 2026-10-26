@@ -273,9 +273,12 @@ ADB/inner SSH and the relay tunnel are supervised independently:
 - The watchdog restores a missing loopback server without restarting healthy
   components.
 - DNS failures, no network, relay restart, sleep/wake, and temporary ADB loss
-  are recoverable. If the lease expired or the device was removed, the app
-  clears stale registration/trust and stages a fresh tunnel/control/inner-host
-  key set for enrollment. Host-key mismatch and corrupt keys remain visible,
+  are recoverable, and so is any authentication that times out or is cut off.
+  If the lease expired or the device was removed, the relay refuses the key;
+  after three such refusals over at least 15 minutes with no success between
+  them ([CAG-018](car-adb-gateway-decision-log.md#cag-018)), the app clears
+  stale registration/trust and stages a fresh tunnel/control/inner-host key set
+  for enrollment. Host-key mismatch and corrupt keys remain visible,
   fail-closed errors.
 
 Force Stop is an Android platform boundary: an ordinary APK cannot restart
@@ -486,9 +489,27 @@ adbd authorized the app's key for the computer's session (CAG-016). The car's
 off in the same session; that is what lets the wake's `BOOT_COMPLETED` start
 it.
 
+Later that day the car lost its registration in the field: on a network change
+a reconnect timed out during key exchange, and the app took that for a rejected
+key, wiped itself and rotated its keys (14:30 MSK on the key files, the relay's
+`Timeout before authentication` the same minute). The owner had to enter a new
+invite and a new pairing code at the car. CAG-018 fixed the classification and
+added a confirmation gate. The fixed build was installed with no one at the car:
+the APK was pushed through CAG itself and a detached shell script on the car ran
+`pm install -r` and reopened the app, which survives the install cutting the
+tunnel. The «Disable background Apps» switch the install re-armed was turned off
+again over the same route. The car's Wi-Fi was then switched off for two minutes
+by a detached script that switched it back on. The registration, the keys and
+the trusted computer survived, the car logged in with the same key once Wi-Fi
+returned, and the Mac had the car back at `127.0.0.1:5555` about 2.5 minutes
+after the cut. About 1.5 minutes of that was the old tunnel's heartbeat running
+out and up to a minute the Mac's reconnect backoff.
+
 Required before production:
 
 - a wake from the car's sleep (quickboot) without opening the app;
+- recovery after a network change within the 90-second target (2.5 minutes on
+  2026-10-26);
 - verify API levels 26, 31, 34 and 36 (33 on the head unit and 35 on the emulator are done);
 - test installation and ADB approval, reboot, sleep/wake, network switching,
   adbd and relay restart, and Mac/Linux computer replacement on a real head
