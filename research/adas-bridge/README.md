@@ -11,8 +11,9 @@ product sender with `stocknative`. Candidate 15 passed stationary route receipt
 on 2026-10-25. Candidate 21 passed two same-arm stationary
 route selections, continuous output and graceful closure. Its first drive is
 retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
-see the separate drive analysis below. Candidate 23 is now installed, with parked
-ACK and sourced speed/ownership plus owner-confirmed lane inputs verified; its drive is pending. Build 14 and its experiment variants
+see the separate drive analysis below. Candidate 25 is now installed. Two parked
+Kyivskoye routes received same-path ACK 200, but neither had any class-6 link,
+so the highway HNOA trial remains postponed. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
 armed session, then received dynamic packets. NOA operation is not established.
@@ -26,10 +27,10 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 23 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 25 installed and parked ACK verified; its class-6 highway gate failed; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
-| Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | installed: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; moving acceptance pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
-| The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 25 built and locally checked; retained Kyivskoye MEDIUM mainline needs raw fc; stationary receipt and moving NOA pending | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
+| Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | historical installed candidate: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; superseded by 25 before a drive | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
+| The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 25 installed; two parked Kyivskoye routes ACKed 200 but had zero class-6 metres, so moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -738,6 +739,28 @@ APK signatures pass; local validation includes 64 library tests, 128 product
 runtime checks, 212 native-session checks and 400 passive Binder checks. The
 42 drive-review tests also pass with the retained corpus enabled. Candidate
 receipt and build log live beside the APK; reader 20 is unchanged and reused.
+
+On 2026-10-26 the exact APK was installed on the parked car; its installed SHA
+matched the artifact. Two fresh arms used fixed
+`NATIVE_GCJ_UNRESTRICTED_CANDIDATE`, legacy park raw 1 and measured speed 0.
+Both 14 km routes to «Киевское ш., 44-й километр» received same-path
+`SELECTED 200`, but neither route contained a `HIGHWAY` section: the named
+Kievskoye sections were `LARGE`, preceded by an unnamed `MEDIUM` section.
+The first path `1793000587321` had 15 links: fourteen class 9 and one class 7,
+with zero class-6 metres. The second path `1793002649261`, rebuilt after vector
+activity, had 39 links: 27 class 9 and twelve class 8, again zero class-6
+metres. Its typed evidence included `fc=6` on the `MEDIUM` section; unmatched
+and conflicting intervals remained fallback class 9. This is a failed class-6
+highway admission gate, not a moving NOA result.
+
+The second route's 39 static links all carried `speedLimit=0`; decoded Region
+packets carried 990001. Its review retained 390 positions with no gap above
+2.5 s and one ACK 200, 36 ms after selection. Evidence and the independent
+review are under `captures/stock-sender-parity-20261025/product/live25-kyiv/`.
+The first route's ordinary UI cancellation ended its arm with `map fire result
+1`; the host restored it before creating the second arm. Both arms and the
+expired previous arm were restored with stable endpoint closure, and the final
+Navigator route was cancelled. No moving trial was attempted.
 
 Vehicle acceptance is separate. The owner installs and arms the candidate,
 using fixed `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` for every route, without frame
