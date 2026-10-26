@@ -32,6 +32,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | historical installed candidate: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; superseded by 25 before a drive | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
 | The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 26 parked route ACKed 200; 129 links in classes 7/8/9 and zero class-6 metres; moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
+| Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3227,9 +3228,88 @@ Its basic route structure and subscription checks pass; the cause is unknown.
 Ordinary cancellation kept the arm alive in PAUSED. The second home suggestion,
 «Луговая ул., вл20Ас1», read 69/69 tiles and received same-path ACK 200 for
 `1793013916514` at 14:25:16.693 Moscow time. No new crash entry appeared.
-At this preparation checkpoint the arm remains LIVE, awaiting the owner's
-village drive and post-drive restore; no moving result is yet established.
-Evidence and the active rollback ledger are under `product/drive26-village/`.
+At that preparation checkpoint the arm remained LIVE. The subsequent drive
+and completed post-drive restore are recorded below.
+Evidence and the session's rollback ledger are under `product/drive26-village/`.
+
+#### Candidate 26 village drive (2026-10-26)
+
+The owner reports no CNOA proposal in the settlement and one blink outside it.
+The retained service-13 packets add a brief active episode; this does not imply
+the owner saw a sustained activation. In both independent receivers, mode 2
+(CNOA family) remains recorded throughout the selected arm.
+
+| Observation, Moscow time | Raw evidence and attribution |
+| --- | --- |
+| 14:32:46.591–14:33:00.721 | Intermittent DNP available (2), 17 observed runs; not continuous availability. The first positive has a fresh position on ACKed path `1793014193378`, class 9 from typed fc 7 / SMALL, not unknown fallback. |
+| 14:33:00.721–14:33:01.387 | DNP active (1), confirmed by both receivers. Seven positive observations span 572 ms; the next differing response arrives 666 ms after the first. Approximately 0.7 s is an observation-window estimate, not an exact ECU transition duration. |
+| 14:33:01.387 | DNP is absent (proto3 default 0), ICC becomes active (1). Later ICC episodes are separate from CNOA retention. |
+
+The active packet is retained at
+`post-drive/denza-drive-evidence/adas-packets.jsonl.3:26037` (live) and line
+26036 (overlay), payload `0a0c0887dbb2eb0f180220022801`. The selected path's
+last position before activation is at 14:33:00.325: current link 7, segment 4 /
+link 2, typed fc 6 / MEDIUM mapped to native class 8. The class 9 → 8 change
+precedes activation. At the subsequent exit, the latest position is only 57 ms
+old and is still on that same link with class 8. Thus class 8 did not prevent
+this brief activation, and there is no class change at the exit itself.
+
+The last sent vehicle speed at availability, activation and exit is 16 km/h.
+HistorySpeed stays 25, Region 990001 and the donor ownership/formway/direction/
+lane values stay 0/1/1/0 around the episode. The legal-limit scalar is absent
+on the protobuf wire, meaning its default 0. The same path remains ACKed;
+position, TrafficInfo, navigation status and history-speed outputs continue
+through the exit. No route replacement, preparation change or coordinate-frame
+switch coincides with it. This rules out an observed transmission blackout as
+the immediate explanation of this exit, but does not prove that the remaining
+map inputs satisfy the receiver.
+
+The receiver sends notice 4 at activation and notice 22 at the transition to
+ICC; the alarm-reason field does not provide a nonzero cause. The shell reader
+observes quit raw 8 about 0.7 s after the exit, bracketed by 0. Its precise enum
+and latching semantics remain unknown, so neither notice 22 nor quit 8 is yet
+a decoded cause. Across this arm there are 2,660 quit reads of 0, three of 18,
+two of 19 and one of 8.
+
+The broader sender trace is **not uninterrupted**. There are 12 published
+paths: the first unACKed parked suggestion, then 11 ACKed paths after choosing
+the second suggestion. Among 1,338 position outputs, nine gaps exceed 2.5 s:
+
+- 13.303 s at 14:29:40.181–14:29:53.484 crosses a Yandex reroute with a temporary
+  `offline:` route ID and publication of a freshly prepared path. FINE guidance
+  samples alone do not prove that all native admission conditions held.
+- 8.032 s at 14:37:08.341–14:37:16.373 overlaps explicit `expired_snapshot`
+  vehicle-gate failures and `stock isolation clock`, with source-location
+  freshness also requiring separate inspection.
+- Seven other gaps are 2.576–4.210 s. These are real absences of successful
+  position fires; they are not all established software defects or decoded
+  reasons for the lack of CNOA proposals.
+
+Neither long gap overlaps the approximately 0.7 s CNOA-active episode. A path
+at 14:41:10.248 was ACKed but has no position before its replacement; its input
+policy says NOT_ON_ROUTE. ACK alone is therefore not proof of usable ongoing
+guidance. The generic review's empty `pauses` array is a legacy-event detector,
+not proof that the native sender never paused; the raw prerequisite timeline
+and actual output gaps take precedence.
+
+The installed APK SHA still matches candidate 26. The return snapshot has
+legacy park raw 1 and measured speed 0, with the route already ended. A brief
+ADB outage delayed export; it occurred after the drive and is separate from
+the driving gaps above. Restore then sent terminal 100, removed the arm,
+verified stable STOPPED and both endpoints closed, and retained the original
+stock-map disabled-user state. No new crash-buffer entry appeared.
+
+Full retained live, progress, journal and packet streams cover the arm. Twenty
+immutable log/route files were SHA-256 matched against the car after transfer;
+failed/truncated transfer attempts are kept outside the analysis input directory.
+One malformed historical live row predates this arm. Evidence is under
+`captures/stock-sender-parity-20261025/product/drive26-village/`: `post-drive/`,
+`review/`, `analysis-events/`, `analysis-pipeline/`, owner observation and restore
+receipts. The next priorities are decoding the exit notifications and comparing
+the continuously sent inputs around the brief activation with the retained
+factory hold, while independently explaining and reducing long reroute/freshness
+gaps without bypassing the admission checks. More donor substitutions are not
+justified by this result alone.
 
 ### Regional offline graph (2026-10-24)
 
