@@ -23,6 +23,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.EOFException
 import java.io.InputStream
@@ -33,11 +34,13 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.PublicKey
 import java.time.Duration
 import java.util.Arrays
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.crypto.Cipher
@@ -131,6 +134,83 @@ class GatewayChainIntegrationTest {
         runCatching { channel.close(false) }
         runCatching { session.close(false) }
         inner.close()
+    }
+
+    @Test
+    fun `a stock OpenSSH client reaches adb with ssh -W through the tunnel`() {
+        val ssh = openSshTool("ssh")
+        val keygen = openSshTool("ssh-keygen")
+        assumeTrue("no OpenSSH client on PATH", ssh != null && keygen != null)
+        val dir = Files.createTempDirectory("cag-openssh")
+        val keyFile = dir.resolve("id_ed25519")
+        val generated = ProcessBuilder(keygen!!, "-q", "-t", "ed25519", "-N", "", "-C", "", "-f", keyFile.toString())
+            .redirectErrorStream(true).start()
+        assertTrue(generated.waitFor(20, TimeUnit.SECONDS) && generated.exitValue() == 0)
+        val computerKey = PublicKeyEntry.parsePublicKeyEntry(Files.readString(dir.resolve("id_ed25519.pub")).trim())
+            .resolvePublicKey(null, emptyMap(), null)
+
+        val appKey = rsa()
+        val adbd = EchoAdbd(appKey.public).also { start(it) }
+        val store = FakeStore().apply { trustedKey = PublicKeyEntry.toString(computerKey); trustedLabel = "Mac" }
+        startInner(store, AdbEndpoint(AdbEndpointKind.RawAdbd, "127.0.0.1", adbd.port, "test adbd"), appKey)
+        val deviceKey = rsa()
+        val relay = startRelay(deviceKey.public)
+        val devicePort = freePort()
+        val relayClient = RelayClient(
+            keyStore = SingleKeyStore(deviceKey),
+            relayHost = "127.0.0.1",
+            relaySshPort = relay.port,
+            relayFingerprints = setOf(relay.fingerprint),
+        )
+        val tunnel = runBlocking { relayClient.openTunnel(registration(devicePort)) {} }
+        closeables.addLast(tunnel)
+
+        // -F /dev/null: the client's built-in defaults, no user or system configuration.
+        val log = dir.resolve("ssh.log")
+        val process = ProcessBuilder(
+            ssh!!, "-F", "/dev/null", "-v",
+            "-o", "BatchMode=yes",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "GlobalKnownHostsFile=/dev/null",
+            "-o", "IdentitiesOnly=yes",
+            "-o", "IdentityAgent=none",
+            "-o", "ConnectTimeout=10",
+            "-i", keyFile.toString(),
+            "-p", devicePort.toString(),
+            "-W", "127.0.0.1:$RAW_ADBD_PORT",
+            "$INNER_SSH_USER@127.0.0.1",
+        ).redirectError(log.toFile()).start()
+        closeables.addLast(AutoCloseable { process.destroyForcibly() })
+        Thread {
+            if (!process.waitFor(30, TimeUnit.SECONDS)) process.destroyForcibly()
+        }.apply { isDaemon = true; start() }
+        val toCar = process.outputStream
+        val fromCar = process.inputStream
+
+        val clientBanner = "host::features=cmd\u0000".toByteArray(StandardCharsets.UTF_8)
+        AdbWire.write(toCar, AdbWire.A_CNXN, ADB_VERSION, MAX_PAYLOAD, clientBanner)
+        val connectBack = try {
+            AdbWire.read(fromCar)
+        } catch (error: EOFException) {
+            throw AssertionError("ssh -W closed early:\n${Files.readString(log)}", error)
+        }
+        assertEquals(AdbWire.A_CNXN, connectBack.command)
+        assertArrayEquals(adbd.banner, connectBack.payload)
+        val payload = "shell:echo denza\u0000".toByteArray(StandardCharsets.UTF_8)
+        AdbWire.write(toCar, AdbWire.A_WRTE, 7, 9, payload)
+        assertArrayEquals(payload, AdbWire.read(fromCar).payload)
+        // The ADB pipe stays open on EOF; the handshake lines are long written by now.
+        process.destroy()
+        process.waitFor(5, TimeUnit.SECONDS)
+
+        val debug = Files.readString(log)
+        val kex = Regex("kex: algorithm: (\\S+)").find(debug)?.groupValues?.get(1)
+        val cipher = Regex("kex: server->client cipher: (\\S+) MAC: (\\S+)").find(debug)?.groupValues
+        val version = debug.lineSequence().firstOrNull { it.contains("OpenSSH_") }.orEmpty()
+        println("[stock OpenSSH ssh -W -> inner server] kex=$kex cipher=${cipher?.get(1)} mac=${cipher?.get(2)} ($version)")
+        assertTrue("negotiated $kex", kex in SshAlgorithms.keyExchanges.map { it.getName() })
+        assertTrue("negotiated ${cipher?.get(1)}", cipher?.get(1) in SshAlgorithms.ciphers.map { it.getName() })
     }
 
     @Test
@@ -485,6 +565,13 @@ class GatewayChainIntegrationTest {
             generator.initialize(2048)
             return generator.generateKeyPair()
         }
+
+        /** An executable on PATH, or null: the test is skipped on a machine without OpenSSH. */
+        private fun openSshTool(name: String): String? = System.getenv("PATH").orEmpty()
+            .split(java.io.File.pathSeparator)
+            .map { java.io.File(it, name) }
+            .firstOrNull { it.canExecute() }
+            ?.path
 
         private fun freePort(): Int = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
 

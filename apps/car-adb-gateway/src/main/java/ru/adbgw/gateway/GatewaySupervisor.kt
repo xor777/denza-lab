@@ -38,13 +38,18 @@ class GatewaySupervisor(
     private var adbJob: Job? = null
     private var relayJob: Job? = null
     private var innerServer: InnerGatewayServer? = null
-    private var tunnel: RelayTunnel? = null
-    private val relayBackoff = RetryBackoff()
+    @Volatile private var tunnel: RelayTunnel? = null
+    private val relayPacer = RelayRetryPacer()
     @Volatile private var networkGeneration: Long = 0
 
     @Synchronized
     fun start() {
-        if (adbJob?.isActive == true || relayJob?.isActive == true) return
+        if (adbJob?.isActive == true || relayJob?.isActive == true) {
+            // Already running: an explicit start (the app opened, a boot or update broadcast)
+            // retries the relay now instead of at the end of its backoff.
+            relayPacer.wake()
+            return
+        }
         val registration = stateStore.registration() ?: return
         if (!stateStore.isEnabled()) return
         ensureInnerServer()
@@ -59,6 +64,7 @@ class GatewaySupervisor(
         relayJob?.cancel()
         adbJob = null
         relayJob = null
+        relayClient.abortTunnelAttempt()
         tunnel?.close()
         tunnel = null
         innerServer?.close()
@@ -67,13 +73,26 @@ class GatewaySupervisor(
         onEvent(GatewayEvent.ClientChanged(ClientState.Waiting, null, System.currentTimeMillis()))
     }
 
+    /**
+     * The default network appeared, changed or went away: the tunnel and any attempt in flight are
+     * on the old one, so both go, and the relay loop tries again at once with its backoff restarted.
+     */
     @Synchronized
     fun networkChanged() {
         networkGeneration += 1
-        relayBackoff.reset()
         tunnel?.close()
         tunnel = null
+        relayClient.abortTunnelAttempt()
+        relayPacer.wake()
         onSupportEvent("Сеть изменилась; соединение будет создано заново")
+    }
+
+    /**
+     * The default network passed Android's validation, so it now carries traffic. A relay loop
+     * waiting out its backoff tries at once; a working tunnel is left alone.
+     */
+    fun networkValidated() {
+        relayPacer.wake()
     }
 
     private suspend fun adbLoop(registration: RelayRegistration) {
@@ -140,7 +159,12 @@ class GatewaySupervisor(
         var registration = initialRegistration
         var observedGeneration = networkGeneration
         var nextLeaseRenewalAtMillis = 0L
+        var reportedPortBusy = false
         while (scope.isActive && stateStore.isEnabled()) {
+            // A wake from here on (a network change, a validated network, start()) ends the pause
+            // that follows this attempt.
+            val wakeMark = relayPacer.mark()
+            var portBusy = false
             onEvent(GatewayEvent.RelayChanged(RelayState.Connecting))
             try {
                 recoverPendingPairCommit(registration)
@@ -150,7 +174,7 @@ class GatewaySupervisor(
                 }
                 if (endpoint.get() == null || innerServer?.isRunning != true) {
                     onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
-                    delay(1_000)
+                    relayPacer.pause(WAITING_POLL_MILLIS, wakeMark)
                     continue
                 }
                 val opened = relayClient.openTunnel(registration) { error ->
@@ -159,31 +183,43 @@ class GatewaySupervisor(
                     }
                 }
                 tunnel = opened
-                relayBackoff.reset()
+                relayPacer.connected()
+                reportedPortBusy = false
                 onEvent(GatewayEvent.RelayChanged(RelayState.Connected))
                 onSupportEvent("Соединение с relay восстановлено")
-                while (scope.isActive && stateStore.isEnabled() && opened.isOpen) {
-                    if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
-                        try {
-                            registration = renewLease(registration)
-                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
-                        } catch (error: RelayAccessException) {
-                            if (error.permanent && handlePermanent(error)) {
-                                opened.close()
-                                return
+                try {
+                    // A network change while the tunnel was being opened leaves it on the old network.
+                    while (scope.isActive && stateStore.isEnabled() && opened.isOpen &&
+                        observedGeneration == networkGeneration
+                    ) {
+                        if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
+                            try {
+                                registration = renewLease(registration)
+                                nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
+                            } catch (error: RelayAccessException) {
+                                if (error.permanent && handlePermanent(error)) return
+                                nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
+                                onSupportEvent("Продление регистрации будет повторено через пять минут")
                             }
-                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
-                            onSupportEvent("Продление регистрации будет повторено через пять минут")
                         }
+                        delay(TUNNEL_POLL_MILLIS)
                     }
-                    delay(2_000)
+                } finally {
+                    // Also on stop(): a cancelled loop must not leave the tunnel open on the relay.
+                    opened.close()
+                    if (tunnel === opened) tunnel = null
                 }
-                opened.close()
-                if (tunnel === opened) tunnel = null
             } catch (error: RelayAccessException) {
                 if (error.permanent && handlePermanent(error)) return
                 onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
-                if (!error.registrationRejected) onSupportEvent("Relay временно недоступен")
+                portBusy = error.relayPortBusy
+                when {
+                    portBusy -> if (!reportedPortBusy) {
+                        reportedPortBusy = true
+                        onSupportEvent("Relay ещё держит прежний туннель; повторяем каждые несколько секунд")
+                    }
+                    !error.registrationRejected -> onSupportEvent("Relay временно недоступен")
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -193,11 +229,11 @@ class GatewaySupervisor(
             }
 
             if (observedGeneration != networkGeneration) {
+                // networkChanged() already restarted the backoff.
                 observedGeneration = networkGeneration
-                relayBackoff.reset()
                 continue
             }
-            delay(relayBackoff.nextDelayMillis())
+            relayPacer.pause(relayPacer.nextDelayMillis(portBusy), wakeMark)
         }
     }
 
@@ -262,5 +298,7 @@ class GatewaySupervisor(
     companion object {
         private const val LEASE_RENEW_INTERVAL_MILLIS = 24L * 60L * 60L * 1_000L
         private const val LEASE_RETRY_INTERVAL_MILLIS = 5L * 60L * 1_000L
+        private const val WAITING_POLL_MILLIS = 1_000L
+        private const val TUNNEL_POLL_MILLIS = 2_000L
     }
 }

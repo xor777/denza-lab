@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -65,9 +66,28 @@ class GatewayService : Service() {
 
     private fun registerNetworkCallback() {
         val connectivity = getSystemService(ConnectivityManager::class.java)
+        // Delivered one at a time on the connectivity thread.
         val callback = object : ConnectivityManager.NetworkCallback() {
+            // The default network last seen validated: capabilities change often (signal, bandwidth),
+            // and only the step to validated wakes the relay.
+            private var validatedNetwork: Network? = null
+
             override fun onAvailable(network: Network) = GatewayRepository.networkChanged()
-            override fun onLost(network: Network) = GatewayRepository.networkChanged()
+
+            override fun onLost(network: Network) {
+                if (validatedNetwork == network) validatedNetwork = null
+                GatewayRepository.networkChanged()
+            }
+
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    if (validatedNetwork == network) validatedNetwork = null
+                    return
+                }
+                if (validatedNetwork == network) return
+                validatedNetwork = network
+                GatewayRepository.networkValidated()
+            }
         }
         connectivity.registerDefaultNetworkCallback(callback)
         networkCallback = callback

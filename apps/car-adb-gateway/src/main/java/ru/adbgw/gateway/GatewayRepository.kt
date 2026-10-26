@@ -93,6 +93,10 @@ object GatewayRepository {
         supervisor?.networkChanged()
     }
 
+    fun networkValidated() {
+        supervisor?.networkValidated()
+    }
+
     suspend fun prepareAdb(): Boolean {
         // A new explicit request replaces the previous wait, so the retry button always works.
         approvalWatch?.cancel()

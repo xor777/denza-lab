@@ -7,6 +7,7 @@ import org.apache.sshd.client.SshClient
 import org.apache.sshd.client.session.ClientSession
 import org.apache.sshd.common.config.keys.KeyUtils
 import org.apache.sshd.common.NamedFactory
+import org.apache.sshd.common.SshException
 import org.apache.sshd.common.signature.Signature
 import org.apache.sshd.common.util.net.SshdSocketAddress
 import org.apache.sshd.core.CoreModuleProperties
@@ -15,13 +16,30 @@ import java.security.KeyPair
 import java.security.GeneralSecurityException
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class RelayAccessException(
     message: String,
     cause: Throwable? = null,
     val permanent: Boolean = false,
     val registrationRejected: Boolean = false,
+    // The relay authenticated the car and then refused to listen on its port: after a drop it still
+    // holds the previous session and that session's listener. Transient, retried at a short pace.
+    val relayPortBusy: Boolean = false,
 ) : Exception(message, cause)
+
+/**
+ * How the tunnel notices a relay that stopped answering: a `keepalive@openssh.com` global request
+ * with want-reply every [interval]. Any reply, OpenSSH's `REQUEST_FAILURE` included, clears the
+ * count; the tick that finds more than [maxUnanswered] requests unanswered closes the session, so
+ * a dead link is closed between `maxUnanswered` and `maxUnanswered + 1` intervals after it died.
+ */
+data class RelayHeartbeat(val interval: Duration, val maxUnanswered: Int) {
+    companion object {
+        const val REQUEST = "keepalive@openssh.com"
+        val DEFAULT = RelayHeartbeat(Duration.ofSeconds(10), 3)
+    }
+}
 
 class RelayClient(
     private val keyStore: RelayKeyStore,
@@ -31,13 +49,33 @@ class RelayClient(
     // Test-only hook: records the address MINA asks the tunnel client to accept a forwarded
     // channel to. Null in production.
     private val tunnelForwardObserver: ((org.apache.sshd.server.forward.TcpForwardingFilter.Type, org.apache.sshd.common.util.net.SshdSocketAddress) -> Unit)? = null,
-    // A test shortens these so a stalled server is noticed in about a second.
-    private val connectTimeout: Duration = Duration.ofSeconds(12),
-    private val authTimeout: Duration = Duration.ofSeconds(12),
+    // A test shortens these so a stalled server is noticed in about a second. Auth covers the key
+    // exchange too: a slow one on a fresh network must not read as a failure.
+    private val connectTimeout: Duration = CONNECT_TIMEOUT,
+    private val authTimeout: Duration = AUTH_TIMEOUT,
+    private val heartbeat: RelayHeartbeat = RelayHeartbeat.DEFAULT,
     // Called after the relay accepted a registered vehicle key (tunnel or control), never for the
     // invite code. Clears the evidence of earlier rejections.
     private val onRegisteredKeyAccepted: () -> Unit = {},
 ) {
+    // The tunnel attempt in flight, so a network change can abandon it instead of waiting out its
+    // timeouts on a network that is gone.
+    private val tunnelAttempt = AtomicReference<TunnelAttempt?>(null)
+
+    private class TunnelAttempt(val client: SshClient) {
+        val abandoned = AtomicBoolean(false)
+    }
+
+    /**
+     * Abandons the tunnel attempt in flight, if any: it fails at once as a transient error. An
+     * established tunnel is not touched; [RelayTunnel.close] ends that.
+     */
+    fun abortTunnelAttempt() {
+        val attempt = tunnelAttempt.getAndSet(null) ?: return
+        attempt.abandoned.set(true)
+        runCatching { attempt.client.stop() }
+    }
+
     suspend fun enroll(code: String, label: String, endpoint: AdbEndpoint): RelayRegistration =
         withContext(Dispatchers.IO) {
             val command = RelayProtocol.enrollmentCommand(
@@ -116,20 +154,45 @@ class RelayClient(
     ): RelayTunnel = withContext(Dispatchers.IO) {
         val mismatch = AtomicBoolean(false)
         val client = configuredClient(mismatch)
+        val attempt = TunnelAttempt(client)
+        tunnelAttempt.set(attempt)
         try {
             client.start()
             val session = connect(client, "cag-device", keyStore.tunnelKeyPair, null, mismatch, true)
+            bindRelayPort(session, registration)
+            RelayTunnel(client, session, onClosed)
+        } catch (error: Throwable) {
+            runCatching { client.stop() }
+            if (attempt.abandoned.get() && !mismatch.get()) {
+                // Whatever the stopped client threw, the network changed under it.
+                throw RelayAccessException("Tunnel attempt abandoned: the network changed", error)
+            }
+            if (error is RelayAccessException) throw error
+            throw classify(error, mismatch.get())
+        } finally {
+            tunnelAttempt.compareAndSet(attempt, null)
+        }
+    }
+
+    /**
+     * Asks the relay to listen on the car's port. MINA turns the relay's `REQUEST_FAILURE` into a
+     * bare [SshException] ("Tcpip forwarding request denied by server") and leaves the session
+     * open; right after a drop that is the relay still holding the previous session's listener.
+     * A timeout or a session closed while waiting is the network and stays an ordinary failure.
+     */
+    private fun bindRelayPort(session: ClientSession, registration: RelayRegistration) {
+        try {
             session.startRemotePortForwarding(
                 SshdSocketAddress("127.0.0.1", registration.relayDevicePort),
                 SshdSocketAddress(INNER_SSH_HOST, INNER_SSH_PORT),
             )
-            RelayTunnel(client, session, onClosed)
-        } catch (error: RelayAccessException) {
-            runCatching { client.stop() }
-            throw error
-        } catch (error: Throwable) {
-            runCatching { client.stop() }
-            throw classify(error, mismatch.get())
+        } catch (error: SshException) {
+            if (!session.isOpen) throw error
+            throw RelayAccessException(
+                "Relay still holds the previous tunnel on this port",
+                error,
+                relayPortBusy = true,
+            )
         }
     }
 
@@ -227,6 +290,9 @@ class RelayClient(
 
     private fun configuredClient(mismatch: AtomicBoolean): SshClient =
         SshClient.setUpDefaultClient().apply {
+            keyExchangeFactories = SshAlgorithms.clientKeyExchanges()
+            cipherFactories = SshAlgorithms.cipherFactories()
+            macFactories = SshAlgorithms.macFactories()
             signatureFactories = preferPinnedHostKeyAlgorithm(signatureFactories)
             serverKeyVerifier = org.apache.sshd.client.keyverifier.ServerKeyVerifier { _, _, serverKey ->
                 val fingerprint = KeyUtils.getFingerPrint(serverKey)
@@ -244,9 +310,16 @@ class RelayClient(
             // channel the relay opens back for every -R connection. Accept only a Forwarded channel
             // to our own inner server, and nothing else.
             forwardingFilter = tunnelForwardingFilter()
-            CoreModuleProperties.HEARTBEAT_INTERVAL.set(this, Duration.ofSeconds(30))
-            CoreModuleProperties.HEARTBEAT_REPLY_WAIT.set(this, Duration.ofSeconds(30))
-            CoreModuleProperties.HEARTBEAT_NO_REPLY_MAX.set(this, 3)
+            // MINA's default request name is keepalive@sshd.apache.org; OpenSSH answers either with
+            // REQUEST_FAILURE, which counts as a reply. HEARTBEAT_REPLY_WAIT is deprecated in 2.18 and
+            // ignored once NO_REPLY_MAX is set: there is no per-request wait, each tick counts the
+            // requests still unanswered.
+            CoreModuleProperties.HEARTBEAT_REQUEST.set(this, RelayHeartbeat.REQUEST)
+            CoreModuleProperties.HEARTBEAT_INTERVAL.set(this, heartbeat.interval)
+            CoreModuleProperties.HEARTBEAT_NO_REPLY_MAX.set(this, heartbeat.maxUnanswered)
+            // A link that dies during a rekey is not counted by the heartbeat; bound it at two minutes
+            // instead of MINA's ten.
+            CoreModuleProperties.IDLE_TIMEOUT.set(this, Duration.ofMinutes(2))
         }
 
     private fun tunnelForwardingFilter(): org.apache.sshd.server.forward.ForwardingFilter =
@@ -286,6 +359,11 @@ class RelayClient(
         )
         else -> RelayAccessException("Relay connection failed", error, permanent = false)
         }
+
+    companion object {
+        val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(15)
+        val AUTH_TIMEOUT: Duration = Duration.ofSeconds(30)
+    }
 }
 
 /**

@@ -61,6 +61,10 @@ class InnerGatewayServer(
         val ssh = SshServer.setUpDefaultServer().apply {
             host = INNER_SSH_HOST
             port = INNER_SSH_PORT
+            // The computer's stock OpenSSH negotiates through the tunnel: it offers all of these.
+            keyExchangeFactories = SshAlgorithms.serverKeyExchanges()
+            cipherFactories = SshAlgorithms.cipherFactories()
+            macFactories = SshAlgorithms.macFactories()
             keyPairProvider = KeyPairProvider.wrap(innerHostKey)
             fileSystemFactory = NoneFileSystemFactory.INSTANCE
             userAuthFactories = listOf(
