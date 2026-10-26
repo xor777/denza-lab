@@ -3209,7 +3209,7 @@ Host restore sent the original terminal NavigationStatus 100, verified stable
 `STOPPED` with quiescent/serverClosed/answersClosed true, removed the arm and
 stopped its owned reader. The stock map retained its original disabled-user
 state (3), and the ordinary Navigator route was then cancelled through its UI.
-Candidate 26 remains installed and disarmed. This is parked transport and
+Candidate 26 was left installed and disarmed after this test. This is parked transport and
 map-reading acceptance; the highway gate failed and no moving test occurred.
 
 Evidence: `captures/stock-sender-parity-20261025/product/live26-kiev/` contains
@@ -3217,6 +3217,19 @@ Evidence: `captures/stock-sender-parity-20261025/product/live26-kiev/` contains
 ledger, map-reader status, unchanged before/after crash buffers, screenshots,
 `review/review.{json,md}` and the independent per-link source/wire join
 `independent-link-join.json`. The candidate receipt records this live result.
+
+For the subsequent owner-directed village drive, the owner requested any home
+suggestion, allowing normal rerouting as they drive. Arm
+`c84d4670-81b5-48c6-a68d-5b551d2e3e98` was prepared while parked for two hours.
+The first suggestion, «Луговая ул., 20», read 45/45 tiles and published path
+`1793013619487`, but no ACK or PathMatch was retained in either receiver.
+Its basic route structure and subscription checks pass; the cause is unknown.
+Ordinary cancellation kept the arm alive in PAUSED. The second home suggestion,
+«Луговая ул., вл20Ас1», read 69/69 tiles and received same-path ACK 200 for
+`1793013916514` at 14:25:16.693 Moscow time. No new crash entry appeared.
+At this preparation checkpoint the arm remains LIVE, awaiting the owner's
+village drive and post-drive restore; no moving result is yet established.
+Evidence and the active rollback ledger are under `product/drive26-village/`.
 
 ### Regional offline graph (2026-10-24)
 
