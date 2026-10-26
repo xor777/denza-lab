@@ -12,7 +12,7 @@ may still use the historical `denza-gateway` directory name.
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
 | `legacy/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Legacy.** Frozen hardware-verified reference, removed from the root Gradle build after the accepted Denza Apps mirror scenarios were verified on the car. |
 | `apps/denza-apps/` | `denza-apps` | Simulcast, side-camera mirrors, navigation and HUD guidance, explicit stock-IVI split sessions, Contour instruments (drawn as Luminofor since 2026-09-23), a bottom trip/spectrum strip, native weather adaptation, passenger-screen app installation, Shortcuts default-app role selection, a hidden stock-settings Russian locale toggle, and the car's cloud link over Wi-Fi («Облако», built 2026-09-23, not yet on the car). | **Active.** Version `0.6.1`; one installed APK contains the ordinary Denza Apps launcher and the toggle-controlled Split Screen alias and picker. Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirror cycles, selectable navigation layouts, HUD guidance, trip inputs, native weather refresh, the former contextual split route, and FSE installation have been exercised on the author's car. The rebuilt Split Screen core was partially accepted live on 2026-09-18; see "A narrated live session, mapped to the logs (2026-09-18)" in [split-screen-findings.md](split-screen-findings.md), and section 12 of [split-screen-product-contract.md](split-screen-product-contract.md) for the protocol that is still owed. Shortcuts roles store the selected application directly; update recovery is deferred after the single-package navigation proxy failed live routing. The latest Mirrors cancellation fix and startup-notification change have focused live checks; the wider reversal/same-side/stress matrix remains open. Signal-hub delivery hardening has host-only validation. See [instrument-display-findings.md](instrument-display-findings.md) and [vehicle-data-findings.md](vehicle-data-findings.md) for the exact build boundaries. |
-| `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
+| `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. The full chain (enrollment, tunnel, pairing, `cag connect`, `adb shell`) works end to end through `adbgw.ru` on an Android 15 emulator since 2026-10-26; the head unit, the API matrix and the soak remain. |
 
 ## Shared Android Modules
 
@@ -106,16 +106,16 @@ legacy Denza Mirrors app.
 | Component | Status |
 | --- | --- |
 | `GatewayService`, `GatewaySupervisor`, `GatewayBootReceiver` | `specialUse` foreground lifecycle, independent ADB/relay recovery, boot and package-update restart. |
-| `InnerGatewayServer`, `RelayClient` | Loopback-only end-to-end SSH, fixed relay pin, one-computer pairing and relay tunnel. |
-| `AdbEndpointDetector`, `AdbProvisioner` | Smart/raw endpoint discovery with own-IPv4 fallback and normal Android ADB-key approval. |
-| `MainActivity` | Landscape-first nontechnical onboarding, status/activity, pair/replace, persistent disconnect, hidden support details. |
+| `InnerGatewayServer`, `AdbProxyChannel`, `RelayClient` | Loopback-only end-to-end SSH, fixed relay pin, one-computer pairing and relay tunnel; the computer's ADB reaches adbd through the app's approved key (CAG-016). `GatewayChainIntegrationTest` runs the whole chain in the JVM. |
+| `AdbEndpointDetector`, `AdbProvisioner` | Smart/raw endpoint discovery with own-IPv4 fallback; the app's ADB key is offered once per explicit request, background checks are passive (CAG-017). |
+| `MainActivity`, `GatewayScreens`, `ConnectionChain`, `GatewayTheme` | The car's dark kit in Luminofor's language: the «Машина — Сервер — Компьютер» chain with lit links and activity pulses, onboarding, pair/replace, persistent switch-off, the «Сведения» sheet. Stateless screens; the debug `ScreenFixtureActivity` renders 17 scenes. |
 
 ### `platform/relay/` and `platform/cli/`
 
 | Component | Status |
 | --- | --- |
-| `platform/relay/cag_state.py` + wrappers | Atomic state, expiring codes, source lockout, device enrollment, pending/commit replacement, dynamic restricted keys. Provisioned on `adbgw.ru` through Ansible and live-verified on 2026-07-18. |
-| `platform/cli/cmd/cag` | Go client for `pair`, `connect`, ADB execution, `status`, and `disconnect`; Darwin/Linux builds verified locally. |
+| `platform/relay/cag_state.py` + wrappers | Atomic state, expiring codes, source lockout, device enrollment, pending/commit replacement, dynamic restricted keys, per-vehicle disconnect, `lock-check`. Provisioned on `adbgw.ru` through Ansible; live-verified 2026-10-26 (64 checks). |
+| `platform/cli/cmd/cag` | Go client for `pair`, `connect`, ADB execution, `status`, and `disconnect`; used live against `adbgw.ru` on macOS on 2026-10-26. |
 
 ### `legacy/denza-mirrors/` (`denza-mirrors`, frozen)
 
