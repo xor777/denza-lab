@@ -11,7 +11,8 @@ product sender with `stocknative`. Candidate 15 passed stationary route receipt
 on 2026-10-25. Candidate 21 passed two same-arm stationary
 route selections, continuous output and graceful closure. Its first drive is
 retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
-see the separate drive analysis below. Candidate 26 is now installed. Its parked
+see the separate drive analysis below. Candidate 26 was tested, then replaced
+with the original build 15 for the owner-authorized repeat below. Candidate 26's parked
 Kievskoye route read all 55 required offline tiles and received same-path ACK 200,
 but still had no class-6 link, as in candidate 25's two earlier parked routes,
 so the highway HNOA trial remains postponed. Build 14 and its experiment variants
@@ -34,7 +35,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 26 parked route ACKed 200; 129 links in classes 7/8/9 and zero class-6 metres; moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
-| Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | physical parked receipts, ten-minute dwell completed, trip arm active; owner chose a village loop with automatic reroutes, moving result pending | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
+| Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3435,10 +3436,60 @@ speed groups, direction when available, all reroutes and retention with unknown
 coverage reported separately. The trace must not select only locations where
 NOA became available. Same-day stock comparison has not been performed.
 
-Evidence is under `captures/replay-20261024-evening/execution/`. The trip arm
-remains active at this checkpoint; restoring the overall original stock state
-3 and deciding whether to reinstall 26 are post-drive work, not completed
-cleanup. Vehicle acceptance and causal attribution remain open.
+Preparation evidence is under `captures/replay-20261024-evening/execution/`.
+After the owner returned, `postdrive/verified-evidence.tar.gz` retained 41 files
+(154,803,123 uncompressed bytes). Its SHA-256 matches the fixed archive on the
+car: `20847e068c23adda47905021730f374bf34eaf52a6e2e9d200bc2cc4f49fbfba`.
+The earlier direct stream returned exit 0 despite truncation; it was rejected,
+and the fixed archive was transferred in length-checked chunks and fully
+validated before extraction into `postdrive/verified/files`.
+
+The owned session is RESTORED, arm absent, STOPPED, quiescent and both endpoints
+closed. The outer original stock-map state 3 was restored after that proof;
+stock processes were absent. The installed build-15 hash remains `dcbb3f82…`,
+and the crash buffer is unchanged. Build 26 was not reinstalled. The owner's
+observation was frequent offers and activation followed immediately by degraded
+mode; this testimony is kept separate from the packet-derived measurements.
+Vehicle acceptance and causal attribution remain open.
+
+The whole closed arm spans 16:10:41.088–16:35:49.444 Moscow. Measured movement
+(speed >1.5 m/s, guidance TTL 1500 ms) is 283.563 s. During it, DNP=1 is
+53.057 s, DNP=2 is 117.637 s, DNP=0 is 112.824 s and unknown pilot state is
+0.045 s. Offered-or-active availability is 60.196–60.212%, with 99.984% pilot
+coverage. This is elapsed time across every path, not a fraction of packets.
+The 67 active episodes include stationary moments and are not a count of
+manual attempts: median first-positive-to-next-state is 0.706 s, maximum
+2.692 s (first-to-last-positive maximum 2.608 s). All have observed ends;
+61 end with ICC=1 and six with ICC=0. Sustained CNOA was not reproduced.
+
+All five published paths have ACK 200. Four reroutes interrupt the position
+stream for 7.974–8.435 s, a real limitation hidden if cadence is measured only
+inside each individual navigation window. However, the first 24 active episodes
+end before the first reroute. Of 14 Notice22 transitions (the stock UI's
+“Downgraded to ICC”), 13 occur between ordinary position sends 0.999–1.107 s
+apart; one coincides with an 8.138 s reroute gap. No logged send error, position
+on the wrong published path, or position before its ACK was found. Successful
+local sends and route ACKs do not prove ECU acceptance or semantic correctness
+of every dynamic packet. Reroute gaps cannot explain most of the observed
+short retention; the internal reason remains unresolved.
+
+Reproducible outputs are `postdrive/analysis-metric/` (raw normalization,
+TTL-aware durations, episodes and independent interval check) and
+`postdrive/analysis-pipeline/` (all-window position gaps and per-exit alignment).
+The original build-15 high-offer/short-retention behavior is reproducible under
+this preparation, but this experiment does not isolate which preparation step,
+APK difference or external condition determines availability.
+
+The predeclared 30 m overlap comparison uses all historical moving positions,
+independent of NOA state. On overlapping locations in the same direction,
+today's availability is 64.53–64.57% over 122.589 s versus 77.79% over
+112.051 s of the historical build-15 first path. Against A1's overlapping
+locations, the respective figures are 63.27–63.30% over 126.630 s today and
+2.38% over 132.197 s in A1. These are descriptive nearest-point overlap
+subsets, not paired trials or causal estimates; speed-bin tables and ambiguous
+nearby directional support are retained in `analysis-metric/spatial-report.md`
+and `spatial-result.json`. Direction grouping thresholds were declared during
+analysis and are not an acceptance criterion.
 
 ### Regional offline graph (2026-10-24)
 
