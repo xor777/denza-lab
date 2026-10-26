@@ -22,7 +22,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
-| The zero's glow is drawn exactly as the board draws it (`cluster-launch` on the emulator matched the board pixel for pixel, 2026-10-20), and the board's glow is faint: 4-23 of 255 at full power, 2-10 at 26 kW. On the car the owner has never seen it, full throttle included. `compare.py` cannot see it either, since it only counts a channel that moved by more than 24. On the car the owner picked six times the alpha and 1.6 times the size, in the design's shape, with `:cluster-glow-probe`. Since then the spec is `max 0.78, radius 544, reachBelow 87.8`: 145-156 of 255 at the centre at full power, 67-73 in the city. App and board agree, 0.48 % of pixels moved. Not on the car yet | live | 2026-10-20 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20) |
+| The zero's glow is `0.65·(|P| / span)^1.5`, the span being the band's own (300 kW out, 100 kW back), radius 442 and `reachBelow` 63.9 (since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW out or 30 kW back, 83 at 200 kW and 153 at 300 kW. Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. Not on the car yet | live | 2026-10-26 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
@@ -414,6 +414,47 @@ drawing a kilowatt shows about what full throttle showed before. The new
 new boards moved 0.48-0.55 % of pixels by more than 24, a mean of 0.55 levels:
 antialiasing. With the glow this bright, `compare.py` would now see it missing
 at most powers; the blind spot below 24 levels remains for the filament's halo.
+
+> **Superseded 2026-10-26:** ×6 and ×1.6 on a square root lit through ordinary
+> driving, and the owner found it too bright and intrusive on the road. The curve
+> and the numbers are now those of [Too bright on the road](#too-bright-on-the-road-2026-10-26).
+
+#### Too bright on the road (2026-10-26)
+
+The ×6 build reached the car on 2026-10-24 (0.7.1, versionCode 79). After driving
+it, the owner asked for one step down on both settings: ×5 and ×1.3. They also
+asked whether the curve should rise slowly at small power and fast at large,
+instead of only being dimmed. The square root does the opposite: it gives its
+first kilowatts the most light. The recorded drives
+(`vehicle-20260922-172447-car.csv` and `vehicle-20260924-182412-car.csv`, 1,802
+moving samples with the glow's 1.5 s follower applied) show what that means:
+
+| Curve | Moving time over α 0.10 | Over α 0.25 |
+| --- | --- | --- |
+| `0.78·√(|P|/120)`, the ×6 build | 81.9 % | 28.9 % |
+| `0.65·√(|P|/120)`, one step down only | 71.0 % | 17.9 % |
+| `0.65·(|P|/span)²` | 0.8 % | 0.1 % |
+| `0.65·(|P|/span)^1.5`, now | 2.0 % | 0.2 % |
+
+Out of the pack those drives sit at a median of 6 kW, 90 % under 28 kW and 99 %
+under 78 kW, with peaks of 216 and 309 kW. Back into it: 90 % under 30 kW, peak
+75 kW. Dimming alone keeps the glow on through ordinary driving. A square over
+the band's span leaves it dark even at 120 kW, under the brightness that went
+unseen before. The exponent 1.5 lies between the two. It lights on a firm push
+or a firm brake, 2 % of the recorded moving time:
+
+| Power | 28 kW | 90 kW | 120 kW | 200 kW | 300 kW | 30 kW back | 75 kW back |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Centre, of 255 | 4 | 25 | 39 | 83 | 153 | 23 | 91 |
+
+The span is the band's own, `outKw` 300 and `inKw` 100. The glow is full exactly
+when the band is: the band's length is the square root of that share, the
+glow's light is the share to the 1.5th. The band shows the small numbers, the
+light shows only the big ones. `cluster.band.glow` in `spec.json` is
+`max 0.65, exponent 1.5, radius 442, reachBelow 63.9`; `fullKw` is gone.
+`ContourGeometryTest.theGlowStaysDarkUntilTheBandNearsItsEnd` holds the code
+to the curve and checks that `luminofor.js` computes the same one. The probe now
+draws this curve too.
 
 ### What it shows, and what it deliberately does not: the Contour
 

@@ -56,9 +56,13 @@ final class GlowView extends View {
         invalidate();
     }
 
-    /** The glow's alpha at its centre: the design's 0.13·√(|P| / 120 kW), times the strength. */
+    /**
+     * The glow's alpha at its centre: the design's max·(|P| / span)^exponent, the span being the
+     * band's own (out of the pack or back into it), times the strength.
+     */
     static float centreAlpha(Scenes.Geometry g, float powerKw, float strength) {
-        float a = g.glowMax * (float) Math.sqrt(Math.min(1f, Math.abs(powerKw) / g.glowFullKw));
+        float span = powerKw < 0f ? g.inKw : g.outKw;
+        float a = g.glowMax * (float) Math.pow(Math.min(1f, Math.abs(powerKw) / span), g.glowExponent);
         return Math.min(1f, a * strength);
     }
 

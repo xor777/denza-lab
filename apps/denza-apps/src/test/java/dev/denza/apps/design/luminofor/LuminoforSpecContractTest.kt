@@ -138,7 +138,7 @@ class LuminoforSpecContractTest {
         n(b.THREADS_BASE, "cluster", "band", "threads", "base"); n(b.THREADS_PER_UNIT, "cluster", "band", "threads", "perUnit")
         n(b.THREADS_AMP_BASE, "cluster", "band", "threads", "ampBase"); n(b.THREADS_AMP_RANGE, "cluster", "band", "threads", "ampRange")
         n(b.THREADS_AMP_KW, "cluster", "band", "threads", "ampKw"); n(b.THREADS_WIDTH, "cluster", "band", "threads", "width")
-        n(b.GLOW_MAX, "cluster", "band", "glow", "max"); n(b.GLOW_FULL_KW, "cluster", "band", "glow", "fullKw")
+        n(b.GLOW_MAX, "cluster", "band", "glow", "max"); n(b.GLOW_EXPONENT, "cluster", "band", "glow", "exponent")
         n(b.GLOW_RADIUS, "cluster", "band", "glow", "radius"); n(b.GLOW_REACH_BELOW, "cluster", "band", "glow", "reachBelow")
         val t = Cluster.Trace
         n(t.ZERO, "cluster", "trace", "zero"); n(t.TOP, "cluster", "trace", "top"); n(t.DROP, "cluster", "trace", "drop")
