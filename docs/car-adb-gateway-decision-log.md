@@ -194,7 +194,7 @@ to the replacement. The normative current design lives in
 - **Rationale:** One approval at onboarding by a person at the car. The app's key stays fresh because the supervisor uses it every 30 seconds.
 - **Alternatives:** Keep the second prompt; a loopback ADB proxy port (gives every local app the app's trust); writing the desktop key into `adb_keys` (needs a privileged write).
 - **Consequences and risks:** adbd sees every remote session as the app's key, so the computer's key is never presented to the car. The computer gets the authority the app already has; inner SSH authentication stays the gate. If the app's key is revoked, remote ADB stops until someone at the car approves it again, and the car's screen says so.
-- **Evidence:** `AdbProxyChannel`, `LocalAdbClient.proxyAdbConnect`; `GatewayChainIntegrationTest` (a fake adbd verifies the app key's signature and never receives a public key) and `AdbProxyConnectTest`; live `adb shell` through `adbgw.ru` on an emulator on 2026-10-26 ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
+- **Evidence:** `AdbProxyChannel`, `LocalAdbClient.proxyAdbConnect`; `GatewayChainIntegrationTest` (a fake adbd verifies the app key's signature and never receives a public key) and `AdbProxyConnectTest`; live `adb shell` through `adbgw.ru` on an emulator and on the owner's DiLink 5.1 on 2026-10-26, where the computer's session was authorized with no dialog ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
 - **Revisit if:** adbd requires TLS on the classic port, or an audit needs each computer's own key at adbd.
 
 <a id="cag-017"></a>
@@ -206,5 +206,5 @@ to the replacement. The normative current design lives in
 - **Rationale:** One prompt per intention; the queue never fills behind the person's back.
 - **Alternatives:** Timed automatic re-offers; no re-offer at all.
 - **Consequences and risks:** A prompt that never appears, or was dismissed, needs the person to tap the retry button.
-- **Evidence:** `AdbProvisioner` (passive by default, `requestAuthorization()` the one offer) and `GatewayRepository.prepareAdb()`; the supervisor builds only the passive client. Not yet seen on a head unit's prompt.
+- **Evidence:** `AdbProvisioner` (passive by default, `requestAuthorization()` the one offer) and `GatewayRepository.prepareAdb()`; the supervisor builds only the passive client. On the owner's DiLink 5.1 on 2026-10-26 the first launch offered the key once, the dialog showed the app's own fingerprint, and the app went on by itself after Allow ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
 - **Revisit if:** Firmware offers a documented way to read the prompt queue.
