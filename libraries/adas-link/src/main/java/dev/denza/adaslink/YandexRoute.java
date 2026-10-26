@@ -22,6 +22,8 @@ public final class YandexRoute {
         public final String action;
         /** The road entered there, null when unnamed. */
         public final String toponym;
+        /** Exact section.metadata.schemeId, null when absent; no inferred SMALL default. */
+        public final String schemeId;
         /** Travel time with traffic (else without), seconds; NaN when unknown. */
         public final double timeS;
         /** Free-flow speed, km/h: weight distance over weight time without traffic; NaN when unknown. */
@@ -30,7 +32,10 @@ public final class YandexRoute {
             this(begin, end, action, toponym, timeS, Double.NaN);
         }
         public Section(double begin, double end, String action, String toponym, double timeS, double freeFlowKmh) {
-            this.begin = begin; this.end = end; this.action = action; this.toponym = toponym; this.timeS = timeS; this.freeFlowKmh = freeFlowKmh;
+            this(begin, end, action, toponym, timeS, freeFlowKmh, null);
+        }
+        public Section(double begin, double end, String action, String toponym, double timeS, double freeFlowKmh, String schemeId) {
+            this.begin = begin; this.end = end; this.action = action; this.toponym = toponym; this.timeS = timeS; this.freeFlowKmh = freeFlowKmh; this.schemeId = schemeId;
         }
     }
 
@@ -116,7 +121,8 @@ public final class YandexRoute {
             }
             sections.add(new Section(position(geometry.get("begin"), edges), position(geometry.get("end"), edges),
                     annotation == null ? null : (String) annotation.get("action"),
-                    annotation == null ? null : (String) annotation.get("toponym"), time, free));
+                    annotation == null ? null : (String) annotation.get("toponym"), time, free,
+                    metadata != null && metadata.get("schemeId") instanceof String ? (String) metadata.get("schemeId") : null));
         }
         Double[] limits = null;
         if (known(s, "speedLimits")) {

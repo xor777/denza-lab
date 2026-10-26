@@ -467,6 +467,18 @@ class Drive:
             times, rows = self.by_topic[r["_topic"]]
             times.append(r["_t"])
             rows.append(r)
+        self.position_orders = [_send_order(r) for r in self.by_topic.get(VEHICLE_LOCATION, ([], []))[1]]
+        self.native_policy_index = collections.defaultdict(lambda: ([], []))
+        self.history_variant_index = collections.defaultdict(lambda: ([], []))
+        for r in self.live:
+            if r.get("input") == "nativeInputPolicy":
+                keys, rows = self.native_policy_index[r.get("pathId")]
+            elif r.get("input") == "variantApplied" and "historySpeed" in r:
+                keys, rows = self.history_variant_index[(r.get("pathId"), str(r["historySpeed"]))]
+            else:
+                continue
+            keys.append(_send_order(r))
+            rows.append(r)
         self.path_events = [r for r in self.live if r.get("input") in PATH_EVENTS and r["_t"] is not None]
 
     def last_send(self, t, topic=None):
@@ -968,7 +980,7 @@ def paths(drive, clock):
         if row.get("_native"):
             entry["wireRouteType"] = row.get("wireRouteType")
             entry["sender"] = "stocknative"
-            for key in ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "nativeRouteType", "roadClassPolicy", "nativePathReason"):
+            for key in ("coordinateFrame", "coordinateFrameMode", "coordinateRouteOrdinal", "nativeRouteType", "roadClassPolicy", "nativePathReason", "compatibilityProfile", "historySpeedPolicy"):
                 entry[key] = row.get(key)
         prior = previous_by_route.get(route_id) if route_id is not None else None
         if prior is None:
@@ -1162,6 +1174,62 @@ def pauses_and_gaps(drive, clock, cadence_out):
 
 # ---------------------------------------------------------------------------------------- 5 semantics
 
+def _send_order(row):
+    return row["_t"], row["_seq"]
+
+
+def _last_causal(index, send):
+    keys, rows = index
+    i = bisect.bisect_right(keys, _send_order(send))
+    return rows[i - 1] if i else None
+
+
+def _native_policy(drive, path, send):
+    if not isinstance(path, (int, float)) or path <= 0:
+        return None
+    return _last_causal(drive.native_policy_index.get(path, ([], [])), send)
+
+
+def _donor_evidence(policy, field):
+    """Declarations establish provenance; coincidentally equal wire numbers never do."""
+    if policy is None:
+        return None
+    aliases = {"historySpeed": ("historySpeed", "NaviInfo.curLinkSpeed"),
+               "region": ("region", "Region")}.get(field, (field,))
+    decision = next((item for item in policy.get("fields", []) if isinstance(item, dict)
+                     and item.get("kind") == "EXPERIMENTAL_DONOR" and item.get("field") in aliases), None)
+    profile = (policy.get("attributeEvidence") or {}).get("compatibilityProfile")
+    # Region is provided by the environment rather than an adapter getter decision.
+    if decision is None and field == "region" and isinstance(profile, dict) and "region" in profile:
+        if policy.get("compatibilityProfile") in ("compatibility-cn", "stock-like-by-road"):
+            decision = profile
+    if decision is None:
+        return None
+    return {"kind": "EXPERIMENTAL_DONOR", "policyRef": policy["_ref"],
+            "compatibilityProfile": policy.get("compatibilityProfile"), "evidence": decision}
+
+
+def _dynamic_source(drive, row, field, value):
+    # Audit rows can share a clock millisecond. Preserve journal order so a later
+    # fix or policy cannot retroactively change an already sent packet's source.
+    positions = drive.by_topic.get(VEHICLE_LOCATION, ([], []))[1]
+    position = _last_causal((drive.position_orders, positions), row)
+    path = (decode_out(position) or {}).get("curSDRouteID") if position else None
+    if position is None or row["_t"] - position["_t"] > 1500 or not isinstance(path, (int, float)) or path <= 0:
+        return {"kind": "UNATTRIBUTED", "pathId": path}
+    out = {"pathId": path, "positionRef": position["_ref"]}
+    if value in (None, -1, 0):
+        return out | {"kind": "UNKNOWN"}
+    donor = _donor_evidence(_native_policy(drive, path, row), field)
+    if donor:
+        return out | donor
+    if field == "historySpeed":
+        note = _last_causal(drive.history_variant_index.get((path, str(value)), ([], [])), row)
+        if note:
+            return out | {"kind": "VARIANT_FILLED", "variantRef": note["_ref"]}
+    return out | {"kind": "UNDECLARED"}
+
+
 def semantics(drive, clock):
     notes = _variant_notes(drive)
     filled = collections.defaultdict(dict)
@@ -1169,14 +1237,6 @@ def semantics(drive, clock):
         for item in items:
             if item.get("field") in ("position.ownership", "traffic.roadClass"):
                 filled[pid].setdefault(item["field"], (item.get("value"), item["elapsedMs"], item["ref"]))
-    donors = collections.defaultdict(dict)
-    for r in drive.live:
-        if r.get("input") != "nativeInputPolicy":
-            continue
-        for item in r.get("fields", []):
-            if (isinstance(item, dict) and item.get("kind") == "EXPERIMENTAL_DONOR"
-                    and item.get("field") in ("ownership", "roadClass")):
-                donors[r.get("pathId")].setdefault(item["field"], (r["_t"], r["_ref"]))
     positions = {"sent": 0, "matched": 0, "ownershipMinus1": 0, "ownershipVariantFilled": 0,
                  "ownershipExperimentalDonor": 0, "ownershipFromYandex": 0,
                  "ownershipZeroOnWire": 0, "firstMinus1": None}
@@ -1200,11 +1260,11 @@ def semantics(drive, clock):
                 positions["ownershipZeroOnWire"] += 1
                 value = 0
             fill = filled.get(pid, {}).get("position.ownership")
-            donor = donors.get(pid, {}).get("ownership")
+            donor = _donor_evidence(_native_policy(drive, pid, r), "ownership")
             if value == -1:
                 positions["ownershipMinus1"] += 1
                 positions["firstMinus1"] = positions["firstMinus1"] or r["_ref"]
-            elif donor and donor[0] <= r["_t"]:
+            elif donor:
                 positions["ownershipExperimentalDonor"] += 1
             elif fill and fill[1] <= r["_t"] and str(fill[0]) == str(value):
                 positions["ownershipVariantFilled"] += 1
@@ -1226,11 +1286,11 @@ def semantics(drive, clock):
                 value = 0
             pid = int(path)
             fill = filled.get(pid, {}).get("traffic.roadClass")
-            donor = donors.get(pid, {}).get("roadClass")
+            donor = _donor_evidence(_native_policy(drive, pid, r), "roadClass")
             if value == -1:
                 traffic["roadClassMinus1"] += 1
                 traffic["firstMinus1"] = traffic["firstMinus1"] or r["_ref"]
-            elif donor and donor[0] <= r["_t"]:
+            elif donor:
                 traffic["roadClassExperimentalDonor"] += 1
             elif fill and fill[1] <= r["_t"] and str(fill[0]).replace("link:", "") == str(value):
                 traffic["roadClassVariantFilled"] += 1
@@ -1264,10 +1324,26 @@ def semantics(drive, clock):
                  "missingBooleanPolicy": r.get("missingBooleanPolicy"),
                  "coordinateFrame": r.get("coordinateFrame"), "coordinateFrameMode": r.get("coordinateFrameMode"),
                  "coordinateRouteOrdinal": r.get("coordinateRouteOrdinal"), "roadClassPolicy": r.get("roadClassPolicy"),
+                 "compatibilityProfile": r.get("compatibilityProfile"), "historySpeedPolicy": r.get("historySpeedPolicy"),
                  "attributeEvidence": r.get("attributeEvidence")}
                 for r in drive.live if r.get("input") == "nativeInputPolicy"]
+    dynamic = {}
+    for name, topic, field in (("historySpeed", SPEED_INTERSECTION, "historySpeed"),
+                               ("region", REGION, "regionId")):
+        samples = []
+        for row in drive.sends:
+            if row["_topic"] != topic:
+                continue
+            fields = decode_out(row)
+            value = fields.get(field, 0) if fields is not None else None
+            samples.append({"value": value, "fieldPresent": field in fields if fields is not None else None,
+                            "ref": row["_ref"], "elapsedMs": row["_t"],
+                            "source": _dynamic_source(drive, row, name, value)})
+        dynamic[name] = {"sent": len(samples), "sources": dict(collections.Counter(s["source"]["kind"] for s in samples)),
+                         "samples": samples,
+                         "definition": "source requires a positive path from a position at most 1.5 s before the send and a preceding same-path declaration; zero/unknown is not donor evidence"}
     return {"positions": positions, "trafficInfo": traffic, "linksPerPath": links, "variantApplied": variants,
-            "nativeInputPolicies": policies}
+            "nativeInputPolicies": policies, **dynamic}
 
 
 # ---------------------------------------------------------------------------------------- 6 ADAS state
@@ -1402,6 +1478,13 @@ def _align(drive, clock, t, sessions_out):
                                    "fieldPresent": present,
                                    "interpretation": "explicit" if present else "proto3_default_zero" if fields is not None else "decode_failed",
                                    "ref": speed["_ref"], "ageMs": t - speed["_t"]}
+        out["historySpeedSent"]["source"] = _dynamic_source(drive, speed, "historySpeed", out["historySpeedSent"]["value"])
+    region = drive.last_send(t, REGION)
+    if region is not None:
+        fields = decode_out(region)
+        value = fields.get("regionId", 0) if fields is not None else None
+        out["regionSent"] = {"value": value, "ref": region["_ref"], "ageMs": t - region["_t"],
+                             "source": _dynamic_source(drive, region, "region", value)}
     under = _road_under(drive, t)
     if under:
         out["roadUnderCar"] = under
@@ -1797,6 +1880,12 @@ def markdown(result, clock):
                   tr["sent"], tr["matched"], tr["roadClassMinus1"],
                   ", подставлено donor-политикой: %d" % tr["roadClassExperimentalDonor"] if native_session
                   else ", заполнено вариантом: %d" % tr["roadClassVariantFilled"]), ""]
+    for key in ("historySpeed", "region"):
+        dynamic = sem[key]
+        if dynamic["sent"]:
+            lines.append("%s: отправлено %d; EXPERIMENTAL_DONOR %d, без атрибуции пути %d, неизвестно %d." % (
+                key, dynamic["sent"], dynamic["sources"].get("EXPERIMENTAL_DONOR", 0),
+                dynamic["sources"].get("UNATTRIBUTED", 0), dynamic["sources"].get("UNKNOWN", 0)))
     if sem["linksPerPath"]:
         lines += ["| Путь | звеньев | class −1 | dir 0 | own unknown | lanes 0 |", "|---|---|---|---|---|---|"]
         for item in sem["linksPerPath"][:40]:

@@ -30,7 +30,8 @@ final class NativeMapSession implements AutoCloseable {
         RouteFrame(Coordinates.Frame frame,int ordinal){this.frame=frame;this.ordinal=ordinal;}
     }
     private volatile boolean closed, navigating;
-    private long routeEpoch=-1, lastFix=Long.MIN_VALUE, lastNavi=-1;
+    private long routeEpoch=-1, lastFix=Long.MIN_VALUE, lastNavi=-1, lastHistoryReset=-1;
+    private boolean historyResetFresh;
     private String routeId, geometry, blocked;
     private YandexNativeAdapter.AdaptedRoute route;
     private NativeModels.NaviInfo lastNaviInfo;
@@ -105,7 +106,7 @@ final class NativeMapSession implements AutoCloseable {
     void observe(NativeNavigationInput o){
         if(closed||draining||o.routeEpoch<routeEpoch)return;
         if(o.routeId==null||"off".equals(o.mode)){stopNavigation();routeEpoch=o.routeEpoch;return;}
-        if(o.simulated){invalidateLocation();blocked="simulated guidance cannot publish to ADAS";return;}
+        if(o.simulated){clearHistorySpeed(o.monotonicMs,false);invalidateLocation();blocked="simulated guidance cannot publish to ADAS";return;}
         if(o.finished){if(navigating&&route!=null){arrivalPending=true;sender.navigationArrived(route.getPathID());}stopNavigation();routeEpoch=o.routeEpoch;return;}
         boolean offRoute=o.offRoute();
         // A changed ID alone says nothing about why Yandex selected another route. Only an
@@ -129,8 +130,8 @@ final class NativeMapSession implements AutoCloseable {
             policy.put("nativeRouteType",nativeRouteType);policy.put("routeStatus",o.routeStatus);
             policy.put("nativePathReason",forceRouteRefresh?"source_lifetime_restart":"route_observation");
             policy.put("coordinateFrameMode",frameMode.name());policy.put("coordinateFrame",selected.frame.name());policy.put("coordinateRouteOrdinal",(long)selected.ordinal);
-            policy.put("missingBooleanPolicy",routePolicy.compatibilityCn?"compatibility_cn_donor":"explicit_false_test_policy");
-            policy.put("compatibilityProfile",routePolicy.compatibilityCn?"compatibility-cn":"none");
+            policy.put("missingBooleanPolicy",routePolicy.donorProfile==null?"explicit_false_test_policy":routePolicy.donorProfile.id+"_donor");
+            policy.put("compatibilityProfile",routePolicy.donorProfile==null?"none":routePolicy.donorProfile.id);
             policy.put("roadClassPolicy",routePolicy.roadClass.name());
             policy.put("historySpeedPolicy",routePolicy.historySpeed.name());
             policy.put("attributeEvidence",candidate.attributeEvidence());
@@ -146,7 +147,7 @@ final class NativeMapSession implements AutoCloseable {
             long previous=route==null?-1:route.getPathID();
             route=candidate;routeId=o.routeId;geometry=o.offlineGeometrySha256;routeEpoch=o.routeEpoch;
             forceRouteRefresh=false;
-            routeProgressReady=false;lastNaviInfo=null;
+            routeProgressReady=false;lastNaviInfo=null;lastHistoryReset=-1;
             blocked=null;lastFix=Long.MIN_VALUE;lastNavi=-1;arrivalPending=false;offRouteReplacementPending=false;
             if(!navigating){navigating=true;sender.navigationCreated();sender.navigationStarted();sender.navigationReset();
                 if(latestVehicleSpeed!=null&&runtime.elapsedRealtime()>=vehicleSpeedObservedAt&&runtime.elapsedRealtime()-vehicleSpeedObservedAt<=1500)sender.vehicleSpeedUpdated(latestVehicleSpeed);
@@ -158,18 +159,18 @@ final class NativeMapSession implements AutoCloseable {
         if(!offRoute)offRouteReplacementPending=false; // Returned to this route without replacement.
         // Original callback uses 0 when no current legal limit is supplied; don't retain an
         // earlier road's limit merely because Yandex now reports an unavailable value.
-        sender.roadSpeedLimit(!routePolicy.compatibilityCn&&Double.isFinite(o.speedLimitMps)&&o.speedLimitMps>=0
+        sender.roadSpeedLimit(routePolicy.donorProfile!=null?routePolicy.donorProfile.speedLimitKmh:
+                Double.isFinite(o.speedLimitMps)&&o.speedLimitMps>=0
                 ? (int)Math.min(Integer.MAX_VALUE,Math.round(o.speedLimitMps*3.6)):0);
-        if(o.positionOnRoute&&o.monotonicMs-lastNavi>=1000){
+        boolean fresh="FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500;
+        NativeModels.NaviInfo progress=null;
+        if(o.positionOnRoute&&!offRoute&&fresh){
             YandexNativeAdapter.Guidance g=new YandexNativeAdapter.Guidance();g.scalar=o.scalar;g.timeToFinishS=o.timeToFinishS;
-            g.onRoute=o.positionOnRoute&&!offRoute&&"FINE".equals(o.locationClass);g.fixAgeMs=o.fixAgeMs;
-            NativeModels.NaviInfo info=YandexNativeAdapter.navi(route,g);
-            if(info!=null){sender.progressUpdated(info,route);lastNaviInfo=info;lastNavi=o.monotonicMs;routeProgressReady=true;}
-        }else if(!o.positionOnRoute&&lastNaviInfo!=null&&lastNaviInfo.curLinkSpeed!=0){
-            // Off-route often has no usable scalar/ETA. Reuse only the last admitted progress
-            // envelope and clear its historical speed; do not invent new off-route distances.
-            NativeModels.NaviInfo reset=YandexNativeAdapter.clearHistorySpeed(lastNaviInfo);
-            sender.progressUpdated(reset,route);lastNaviInfo=reset;
+            g.onRoute=true;g.fixAgeMs=o.fixAgeMs;progress=YandexNativeAdapter.navi(route,g);
+        }
+        if(progress==null)clearHistorySpeed(o.monotonicMs,fresh);
+        else if(o.monotonicMs-lastNavi>=1000||lastHistoryReset>=0){
+            sender.progressUpdated(progress,route);lastNaviInfo=progress;lastNavi=o.monotonicMs;routeProgressReady=true;lastHistoryReset=-1;
         }
         // Original H does not clear its prior path/indices. The ordered facade queues v0
         // before P, so the first coherent progress input owns this route's location envelope.
@@ -184,8 +185,17 @@ final class NativeMapSession implements AutoCloseable {
             else invalidateLocation();
         }else invalidateLocation();
     }
+    private void clearHistorySpeed(long observedAt,boolean fresh){
+        if(lastNaviInfo==null||lastNaviInfo.curLinkSpeed==0)return;
+        if(lastHistoryReset>=0&&observedAt-lastHistoryReset<1000&&(!fresh||historyResetFresh))return;
+        // Missing/stale progress cannot supply new distances or indices. Retain its last
+        // coherent envelope and clear only speed. Queued output may fail final admission;
+        // retry on fresh recovery and at most once per second until coherent progress returns.
+        sender.progressUpdated(YandexNativeAdapter.clearHistorySpeed(lastNaviInfo),route);
+        lastHistoryReset=observedAt;historyResetFresh=fresh;
+    }
     void clientInitialized(boolean ready){if(!closed)sender.clientInitialized(ready);}
-    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;lastNaviInfo=null;routeProgressReady=false;invalidateLocation();}
+    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;lastNaviInfo=null;lastHistoryReset=-1;routeProgressReady=false;invalidateLocation();}
     private RouteFrame routeFrame(String id,boolean remember){
         if(id==null)return null;RouteFrame existing=routeFrames.get(id);if(existing!=null)return existing;
         if(routeFrames.size()>=FRAME_ROUTE_LIMIT)return null;
@@ -206,7 +216,7 @@ final class NativeMapSession implements AutoCloseable {
     private void stopNavigation(){
         invalidateLocation();
         if(navigating){navigating=false;sender.navigationCancelled();sender.navigationStopped();sender.navigationDestroyed();}
-        route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;lastNaviInfo=null;
+        route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;lastNaviInfo=null;lastHistoryReset=-1;
         routeProgressReady=false;
         forceRouteRefresh=false;
         rejectedPreparation=null;

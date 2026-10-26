@@ -762,6 +762,131 @@ class StockNativeJournal(unittest.TestCase):
         self.assertEqual((tr["matched"], tr["roadClassExperimentalDonor"], tr["roadClassFromYandex"],
                           tr["roadClassVariantFilled"]), (2, 2, 0, 0))
 
+    def test_by_road_donor_provenance_survives_highway_to_street_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "by-road", 2000, 222, ownership=0, road_class=6)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            policy.update(compatibilityProfile="stock-like-by-road", historySpeedPolicy="EXPERIMENTAL_STOCK_LIKE_BY_ROAD")
+            policy["fields"] = [{"field": field, "kind": "EXPERIMENTAL_DONOR", "source": "retained stock drive"}
+                                for field in ("roadClass", "ownership", "NaviInfo.curLinkSpeed", "Region")]
+            policy["attributeEvidence"] = {"compatibilityProfile": {"id": "stock-like-by-road", "region": 990001,
+                                                                     "adminCode": 990001, "urid": 372}}
+            for row in car.live:
+                if row.get("topic") == review.TRAFFIC_INFO and row["monotonicMs"] == 3101:
+                    row["payloadHex"] = stock.traffic_info(0, -1, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, False, 900, 60, 9).hex()
+            for t, history in ((2102, 85), (3102, 25)):
+                car.live.append({"kind": "fire", "monotonicMs": t, "topic": review.SPEED_INTERSECTION,
+                                 "payloadHex": stock.speed_intersection(0, history, False, False, False, 0, "").hex()})
+                car.live.append({"kind": "fire", "monotonicMs": t + 1, "topic": review.REGION,
+                                 "payloadHex": stock.region(990001, 1, 990001, 990001, 0).hex()})
+            result = run(car.write())
+            sem = result["semantics"]
+            self.assertEqual(sem["positions"]["ownershipExperimentalDonor"], 2)
+            self.assertEqual(sem["trafficInfo"]["roadClassExperimentalDonor"], 2)
+            for field, values in (("historySpeed", [85, 25]), ("region", [990001, 990001])):
+                self.assertEqual([s["value"] for s in sem[field]["samples"]], values)
+                self.assertEqual(sem[field]["sources"], {"EXPERIMENTAL_DONOR": 2})
+                self.assertTrue(all(s["source"]["policyRef"] for s in sem[field]["samples"]))
+            self.assertEqual(sem["nativeInputPolicies"][0]["compatibilityProfile"], "stock-like-by-road")
+            route = result["paths"]["routes"][0]["items"][0]
+            self.assertEqual(route["historySpeedPolicy"], "EXPERIMENTAL_STOCK_LIKE_BY_ROAD")
+            evidence = review.Evidence(tmp)
+            clock = review.Clock(evidence, 3)
+            alignment = review._align(review.Drive(evidence, clock), clock, 3105, [])
+            self.assertEqual(alignment["historySpeedSent"]["source"]["kind"], "EXPERIMENTAL_DONOR")
+            self.assertEqual(alignment["regionSent"]["source"]["kind"], "EXPERIMENTAL_DONOR")
+
+    def test_dynamic_donor_requires_current_matching_path_and_preceding_declaration(self):
+        for case in ("off-route", "different-path", "future-policy", "stale-position", "undeclared", "unknown"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
+                car = Car(tmp)
+                self.native(car, "donor-gates", 2000, 222, ownership=0, road_class=9)
+                policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+                policy["compatibilityProfile"] = "stock-like-by-road"
+                policy["fields"] = [{"field": f, "kind": "EXPERIMENTAL_DONOR"}
+                                    for f in ("roadClass", "ownership", "NaviInfo.curLinkSpeed", "Region")]
+                if case == "future-policy":
+                    policy["monotonicMs"] = 3150
+                if case == "undeclared":
+                    policy["fields"] = []
+                t = 4700 if case == "stale-position" else 3102
+                if case in ("off-route", "different-path"):
+                    path = -1 if case == "off-route" else 333
+                    car.live.append({"kind": "fire", "monotonicMs": 3101, "topic": review.VEHICLE_LOCATION,
+                                     "payloadHex": stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, path, 0, 0, 10, 10, -1).hex()})
+                for topic, payload in ((review.SPEED_INTERSECTION, stock.speed_intersection(0, 0 if case == "unknown" else 25, False, False, False, 0, "")),
+                                       (review.REGION, stock.region(0 if case == "unknown" else 990001, 1, 0, 0, 0))):
+                    car.live.append({"kind": "fire", "monotonicMs": t, "topic": topic, "payloadHex": payload.hex()})
+                sem = run(car.write())["semantics"]
+                expected = "UNATTRIBUTED" if case in ("off-route", "stale-position") else "UNKNOWN" if case == "unknown" else "UNDECLARED"
+                for field in ("historySpeed", "region"):
+                    self.assertEqual(sem[field]["sources"], {expected: 1})
+
+    def test_same_millisecond_later_policy_cannot_attribute_earlier_send(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "same-ms-policy", 2000, 222)
+            car.live.append({"kind": "fire", "monotonicMs": 3102, "topic": review.SPEED_INTERSECTION,
+                             "payloadHex": stock.speed_intersection(0, 85, False, False, False, 0, "").hex()})
+            car.note("nativeInputPolicy", 3102, pathId=222, compatibilityProfile="stock-like-by-road",
+                     fields=[{"field": "NaviInfo.curLinkSpeed", "kind": "EXPERIMENTAL_DONOR"}])
+            sample = run(car.write())["semantics"]["historySpeed"]["samples"][0]
+            self.assertEqual(sample["source"]["kind"], "UNDECLARED")
+
+    def test_same_millisecond_later_offroute_position_cannot_reassign_earlier_send(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "same-ms-position", 2000, 222)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            policy["fields"] = [{"field": "NaviInfo.curLinkSpeed", "kind": "EXPERIMENTAL_DONOR"}]
+            car.live.append({"kind": "fire", "monotonicMs": 3102, "topic": review.SPEED_INTERSECTION,
+                             "payloadHex": stock.speed_intersection(0, 85, False, False, False, 0, "").hex()})
+            car.live.append({"kind": "fire", "monotonicMs": 3102, "topic": review.VEHICLE_LOCATION,
+                             "payloadHex": stock.vehicle_location(37.5, 55.7, 37.5, 55.7, 0, 0, 90, -1, 0, 0, 10, 10, -1).hex()})
+            sample = run(car.write())["semantics"]["historySpeed"]["samples"][0]
+            self.assertEqual(sample["source"]["kind"], "EXPERIMENTAL_DONOR")
+            self.assertEqual(sample["source"]["pathId"], 222)
+
+    def test_dynamic_history_speed_preserves_legacy_variant_origin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            car.arm(100)
+            car.publish(200, "legacy", 222, [link()])
+            car.note("variantApplied", 250, pathId=222, historySpeed=25)
+            car.tick(300, 222, history=25)
+            car.tick(1400, 333, history=25)
+            car.end(2000)
+            samples = run(car.write())["semantics"]["historySpeed"]["samples"]
+            self.assertEqual([s["source"]["kind"] for s in samples], ["VARIANT_FILLED", "UNDECLARED"])
+            self.assertIn("variantRef", samples[0]["source"])
+
+    def test_later_policy_cannot_retain_superseded_donor_decisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "changed-policy", 2000, 222, ownership=0, road_class=9)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            policy["fields"] = [{"field": f, "kind": "EXPERIMENTAL_DONOR"} for f in ("roadClass", "ownership")]
+            car.note("nativeInputPolicy", 2500, pathId=222, fields=[])
+            sem = run(car.write())["semantics"]
+            self.assertEqual((sem["positions"]["ownershipExperimentalDonor"], sem["positions"]["ownershipFromYandex"]), (1, 1))
+            self.assertEqual((sem["trafficInfo"]["roadClassExperimentalDonor"], sem["trafficInfo"]["roadClassFromYandex"]), (1, 1))
+
+    def test_compatibility_cn_speed_and_region_keep_declared_donor_origin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "old-donor", 2000, 222)
+            policy = next(r for r in car.live if r.get("input") == "nativeInputPolicy")
+            policy.update(compatibilityProfile="compatibility-cn", historySpeedPolicy="EXPERIMENTAL_FIXED_25")
+            policy["fields"].append({"field": "NaviInfo.curLinkSpeed", "kind": "EXPERIMENTAL_DONOR"})
+            policy["attributeEvidence"] = {"compatibilityProfile": {"id": "compatibility-cn", "region": 110000}}
+            for topic, payload in ((review.SPEED_INTERSECTION, stock.speed_intersection(0, 25, False, False, False, 0, "")),
+                                   (review.REGION, stock.region(110000, 1, 110000, 110000, 0))):
+                car.live.append({"kind": "fire", "monotonicMs": 3102, "topic": topic, "payloadHex": payload.hex()})
+            sem = run(car.write())["semantics"]
+            for field in ("historySpeed", "region"):
+                self.assertEqual(sem[field]["sources"], {"EXPERIMENTAL_DONOR": 1})
+
     @staticmethod
     def native(car, arm, start, path, ownership=-1, road_class=None):
         car.live.append({"kind": "input", "input": "liveSession.prerequisite", "monotonicMs": start,

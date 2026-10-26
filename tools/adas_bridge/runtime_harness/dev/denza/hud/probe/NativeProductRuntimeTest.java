@@ -58,7 +58,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
-        freshnessRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();refreshLatency();
+        freshnessRecovery();incoherentProgressRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();refreshLatency();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
         try{LiveSessionLease.read(Json.write(invalid),BOOT,disarmed.consumer,SystemClock.now);}catch(IllegalArgumentException expected){rejected=true;}check(rejected,"legacy variant arm rejected");
@@ -66,8 +66,8 @@ public final class NativeProductRuntimeTest {
         Object nativeSession=field(r.bridge,"session");
         dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy productionPolicy=(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy)field(nativeSession,"routePolicy");
         ProductNativeEnvironment productionEnvironment=(ProductNativeEnvironment)field(r.bridge,"environment");
-        check(productionPolicy.compatibilityCn&&productionPolicy.historySpeed==dev.denza.adaslink.yandexnative.YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_FIXED_25,"LiveMapBridge wires compatibility donor policy into actual NativeMapSession");
-        check(productionEnvironment.hasMapDataService()&&productionEnvironment.getAdcodeByLonLat(37.6,55.7)==110000&&Integer.valueOf(110000).equals(productionEnvironment.getCityProvince(110000)),"LiveMapBridge wires matching declared Region donor environment");
+        check(productionPolicy.donorProfile==dev.denza.adaslink.yandexnative.NativeDonorProfile.STOCK_LIKE_BY_ROAD&&productionPolicy.historySpeed==dev.denza.adaslink.yandexnative.YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_STOCK_LIKE_BY_ROAD,"LiveMapBridge wires STOCK_LIKE_BY_ROAD donor policy into actual NativeMapSession");
+        check(productionEnvironment.hasMapDataService()&&productionEnvironment.getAdcodeByLonLat(37.6,55.7)==990001&&productionEnvironment.getTownAdcodeByLonLat(37.6,55.7)==990001&&Integer.valueOf(990001).equals(productionEnvironment.getCityProvince(990001)),"LiveMapBridge wires matching declared Region donor environment");
         check(old.count(Topics.ROUTE)>0,"factory route reaches owned transport");
         check(AdasPassiveClient.answers!=AdasPassiveClient.core,"subscription maps have separate reader ownership");
         oldAnswers.answer(Topics.PATH_SELECT_CONFIRM,StockMessages.pathSelectConfirm(path,200));Handler.advance(0);r.observe(false);
@@ -108,6 +108,19 @@ public final class NativeProductRuntimeTest {
         check(LiveMapTransport.latest!=old&&!LiveMapTransport.latest.closed,"new arm owns a fresh exclusive writer");check(old.topics.size()==afterClose,"rearm never lets old queued work use new writer");
         check(!Files.readAllLines(new File(r.context.files,"denza-adas-live.jsonl").toPath()).isEmpty(),"route/input policy journal present");r.close();
         System.out.println("NativeProductRuntimeTest: "+checks+" checks passed");
+    }
+    static void incoherentProgressRecovery()throws Exception{
+        Rig r=new Rig();r.arm();NativeNavigationInput first=r.input(false);first.route=NativeMapSessionTest.mixedDonorRoute(first.routeId);r.observe(first);LiveMapTransport wire=LiveMapTransport.latest;
+        long path=r.bridge.status().pathId;check(historySpeed(wire)==85,"actual LiveMapBridge initially sends highway history85");
+        r.advanceEvidence(1001);r.evidence(true);NativeNavigationInput stale=r.input(false);stale.scalar=1.1;stale.lon=37.6011;stale.lat=55.7011;stale.timeToFinishS=Double.NaN;
+        long now=SystemClock.now,wall=1792836000000L+now;r.bridge.observe(stale,FixFreshness.capture(now-1600,wall-1600,now,now,wall),null);Handler.advance(0);
+        check("PAUSED".equals(r.state().get("state")),"stale source pauses actual transport admission");
+        NativeNavigationInput fresh=r.input(false);fresh.scalar=1.1;fresh.lon=37.6011;fresh.lat=55.7011;fresh.timeToFinishS=Double.NaN;r.evidence(true);r.observe(fresh);
+        check("LIVE".equals(r.state().get("state"))&&historySpeed(wire)==0,"fresh ETA-absent street sends actual zero after a stale reset was blocked by final admission");
+        int resets=wire.count(Topics.SD_SPEED_INTERSECTION);r.observe(fresh.copy());check(wire.count(Topics.SD_SPEED_INTERSECTION)==resets,"repeated fresh ETA-absent observation does not duplicate actual zero reset");
+        r.advanceEvidence(1001);r.evidence(true);NativeNavigationInput street=r.input(false);street.scalar=1.1;r.observe(street);check(historySpeed(wire)==25,"actual wire restores street25 only with coherent current ETA");
+        r.advanceEvidence(1001);r.evidence(true);r.observe(false);check(historySpeed(wire)==85,"actual wire restores highway85 with coherent current ETA");
+        check(r.bridge.status().pathId==path&&wire.count(Topics.ROUTE)==1,"history recovery keeps original admitted route and path");r.close();
     }
     static void runtimeCancellation(){
         Handler.reset();List<String> effects=new ArrayList<>();AndroidStockRuntime runtime=new AndroidStockRuntime(error->{throw new AssertionError(error);});

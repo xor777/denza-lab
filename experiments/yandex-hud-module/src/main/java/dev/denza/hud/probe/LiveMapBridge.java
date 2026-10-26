@@ -309,7 +309,7 @@ final class LiveMapBridge {
         final AndroidStockRuntime ownedRuntime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
                 missing->worker.post(()->{if(arm==owner&&!finished&&!dynamicFresh(SystemClock.elapsedRealtime())){dataUnavailable=missing.getMessage();if(session!=null)session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}}));
         synchronized(this){ownedRuntime.inputGeneration(sourceGeneration);runtime=ownedRuntime;}
-        final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.COMPATIBILITY_CN;
+        final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD;
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
             AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
             Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
@@ -318,7 +318,7 @@ final class LiveMapBridge {
             public void startClientOrSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStart(values);return null;});}
             public void stopClient(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStop(values);return null;});}
             public void unSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeUnsubscribe(values);return null;});}
-        },routePolicy.compatibilityCn);
+        },routePolicy.donorProfile);
         if(!env.ready())throw new IllegalStateException("actual AutoType unavailable");
         environment=env;note("environment",Json.write(env.sourceStatus()));
         StockTransport wire=new StockTransport(){

@@ -14,11 +14,13 @@ Exact artifact pins and separate stationary receipts are
 under `captures/stock-sender-parity-20261025/product/`.
 The first moving drive recorded ICC and one 95 ms DNP-available response, with
 no DNP-active response. See the [drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25);
-sustained CNOA is not established. Candidate 22 is now installed: parked ACK,
-actual historySpeed 7 and four public route links are verified. Its route and
-two-hour arm were left active for the requested next drive; current runtime
-state must be read before reuse. Region/city and continuous lane count remain 0.
-See the [candidate-22 receipt](../../research/adas-bridge/README.md#candidate-22-free-flow-proxy-and-confirmed-public-roads).
+sustained CNOA is not established. Candidate 22's parked receipt and candidate
+23's narrower lane evidence are historical. Candidate 25 selects the declared
+`STOCK_LIKE_BY_ROAD` profile: HIGHWAY before raw functional class, per-link donor
+historySpeed, Region/adminCode 990001 and URID 372. Factory sender code is
+unchanged. Installation and vehicle acceptance are pending; the owner trial
+uses fixed native coordinates, a parked main-road class audit, then highway
+and settlement comparisons. See the [profile and protocol](../../research/adas-bridge/README.md#stock-like-by-road-donor-profile-2026-10-26).
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into

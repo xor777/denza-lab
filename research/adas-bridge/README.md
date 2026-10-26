@@ -20,7 +20,7 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
@@ -29,7 +29,8 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 23 installed and parked ACK verified; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | installed: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; moving acceptance pending | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
-| The active native adapter now has a declared `COMPATIBILITY_CN` donor experiment for the first sustained-NOA attempt. It keeps real Yandex geometry/progress but substitutes selected Beijing attributes, Region 110000 and link URID 1; the factory `StockSender` is unchanged. Drive review attributes these dynamic values from `nativeInputPolicy`, not as Yandex observations | candidate 24 built and package-checked; not installed or driven; donor-attribution regression passes; no NOA benefit established | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
+| The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 25 built and locally checked; retained Kyivskoye MEDIUM mainline needs raw fc; stationary receipt and moving NOA pending | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
+| Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
 | Candidate 21 first moving drive: 9 ACKed paths, 975 positions without a gap over 1.289 s, three ICC-active episodes and one 95 ms DNP-available response; no DNP-active response. Unknown road fields and quit codes remain under investigation | actual car output and responses; sustained CNOA not achieved | [First drive](#candidate-21-first-drive-2026-10-25) |
@@ -619,11 +620,150 @@ stationary receipt, not moving NOA acceptance.
 
 Region/city remain unchanged at zero; no administrative equivalence is claimed.
 
+#### Stock-like by-road donor profile (2026-10-26)
+
+The owner requested `DONOR-BY-ROAD-20261026.md`, retained under
+`captures/stock-sender-parity-20261025/`, against `a141eb7d`. Candidate 25 selects
+`Policy.STOCK_LIKE_BY_ROAD` in the existing native product path. The original
+sender in `stocknative/`, its scheduling, geometry, manoeuvres, link identities,
+vehicle speed and route types are unchanged. `NativeDonorProfile` owns the
+numeric donor table and its provenance; the adapter, environment and audit read
+the same profile.
+
+Each link takes the first applicable rule:
+
+| Rule | Yandex input | Native class |
+| --- | --- | --- |
+| `HIGHWAY_SCHEME` | Containing section `schemeId=HIGHWAY`, regardless of fc | 6 |
+| `FUNCTIONAL_CLASS` | Valid unambiguous raw fc 1 / 2–4 / 5–6 / 7–9 | 6 / 7 / 8 / 9 |
+| `UNKNOWN_FALLBACK` | Missing, unsupported or conflicting fc, without HIGHWAY | 9 |
+
+`RouteSnapshot` already captures `section.metadata.schemeId`; `YandexRoute`
+now preserves it, including `null` for absent input. A route name does not select
+the highway rule. The recipe's retained Kyivskoye samples contain both HIGHWAY
+and MEDIUM sections, so the parked per-link audit is still required.
+
+| Current link class | Donor historySpeed (km/h) | Retained source |
+| --- | --- | --- |
+| 6 | 85 | Original factory sender on custom data, Kyivskoye HNOA hold, 2026-10-23 |
+| 7 | 47 | Median of 15 original factory Beijing runs |
+| 8 | 25 | Median of 15 original factory Beijing runs |
+| 9 | 25 | Original factory sender on custom data, settlement CNOA hold, 2026-10-23 |
+
+This is a declared experiment, not measured traffic history on the current road.
+The speed lookup uses the current link, including boundaries within a section.
+An actual historical-speed observation retains priority. Donor fallback clears
+to zero off-route, with a stale fix and at route end. Independent adversarial
+replay exposed another case: a highway fix becomes stale, then a fresh street
+fix arrives while ETA is still unavailable. Previously the session retained
+historySpeed 85 beside street class 9. It now clears only the speed in the last
+coherent progress envelope, without inventing distances or indices; retries are
+coalesced to one per second, with an immediate retry on fresh recovery because
+a queued reset may have failed final output admission. Valid street progress
+restores 25. The original full-product repro and regressions pass after this fix.
+
+Region, province, city and link adminCode are **990001**, country is **1** and
+link URID is **372**. The namespaces remain separate: URID is an input to the
+unchanged original ODD calculation, not a transmitted route field. These codes
+come from the older custom map package's `global.db` and the retained vehicle
+ODD response, not a Yandex geocoder. Other donor values remain formway 1,
+on-route ownership 0, direction 1, laneNum 0, hasMultiOut true,
+hasParallelRoad/hasMixFork false and legal limit 0. Off-route ownership remains
+unknown. Formway and lane count by road type are explicitly deferred.
+
+`nativeInputPolicy` names `stock-like-by-road` and
+`EXPERIMENTAL_STOCK_LIKE_BY_ROAD`. Its compatibility evidence carries both tables,
+field sources and region identifiers; `rendererClassProjection` counts links
+under all three rules and totals class-6 metres. Its complete compact
+`linkDecisions` array records every link's indices, source interval, rule,
+class, schemeId and typed raw fc, including links beyond the 128-entry verbose
+diagnostic limit. `drive_review` labels donor road class, ownership,
+history speed and region as `EXPERIMENTAL_DONOR` using the preceding matching
+policy in timestamp and journal order, while retaining older
+compatibility/variant interpretations. Per-path indexes preserve that causal
+order without repeatedly scanning the full retained journal.
+
+The requested adapter, factory-wire and product-wiring regressions cover the
+mixed highway/street route and both coordinate frames. On the **short test
+route**, the original ODD code emits MAX with 372 in the open-city list and 0
+with a nonempty list excluding 372. This is not a universal membership gate:
+the unchanged factory lookahead returns MAX after accumulating more than 2 km
+without a URID transition, even when the list excludes the current URID. The
+long-route regression preserves that original behavior; the adapter does not
+force a different outgoing ODD distance. The runtime harness executes the actual product coordinator and native
+session with a test platform environment; Android environment getters are
+source-reviewed and compiled into the APK, not exercised on a vehicle here.
+
+The same review verified the existing static-table lifetime: a new snapshot
+with unchanged route ID, epoch and geometry does not replace `schemeId`, raw
+attributes or condition metadata in the already published route. Those inputs
+remain frozen until route replacement or the existing forced-refresh path.
+This change does not add periodic route republication.
+
+Host replay of all seven retained 24 October snapshots uses the actual current
+adapter with no vector attributes, because those snapshots explicitly do not
+export raw `class/fc`. Evidence and source/input hashes are retained under
+`captures/stock-sender-parity-20261025/kyiv-replay25/`. Named Kyivskoye sections:
+
+| Snapshot / section | Retained scheme | Yandex section distance | Replay class / historySpeed |
+| --- | --- | --- | --- |
+| route-2 / 0 | HIGHWAY | 88 m | 6 / 85 |
+| route-3 / 0 | HIGHWAY | 2,749 m | 6 / 85 |
+| route-3 / 2 | MEDIUM | 3,591 m | 9 / 25, missing-fc fallback |
+| route-5 / 0 | HIGHWAY | 1,019 m | 6 / 85 |
+| route-6 / 4 | MEDIUM | 1,092 m | 9 / 25, missing-fc fallback |
+
+The retained `road-semantics/REPORT.md` links route-3 section 2, scalar [63,232],
+to the approximately 2,035 m straight reverse mainline in old global link 35.
+Thus this is not only a slip-road concern. HIGHWAY alone cannot establish
+class 6 along the whole main carriageway. The two MEDIUM results describe
+replay without raw categories, not a recovered live vector classification;
+with valid fc 1 / 2–4 / 5–6 / 7–9 they would instead use 6 / 7 / 8 / 9.
+Section distances above are Yandex metadata; native geometry lengths are
+independently rounded. This corpus contains three HIGHWAY and two MEDIUM
+named sections, not necessarily every snapshot counted by the recipe.
+The retained 24 October extraction has 69 graph-tile binaries and no vector
+tile binaries. Eight decoded graph tiles cover Kyivskoye, but their understood
+fields do not supply renderer `class/fc`. The retained region-43 vector package
+is Kazan: none of its 1,596 catalogued tiles intersects the required Kyivskoye
+tiles. Thus the inspected local corpus cannot recover the missing categories;
+graph geometry is not a substitute for them. The replay directory also retains
+the inventory and reproduction commands for that coverage check.
+
+Candidate 25 is `29.8.1-YandexHUD.25` / `739494325`, built at
+`captures/stock-sender-parity-20261025/product/build25-final/YandexHUD-25-arm64-debug.apk`,
+SHA-256 `81d4aa59312e695df43bc413d71d98093fa73873935e0a4b52a1c525046298e8`.
+All 179 module source hashes match the checked source. Manifest/resources and
+APK signatures pass; local validation includes 64 library tests, 128 product
+runtime checks, 212 native-session checks and 400 passive Binder checks. The
+42 drive-review tests also pass with the retained corpus enabled. Candidate
+receipt and build log live beside the APK; reader 20 is unchanged and reused.
+
+Vehicle acceptance is separate. The owner installs and arms the candidate,
+using fixed `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` for every route, without frame
+alternation. Before the highway trial, require a fresh same-path `SELECTED 200`,
+Region 990001 and legal limit 0 on the wire, and inspect every main-carriageway
+link of the Kyivskoye route: any class other than 6 postpones that trial until
+the source classification is understood. The owner protocol is highway first
+(2–3 attempts, comparison to the retained approximately 54 s hold), then the
+same settlement streets (comparison to approximately 25 s CNOA). Record each
+availability/activation/exit transition and export logs within 20 minutes.
+Neither the profile nor a parked ACK establishes successful NOA operation.
+
+The highway reference is the same hold already analysed in the
+[2026-10-24 audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24): 54.103 s in
+that retained extraction, approximately 54.2 s in the recipe's event window.
+The different sample counts describe different selections of the same evidence,
+not a second independent drive.
+
 #### Compatibility-CN donor profile (local, 2026-10-25)
 
+**Historical: replaced in the active product by candidate 25's
+[by-road profile](#stock-like-by-road-donor-profile-2026-10-26).**
+
 The owner reprioritized the next experiment from further map-evidence refinement to
-maximizing the chance of the first sustained NOA run. `LiveMapBridge` therefore now
-selects `YandexNativeAdapter.Policy.COMPATIBILITY_CN` explicitly. This is in the active
+maximizing the chance of the first sustained NOA run. Candidate 24's `LiveMapBridge`
+selected `YandexNativeAdapter.Policy.COMPATIBILITY_CN` explicitly. It used the
 `NativeMapSession → YandexNativeAdapter → NativeRouteSerializer / OriginalMmtSender →
 StockSender` path. It does not use the legacy `ExperimentVariant`, `RouteConverter` or
 `StockFeed`, and it does not modify the recovered factory sender.
@@ -970,10 +1110,13 @@ no sender packet, ACK, timer or mutable sender bean. Product lifecycle, the
 three Android queues and transport are separate integration responsibilities.
 `fieldDecisions()` and retained attribute evidence are logged for each route.
 The default `Policy.STRICT` rejects native road booleans whose source is
-unavailable. The experimental product selects the owner-authorized
+unavailable. The baseline table below describes the earlier owner-authorized
 `Policy.TEST_ROAD_DATA`: missing road booleans retain the explicit test assumptions
 of `EXPLICIT_FALSE`, with the typed experimental road-class projection described
-above. Known signal positions are preserved. No policy claims that false improves
+above. Candidate 25's active `Policy.STOCK_LIKE_BY_ROAD` overrides the donor
+fields listed in the [profile table](#stock-like-by-road-donor-profile-2026-10-26);
+the geometry and observed-input contracts below still apply. Known signal
+positions are preserved. No policy claims that false improves
 NOA eligibility. Invalid geometry, incompatible sections and overflowing native
 distances are rejected; missing current progress, ETA or required fix data
 omits the corresponding callback instead of fabricating zero values.

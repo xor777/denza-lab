@@ -10,6 +10,7 @@ import dev.denza.adaslink.AdasGateSnapshot;
 import dev.denza.adaslink.stocknative.NativeEnvironment;
 import dev.denza.adaslink.stocknative.NativeModels;
 import dev.denza.adaslink.yandexnative.NativeResources;
+import dev.denza.adaslink.yandexnative.NativeDonorProfile;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,21 +36,21 @@ final class ProductNativeEnvironment implements NativeEnvironment {
     private final SharedPreferences cache;
     private final Integer autoType;
     private final String product;
-    private final boolean compatibilityCn;
+    private final NativeDonorProfile donorProfile;
     private volatile NativeModels.Coord2DDouble location;
     private volatile int avpSupport,leaveTunnelDistance,enterTunnelDistance;
     private volatile long routeSignalResetCount;
 
     ProductNativeEnvironment(Context context,BooleanSupplier naving,Supplier<AdasGateSnapshot.Snapshot> gates,
                              DoubleSupplier realSpeed,ClientOperations clients) {
-        this(context,naving,gates,realSpeed,clients,false);
+        this(context,naving,gates,realSpeed,clients,null);
     }
     ProductNativeEnvironment(Context context,BooleanSupplier naving,Supplier<AdasGateSnapshot.Snapshot> gates,
-                             DoubleSupplier realSpeed,ClientOperations clients,boolean compatibilityCn) {
+                             DoubleSupplier realSpeed,ClientOperations clients,NativeDonorProfile donorProfile) {
         if(context==null||naving==null||gates==null||realSpeed==null||clients==null)
             throw new IllegalArgumentException("native environment dependencies");
         this.context=context.getApplicationContext();this.naving=naving;this.gates=gates;this.speed=realSpeed;this.clients=clients;
-        this.compatibilityCn=compatibilityCn;
+        this.donorProfile=donorProfile;
         cache=this.context.getSharedPreferences("denza-native-sender",Context.MODE_PRIVATE);
         autoType=readAutoType();product=readStockProduct(this.context);
     }
@@ -81,7 +82,9 @@ final class ProductNativeEnvironment implements NativeEnvironment {
         Map<String,Object> result=new LinkedHashMap<>();result.put("auto_type",autoType);result.put("stock_product",product);
         AdasGateSnapshot.Snapshot snapshot=gates.get();
         result.put("tip_island_raw",snapshot!=null&&snapshot.valid?snapshot.rawValues.get(AdasGateSnapshot.TIP_ISLAND_SUPPORT):null);
-        result.put("geocoder",compatibilityCn?"compatibility-cn: declared Beijing 110000, not a geocoder result":"absent: no Amap MapDataService");result.put("lane_query","absent: no Amap GuideService; returns -1");
+        result.put("geocoder",donorProfile==null?"absent: no Amap MapDataService":donorProfile.id+": declared donor region "+donorProfile.regionCode+", not a geocoder result");
+        if(donorProfile!=null)result.put("donor_profile",donorProfile.evidence());
+        result.put("lane_query","absent: no Amap GuideService; returns -1");
         result.put("city_cache","actual product private preferences; empty until supplied");
         result.put("vehicle_speed","autoservice FLOAT7 device1013 FID0x94400008, km/h; independent timestamped read");
         result.put("distance_provider","Android Location.distanceBetween; not established equivalent to Amap BizLayerUtil native calculation");
@@ -103,10 +106,10 @@ final class ProductNativeEnvironment implements NativeEnvironment {
     public boolean isKD(){return "kd".equals(product);}
     public boolean isMainThread(){return Looper.myLooper()==Looper.getMainLooper();}
     public double realSpeed(){double value=speed.getAsDouble();if(!Double.isFinite(value))throw new NativeEnvironment.DataUnavailable("vehicle speed unavailable");return value;}
-    public boolean hasMapDataService(){return compatibilityCn;}
-    public int getAdcodeByLonLat(double lon,double lat){return compatibilityCn?110000:-1;}
-    public int getTownAdcodeByLonLat(double lon,double lat){return compatibilityCn?110000:-1;}
-    public Integer getCityProvince(int adcode){return compatibilityCn?110000:null;}
+    public boolean hasMapDataService(){return donorProfile!=null;}
+    public int getAdcodeByLonLat(double lon,double lat){return donorProfile==null?-1:donorProfile.regionCode;}
+    public int getTownAdcodeByLonLat(double lon,double lat){return donorProfile==null?-1:donorProfile.regionCode;}
+    public Integer getCityProvince(int adcode){return donorProfile==null?null:donorProfile.regionCode;}
     public long queryAppointLanesInfo(int segmentIndex,int linkIndex,int count){return -1;}
     public String cachedOpenCityJson(){return cache.getString("open_city_json","");}
     public void writeCachedOpenCityJson(String json){cache.edit().putString("open_city_json",json).apply();}

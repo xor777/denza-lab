@@ -18,12 +18,15 @@ and one 95 ms DNP-available response, with no DNP-active response. Sustained CNO
 was not achieved. See the [first-drive analysis](../../research/adas-bridge/README.md#candidate-21-first-drive-2026-10-25).
 Candidate 23 passed parked ACK 200 with sourced speed/ownership and the narrow
 owner-confirmed lane catalog; its moving acceptance is still pending. The current
-local `LiveMapBridge` selects the declared `COMPATIBILITY_CN` experiment: real Yandex
-geometry/progress, Beijing donor road fields and Region, link URID 1 and the unchanged
-factory sender. This is an adapter policy, not a legacy `--variant` and not evidence
-of vehicle NOA acceptance. Local adapter/runtime/protocol checks pass; installation
-and a fresh parked ACK followed by the sustained-NOA drive remain separate steps.
-See the [compatibility profile and test protocol](../../research/adas-bridge/README.md#compatibility-cn-donor-profile-local-2026-10-25)
+local `LiveMapBridge` selects `STOCK_LIKE_BY_ROAD`: HIGHWAY sections take class 6,
+then typed raw fc selects class 6/7/8/9, with fallback 9. Current-link donor
+historySpeed is 85/47/25/25; Region/adminCode is 990001 and URID 372 feeds the
+unchanged original ODD calculation. This replaces candidate 24's uniform
+`COMPATIBILITY_CN` profile. Candidate 25 keeps real Yandex geometry/progress and
+the unchanged factory sender. Installation, a fresh parked ACK and main-road
+class audit, then the highway/settlement trials remain separate acceptance steps.
+Use fixed native coordinates throughout the owner trial, without alternation.
+See the [by-road profile and test protocol](../../research/adas-bridge/README.md#stock-like-by-road-donor-profile-2026-10-26)
 and the [current milestone and field policy](../../research/adas-bridge/README.md#product-milestone-and-bench-freeze).
 
 

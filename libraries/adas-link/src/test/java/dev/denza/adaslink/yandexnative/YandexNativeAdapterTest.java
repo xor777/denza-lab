@@ -389,4 +389,183 @@ public final class YandexNativeAdapterTest {
         int donorDecisions=0;for(FieldDecision decision:after.fieldDecisions())if(decision.kind==FieldDecision.Kind.EXPERIMENTAL_DONOR)donorDecisions++;
         assertTrue(donorDecisions>=8);assertFalse(before.attributeEvidence().containsKey("compatibilityProfile"));
     }
+    private static YandexRoute donorRoute(String firstScheme,String secondScheme){
+        YandexRoute base=route();
+        return new YandexRoute(base.routeId,base.lon,base.lat,Arrays.asList(
+            new YandexRoute.Section(0,1,"STRAIGHT","First",12,Double.NaN,firstScheme),
+            new YandexRoute.Section(1,2,"LEFT","Second",14,Double.NaN,secondScheme)),
+            base.speedLimits,base.trafficLights,base.tunnels,base.ferries,base.wayPoints,base.cameras);
+    }
+    private static RouteAttributes donorAttributes(final YandexRoute source,final RouteAttributes.RendererClass first,final RouteAttributes.RendererClass second){
+        return new RouteAttributes(){
+            public boolean matches(YandexRoute route){return route==source;}
+            public double[] cuts(){return new double[]{0.25,1.25};}
+            public RoadNetwork.KnownAttributes attributesBetween(double a,double b){throw new AssertionError("converted class consulted");}
+            public RendererClass rendererClassBetween(double a,double b){return a<1?first:second;}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+    }
+    private static RouteAttributes.RendererClass fc(int value){return RouteAttributes.RendererClass.literal(Integer.toString(value),"string",(long)value,"uint32");}
+    private static YandexNativeAdapter.AdaptedRoute donor(YandexRoute source,RouteAttributes.RendererClass first,RouteAttributes.RendererClass second){
+        return YandexNativeAdapter.prepare(source,100,200,1,donorAttributes(source,first,second),YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+    }
+    @Test public void stockLikeHighwaySchemeOverridesFunctionalClassOnEveryLink(){
+        YandexNativeAdapter.AdaptedRoute adapted=donor(donorRoute("HIGHWAY","SMALL"),fc(2),fc(7));
+        for(int i=0;i<adapted.getSegmentInfo(0).getLinkCount();i++){
+            assertEquals(6,adapted.getSegmentInfo(0).getLinkInfo(i).getRoadClass());
+            assertEquals(85,YandexNativeAdapter.navi(adapted,freshGuidance(i==0?0.1:0.75)).curLinkSpeed);
+        }
+        // Highway metadata also takes priority when typed fc is conflicting or absent.
+        assertEquals(6,donor(donorRoute("HIGHWAY","SMALL"),RouteAttributes.RendererClass.unknown("conflict"),fc(7)).getSegmentInfo(0).getLinkInfo(0).getRoadClass());
+    }
+    @Test public void stockLikeTypedFunctionalGroupsAndUnknownUseDonorSpeeds(){
+        int[] classes={6,7,7,7,8,8,9,9,9},speeds={85,47,47,47,25,25,25,25,25};
+        for(int fc=1;fc<=9;fc++){
+            YandexNativeAdapter.AdaptedRoute adapted=donor(donorRoute("MEDIUM","SMALL"),fc(fc),fc(7));
+            assertEquals(classes[fc-1],adapted.getSegmentInfo(0).getLinkInfo(0).getRoadClass());
+            assertEquals(speeds[fc-1],YandexNativeAdapter.navi(adapted,freshGuidance(0.1)).curLinkSpeed);
+        }
+        for(RouteAttributes.RendererClass unknown:new RouteAttributes.RendererClass[]{RouteAttributes.RendererClass.unknown("absent"),
+                RouteAttributes.RendererClass.literal("1","string",2L,"uint32"),RouteAttributes.RendererClass.literal("1","string",1.0,"double")}){
+            YandexNativeAdapter.AdaptedRoute adapted=donor(donorRoute(null,"SMALL"),unknown,fc(7));
+            assertEquals(9,adapted.getSegmentInfo(0).getLinkInfo(0).getRoadClass());
+            assertEquals(25,YandexNativeAdapter.navi(adapted,freshGuidance(0.1)).curLinkSpeed);
+        }
+    }
+    @Test public void stockLikeSpeedUsesCurrentLinkIncludingWithinOneSection(){
+        YandexRoute source=donorRoute("HIGHWAY","SMALL");
+        YandexNativeAdapter.AdaptedRoute adapted=donor(source,fc(2),fc(7));
+        assertEquals(85,YandexNativeAdapter.navi(adapted,freshGuidance(0.999999)).curLinkSpeed);
+        assertEquals(25,YandexNativeAdapter.navi(adapted,freshGuidance(1)).curLinkSpeed);
+        RouteAttributes varying=new RouteAttributes(){
+            public boolean matches(YandexRoute route){return route==source;}
+            public double[] cuts(){return new double[]{1.5};}
+            public RoadNetwork.KnownAttributes attributesBetween(double a,double b){throw new AssertionError();}
+            public RendererClass rendererClassBetween(double a,double b){return a<1.5?fc(2):fc(1);}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+        adapted=YandexNativeAdapter.prepare(source,100,200,1,varying,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+        assertEquals(47,YandexNativeAdapter.navi(adapted,freshGuidance(1.499999)).curLinkSpeed);
+        assertEquals(85,YandexNativeAdapter.navi(adapted,freshGuidance(1.5)).curLinkSpeed);
+    }
+    @Test public void stockLikeSpeedKeepsFreshnessAndObservedHistoryPriority(){
+        YandexNativeAdapter.AdaptedRoute adapted=donor(donorRoute("HIGHWAY","SMALL"),fc(2),fc(7));
+        for(int age:new int[]{-1,1501}){YandexNativeAdapter.Guidance g=freshGuidance(.1);g.fixAgeMs=age;assertEquals(0,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);}
+        YandexNativeAdapter.Guidance g=freshGuidance(.1);g.fixAgeMs=1500;assertEquals(85,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);
+        g.onRoute=false;assertEquals(0,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);
+        assertEquals(0,YandexNativeAdapter.navi(adapted,freshGuidance(2)).curLinkSpeed);
+        YandexNativeAdapter.AdaptedRoute outdated=YandexNativeAdapter.prepare(weightedSnapshot(true),100,200,1,null,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+        assertEquals(0,YandexNativeAdapter.navi(outdated,freshGuidance(.1)).curLinkSpeed);
+        g=freshGuidance(.1);g.historicalSpeedKmh=62;assertEquals(62,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);
+        // Existing observed-input priority is retained even when the donor fallback is unavailable.
+        g.onRoute=false;g.fixAgeMs=2000;assertEquals(62,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);
+        g.scalar=2;assertEquals(62,YandexNativeAdapter.navi(adapted,g).curLinkSpeed);
+    }
+    @Test public void stockLikeDonorFieldsPreserveGeometryNamesAndIdentity(){
+        YandexRoute source=donorRoute("HIGHWAY","SMALL");RouteAttributes attrs=donorAttributes(source,fc(2),fc(7));
+        YandexNativeAdapter.AdaptedRoute before=YandexNativeAdapter.prepare(source,100,200,1,attrs,YandexNativeAdapter.Policy.TEST_ROAD_DATA);
+        YandexNativeAdapter.AdaptedRoute after=YandexNativeAdapter.prepare(source,100,200,1,attrs,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+        for(int si=0;si<after.getSegmentCount();si++)for(int li=0;li<after.getSegmentInfo(si).getLinkCount();li++){
+            NativePath.Link a=before.getSegmentInfo(si).getLinkInfo(li),b=after.getSegmentInfo(si).getLinkInfo(li);
+            assertEquals(990001,b.getAdcode());assertEquals(372,b.getURID());assertEquals(1,b.getFormway());assertEquals(0,b.getOwnership());
+            assertEquals(1,b.getRoadDirection());assertEquals(0,b.getLaneNum());assertTrue(b.hasMultiOut());assertFalse(b.hasParallelRoad());assertFalse(b.hasMixFork());
+            assertEquals(a.getLength(),b.getLength());assertEquals(a.getRoadName(),b.getRoadName());assertEquals(a.get64TopoID(),b.get64TopoID());
+            assertEquals(a.getLinkType(),b.getLinkType());assertEquals(a.hasTrafficLight(),b.hasTrafficLight());
+            for(int pi=0;pi<a.getPoints().size();pi++){assertEquals(a.getPoints().get(pi).lon,b.getPoints().get(pi).lon);assertEquals(a.getPoints().get(pi).lat,b.getPoints().get(pi).lat);}
+        }
+    }
+    @Test public void stockLikeBothFramesKeepClassesSpeedsAndIds(){
+        YandexRoute source=donorRoute("HIGHWAY","SMALL");RouteAttributes attrs=donorAttributes(source,fc(2),fc(7));
+        YandexNativeAdapter.AdaptedRoute a=YandexNativeAdapter.prepare(source,100,200,1,attrs,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+        YandexNativeAdapter.AdaptedRoute b=YandexNativeAdapter.prepare(source,100,200,1,attrs,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD.withFrame(dev.denza.adaslink.Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE));
+        for(int si=0;si<a.getSegmentCount();si++)for(int li=0;li<a.getSegmentInfo(si).getLinkCount();li++){
+            assertEquals(a.getSegmentInfo(si).getLinkInfo(li).getRoadClass(),b.getSegmentInfo(si).getLinkInfo(li).getRoadClass());
+            assertEquals(a.getSegmentInfo(si).getLinkInfo(li).get64TopoID(),b.getSegmentInfo(si).getLinkInfo(li).get64TopoID());
+        }
+        for(double at:new double[]{0.1,1})assertEquals(YandexNativeAdapter.navi(a,freshGuidance(at)).curLinkSpeed,YandexNativeAdapter.navi(b,freshGuidance(at)).curLinkSpeed);
+    }
+    @Test public void snapshotPreservesSchemeIdAndMissingRemainsNull(){
+        @SuppressWarnings("unchecked") Map<String,Object> snapshot=(Map<String,Object>)dev.denza.adaslink.Json.parse(
+            "{\"routeId\":\"scheme\",\"points\":[[37,55],[37.001,55],[37.002,55]],\"sections\":["
+            +"{\"geometry\":{\"begin\":{\"segmentIndex\":0,\"segmentPosition\":0},\"end\":{\"segmentIndex\":1,\"segmentPosition\":0}},\"metadata\":{\"schemeId\":\"HIGHWAY\"}},"
+            +"{\"geometry\":{\"begin\":{\"segmentIndex\":1,\"segmentPosition\":0},\"end\":{\"segmentIndex\":2,\"segmentPosition\":0}},\"metadata\":{}}]}");
+        YandexRoute parsed=YandexRoute.fromSnapshot(snapshot);assertEquals("HIGHWAY",parsed.sections.get(0).schemeId);assertNull(parsed.sections.get(1).schemeId);
+        assertNull(new YandexRoute.Section(0,1,null,null,1).schemeId);
+    }
+
+    @Test public void stockLikeAuditPublishesSourcedTablesRulesAndHighwayMetres(){
+        YandexNativeAdapter.AdaptedRoute adapted=donor(donorRoute("HIGHWAY","SMALL"),fc(2),RouteAttributes.RendererClass.unknown("conflicting"));
+        @SuppressWarnings("unchecked") Map<String,Object> profile=(Map<String,Object>)adapted.attributeEvidence().get("compatibilityProfile");
+        assertEquals("stock-like-by-road",profile.get("id"));assertEquals(990001L,profile.get("region"));assertEquals(990001L,profile.get("adminCode"));assertEquals(372L,profile.get("urid"));
+        @SuppressWarnings("unchecked") List<Map<String,Object>> roadRules=(List<Map<String,Object>>)profile.get("roadClassRules");
+        @SuppressWarnings("unchecked") List<Map<String,Object>> speedRules=(List<Map<String,Object>>)profile.get("historySpeedByRoadClass");
+        assertEquals(6,roadRules.size());assertEquals(4,speedRules.size());
+        for(Map<String,Object> row:roadRules)assertTrue(((String)row.get("source")).length()>0);
+        for(Map<String,Object> row:speedRules)assertTrue(((String)row.get("source")).length()>0);
+        @SuppressWarnings("unchecked") Map<String,Object> sources=(Map<String,Object>)profile.get("sources");
+        for(String field:new String[]{"region","adminCode","urid","country","speedLimit","formway","direction","laneNum","ownership","hasMultiOut","hasParallelRoad","hasMixFork"})assertTrue(sources.containsKey(field));
+        @SuppressWarnings("unchecked") Map<String,Object> projection=(Map<String,Object>)adapted.attributeEvidence().get("rendererClassProjection");
+        @SuppressWarnings("unchecked") Map<String,Integer> counts=(Map<String,Integer>)projection.get("ruleCounts");
+        assertEquals(Integer.valueOf(3),counts.get("HIGHWAY_SCHEME"));assertEquals(Integer.valueOf(0),counts.get("FUNCTIONAL_CLASS"));assertEquals(Integer.valueOf(3),counts.get("UNKNOWN_FALLBACK"));
+        assertEquals(adapted.getSegmentInfo(0).getLength(),projection.get("class6Metres"));
+        boolean highway=false,fallback=false,region=false;
+        for(FieldDecision decision:adapted.fieldDecisions()){
+            if(decision.field.equals("segment[0].link[0].roadClass")){
+                highway=true;assertTrue(decision.meaning.contains("rule=HIGHWAY_SCHEME"));assertTrue(decision.source.contains("schemeId=HIGHWAY"));assertTrue(decision.source.contains("fc=2"));
+            }
+            if(decision.field.equals("segment[1].link[0].roadClass")){
+                fallback=true;assertTrue(decision.meaning.contains("rule=UNKNOWN_FALLBACK"));assertTrue(decision.source.contains("schemeId=SMALL"));assertTrue(decision.source.contains("fc=null"));
+            }
+            if(decision.field.equals("Region")){region=true;assertEquals(FieldDecision.Kind.EXPERIMENTAL_DONOR,decision.kind);}
+        }
+        assertTrue(highway);assertTrue(fallback);assertTrue(region);
+        assertEquals(YandexNativeAdapter.HistorySpeedPolicy.EXPERIMENTAL_STOCK_LIKE_BY_ROAD,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD.historySpeed);
+        assertSame(NativeDonorProfile.STOCK_LIKE_BY_ROAD,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD.withFrame(dev.denza.adaslink.Coordinates.Frame.NATIVE_GCJ_UNRESTRICTED_CANDIDATE).donorProfile);
+        assertNotNull(dev.denza.adaslink.Json.parse(dev.denza.adaslink.Json.write(adapted.attributeEvidence())));
+    }
+
+    @Test public void donorCompactAuditKeepsEveryLinkWhenHighwayStartsAfterVerboseLimit(){
+        final YandexRoute source=new YandexRoute("late-highway",new double[]{37,37.001,37.002},new double[]{55,55,55},
+            Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT","Street",12,Double.NaN,"SMALL"),
+                new YandexRoute.Section(1,2,"STRAIGHT","Highway",14,Double.NaN,"HIGHWAY")),
+            null,new double[0],Collections.emptyList(),Collections.emptyList(),null,null);
+        RouteAttributes attributes=new RouteAttributes(){
+            public boolean matches(YandexRoute route){return route==source;}
+            public double[] cuts(){double[] cuts=new double[143];for(int i=0;i<140;i++)cuts[i]=(i+1)/141.0;for(int i=0;i<3;i++)cuts[140+i]=1+(i+1)/4.0;return cuts;}
+            public RoadNetwork.KnownAttributes attributesBetween(double begin,double end){throw new AssertionError("converted class consulted");}
+            public RendererClass rendererClassBetween(double begin,double end){return begin<.1?RendererClass.unknown("source_unavailable"):fc(begin<1?7:2);}
+            public Map<String,Object> summary(){return Collections.emptyMap();}
+        };
+        YandexNativeAdapter.AdaptedRoute adapted=YandexNativeAdapter.prepare(source,100,200,1,attributes,YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD);
+        @SuppressWarnings("unchecked") Map<String,Object> projection=(Map<String,Object>)adapted.attributeEvidence().get("rendererClassProjection");
+        @SuppressWarnings("unchecked") List<Map<String,Object>> rows=(List<Map<String,Object>>)projection.get("linkDecisions");
+        assertNotNull(rows);assertEquals(145,rows.size());assertEquals(rows.size(),projection.get("links"));
+        assertEquals(128,projection.get("retainedDecisions"));assertEquals(17,projection.get("omittedDecisions"));
+        int verbose=0;for(FieldDecision decision:adapted.fieldDecisions())if(decision.field.startsWith("segment[")&&decision.field.endsWith(".roadClass")){
+            verbose++;assertFalse("late highway lies beyond verbose examples",decision.source.contains("schemeId=HIGHWAY"));
+        }
+        assertEquals(128,verbose);
+        int at=0,highway=0;double through=0;
+        for(int si=0;si<adapted.getSegmentCount();si++)for(int li=0;li<adapted.getSegmentInfo(si).getLinkCount();li++){
+            Map<String,Object> row=rows.get(at++);assertEquals(si,row.get("segment"));assertEquals(li,row.get("link"));
+            double begin=((Number)row.get("begin")).doubleValue(),end=((Number)row.get("end")).doubleValue();
+            assertEquals(through,begin,0);assertTrue(end>begin);through=end;
+            assertEquals(adapted.getSegmentInfo(si).getLinkInfo(li).getRoadClass(),row.get("roadClass"));
+            assertEquals(si==0?"SMALL":"HIGHWAY",row.get("schemeId"));
+            RouteAttributes.RendererClass raw=attributes.rendererClassBetween(begin,end);
+            assertTrue(row.containsKey("fc"));assertEquals(raw.rawFc,row.get("fc"));assertEquals(raw.fcType,row.get("fcType"));
+            assertEquals(raw.rawClass,row.get("rawClass"));assertEquals(raw.classType,row.get("classType"));assertEquals(raw.quality,row.get("quality"));
+            assertFalse("source prose belongs to the shared profile table",row.containsKey("source"));
+            if(si==1){highway++;assertTrue(at>128);assertEquals("HIGHWAY_SCHEME",row.get("rule"));assertEquals(6,row.get("roadClass"));}
+            else assertEquals(begin<.1?"UNKNOWN_FALLBACK":"FUNCTIONAL_CLASS",row.get("rule"));
+        }
+        assertEquals(2,through,0);assertEquals(4,highway);
+        assertEquals(adapted.getSegmentInfo(1).getLength(),projection.get("class6Metres"));
+        @SuppressWarnings("unchecked") Map<String,Object> serialized=(Map<String,Object>)dev.denza.adaslink.Json.parse(dev.denza.adaslink.Json.write(projection));
+        assertEquals(rows.size(),((List<?>)serialized.get("linkDecisions")).size());
+        YandexNativeAdapter.AdaptedRoute ordinary=YandexNativeAdapter.prepare(source,100,200,1,attributes,YandexNativeAdapter.Policy.TEST_ROAD_DATA);
+        @SuppressWarnings("unchecked") Map<String,Object> ordinaryProjection=(Map<String,Object>)ordinary.attributeEvidence().get("rendererClassProjection");
+        assertFalse(ordinaryProjection.containsKey("linkDecisions"));
+    }
+
 }
