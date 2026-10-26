@@ -328,10 +328,12 @@ Tools when an ADB command is executed.
 ```text
 cag pair <CODE>
 cag pair --new-key <CODE>
-cag connect
-cag connect -- adb ...
+cag connect [--port N]
+cag connect [--port N] -- adb ...
+cag connect [--port N] --watch
 cag status
 cag disconnect
+cag service install [--port N] | uninstall | status
 ```
 
 State lives in the platform user configuration directory: `~/.config/cag` on
@@ -345,8 +347,34 @@ current vehicle key in `known_hosts`.
 `cag connect` keeps a ControlMaster tunnel in the background with a 30-second
 keepalive. The master's messages go to `tunnel.log` and the relay leg of each
 inner connection to `proxy.log`, both in the state directory, and their tails
-appear in `cag` errors. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mode allocates a
-free local port and runs `adb connect`.
+appear in `cag` errors. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mode
+runs `adb connect`, and the serial is `127.0.0.1:N`.
+
+The local port is fixed, because tools address the car by its serial: 15555 by
+default, and `--port N` is remembered in `settings.json`. A port held by another
+program is an error, never a reason to pick another one. The master's PID, from
+`-O check`, is kept in `master.pid`, and a process is treated as ours only when
+its command line is our ssh master with our socket. So a deleted socket or a
+stale file never orphans a master and never makes our own listener look like
+somebody else's.
+
+`cag connect --watch` is the supervisor: one per config, held by `watch.lock`.
+It polls every 10 seconds, reconnects with jittered backoff from 1 to 60
+seconds, waits quietly while another program holds the port, and attaches the
+adb serial when it is not `device`. A master that stops answering gets two more
+polls before it is replaced. On SIGTERM the supervisor closes the masters it
+started and leaves alone one opened by hand; each state change is one line in
+`watch.log`. `cag service install` runs it under launchd
+(`~/Library/LaunchAgents/ru.adbgw.cag.plist`) or a `systemd --user` unit.
+
+On the owner's Mac the port is 5555, the serial every repository tool and doc
+already uses. While the legacy LAN tunnel holds that port the supervisor waits,
+and it takes the port over within one poll once the LAN tunnel is gone; the
+tools never change. Live on 2026-10-26, on port 15556 against the car: the
+supervisor waited while a dummy held the port and took it over 12 seconds after
+it was freed, a second supervisor exited, a killed master was replaced in
+17 seconds, a deleted socket was healed in 34 seconds, and SIGTERM closed its
+own master.
 
 ## 7. Residual Risks
 

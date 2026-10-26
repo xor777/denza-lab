@@ -2,7 +2,7 @@
 set -euo pipefail
 
 action="${1:-snapshot}"
-serial="${2:-${ANDROID_SERIAL:-127.0.0.1:15555}}"
+serial="${2:-${ANDROID_SERIAL:-127.0.0.1:5555}}"
 adb_target=(adb -s "$serial")
 
 snapshot() {

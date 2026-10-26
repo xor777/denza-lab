@@ -6,6 +6,11 @@ These scripts run focused experiments from a development computer. Before any
 of this work moves into an Android app, it must pass the promotion checklist in
 `docs/governance.md`.
 
+The car is ADB serial `127.0.0.1:5555` everywhere here (`ADB_SERIAL`, `--serial`
+defaults). Behind it is either Car ADB Gateway, `cag connect --watch` through
+`adbgw.ru` from any network, or the legacy LAN tunnel to the car's port 2222;
+`cag status` says which one holds the port. The scripts do not care which.
+
 Current scripts:
 
 - `side_camera_overlay_monitor.sh`: older host-side monitor for side-camera windows and turn-light logcat events.
@@ -98,8 +103,8 @@ Current scripts:
   Focused, privacy-bounded transcripts go to a unique file under `/tmp`; durable
   findings belong in `docs/shortcuts-automation-findings.md`.
 - `navi_role_probe.sh`: hands the map role to a target package and reports the
-  component the system actually starts. Expects `ADB_SERIAL` (the local tunnel,
-  e.g. `127.0.0.1:15555`). It writes `DEFAULT_MAP_SWITCH` through the exported
+  component the system actually starts. Expects `ADB_SERIAL` (the car,
+  `127.0.0.1:5555`). It writes `DEFAULT_MAP_SWITCH` through the exported
   `content://com.byd.autovoice` provider and `Settings.Global.byd_map_package`,
   then restores both on exit, including on error or Ctrl-C. Side effects: while
   it runs, voice navigation and the Shortcuts `Navi` commands point at the target
