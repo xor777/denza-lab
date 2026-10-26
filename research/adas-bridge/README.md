@@ -39,7 +39,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
-| Candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | local replay verifies merge correction; signed APK pending; no vehicle operation; complete moving-zero elimination remains unfulfilled | [Candidate 28](#candidate-28-recipe-correction) |
+| Candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; no vehicle operation; complete moving-zero elimination remains unfulfilled | [Candidate 28](#candidate-28-recipe-correction) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3772,6 +3772,20 @@ build results. Candidate 28 explicitly changes the policy and schema to
 `speedFromFixes`, `coherentProgress`, and `mergeShortLinks`; `baseline26`
 disables all. An old v1 policy is rejected instead of silently giving the same
 flag a different meaning. The unchanged factory core remains the sender.
+
+The signed local review artifact is
+`captures/stock-sender-parity-20261025/product/build28/YandexHUD-28-arm64-debug.apk`,
+version `29.8.1-YandexHUD.28` / code `739494328`, SHA-256
+`471861273f0b85dbf942a8b693a4e00844c1ab7de40d78d4ddd5b92ea04e84a0`.
+It was built from committed `374312018af8c27661fdc7988bc9574bd6e9fe7f`,
+with all 181 module source hashes matching. Its directory retains the exact
+source archive, pinned host/reader, zero-device-call plan, `candidate-receipt.json`
+and `HANDOFF.md`; `candidate28-qa/independent/REVIEW.md` records the acceptance gap.
+The build passed 74 library JUnit tests, 159 runtime / 270 session / 6,112 replay
+assertions and 76 recorder assertions. Separate host/analyzer/packaging tests
+passed 125 cases with two pre-existing optional-corpus skips. All 489 baseline
+transcript rows match the frozen `bbc9707e` driver. These are local mechanical
+and finite replay checks, not vehicle or complete speed acceptance.
 
 **Merge acceptance.** The only hard boundaries are section and linkType.
 Short links merge into the preceding same-type neighbor, or the following
