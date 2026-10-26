@@ -11,8 +11,9 @@ product sender with `stocknative`. Candidate 15 passed stationary route receipt
 on 2026-10-25. Candidate 21 passed two same-arm stationary
 route selections, continuous output and graceful closure. Its first drive is
 retained: ICC active, one 95 ms CNOA-available response, no DNP-active response;
-see the separate drive analysis below. Candidate 25 is now installed. Two parked
-Kyivskoye routes received same-path ACK 200, but neither had any class-6 link,
+see the separate drive analysis below. Candidate 26 is now installed. Its parked
+Kievskoye route read all 55 required offline tiles and received same-path ACK 200,
+but still had no class-6 link, as in candidate 25's two earlier parked routes,
 so the highway HNOA trial remains postponed. Build 14 and its experiment variants
 are historical work, not the new sender path. On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
@@ -27,10 +28,10 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | --- | --- | --- |
 | Acceptance of the new sender uses only execution of the original factory APK on the emulator. Legacy bridge bytes, tests and drives are objects of investigation, never new-core targets; adapter policy needs independent source evidence | normative branch contract | [Oracle and migration rules](#oracle-and-migration-rules) |
 | The literal `stocknative` core matches retained reset/offcourse (213 outputs / 1,024 effects), rare-active (27 / 938) and city-ODD (18 / 764) transcripts with zero capture/driver gaps. These are finite emulator results; full callback equivalence remains unproved | code + finite owned-emulator equality | [Literal boundary](#literal-sender-boundary-and-adapter-contract) |
-| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 25 installed and parked ACK verified; its class-6 highway gate failed; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
+| The research bench is frozen. The next milestone is a first drive with the factory core: one justified Yandex adapter, full replacement of the product sender by `StockSender`, build and stationary route receipt before the drive. The owner withdrew the earlier switch/fallback proposal | candidate 26 installed and parked ACK verified; its class-6 highway gate still fails after complete planned tile reading; candidate 21 first drive retained; sustained CNOA not achieved | [Product milestone](#product-milestone-and-bench-freeze) |
 | Candidates 19–21 add explicit output coordinate frames and typed raw Yandex road-class projection, then correct complete-reader parsing, host graceful-stop admission and input freshness checks exposed on the car | historical candidate-21 stationary acceptance: two routes, 152 positions, original terminal 100 and closed endpoints | [Candidate 19](#coordinate-and-road-data-candidate-19) |
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | historical installed candidate: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; superseded by 25 before a drive | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
-| The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 25 installed; two parked Kyivskoye routes ACKed 200 but had zero class-6 metres, so moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
+| The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 26 parked route ACKed 200; 129 links in classes 7/8/9 and zero class-6 metres; moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -67,7 +68,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Online vector tiles contain literal road `class`, `fc`, `oneway`, structures and HD markings. Native local geometry, three TileId contexts and the ellipsoidal WGS84 projection are recovered; eight further native-success tiles decode completely (17,895 features) | native bytes + captures + independent host review, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | A captured Kazan route has 98.73% sampled 2D vector coverage, including ambiguity (94.08% unique + 4.65% ambiguous). A host review table supports 582 canonical graph fragments; raw class/fc/oneway are not recoded, and build 5 does not consume this table | host evidence only; no runtime ADAS enrichment, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | Local vector runtime prepares the entire chosen route through a separate downloaded-map attribute source; SDK inventory/path, a read-only vmap3fb reader and standard Zstd replace automatic offscreen camera acquisition. The converter consumes a source-independent interval contract | compiled into signed build 13; host Java route replay passes; Android runtime not exercised | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
-| Candidate 26 replaces the historical inventory-only gate: sampled route-region discovery requires manually installed maps, then every planned conservative route-corridor tile must be read before ADAS publication. Unknown/conflicting categories retain the donor fallback; successful tile reading does not prove HNOA | experimental source; host checks, Android/JNI and car acceptance pending | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
+| Candidate 26 replaces the historical inventory-only gate: sampled route-region discovery requires manually installed maps, then every planned conservative route-corridor tile must be read before ADAS publication. Unknown/conflicting categories retain the donor fallback; successful tile reading does not prove HNOA | host checks and one actual Moscow parked route pass: 4/4 region answers, 55/55 tiles, PREPARED before ACK 200; categories remain incomplete; missing-map/deletion scenarios not exercised on the car | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
 | A downloaded Yandex Kazan `driving.fb` exposes 298,104 directed indices, 297,181 admitted base-edge shapes and 156,842 raw attribute entries. A bounded Java reader and whole-route association pass host tests on the actual package. Raw road/access enums remain unconverted; active class/direction acquisition uses vmap3fb literals | native bytes + host Java checks; regional reader not integrated into feed | [Regional offline graph](#regional-offline-graph-2026-10-24) |
 | Post-drive read-only pull verified build 8 by APK SHA. The latest session has 1,362/1,362 FINE guidance samples at 2–364 ms; retained ADAS shows two ICC-active episodes and no service-44 packets. Raw status packets occupied 77.44% of the shared log, and the overlay listener closed during 26 active-guidance samples | physical retained logs + presence-aware offline replay; build 8 sent no Yandex route | [Post-drive review](#post-drive-read-only-review-2026-10-24) |
 | Build 11 fixes dynamic legal-limit suppression and lane-sign loss, adds intersection/next/ahead-lane senders and preserves captured traffic context. Static route `speedLimit=0` remains factory-compatible | host tests + historical build-11 installation; retained in build 12 with parked dynamic sends | [Build 11](#build-11-completeness-and-car-test-2026-10-24) |
@@ -761,6 +762,12 @@ The first route's ordinary UI cancellation ended its arm with `map fire result
 1`; the host restored it before creating the second arm. Both arms and the
 expired previous arm were restored with stable endpoint closure, and the final
 Navigator route was cancelled. No moving trial was attempted.
+
+Candidate 26 subsequently repeated the stationary test after reading every
+planned offline tile. It still produced zero class-6 metres, including long
+typed `fc=2` intervals projected to class 7. Missing tiles alone therefore do
+not explain the highway gate failure. See the [candidate-26 live result](#candidate-26-stationary-result-2026-10-26)
+for the source/wire join and the limitations of a road-name override.
 
 Vehicle acceptance is separate. The owner installs and arms the candidate,
 using fixed `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` for every route, without frame
@@ -3142,11 +3149,74 @@ lookup has 53, the real Kazan reader has 42, and the conservative planner has
 90,145. Reader 20 is unchanged. Build report, source hashes and candidate receipt
 are retained beside the APK, with `build26.log` in the parent directory.
 
-This is an experimental candidate. Host discovery, reader, coordinator and
-sender lifecycle checks do not establish SDK/JNI execution or car acceptance.
-No install, arm or vehicle operation was performed for candidate 26.
+This is an experimental candidate. At build time only host checks had passed;
+the subsequent stationary result below establishes SDK/JNI execution on one
+actual downloaded Moscow route, not universal package or driving acceptance.
 The retained build-25 parked evidence is in
 `captures/stock-sender-parity-20261025/product/live25-kiev/`.
+
+#### Candidate 26 stationary result (2026-10-26)
+
+The owner authorized installation and a stationary test. The installed APK
+matched the candidate-26 SHA above before and after the session. Legacy park
+raw 1 and measured speed 0 were checked before installation, before arming,
+during transmission and after restore; this is not an independent selector-P
+measurement. The existing ADB tunnel and keys were preserved.
+
+The approximately 14 km route to «Киевское шоссе, 44-й километр» produced all
+four region-discovery answers and read all **55/55 planned tiles**, with zero
+missing tiles, from the installed Moscow package `1/vmap3fb.fb`, version
+`26.10.07-1`. The reader decoded 3,572,377 bytes in 2,896 ms and reached
+`PREPARED` before publication. This proves actual tile decoding for this route,
+beyond the earlier sparse-header test; it does not decode the whole Moscow
+package. Tile coverage is not complete attribute coverage: the diagnostic has
+known categories on 462/643 spans and `categoriesComplete=false`, with sampled
+matching ambiguity and conflicts still present.
+
+Arm `adbbcb2e-4a58-42cb-9325-a96814c92eca` used the fixed
+`NATIVE_GCJ_UNRESTRICTED_CANDIDATE` frame. Path `1793012401295`, from Yandex route
+`01a177da-fd5f-77ec-b9ba-f78a839b1aa4`, received explicit same-path `SELECTED 200`
+and PathMatch. The retained session ran 14:00:01.186–14:02:29.320 Moscow time.
+Its reassembled wire route has 129 links:
+
+| Native class | Links | Sum of serialized link lengths, m |
+| --- | ---: | ---: |
+| 6 | 0 | 0 |
+| 7 | 13 | 9,170 |
+| 8 | 35 | 2,428 |
+| 9 | 81 | 2,241 |
+
+The source/wire join retains long `fc=2` intervals mapped to 7. No section is
+`HIGHWAY`. The explicitly named Kievskoye section is only 464 m and `LARGE`,
+while the following unnamed `LARGE` section spans 4,442 m; its known long
+intervals also have `fc=2`. Road-name-only matching would miss these unnamed
+intervals. Names and section schemes do not by themselves establish where
+every mainline/ramp boundary lies. All planned tiles are available, yet this
+recipe still fails its class-6 highway gate. Neither a global `LARGE → 6` rule
+nor a road-name override was introduced by this test.
+
+All 129 static links carry adminCode 990001 and speedLimit 0. All 146 Region
+outputs carry region/province/city 990001 and country 1. The 165 TrafficInfo
+outputs omit the proto3 speed-limit field (wire default 0). All 144
+SpeedIntersection outputs carry historySpeed 25 while parked on initial class
+9; the test does not establish moving transitions to historySpeed 47 or 85.
+The recipe's URID 372 appears in input policy, not in the route wire; no live
+counterfactual open-city experiment was performed here.
+
+There were 165 position outputs, no position gap over 2.5 s, no LIVE pause,
+callback drop or callback failure. No new crash-buffer entry appeared.
+Host restore sent the original terminal NavigationStatus 100, verified stable
+`STOPPED` with quiescent/serverClosed/answersClosed true, removed the arm and
+stopped its owned reader. The stock map retained its original disabled-user
+state (3), and the ordinary Navigator route was then cancelled through its UI.
+Candidate 26 remains installed and disarmed. This is parked transport and
+map-reading acceptance; the highway gate failed and no moving test occurred.
+
+Evidence: `captures/stock-sender-parity-20261025/product/live26-kiev/` contains
+`evidence.tar`, preflight/installed/final identity and park checks, the rollback
+ledger, map-reader status, unchanged before/after crash buffers, screenshots,
+`review/review.{json,md}` and the independent per-link source/wire join
+`independent-link-join.json`. The candidate receipt records this live result.
 
 ### Regional offline graph (2026-10-24)
 
