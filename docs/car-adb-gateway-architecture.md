@@ -447,7 +447,7 @@ computed ADB checksums:
 | CLI | on macOS the config path contains a space: the known-hosts path and the ControlPath split, so every relay call failed host-key verification | values quoted, the control socket only through `-S`, with a short fallback when the path is too long for a Unix socket |
 | CLI | the pairing code leaked into `cag __proxy` (askpass mode is inherited by the ProxyCommand), and `cag connect` hung on the ssh master's inherited stdio | `__proxy` ignores askpass; the master writes to `tunnel.log` |
 
-The relay was rebooted onto kernel 7.0.0-38 the same day, the fixes were rolled
+The relay was rebooted onto its pending kernel update the same day, the fixes were rolled
 out with `relay-host.yml`, and `verify-relay-host.yml` passed 64 checks
 (including `lock-check` as the three service accounts and the `cag-device`
 keepalive).
@@ -461,7 +461,7 @@ unit tests; CLI tests run the real `ssh -G` on a config dir with spaces.
 
 Live, on an Android 15 emulator (2560x1600, the head unit's size) through
 `adbgw.ru`, with a fresh `cag` and a config directory containing a space:
-invite → enrollment in the app → tunnel (port 20000 listening on the relay) →
+invite → enrollment in the app → tunnel (its port listening on the relay) →
 pairing code on the screen → `cag pair` → `cag connect` → `adb shell` answered
 as uid 2000, and the screen showed «Компьютер работает» with pulses on both
 links. Updating the APK without opening it brought the tunnel back in about
@@ -473,10 +473,9 @@ signing half of the proxy is proven by the tests, not yet live.
 The same day on the owner's head unit (DiLink 5.1, Android 13, firmware
 `TP1A.220624.014`), parked, driven over the existing LAN ADB: the first launch
 offered the app's key once and the stock *Allow USB debugging?* dialog showed
-its fingerprint, which matched the app's key computed from its public key
-(`E9:02:C2:43:…:6D:CE`). With *Always allow* ticked and Allow tapped, adbd logged
+its fingerprint, which matched the app's key computed from its public key. With *Always allow* ticked and Allow tapped, adbd logged
 `adb client authorized` and the app moved to the code by itself, with no tap
-(CAG-017). Enrollment with an invite, the tunnel (relay port 20000), the pairing
+(CAG-017). Enrollment with an invite, the tunnel, the pairing
 code and `cag pair` on the owner's Mac, from `~/Library/Application Support/cag`,
 followed. `cag connect` put the car on the Mac's adb as `device` at once, and
 `adb shell` answered as uid 2000 through `adbgw.ru`. No second dialog appeared:
