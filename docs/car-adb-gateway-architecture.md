@@ -374,7 +374,9 @@ tools never change. Live on 2026-10-26, on port 15556 against the car: the
 supervisor waited while a dummy held the port and took it over 12 seconds after
 it was freed, a second supervisor exited, a killed master was replaced in
 17 seconds, a deleted socket was healed in 34 seconds, and SIGTERM closed its
-own master.
+own master. The same day, on the owner's Mac, the LAN tunnel was stopped and the
+supervisor took port 5555 over in one poll; `adb -s 127.0.0.1:5555 shell` then
+reached the car through `adbgw.ru`.
 
 ## 7. Residual Risks
 
