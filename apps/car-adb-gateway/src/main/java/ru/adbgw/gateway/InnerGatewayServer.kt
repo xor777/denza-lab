@@ -1,44 +1,47 @@
 package ru.adbgw.gateway
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import org.apache.sshd.common.AttributeRepository
 import org.apache.sshd.common.channel.Channel
 import org.apache.sshd.common.channel.ChannelListener
 import org.apache.sshd.common.config.keys.KeyUtils
 import org.apache.sshd.common.config.keys.PublicKeyEntry
 import org.apache.sshd.common.file.nonefs.NoneFileSystemFactory
-import org.apache.sshd.common.forward.DefaultForwarderFactory
+import org.apache.sshd.common.keyprovider.KeyPairProvider
 import org.apache.sshd.common.session.Session
 import org.apache.sshd.common.session.SessionListener
-import org.apache.sshd.common.util.net.SshdSocketAddress
 import org.apache.sshd.server.Environment
 import org.apache.sshd.server.ExitCallback
 import org.apache.sshd.server.SshServer
 import org.apache.sshd.server.auth.password.UserAuthPasswordFactory
 import org.apache.sshd.server.auth.pubkey.UserAuthPublicKeyFactory
 import org.apache.sshd.server.channel.ChannelSession
+import org.apache.sshd.server.channel.ChannelSessionFactory
 import org.apache.sshd.server.command.Command
 import org.apache.sshd.server.command.CommandFactory
-import org.apache.sshd.server.forward.DirectTcpipFactory
-import org.apache.sshd.server.forward.ForwardingFilter
-import org.apache.sshd.server.forward.TcpForwardingFilter
-import org.apache.sshd.server.forward.TcpipServerChannel
-import org.apache.sshd.common.keyprovider.KeyPairProvider
+import org.apache.sshd.server.forward.RejectAllForwardingFilter
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.KeyPair
 import java.security.PublicKey
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * The car's only SSH listener (`127.0.0.1:2222`, CAG-001).
+ *
+ * <p>It authenticates one trusted computer (or stages a new one through a pairing code), then lets
+ * that computer reach ADB through a single [AdbDirectTcpipFactory] channel. No LAN or wildcard
+ * interface is ever bound, and no extra listening socket is opened: the ADB proxy connects outward
+ * to the endpoint the supervisor currently holds.
+ */
 class InnerGatewayServer(
     private val endpointProvider: () -> AdbEndpoint?,
-    private val keyStore: SshKeyStore,
-    private val stateStore: GatewayStateStore,
-    private val registrationProvider: () -> RelayRegistration?,
-    private val relayClient: RelayClient,
+    private val innerHostKey: KeyPair,
+    private val store: InnerGatewayStore,
+    private val pairingCommitter: PairingCommitter,
+    private val adbHandshake: AdbHandshakeProxy,
     private val onClientChanged: (ClientState, String?, Long) -> Unit,
     private val onPairingCompleted: () -> Unit,
     private val onPermanentFailure: (String) -> Unit,
@@ -54,12 +57,12 @@ class InnerGatewayServer(
     @Synchronized
     fun start() {
         if (server?.isOpen == true) return
-        val ssh = SshServer().apply {
+        // A bare SshServer() has no key exchange, ciphers or MACs, and start() throws.
+        val ssh = SshServer.setUpDefaultServer().apply {
             host = INNER_SSH_HOST
             port = INNER_SSH_PORT
-            keyPairProvider = KeyPairProvider.wrap(keyStore.innerHostKeyPair)
+            keyPairProvider = KeyPairProvider.wrap(innerHostKey)
             fileSystemFactory = NoneFileSystemFactory.INSTANCE
-            forwarderFactory = DefaultForwarderFactory.INSTANCE
             userAuthFactories = listOf(
                 UserAuthPublicKeyFactory.INSTANCE,
                 UserAuthPasswordFactory.INSTANCE,
@@ -72,10 +75,12 @@ class InnerGatewayServer(
             }
             keyboardInteractiveAuthenticator = null
             channelFactories = listOf(
-                DirectTcpipFactory.INSTANCE,
-                org.apache.sshd.server.channel.ChannelSessionFactory.INSTANCE,
+                AdbDirectTcpipFactory(endpointProvider, adbHandshake, onSupportEvent),
+                ChannelSessionFactory.INSTANCE,
             )
-            forwardingFilter = forwardingFilter()
+            // The ADB proxy opens its own outward socket and never consults this filter; remote
+            // listening, agent and X11 forwarding stay denied as defence in depth.
+            forwardingFilter = RejectAllForwardingFilter.INSTANCE
             commandFactory = CommandFactory { _, command ->
                 if (command != "pair-complete") throw IOException("Command is not allowed")
                 PairCompleteCommand()
@@ -102,9 +107,9 @@ class InnerGatewayServer(
         val canonical = PublicKeyEntry.toString(key)
         val fingerprint = KeyUtils.getFingerPrint(key)
         session.setAttribute(clientFingerprint, fingerprint)
-        val trusted = stateStore.trustedClientKey()
+        val trusted = store.trustedClientKey()
         if (trusted == canonical) {
-            session.setAttribute(clientLabel, stateStore.trustedClientLabel() ?: "Компьютер")
+            session.setAttribute(clientLabel, store.trustedClientLabel() ?: "Компьютер")
             return true
         }
         val pairing = activePairingWindow() ?: return false
@@ -122,23 +127,20 @@ class InnerGatewayServer(
         val pairing = activePairingWindow() ?: return false
         if (password != pairing.code) {
             val remaining = (pairing.attemptsRemaining - 1).coerceAtLeast(0)
-            stateStore.savePairingWindow(pairing.copy(attemptsRemaining = remaining))
+            store.savePairingWindow(pairing.copy(attemptsRemaining = remaining))
             if (remaining == 0) onSupportEvent("Лимит попыток кода исчерпан")
             return false
         }
         val key = session.getAttribute(candidateKey) ?: return false
-        val registration = registrationProvider() ?: return false
         val fingerprint = KeyUtils.getFingerPrint(key)
         val canonical = PublicKeyEntry.toString(key)
-        if (!stateStore.savePendingPairCommit(PendingPairCommit(canonical, fingerprint))) {
+        if (!store.savePendingPairCommit(PendingPairCommit(canonical, fingerprint))) {
             onPermanentFailure("Не удалось сохранить незавершённое подключение компьютера")
             return false
         }
         return try {
-            val commit = runBlocking(Dispatchers.IO) {
-                relayClient.commitPairing(registration, fingerprint)
-            }
-            if (!stateStore.finalizePairCommit(canonical, commit.clientLabel)) {
+            val commit = pairingCommitter.commit(fingerprint)
+            if (!store.finalizePairCommit(canonical, commit.clientLabel)) {
                 onPermanentFailure("Не удалось сохранить ключ доверенного компьютера")
                 return false
             }
@@ -156,9 +158,9 @@ class InnerGatewayServer(
     }
 
     private fun activePairingWindow(): PairingWindow? {
-        val pairing = stateStore.pairingWindow() ?: return null
+        val pairing = store.pairingWindow() ?: return null
         if (!pairing.isActive(Instant.now().epochSecond)) {
-            if (stateStore.pendingPairCommit() == null) stateStore.clearPairing()
+            if (store.pendingPairCommit() == null) store.clearPairing()
             return null
         }
         return pairing
@@ -194,41 +196,19 @@ class InnerGatewayServer(
 
     private fun channelListener() = object : ChannelListener {
         override fun channelOpenSuccess(channel: Channel) {
-            if (channel !is TcpipServerChannel) return
+            if (channel !is AdbProxyChannel) return
             openAdbChannels.incrementAndGet()
             val label = authenticatedSessions[channel.session]
             onClientChanged(ClientState.Active, label, System.currentTimeMillis())
         }
 
         override fun channelClosed(channel: Channel, reason: Throwable?) {
-            if (channel !is TcpipServerChannel) return
+            if (channel !is AdbProxyChannel) return
             val remaining = openAdbChannels.decrementAndGet().coerceAtLeast(0)
             if (remaining == 0 && authenticatedSessions.isNotEmpty()) {
                 val label = authenticatedSessions.values.firstOrNull()
                 onClientChanged(ClientState.Connected, label, System.currentTimeMillis())
             }
-        }
-    }
-
-    private fun forwardingFilter(): ForwardingFilter = object : ForwardingFilter {
-        override fun canForwardAgent(session: Session, requestType: String): Boolean = false
-
-        override fun canForwardX11(session: Session, requestType: String): Boolean = false
-
-        override fun canListen(address: SshdSocketAddress, session: Session): Boolean = false
-
-        override fun canConnect(
-            type: TcpForwardingFilter.Type,
-            address: SshdSocketAddress,
-            session: Session,
-        ): Boolean {
-            if (type != TcpForwardingFilter.Type.Direct) return false
-            val endpoint = endpointProvider() ?: return false
-            val allowed = address.hostName == endpoint.host && address.port == endpoint.port
-            if (!allowed) {
-                onSupportEvent("Отклонён канал к ${address.hostName}:${address.port}")
-            }
-            return allowed
         }
     }
 

@@ -23,7 +23,15 @@ class RelayAccessException(
     val registrationRejected: Boolean = false,
 ) : Exception(message, cause)
 
-class RelayClient(private val keyStore: SshKeyStore) {
+class RelayClient(
+    private val keyStore: RelayKeyStore,
+    private val relayHost: String = RELAY_HOST,
+    private val relaySshPort: Int = RELAY_SSH_PORT,
+    private val relayFingerprints: Set<String> = RELAY_HOST_FINGERPRINTS,
+    // Test-only hook: records the address MINA asks the tunnel client to accept a forwarded
+    // channel to. Null in production.
+    private val tunnelForwardObserver: ((org.apache.sshd.server.forward.TcpForwardingFilter.Type, org.apache.sshd.common.util.net.SshdSocketAddress) -> Unit)? = null,
+) {
     suspend fun enroll(code: String, label: String, endpoint: AdbEndpoint): RelayRegistration =
         withContext(Dispatchers.IO) {
             val command = RelayProtocol.enrollmentCommand(
@@ -171,7 +179,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
         authenticationFailurePermanent: Boolean,
     ): ClientSession {
         val session = try {
-            client.connect(username, RELAY_HOST, RELAY_SSH_PORT).verify(Duration.ofSeconds(12)).session
+            client.connect(username, relayHost, relaySshPort).verify(Duration.ofSeconds(12)).session
         } catch (error: Throwable) {
             throw classify(error, mismatch.get(), authenticationFailure = false)
         }
@@ -207,7 +215,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
             signatureFactories = preferPinnedHostKeyAlgorithm(signatureFactories)
             serverKeyVerifier = org.apache.sshd.client.keyverifier.ServerKeyVerifier { _, _, serverKey ->
                 val fingerprint = KeyUtils.getFingerPrint(serverKey)
-                val accepted = fingerprint in RELAY_HOST_FINGERPRINTS
+                val accepted = fingerprint in relayFingerprints
                 if (!accepted) {
                     mismatch.set(true)
                     Log.e(
@@ -217,9 +225,34 @@ class RelayClient(private val keyStore: SshKeyStore) {
                 }
                 accepted
             }
+            // setUpDefaultClient keeps RejectAllForwardingFilter, which refuses the forwarded-tcpip
+            // channel the relay opens back for every -R connection. Accept only a Forwarded channel
+            // to our own inner server, and nothing else.
+            forwardingFilter = tunnelForwardingFilter()
             CoreModuleProperties.HEARTBEAT_INTERVAL.set(this, Duration.ofSeconds(30))
             CoreModuleProperties.HEARTBEAT_REPLY_WAIT.set(this, Duration.ofSeconds(30))
             CoreModuleProperties.HEARTBEAT_NO_REPLY_MAX.set(this, 3)
+        }
+
+    private fun tunnelForwardingFilter(): org.apache.sshd.server.forward.ForwardingFilter =
+        object : org.apache.sshd.server.forward.ForwardingFilter {
+            override fun canForwardAgent(session: org.apache.sshd.common.session.Session, requestType: String) = false
+
+            override fun canForwardX11(session: org.apache.sshd.common.session.Session, requestType: String) = false
+
+            override fun canListen(
+                address: org.apache.sshd.common.util.net.SshdSocketAddress,
+                session: org.apache.sshd.common.session.Session,
+            ): Boolean = address.hostName == INNER_SSH_HOST && address.port == INNER_SSH_PORT
+
+            override fun canConnect(
+                type: org.apache.sshd.server.forward.TcpForwardingFilter.Type,
+                address: org.apache.sshd.common.util.net.SshdSocketAddress,
+                session: org.apache.sshd.common.session.Session,
+            ): Boolean {
+                tunnelForwardObserver?.invoke(type, address)
+                return tunnelForwardedAllowed(type, address.hostName, address.port)
+            }
         }
 
     private fun classify(
@@ -245,6 +278,19 @@ class RelayClient(private val keyStore: SshKeyStore) {
         else -> RelayAccessException("Relay connection failed", error, permanent = false)
         }
 }
+
+/**
+ * The tunnel client accepts exactly one forwarded channel: a `Forwarded`-type `direct-tcpip` back
+ * to the inner server (`127.0.0.1:INNER_SSH_PORT`). Everything else — any other port, any direct
+ * channel the relay should never ask for — is refused.
+ */
+internal fun tunnelForwardedAllowed(
+    type: org.apache.sshd.server.forward.TcpForwardingFilter.Type,
+    host: String?,
+    port: Int,
+): Boolean = type == org.apache.sshd.server.forward.TcpForwardingFilter.Type.Forwarded &&
+    host == INNER_SSH_HOST &&
+    port == INNER_SSH_PORT
 
 internal fun preferPinnedHostKeyAlgorithm(
     factories: List<NamedFactory<Signature>>,

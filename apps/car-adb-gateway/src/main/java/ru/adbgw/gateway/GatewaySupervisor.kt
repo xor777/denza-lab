@@ -1,12 +1,15 @@
 package ru.adbgw.gateway
 
 import android.content.Context
+import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicReference
 
 class GatewaySupervisor(
@@ -19,8 +22,16 @@ class GatewaySupervisor(
     private val onSupportEvent: (String) -> Unit,
     private val onRegistrationExpired: (String) -> Unit,
 ) {
+    private val appContext = context.applicationContext
     private val detector = AdbEndpointDetector()
-    private val provisioner = AdbProvisioner(context.applicationContext)
+    private val provisioner = AdbProvisioner(appContext)
+    // The app's own ADB identity, used only to sign for a tunnelled computer in the proxy channel.
+    // It never submits the public key, so its authorization policy is immaterial.
+    private val adbSigningClient =
+        LocalAdbClient(appContext, "car-adb-gateway@local", LocalAdbClient.AuthorizationPolicy.PASSIVE)
+    private val adbHandshake = AdbHandshakeProxy { clientIn, clientOut, adbdIn, adbdOut ->
+        adbSigningClient.proxyAdbConnect(clientIn, clientOut, adbdIn, adbdOut)
+    }
     private val endpoint = AtomicReference<AdbEndpoint?>(null)
     private var adbJob: Job? = null
     private var relayJob: Job? = null
@@ -225,10 +236,14 @@ class GatewaySupervisor(
         if (innerServer?.isRunning == true) return
         val server = InnerGatewayServer(
             endpointProvider = endpoint::get,
-            keyStore = keyStore,
-            stateStore = stateStore,
-            registrationProvider = stateStore::registration,
-            relayClient = relayClient,
+            innerHostKey = keyStore.innerHostKeyPair,
+            store = stateStore,
+            pairingCommitter = PairingCommitter { fingerprint ->
+                val registration = stateStore.registration()
+                    ?: throw RelayAccessException("Автомобиль ещё не зарегистрирован")
+                runBlocking(Dispatchers.IO) { relayClient.commitPairing(registration, fingerprint) }
+            },
+            adbHandshake = adbHandshake,
             onClientChanged = { state, label, at ->
                 onEvent(GatewayEvent.ClientChanged(state, label, at))
             },

@@ -5,11 +5,14 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -24,6 +27,7 @@ object GatewayRepository {
     private var keyStore: SshKeyStore? = null
     private var relayClient: RelayClient? = null
     private var supervisor: GatewaySupervisor? = null
+    @Volatile private var approvalWatch: Job? = null
 
     val state: StateFlow<GatewayUiState> = stateFlow.asStateFlow()
 
@@ -86,21 +90,53 @@ object GatewayRepository {
         supervisor?.networkChanged()
     }
 
-    suspend fun prepareAdb(): Boolean = operationMutex.withLock {
-        dispatch(GatewayEvent.BusyChanged(true, "Проверяем доступ к системе"))
-        dispatch(GatewayEvent.AdbChanged(AdbState.Checking))
-        val endpoint = AdbEndpointDetector().detect().getOrElse { error ->
-            dispatch(GatewayEvent.AdbChanged(AdbState.Unavailable))
-            dispatch(GatewayEvent.BusyChanged(false, "ADB пока недоступен"))
-            support("ADB не найден: ${error.message}")
-            return false
+    suspend fun prepareAdb(): Boolean {
+        // A new explicit request replaces the previous wait, so the retry button always works.
+        approvalWatch?.cancel()
+        return operationMutex.withLock {
+            dispatch(GatewayEvent.BusyChanged(true, "Проверяем доступ к системе"))
+            dispatch(GatewayEvent.AdbChanged(AdbState.Checking))
+            val endpoint = AdbEndpointDetector().detect().getOrElse { error ->
+                dispatch(GatewayEvent.AdbChanged(AdbState.Unavailable))
+                dispatch(GatewayEvent.BusyChanged(false, "ADB пока недоступен"))
+                support("ADB не найден: ${error.message}")
+                return@withLock false
+            }
+            val provisioner = AdbProvisioner(requireContext())
+            val provisioned = provisioner.authorizeAndConfigure(endpoint)
+            if (provisioned.exceptionOrNull() is AdbAuthorizationRequiredException) {
+                // The explicit foreground request is the only place the key goes out, and only once.
+                dispatch(GatewayEvent.AdbChanged(AdbState.AuthorizationRequired))
+                dispatch(GatewayEvent.BusyChanged(false))
+                provisioner.requestAuthorization()
+                support("Отправлен запрос подтверждения ADB-ключа на экране автомобиля")
+                approvalWatch = appScope.launch { awaitAuthorization(provisioner, endpoint) }
+                return@withLock false
+            }
+            applyAdbResult(provisioned, endpoint)
         }
-        val provisioned = AdbProvisioner(requireContext()).authorizeAndConfigure(endpoint)
+    }
+
+    // After the one key submission, keep checking passively until the person taps Allow or the
+    // window closes; no further key is ever sent here, and the screen stays usable meanwhile.
+    private suspend fun awaitAuthorization(provisioner: AdbProvisioner, endpoint: AdbEndpoint) {
+        val deadline = System.currentTimeMillis() + AUTH_WAIT_TOTAL_MILLIS
+        while (System.currentTimeMillis() < deadline) {
+            delay(AUTH_WAIT_POLL_MILLIS)
+            val latest = provisioner.authorizeAndConfigure(endpoint)
+            if (latest.exceptionOrNull() is AdbAuthorizationRequiredException) continue
+            operationMutex.withLock { applyAdbResult(latest, endpoint) }
+            return
+        }
+        support("Подтверждение ADB не получено; запрос можно отправить снова")
+    }
+
+    private fun applyAdbResult(provisioned: Result<List<String>>, endpoint: AdbEndpoint): Boolean {
         val failure = provisioned.exceptionOrNull()
         if (failure is AdbAuthorizationRequiredException) {
             dispatch(GatewayEvent.AdbChanged(AdbState.AuthorizationRequired))
-            dispatch(GatewayEvent.BusyChanged(false, failure.message))
-            support("Показан системный запрос ADB-ключа")
+            dispatch(GatewayEvent.BusyChanged(false))
+            support("Ожидается подтверждение ADB на экране автомобиля")
             return false
         }
         if (failure != null) {
@@ -110,9 +146,9 @@ object GatewayRepository {
             return false
         }
         dispatch(GatewayEvent.AdbChanged(AdbState.Available, endpoint))
-        dispatch(GatewayEvent.BusyChanged(false, "Доступ к системе подтверждён"))
+        dispatch(GatewayEvent.BusyChanged(false))
         provisioned.getOrNull().orEmpty().forEach(::support)
-        true
+        return true
     }
 
     suspend fun enroll(inviteCode: String): Result<Unit> = operationMutex.withLock {
@@ -256,4 +292,7 @@ object GatewayRepository {
     private fun requireStore(): GatewayStateStore = checkNotNull(stateStore)
     private fun requireKeys(): SshKeyStore = checkNotNull(keyStore)
     private fun requireRelay(): RelayClient = checkNotNull(relayClient)
+
+    private const val AUTH_WAIT_POLL_MILLIS = 3_000L
+    private const val AUTH_WAIT_TOTAL_MILLIS = 2L * 60L * 1_000L
 }
