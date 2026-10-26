@@ -94,6 +94,8 @@
           - "'allowstreamlocalforwarding no' in relay_verify_device_sshd.stdout"
           - "'permitlisten 127.0.0.1:*' in relay_verify_device_sshd.stdout"
           - "'forcecommand /bin/false' in relay_verify_device_sshd.stdout"
+          - "'clientaliveinterval 15' in relay_verify_device_sshd.stdout"
+          - "'clientalivecountmax 3' in relay_verify_device_sshd.stdout"
           - "'allowtcpforwarding local' in relay_verify_client_sshd.stdout"
           - "'allowstreamlocalforwarding no' in relay_verify_client_sshd.stdout"
           - "'permitopen 127.0.0.1:*' in relay_verify_client_sshd.stdout"
@@ -253,6 +255,49 @@
         - /opt/cag/state/state.json
         - /opt/cag/state/locks/state.lock
       changed_when: false
+
+    - name: Fingerprint relay state before the service-account lock check
+      ansible.builtin.stat:
+        path: /opt/cag/state/state.json
+        checksum_algorithm: sha256
+      register: relay_verify_state_before_lock_check
+
+    # The mutating forced commands run as these accounts. lock-check takes the
+    # exclusive lock and creates and removes a private file in the state
+    # directory, exactly like a mutation, but never replaces state.json.
+    - name: Take the exclusive state lock as each mutating service account
+      become: true
+      become_user: "{{ item }}"
+      ansible.builtin.command: /opt/cag/cag-state lock-check
+      loop:
+        - cag-enroll
+        - cag-pair
+        - cag-control
+      register: relay_verify_lock_check
+      changed_when: false
+
+    - name: Attempt the exclusive state lock as the authorized-keys reader
+      become: true
+      become_user: cag-authkeys
+      ansible.builtin.command: /opt/cag/cag-state lock-check
+      register: relay_verify_authkeys_lock_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fingerprint relay state after the service-account lock check
+      ansible.builtin.stat:
+        path: /opt/cag/state/state.json
+        checksum_algorithm: sha256
+      register: relay_verify_state_after_lock_check
+
+    - name: Require service-account mutations to reach the lock without changing state
+      ansible.builtin.assert:
+        that:
+          - relay_verify_lock_check.results | map(attribute='stdout') | select('match', '^OK ') | list | length == 3
+          - relay_verify_authkeys_lock_check.rc != 0
+          - >-
+            relay_verify_state_before_lock_check.stat.checksum
+            == relay_verify_state_after_lock_check.stat.checksum
 
     - name: Read relay state ACLs
       ansible.builtin.command:

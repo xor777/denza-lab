@@ -20,6 +20,20 @@ vehicles renew a 14-day lease daily. Hourly GC cascades expired vehicles through
 grants, pairing state, codes, and unreferenced clients; freed relay ports are
 reused. `cag-authkeys` has read-only ACL access and cannot mutate state.
 
+On the relay `state.lock` is `root:cag-state 0660` and the mutating forced
+commands run as `cag-enroll`, `cag-pair` and `cag-control`, so only the lock's
+owner may repair its mode (chmod by any other account fails with EPERM).
+`cag-state lock-check` takes the exclusive lock and creates and removes a
+private file in the state directory exactly as a mutation does, without
+replacing `state.json`; `verify-relay-host.yml` runs it as each of those
+accounts.
+
+All vehicles share the `cag-device` account and all computers `cag-client`, so
+`cag-admin remove` and the hourly GC end sessions by relay port, not by
+account: the vehicle's session owns the loopback listener on its port and a
+computer's session holds a loopback connection to it. Other vehicles stay
+connected.
+
 `cag_web.py` provides the loopback-only administrator panel. It calls the same
 root-owned `cag-admin` wrapper through a narrow sudo policy and never opens the
 state file itself. Online status is derived from `/proc/net/tcp`; it is not

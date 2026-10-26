@@ -13,13 +13,16 @@ import hashlib
 import ipaddress
 import json
 import os
+import pwd
 import re
 import secrets
+import signal
+import stat
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterable, Iterator
 
 
 DEFAULT_ROOT = Path("/opt/cag/state")
@@ -41,6 +44,8 @@ DEFAULT_PAIR_TTL = 600
 DEFAULT_INVITE_TTL = 3_600
 DEVICE_LEASE_SECONDS = 14 * 24 * 60 * 60
 STATE_VERSION = 3
+LOCK_MODE = 0o660
+SESSION_ACCOUNTS = ("cag-device", "cag-client")
 
 
 class StateError(RuntimeError):
@@ -173,7 +178,7 @@ class RelayState:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         self.root.mkdir(parents=True, exist_ok=True)
         with self.lock_path.open("a+", encoding="utf-8") as lock_file:
-            os.chmod(self.lock_path, 0o660)
+            self._ensure_lock_mode(lock_file.fileno())
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             state = self._read()
             before = self._serialize(state)
@@ -186,6 +191,15 @@ class RelayState:
             else:
                 if self._serialize(state) != before:
                     self._write(state)
+
+    @staticmethod
+    def _ensure_lock_mode(fd: int) -> None:
+        # On the relay the lock belongs to root and the service accounts reach
+        # it through the cag-state group; chmod by a non-owner fails with EPERM
+        # even when the mode would not change, so only the owner repairs it.
+        status = os.fstat(fd)
+        if status.st_uid == os.geteuid() and stat.S_IMODE(status.st_mode) != LOCK_MODE:
+            os.fchmod(fd, LOCK_MODE)
 
     def _read(self) -> dict[str, Any]:
         if not self.state_path.exists():
@@ -821,7 +835,8 @@ class RelayState:
 
     def remove_device(self, device_id: str) -> dict[str, Any]:
         with self._locked() as state:
-            self._require_device(state, device_id, allow_expired=True)
+            device = self._require_device(state, device_id, allow_expired=True)
+            relay_port = device["relay_port"]
             self._remove_device(state, device_id)
             removed_clients = self._prune_clients(state)
             return {
@@ -829,6 +844,7 @@ class RelayState:
                 "removed": True,
                 "removed_clients": removed_clients,
                 "recycle_sessions": True,
+                "relay_port": relay_port,
             }
 
     def gc(self) -> dict[str, Any]:
@@ -840,6 +856,9 @@ class RelayState:
                 for device_id, device in state["devices"].items()
                 if device["lease_expires_at"] <= now
             )
+            removed_ports = sorted(
+                state["devices"][device_id]["relay_port"] for device_id in expired_devices
+            )
             for device_id in expired_devices:
                 self._remove_device(state, device_id)
             self._clean_transient(state)
@@ -848,13 +867,39 @@ class RelayState:
                 "removed_devices": len(expired_devices),
                 "removed_clients": clients_before - len(state["clients"]),
                 "recycle_sessions": bool(expired_devices),
+                "removed_ports": removed_ports,
             }
+
+    def lock_check(self) -> dict[str, Any]:
+        """Take the exclusive lock and probe the state directory without writing state.
+
+        This walks the same path as a mutation (exclusive lock, full read and
+        validation, a private temporary file in the state directory) but never
+        replaces state.json, so it can verify a service account's access.
+        """
+        try:
+            with self._locked(clean_transient=False) as state:
+                fd, temporary_name = tempfile.mkstemp(prefix=".lock-check.", dir=self.root)
+                try:
+                    os.fchmod(fd, LOCK_MODE)
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+                    os.unlink(temporary_name)
+                return {
+                    "exclusive_lock": True,
+                    "state_directory_writable": True,
+                    "version": state["version"],
+                    "devices": len(state["devices"]),
+                }
+        except PermissionError as exc:
+            raise StateError("this account cannot take the relay state lock") from exc
 
     def migrate(self) -> dict[str, Any]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         self.root.mkdir(parents=True, exist_ok=True)
         with self.lock_path.open("a+", encoding="utf-8") as lock_file:
-            os.chmod(self.lock_path, 0o660)
+            self._ensure_lock_mode(lock_file.fileno())
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             raw_version = None
             if self.state_path.exists():
@@ -1022,6 +1067,116 @@ class RelayState:
             state["codes"].pop(code_id, None)
 
 
+def _is_loopback_address(encoded: str) -> bool:
+    # /proc/net/tcp prints IPv4 as one little-endian word; tcp6 as four.
+    try:
+        if len(encoded) == 8:
+            return int(encoded, 16) & 0xFF == 0x7F
+        if len(encoded) == 32:
+            if encoded == "00000000000000000000000001000000":
+                return True
+            return encoded[16:24] == "FFFF0000" and int(encoded[24:], 16) & 0xFF == 0x7F
+    except ValueError:
+        return False
+    return False
+
+
+def _socket_inodes_for_port(port: int, proc_root: Path) -> set[str]:
+    inodes: set[str] = set()
+    for table in ("net/tcp", "net/tcp6"):
+        try:
+            lines = (proc_root / table).read_text(encoding="ascii").splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 10 or fields[9] == "0":
+                continue
+            try:
+                local_address, local_port = fields[1].split(":")
+                remote_address, remote_port = fields[2].split(":")
+                local, remote = int(local_port, 16), int(remote_port, 16)
+            except ValueError:
+                continue
+            if (local == port and _is_loopback_address(local_address)) or (
+                remote == port and _is_loopback_address(remote_address)
+            ):
+                inodes.add(fields[9])
+    return inodes
+
+
+def _process_real_uid(process: Path) -> int | None:
+    try:
+        for line in (process / "status").read_text(encoding="utf-8").splitlines():
+            if line.startswith("Uid:"):
+                return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def session_account_uids(accounts: Iterable[str] = SESSION_ACCOUNTS) -> set[int]:
+    uids: set[int] = set()
+    for account in accounts:
+        try:
+            uids.add(pwd.getpwnam(account).pw_uid)
+        except KeyError:
+            continue
+    return uids
+
+
+def relay_port_session_pids(port: int, uids: set[int], proc_root: Path = Path("/proc")) -> set[int]:
+    """Return the SSH session processes that serve one vehicle's relay port.
+
+    Every vehicle shares the cag-device account and every computer the
+    cag-client account, so the account alone cannot tell sessions apart. The
+    vehicle's session owns the loopback listener on its relay port, and a
+    computer's session holds a loopback connection to that port.
+    """
+    inodes = _socket_inodes_for_port(port, proc_root)
+    if not inodes or not uids:
+        return set()
+    targets = {f"socket:[{inode}]" for inode in inodes}
+    pids: set[int] = set()
+    try:
+        processes = [entry for entry in proc_root.iterdir() if entry.name.isdigit()]
+    except OSError:
+        return pids
+    for process in processes:
+        if _process_real_uid(process) not in uids:
+            continue
+        try:
+            descriptors = list((process / "fd").iterdir())
+        except OSError:
+            continue
+        for descriptor in descriptors:
+            try:
+                if os.readlink(descriptor) in targets:
+                    pids.add(int(process.name))
+                    break
+            except OSError:
+                continue
+    return pids
+
+
+def disconnect_relay_ports(
+    ports: Iterable[int],
+    uids: set[int] | None = None,
+    proc_root: Path = Path("/proc"),
+    kill: Callable[[int, int], None] = os.kill,
+) -> int:
+    account_uids = session_account_uids() if uids is None else uids
+    disconnected = 0
+    for port in sorted(set(ports)):
+        for pid in sorted(relay_port_session_pids(port, account_uids, proc_root)):
+            try:
+                kill(pid, signal.SIGTERM)
+                disconnected += 1
+            except ProcessLookupError:
+                continue
+    return disconnected
+
+
 def print_ok(payload: dict[str, Any]) -> None:
     print(f"OK {encode_result(payload)}")
 
@@ -1095,6 +1250,7 @@ def build_parser() -> argparse.ArgumentParser:
     renew.add_argument("device_id")
 
     remove = subparsers.add_parser("remove-device")
+    remove.add_argument("--disconnect", action="store_true")
     remove.add_argument("device_id")
 
     rename = subparsers.add_parser("rename-device")
@@ -1104,8 +1260,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list-devices")
     subparsers.add_parser("doctor")
     subparsers.add_parser("migrate")
+    subparsers.add_parser("lock-check")
     gc = subparsers.add_parser("gc")
     gc.add_argument("--signal-exit", action="store_true")
+    gc.add_argument("--disconnect", action="store_true")
 
     authorized = subparsers.add_parser("authorized-keys")
     authorized.add_argument("username")
@@ -1142,7 +1300,10 @@ def main(argv: list[str] | None = None) -> int:
         elif args.action == "list-devices":
             print_ok(state.list_devices())
         elif args.action == "remove-device":
-            print_ok(state.remove_device(args.device_id))
+            result = state.remove_device(args.device_id)
+            if args.disconnect:
+                result["disconnected_sessions"] = disconnect_relay_ports([result["relay_port"]])
+            print_ok(result)
         elif args.action == "rename-device":
             print_ok(state.rename_device(args.device_id, args.label))
         elif args.action == "doctor":
@@ -1151,8 +1312,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result["ok"] else 3
         elif args.action == "migrate":
             print_ok(state.migrate())
+        elif args.action == "lock-check":
+            print_ok(state.lock_check())
         elif args.action == "gc":
             result = state.gc()
+            if args.disconnect:
+                result["disconnected_sessions"] = disconnect_relay_ports(result["removed_ports"])
             print_ok(result)
             if args.signal_exit and result["recycle_sessions"]:
                 return 10
