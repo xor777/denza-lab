@@ -27,6 +27,7 @@ Updated 2026-10-21. What a session needs before it opens either archive.
 | The current-car Cells/ClusterClient libraries have full `.text` disassembly, DWARF indexes, four decoded data tables and an extracted embedded Godot API; their runtime loading is not established | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
 | The current-car `cluster_hmi.pck` directory and all 375 GDScript token buffers are captured and decoded; the complete 467 MB PCK was not copied | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
 | The IVI MCU application is decoded and indexed; it matches the September extraction byte for byte. Extended RH850 instructions require the `v850e3v5` decoder; the old default decoder can stop early | firmware | 2026-10-18 | [MCU application](#mcu-application) |
+| REA 6.7.0 / Ghidra 12.1.4 is installed on this Mac outside the repository and available through `tools/rea`; CLI load-image inspection and decompilation of `libvhds.so` passed. The earlier disposable pilot was removed; its evidence remains. RH850 raw import is outside REA's admitted architectures | offline tool verification | 2026-10-21 | [Native analysis with REA](#native-analysis-with-rea) |
 
 **Open questions**
 - The repeated decompiles (DiCarServer three times, MapHelper and AutoVideo twice) differ in
@@ -41,6 +42,7 @@ Updated 2026-10-21. What a session needs before it opens either archive.
 - [Reading an archive](#reading-an-archive) — the IVI and FSE readers, the layout they write.
 - [Where new work goes](#where-new-work-goes) — one directory per build, reports beside evidence.
 - [Decompiling](#decompiling) — the jadx command and its traps.
+- [Native analysis with REA](#native-analysis-with-rea) — installed CLI, researcher instructions, address mapping and cleanup.
 - [MCU application](#mcu-application) — verified raw code and the extended instruction decoder.
 - [Native cluster corpus](#native-cluster-corpus) — Cells/ClusterClient code, types, signals and embedded API.
 - [Python environment](#python-environment) — one venv for every reader.
@@ -166,6 +168,126 @@ APKs: a few methods fail and the rest is usable.
   before the table existed (`docs/vehicle-data-findings.md`).
 - **Old decompiles:** a tree under `reverse/` predates the OTAs; `find` shows its version before
   anything is built on it.
+
+## Native analysis with REA
+
+### Installed CLI and researcher instructions
+
+Installed on this Mac on 2026-10-21, after the disposable pilot below:
+
+| Component | Location / version |
+| --- | --- |
+| Shared toolchain | `/Users/dmitry/.local/share/denza-re-tools/` |
+| Launcher from any directory | `/Users/dmitry/.local/share/denza-re-tools/bin/rea` |
+| Launcher from this checkout | `./tools/rea` (also works from another checkout on this Mac) |
+| REA / Ghidra / private Node | `6.7.0` / `12.1.4` with a built Mac arm64 decompiler / `24.22.1` |
+| Existing JDK | `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home` |
+| Default temporary workspace | `/Users/dmitry/Library/Caches/denza-rea/` |
+
+The launcher selects these paths, Ghidra, a 1 GiB Java heap and a 180-second
+startup deadline for its own process. It does not change shell profiles or the
+JDK 17 Android build environment. `GHIDRA_HEADLESS_MAXMEM` and
+`REA_GHIDRA_STARTUP_TIMEOUT_MS` may be overridden for a measured need;
+`DENZA_REA_TMPDIR` selects a session's temporary workspace. Ghidra project paths
+must have no dot-prefixed components. The tool installation may live under
+`.local`, but its temporary projects must not.
+
+This installation uses the CLI. It needs no agent registration or session
+restart. Do not run `rea setup` or install another copy just because the global
+doctor reports missing optional providers/agent integrations: for this setup,
+`doctor --provider ghidra` must report `healthy: true`; the aggregate
+`environment_healthy: false` is expected. The checked sources and installation
+steps are in the toolchain's `logs/` and `install.py`; npm dependencies are
+pinned in `rea/package-lock.json`.
+
+Start from the corpus and save the full results to a new capture directory:
+
+```bash
+cd /Users/dmitry/Dev/denza-gateway
+python3 tools/firmware_corpus.py find libvhds
+./tools/rea doctor --provider ghidra --format json
+
+rea_target="$PWD/captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so"
+rea_output=$(mktemp -d "$PWD/captures/rea-$(date +%Y%m%d)-XXXXXX")
+shasum -a 256 "$rea_target" > "$rea_output/source.sha256"
+./tools/rea inspect-native-load-image "$rea_target" --format json > "$rea_output/load-image.json"
+
+# This address is verified for this exact libvhds.so; map other binaries first.
+./tools/rea decompile "$rea_target" 0x104c90 --format json > "$rea_output/decompile.json"
+shasum -a 256 -c "$rea_output/source.sha256"
+```
+
+The installation check ran these two native operations successfully, returning
+`BnVDS::onTransact` pseudocode at the mapped address with the original SHA-256 unchanged. Evidence:
+`captures/rea-install-20261021/`; installation receipt:
+`/Users/dmitry/.local/share/denza-re-tools/installation.json`.
+Read `normalized_result` and `limitations`, not just the exit status. For other
+questions, use `./tools/rea search --help`, `function --help`, `xrefs --help` and
+`decompile --help`. Each CLI call opens and closes its own analysis session;
+repeated different queries can pay the import cost again. `--snapshot` can
+cache exact supported queries, not a persistent Ghidra database. A long sequence
+of related questions can justify a later MCP connection; it is not registered
+by this installation.
+
+Use REA for selected native AArch64 functions, callers, arguments and static
+data paths. Reuse existing JADX output for Java/Kotlin and the existing pypcode
+workflow for RH850. Keep input hashes, address mappings, focused pseudocode and
+byte corroboration with the finding. An unsupported ELF load-image attestation,
+an `unknown` procedure identity, a truncated graph or an unresolved argument is
+a limitation, not proof. Static results do not establish live-car behavior.
+This workflow does not require executing firmware or contacting the vehicle.
+
+**Cleanup:** successful one-shot CLI commands close their provider and remove
+their temporary project; both installation checks left the default temporary
+workspace empty. If an operation reports `cleanup_incomplete`, retain the
+diagnostic and inspect only its reported resources before retrying or removing
+anything. Never kill all Java/Node processes or delete another session's
+workspace. Retain compact evidence under `captures/` and conclusions in the
+closest findings doc; remove only your redundant outputs and confirmed-unused
+temporary projects. Keep the shared installation for the next investigation.
+Downloaded archives, the installation npm cache and decompiler build objects
+were removed after verification.
+
+### Disposable pilot and interpretation limits
+
+The 2026-10-21 pilot used npm `rea-agents@6.7.0`, Ghidra 12.1.4, temporary
+Node 24.22.1 and the existing Homebrew JDK 21.0.12.1 on macOS arm64. The Ghidra
+archive lacked a Mac native decompiler; `make -j2 ghidra_opt ARCH_TYPE="-arch arm64"
+OSDIR=mac_arm_64` built it in 54 seconds. Installation used a temporary npm
+prefix/cache and private Ghidra home/projects; no agent setup or global install
+ran. The MCP server exited 0 and its temporary tree (1.96 GB of regular files,
+including downloads) was removed. Compressed evidence is about 0.35 MB under
+`captures/rea-pilot-20261021/`; original firmware hashes matched afterward.
+
+Seven selected `libvhds.so` functions reproduced the five Binder transactions
+and single-int32 listener. Four `vhds` functions exposed the shared flag,
+condition variable and worker call of the previously untraced diagnostic
+handoff; independent Capstone/byte checks corroborated it. This is source
+analysis, not target execution or evidence that a live task uses that path.
+See [the diagnostic finding](vehicle-data-findings.md#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21).
+
+Both ELF imports used Ghidra base `0x100000`: corpus VA `4C90` became analysis
+address `104C90`. The first batch using corpus coordinates returned seven successful
+pseudocode results, but all seven procedure identities were `unknown` with address
+errors; the file-offset fallback had recovered the text. Mapped addresses resolved
+all identities. Inspect those fields as well as success counts and use measured
+source mappings; do not assume one base for all future binaries. REA's independent
+load-image attestation does not support ELF; the pilot separately matched each
+loaded `.text` digest to its original file bytes. Loader-adjusted data is not
+necessarily byte-identical to the input.
+
+The first library query including cold analysis took 8.01 seconds; the corrected
+seven-function batch on the warm session took 0.08 seconds. The daemon's cold
+mapping query took 14.18 seconds and its four-function batch 0.30 seconds. These
+are this small pilot's timings, not a benchmark against the existing workflow.
+A bounded value trace hit its 250-node cap and left parameter bindings unknown;
+pseudocode plus targeted references were more directly useful here. Keep the
+byte checks and evidence corpus as the authority. REA 6.7.0's `open_binary`
+schema admits raw x86/x64, ARM/AArch64, 6502 and m68k, not our RH850.
+
+Report and offline replay:
+[`rea-native-pilot-20261021.json`](../research/vehicle-diagnostics/rea-native-pilot-20261021.json),
+`PYTHONDONTWRITEBYTECODE=1 python3 research/vehicle-diagnostics/check_rea_native_pilot.py`.
 
 ## MCU application
 
