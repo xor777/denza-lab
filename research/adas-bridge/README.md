@@ -3265,11 +3265,27 @@ the immediate explanation of this exit, but does not prove that the remaining
 map inputs satisfy the receiver.
 
 The receiver sends notice 4 at activation and notice 22 at the transition to
-ICC; the alarm-reason field does not provide a nonzero cause. The shell reader
-observes quit raw 8 about 0.7 s after the exit, bracketed by 0. Its precise enum
-and latching semantics remain unknown, so neither notice 22 nor quit 8 is yet
-a decoded cause. Across this arm there are 2,660 quit reads of 0, three of 18,
-two of 19 and one of 8.
+ICC; the alarm-reason field does not provide a nonzero cause. The retained
+original-DEX/resource audit already decodes notice 4 as NOA activation and
+notice 22 as **Downgraded to ICC** (已降级至车道保持巡航). The latter follows
+`f0.j(22, distance)` → listener `a(7)` → `x6.x(7)` → resource
+`dnp_pilot_state_icc_open`. These are display meanings, not the reason for the
+downgrade. The initial drive report overlooked this earlier audit, which was
+documented on the other checkout; it is not a newly discovered ECU reason.
+Evidence: `captures/drive-kit-20261025/postdrive-20261024-204337/reports/`
+`dropout-notices/{decoded-meanings.json,f0-bytecode.java,x6-bytecode.java,resource-labels.txt}`.
+
+The shell reader observes quit raw 8 about 0.7 s after the exit, bracketed by
+0. Its precise enum and latching semantics remain unknown. This is the
+independent `ADAS_NOA_QUIT_PROMPT` signal, not the same enum as `pilotNotice`
+or `pilotAlarmReason`; matching numeric values cannot be transferred between
+them. Across this arm there are 2,660 quit reads of 0, three of 18, two of 19
+and one of 8.
+The follow-up corpus audit confirms native UINT8 registration at
+`captures/cluster-native-20261018/tables/can-signals.tsv:360` and the FID name
+`DOMAIN_1FF_SUB02_34_41_NOA_EXITSTYLE` in `libCellsClusterDs/dwarf-enums.jsonl:21`.
+It finds no value decoder in the inspected cluster DWARF, native names or
+decoded HMI scripts. Registration flags do not establish cache age or clearing.
 
 The broader sender trace is **not uninterrupted**. There are 12 published
 paths: the first unACKed parked suggestion, then 11 ACKed paths after choosing
@@ -3305,11 +3321,38 @@ failed/truncated transfer attempts are kept outside the analysis input directory
 One malformed historical live row predates this arm. Evidence is under
 `captures/stock-sender-parity-20261025/product/drive26-village/`: `post-drive/`,
 `review/`, `analysis-events/`, `analysis-pipeline/`, owner observation and restore
-receipts. The next priorities are decoding the exit notifications and comparing
+receipts. The next priorities are decoding the independent quit signal and comparing
 the continuously sent inputs around the brief activation with the retained
 factory hold, while independently explaining and reducing long reroute/freshness
 gaps without bypassing the admission checks. More donor substitutions are not
 justified by this result alone.
+
+#### Review of the proposed 24 October replay
+
+The owner-provided `captures/replay-20261024-evening/PLAN.md` proposes repeating
+the historical parked-arm sequence with the original build-15 APK. Its local
+APK SHA-256 `dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`,
+reader and drive-variant hashes match the retained files. No replay was run.
+
+The stated 81%/6% baseline is reproducible with
+`captures/wire-15-vs-a1-20261026/join_offers.py`, but counts sent VehicleLocation
+samples by path with wire speed >5 km/h and a preceding ADAS status younger
+than 1 s; missing statuses are excluded from the denominator. The plan instead
+names Yandex speed >1.5 m/s, elapsed-time share and `adas-days-20261026/compare.py`,
+which counts packets over whole-drive windows without a first-path filter.
+Before another run, choose one metric and recompute both baselines, reporting
+unknown coverage and active retention separately from offered-or-active share.
+
+The preparation sequence is a testable hypothesis, not the only remaining
+explanation. A high-share repeat would establish reproducibility under that
+combined configuration, not which preparation step caused it. A low-share
+repeat would not exclude all controlled feed differences or identify the car
+as the cause. Same-day stock comparison and repeated preparation/control runs
+are needed for attribution. Leaving the old path after deleting an arm remains
+an unverified receiver-state hypothesis; enabled package state alone does not
+prove absence of a competing publisher. The replay plan's claim that the
+26 October packet ring was overwritten is superseded by the complete retained
+live-receiver coverage and verified post-drive export documented above.
 
 ### Regional offline graph (2026-10-24)
 
