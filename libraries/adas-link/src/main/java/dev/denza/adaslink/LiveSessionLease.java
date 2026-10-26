@@ -2,6 +2,7 @@ package dev.denza.adaslink;
 
 import java.util.Map;
 import java.util.UUID;
+import dev.denza.adaslink.yandexnative.AdapterExperiments;
 
 /** Explicit factory-sender arm bound to one consumer, boot and reader.
  * Legacy experiment variants are rejected rather than entering the native sender. */
@@ -13,16 +14,18 @@ public final class LiveSessionLease {
     public final long issuedAt, expiresAt;
     public final String canonical;
     public final FrameMode frameMode;
+    public final AdapterExperiments adapterExperiments;
     private LiveSessionLease(Map<String,Object> m) {
         bootId=(String)m.get("bootId"); consumerSession=(String)m.get("consumerSession");
         readerSession=(String)m.get("readerSession"); armId=(String)m.get("armId");
         issuedAt=integer(m,"issuedAtElapsedMs"); expiresAt=integer(m,"expiresAtElapsedMs");
         frameMode=m.containsKey("coordinateFrame")?FrameMode.valueOf((String)m.get("coordinateFrame")):FrameMode.WGS84;
+        adapterExperiments=m.containsKey("adapterExperiments")?AdapterExperiments.read(m.get("adapterExperiments")):AdapterExperiments.BASELINE;
         canonical=Json.write(m);
     }
     public static LiveSessionLease read(String text,String boot,String consumer,long now) {
         Map<String,Object> m=object(text);
-        if(m.containsKey("variant") || m.size()!=(m.containsKey("coordinateFrame")?10:9)
+        if(m.containsKey("variant") || m.size()!=9+(m.containsKey("coordinateFrame")?1:0)+(m.containsKey("adapterExperiments")?1:0)
                 ||m.containsKey("coordinateFrame")&&!(m.get("coordinateFrame") instanceof String)
                 || !"denza-adas-live-arm-v1".equals(m.get("schema"))
                 || !uuid(boot) || !uuid(consumer) || !boot.equals(m.get("bootId")) || !consumer.equals(m.get("consumerSession"))

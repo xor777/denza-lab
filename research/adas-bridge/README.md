@@ -36,7 +36,10 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
-| Owner paused the minimal build-15 experiment after reboot and explicitly requested build 26 with live feed for a longer trip | APK hash verified, second route SELECTED 200, arm active until about 21:13 Moscow; moving result pending | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
+| Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
+| Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
+| Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
+| Candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | local replay verifies merge correction; signed APK pending; no vehicle operation; complete moving-zero elimination remains unfulfilled | [Candidate 28](#candidate-28-recipe-correction) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -91,7 +94,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Historical experiment variant, not used by candidate 15 (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
-Contents: [Original sender parity](#original-sender-parity-2026-10-25) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
+Contents: [Candidate 28](#candidate-28-recipe-correction) · [Original sender parity](#original-sender-parity-2026-10-25) · [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
@@ -3517,9 +3520,338 @@ including rotation, to preserve early data. It retries only the existing ADB
 transport, never arms or changes the car, stops after four hours or 512 MiB,
 and can be stopped by creating that directory's `stream.stop` before further
 ADB work. Sleep/network gaps may still lose data; no uninterrupted capture or
-wake recovery is claimed. The arm is active at this checkpoint; post-drive
-export and restore remain pending. The minimal build-15 test is cancelled,
-not an observed negative result.
+wake recovery is claimed. This departure checkpoint is superseded by the return
+capture below. The minimal build-15 test is cancelled, not an observed negative
+result.
+
+**Return capture.** At the owner's request the host recorder was stopped before
+another ADB client accessed the car. A fixed on-device archive was copied in
+checked chunks: 7,621,952 compressed bytes, SHA256
+`9e3fb2049518684de211d6c0ee2b0efe16a170a818c14c8380a772aab5b666d2`
+matches the device receipt; 42 extracted files total 166,472,135 bytes.
+`postdrive/manifest.json` records every file hash. The two nonempty host streams
+and the departure evidence have a separate `host-capture-manifest.json`.
+Archive integrity does not establish uninterrupted trip coverage.
+
+The original source session is observed from 17:11:47.546 to 17:43:49.792 Moscow.
+Its latest retained successful local transport call is at 17:43:49.459: native
+`fire` rows are written only after Binder TX6 returns zero, not after an ECU
+semantic acknowledgement. The current live file contains 19,813 rows for the
+new boot; older rotations also retain previous drives. A different source
+session first appears at 17:53:07.105 and continues through 18:24:39.459. The
+later process reports BLOCKED, "После перезапуска требуется новое разрешение".
+The exact process-exit time and cause are not established. Its interval cannot
+be scored as a drive with a functioning publisher. The original source's last
+recorder snapshot reports `rawDropped=22`, zero critical/journal drops and zero
+write errors; the new process's zero counters do not erase these earlier losses.
+
+The standard owned restore removed the arm and wrote the reader-stop request;
+absence of the arm was read back. The reader log independently reports 1,889
+snapshots then `stopped (consumer gone)`. Stock remains disabled (3), as before
+this run. The stale runtime snapshot prevented fresh stable-closure proof, so
+the host correctly retains `ROLLBACK_PENDING` / `stale/future private snapshot`;
+no graceful terminal send or completed restore is claimed. The own temporary
+cache archive was removed only after host verification. Evidence:
+`postdrive/before-export.json`, `after-restore.json`, `reader.log`,
+`analysis-coverage/coverage.json` and the owned rollback ledger.
+
+**Geographic recurrence.** The owner reported repeated NOA on the same approach
+and direction. Independent raw Pilot/guidance joins confirm the two build-26
+first offers: 14:32:46.590 at WGS84 `(55.5158747341,37.0690923559)` and
+17:34:22.161 at `(55.5159166841,37.0691464361)`, 5.77 m apart, both SDK heading
+36.125 degrees. These are preceding fresh guidance points (701/206 ms old),
+not exact ECU activation coordinates. Five active series in the later run span
+17:34:25.759 through 17:34:31.867, flickering with offered/unavailable states.
+Their beginnings are 20–44 m before the left turn and 24–48 m before the
+earlier drive's active point; identical active coordinates are not established.
+
+All five later activations use class 9 and historySpeed 25 on the same native
+path/step/link. The earlier activation on class 8 therefore does not establish
+class 8, or a 9-to-8 transition, as necessary for activation. Neither GPS nor
+vehicle speed becomes zero in the later positive window plus/minus ten seconds.
+Thirty-one successful position sends in that window have a maximum gap of
+1,102 ms; an egress blackout is not observed there. These are exclusions of
+specific explanations, not proof of correct ECU field semantics. Geographic
+repeatability supports prioritizing local data/association/road-condition
+comparisons; it does not isolate the adapter from the vehicle's location-bound
+ODD/perception conditions or prove a preparation effect absent.
+
+Both receivers independently retain 56 offered and 33 active observations,
+in 13 offered/five active series, within 17:34:22.161–17:34:33.967. The live
+receiver's 18,224 Pilot observations have no missing original payloads;
+11,591 early overlay repeats lack originals and remain unknown. Those missing
+overlay originals end at 17:31:06.904, before the positive window. Later
+post-restart observations are excluded as a negative feed comparison. The
+owner's stock-plus-OSM recurrence was subsequently audited below; its positive
+location is farther west, with retained negative observations near this anchor.
+Reproduction and raw references: `postdrive/analysis-spatial/spatial.py`,
+`report.md`, `result.json`, `window-plusminus10s.json`, and the independent
+`root-validation.json` spotcheck.
+
+### Spatial comparison and position jitter (2026-10-26)
+
+The follow-up uses local retained captures only. Reproducible scripts, exact
+file/line references and results live under
+`captures/noa-spatial-discrimination-20261026/`: `build26/`, `build15/`,
+`stock-osm/`, `jitter26/` and `jitter15/`. No car operation or product-code
+change followed from this audit itself. At that stage the build-27 recipe
+was a proposal to assess. The owner subsequently authorized the bundled
+candidate below and explicitly asked to enable the traffic-light policy.
+
+**Comparators.** Original 24 October build 15 passes within 0.395 m of the later
+26 anchor, with the same 36.125-degree heading and next LEFT at 56 m. The
+26 October build-15 repeat comes no closer than 213.090 m and supplies no
+local comparator. Original 15 has offers before this connector as well as
+inside it. Both 26 starts occur inside the same 67 m connector with identical
+eleven wire vertices; neither is a link transition at the first Pilot offer.
+The later 26 loses availability before the next turn, while the earlier run
+briefly activates after it. Thus the following 2/0 m links are not a shared
+immediate exit boundary. Several identical position/TrafficInfo/history/light
+tuples span DNP 0, 1 and 2; this excludes only an instantaneous stateless field
+rule, not receiver history, latency or perception.
+
+The two stock-plus-OSM positive areas are at least 279 m west of the 26 anchor.
+Stock passes within 4.23/3.08 m of that anchor in the same direction with
+logged DNP 0; all 11/9 Pilot observations within the respective +/-15 s windows
+are zero. These are sparse app logs, not continuous wire proof. Moving stock
+route bodies are absent, so their exact link partition cannot be reconstructed
+from another parked route or an OSM package. Stock's 54 s highway episode is
+6.51 km away and is not a local village control.
+
+**Two speed sources already exist.** Build 26's `AdasGateReader` reads device
+1013, FID `0x94400008`, transaction 7, in km/h. `LiveMapBridge` supplies that
+fresh independent value to `NativeEnvironment.realSpeed`; missing/stale values
+do not fall back to GNSS. For example, the later trip's live journal lines
+13944/13946 record autoservice 14 km/h followed by wire vehicleSpeed 14 and
+GPSspeed 9. The second field is Yandex guidance-location speed. Independent
+Android GPS supplies raw coordinates and an age check, but its speed, accuracy
+and individual source timestamp are not retained in the export.
+
+`OriginalMmtSender.H0` selects stationary repetition when either integer speed
+is zero. Each subsequent admitted H0 cancels that repetition and captures the
+new position; a zero does not by itself freeze all future position updates.
+Repeats followed by a fresh packet can be less than 100 ms apart. Dividing
+their coordinate difference by the send interval would invent extreme speed;
+source timestamps and unchanged-coordinate holds must be distinguished.
+
+**Position inconsistency is observed, but its cause is open.** In the earlier
+26 trip, outgoing rows 1148/1159 at 14:32:55.237/56.244 show vehicle speed
+13/12 km/h and GPSspeed 0/0. Across those two approximately one-second steps,
+raw coordinates advance 4.307/3.802 m while matched coordinates advance
+0.075/10.806 m. The independent guidance journal also records a new FINE fix
+moving only 0.062 m and then another moving 9.161 m. This is not merely an
+unchanged SDK timestamp. It makes differentiation of matched coordinates an
+unreliable replacement for speed. It does not establish an RF failure.
+
+The later 26 positive envelope contains 11 admitted moving SDK fix pairs,
+none with speed below 0.3 m/s or displacement below 0.25 m. Displacement speed
+differs from the preceding fresh vehicle reading by -1.50 to +2.19 km/h, yet
+retention remains short. Its raw output still has one held coordinate followed
+by a catch-up step; without raw source timestamps, sampling phase cannot be
+distinguished from an upstream hold. Outside this corridor, the two runs have
+larger association disagreements (maximum moving raw/matched separations
+112.345/45.166 m). These are measurements of disagreement, not position truth.
+
+Original 15 also has a matched slow/catch-up pair during active NOA:
+20:20:00.807–02.839, source travel 1.744 then 9.225 m over new fixes about one
+second apart, while reported SDK speed stays near 18.8 km/h. Its wire also has
+zero speed with moving raw coordinates. All 57/64 same-corridor SDK samples
+in original 15/later 26 have distinct fresh fix identities. Consequently
+neither jitter nor zero SDK speed is a newly demonstrated build-26-only cause,
+and fresh/FINE/confidence metadata do not prove healthy GNSS reception.
+
+**Build-27 recipe review.** The proposed remaining-light-count mask can hide
+the light, but 500 m is not the original next-light-distance gate: it is the
+lane-target distance described in the light source audit. Original 15 sends
+the same distant light during both negative and positive observations. This
+mask would be an experiment, not demonstrated restoration of factory behavior.
+The speed-from-matched-fixes rule misses the 0.062 m near-freeze, then derives
+about 33 km/h from its catch-up; it does not satisfy its promised regression.
+The merge example also contradicts its no-cross-section rule: on path
+1793014193378, 67 m is segment 3/link 0, whereas 2/0/737 m are segment 4/links
+0/1/2. Scalar 33 is a LEFT maneuver boundary. Cuts 35/36 distinguish fc7,
+unmatched coverage and fc6; merging them also changes classification evidence.
+There is no justified 67+2+0-to-69 m transformation under those constraints.
+
+The next proposed step is source-coherent diagnostics: retain Android GPS
+timestamp/speed/presence/accuracy alongside SDK fix identity, route scalar,
+vehicle-read age and the exact submitted location input. Evaluate any outlier
+handling offline across real stops, turns, gaps and route resets before
+changing publication. Ordinary averaging can delay a genuine turn or smooth
+an incorrect road association; it is not yet a selected solution. A later
+vehicle comparison with one changed policy and a same-day baseline could
+isolate its effect. The owner subsequently prioritized an overall package
+comparison because trips are costly. A positive bundled result would still
+not identify which policy helped; independent flags allow a later narrowing.
+No filter or build was implemented by the audit itself; candidate 27 follows.
+
+### Candidate 27 bundled adapter experiment
+
+**Acceptance correction after owner review:** the implementation below did not
+fulfil the requested package. It preserved all 23 zero links and supplied only
+raw measured speed, without the requested displacement fallback. Passing tests
+and the independent review validated the narrower code, not recipe acceptance.
+The ordinary-trip plan was also insufficient for a controlled comparison.
+Build 27 is retained as an incomplete historical artifact; candidate 28 corrects
+these gaps below.
+
+The owner authorized implementation after the audit, including enabling the
+traffic-light policy immediately. The candidate keeps the literal factory
+`stocknative` core, native coordinate frame and by-road donor profile unchanged.
+It changes adapter inputs under four immutable arm flags, schema
+`denza-adas-adapter-experiments-v1`:
+
+| Flag | Candidate behavior | Boundary |
+| --- | --- | --- |
+| `lightWithin500` | Return zero remaining lights while the next strictly ahead known light is farther than 500 m; at 500 m or nearer restore the actual count | Static route/light placement unchanged. This is an experiment; the factory itself gates by lane-target distance, not actual-next-light distance |
+| `rawGnssSpeed` | Prefer the measured Android GPS speed with presence, non-mock provenance, valid native range and age 0–1500 ms; otherwise retain SDK speed with a reason | A measured zero remains zero. No derivative of snapped coordinates, CAN substitution, position averaging or outlier correction |
+| `coherentProgress` | Submit progress immediately before each newly accepted location, from the same observation | Invalid current on-route progress withholds location. Off-route input retains only the existing factory envelope. Existing freshness and location gates remain |
+| `mergeShortLinks` | Merge compatible links shorter than 10 m within a section | Native attributes and complete typed renderer evidence must agree. Turns, section/class/light boundaries and unknown coverage remain separate; original scalar geometry and rounded length budget are preserved |
+
+New host `plan`/`arm` default to `candidate27` (all four true).
+`--adapter-profile baseline26` disables all four; each has an independent
+`--no-...` override. An absent object in a historical arm means all false.
+The host requires the runtime schema before changing car state, pins the exact
+flags into the ledger and checks their echoed values. Altering flags under an
+existing arm invalidates it; a comparison needs a new stationary arm.
+
+On the retained village path, baseline has 131 links, 23 zero-length links and
+49 rounded lengths below 10 m. Candidate has 129 / 23 / 47, with both totaling
+12,092 m. The 67 m LEFT and subsequent 2/0/737 m links stay separate: this
+package does not pretend that their incompatible geometry can safely become
+69 m. The captured fixture contains 45 SDK observations, including 11 zero
+speeds; historical Android raw speed is unavailable. That replay therefore
+proves mapping/progress behavior and fallback, not a measured fix of those
+11 zeros. Separate synthetic fresh/zero/missing/stale/mock/range tests exercise
+the selected speed through the real native wire path.
+
+Each unique SDK/raw input pair is copied to `denza-drive-evidence/motion.jsonl`
+with three 8 MiB generations and a separate 16-row pending budget. It retains
+raw speed/presence/time/accuracy, SDK identity/position/speed, route scalar,
+progress indices, submitted native location, flags, arm identity and vehicle
+read sequence. `adapterSubmissionElapsedMs` and `latestObservedVehicleSpeed...`
+explicitly precede later factory queue processing: the actual factory vehicle
+speed may be a newer read. Write/drop/post-failure counters are in the progress
+recorder stats. Detailed motion rows do not crowd either wire journal. Retention
+depends on actual callback rate; it is not a guaranteed two-hour raw history.
+
+Local compatibility evidence under
+`captures/stock-sender-parity-20261025/product/candidate27-qa/independent/`
+rebuilds archived source `bbc9707e57fcfdfe6ef0c7ed343d076ec1026446` and the
+current all-off profile with frozen clocks/IDs. Their 489-row complete transport
+transcripts are byte-equal, SHA-256
+`cea4373b19616a420dcb2c2d885fee29b89f07a9b8f94f3fb91ae10e88656f31`.
+This is a build-26 regression control, not a replacement factory oracle.
+A 10 Hz synthetic queue stress also checks bounded pending tasks and cleanup.
+No car command, install or arm belongs to this local implementation run.
+
+Signed artifact: `captures/stock-sender-parity-20261025/product/build27/`
+`YandexHUD-27-arm64-debug.apk`, version `29.8.1-YandexHUD.27`, code `739494327`,
+SHA-256 `1fd37a19052f97381724aaaf8b676624942cdb5daaa02abf7ce179696b4132f2`.
+All 181 compiled source hashes match the working tree. Build validation passed:
+73 library JUnit tests, 157 coordinator, 255 session, 1,346 replay/stress and
+76 recorder checks, alongside existing module/packaging checks. The 46 host
+session tests also pass. `candidate-receipt.json` pins the local source snapshot,
+host and unchanged source-verified reader; `HANDOFF.md` describes the next
+stationary preparation. None of this is vehicle acceptance.
+
+The next on-car comparison is one ordinary owner trip after the stationary
+check, with the package enabled and logs exported promptly on return. Measure
+offered/active moving-time share, active episode durations, where availability
+begins, input rejection gaps and speed-source usage separately. Improvement of
+the whole package warrants later narrowing with the independent flags; no
+improvement rules out only this package on that route and day, not all data or
+transport causes. No claim about GNSS jamming or ADAS acceptance follows from
+the local tests.
+
+### Candidate 28 recipe correction
+
+Owner review overturned candidate 27's recipe acceptance, not its mechanical
+build results. Candidate 28 explicitly changes the policy and schema to
+`denza-adas-adapter-experiments-v2`. `candidate28` enables `lightWithin500`,
+`speedFromFixes`, `coherentProgress`, and `mergeShortLinks`; `baseline26`
+disables all. An old v1 policy is rejected instead of silently giving the same
+flag a different meaning. The unchanged factory core remains the sender.
+
+**Merge acceptance.** The only hard boundaries are section and linkType.
+Short links merge into the preceding same-type neighbor, or the following
+neighbor at the beginning of a same-type run. Unknown/different road class,
+traffic lights and road-attribute differences no longer prohibit the operation.
+The longest ORIGINAL constituent supplies road attributes; an exact-length tie
+chooses the earliest original. Accumulating many short parts cannot cause an
+inherited class to defeat the genuinely longest constituent. The donor class
+is recomputed from that constituent's typed evidence and the section scheme.
+The audit retains chosen/discarded evidence and marks this as an experiment.
+Lights sum without moving their original positions. Original geometry vertices,
+source-span progress offsets, section-end maneuvers and rounded length sum remain.
+
+The recorded path `1793014193378` now has **77 links instead of 131**, **zero
+zero-length links instead of 23**, and **zero links under 10 m instead of 49**.
+Both versions total 12,092 rounded metres. The 67 m LEFT-ending section stays
+separate; the next section's 2 + 0 + 737 m become 739 m. The original recipe's
+67 + 2 + 0 → 69 m example still conflicts with its no-cross-section rule and
+is not the accepted geometry target. Source geometry, signals, maneuvers and
+position offsets are checked throughout the real route, including final wire.
+
+**Speed acceptance is partial.** Positive SDK speed (>=0.3 m/s) remains exactly
+unchanged. Below 0.3, the adapter derives speed from adjacent admitted FINE
+fixes when their source interval is 200–1500 ms and displacement is at least
+1 m. Independently timestamped non-mock raw coordinate pairs are preferred;
+otherwise the actual SDK matched-coordinate pair is used. History resets on
+source/route change, invalidity, off-route input and gaps; repeated fixes do
+not accumulate displacement. This is derivation from positions, not Android's
+measured-speed preference from candidate 27 or substitution of CAN as GPS.
+
+Fresh autoservice zero vetoes jitter-derived movement. A positive independent
+speed bounds the displacement estimate by `max(2*v, v+2)` m/s using available
+endpoint readings; with no current vehicle reading a previous positive SDK
+speed supplies the same guard. The factor two and +2 m/s are declared
+experimental disagreement tolerances, not physical limits. With neither anchor
+the exact recipe still derives speed but records that independent consistency
+is unavailable. Autoservice freshness uses its original read-start timestamp,
+not delivery time; receipt and source ages are both retained.
+
+The replay now joins each of the 45 recorded SDK samples to an actual prior
+vehicle-read record and retains its line, sequence, start/completion and value.
+Android raw coordinates/time were not recorded, so they are not fabricated as
+derivation evidence. Of 11 zero-SDK samples, **3 obtain positive GPSspeed on the
+wire and 8 remain zero**. Two remaining samples have CAN=0, three have low
+rolling CAN=1/1/5 km/h, one has CAN=16 with only 0.06186 m SDK displacement,
+and two imply about 33 km/h from snapped motion against CAN=13/11. Of the six
+zero-SDK samples with fresh CAN>5.4 km/h, three remain unresolved. The recipe's
+stronger requirement of no GPSspeed zero while actually moving is therefore
+**not fulfilled**. Green regression tests preserve and expose this known gap;
+they do not redefine it as success. Position averaging is still not implemented.
+
+**One-outing comparison.** A useful proposed protocol is four same-direction
+passes on the same village exit, profiles **A–B–B–A**: A is baseline26, B is
+candidate28. This requires three arms and two stationary profile changes,
+with no APK reinstall. Start west of 37.0618/55.5170, take the same eastbound
+street and left turn, and continue about 300 m; the return direction is excluded.
+Both B passes share one arm. The final A checks whether changed conditions or
+carry-over could explain a positive B. If A also improves, this is not isolated
+adapter-effect evidence. Four passes compare the whole package, not four separate
+changes; a positive result would justify later narrowing with the independent flags.
+
+For each pass, retain arm/profile, actual published route after reroutes,
+entry/exit times, stop intervals, original raw/SDK/CAN inputs and native bytes.
+Before a B pass verify the effective route actually eliminated eligible short
+links and the signal policy reached the wire; a flag alone is not acceptance.
+Measure offered/active moving-time shares using fresh CAN as the primary
+movement denominator, alongside the unchanged historical SDK-speed metric.
+Do not let a corrected SDK speed itself change the denominator unnoticed.
+Also report active-episode durations, first-offer location, accepted correction
+counts and unresolved moving-zero counts. Missing samples or unexercised policies
+mean incomplete evidence, not no effect. Suggested positive threshold remains
+an active episode >=5 s or availability farther west, repeated in both B passes
+and absent from both A controls; otherwise retain the per-pass results without
+claiming causality from one outing.
+
+Export complete journals at each of the two stationary profile changes and at
+return, verify integrity and close each old arm before starting the next. The
+motion ring is finite; preserve a bounded host stream as an additional copy when
+connection is available. Its absence or interruption must be recorded, never
+assumed away. This protocol is prepared locally; no install or arm has occurred.
 
 ### Regional offline graph (2026-10-24)
 

@@ -14,6 +14,7 @@ What it reads (found by file name anywhere under the directory, and inside *.tar
   adas-journal.jsonl[.N]        the drive's change journal (adas_state rows), files/denza-drive-evidence/
   adas-packets.jsonl[.N]        passive ADAS packets and compact repeats, same directory
   progress.jsonl[.N]            1 Hz guidance samples, recorder stats, rare ADAS answers
+  motion.jsonl[.N]              per-fix adapter input/admission audit, explicitly scoped by armId
   denza-adas-live-state.json, -live-arm.json, -live-lineage.json, -gates.json, -navi-st.json,
   -instrument-navi-status.json  Navigator files (last state, arm, lineage, side-channel ledgers)
   *.json with schema denza-adas-live-rollback-v1   the host's live_session.py ledger (restores)
@@ -33,6 +34,7 @@ The answers (review.json keys):
   adasState       DNP/ICC/ACC episodes from service-13 PilotStatus, aligned to what was being sent
   sideChannels    NaviSt (0x4CA0004B) and instrument navigation status (0x43E0003A) writes/restores
   health          processes, resumed arms, dropped callbacks, ring coverage, crash markers
+  motion          adapter admission/speed decisions, zero-SDK corrections and recorder retention
 A new path for a Yandex route ID is classified from the live journal rows between it and the route's
 previous path: offline withdrawal, new or resumed session, DNP-switch resend (the stock's) and the
 retry of a route that never reached ADAS are expected; a guidance restart, a path dropped by the
@@ -93,14 +95,15 @@ STREAMS = (("live", re.compile(r"^denza-adas-live\.jsonl(?:\.(\d+))?$")),
            ("dryRun", re.compile(r"^denza-adas-dry-run\.jsonl(?:\.(\d+))?$")),
            ("journal", re.compile(r"^(?:denza-drive-evidence--)?adas-journal\.jsonl(?:\.(\d+))?$")),
            ("packets", re.compile(r"^(?:denza-drive-evidence--)?adas-packets\.jsonl(?:\.(\d+))?$")),
-           ("progress", re.compile(r"^(?:denza-drive-evidence--)?progress\.jsonl(?:\.(\d+))?$")))
+           ("progress", re.compile(r"^(?:denza-drive-evidence--)?progress\.jsonl(?:\.(\d+))?$")),
+           ("motion", re.compile(r"^(?:denza-drive-evidence--)?motion\.jsonl(?:\.(\d+))?$")))
 STATE_FILES = {"denza-adas-live-state.json": "liveState", "denza-adas-live-arm.json": "arm",
                "denza-adas-live-lineage.json": "lineage", "denza-adas-consumer.json": "consumer",
                "denza-adas-gates.json": "gates", "denza-adas-navi-st.json": "naviStLedger",
                "denza-adas-instrument-navi-status.json": "instrumentLedger",
                "denza-adas-stock-isolation.json": "isolation"}
 # The current build's ring sizes (DriveEvidenceStreams): generations kept per stream.
-GENERATIONS = {"live": 6, "packets": 7, "progress": 3, "journal": 4, "dryRun": 5}
+GENERATIONS = {"live": 6, "packets": 7, "progress": 3, "journal": 4, "dryRun": 5, "motion": 3}
 CRASH_MARKERS = re.compile(r"FATAL EXCEPTION|Fatal signal|SIGABRT|SIGSEGV|Abort message|ANR in|am_crash|"
                            r"am_proc_died.*yandexnavi|am_kill.*yandexnavi|com\.byd\.avc.*(?:crash|died|FATAL)")
 MAX_LIST = 400
@@ -286,7 +289,8 @@ def _row_time(stream, row):
     for key in {"live": ("monotonicMs",), "dryRun": ("monotonicMs",),
                 "journal": ("elapsedMs",),
                 "packets": ("receivedAtElapsedMs", "receivedUptimeMs"),
-                "progress": ("capturedUptimeMs", "receivedAtElapsedMs", "receivedUptimeMs")}[stream]:
+                "progress": ("capturedUptimeMs", "receivedAtElapsedMs", "receivedUptimeMs"),
+                "motion": ("adapterSubmissionElapsedMs",)}[stream]:
         value = _number(row.get(key))
         if value is not None and value >= 0:
             return value
@@ -329,6 +333,10 @@ class Clock:
         for row in evidence.streams["journal"]:
             if _number(row.get("capturedAtMs")) and row["_t"] is not None:
                 diffs.append(row["capturedAtMs"] - row["_t"])
+        self.motion_fallback = not diffs
+        if self.motion_fallback:
+            diffs = [r["capturedAtMs"] - r["_t"] for r in evidence.streams["motion"]
+                     if _number(r.get("capturedAtMs")) is not None and r["_t"] is not None]
         self.offset = int(median(diffs)) if diffs else None
         self.pairs = len(diffs)
         self.spread = (quantile(diffs, 0.99) - quantile(diffs, 0.01)) if diffs else None
@@ -350,7 +358,8 @@ class Clock:
     def describe(self):
         return {"wallMinusElapsedMs": self.offset, "pairs": self.pairs, "spreadMs": self.spread,
                 "timezoneHours": self.tz_hours,
-                "method": "median(capturedAtMs - elapsed) over packets, guidance and journal rows",
+                "method": ("median(capturedAtMs - adapterSubmissionElapsedMs) over motion rows; enqueue-time wall anchor" if self.motion_fallback and self.pairs
+                           else "median(capturedAtMs - elapsed) over packets, guidance and journal rows"),
                 "warning": ("several boots or a stalled recorder: wall-elapsed spread above 60 s"
                             if self.spread is not None and self.spread > 60000 else None)}
 
@@ -451,6 +460,16 @@ class Drive:
             def retained(rows):
                 return [r for r in rows if r["_t"] is not None and belongs(r["_t"])]
             self.journal, self.packets, self.progress = map(retained, (self.journal, self.packets, self.progress))
+        # Motion carries its own arm identity. Never borrow temporal attribution from
+        # live rows: a queued old-arm callback can arrive during the next arm.
+        explicit_motion = [r for r in evidence.streams["motion"] if r.get("kind") == "native_motion_input"]
+        self.motion = [r for r in explicit_motion if isinstance(r.get("armId"), str) and r["armId"]
+                       and (self.arm_id is None or r["armId"] == self.arm_id)]
+        self.motion_attribution = {"selectedArmId": self.arm_id, "rule": "explicit row.armId only; no time-window inference",
+                                   "scope": "selected_arm" if self.arm_id else "all_explicit_arm_ids",
+                                   "excludedOtherArmRows": sum(1 for r in explicit_motion if isinstance(r.get("armId"), str) and r["armId"]
+                                                               and self.arm_id is not None and r["armId"] != self.arm_id),
+                                   "excludedUnattributedRows": sum(1 for r in explicit_motion if not isinstance(r.get("armId"), str) or not r["armId"])}
         self.missing = []
         self.sends = sorted([r for r in self.live if r.get("input") == "liveEgress.packet" and r.get("result") == 0] + native, key=lambda r: (r["_t"], r["_seq"]))
         for r in self.sends:
@@ -1713,15 +1732,24 @@ def _rings(drive, clock, sessions_out):
     drive_start = min(starts, key=lambda s: s[1]) if starts else None
     out = {"driveStart": {"how": drive_start[0], "elapsedMs": drive_start[1], "wall": clock.wall(drive_start[1]), "ref": drive_start[2]} if drive_start else None,
            "streams": []}
-    for name in ("live", "packets", "progress", "journal"):
-        rows = [r for r in drive.e.streams[name] if r["_t"] is not None]
+    for name in ("live", "packets", "progress", "journal", "motion"):
+        stream_rows = drive.motion if name == "motion" else drive.e.streams[name]
+        rows = [r for r in stream_rows if r["_t"] is not None]
         generations = sorted(drive.e.generations[name])
         item = {"stream": name, "files": len(generations), "generations": generations, "currentBuildKeeps": GENERATIONS[name],
-                "rows": len(drive.e.streams[name])}
+                "rows": len(stream_rows)}
+        if name == "motion":
+            item.update(attribution="explicit row.armId only", completeCoverageEstablished=False)
         if rows:
             item["first"] = at(rows[0]["_t"], rows[0], clock)
             item["last"] = at(rows[-1]["_t"], rows[-1], clock)
-        if name == "journal":
+        if name == "motion":
+            item["note"] = "explicit selected-arm adapter observations; first/last retained input does not establish complete coverage or loss of the drive start"
+            item["lostDriveStart"] = None
+            item["rotated"] = any(g > 0 for g in generations)
+            if rows and drive_start:
+                item["startsAfterDriveStartMs"] = rows[0]["_t"] - drive_start[1]
+        elif name == "journal":
             item["note"] = "rotates only between drives (30 min idle); .1-.3 are earlier drives"
         elif rows and drive_start:
             late = rows[0]["_t"] - drive_start[1]
@@ -1732,6 +1760,118 @@ def _rings(drive, clock, sessions_out):
             item["lostDriveStart"] = None
         out["streams"].append(item)
     return out
+
+
+# ---------------------------------------------------------------------------------------- 9 adapter motion input
+
+MOTION_COUNTERS = ("motionQueued", "motionDropped", "motionPostFailures", "motionWriteErrors")
+
+
+def motion(drive, clock):
+    """Report adapter submissions; admission is not proof of later native or ECU consumption."""
+    rows = drive.motion
+    timed = [r for r in rows if r["_t"] is not None]
+    expected = any(isinstance(r.get("adapterExperiments"), dict) for r in drive.live)
+    arm_state, _ = drive.e.state("arm", drive.arm_id)
+    if arm_state and (drive.arm_id is None or arm_state.get("armId") == drive.arm_id):
+        expected = expected or isinstance(arm_state.get("adapterExperiments"), dict)
+    generations = sorted(drive.e.generations["motion"])
+    stream = {"present": bool(generations), "expectedForSelectedArm": expected,
+              "status": "retained_rows" if rows else "missing_expected" if expected else "not_recorded_or_not_supported",
+              "generations": generations, "currentBuildKeeps": GENERATIONS["motion"],
+              "retainedRowsAllArms": len(drive.e.streams["motion"]), "timedRows": len(timed), "untimedRows": len(rows) - len(timed),
+              "completeCoverageEstablished": False,
+              "limitation": "nonempty retained ring proves only these observations; rotations, drops, omitted callbacks and missing files can leave gaps"}
+    if timed:
+        stream.update(first=at(timed[0]["_t"], timed[0], clock), last=at(timed[-1]["_t"], timed[-1], clock))
+        deltas = [b["_t"] - a["_t"] for a, b in zip(timed, timed[1:]) if a.get("armId") == b.get("armId")]
+        stream["largestRetainedIntervalMs"] = max(deltas) if deltas else None
+        start = next((r for r in drive.live if r["_t"] is not None), None)
+        if start:
+            stream["startsAfterSelectedLiveStartMs"] = timed[0]["_t"] - start["_t"]
+    if expected and not rows:
+        drive.missing.append("motion.jsonl: нет строк с явным armId выбранного сеанса")
+    if rows and not timed:
+        drive.missing.append("motion.jsonl: у строк выбранного сеанса нет adapterSubmissionElapsedMs")
+
+    def counts(field, selected=rows):
+        return dict(sorted(collections.Counter(r.get(field) if isinstance(r.get(field), str) else "unreported" for r in selected).items()))
+
+    def native_speed(row):
+        value = _number(row.get("nativeInputSpeedKmh"))
+        return value if value is not None and math.isfinite(value) and value >= 0 else None
+
+    accepted = [r for r in rows if r.get("admissionReason") == "accepted"]
+    zero = [r for r in rows if _number(r.get("sdkSpeedMps")) == 0]
+    zero_accepted = [r for r in zero if r.get("admissionReason") == "accepted"]
+    corrected = [r for r in zero_accepted if native_speed(r) is not None and native_speed(r) > 0]
+    uncorrected = [r for r in zero_accepted if native_speed(r) == 0]
+    unknown = [r for r in zero_accepted if native_speed(r) is None]
+    rejected = [r for r in zero if r.get("admissionReason") != "accepted"]
+
+    def fresh_actual_speed(row):
+        # Receipt age describes when a cached value was read, not when CAN measured it.
+        # Missing actual-source age must never be replaced by latestObservedVehicleSpeedAgeMs.
+        age = _number(row.get("latestObservedVehicleSpeedSourceAgeMs"))
+        speed = _number(row.get("latestObservedVehicleSpeedKmh"))
+        return speed if (age is not None and math.isfinite(age) and 0 <= age <= 1500
+                         and speed is not None and math.isfinite(speed) and speed >= 0) else None
+
+    moving = [r for r in zero_accepted if fresh_actual_speed(r) is not None and fresh_actual_speed(r) > 5.4]
+    moving_corrected = [r for r in moving if native_speed(r) is not None and native_speed(r) > 0]
+    moving_unresolved = [r for r in moving if native_speed(r) == 0]
+    moving_missing = [r for r in moving if native_speed(r) is None]
+    movement_unknown = [r for r in zero_accepted if fresh_actual_speed(r) is None]
+    observation_fields = ("armId", "sourceSessionId", "capturedAtMs", "routeId", "epoch", "pathId", "admissionReason", "blocked", "progressReason",
+                          "adapterSubmissionElapsedMs", "observedElapsedMs", "sdkStamp", "sdkAbsoluteTimestampMs", "sdkRelativeTimestampMs", "sdkFixAgeMs",
+                          "sdkSpeedMps", "selectedSpeedMps", "nativeInputSpeedKmh", "speedSource", "speedReason", "speedSelectedAtElapsedMs",
+                          "derivedSpeedMps", "derivedDistanceM", "derivedDtMs", "derivedSource", "derivedConsistencyEvidence", "derivedConsistencyUpperMps",
+                          "derivedPreviousSdkSpeedMps", "derivedPreviousVehicleMps", "derivedCurrentVehicleMps", "vehicleReadSequence",
+                          "latestObservedVehicleSpeedKmh", "latestObservedVehicleSpeedAgeMs", "latestObservedVehicleSpeedSourceAtElapsedMs", "latestObservedVehicleSpeedSourceAgeMs",
+                          "rawAtElapsedMs", "rawTimestampMs", "rawAgeMs", "rawHasSpeed", "rawSpeedMps", "rawMock", "locationClass", "positionOnRoute",
+                          "progressPathId", "progressSegment", "progressLink", "progressPoint", "progressLinkRemainM", "adapterExperiments")
+
+    def observation(row):
+        return dict(at(row["_t"], row, clock), **{key: row[key] for key in observation_fields if key in row})
+
+    recorder = collections.OrderedDict()
+    excluded_recorder_snapshots = 0
+    for row in drive.progress:
+        stats = row.get("recorder")
+        if not isinstance(stats, dict) or not any(_number(stats.get(k)) is not None for k in MOTION_COUNTERS):
+            continue
+        if drive.arm_id is not None and row.get("armId") not in (None, drive.arm_id):
+            excluded_recorder_snapshots += 1
+            continue
+        process = row.get("sourceSessionId") or "unidentified_process"
+        item = recorder.setdefault(process, {"sourceSessionId": row.get("sourceSessionId"), "counters": {}, "counterEvidence": {}})
+        for key in MOTION_COUNTERS:
+            value = _number(stats.get(key))
+            if value is not None and value >= item["counters"].get(key, -1):
+                item["counters"][key] = value
+                item["counterEvidence"][key] = at(row["_t"], row, clock)
+    counters = {key: sum(p["counters"].get(key, 0) for p in recorder.values()) for key in MOTION_COUNTERS
+                if any(key in p["counters"] for p in recorder.values())}
+    losses = {key: value for key, value in counters.items() if key != "motionQueued"}
+    return {"rows": len(rows), "attribution": drive.motion_attribution, "stream": stream,
+            "definition": "native_motion_input records adapter admission/submission, not later factory processing or VehicleLocation output",
+            "byArmId": counts("armId"), "byAdmission": counts("admissionReason"), "bySpeedSource": counts("speedSource"), "bySpeedReason": counts("speedReason"),
+            "acceptedRows": len(accepted), "acceptedBySpeedSource": counts("speedSource", accepted), "acceptedBySpeedReason": counts("speedReason", accepted),
+            "zeroSdk": {"definition": "finite sdkSpeedMps == 0; accepted correction requires nativeInputSpeedKmh > 0, not only a selected speed/reason",
+                        "rows": len(zero), "acceptedCorrections": len(corrected), "acceptedUncorrected": len(uncorrected),
+                        "acceptedMissingNativeInputSpeed": len(unknown), "rejectedRows": len(rejected),
+                        "countDefinition": "input sample counts, not time-weighted rates, native-consumption evidence or VehicleLocation wire proof",
+                        "movingDefinition": "accepted sdkSpeedMps == 0 with actual CAN latestObservedVehicleSpeedKmh > 5.4 and explicit latestObservedVehicleSpeedSourceAgeMs in [0,1500]; receipt age is never substituted",
+                        "acceptedMovingRows": len(moving), "acceptedMovingCorrections": len(moving_corrected), "acceptedMovingUnresolved": len(moving_unresolved),
+                        "acceptedMovingMissingNativeInputSpeed": len(moving_missing), "acceptedMovementUnknownRows": len(movement_unknown),
+                        "acceptedKnownNotMovingByThresholdRows": len(zero_accepted) - len(moving) - len(movement_unknown),
+                        "movingCorrections": capped(observation(r) for r in moving_corrected), "movingUnresolved": capped(observation(r) for r in moving_unresolved),
+                        "movementUnknown": capped(observation(r) for r in movement_unknown),
+                        "corrections": capped(observation(r) for r in corrected), "uncorrected": capped(observation(r) for r in uncorrected),
+                        "rejected": capped(observation(r) for r in rejected)},
+            "recorder": {"available": bool(recorder), "scope": "process-lifetime cumulative maxima from selected progress.recorder snapshots; not loss counts attributable to one arm",
+                         "lossCounts": losses or None, "processes": list(recorder.values()), "excludedOtherArmSnapshots": excluded_recorder_snapshots},
+            "observations": capped(observation(r) for r in rows)}
 
 
 # ---------------------------------------------------------------------------------------- review
@@ -1752,13 +1892,15 @@ def review(root, tz_hours=3, arm_id=None):
     adas_out = adas_state(drive, clock, paths_out, sessions_out)
     side_out = side_channels(drive, clock)
     health_out = health(drive, clock, sessions_out)
+    motion_out = motion(drive, clock)
+    health_out["recorderLosses"].update(motion_out["recorder"]["lossCounts"] or {})
     for s in sessions_out:
         s.pop("_window", None)
     return {"schema": SCHEMA, "evidence": str(root), "clock": clock.describe(), "attribution": drive.attribution,
             "inventory": evidence.inventory, "parseErrors": capped(evidence.parse_errors, 100),
             "parseErrorCount": len(evidence.parse_errors),
             "sessions": sessions_out, "paths": paths_out, "cadence": cadence_out, "pausesAndGaps": pauses_out,
-            "semantics": semantics_out, "adasState": adas_out, "sideChannels": side_out, "health": health_out,
+            "semantics": semantics_out, "adasState": adas_out, "sideChannels": side_out, "health": health_out, "motion": motion_out,
             "missing": sorted(set(drive.missing))}, clock
 
 
@@ -1969,6 +2111,43 @@ def markdown(result, clock):
         " (ещё %d отметок до неё)" % (len(crashes) - len(during)) if len(crashes) > len(during) else ""))
     for m in during[:5]:
         lines.append("  - `%s`: %s" % (m["ref"], m["line"][:160]))
+    m = result.get("motion")
+    if m:
+        stream, zero, attribution = m["stream"], m["zeroSdk"], m["attribution"]
+        lines += ["", "## 9. Движение: вход адаптера", ""]
+        lines.append("- %s: %d; другого arm исключено %d, без явного armId исключено %d. Привязка — только row.armId." % (
+            "Строк выбранного сеанса" if attribution["selectedArmId"] else "Строк с явным armId", m["rows"], attribution["excludedOtherArmRows"], attribution["excludedUnattributedRows"]))
+        if m["rows"]:
+            for field, label in (("byAdmission", "Допуск"), ("bySpeedSource", "Источник скорости"), ("bySpeedReason", "Причина выбора скорости")):
+                lines.append("- %s: %s." % (label, ", ".join("%s=%d" % item for item in m[field].items())))
+            lines.append("- При SDK speed=0: исправлено и принято %d; принято без исправления %d; отклонено %d; скорость native input не записана %d." % (
+                zero["acceptedCorrections"], zero["acceptedUncorrected"], zero["rejectedRows"], zero["acceptedMissingNativeInputSpeed"]))
+            lines.append("- При SDK speed=0 и свежем CAN >5,4 км/ч: принятых входов %d, исправлено %d, не исправлено %d, native input speed неизвестна %d; движение неизвестно у %d входов. Свежесть — возраст самого источника 0–1500 мс, время чтения кэша её не заменяет." % (
+                zero["acceptedMovingRows"], zero["acceptedMovingCorrections"], zero["acceptedMovingUnresolved"], zero["acceptedMovingMissingNativeInputSpeed"], zero["acceptedMovementUnknownRows"]))
+            lines.append("- Это счётчики входных наблюдений: они не взвешены по времени и не доказывают отправку исправленной скорости на провод.")
+            for item in (zero["corrections"][:3] + zero["uncorrected"][:3] + zero["rejected"][:3]):
+                if "ref" in item:
+                    lines.append("- %s `%s`: %s, %s/%s; SDK %s м/с → native input %s км/ч." % (
+                        clock.short(item.get("elapsedMs")), item["ref"], item.get("admissionReason"), item.get("speedSource"), item.get("speedReason"),
+                        item.get("sdkSpeedMps"), item.get("nativeInputSpeedKmh", "—")))
+        elif stream["expectedForSelectedArm"]:
+            lines.append("- motion.jsonl ожидается, но строк выбранного arm нет; причины выбора скорости неизвестны.")
+        else:
+            lines.append("- motion.jsonl не записан; требование этого потока для исторического сеанса не установлено, это не ошибка записи.")
+        if stream.get("first"):
+            lines.append("- Сохранённый интервал: %s — %s (`%s` — `%s`); поколений %d из %d, строк без времени %d. Полнота покрытия не доказана." % (
+                clock.short(stream["first"]["elapsedMs"]), clock.short(stream["last"]["elapsedMs"]), stream["first"]["ref"], stream["last"]["ref"],
+                len(stream["generations"]), stream["currentBuildKeeps"], stream["untimedRows"]))
+        elif m["rows"]:
+            lines.append("- adapterSubmissionElapsedMs отсутствует; время входов неизвестно. Полнота покрытия не доказана.")
+        recorder = m["recorder"]
+        if recorder["available"]:
+            losses = recorder["lossCounts"] or {}
+            lines.append("- Счётчики записи motion: %s. Это накопленные счётчики процесса, их нельзя целиком приписать одному arm." % (
+                ", ".join("%s=%s" % item for item in losses.items()) or "потери не записаны"))
+        elif m["rows"] or stream["expectedForSelectedArm"]:
+            lines.append("- Счётчики потерь motion не записаны; отсутствие потерь не установлено.")
+        lines.append("- Запись показывает допуск и вход адаптера; последующее потребление ядром и отправка VehicleLocation проверяются отдельно.")
     return "\n".join(lines) + "\n"
 
 

@@ -13,6 +13,8 @@ final class DriveEvidence {
         }
     }
     static final List<String> feed=new ArrayList<>();
+    static final List<Map<String,Object>> motion=new ArrayList<>();
+    static void motionInput(Map<String,Object> row){motion.add(new java.util.LinkedHashMap<>(row));}
     /** The change journal's variant and NaviSt rows, as armId:json. */
     static final List<String> variants=new ArrayList<>(),naviSt=new ArrayList<>(),instrumentNaviStatus=new ArrayList<>();
     static void passiveState(String receiver,String session,String event,String detail){states.add(receiver+":"+session+":"+event);}

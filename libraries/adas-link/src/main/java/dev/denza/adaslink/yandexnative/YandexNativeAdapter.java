@@ -44,19 +44,22 @@ public final class YandexNativeAdapter {
         /** Historical flag, retained for policy-test compatibility only. */
         public final boolean compatibilityCn;
         public final NativeDonorProfile donorProfile;
+        public final AdapterExperiments experiments;
         public Policy(MissingBooleans value){this(value,RoadClassPolicy.UNKNOWN);}
         public Policy(MissingBooleans value,RoadClassPolicy roadClass){this(value,roadClass,Coordinates.Frame.WGS84);}
         public Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame){this(value,roadClass,frame,HistorySpeedPolicy.OBSERVED_HISTORY_ONLY);}
         private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed){this(value,roadClass,frame,historySpeed,PublicRoadEvidence.EMPTY);}
         private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads){this(value,roadClass,frame,historySpeed,publicRoads,OwnerLaneEvidence.EMPTY);}
         private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads,OwnerLaneEvidence laneEvidence){this(value,roadClass,frame,historySpeed,publicRoads,laneEvidence,null);}
-        private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads,OwnerLaneEvidence laneEvidence,NativeDonorProfile donorProfile){if(value==null||roadClass==null||frame==null||historySpeed==null||publicRoads==null||laneEvidence==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;this.frame=frame;this.historySpeed=historySpeed;this.publicRoads=publicRoads;this.laneEvidence=laneEvidence;this.donorProfile=donorProfile;this.compatibilityCn=donorProfile==NativeDonorProfile.COMPATIBILITY_CN;}
-        public Policy withFrame(Coordinates.Frame value){return new Policy(missingBooleans,roadClass,value,historySpeed,publicRoads,laneEvidence,donorProfile);}
-        public Policy withHistorySpeed(HistorySpeedPolicy value){return new Policy(missingBooleans,roadClass,frame,value,publicRoads,laneEvidence,donorProfile);}
-        public Policy withPublicRoadEvidence(PublicRoadEvidence value){return new Policy(missingBooleans,roadClass,frame,historySpeed,value,laneEvidence,donorProfile);}
-        public Policy withLaneEvidence(OwnerLaneEvidence value){return new Policy(missingBooleans,roadClass,frame,historySpeed,publicRoads,value,donorProfile);}
+        private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads,OwnerLaneEvidence laneEvidence,NativeDonorProfile donorProfile){this(value,roadClass,frame,historySpeed,publicRoads,laneEvidence,donorProfile,AdapterExperiments.BASELINE);}
+        private Policy(MissingBooleans value,RoadClassPolicy roadClass,Coordinates.Frame frame,HistorySpeedPolicy historySpeed,PublicRoadEvidence publicRoads,OwnerLaneEvidence laneEvidence,NativeDonorProfile donorProfile,AdapterExperiments experiments){if(experiments==null||value==null||roadClass==null||frame==null||historySpeed==null||publicRoads==null||laneEvidence==null)throw new IllegalArgumentException("adapter policy");missingBooleans=value;this.roadClass=roadClass;this.frame=frame;this.historySpeed=historySpeed;this.publicRoads=publicRoads;this.laneEvidence=laneEvidence;this.donorProfile=donorProfile;this.compatibilityCn=donorProfile==NativeDonorProfile.COMPATIBILITY_CN;this.experiments=experiments;}
+        public Policy withFrame(Coordinates.Frame value){return new Policy(missingBooleans,roadClass,value,historySpeed,publicRoads,laneEvidence,donorProfile,experiments);}
+        public Policy withHistorySpeed(HistorySpeedPolicy value){return new Policy(missingBooleans,roadClass,frame,value,publicRoads,laneEvidence,donorProfile,experiments);}
+        public Policy withPublicRoadEvidence(PublicRoadEvidence value){return new Policy(missingBooleans,roadClass,frame,historySpeed,value,laneEvidence,donorProfile,experiments);}
+        public Policy withLaneEvidence(OwnerLaneEvidence value){return new Policy(missingBooleans,roadClass,frame,historySpeed,publicRoads,value,donorProfile,experiments);}
+        public Policy withExperiments(AdapterExperiments value){return new Policy(missingBooleans,roadClass,frame,historySpeed,publicRoads,laneEvidence,donorProfile,value);}
         public Policy withCompatibilityCn(boolean value){return withDonorProfile(value?NativeDonorProfile.COMPATIBILITY_CN:null);}
-        public Policy withDonorProfile(NativeDonorProfile value){return new Policy(missingBooleans,roadClass,frame,historySpeed,publicRoads,laneEvidence,value);}
+        public Policy withDonorProfile(NativeDonorProfile value){return new Policy(missingBooleans,roadClass,frame,historySpeed,publicRoads,laneEvidence,value,experiments);}
     }
     /** Current source observations; NaN remains absent and is never made stationary/arrived. */
     public static final class Guidance {
@@ -106,6 +109,7 @@ public final class YandexNativeAdapter {
         private final java.util.Map<String,Object> attributeEvidence;
         private final boolean emptyUnavailableLightProjection;
         private final HistorySpeedPolicy historySpeedPolicy;
+        private final AdapterExperiments experiments;
         private final NativeDonorProfile donorProfile;
         private final double[] sectionFreeFlowKmh;
         private final boolean conditionsOutdated;
@@ -113,7 +117,7 @@ public final class YandexNativeAdapter {
             if(source==null||policy==null)throw new IllegalArgumentException("route and policy required");
             if(id<=0)throw new IllegalArgumentException("positive synthetic path identity required");
             routeId=source.routeId;pathId=id;requestId=request;routeType=type;frame=policy.frame;
-            historySpeedPolicy=policy.historySpeed;donorProfile=policy.donorProfile;
+            historySpeedPolicy=policy.historySpeed;donorProfile=policy.donorProfile;experiments=policy.experiments;
             conditionsOutdated=Boolean.TRUE.equals(source.conditionsProvenance().get("conditionsOutdated"));
             emptyUnavailableLightProjection=policy.missingBooleans==MissingBooleans.EXPLICIT_FALSE;
             lon=source.lon.clone();lat=source.lat.clone();cumulative=new double[lon.length];
@@ -166,6 +170,8 @@ public final class YandexNativeAdapter {
                 if(!explicit)bs.add(field+": source unavailable and native boolean has no unknown value");
             }
             ds.add(d("hasTrafficLight/trafficLightNum/routeRemainLightCount","YandexRoute.trafficLights","known positions only; static geometry gives no live signal phase",lights==null&&emptyUnavailableLightProjection?"unavailable source projected to empty SDK list under explicit test policy; not observed absence":"unreported list stays unavailable; explicit-false policy needed for link flag",lights==null?FieldDecision.Kind.UNAVAILABLE:FieldDecision.Kind.FACT));
+            if(experiments.lightWithin500)ds.add(d("NaviInfo.routeRemainLightCount","YandexRoute.trafficLights + current scalar + exact WGS84 route metric","EXPERIMENT: expose actual remaining count only when next known light is at most 500 metres ahead; suppress beyond 500; static traffic-light geometry and flags unchanged","missing list retains existing explicit policy; no factory-equivalence or signal-phase claim",FieldDecision.Kind.EXPERIMENTAL_DONOR));
+            if(experiments.mergeShortLinks)ds.add(d("segment.links","source interval partition, typed renderer evidence and native attributes","EXPERIMENT: merge every sub-10m interval into previous same-section link, or next when first in its same-linkType run; only section and linkType are barriers; longest original constituent supplies road attributes, tie -> earliest original begin; sum lights and retain every source scalar","different/unknown class, signal and native-attribute evidence may be discarded by this declared experiment and remains audited; no factory-equivalence claim",FieldDecision.Kind.EXPERIMENTAL_DONOR));
             if(lights==null&&policy.missingBooleans==MissingBooleans.REJECT)bs.add("hasTrafficLight: trafficLights source unavailable");
             ds.add(d("viaRoadInfo/ToPOI","no compatible native via-road/POI namespace source","waypoints do not define native lane/speed aggregate records or AVP POI IDs","empty via-road list and null POI; no fabricated AVP IDs",FieldDecision.Kind.UNAVAILABLE));
             ds.add(d("travelTime","section weight.timeWithTraffic else weight.time seconds","rounded nonnegative section duration","missing duration remains SDK output-model default 0, not zero-time observation",FieldDecision.Kind.UNKNOWN_MODEL_DEFAULT));
@@ -190,6 +196,8 @@ public final class YandexNativeAdapter {
             if(lights!=null)for(double at:lights)cuts.add(at);
             for(YandexRoute.Section s:sections){cuts.add(s.begin);cuts.add(s.end);}
             List<NativeSegment> built=new ArrayList<>();
+            List<java.util.Map<String,Object>> mergeRows=new ArrayList<>(),retainedTiny=new ArrayList<>();
+            int beforeLinks=0,beforeZero=0,beforeShort=0;double exactLength=0;
             final int diagnosticLimit=128;int retainedClassDecisions=0,omittedClassDecisions=0,totalLinks=0;
             java.util.Map<String,Integer> projectedCounts=new java.util.LinkedHashMap<>();
             java.util.Map<String,Integer> rawQualityCounts=new java.util.LinkedHashMap<>();
@@ -231,8 +239,8 @@ public final class YandexNativeAdapter {
                     String candidates=functional!=null&&functional==1?"[0,6]":roadClass<0?"[]":"["+roadClass+"]";
                     if(retainedClassDecisions<diagnosticLimit){retainedClassDecisions++;
                         if(donorClass!=null)
-                            ds.add(d("segment["+si+"].link["+li+"].roadClass",donorClass.source+"; interval=["+begin+","+end+"]; schemeId="+section.schemeId+"; class="+raw.rawClass+" type="+raw.classType+"; fc="+raw.rawFc+" type="+raw.fcType+"; quality="+raw.quality,"profile="+donorProfile.id+"; rule="+donorClass.rule+"; chosen="+roadClass,"declared donor projection, not an observed native classification",FieldDecision.Kind.EXPERIMENTAL_DONOR));
-                        else ds.add(d("segment["+si+"].link["+li+"].roadClass","interval=["+begin+","+end+"]; class="+raw.rawClass+" type="+raw.classType+"; fc="+raw.rawFc+" type="+raw.fcType+"; quality="+raw.quality,
+                            ds.add(d("segment["+si+"]."+(experiments.mergeShortLinks?"sourceLink":"link")+"["+li+"].roadClass",donorClass.source+"; interval=["+begin+","+end+"]; schemeId="+section.schemeId+"; class="+raw.rawClass+" type="+raw.classType+"; fc="+raw.rawFc+" type="+raw.fcType+"; quality="+raw.quality,"profile="+donorProfile.id+"; rule="+donorClass.rule+"; chosen="+roadClass,"declared donor projection, not an observed native classification",FieldDecision.Kind.EXPERIMENTAL_DONOR));
+                        else ds.add(d("segment["+si+"]."+(experiments.mergeShortLinks?"sourceLink":"link")+"["+li+"].roadClass","interval=["+begin+","+end+"]; class="+raw.rawClass+" type="+raw.classType+"; fc="+raw.rawFc+" type="+raw.fcType+"; quality="+raw.quality,
                             "policy="+policy.roadClass+"; chosen="+roadClass+"; nativeCandidates="+candidates+(functional!=null&&functional==1?"; canonical CitySpeedway=6 represents ambiguous freeway/urban expressway group; exact 0 versus 6 unknown":"; coarse functional-group approximation, not an exact native road-class observation"),
                             "unknown/type conflict/gap/non-driving/truncation or UNKNOWN policy -> -1; no NOA-success inference",roadClass<0?FieldDecision.Kind.SDK_NULL:FieldDecision.Kind.ENUM_MAPPING));
                     }else omittedClassDecisions++;
@@ -246,12 +254,29 @@ public final class YandexNativeAdapter {
                     NativeEnums.Action linkAction=li+2==part.size()?action:NativeEnums.action(null);
                     int ownership=donorProfile!=null?donorProfile.ownership:policy.publicRoads.covers(lon,lat,begin,end)?0:NativeEnums.OWNERSHIP_ERROR;
                     int lanes=donorProfile!=null?donorProfile.laneNum:policy.laneEvidence.covers(lon,lat,begin,end)?2:0;
-                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,ownership,lanes,section.toponym,lightCount,linkAction,geometryBetween(begin,end),frame,geometrySupported,donorProfile));
+                    links.add(new NativeLink(begin,end,length,syntheticId(routeId,id,si,li,first,last),roadClass,linkType,formway,ownership,lanes,section.toponym,lightCount,linkAction,geometryBetween(begin,end),frame,geometrySupported,donorProfile,raw,li,metres(end)-metres(begin)));
                 }
+                beforeLinks+=links.size();for(NativeLink link:links){if(link.length==0)beforeZero++;if(link.length<10)beforeShort++;exactLength+=metres(link.end)-metres(link.begin);}
+                if(experiments.mergeShortLinks)links=mergeLinks(links,si,section.schemeId,mergeRows,retainedTiny);
                 built.add(new NativeSegment(si,section.begin,section.end,section.timeS,action,links));
             }
             long totalLength=0;for(NativeSegment s:built)totalLength+=s.length;nonnegativeInt(totalLength);
             java.util.Map<String,Object> projection=new java.util.LinkedHashMap<>();
+            if(experiments.mergeShortLinks){
+                projectedCounts.clear();rawQualityCounts.clear();linkDecisions.clear();totalLinks=0;class6Metres=0;
+                for(String rule:ruleCounts.keySet())ruleCounts.put(rule,0);
+                for(int si=0;si<built.size();si++)for(int li=0;li<built.get(si).links.size();li++){
+                    NativeLink link=built.get(si).links.get(li);totalLinks++;
+                    String nativeClassKey=Integer.toString(link.roadClass);projectedCounts.put(nativeClassKey,projectedCounts.getOrDefault(nativeClassKey,0)+1);
+                    RouteAttributes.RendererClass raw=link.dominant.spans.get(0).raw;rawQualityCounts.put(raw.quality,rawQualityCounts.getOrDefault(raw.quality,0)+1);
+                    if(link.roadClass==NativeEnums.ROAD_CITY_SPEEDWAY)class6Metres+=link.length;
+                    if(donorProfile!=null){
+                        NativeDonorProfile.ClassDecision selected=donorProfile.roadClass(sections.get(si).schemeId,raw);ruleCounts.put(selected.rule,ruleCounts.getOrDefault(selected.rule,0)+1);
+                        java.util.Map<String,Object> row=new java.util.LinkedHashMap<>();row.put("segment",si);row.put("link",li);row.put("begin",link.begin);row.put("end",link.end);row.put("rule",selected.rule);row.put("roadClass",link.roadClass);row.put("schemeId",sections.get(si).schemeId);row.put("fc",raw.rawFc);row.put("fcType",raw.fcType);row.put("rawClass",raw.rawClass);row.put("classType",raw.classType);row.put("quality",raw.quality);row.put("sourceIntervals",mergeRows.get(totalLinks-1).get("sourceIntervals"));linkDecisions.add(Collections.unmodifiableMap(row));
+                    }
+                }
+                projection.put("diagnosticIndexSpace","verbose field decisions name original sourceLink intervals; compact linkDecisions and shortLinkMerge mapping name final links");
+            }
             projection.put("policy",donorProfile!=null?donorProfile.id:policy.roadClass.name());projection.put("links",totalLinks);
             projection.put("nativeClassCounts",Collections.unmodifiableMap(projectedCounts));
             projection.put("rawQualityCounts",Collections.unmodifiableMap(rawQualityCounts));
@@ -260,8 +285,60 @@ public final class YandexNativeAdapter {
             projection.put("diagnosticLimit",diagnosticLimit);projection.put("retainedDecisions",retainedClassDecisions);projection.put("omittedDecisions",omittedClassDecisions);
             evidence.put("rendererClassProjection",Collections.unmodifiableMap(projection));evidence.put("coordinateFrame",frame.name());evidence.put("publicRoadEvidence",policy.publicRoads.provenance());evidence.put("ownerLaneEvidence",policy.laneEvidence.provenance());
             if(donorProfile!=null)evidence.put("compatibilityProfile",donorProfile.evidence());
+            if(experiments.mergeShortLinks){
+                int afterLinks=0,afterZero=0,afterShort=0;for(NativeSegment section:built)for(NativeLink link:section.links){afterLinks++;if(link.length==0)afterZero++;if(link.length<10)afterShort++;}
+                java.util.Map<String,Object> audit=new java.util.LinkedHashMap<>();
+                audit.put("policy","mergeShortLinks");audit.put("experimental",true);audit.put("dominantAttributeRule","longest original constituent by exact WGS84 route metres; equal lengths choose earliest original source begin; donor roadClass recomputed from chosen typed evidence and same section scheme");audit.put("beforeLinks",beforeLinks);audit.put("afterLinks",afterLinks);audit.put("beforeZeroLengthLinks",beforeZero);audit.put("retainedZeroLengthLinks",afterZero);audit.put("beforeShortLinks",beforeShort);audit.put("retainedShortLinks",afterShort);audit.put("shortCountUnits","individually rounded native length < 10m; merge eligibility uses exact metric < 10m");
+                audit.put("exactGeometryMetres",exactLength);audit.put("roundedLinkMetres",totalLength);audit.put("roundingBudgetMetres",beforeLinks*0.5);audit.put("roundingErrorMetres",totalLength-exactLength);
+                audit.put("lengthPolicy","sum original individually rounded interval lengths; source-span offsets preserved; abs(error) <= beforeLinks * 0.5m");
+                audit.put("mapping",Collections.unmodifiableList(mergeRows));audit.put("retainedTiny",Collections.unmodifiableList(retainedTiny));
+                evidence.put("shortLinkMerge",Collections.unmodifiableMap(audit));
+            }
+            evidence.put("adapterExperiments",experiments.toMap());
             attributeEvidence=Collections.unmodifiableMap(evidence);
             segments=Collections.unmodifiableList(built);decisions=Collections.unmodifiableList(ds);blockers=Collections.unmodifiableList(bs);
+        }
+        private List<NativeLink> mergeLinks(List<NativeLink> original,int segment,String schemeId,List<java.util.Map<String,Object>> mapping,List<java.util.Map<String,Object>> retained){
+            List<NativeLink> links=new ArrayList<>(original);
+            for(int i=0;i<links.size();){
+                NativeLink tiny=links.get(i);
+                if(tiny.exactMetres>=10){i++;continue;}
+                // Prefer previous in the same-type run. Its first link merges next;
+                // section and differing linkType are the only hard boundaries.
+                int neighbor=i>0&&links.get(i-1).type==tiny.type?i-1:i+1<links.size()&&links.get(i+1).type==tiny.type?i+1:-1;
+                if(neighbor<0){i++;continue;}
+                int left=Math.min(i,neighbor);NativeLink first=links.get(left),second=links.get(left+1);
+                links.set(left,new NativeLink(first,second,null,donorProfile,schemeId));links.remove(left+1);i=Math.max(0,left-1);
+            }
+            for(int i=0;i<links.size();i++){
+                NativeLink link=links.get(i);
+                link=new NativeLink(link,null,syntheticId(routeId,pathId,segment,i,point(link.begin),point(link.end)),donorProfile,schemeId);links.set(i,link);
+                java.util.Map<String,Object> row=new java.util.LinkedHashMap<>();row.put("segment",segment);row.put("link",i);row.put("begin",link.begin);row.put("end",link.end);row.put("length",link.length);row.put("linkID",link.id.toString());row.put("roadClass",link.roadClass);row.put("formway",link.formway);row.put("linkType",link.type);row.put("laneNum",link.lanes);row.put("direction",link.direction);row.put("ownership",link.ownership);row.put("adminCode",link.adminCode);row.put("URID",link.urid);row.put("roadName",link.name);row.put("trafficLightNum",link.lightCount);row.put("mainAction",link.action.main);row.put("assistantAction",link.action.assistant);row.put("hasMultiOut",link.multiOut);row.put("hasParallelRoad",link.parallelRoad);row.put("hasMixFork",link.mixFork);
+                List<java.util.Map<String,Object>> spans=new ArrayList<>(),discarded=new ArrayList<>();java.util.Map<String,Object> chosen=null;
+                for(SourceSpan span:link.spans){
+                    NativeLink source=span.original;java.util.Map<String,Object> part=new java.util.LinkedHashMap<>();part.put("sourceLink",span.sourceLink);part.put("begin",span.begin);part.put("end",span.end);part.put("length",span.length);part.put("exactMetres",source.exactMetres);
+                    part.put("rawClass",span.raw.rawClass);part.put("classType",span.raw.classType);part.put("fc",span.raw.rawFc);part.put("fcType",span.raw.fcType);part.put("quality",span.raw.quality);
+                    part.put("roadClass",source.roadClass);part.put("formway",source.formway);part.put("linkType",source.type);part.put("ownership",source.ownership);part.put("laneNum",source.lanes);part.put("direction",source.direction);part.put("adminCode",source.adminCode);part.put("URID",source.urid);part.put("roadName",source.name);part.put("trafficLightNum",source.lightCount);part.put("mainAction",source.action.main);part.put("assistantAction",source.action.assistant);part.put("hasMultiOut",source.multiOut);part.put("hasParallelRoad",source.parallelRoad);part.put("hasMixFork",source.mixFork);
+                    java.util.Map<String,Object> frozen=Collections.unmodifiableMap(part);spans.add(frozen);if(source==link.dominant)chosen=frozen;else discarded.add(frozen);
+                }
+                row.put("sourceIntervals",Collections.unmodifiableList(spans));row.put("chosenAttributeEvidence",chosen);row.put("discardedAttributeEvidence",Collections.unmodifiableList(discarded));
+                row.put("attributePolicy","EXPERIMENT: longest ORIGINAL constituent by exact route metres; ties choose earliest original begin; no class-majority smoothing; donor projection recomputed from chosen typed evidence and section scheme");
+                if(donorProfile!=null){NativeDonorProfile.ClassDecision selected=donorProfile.roadClass(schemeId,link.dominant.spans.get(0).raw);row.put("donorRule",selected.rule);row.put("donorSource",selected.source);}
+                mapping.add(Collections.unmodifiableMap(row));
+                if(link.exactMetres<10){
+                    java.util.Map<String,Object> tiny=new java.util.LinkedHashMap<>(row);tiny.put("leftBarrier",i==0?"section_boundary":links.get(i-1).type!=link.type?"link_type_boundary":"previous_same_type");tiny.put("rightBarrier",i+1==links.size()?"section_boundary":links.get(i+1).type!=link.type?"link_type_boundary":"same_type_neighbor");retained.add(Collections.unmodifiableMap(tiny));
+                }
+            }
+            return links;
+        }
+        private int spanRemaining(NativeLink link,double scalar){
+            long remaining=0;for(SourceSpan span:link.spans){
+                if(scalar>=span.end)continue;
+                if(scalar<=span.begin){remaining+=span.length;continue;}
+                double exact=metres(span.end)-metres(span.begin),fraction=exact==0?1:(metres(scalar)-metres(span.begin))/exact;
+                remaining+=Math.round(span.length*(1-Math.max(0,Math.min(1,fraction))));
+            }
+            return nonnegativeInt(remaining);
         }
         public String routeId(){return routeId;}
         public Coordinates.Frame frame(){return frame;}
@@ -288,7 +365,7 @@ public final class YandexNativeAdapter {
             for(int i=0;i<s.links.size();i++)if(scalar<s.links.get(i).end){li=i;break;}
             NativeLink l=s.links.get(li);double denominator=metres(l.end)-metres(l.begin);
             double fraction=denominator==0?1:(metres(scalar)-metres(l.begin))/denominator;
-            int lr=nonnegativeInt(Math.round(l.length*(1-Math.max(0,Math.min(1,fraction)))));
+            int lr=l.spans.size()==1?nonnegativeInt(Math.round(l.length*(1-Math.max(0,Math.min(1,fraction))))):spanRemaining(l,scalar);
             long sr=lr;for(int i=li+1;i<s.links.size();i++)sr+=s.links.get(i).length;
             long rr=sr;for(int i=si+1;i<segments.size();i++)rr+=segments.get(i).length;
             int sourceEdge=Math.min((int)scalar,lon.length-2);
@@ -304,6 +381,11 @@ public final class YandexNativeAdapter {
                 return donorProfile==null?0:donorProfile.historySpeedKmh(segments.get(p.segmentIndex).links.get(p.linkIndex).roadClass);
             double speed=sectionFreeFlowKmh[p.segmentIndex];
             return finiteNonnegative(speed)&&speed<=Integer.MAX_VALUE?(int)Math.round(speed):0;
+        }
+        private int navigationRemainingLights(double scalar){
+            int count=remainingLights(scalar);if(!experiments.lightWithin500||count==0)return count;
+            for(double at:lights)if(at>scalar)return metres(at)-metres(scalar)>500?0:count;
+            return count;
         }
         public int remainingLights(double scalar){requireScalar(scalar);int n=0;if(lights!=null)for(double at:lights)if(at>scalar)n++;return n;}
         public long getPathID(){return pathId;}public long getSegmentCount(){return segments.size();}
@@ -332,7 +414,7 @@ public final class YandexNativeAdapter {
         NativeModels.NaviInfo out=new NativeModels.NaviInfo();out.pathID=route.pathId;
         out.routeRemain=new NativeModels.TimeAndDist(p.routeRemainM,(int)Math.round(input.timeToFinishS));
         out.curSegIdx=p.segmentIndex;out.curLinkIdx=p.linkIndex;out.curPointIdx=p.pointIndex;out.linkRemainDist=p.linkRemainM;
-        out.routeRemainLightCount=route.remainingLights(input.scalar);out.crossManeuverID=route.segments.get(p.segmentIndex).action.icon;
+        out.routeRemainLightCount=route.navigationRemainingLights(input.scalar);out.crossManeuverID=route.segments.get(p.segmentIndex).action.icon;
         out.curLinkSpeed=input.historicalSpeedKmh==null?route.freeFlowProxy(input,p):input.historicalSpeedKmh;
         if(out.curLinkSpeed<0)throw new IllegalArgumentException("historical speed must be nonnegative");
         out.NaviInfoFlag=0;out.NaviInfoData=new ArrayList<>();NativeModels.NaviInfoPanel panel=new NativeModels.NaviInfoPanel();
@@ -397,17 +479,38 @@ public final class YandexNativeAdapter {
         public int getMainAction(){return action.main;}public int getAssistantAction(){return action.assistant;}
         public long getTrafficLightNum(){long n=0;for(NativeLink l:links)n+=l.lightCount;return n;}
     }
+    private static final class SourceSpan {
+        final double begin,end;final int length,sourceLink;final RouteAttributes.RendererClass raw;final NativeLink original;
+        SourceSpan(double begin,double end,int length,int sourceLink,RouteAttributes.RendererClass raw,NativeLink original){this.begin=begin;this.end=end;this.length=length;this.sourceLink=sourceLink;this.raw=raw;this.original=original;}
+    }
     private static final class NativeLink implements NativePath.Link {
-        final double begin,end;final int length,roadClass,formway,type,lanes,direction,ownership,adminCode,urid;final BigInteger id;
+        final double begin,end,exactMetres;final NativeLink dominant;final int length,roadClass,formway,type,lanes,direction,ownership,adminCode,urid;final BigInteger id;
         final boolean multiOut,parallelRoad,mixFork;
+        final List<SourceSpan> spans;
         final String name;final int lightCount;final NativeEnums.Action action;final int[] lons,lats;final double[] scalars;
-        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,int ownership,int lanes,String n,int tl,NativeEnums.Action act,double[][] geometry,Coordinates.Frame frame,boolean supported,NativeDonorProfile donorProfile){
+        NativeLink(double b,double e,int len,BigInteger identity,int roadClass,int t,int form,int ownership,int lanes,String n,int tl,NativeEnums.Action act,double[][] geometry,Coordinates.Frame frame,boolean supported,NativeDonorProfile donorProfile,RouteAttributes.RendererClass raw,int sourceLink,double exactMetres){
+            this.exactMetres=exactMetres;dominant=this;
             begin=b;end=e;length=len;id=identity;this.roadClass=roadClass;formway=form;type=t;
             this.lanes=lanes;direction=donorProfile==null?0:donorProfile.direction;this.ownership=ownership;
             multiOut=donorProfile!=null&&donorProfile.hasMultiOut;parallelRoad=donorProfile!=null&&donorProfile.hasParallelRoad;mixFork=donorProfile!=null&&donorProfile.hasMixFork;
             adminCode=donorProfile==null?0:donorProfile.adminCode;urid=donorProfile==null?0:donorProfile.urid;
             name=n==null?"":n;lightCount=tl;action=act;lons=new int[supported?geometry.length:0];lats=new int[lons.length];scalars=new double[geometry.length];
             for(int i=0;i<geometry.length;i++){scalars[i]=geometry[i][0];if(supported){double[] p=sdkCoordinate(geometry[i][1],geometry[i][2],frame);lons[i]=units(p[0]);lats[i]=units(p[1]);}}
+            spans=Collections.singletonList(new SourceSpan(b,e,len,sourceLink,raw,this));
+        }
+        /** Join geometry without dropping source cut positions; source spans retain offsets. */
+        NativeLink(NativeLink a,NativeLink b,BigInteger identity,NativeDonorProfile donorProfile,String schemeId){
+            exactMetres=a.exactMetres+(b==null?0:b.exactMetres);
+            dominant=b==null||a.dominant.exactMetres>=b.dominant.exactMetres?a.dominant:b.dominant;
+            NativeLink selected=dominant;
+            begin=a.begin;end=b==null?a.end:b.end;length=nonnegativeInt((long)a.length+(b==null?0:b.length));id=identity==null?a.id:identity;
+            roadClass=donorProfile==null?selected.roadClass:donorProfile.roadClass(schemeId,selected.spans.get(0).raw).roadClass;formway=selected.formway;type=selected.type;lanes=selected.lanes;direction=selected.direction;ownership=selected.ownership;adminCode=selected.adminCode;urid=selected.urid;
+            multiOut=selected.multiOut;parallelRoad=selected.parallelRoad;mixFork=selected.mixFork;name=selected.name;lightCount=a.lightCount+(b==null?0:b.lightCount);action=b==null?a.action:b.action;
+            List<SourceSpan> all=new ArrayList<>(a.spans);if(b!=null)all.addAll(b.spans);spans=Collections.unmodifiableList(all);
+            int count=a.scalars.length+(b==null?0:b.scalars.length-1);scalars=new double[count];System.arraycopy(a.scalars,0,scalars,0,a.scalars.length);
+            if(b!=null)System.arraycopy(b.scalars,1,scalars,a.scalars.length,b.scalars.length-1);
+            int points=a.lons.length+(b==null||b.lons.length==0?0:b.lons.length-1);lons=new int[points];lats=new int[points];System.arraycopy(a.lons,0,lons,0,a.lons.length);System.arraycopy(a.lats,0,lats,0,a.lats.length);
+            if(b!=null&&b.lons.length>0){System.arraycopy(b.lons,1,lons,a.lons.length,b.lons.length-1);System.arraycopy(b.lats,1,lats,a.lats.length,b.lats.length-1);}
         }
         public BigInteger get64TopoID(){return id;}public int getRoadClass(){return roadClass;}public String getRoadName(){return name;}
         public int getLength(){return length;}public int getLinkType(){return type;}public int getFormway(){return formway;}

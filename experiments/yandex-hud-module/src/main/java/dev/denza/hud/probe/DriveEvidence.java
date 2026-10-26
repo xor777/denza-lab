@@ -15,7 +15,8 @@ import java.util.Map;
  * Passive trip evidence, enabled on the car too. No sender, subscription, route or cache mutation.
  * Sized for a two-hour drive: packets 7 × 8 MiB (2026-10-24: ~0.35 MiB a minute once repeats are
  * compact and service 13 is recorded by one receiver), history 3 × 8 MiB (~1.3 KiB a second), and
- * the change journal of ADAS state, which does not rotate while a drive lasts.
+ * the change journal of ADAS state, which does not rotate while a drive lasts. Build 27 motion
+ * inputs have a separate 3 × 8 MiB ring; retention depends on the observed callback frequency.
  */
 final class DriveEvidence {
     static final long RING_BYTES = DriveEvidenceStreams.RING_BYTES;
@@ -41,7 +42,8 @@ final class DriveEvidence {
         catch(java.io.IOException|RuntimeException failed){Log.w("DenzaYandexHud","no ADAS change journal: "+failed.getClass().getSimpleName());}
         journal=opened;
         streams=new DriveEvidenceStreams(new DriveEvidenceLog(new File(directory,"progress.jsonl"),RING_BYTES,HISTORY_GENERATIONS),
-                new DriveEvidenceLog(new File(directory,"adas-packets.jsonl"),RING_BYTES,PACKET_GENERATIONS),journal);current=enabled?this:null;
+                new DriveEvidenceLog(new File(directory,"adas-packets.jsonl"),RING_BYTES,PACKET_GENERATIONS),journal,
+                new DriveEvidenceLog(new File(directory,"motion.jsonl"),RING_BYTES,DriveEvidenceStreams.MOTION_GENERATIONS));current=enabled?this:null;
     }
     void sample(NavigatorSource.Frame frame,long now) {
         if(!enabled||pending||now<nextSample)return;nextSample=now+1000;pending=true;
@@ -104,6 +106,11 @@ final class DriveEvidence {
     }
     static void passiveState(String event,String detail) {
         passiveState("overlay",null,event,detail);
+    }
+    /** Exact adapter submission and its source metadata, not a claim about later factory consumption. */
+    static void motionInput(Map<String,Object> input) {
+        DriveEvidence d=current;if(d==null)return;
+        Map<String,Object> row=new LinkedHashMap<>(input);row.put("kind","native_motion_input");d.enqueue(row);
     }
     static void passiveState(String receiver,String receiverSession,String event,String detail) {
         DriveEvidence d=current;if(d==null)return;Map<String,Object> row=new LinkedHashMap<>();row.put("kind","adas_passive_state");

@@ -6,8 +6,8 @@ shell helper locally. `arm`/`restore` are deliberately separate, explicit ADB
 operations: no install, launch, key management, tunnels or automatic APK-version
 inference. A rollback ledger is durable before mutation.
 
-This branch uses the factory sender only. New arms have no experiment variant
-or vehicle side-channel writes. Restore still understands historical rollback
+This branch uses the factory sender only. New arms may pin an adapter input
+policy, but have no legacy experiment variant or vehicle side-channel writes. Restore still understands historical rollback
 ledgers, including their independently recorded MPC/instrument originals.
 """
 from __future__ import annotations
@@ -38,6 +38,8 @@ ARM = "files/denza-adas-live-arm.json"
 LIVE_STOP = "files/denza-adas-live-stop.json"
 COORDINATE_FRAMES = ("WGS84", "NATIVE_GCJ_UNRESTRICTED_CANDIDATE", "ALTERNATE_ROUTES")
 DEFAULT_COORDINATE_FRAME = "NATIVE_GCJ_UNRESTRICTED_CANDIDATE"
+ADAPTER_EXPERIMENT_SCHEMA = "denza-adas-adapter-experiments-v2"
+ADAPTER_EXPERIMENT_FLAGS = ("lightWithin500", "speedFromFixes", "coherentProgress", "mergeShortLinks")
 HEARTBEAT = "files/denza-adas-consumer.json"
 STATE = "files/denza-adas-live-state.json"
 GATES = "files/denza-adas-gates.json"
@@ -59,6 +61,26 @@ REQUIRED_FIDS = (1126170651, 1126170658, 1126170664, 700448824, 700448826,
 
 class SessionError(ValueError):
     pass
+
+
+def adapter_experiments(value):
+    """An explicit immutable input policy, never a factory-core or legacy variant."""
+    if (not isinstance(value, dict) or set(value) != {"schema", *ADAPTER_EXPERIMENT_FLAGS}
+            or value.get("schema") != ADAPTER_EXPERIMENT_SCHEMA
+            or any(type(value.get(key)) is not bool for key in ADAPTER_EXPERIMENT_FLAGS)):
+        raise SessionError("invalid adapter experiments")
+    return {"schema": ADAPTER_EXPERIMENT_SCHEMA, **{key: value[key] for key in ADAPTER_EXPERIMENT_FLAGS}}
+
+
+def adapter_profile(profile, overrides=None):
+    if profile not in ("candidate28", "baseline26"):
+        raise SessionError("unknown adapter profile")
+    values = {key: profile == "candidate28" for key in ADAPTER_EXPERIMENT_FLAGS}
+    for key, value in (overrides or {}).items():
+        if key not in values or type(value) is not bool:
+            raise SessionError("invalid adapter override")
+        values[key] = value
+    return adapter_experiments({"schema": ADAPTER_EXPERIMENT_SCHEMA, **values})
 
 
 # SETTING_MPC_IFC_NAVI_ST_SET (0x4CA0004B), device 1023: parked_session.py's commands and values.
@@ -524,6 +546,8 @@ def arm_accepted(device, row, *, sleep=time.sleep):
                 if state.get("state") in ("WAITING", "LIVE") and state.get("quiescent") is False:
                     if row.get("sender") == "stocknative" and state.get("sender") != "stocknative":
                         raise SessionError("runtime did not confirm factory sender")
+                    if "adapterExperiments" in row and state.get("adapterExperiments") != row["adapterExperiments"]:
+                        raise SessionError("runtime did not confirm adapter experiments")
                     return state
         sleep(0.25)
     raise SessionError("fresh runtime acceptance of this exact armId not established")
@@ -619,12 +643,15 @@ def navi_st_original(device, row, *, sleep=time.sleep):
 
 
 def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_confirmed=False, sleep=time.sleep, variant=None,
-        coordinate_frame=DEFAULT_COORDINATE_FRAME):
+        coordinate_frame=DEFAULT_COORDINATE_FRAME, experiments=None):
     integer(lifetime, "arm lifetime", 1000, MAX_LIFETIME_MS)
     if coordinate_frame not in COORDINATE_FRAMES:
         raise SessionError("unknown coordinate frame")
     if variant is not None:
         raise SessionError("factory sender does not accept legacy experiment variants")
+    # The Python API keeps absent policy backward-compatible. The CLI explicitly
+    # chooses candidate28 (or baseline26) and proves runtime support before mutation.
+    experiments = adapter_experiments(experiments) if experiments is not None else None
     checked_sha(jar_sha)
     if not stationary_confirmed:
         raise SessionError("explicit --stationary-confirmed human confirmation is required")
@@ -638,6 +665,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
     if device.private(ARM) is not None:
         raise SessionError("existing arm file; restore its own session first")
     initial = quiescent(device, boot, consumer)
+    if experiments is not None and initial.get("adapterExperimentsSchema") != ADAPTER_EXPERIMENT_SCHEMA:
+        raise SessionError("installed runtime does not support adapter experiments")
     stock = device.app(STOCK)
     if stock["enabledState"] not in (0, 1, 3):
         raise SessionError("original stock state not proven shell-restorable")
@@ -648,6 +677,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
            "stockPackage": STOCK, "originalStock": stock, "stockPidsBefore": device.stock_pids(),
            "initialQuiescence": initial, "stationary": stationary, "lifetimeMs": lifetime,
            "readerJarSha256": jar_sha, "sender": "stocknative", "coordinateFrame": coordinate_frame, "phase": "ROLLBACK_RECORDED", "armWritten": False}
+    if experiments is not None:
+        row["adapterExperiments"] = experiments
     save_ledger(ledger_path, row, create=True)  # Must precede the first package or device-file mutation.
     try:
         device.stock_enabled(3); row["phase"] = "STOCK_DISABLED"; save_ledger(ledger_path, row)
@@ -666,6 +697,8 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
                   "readerSession": row["readerSession"], "armId": row["armId"], "issuedAtElapsedMs": issued,
                   "expiresAtElapsedMs": issued + lifetime, "stockPackage": STOCK, "stockDisabled": True,
                   "coordinateFrame": coordinate_frame}
+        if experiments is not None:
+            record["adapterExperiments"] = experiments
         # Unknown outcome after write must take the normal disarm/closure-proof rollback path.
         row["phase"] = "ARM_WRITE_PENDING"; row["armWritten"] = True; row["arm"] = record; save_ledger(ledger_path, row)
         device.write_private(ARM, record)
@@ -831,6 +864,10 @@ def main(argv=None):
             command.add_argument("--stationary-confirmed", action="store_true")
             command.add_argument("--dry-run", action="store_true")
             command.add_argument("--coordinate-frame", choices=COORDINATE_FRAMES, default=DEFAULT_COORDINATE_FRAME)
+            command.add_argument("--adapter-profile", choices=("candidate28", "baseline26"), default="candidate28")
+            for option, key in (("light-within-500", "lightWithin500"), ("speed-from-fixes", "speedFromFixes"),
+                                ("coherent-progress", "coherentProgress"), ("merge-short-links", "mergeShortLinks")):
+                command.add_argument("--" + option, dest=key, action=argparse.BooleanOptionalAction, default=None)
     args = parser.parse_args(argv)
     try:
         if args.command == "build-reader":
@@ -843,20 +880,24 @@ def main(argv=None):
             integer(args.lifetime_ms, "lifetime", 1000, MAX_LIFETIME_MS); checked_sha(args.reader_sha256)
             if sha256_file(args.reader_jar) != args.reader_sha256:
                 raise SessionError("reader JAR hash mismatch")
+            experiments = adapter_profile(args.adapter_profile, {key: getattr(args, key)
+                                          for key in ADAPTER_EXPERIMENT_FLAGS if getattr(args, key) is not None})
             if args.command == "plan" or args.dry_run:
                 result = {"schema": "denza-adas-live-plan-v1", "deviceCalls": 0, "serial": args.serial,
                           "stockPackage": STOCK, "apk": expected.__dict__, "ledger": str(args.ledger),
                           "readerJar": str(args.reader_jar), "readerSha256": args.reader_sha256,
                           "lifetimeMs": args.lifetime_ms, "sender": "stocknative", "coordinateFrame": args.coordinate_frame,
+                          "adapterExperiments": experiments, "requiredRuntimeCapability": ADAPTER_EXPERIMENT_SCHEMA,
                           "stationaryConfirmationRequired": True,
                           "steps": ["Verify exact APK SHA/version, boot and fresh consumer", "Require human stationary confirmation, legacy park raw1 and FLOAT speed0",
                                     "Require no existing arm and fresh quiescent/closed runtime", "Durably record original stock enabled state and identity",
                                     "disable-user state3; force-stop; verify all stock/stock: PIDs absent", "Start own bounded reader; verify same-session snapshot",
-                                    "Recheck identities/stationarity/isolation; write factory-sender arm without experimental field overrides or side-channel writes", "On failure disarm + stop own reader; restore stock only after stable closure proof"],
+                                    "Recheck identities/stationarity/isolation; write factory-sender arm with pinned adapter policy and no vehicle side-channel writes", "On failure disarm + stop own reader; restore stock only after stable closure proof"],
                           "limits": ["No independent selector-P proof", "No process-absence/Binder-cleanup restore fallback; missing closure proof leaves explicit rollback pending"]}
             else:
                 result = arm(Device(args.adb, args.serial), expected, args.reader_jar, args.reader_sha256, args.lifetime_ms,
-                             args.ledger, stationary_confirmed=args.stationary_confirmed, coordinate_frame=args.coordinate_frame)
+                             args.ledger, stationary_confirmed=args.stationary_confirmed, coordinate_frame=args.coordinate_frame,
+                             experiments=experiments)
         print(json.dumps(result, indent=2, allow_nan=False)); return 0
     except (SessionError, OSError, subprocess.SubprocessError) as error:
         parser.exit(2, str(error) + "\n")

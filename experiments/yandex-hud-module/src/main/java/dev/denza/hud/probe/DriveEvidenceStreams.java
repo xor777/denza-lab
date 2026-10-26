@@ -22,7 +22,7 @@ final class DriveEvidenceStreams {
      * and the dry run ~0.2 MiB a minute. See DriveEvidenceStreamsTest for the arithmetic.
      */
     static final long RING_BYTES = 8L << 20, DRIVE_MS = 2L * 60 * 60 * 1000;
-    static final int PACKET_GENERATIONS = 7, HISTORY_GENERATIONS = 3, LIVE_GENERATIONS = 6, DRY_RUN_GENERATIONS = 5;
+    static final int PACKET_GENERATIONS = 7, HISTORY_GENERATIONS = 3, LIVE_GENERATIONS = 6, DRY_RUN_GENERATIONS = 5, MOTION_GENERATIONS = 3;
     static final class QueueBudget {
         private final int limit;
         private final AtomicInteger queued=new AtomicInteger();
@@ -35,13 +35,16 @@ final class DriveEvidenceStreams {
         void done(){queued.decrementAndGet();}
         void postFailed(){postFailures.incrementAndGet();done();}
     }
-    private final DriveEvidenceLog history,packets;
+    private final DriveEvidenceLog history,packets,motion;
     private final AdasStateJournal journal;
     final QueueBudget rawQueue=new QueueBudget(32),criticalQueue=new QueueBudget(32);
+    final QueueBudget motionQueue=new QueueBudget(16);
+    private final AtomicLong motionErrors=new AtomicLong();
     private final AtomicLong historyErrors=new AtomicLong(),packetErrors=new AtomicLong(),journalErrors=new AtomicLong(),repeats=new AtomicLong();
     private final Map<String,byte[]> lastPayload=new HashMap<>();
     DriveEvidenceStreams(DriveEvidenceLog history,DriveEvidenceLog packets){this(history,packets,null);}
-    DriveEvidenceStreams(DriveEvidenceLog history,DriveEvidenceLog packets,AdasStateJournal journal){this.history=history;this.packets=packets;this.journal=journal;}
+    DriveEvidenceStreams(DriveEvidenceLog history,DriveEvidenceLog packets,AdasStateJournal journal){this(history,packets,journal,null);}
+    DriveEvidenceStreams(DriveEvidenceLog history,DriveEvidenceLog packets,AdasStateJournal journal,DriveEvidenceLog motion){this.history=history;this.packets=packets;this.journal=journal;this.motion=motion;}
 
     /** The row for one received packet: in full, or as a repeat of the receiver's previous payload on its topic. */
     synchronized Map<String,Object> passive(String receiver,String receiverSession,String processSession,
@@ -82,10 +85,17 @@ final class DriveEvidenceStreams {
                 ||topic==0x0001000D000D0001L||topic==0x0001000D000D0002L
                 ||topic==0x0001002C002C0001L||topic==0x0001002C002C0002L;
     }
-    QueueBudget budget(Map<String,Object> row){return critical(row)?criticalQueue:rawQueue;}
+    static boolean motion(Map<String,Object> row){return "native_motion_input".equals(row.get("kind"));}
+    QueueBudget budget(Map<String,Object> row){return motion(row)?motionQueue:critical(row)?criticalQueue:rawQueue;}
 
     void append(Map<String,Object> row)throws IOException {
         String line=RouteSnapshot.json(row);IOException failure=null;
+        // Motion diagnostics have their own retention and queue: never evict packet or route proof.
+        if(motion(row)) {
+            if(motion==null)return;
+            try{motion.append(line);}catch(IOException error){motionErrors.incrementAndGet();throw error;}
+            return;
+        }
         if(AdasStateJournal.journal(row)) {
             if(journal==null)return;
             try{journal.append(line);}catch(IOException error){journalErrors.incrementAndGet();throw error;}
@@ -101,6 +111,8 @@ final class DriveEvidenceStreams {
         m.put("rawDropped",rawQueue.dropped.get());m.put("criticalDropped",criticalQueue.dropped.get());
         m.put("rawPostFailures",rawQueue.postFailures.get());m.put("criticalPostFailures",criticalQueue.postFailures.get());
         m.put("historyWriteErrors",historyErrors.get());m.put("packetWriteErrors",packetErrors.get());
+        m.put("motionQueued",motionQueue.queued.get());m.put("motionDropped",motionQueue.dropped.get());
+        m.put("motionPostFailures",motionQueue.postFailures.get());m.put("motionWriteErrors",motionErrors.get());
         m.put("repeatRows",repeats.get());m.put("journalWriteErrors",journalErrors.get());
         m.put("journalBytes",journal==null?null:journal.written());m.put("journalDropped",journal==null?null:journal.dropped());return m;
     }

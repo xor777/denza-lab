@@ -86,7 +86,7 @@ final class AdasBridge {
             if (manager == null || !manager.getAllProviders().contains(LocationManager.PASSIVE_PROVIDER)) return;
             manager.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 0, 0, new LocationListener() {
                 @Override public void onLocationChanged(Location location) {
-                    if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) raw = location;
+                    if (LocationManager.GPS_PROVIDER.equals(location.getProvider())) raw = new Location(location);
                 }
                 @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
                 @Override public void onProviderEnabled(String provider) { }
@@ -156,6 +156,10 @@ final class AdasBridge {
             o.speedMps = speed == null ? Double.NaN : ((Number) speed).doubleValue();
             o.heading = heading == null ? Double.NaN : ((Number) heading).doubleValue();
             Object stamp = api.call(location, "getAbsoluteTimestamp"), relative = api.call(location, "getRelativeTimestamp");
+            o.sdkAbsoluteTimestampMs=stamp instanceof Number?((Number)stamp).longValue():-1;
+            o.sdkRelativeTimestampMs=relative instanceof Number?((Number)relative).longValue():-1;
+            Object accuracy=api.call(location,"getAccuracy");
+            o.sdkAccuracyM=accuracy instanceof Number?((Number)accuracy).doubleValue():Double.NaN;
             // The source monotonic identity orders fixes independently of changes to wall time.
             if (relative instanceof Number && ((Number) relative).longValue() >= 0)
                 o.stamp = ((Number) relative).longValue();
@@ -169,7 +173,16 @@ final class AdasBridge {
         Location gps = raw;
         if (gps != null) {
             long rawAt=gps.getElapsedRealtimeNanos()/1_000_000,age=now-rawAt;
-            if(age>=0&&age<=1500){o.rawLon=gps.getLongitude();o.rawLat=gps.getLatitude();o.rawAtElapsedMs=rawAt;}
+            // Every field is copied from the same independently measured Android GPS fix.
+            // Retain stale source metadata for diagnostics; existing coordinate admission stays closed.
+            o.rawAtElapsedMs=rawAt;o.rawTimestampMs=gps.getTime();
+            o.rawSourceLon=gps.getLongitude();o.rawSourceLat=gps.getLatitude();
+            o.rawHasSpeed=gps.hasSpeed();o.rawSpeedMps=o.rawHasSpeed?gps.getSpeed():Double.NaN;
+            o.rawHasAccuracy=gps.hasAccuracy();o.rawAccuracyM=o.rawHasAccuracy?gps.getAccuracy():Double.NaN;
+            o.rawHasBearing=gps.hasBearing();o.rawBearing=o.rawHasBearing?gps.getBearing():Double.NaN;
+            o.rawMock=gps.isFromMockProvider();
+            if(Build.VERSION.SDK_INT>=26){o.rawHasSpeedAccuracy=gps.hasSpeedAccuracy();o.rawSpeedAccuracyMps=o.rawHasSpeedAccuracy?gps.getSpeedAccuracyMetersPerSecond():Double.NaN;}
+            if(age>=0&&age<=1500){o.rawLon=gps.getLongitude();o.rawLat=gps.getLatitude();}
         }
         final Map<String, Object> routeCopy = copy;
         final FixFreshness.Sample fix = sampledFix;

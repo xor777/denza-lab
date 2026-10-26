@@ -72,7 +72,7 @@ class Car:
         self.files = self.root / "files"
         self.evidence = self.files / "denza-drive-evidence"
         self.evidence.mkdir(parents=True)
-        self.live, self.packets, self.journal, self.progress = [], [], [], []
+        self.live, self.packets, self.journal, self.progress, self.motion = [], [], [], [], []
         self.full = {}
 
     # --- denza-adas-live.jsonl
@@ -177,7 +177,7 @@ class Car:
             dump(self.files / "denza-adas-live.jsonl", self.live[live_split:])
         else:
             dump(self.files / "denza-adas-live.jsonl", self.live)
-        for name, rows in (("adas-packets.jsonl", self.packets), ("adas-journal.jsonl", self.journal), ("progress.jsonl", self.progress)):
+        for name, rows in (("adas-packets.jsonl", self.packets), ("adas-journal.jsonl", self.journal), ("progress.jsonl", self.progress), ("motion.jsonl", self.motion)):
             if rows:
                 dump(self.evidence / name, rows)
         for name, value in (extra or {}).items():
@@ -1012,6 +1012,189 @@ class StockNativeJournal(unittest.TestCase):
                              "payloadHex": stock.path_selected(123).hex()})
             result = run(car.write())
             self.assertEqual(result["cadence"]["topics"], [])
+
+
+
+
+class MotionAuditReview(unittest.TestCase):
+    @staticmethod
+    def row(t, arm="new-arm", **fields):
+        row = {"kind": "native_motion_input", "armId": arm, "sourceSessionId": NAVIGATOR,
+               "capturedAtMs": OFFSET + t, "adapterSubmissionElapsedMs": t, "observedElapsedMs": t - 5,
+               "sdkStamp": t - 10, "routeId": "native-" + str(arm), "pathId": 333,
+               "admissionReason": "accepted", "sdkSpeedMps": 0, "selectedSpeedMps": 4,
+               "nativeInputSpeedKmh": 14.4, "speedSource": "sdk_matched_coordinate_pair",
+               "speedReason": "derived_from_adjacent_fixes", "derivedDistanceM": 4, "derivedDtMs": 1000,
+               "derivedConsistencyEvidence": "positive_previous_sdk_speed_only"}
+        row.update(fields)
+        return row
+
+    @staticmethod
+    def native(car, arm="new-arm", start=4000, experiments=True):
+        StockNativeJournal.native(car, arm, start, 333)
+        if experiments:
+            next(r for r in reversed(car.live) if r.get("input") == "nativeInputPolicy")["adapterExperiments"] = {
+                "schema": "denza-adas-adapter-experiments-v2", "lightWithin500": True, "speedFromFixes": True,
+                "coherentProgress": True, "mergeShortLinks": True}
+
+    def test_explicit_arm_wins_over_time_window_and_unidentified_rows_are_excluded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car, "old-arm", 2000)
+            self.native(car)
+            # Queued old-arm callbacks arrive during the new arm. Conversely an explicit
+            # new-arm row outside that inferred time window retains its own identity.
+            car.motion = [self.row(4500, "old-arm"), self.row(4501), self.row(4502, None), self.row(1900)]
+            result = run(car.write())
+            m = result["motion"]
+            self.assertEqual(result["attribution"]["armId"], "new-arm")
+            self.assertEqual(m["rows"], 2)
+            self.assertEqual(m["byArmId"], {"new-arm": 2})
+            self.assertEqual((m["attribution"]["excludedOtherArmRows"], m["attribution"]["excludedUnattributedRows"]), (1, 1))
+            self.assertEqual([r["elapsedMs"] for r in m["observations"]], [1900, 4501])
+            old, _ = review.review(tmp, arm_id="old-arm")
+            self.assertEqual(old["motion"]["rows"], 1)
+            self.assertEqual(old["motion"]["byArmId"], {"old-arm": 1})
+
+    def test_accepted_corrections_are_distinct_from_selected_but_rejected_zero_inputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car)
+            corrected = self.row(4100)
+            rejected = self.row(4200, admissionReason="stale_or_non_fine_fix")
+            stationary = self.row(4300, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                                  speedSource="yandex_sdk", speedReason="actual_vehicle_stop")
+            missing = self.row(4400)
+            missing.pop("nativeInputSpeedKmh")
+            nonzero = self.row(4500, sdkSpeedMps=4, speedSource="yandex_sdk", speedReason="sdk_speed_nonzero")
+            car.motion = [corrected, rejected, stationary, missing, nonzero]
+            result = run(car.write())
+            m, zero = result["motion"], result["motion"]["zeroSdk"]
+            self.assertEqual(m["byAdmission"], {"accepted": 4, "stale_or_non_fine_fix": 1})
+            self.assertEqual((zero["rows"], zero["acceptedCorrections"], zero["acceptedUncorrected"], zero["rejectedRows"], zero["acceptedMissingNativeInputSpeed"]), (4, 1, 1, 1, 1))
+            self.assertEqual(m["acceptedBySpeedSource"], {"sdk_matched_coordinate_pair": 2, "yandex_sdk": 2})
+            sample = zero["corrections"][0]
+            self.assertEqual((sample["elapsedMs"], sample["sdkStamp"], sample["derivedDtMs"]), (4100, 4090, 1000))
+            self.assertTrue(sample["ref"].endswith("motion.jsonl:1"))
+            self.assertEqual(sample["derivedConsistencyEvidence"], "positive_previous_sdk_speed_only")
+            _, clock = review.review(tmp)
+            text = review.markdown(result, clock)
+            self.assertIn("исправлено и принято 1; принято без исправления 1; отклонено 1", text)
+            self.assertIn("sdk_matched_coordinate_pair=3", text)
+            self.assertIn("вход адаптера", text)
+            self.assertFalse(m["stream"]["completeCoverageEstablished"])
+
+    def test_moving_zero_samples_require_fresh_actual_source_age_never_receipt_age(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car)
+            stopped = self.row(4100, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                               latestObservedVehicleSpeedKmh=0, latestObservedVehicleSpeedSourceAgeMs=0)
+            unresolved = self.row(4200, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                                  latestObservedVehicleSpeedKmh=16, latestObservedVehicleSpeedSourceAgeMs=100)
+            corrected = self.row(4300, latestObservedVehicleSpeedKmh=22,
+                                 latestObservedVehicleSpeedSourceAgeMs=1500, latestObservedVehicleSpeedSourceAtElapsedMs=2800,
+                                 latestObservedVehicleSpeedAgeMs=0, vehicleReadSequence=77,
+                                 derivedPreviousVehicleMps=5, derivedCurrentVehicleMps=22 / 3.6)
+            stale = self.row(4400, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                             latestObservedVehicleSpeedKmh=16, latestObservedVehicleSpeedSourceAgeMs=1501,
+                             latestObservedVehicleSpeedAgeMs=0)
+            missing_age = self.row(4500, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                                   latestObservedVehicleSpeedKmh=22, latestObservedVehicleSpeedAgeMs=0)
+            future = self.row(4600, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                              latestObservedVehicleSpeedKmh=22, latestObservedVehicleSpeedSourceAgeMs=-1,
+                              latestObservedVehicleSpeedAgeMs=0)
+            threshold = self.row(4700, selectedSpeedMps=0, nativeInputSpeedKmh=0,
+                                 latestObservedVehicleSpeedKmh=5.4, latestObservedVehicleSpeedSourceAgeMs=10)
+            car.motion = [stopped, unresolved, corrected, stale, missing_age, future, threshold]
+            result = run(car.write())
+            zero = result["motion"]["zeroSdk"]
+            self.assertEqual((zero["acceptedMovingRows"], zero["acceptedMovingCorrections"], zero["acceptedMovingUnresolved"]), (2, 1, 1))
+            self.assertEqual(zero["acceptedMovementUnknownRows"], 3)
+            self.assertEqual(zero["acceptedKnownNotMovingByThresholdRows"], 2)
+            self.assertEqual(zero["acceptedMovingMissingNativeInputSpeed"], 0)
+            self.assertEqual(zero["movingUnresolved"][0]["latestObservedVehicleSpeedKmh"], 16)
+            sample = zero["movingCorrections"][0]
+            self.assertEqual((sample["vehicleReadSequence"], sample["latestObservedVehicleSpeedSourceAgeMs"], sample["latestObservedVehicleSpeedSourceAtElapsedMs"]), (77, 1500, 2800))
+            self.assertEqual((sample["derivedPreviousVehicleMps"], sample["derivedCurrentVehicleMps"]), (5, 22 / 3.6))
+            self.assertEqual(sample["latestObservedVehicleSpeedAgeMs"], 0)
+            self.assertNotIn("latestObservedVehicleSpeedSourceAgeMs", zero["movementUnknown"][1])
+            self.assertIn("input sample counts", zero["countDefinition"])
+            _, clock = review.review(tmp)
+            text = review.markdown(result, clock)
+            self.assertIn("принятых входов 2, исправлено 1, не исправлено 1", text)
+            self.assertIn("не взвешены по времени", text)
+
+    def test_motion_generations_alias_tar_and_overlapping_lines_share_existing_dedup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car)
+            car.write()
+            a, b = self.row(4100), self.row(4200)
+            untimed = self.row(4300)
+            untimed.pop("adapterSubmissionElapsedMs")
+            def dump(path, rows):
+                path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+            predecessor = car.evidence / "motion.jsonl.1"
+            dump(predecessor, [a])
+            dump(car.evidence / "motion.jsonl", [a, b, untimed])
+            dump(car.files / "denza-drive-evidence--motion.jsonl.2", [a])
+            with tarfile.open(car.root / "motion.tar", "w") as archive:
+                archive.add(str(predecessor), arcname="files/denza-drive-evidence/motion.jsonl.1")
+            evidence = review.Evidence(tmp)
+            self.assertEqual(len(evidence.streams["motion"]), 3)
+            self.assertIsNone(next(r for r in evidence.streams["motion"] if "adapterSubmissionElapsedMs" not in r)["_t"])
+            result = run(tmp)
+            m = result["motion"]
+            self.assertEqual((m["rows"], m["stream"]["timedRows"], m["stream"]["untimedRows"]), (3, 2, 1))
+            self.assertEqual((m["stream"]["first"]["elapsedMs"], m["stream"]["last"]["elapsedMs"]), (4100, 4200))
+            self.assertEqual(m["stream"]["currentBuildKeeps"], 3)
+            self.assertEqual(sum(bool(f.get("duplicateOf")) for f in result["inventory"]), 2)
+            ring = next(r for r in result["health"]["rings"]["streams"] if r["stream"] == "motion")
+            self.assertEqual((ring["rows"], ring["currentBuildKeeps"]), (3, 3))
+            self.assertIsNone(ring["lostDriveStart"])
+
+    def test_absent_motion_is_not_a_historical_recording_error_but_new_policy_expects_it(self):
+        for experiments in (False, True):
+            with self.subTest(experiments=experiments), tempfile.TemporaryDirectory() as tmp:
+                car = Car(tmp)
+                self.native(car, experiments=experiments)
+                result = run(car.write())
+                self.assertEqual(result["motion"]["stream"]["expectedForSelectedArm"], experiments)
+                self.assertEqual(any("motion.jsonl" in message for message in result["missing"]), experiments)
+                self.assertEqual(result["motion"]["stream"]["status"], "missing_expected" if experiments else "not_recorded_or_not_supported")
+
+    def test_motion_loss_counters_keep_process_scope_and_references_without_claiming_coverage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car)
+            car.guidance(4200, recorder={"motionDropped": 2, "motionPostFailures": 1, "motionWriteErrors": 0, "motionQueued": 3})
+            car.guidance(4300, recorder={"motionDropped": 4, "motionPostFailures": 1, "motionWriteErrors": 2, "motionQueued": 0})
+            car.guidance(4400, source="another-process", recorder={"motionDropped": 1, "motionPostFailures": 0, "motionWriteErrors": 1})
+            car.guidance(4450, source="other-arm-process", recorder={"motionDropped": 999, "motionPostFailures": 999, "motionWriteErrors": 999})
+            car.progress[-1]["armId"] = "old-arm"
+            car.motion = [self.row(4500)]
+            result = run(car.write())
+            recorder = result["motion"]["recorder"]
+            self.assertEqual(recorder["lossCounts"], {"motionDropped": 5, "motionPostFailures": 1, "motionWriteErrors": 3})
+            self.assertIn("process-lifetime", recorder["scope"])
+            self.assertEqual(len(recorder["processes"]), 2)
+            self.assertEqual(recorder["excludedOtherArmSnapshots"], 1)
+            for process in recorder["processes"]:
+                self.assertTrue(process["counterEvidence"]["motionDropped"]["ref"].startswith("files/denza-drive-evidence/progress.jsonl:"))
+            self.assertFalse(result["motion"]["stream"]["completeCoverageEstablished"])
+            self.assertEqual(result["health"]["recorderLosses"]["motionDropped"], 5)
+
+    def test_motion_only_capture_has_enqueue_wall_anchor_and_explicit_arm_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp, "motion.jsonl")
+            path.write_text(json.dumps(self.row(4100)) + "\n")
+            result = run(tmp)
+            self.assertEqual(result["clock"]["wallMinusElapsedMs"], OFFSET)
+            self.assertIn("adapterSubmissionElapsedMs", result["clock"]["method"])
+            self.assertEqual(result["motion"]["attribution"]["scope"], "all_explicit_arm_ids")
+            self.assertEqual(result["motion"]["observations"][0]["armId"], "new-arm")
+            self.assertIsNone(result["motion"]["recorder"]["lossCounts"])
 
 
 if __name__ == "__main__":

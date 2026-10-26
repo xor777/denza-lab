@@ -59,6 +59,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
+        adapterExperimentArm();
         freshnessRecovery();incoherentProgressRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();preparationGeneration();refreshLatency();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
@@ -122,6 +123,30 @@ public final class NativeProductRuntimeTest {
         r.advanceEvidence(1001);r.evidence(true);NativeNavigationInput street=r.input(false);street.scalar=1.1;r.observe(street);check(historySpeed(wire)==25,"actual wire restores street25 only with coherent current ETA");
         r.advanceEvidence(1001);r.evidence(true);r.observe(false);check(historySpeed(wire)==85,"actual wire restores highway85 with coherent current ETA");
         check(r.bridge.status().pathId==path&&wire.count(Topics.ROUTE)==1,"history recovery keeps original admitted route and path");r.close();
+    }
+    static void adapterExperimentArm()throws Exception{
+        Rig r=new Rig();
+        dev.denza.adaslink.yandexnative.AdapterExperiments flags=dev.denza.adaslink.yandexnative.AdapterExperiments.CANDIDATE;
+        check(dev.denza.adaslink.yandexnative.AdapterExperiments.SCHEMA.equals(r.state().get("adapterExperimentsSchema")),"unarmed runtime advertises adapter schema before host mutation");
+        r.arm.put("adapterExperiments",flags.toMap());r.arm();long path=r.route();
+        check(flags.toMap().equals(r.state().get("adapterExperiments")),"runtime echoes the complete arm policy");
+        NativeMapSession session=(NativeMapSession)field(r.bridge,"session");
+        dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy policy=(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy)field(session,"routePolicy");
+        check(flags.toMap().equals(policy.experiments.toMap()),"candidate flags reach the actual adapter policy");
+        check(DriveEvidence.variants.stream().anyMatch(row->row.startsWith(r.arm.get("armId")+":")&&row.contains("lightWithin500")),"effective flags retained with arm identity");
+        AdasPassiveClient.answers.answer(Topics.PATH_SELECT_CONFIRM,StockMessages.pathSelectConfirm(path,200));Handler.advance(1);
+        int before=DriveEvidence.motion.size();r.evidence(true);r.observe(false);
+        check(DriveEvidence.motion.size()>before,"product callback reaches dedicated motion recorder");
+        Map<String,Object> motion=DriveEvidence.motion.get(DriveEvidence.motion.size()-1);
+        check(r.arm.get("armId").equals(motion.get("armId"))&&flags.toMap().equals(motion.get("adapterExperiments")),"motion row joins arm and flags");
+        check(motion.get("vehicleReadSequence")!=null&&motion.get("adapterSubmissionElapsedMs")!=null,"motion records submission and observed vehicle sequence");
+        long sourceReadAt=SystemClock.now;r.evidence(true);Handler.advance(20);r.observe(false);
+        check(fieldLong(session,"vehicleSpeedSourceAt")==sourceReadAt,"product forwards actual autoservice source time into displacement consistency gate");
+        check(fieldLong(session,"vehicleSpeedObservedAt")>sourceReadAt,"later delivery does not rejuvenate the source clock");
+        Map<String,Object> changed=new LinkedHashMap<>(r.arm);changed.put("adapterExperiments",dev.denza.adaslink.yandexnative.AdapterExperiments.BASELINE.toMap());
+        r.write("denza-adas-live-arm.json",changed);Handler.advance(1000);
+        check(!"LIVE".equals(r.state().get("state")),"same arm cannot silently replace candidate flags while publishing");
+        r.close();
     }
     static void runtimeCancellation(){
         Handler.reset();List<String> effects=new ArrayList<>();AndroidStockRuntime runtime=new AndroidStockRuntime(error->{throw new AssertionError(error);});

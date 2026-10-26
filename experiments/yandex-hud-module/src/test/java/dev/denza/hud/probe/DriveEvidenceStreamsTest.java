@@ -57,6 +57,26 @@ public final class DriveEvidenceStreamsTest {
             int old=read(history).length();
             try {failing.append(match);throw new AssertionError("raw write should fail");}catch(IOException expected){}
             check(read(history).length()>old&&((Number)failing.stats().get("packetWriteErrors")).longValue()==1,"raw write failure does not lose critical history");
+            File motion=directory.resolve("motion.jsonl").toFile();
+            DriveEvidenceStreams separate=new DriveEvidenceStreams(new DriveEvidenceLog(history,8192),new DriveEvidenceLog(raw,2048),null,
+                    new DriveEvidenceLog(motion,512,DriveEvidenceStreams.MOTION_GENERATIONS));
+            Map<String,Object> input=new LinkedHashMap<>();input.put("kind","native_motion_input");input.put("rawHasSpeed",false);
+            String retainedHistory=read(history),retainedRaw=read(raw);
+            for(int i=0;i<1000;i++){input.put("sequence",i);separate.append(input);}
+            check(read(history).equals(retainedHistory)&&read(raw).equals(retainedRaw),"motion flood cannot evict route or wire proof");
+            for(int i=0;i<3;i++)check(new File(motion+(i==0?"":"."+i)).length()<=512,"motion ring byte bound");
+            check(new File(motion+".2").exists()&&!new File(motion+".3").exists(),"exactly three motion generations");
+            check(read(motion).contains("999"),"latest motion input retained");
+            check(separate.budget(input)==separate.motionQueue,"motion gets its independent queue");
+            for(int i=0;i<16;i++)check(separate.motionQueue.acquire(),"bounded motion reservation");
+            check(!separate.motionQueue.acquire()&&separate.criticalQueue.acquire()&&separate.rawQueue.acquire(),"motion overload leaves packet and history queues available");
+            for(int i=0;i<15;i++)separate.motionQueue.done();separate.motionQueue.postFailed();separate.rawQueue.done();separate.criticalQueue.done();
+            check(((Number)separate.stats().get("motionDropped")).longValue()==1&&((Number)separate.stats().get("motionPostFailures")).longValue()==1
+                    &&((Number)separate.stats().get("motionQueued")).longValue()==0,"motion drops and rejected posts counted without leaked capacity");
+            DriveEvidenceStreams brokenMotion=new DriveEvidenceStreams(new DriveEvidenceLog(history,8192),new DriveEvidenceLog(raw,2048),null,new DriveEvidenceLog(blocked,8192));
+            try{brokenMotion.append(input);throw new AssertionError("motion write should fail");}catch(IOException expected){}
+            check(((Number)brokenMotion.stats().get("motionWriteErrors")).longValue()==1,"motion write failures observable");
+            brokenMotion.append(match);check(read(raw).contains("4002c002c8001"),"motion storage failure leaves wire capture operational");
             System.out.println("DriveEvidenceStreamsTest: "+checks+" checks passed");
         } finally {
             try(java.util.stream.Stream<Path> files=Files.walk(directory)){files.sorted(Comparator.reverseOrder()).forEach(p->{try{Files.delete(p);}catch(IOException ignored){}});}

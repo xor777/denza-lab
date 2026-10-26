@@ -82,6 +82,29 @@ publisher but does not restore the stock package; run `restore` after the test.
 
 New `plan` and `arm` commands accept `--coordinate-frame` with `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` (default), `WGS84`, or explicit `ALTERNATE_ROUTES`. Alternation starts native and pins the frame per Yandex route ID for the arm; progress, retry and geometry refresh do not toggle it. Legacy arms without the field retain WGS84. Effective frames appear in route input policy and trip reports. The first stationary candidate uses fixed native mode.
 
+Candidate 28 uses a separate, strict `adapterExperiments` arm object. New
+`plan`/`arm` commands default to `--adapter-profile candidate28`: all of
+`lightWithin500`, `speedFromFixes`, `coherentProgress`, `mergeShortLinks` are true.
+`--adapter-profile baseline26` sets all false. Independent Boolean overrides
+are `--[no-]light-within-500`, `--[no-]speed-from-fixes`,
+`--[no-]coherent-progress`, `--[no-]merge-short-links`. These change adapter
+inputs only; they are not a sender selection or the historical variant below.
+The runtime must advertise `denza-adas-adapter-experiments-v2` while quiescent,
+before any arm mutation, then echo the exact effective flags. Thus this host
+refuses to arm an older APK even with the all-off profile; use the retained
+historical host for an explicitly planned older-build experiment. An absent
+object from a historical arm retains baseline behavior in the new APK.
+Build 27 used v1 and a different raw-speed policy; it is intentionally rejected
+by the current host before mutation. Its pinned host/APK remain historical.
+Flags are pinned in both arm and rollback ledger; changing one needs a new
+stationary arm. No source or protocol changes are made in the factory core.
+
+Motion diagnostics go to the dedicated `denza-drive-evidence/motion.jsonl`
+ring (three 8 MiB files, including the active file), with independent queue/drop
+counters. Preserve the entire evidence directory on export. These rows describe
+adapter submission, not the later factory consumption time. The exact arm
+policy is also retained once in the ADAS change journal.
+
 New `plan` and `arm` commands accept no `--variant` or sender switch. A legacy
 variant arm is rejected; the reader performs no new MPC/instrument side-channel
 writes. The adapter's missing-boolean test policy is explicit in source and logged

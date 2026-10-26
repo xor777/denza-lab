@@ -220,7 +220,12 @@ final class LiveMapBridge {
             public void event(long topic,long timestamp,long receivedAt,byte[] payload){if(arm==owner&&!finished&&session!=null)session.serviceEvent(topic);}
         },false,true);
         transport.start();answers.start();coreClients.start();
-        note("armed",incoming.armId);writeLineageQuiet();return true;
+        note("armed",incoming.armId);
+        Map<String,Object> experimentAudit=Json.object();experimentAudit.put("armId",incoming.armId);
+        experimentAudit.put("adapterExperiments",incoming.adapterExperiments.toMap());
+        audit.note("nativeArmPolicy",experimentAudit,SystemClock.elapsedRealtime());
+        DriveEvidence.variant(incoming.armId,experimentAudit);
+        writeLineageQuiet();return true;
     }
     private long epoch(){if(transport==null||answers==null)return -1;long a=transport.generation(),b=answers.epoch();return a<=0||a>0x7fffffffL||b<=0||b>0xffffffffL?-1:a<<32|b;}
     private void refresh(long now){
@@ -320,7 +325,7 @@ final class LiveMapBridge {
         final AndroidStockRuntime ownedRuntime=new AndroidStockRuntime(error->worker.post(()->{if(arm==owner&&!finished)stop("Ошибка штатного отправителя",error.toString());}),
                 missing->worker.post(()->{if(arm==owner&&!finished&&!dynamicFresh(SystemClock.elapsedRealtime())){dataUnavailable=missing.getMessage();if(session!=null)session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}}));
         synchronized(this){ownedRuntime.inputGeneration(sourceGeneration);runtime=ownedRuntime;}
-        final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD;
+        final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD.withExperiments(owner.adapterExperiments);
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
             AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
             Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
@@ -346,7 +351,10 @@ final class LiveMapBridge {
             public int request(long topic,byte[] payload,boolean response){throw new UnsupportedOperationException("native request not present in selected sender closure");}
         };
         activeEpoch=epoch();publishedSubject=sourceSubject;publishedGeneration=sourceGeneration;
-        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence(),readOwnerLaneEvidence(),routePolicy);
+        session=new NativeMapSession(runtime,runtime,env,wire,this::nextPathId,value->audit.note("nativeInputPolicy",value,SystemClock.elapsedRealtime()),owner.frameMode,readPublicRoadEvidence(),readOwnerLaneEvidence(),routePolicy,
+                value->{Map<String,Object> row=new java.util.LinkedHashMap<>(value);row.put("armId",owner.armId);
+                    row.put("vehicleReadSequence",inputs==null||inputs.gates==null?null:inputs.gates.sequence);
+                    DriveEvidence.motionInput(row);});
         AdasGateSnapshot.Snapshot g=inputs.gates;session.start(Boolean.TRUE.equals(g.dnpService),Boolean.TRUE.equals(g.dnpSwitchRaw),Boolean.TRUE.equals(g.noSleep));
         session.clientInitialized(true);
         if(!transport.servicesOffered()){stop("Сервисы отправки не запущены","own offers incomplete");return;}
@@ -386,7 +394,11 @@ final class LiveMapBridge {
         if(!java.util.Objects.equals(publishedSubject,subject)||subject==null||!session.acceptsRoute(subject.routeId,subject.epoch,subject.geometrySha256))return;
         AdasGateSnapshot.Snapshot snapshot=inputs.gates;Double value=snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
         if(value!=null&&(snapshot.sequence!=speedSequence||session.pathId()!=speedPolicyPath)){
-            long generation=publishedGeneration;speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();runtime.inputScope(generation,()->session.vehicleSpeedUpdated(value.floatValue()));
+            long generation=publishedGeneration;speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();
+            // vehicleSpeedKmh already validated this exact source interval. Queue receipt must
+            // not rejuvenate an old autoservice reading used by the displacement consistency gate.
+            long sourceStartedAt=((Number)snapshot.vehicleSpeed.get("startedAtElapsedMs")).longValue();
+            runtime.inputScope(generation,()->session.vehicleSpeedUpdated(value.floatValue(),sourceStartedAt));
         }
     }
     private <T>T onWorker(Callable<T> task){
@@ -528,6 +540,8 @@ final class LiveMapBridge {
         value.put("bootId",boot);value.put("consumerSession",consumer);value.put("processSession",process);value.put("armId",lastArmId);value.put("armProcesses",(long)lineageProcesses.size());value.put("elapsedMs",SystemClock.elapsedRealtime());value.put("state",state);value.put("reason",reason);value.put("stopReason",stopReason);value.put("stopDetail",stopDetail);
         boolean serverClosed=transport==null||transport.isClosed(),answersClosed=(answers==null||answers.isClosed())&&(coreClients==null||coreClients.isClosed());
         value.put("coordinateFrameMode",arm==null?null:arm.frameMode.name());value.put("coordinateFrame",session==null||session.frame()==null?null:session.frame().name());value.put("coordinateRouteOrdinal",session==null?-1:session.frameOrdinal());
+        value.put("adapterExperimentsSchema",dev.denza.adaslink.yandexnative.AdapterExperiments.SCHEMA);
+        value.put("adapterExperiments",arm==null?null:arm.adapterExperiments.toMap());
         value.put("quiescent",serverClosed&&answersClosed&&(runtime==null||!runtime.active()));value.put("serverClosed",serverClosed);value.put("answersClosed",answersClosed);value.put("lastActualSendElapsedMs",published.lastSendMs);value.put("pathId",published.pathId);value.put("confirmedPathId",published.confirmedPathId);value.put("heldPathId",published.pathId);value.put("guidanceActive",session!=null&&session.navigating());value.put("prerequisite",lastPrerequisite);value.put("prerequisiteChanges",prerequisiteChanges);value.put("callbacks",callbacks==null?null:callbacks.stats());
         OfflineMapGate.Decision offline=offline(SystemClock.elapsedRealtime());value.put("offlineReady",offline.ready);value.put("offlineCode",offline.code);value.put("offlineReason",offline.reason);synchronized(handoff){value.put("observationsCoalesced",coalesced);}
         RouteSnapshot.writeAtomic(file("denza-adas-live-state.json"),value);

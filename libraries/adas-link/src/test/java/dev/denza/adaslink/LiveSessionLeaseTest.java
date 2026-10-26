@@ -1,6 +1,7 @@
 package dev.denza.adaslink;
 
 import java.util.Map;
+import dev.denza.adaslink.yandexnative.AdapterExperiments;
 
 public final class LiveSessionLeaseTest {
     private static final String BOOT="56e1b912-893e-41bc-9e81-a6c38eb7d28d", CONSUMER="364db69e-b53c-4969-a242-1fb6505af45e",
@@ -17,6 +18,28 @@ public final class LiveSessionLeaseTest {
     public static void main(String[] args) {
         LiveSessionLease a=read(arm(),1000);check(a.same(read(arm(),9000)));
         check(a.frameMode==LiveSessionLease.FrameMode.WGS84);
+        check(a.adapterExperiments.toMap().equals(AdapterExperiments.BASELINE.toMap()));
+        Map<String,Object> configured=arm();configured.put("adapterExperiments",AdapterExperiments.CANDIDATE.toMap());
+        LiveSessionLease candidate=read(configured,1000);
+        check(candidate.adapterExperiments.lightWithin500&&candidate.adapterExperiments.speedFromFixes
+                &&candidate.adapterExperiments.coherentProgress&&candidate.adapterExperiments.mergeShortLinks);
+        check(!candidate.same(a));
+        for(String flag:new String[]{"lightWithin500","speedFromFixes","coherentProgress","mergeShortLinks"}){
+            Map<String,Object> changedFlags=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());
+            changedFlags.put(flag,false);Map<String,Object> toggled=arm();toggled.put("adapterExperiments",changedFlags);
+            check(!candidate.same(read(toggled,1000)));
+            for(Object invalid:new Object[]{null,0L,"false"}){
+                Map<String,Object> badFlags=new java.util.LinkedHashMap<>(changedFlags);badFlags.put(flag,invalid);
+                Map<String,Object> badArm=arm();badArm.put("adapterExperiments",badFlags);bad(()->read(badArm,1000));
+            }
+            changedFlags.remove(flag);Map<String,Object> missing=arm();missing.put("adapterExperiments",changedFlags);bad(()->read(missing,1000));
+        }
+        Map<String,Object> extraFlags=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());extraFlags.put("extra",true);
+        Map<String,Object> extraPolicy=arm();extraPolicy.put("adapterExperiments",extraFlags);bad(()->read(extraPolicy,1000));
+        Map<String,Object> nullPolicy=arm();nullPolicy.put("adapterExperiments",null);bad(()->read(nullPolicy,1000));
+        Map<String,Object> oldPolicy=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());
+        oldPolicy.put("schema","denza-adas-adapter-experiments-v1");oldPolicy.put("rawGnssSpeed",oldPolicy.remove("speedFromFixes"));
+        Map<String,Object> oldArm=arm();oldArm.put("adapterExperiments",oldPolicy);bad(()->read(oldArm,1000));
         for(LiveSessionLease.FrameMode mode:LiveSessionLease.FrameMode.values()){
             Map<String,Object> framed=arm();framed.put("coordinateFrame",mode.name());LiveSessionLease lease=read(framed,1000);
             check(lease.frameMode==mode);check(!lease.same(a));check(lease.same(read(framed,1000)));

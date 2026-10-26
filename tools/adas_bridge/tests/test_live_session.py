@@ -34,6 +34,8 @@ class FakeDevice:
         self.navi = 1; self.navi_reader_read_fails = False; self.navi_reader_restores = True
         self.navi_read_fails = False; self.navi_arm = None
         self.instrument = 1; self.instrument_arm = None; self.instrument_read_fails = False; self.instrument_reader_restores = True
+        self.adapter_schema = live.ADAPTER_EXPERIMENT_SCHEMA
+        self.wrong_adapter_policy = False
 
     def boot(self):
         self.calls.append("boot"); return self.boot_id
@@ -67,6 +69,8 @@ class FakeDevice:
             return {"schema": "denza-adas-live-state-v1", "bootId": self.boot_id, "consumerSession": self.consumer,
                     "armId": (OTHER if self.wrong_arm_id else arm["armId"]) if arm else None,
                     "sender": "stocknative",
+                    "adapterExperimentsSchema": self.adapter_schema,
+                    "adapterExperiments": None if self.wrong_adapter_policy or arm is None else arm.get("adapterExperiments"),
                     "elapsedMs": self.now, "state": "STOPPED" if self.graceful_stopped else ("BLOCKED" if self.block_arm else "WAITING") if arm else ("DISARMED" if closed else "LIVE"),
                     "stopDetail": "original terminal output sent" if self.graceful_stopped else None,
                     "quiescent": closed, "serverClosed": closed, "answersClosed": closed, "lastActualSendElapsedMs": self.actual_send}
@@ -207,6 +211,50 @@ class ProcedureTests(unittest.TestCase):
                 self.arm(variant=variant)
         self.assertEqual(self.device.calls, [])
         self.assertFalse(self.ledger.exists())
+
+    def test_adapter_policy_is_pinned_in_arm_ledger_and_runtime_acceptance(self):
+        policy = live.adapter_profile("candidate28", {"mergeShortLinks": False})
+        row = self.arm(experiments=policy)
+        self.assertEqual(row["adapterExperiments"], policy)
+        self.assertEqual(row["arm"]["adapterExperiments"], policy)
+        self.assertEqual(row["acceptance"]["adapterExperiments"], policy)
+        self.assertEqual(json.loads(self.ledger.read_text())["adapterExperiments"], policy)
+
+    def test_adapter_policy_requires_runtime_capability_before_any_mutation(self):
+        self.device.adapter_schema = None
+        with self.assertRaisesRegex(live.SessionError, "does not support"):
+            self.arm(experiments=live.adapter_profile("candidate28"))
+        self.assertFalse(self.ledger.exists())
+        self.assertNotIn(("stock_enabled", 3), self.device.calls)
+        self.assertNotIn("reader_start", self.device.calls)
+
+    def test_adapter_policy_mismatch_rolls_back(self):
+        self.device.wrong_adapter_policy = True
+        with self.assertRaisesRegex(live.SessionError, "runtime did not confirm adapter"):
+            self.arm(experiments=live.adapter_profile("candidate28"))
+        self.assertNotIn(live.ARM, self.device.files)
+        self.assertEqual(self.device.enabled, 0)
+
+    def test_build27_policy_cannot_silently_select_the_new_speed_algorithm(self):
+        old = live.adapter_profile("candidate28")
+        old["schema"] = "denza-adas-adapter-experiments-v1"
+        old["rawGnssSpeed"] = old.pop("speedFromFixes")
+        with self.assertRaisesRegex(live.SessionError, "invalid adapter"):
+            self.arm(experiments=old)
+        self.assertEqual(self.device.calls, [])
+        self.device.adapter_schema = "denza-adas-adapter-experiments-v1"
+        with self.assertRaisesRegex(live.SessionError, "does not support"):
+            self.arm(experiments=live.adapter_profile("candidate28"))
+        self.assertFalse(self.ledger.exists())
+        self.assertNotIn(("stock_enabled", 3), self.device.calls)
+        self.assertNotIn("reader_start", self.device.calls)
+
+    def test_adapter_policy_malformed_is_rejected_before_device_access(self):
+        for policy in ({}, {**live.adapter_profile("candidate28"), "speedFromFixes": 1},
+                       {**live.adapter_profile("candidate28"), "extra": True}):
+            with self.assertRaisesRegex(live.SessionError, "invalid adapter"):
+                self.arm(experiments=policy)
+        self.assertEqual(self.device.calls, [])
 
     def test_coordinate_modes_are_explicit_and_unknown_mode_never_calls_device(self):
         with self.assertRaisesRegex(live.SessionError, "unknown coordinate frame"):
@@ -449,6 +497,7 @@ class ProcedureTests(unittest.TestCase):
             self.assertEqual(plan["lifetimeMs"], 60000)
             self.assertEqual(plan["sender"], "stocknative")
             self.assertEqual(plan["coordinateFrame"], live.DEFAULT_COORDINATE_FRAME)
+            self.assertEqual(plan["adapterExperiments"], live.adapter_profile("candidate28"))
             self.assertNotIn("variant", plan)
             self.assertFalse(self.ledger.exists())
 
@@ -465,6 +514,20 @@ class ProcedureTests(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 live.main(args + ["--coordinate-frame", "GCJ02"])
         self.assertFalse(self.ledger.exists())
+
+    def test_adapter_profile_and_individual_switches_are_offline(self):
+        args = ["plan", "--serial", "owned:5555", "--ledger", str(self.ledger), "--apk-sha256", APK.sha256,
+                "--version-code", str(APK.version_code), "--version-name", APK.version_name,
+                "--reader-jar", str(self.jar), "--reader-sha256", self.digest, "--lifetime-ms", "60000"]
+        for options, expected in [(["--adapter-profile", "baseline26"], live.adapter_profile("baseline26")),
+                                  (["--no-light-within-500", "--no-speed-from-fixes"],
+                                   live.adapter_profile("candidate28", {"lightWithin500": False, "speedFromFixes": False})),
+                                  (["--adapter-profile", "baseline26", "--light-within-500"],
+                                   live.adapter_profile("baseline26", {"lightWithin500": True}))]:
+            with patch.object(live, "Device", side_effect=AssertionError("must not access device")):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):self.assertEqual(live.main(args + options), 0)
+            self.assertEqual(json.loads(out.getvalue())["adapterExperiments"], expected)
 
 
 class ParsingAndCommandTests(unittest.TestCase):
