@@ -33,7 +33,8 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 23 uses the owner-confirmed total lane count 2 on an exact subset of the traversed settlement streets; history-speed and public-ownership policies remain from 22 | historical installed candidate: ACK 200, laneNum 2 on 5/53 links, historySpeed 7; superseded by 25 before a drive | [Candidate 23 lanes](#candidate-23-owner-confirmed-lane-count) |
 | The active `STOCK_LIKE_BY_ROAD` donor profile prioritizes Yandex section `HIGHWAY`, then functional class, then class 9; historySpeed follows the current link (6/7/8/9 → 85/47/25/25), Region/adminCode 990001 and URID 372. `stocknative` is unchanged | candidate 26 parked route ACKed 200; 129 links in classes 7/8/9 and zero class-6 metres; moving HNOA remains postponed | [Donor by road](#stock-like-by-road-donor-profile-2026-10-26) |
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
-| A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction, independent duration check; replay kit prepared, no new install or arm | [Replay preparation](#review-of-the-proposed-24-october-replay) |
+| A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
+| Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | physical parked receipts, ten-minute dwell completed, trip arm active; owner chose a village loop with automatic reroutes, moving result pending | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3363,7 +3364,8 @@ device calls. Its exact byte identity with the unarchived historical host is
 not established. The current product host is not used for legacy variant arms.
 The read-only 15:46 Moscow snapshot still has build 26 with its expected hash,
 park raw 1, speed 0, no arm, STOPPED and both endpoints closed; stock map state
-3 and no stock process. No installation or new publication was performed.
+3 and no stock process. At that checkpoint no installation or new publication
+had been performed; the owner subsequently authorized the repeat below.
 
 [`availability_metric.py`](../../tools/adas_bridge/availability_metric.py)
 integrates intervals on one millisecond clock, restricting the selected path
@@ -3392,6 +3394,51 @@ Across those windows, independent of movement, build 15 has 69 active episodes
 not establish sustained retention. JSON inputs, output reports, source hashes,
 decoder snapshot and normalization notes are under the same `metric/` directory.
 These percentages describe that first path, not the whole trip.
+
+#### Historical build-15 repeat on the car
+
+After fresh human stationary confirmation, the original build-15 APK
+`dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`
+was installed with data preserved and its installed hash verified. Its signer
+matches retained build 26, which remains available for rollback. The outer
+receipt records original stock-map state 3; preparation explicitly changes it
+to 0 with no stock process before each arm. Each inner restore returns its
+recorded 0 only after proving quiescence and both endpoints closed.
+
+The three preparation arms are `0aeff95d…` (bridge start), `21e9ddc7…`
+(stock start) and `d069f4ae…` (stock start with two manual destination changes).
+All three are RESTORED. Their last-send spans from arm issuance were
+73.612 / 21.304 / 225.251 s; these timings differ from the historical run and
+are retained rather than described as an exact repeat. The third arm confirmed
+paths `1793019963`, `1793020063`, `1793020125`. The intermediate destination came
+from the historical route endpoint, then the destination was returned to the
+planned point. Inter-arm intervals, package state and receipts are retained.
+
+Trip arm `462f9cbc-665a-4129-86ac-48a75bc566aa` was issued 48.740 s after the
+last restoration receipt. Path `1793020242` received explicit SELECTED 200 from
+both receivers at 16:10:47 Moscow. The ten-minute stationary dwell completed
+at elapsed 104187240 ms, 601.221 s after the ACK. Every sampled park predicate
+was 1 with measured zero speed; the last dwell send age was 688 ms. Final
+read-only checks confirmed the same live arm and fresh packet/progress journal
+entries at 16:21:52 Moscow; the crash buffer was unchanged from preparation.
+The original WGS84/Yandex variant and disabled MPC/instrument side-channel
+switches remain unchanged. This is the historical sender, not the branch's
+candidate-26 factory-sender product, and no production code was changed for it.
+
+The owner clarified that the actual drive will be a small village loop while
+the entered route automatically recalculates. The entered 8 km route itself
+includes Kievskoye; it is not an instruction to drive that road. The first-path
+81.64%/3.55% baseline and its thresholds therefore cannot directly classify this
+different loop. Before the drive, `execution/comparison-scope.json` fixed a
+descriptive comparison on all overlapping historical moving locations (30 m),
+speed groups, direction when available, all reroutes and retention with unknown
+coverage reported separately. The trace must not select only locations where
+NOA became available. Same-day stock comparison has not been performed.
+
+Evidence is under `captures/replay-20261024-evening/execution/`. The trip arm
+remains active at this checkpoint; restoring the overall original stock state
+3 and deciding whether to reinstall 26 are post-drive work, not completed
+cleanup. Vehicle acceptance and causal attribution remain open.
 
 ### Regional offline graph (2026-10-24)
 
