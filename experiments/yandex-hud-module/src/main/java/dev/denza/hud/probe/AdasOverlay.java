@@ -30,8 +30,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * SYSTEM_ALERT_WINDOW, no window of its own), fed by {@link AdasPassiveClient} and by our bridge's
  * {@link AdasFeed}, drawn by {@link AdasPainter} at the board's placement A (bottom right).
  *
- * <p>The listener runs while the map is visible and for half a minute after, then releases its
- * own subscriptions. Binder callbacks only enqueue (bounded); decoding happens on the overlay's
+ * <p>With trip capture enabled the observer survives hidden map windows in both service-10 modes.
+ * Otherwise it releases its own subscriptions half a minute after the map is hidden.
+ * Binder callbacks only enqueue (bounded); decoding happens on the overlay's
  * worker, the state and the drawing on the main thread.
  *
  * <p>Emulator only (ranchu/goldfish): {@code files/denza-adas-overlay.json} replaces the live
@@ -59,6 +60,7 @@ final class AdasOverlay implements AdasPassiveClient.Sink {
     static void navigating(boolean value) { navigating = value; }
 
     private final Context context;
+    private final boolean captureEnabled;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final boolean emulator = Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("goldfish");
     private HandlerThread thread;
@@ -73,7 +75,10 @@ final class AdasOverlay implements AdasPassiveClient.Sink {
     private long dropped;
     private String said = "";
 
-    private AdasOverlay(Context context) { this.context = context.getApplicationContext(); }
+    private AdasOverlay(Context context) {
+        this.context = context.getApplicationContext();
+        captureEnabled = DriveEvidence.recordingEnabled(this.context);
+    }
 
     private final Application.ActivityLifecycleCallbacks lifecycle = new Application.ActivityLifecycleCallbacks() {
         // Started, or resumed: the module may be installed while the map activity is already up.
@@ -126,6 +131,12 @@ final class AdasOverlay implements AdasPassiveClient.Sink {
 
     private final Runnable release = new Runnable() {
         public void run() {
+            // Keep A/B subscription exposure identical when AVC hides the map. The capture marker,
+            // not the service-10 switch, owns this lifetime; only the process restart releases it.
+            if(captureEnabled) {
+                DriveEvidence.passiveState("capture_observer_retained", "map-hidden; process-restart-to-release");
+                return;
+            }
             final AdasPassiveClient old = client;
             client = null;
             if (old == null) return;

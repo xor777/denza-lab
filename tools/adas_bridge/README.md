@@ -1,7 +1,13 @@
 # Yandex → ADAS host oracle and offline prototype
-Local candidate 13 adds continuing route-condition refresh, road-facility messages,
-partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
-build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
+Local signed build 17 is prepared with service-10 control (default OFF), recording
+independent of overlay visibility and bounded reroute handoff. It is installed by
+hash; A1 OFF is complete and closed. Nine 489–607 ms NOA-active runs all end in
+ICC; availability remains below 1% of moving time. Reroute gaps fell to
+1.745–5.504 s and status recording covers the drive and subsequent map hiding.
+Stock remains disabled after owned closure following the owner's reboot.
+[A1 evidence](../../research/adas-bridge/README.md#build-17-a1-off-drive-review-2026-10-25).
+The current local control kit is `captures/yandex-feed17-20261025/trip-kit.json`;
+use the build-17 section at the top of `captures/drive-kit-20261025/LOOP.md`.
 
 
 The Python conversion/replay tools use the standard library and run offline;
@@ -15,26 +21,94 @@ are separate from the offline tools. The device-side library is
 compiled into Navigator by `tools/yandex_hud_build`; the durable research owner
 is [`research/adas-bridge/README.md`](../../research/adas-bridge/README.md).
 
-The current local follow-up adds embedded vector decoding, explicit functional
+The build-13 follow-up added embedded vector decoding, explicit functional
 road-class approximation and a separate full-route downloaded-map attribute
 provider. Automatic offscreen-camera requests have been retired from the active
 bridge. The provider uses standard pinned Zstd and a read-only catalog; route
 choice and guidance remain Yandex SDK data. The owner's
 minimal offline prerequisite is a fresh inventory containing at least one usable
 installed region; it does not assert route coverage or require a second offline
-route. The latest changes are now compiled into the local signed ARM64 build 13
+route. That stage was compiled into the local signed ARM64 build 13
 (SHA-256 `acc7054011849cbdd3c743133638c9776f96841af3bf39c991308dd40f263b86`),
 with the separate parked-player APK and build receipts under
 `captures/yandex-feed13-fullroute-20261024/`. Host Java replay and builder checks
-pass; neither APK was installed, and Android provider/JNI execution remains
-unverified. See
+passed; neither APK was installed at that stage. Subsequent build-15 Android
+provider evidence and the remaining limitations are recorded in
 [runtime and prerequisite status](../../research/adas-bridge/README.md#generic-vector-runtime-and-offline-prerequisite-2026-10-24).
+
+## ODD-distance differential bench
+
+`odd_bench.py` and `odd_bench_observer.js` run the original Amap
+`DnpOddDistanceController` on a retained factory Beijing route. They replace the
+IVI endpoint inside the emulator, record the original ODD protobuf packets and
+perform no vehicle operations. `odd_bench.py check` independently replays the
+native link URIDs/lengths through Python. `OddDistanceReplay.java` replays the
+same events through the production `OddDistance` and `StockMessages` classes and
+checks both the decoded distance and every payload byte.
+
+The 2026-10-25 reference uses `survey-01-p006`: 74 native Beijing links, native
+URID 1 and a 7,487 m route. Six cases each contain 222 samples (every link at its
+full, half and zero remaining length): the retained 374-city ADAS response,
+native cities, an empty set, an excluded set, and labelled synthetic
+covered-to-excluded and excluded-to-covered transitions. The retained city list
+is a controlled input from the car, not a claimed Beijing cloud snapshot.
+Evidence is under `captures/adas-odd-bench-20261025/`; `prepared-v3/run/receipt.json`
+has `status=observed` and `baseline_restored=true`. Both
+`python-check-v3.json` and `java-check-v3.json` pass 1,332/1,332 samples. The
+finite synthetic boundary outputs include 81 m and 40 m; excluded-route cases
+also exercise zero and the 2 km look-ahead's MAX result.
+
+This is calculator parity, not NOA acceptance and not a Russia-wide geographic
+ODD catalog. `OddCoverage.Catalog` is generic, but `990001 -> 372` is only the
+confirmed Moscow stock-map bench binding. Production conversion does not assign
+it to Russian routes. Until every route link has a real adcode/URID binding,
+`StockFeed` deliberately sends MAX instead of inventing a finite exit distance.
+
+### Route-specific URID annotation
+
+`urid_annotation.py` joins one retained Yandex route to the original Amap's
+`LinkInfo.getURID()` observations and exported route geometry. It verifies the
+84 native links against the 84 exported links, then samples each Yandex link at
+no more than 12 m spacing in the stock SDK frame. A candidate must be within
+30 m and 60 degrees of travel. A link is mapped only when at least 90% of its
+samples have a candidate and all candidates carry one adcode and one URID.
+Otherwise it remains adcode/URID zero. This is deliberately not a blanket `372`
+assignment and not a generic road-network matcher.
+
+For `captures/adas-live-drive-20261024/evidence/route-1.json`, Amap returned a
+local 6,000 m route whose 84 links all have adcode 990001 and URID 372. The
+Yandex route is 4,782.800 m before stock-link rounding and has 26 converted
+links. Fourteen links (3,273/4,772 integer link metres, 68.59%) pass; twelve
+remain unmapped because the routes diverge or the sample fraction is below the
+threshold. No link is ambiguous. The result and every link's distances, sample
+counts and candidates are in `captures/urid-route01-20261025/annotation.json`.
+
+`OddAnnotationReplay.java` and the independent Python expectations agree on
+144/144 samples. The incomplete full route returns MAX for all 78 actual-ODD
+samples. A fully mapped 11-link excerpt returns MAX for all 33 actual-ODD
+samples; replacing its final URID with a labelled excluded value produces
+finite 240–1,945 m boundary distances, zeros and the stock 2 km MAX behavior.
+This excerpt is a calculator control, not a shortened route sent to a vehicle.
+See `replay-expectations.json` and `java-replay-check.json` in the same capture.
+Neither result establishes generic Russia annotation, actual ODD coverage or
+NOA acceptance. Production conversion is unchanged by this route fixture.
+
+```sh
+python3 -m tools.adas_bridge.urid_annotation annotate \
+  --snapshot captures/adas-live-drive-20261024/evidence/route-1.json \
+  --events captures/urid-route01-20261025/home-prepared/run/app/events.jsonl \
+  --odd-response captures/adas-h0-listen-20261024/H0-odd-response.bin \
+  --out captures/urid-route01-20261025/annotation.json \
+  --replay-out captures/urid-route01-20261025/replay-expectations.json
+python3 -m unittest tools.adas_bridge.tests.test_urid_annotation
+./gradlew :adas-link:testDebugUnitTest
+```
 
 ## Preparing the real channel
 
 `live_session.py` is separate from the offline converter. It prepares one
-explicitly armed session of build 12; it is not an installer. Build 12 is
-installed and two stationary route ACKs were observed. Its
+explicitly armed session of the exact supplied APK; it is not an installer.
+Build 17's three control plans pass locally with zero device calls. Its
 `plan` and `arm --dry-run` modes make **zero device calls**. `build-reader`
 compiles the fixed shell-UID getter helper into a DEX JAR, with source and
 artifact hashes. Use `--help` for the required APK version/hash, reader hash,
@@ -49,12 +123,13 @@ first, asks the owned reader to stop, proves runtime quiescence, then restores
 the exact original package state. Failure to prove closure is reported as
 pending restoration. It does not reset ADB keys, tunnels or global SOME/IP
 clients. Sessions 1–3 were restored with exact original package state; build-11 session 4
-was restored before installing build 12. The current two-hour trip ledger is
+was restored before installing build 12. The historical build-12 trip ledger is
 `captures/yandex-feed12-20261024/session1.rollback.json`. Timeout closes the
 publisher but does not restore the stock package; run `restore` after the test.
 
 `arm --variant FILE.json` puts one experiment variant into the arm (examples in
-`variants/`: baseline, H1, H2a–H2g, H3, H6, H7, the historySpeed A/B). It is checked
+`variants/`: baseline, H1, H2a–H2g, H3, H6, H7, the historySpeed A/B, drive-1/drive-2
+and the settlement loop's `loop-*`, below). It is checked
 against ExperimentVariant's strict schema before any device call: an unknown key
 or a value outside the stock's set refuses the arm. The effective variant is
 printed, written to the rollback ledger and carried by the arm, so a restarted
@@ -123,6 +198,11 @@ java -cp /tmp/denza-reader-test:$A dev.denza.adasprobe.AdasGateReaderTest
 The client harness executes the actual `AdasPassiveClient` against a fake Binder
 boundary; it exercises fresh/already-started service setup, availability replay,
 readiness loss and owned cleanup. Neither harness proves delivery on the car.
+The runtime harness also runs `RerouteHandoffTest`: both replacement queue orders,
+new-path ACK, bounded preparation, real offline loss and ordinary dynamic egress.
+The 2026-10-25 local correction removes the reproduced end/fresh-start race;
+it is not in installed build 16. Before/after evidence and source hashes are in
+`captures/reroute-fix-20261025/`.
 The final local APK, source archive and pinned plan are recorded in
 `captures/yandex-feed12-20261024/candidate12.json`. Build 12 retains
 separate bounded packet/history recording and captures the existing live
@@ -141,6 +221,86 @@ what was being sent, the side channels and their restore, and process health:
 ```sh
 python3 tools/adas_bridge/drive_review.py <pulled-dir> --out <dir>   # review.json + review.md
 ```
+
+Build 16 also records optional `VehiclePositionInfo` from service/instance 10/10
+while disarmed. `drive_review` adds `adasVehiclePosition` with raw payloads,
+field presence, freshness and same-process joins to Yandex guidance. Its output
+frame is not proof of the datum required for incoming ADAS routes. The first
+parked build-16 capture measured 0.830 MiB/min of packet logs: the current ring
+retains approximately 58–67.5 minutes at that rate, replacing the older
+two-hour estimate. [Installed receipt and limits](../../research/adas-bridge/README.md#build-16-position-observer).
+
+### Settlement loop: the stock-like arm and its halving
+
+The loop files describe experimental comparisons with build 15's NOA→ICC cycle;
+one drive cannot identify or exclude its cause. Some values come from stock
+positions on the same streets; others came from a separate parked route
+([research README](../../research/adas-bridge/README.md#stock-cnoa-hold-against-build-15-field-by-field)).
+Builds 15 and 16 both carry every switch below (their `ExperimentVariant`,
+`FieldDefaults`, `StockFeed`, `RouteConverter` and `Coordinates` equal main's;
+build 16 changes only the passive observer), so the host reads the file at `arm`.
+
+| Group | Switches (the stock's value) |
+| --- | --- |
+| F frame | `frame: STOCK_GCJ` — position, matched point, route, lights and facilities in the stock's frame. It reproduces the stock's 2026-10-23 wire from ADAS's own WGS-84 pose within 0.4 m; ADAS's output pose is WGS-84, so this is an experiment, not a fix |
+| O ownership | `position.ownership: 0`, `link.ownership: 0` |
+| L lanes | `link.laneNum: 1`, `link.formway: 15` |
+| R region | `region: 990001`, `link.adminCode: 990001` |
+| S limit | `speedLimit: zero` |
+
+Every `loop-*` file is a slice of `loop-all` and carries build 15's drive start:
+`startProtocol: stock`, `naviSt: false`, `instrumentNaviStatus: false`
+(`test_live_session` holds the slices to `loop-all`). Fill-ins only set what
+Yandex left unknown. LaneNum 1 and formway 15 were observed in a separate parked
+route, not in retained route bodies of the successful CNOA intervals; they are
+not established attributes of every settlement street. S zeroes the posted
+limit, not speed cameras. These files are experimental inputs, not validated
+road descriptions or approval to use them for road-going NOA.
+
+**The loop** is the settlement streets where the stock's CNOA held on 2026-10-23
+(drive-02, 24.9 s and 7.2 s) and build 15 cycled on 2026-10-24 (20:18:15–20:18:25
+and 20:37:34–20:37:36); times and positions are in the private post-drive capture.
+The earlier proposed drive procedure asked for two requests per arm. For retained
+logs, classify the cluster observations and `drive_review.py` intervals per arm id:
+
+- **HOLDS:** one CNOA interval of at least 10 s without the «Downgraded to ICC» /
+  «CNOA activated» cycle (build 15's longest there: 1.7 s; anywhere: 5.4 s).
+- **CYCLES:** every interval under 3 s, with «Downgraded to ICC».
+- No available interval: NEVER OFFERED; other results: INCONCLUSIVE.
+
+The earlier proposed order allowed changes only while stopped in P, with a
+restore between separate ledgers. It is retained in the private runbook as a
+proposal, not vehicle acceptance of the variants.
+
+`loop-frame` ran first on 2026-10-24 (21:53): on the same streets NOA was never
+offered, where build 15 on WGS-84 had it offered at 69 % of moving positions
+([research README](../../research/adas-bridge/README.md#build-16-position-observer)).
+The frame group therefore stays WGS-84.
+
+The link values of the O, L and R groups come from `first-full`, a parked capture
+with a later package than the hold drive; the holds' route bodies are not
+retained (research README, the correction of 2026-10-25). The revised proposal is
+`loop-wire`: only the values the stock's own send log carries
+during its CNOA holds — `position.ownership: 0`, `region: 990001`, `speedLimit:
+zero` — with no link fill-in. Those scalars occur in the retained stock send
+logs. Their occurrence does not establish the receiver semantics of zero, the
+correct ownership/region for a new route, or safety outside the settlement.
+The proposed `loop-wire` road test has not been prepared or armed by this
+follow-up. Local protocol comparison can proceed without sending these
+overrides to the vehicle.
+
+For interpretation of any retained comparison, distinguish HOLDS, CYCLES,
+NEVER OFFERED and INCONCLUSIVE. A positive combined result only makes that
+combination a candidate; it does not identify one field. A negative result
+does not exclude the fields, because interaction, route, traffic and ECU state
+were not controlled. The single-field files can be compared in local replay;
+no value becomes a permanent bridge default from one successful activation.
+
+`loop-all` (with the shift), `loop-rest` and their link-filling halves are kept
+as files but are out of the order. A contradictory result is inconclusive;
+interaction is one hypothesis, not a demonstrated explanation. Preserve the
+evidence and investigate locally. Pull the evidence after every arm, before its
+`restore`: build 16's packet ring keeps about an hour, less than five arms.
 
 ## Yandex-only data source
 

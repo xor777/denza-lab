@@ -1,0 +1,14 @@
+{
+  "id": "loop-all",
+  "frame": "STOCK_GCJ",
+  "position.ownership": 0,
+  "link.ownership": 0,
+  "link.laneNum": 1,
+  "link.formway": 15,
+  "region": 990001,
+  "link.adminCode": 990001,
+  "speedLimit": "zero",
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

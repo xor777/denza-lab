@@ -33,6 +33,10 @@ final class AdasWire {
     static final long NAV_STATUS = 0x0004000700078001L;
     static final long TRAFFIC = 0x0004000700078003L;
     static final long LOCATION = 0x0004820282028008L;
+    // Read-only optional receiver input, not the stock map's outbound LOCATION above.
+    // Original SomeIpTopic: service 10, instance 10, VehiclePositionInfo event 0x8001.
+    static final long VEHICLE_POSITION = 0x0004000A000A8001L;
+    static final long VEHICLE_POSITION_SERVICE = 0x000B000A000A0000L;
     static final long[] ANSWERS = {PILOT, ALARM, MODE, SELECTED, PATH_MATCH};
     static final long[] STOCK = {NAV_STATUS, TRAFFIC, LOCATION};
     /** Client services started for the subscriptions: 13, 44, 7, 0x8202. */
@@ -47,10 +51,10 @@ final class AdasWire {
     static boolean allowed(long topic) {
         for (long value : ANSWERS) if (topic == value) return true;
         for (long value : STOCK) if (topic == value) return true;
-        return false;
+        return topic == VEHICLE_POSITION;
     }
 
-    enum Kind { PILOT, ALARM, MODE, SELECTED, MATCH, NAV_STATUS, TRAFFIC, LOCATION }
+    enum Kind { PILOT, ALARM, MODE, SELECTED, MATCH, NAV_STATUS, TRAFFIC, LOCATION, VEHICLE_POSITION }
 
     /** Literal RouteInfo values. Null is absent, including when a proto3 getter would return 0. */
     static final class RouteInfo {
@@ -89,6 +93,8 @@ final class AdasWire {
     static Event decode(long topic, byte[] payload) {
         if (!allowed(topic)) throw new IllegalArgumentException("Unsubscribed topic");
         if (payload==null || payload.length > MAX_PAYLOAD) throw new IllegalArgumentException("Payload cap");
+        // Capture the bytes through DriveEvidence; this optional input has no overlay interpretation.
+        if (topic == VEHICLE_POSITION) return new Event(Kind.VEHICLE_POSITION);
         Fields outer = new Fields(payload);
         if (outer.all(1).size() != 1 || outer.kind(1) != 2 || !(outer.first(1) instanceof byte[]))
             throw new IllegalArgumentException("Expected notification struct field 1");

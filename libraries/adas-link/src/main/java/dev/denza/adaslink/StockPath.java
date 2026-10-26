@@ -32,6 +32,8 @@ public final class StockPath {
         public int mainAction;
         public int assistantAction;
         public long adcode;
+        /** Internal LinkInfo.getURID(), used only for ODD coverage; absent from the ADAS wire route. */
+        public int urid = OddCoverage.URID_UNKNOWN;
         public int ownership = OWNERSHIP_UNKNOWN;
         public boolean hasParallel;
         public int direction;
@@ -74,7 +76,7 @@ public final class StockPath {
                         .append(l.length).append(',').append(l.linkType).append(',').append(l.formway).append(',')
                         .append(l.hasTrafficLight).append(',').append(l.laneNum).append(',').append(l.hasMultiOut).append(',')
                         .append(l.mainAction).append(',').append(l.assistantAction).append(',').append(l.adcode).append(',')
-                        .append(l.ownership).append(',').append(l.hasParallel).append(',').append(l.direction).append(',')
+                        .append(l.urid).append(',').append(l.ownership).append(',').append(l.hasParallel).append(',').append(l.direction).append(',')
                         .append(l.hasMixFork).append(':');
                 for (int i = 0; i < l.lon.length; i++) b.append(l.lon[i]).append(' ').append(l.lat[i]).append(' ');
                 b.append(';');

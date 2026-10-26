@@ -56,9 +56,9 @@ import tarfile
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from tools.adas_bridge import feed  # noqa: E402
+    from tools.adas_bridge import feed, stock  # noqa: E402
 else:
-    from . import feed
+    from . import feed, stock
 
 SCHEMA = "denza-adas-drive-review-v1"
 
@@ -80,10 +80,12 @@ PATH_MATCH = _event(44, 0x8001)
 PILOT = _event(13, 0x8002)
 ALARM = _event(13, 0x8003)
 MODE = _event(13, 0x8005)
+VEHICLE_POSITION = _event(10, 0x8001)
 PILOT_AVAILABLE, PILOT_LOST = _event(13, 1, 1), _event(13, 2, 1)
 PATH_AVAILABLE, PATH_LOST = _event(44, 1, 1), _event(44, 2, 1)
 PASSIVE_MESSAGES = {PILOT: "PilotStatusNotify", ALARM: "PilotAlarmAndNoticeInfoNotify", MODE: "NewBroadcastInfoNotify",
-                    SELECTED: "NaviPathUserSelectStsConfirmNotify", PATH_MATCH: "NavigationPathMatchStatusNotify"}
+                    SELECTED: "NaviPathUserSelectStsConfirmNotify", PATH_MATCH: "NavigationPathMatchStatusNotify",
+                    VEHICLE_POSITION: "VehiclePositionInfoNotify"}
 # The stock's 1 Hz family (status loop, location bundle, NaviInfo senders, region).
 ONE_HZ = (NAVIGATION_STATUS, TRAFFIC_INFO, VEHICLE_LOCATION, REGION, NEXT_ACTION, SPEED_INTERSECTION)
 GAP_MS = 2500
@@ -392,7 +394,8 @@ def decode_passive(topic, payload):
 def topic_name(topic):
     if topic in feed.TOPICS:
         return feed.TOPICS[topic][0]
-    return {PILOT: "PilotStatus", ALARM: "Alarm", MODE: "NoaMode"}.get(topic, hex(topic) if topic is not None else None)
+    return {PILOT: "PilotStatus", ALARM: "Alarm", MODE: "NoaMode", VEHICLE_POSITION: "VehiclePositionInfo"}.get(
+        topic, hex(topic) if topic is not None else None)
 
 
 def _json_detail(text):
@@ -616,6 +619,188 @@ def _b64(text):
         return base64.b64decode(text)
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------------------------------- ADAS localization output
+
+def _finite(value):
+    return _number(value) is not None and math.isfinite(value)
+
+
+def _coordinate(lon, lat):
+    return (_finite(lon) and _finite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90
+            and (lon != 0 or lat != 0))
+
+
+def _position_packets(rows):
+    """Resolve compact receipts in writer order, within receiver/process/session/reset boundaries."""
+    contexts, previous_time, full, observations, errors = {}, {}, {}, [], []
+    for row in sorted(rows, key=lambda r: r["_seq"]):
+        receiver, topic, t = row.get("receiver"), _topic(row.get("topic")), row["_t"]
+        if t is not None and receiver in previous_time and t < previous_time[receiver]:
+            full.pop(receiver, None)
+            contexts.pop(receiver, None)
+        if t is not None:
+            previous_time[receiver] = t
+        kind = row.get("kind")
+        if kind == "adas_passive_packet":
+            context = (row.get("sourceSessionId"), row.get("receiverSession"), row.get("bootId"))
+            if contexts.get(receiver) != context:
+                full.pop(receiver, None)
+            contexts[receiver] = context
+        if topic != VEHICLE_POSITION:
+            continue
+        if kind == "adas_passive_packet":
+            # Never let a malformed/null/truncated new packet keep the preceding bytes alive.
+            full.pop(receiver, None)
+            try:
+                if row.get("payloadNull") or row.get("truncated"):
+                    raise ValueError("null or truncated payload")
+                payload = base64.b64decode(row.get("base64", ""), validate=True)
+                top = feed.decode("VehiclePositionInfoNotify", payload)
+                fields = top.get("vehiclePositionInfoNotifyStruct")
+                if not isinstance(fields, dict):
+                    raise ValueError("missing VehiclePositionInfoNotifyStruct")
+                full[receiver] = (row, fields, payload)
+            except (ValueError, TypeError) as error:
+                errors.append({"ref": row["_ref"], "reason": str(error)})
+                continue
+        elif kind != "adas_passive_repeat":
+            continue
+        if receiver not in full:
+            errors.append({"ref": row["_ref"], "reason": "repeat without retained same-session payload"})
+            continue
+        original, fields, payload = full[receiver]
+        if any(row.get(k) is not None and row[k] != original.get(k)
+               for k in ("sourceSessionId", "receiverSession", "bootId")):
+            full.pop(receiver, None)
+            errors.append({"ref": row["_ref"], "reason": "repeat context changed"})
+            continue
+        nonfinite = {}
+
+        def clean(value, path):
+            if isinstance(value, float) and not math.isfinite(value):
+                nonfinite[path] = repr(value)
+                return None
+            if isinstance(value, list):
+                return [clean(v, path + "[" + str(i) + "]") for i, v in enumerate(value)]
+            return value
+
+        observations.append({"t": t, "ref": row["_ref"], "receiver": receiver,
+                             "sourceSessionId": original.get("sourceSessionId"),
+                             "receiverSession": original.get("receiverSession"), "bootId": original.get("bootId"),
+                             "receiptTimestampRaw": row.get("timestamp"), "capturedAtMs": row.get("capturedAtMs"),
+                             "repeat": kind == "adas_passive_repeat", "payloadRef": original["_ref"],
+                             "payloadHex": payload.hex(), "presentFields": sorted(fields),
+                             "fields": {k: clean(v, k) for k, v in fields.items()}, "nonFiniteFields": nonfinite})
+    return observations, errors
+
+
+def vehicle_positions(drive, clock, join_ms=1000, source_age_ms=2500):
+    """Service 10 output, not an assertion about the ECU's route-input or internal datum."""
+    observations, errors = _position_packets(drive.packets)
+    receivers = collections.defaultdict(collections.Counter)
+    for row in observations:
+        receivers[row["sourceSessionId"]][row["receiver"]] += 1
+    # One receiver per recorder process: two subscriptions must not double the sample count.
+    chosen = {process: max(counts, key=lambda r: (counts[r], r == "overlay", str(r)))
+              for process, counts in receivers.items()}
+    samples = [r for r in observations if r["receiver"] == chosen[r["sourceSessionId"]]]
+    guidance = collections.defaultdict(list)
+    for row in drive.guidance:
+        if row.get("sourceSessionId"):
+            guidance[row["sourceSessionId"]].append(row)
+    times = {process: [r["_t"] for r in rows] for process, rows in guidance.items()}
+    for sample in samples:
+        fields, t, process = sample["fields"], sample["t"], sample["sourceSessionId"]
+        sample["received"] = at(t, None, clock)
+        sample["validity"] = {"fix": "not established", "hdStatusOneConsumerGate": fields.get("hdStatus") == 1,
+                              "externalDnpGate": "not evaluated; status 1/2 can also admit the stock consumer"}
+        heading = fields.get("heading")
+        sample["stockConsumerCourse"] = (-heading if heading < 0 else 360 - heading) if _finite(heading) else None
+        # Stock a0.s consumes timestamp as epoch microseconds, then casts/divides to Date milliseconds.
+        # Keep the interpretation conditional: receipt time alone does not make an old fix fresh.
+        stamp = fields.get("timestamp")
+        captured = sample["capturedAtMs"]
+        if captured is None and clock.offset is not None and t is not None:
+            captured = clock.offset + t
+        age = captured - int(stamp) // 1000 if _finite(captured) and _finite(stamp) and stamp > 0 else None
+        sample["sourceAgeMsUnderStockTimestampInterpretation"] = age
+        reasons = []
+        if sample["nonFiniteFields"]:
+            reasons.append("non-finite protobuf value")
+        if not _coordinate(fields.get("longitude"), fields.get("latitude")):
+            reasons.append("absent, non-finite, out-of-range or unverified zero-pair coordinates")
+        if t is None or not process:
+            reasons.append("missing recorder process or receipt time")
+        if age is None or not -join_ms <= age <= source_age_ms:
+            reasons.append("source timestamp absent, unverified or stale under stock consumer interpretation")
+        rows = guidance.get(process, [])
+        stamps = times.get(process, [])
+        nearby = rows[bisect.bisect_left(stamps, t - join_ms):bisect.bisect_right(stamps, t + join_ms)] if t is not None else []
+        valid = []
+        for r in nearby:
+            loc = r.get("location") or {}
+            if (r.get("freshLocation") is True and r.get("locationClass") == "FINE"
+                    and r.get("coordinateFrame") == "wgs84"
+                    and (r.get("lastFineFixAgeMs") is None or
+                         _finite(r["lastFineFixAgeMs"]) and 0 <= r["lastFineFixAgeMs"] <= join_ms)
+                    and (sample["bootId"] is None or r.get("bootId") in (None, sample["bootId"]))
+                    and _coordinate(loc.get("longitude"), loc.get("latitude"))):
+                valid.append(r)
+        if not valid:
+            reasons.append("no fresh same-process WGS84 FINE guidance within bound")
+        if reasons:
+            sample["guidanceComparison"] = {"paired": False, "reasons": reasons}
+            continue
+        row = min(valid, key=lambda r: abs(r["_t"] - t))
+        loc = row["location"]
+        point, wgs = (fields["longitude"], fields["latitude"]), (loc["longitude"], loc["latitude"])
+        comparison = {"paired": True, "ref": row["_ref"], "sourceSessionId": process,
+                      "deltaMs": row["_t"] - t, "source": "Yandex classified/matched guidance; not raw Android GNSS",
+                      "sourceWgs84": list(wgs), "wgs84DistanceM": stock.distance(*point, *wgs)}
+        try:
+            candidate = stock.to_sdk(*wgs, "native-gcj-unrestricted-candidate")
+            comparison.update(nativeCandidate=list(candidate), nativeCandidateDistanceM=stock.distance(*point, *candidate))
+        except stock.StockError:
+            comparison["nativeCandidateUnavailable"] = "outside the Moscow candidate envelope"
+        sample["guidanceComparison"] = comparison
+        out_times, out_rows = drive.by_topic.get(VEHICLE_LOCATION, ([], []))
+        outbound = [r for r in out_rows[bisect.bisect_left(out_times, t - join_ms):bisect.bisect_right(out_times, t + join_ms)]
+                    if r.get("sourceSessionId") == process
+                    and r.get("effectiveFrame", r.get("frame")) is not None]
+        if outbound:
+            r = min(outbound, key=lambda r: abs(r["_t"] - t));f = decode_out(r) or {}
+            out = {"ref": r["_ref"], "deltaMs": r["_t"] - t,
+                   "effectiveFrame": r.get("effectiveFrame", r.get("frame")), "fields": f}
+            for label, lon, lat in (("rawField", "locationLongitude", "locationLatitude"),
+                                    ("matchedField", "locationLongitudeAssociateRoad", "locationLatitudeAssociateRoad")):
+                if _coordinate(f.get(lon), f.get(lat)):
+                    out[label + "DistanceM"] = stock.distance(*point, f[lon], f[lat])
+            sample["outboundPositionComparison"] = out
+    paired = [r["guidanceComparison"] for r in samples if r["guidanceComparison"]["paired"]]
+    distances = {}
+    for key in ("wgs84DistanceM", "nativeCandidateDistanceM"):
+        values = [r[key] for r in paired if key in r]
+        distances[key] = {"count": len(values), "min": min(values) if values else None,
+                          "median": median(values), "p95": quantile(values, .95),
+                          "max": max(values) if values else None}
+    return {"topic": VEHICLE_POSITION, "service": 10, "event": "0x8001", "decodedReceipts": len(observations),
+            "samples": capped(samples), "sampleCount": len(samples), "pairedGuidanceSamples": len(paired),
+            "guidanceDistances": distances,
+            "receivers": [{"sourceSessionId": process, "selected": chosen[process], "counts": dict(counts)}
+                          for process, counts in receivers.items()],
+            "duplicateReceiverReceiptsExcluded": len(observations) - len(samples), "decodeErrors": capped(errors),
+            "decodeErrorCount": len(errors),
+            "bounds": {"guidanceJoinMs": join_ms, "sourceAgeMsUnderStockTimestampInterpretation": source_age_ms},
+            "rawAndroidGnss": "not recorded by DriveEvidence; progress.location is not a raw GNSS oracle",
+            "limits": ["ADAS output-coordinate proximity does not establish its inbound-route or internal datum, nor exclude a coordinate issue.",
+                       "Field absence differs from transmitted zero; neither alone establishes a physical fix's validity.",
+                       "hdStatus/fusionStatus/positionType/localizationOutputOffset are raw codes; no universal validity or datum rule is known.",
+                       "Heading is raw; stock consumer maps h<0?-h:360-h. Speed is unscaled raw vehicleSpeed; its wire unit is not declared.",
+                       "Timestamp age assumes the stock consumer's epoch-microseconds interpretation; the ADAS clock contract is unproved.",
+                       "Compact repeats retain the current receipt time and original payload presence/session; source timestamp still ages.",
+                       "Outbound POSITION is optional and requires explicit same recorder process and effective frame; it is not an independent GNSS oracle."]}
 
 
 # ---------------------------------------------------------------------------------------- 1 sessions
@@ -1483,6 +1668,7 @@ def review(root, tz_hours=3):
     pauses_out = pauses_and_gaps(drive, clock, cadence_out)
     semantics_out = semantics(drive, clock)
     adas_out = adas_state(drive, clock, paths_out, sessions_out)
+    position_out = vehicle_positions(drive, clock)
     side_out = side_channels(drive, clock)
     health_out = health(drive, clock, sessions_out)
     for s in sessions_out:
@@ -1490,7 +1676,8 @@ def review(root, tz_hours=3):
     return {"schema": SCHEMA, "evidence": str(root), "clock": clock.describe(),
             "inventory": evidence.inventory, "parseErrors": capped(evidence.parse_errors, 100),
             "sessions": sessions_out, "paths": paths_out, "cadence": cadence_out, "pausesAndGaps": pauses_out,
-            "semantics": semantics_out, "adasState": adas_out, "sideChannels": side_out, "health": health_out,
+            "semantics": semantics_out, "adasState": adas_out, "adasVehiclePosition": position_out,
+            "sideChannels": side_out, "health": health_out,
             "missing": sorted(set(drive.missing))}, clock
 
 
@@ -1663,6 +1850,19 @@ def markdown(result, clock):
         " (ещё %d отметок до неё)" % (len(crashes) - len(during)) if len(crashes) > len(during) else ""))
     for m in during[:5]:
         lines.append("  - `%s`: %s" % (m["ref"], m["line"][:160]))
+    vp = result["adasVehiclePosition"]
+    lines += ["", "## 9. Выходная позиция ADAS", "",
+              "VehiclePositionInfo service 10/0x8001: отсчётов %d, свежих пар с позицией ведения Яндекса %d; ошибок декодирования %d." % (
+                  vp["sampleCount"], vp["pairedGuidanceSamples"], vp["decodeErrorCount"]),
+              "Отсутствие поля и переданный ноль сохранены отдельно. Датум выходной позиции ADAS не доказывает датум входного маршрута или внутренней локализации ECU.",
+              "Позиция Яндекса классифицирована/привязана; отдельный raw Android GNSS не записан."]
+    for sample in vp["samples"][:5]:
+        pair = sample.get("guidanceComparison", {})
+        if pair.get("paired"):
+            lines.append("- %s: до WGS84 позиции Яндекса %.3f м%s; Δt %s; `%s`." % (
+                t(sample["t"]), pair["wgs84DistanceM"],
+                (", до native candidate %.3f м" % pair["nativeCandidateDistanceM"])
+                if "nativeCandidateDistanceM" in pair else "", _s(pair["deltaMs"]), sample["ref"]))
     return "\n".join(lines) + "\n"
 
 

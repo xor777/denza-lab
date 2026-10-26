@@ -13,14 +13,21 @@ import java.util.Map;
 
 /**
  * Passive trip evidence, enabled on the car too. No sender, subscription, route or cache mutation.
- * Sized for a two-hour drive: packets 7 × 8 MiB (2026-10-24: ~0.35 MiB a minute once repeats are
- * compact and service 13 is recorded by one receiver), history 3 × 8 MiB (~1.3 KiB a second), and
- * the change journal of ADAS state, which does not rotate while a drive lasts.
+ * Bounded rings: packets 7 × 8 MiB, history 3 × 8 MiB, and a separate ADAS change journal.
+ * Retention depends on callbacks: the optional service-10 stream and independently recorded live
+ * statuses exceed the old single-observer estimate. No fixed two-hour coverage is promised.
  */
 final class DriveEvidence {
     static final long RING_BYTES = DriveEvidenceStreams.RING_BYTES;
     static final int PACKET_GENERATIONS = DriveEvidenceStreams.PACKET_GENERATIONS, HISTORY_GENERATIONS = DriveEvidenceStreams.HISTORY_GENERATIONS;
     private static volatile DriveEvidence current;
+    private static Boolean captureEnabled;
+    /** One process decision, shared with the display observer's lifetime; marker changes require restart. */
+    static synchronized boolean recordingEnabled(Context context) {
+        if(captureEnabled==null)captureEnabled="ranchu".equals(Build.HARDWARE)||"goldfish".equals(Build.HARDWARE)
+                ||new File(context.getFilesDir(),"denza-drive-capture.enabled").isFile();
+        return captureEnabled;
+    }
     private final Reflect api;
     private final Handler worker;
     private final File directory;
@@ -33,8 +40,7 @@ final class DriveEvidence {
     private volatile boolean pending;
     DriveEvidence(Context context, Reflect api, Handler worker) {
         this.api=api;this.worker=worker;progress=new GuidanceSnapshot(api);
-        enabled="ranchu".equals(Build.HARDWARE)||"goldfish".equals(Build.HARDWARE)
-                ||new File(context.getFilesDir(),"denza-drive-capture.enabled").isFile();
+        enabled=recordingEnabled(context);
         directory=new File(context.getFilesDir(),"denza-drive-evidence");
         AdasStateJournal opened=null;
         if(enabled)try{opened=new AdasStateJournal(new File(directory,"adas-journal.jsonl"),System.currentTimeMillis());}

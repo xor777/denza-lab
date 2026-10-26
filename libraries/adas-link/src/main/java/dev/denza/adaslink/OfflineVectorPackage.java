@@ -10,7 +10,9 @@ import java.util.*;
  * Native catalog: MultiRegionMapData::subscribeForTile 0x1b63068, key comparator 0x1b608f4,
  * payload selector 0x1b65e34 in pinned libmaps-mobile c2842633cc3db830... . */
 public final class OfflineVectorPackage {
-    public static final int MAX_FILE_BYTES=512*1024*1024, MAX_TILES=1000000, MAX_COMPRESSED_BYTES=2*1024*1024;
+    // The package is mapped read-only, not copied into the Java heap. Keep the file
+    // bound at ByteBuffer's indexing limit; tile and decoder budgets stay separate.
+    public static final int MAX_FILE_BYTES=Integer.MAX_VALUE, MAX_TILES=1000000, MAX_COMPRESSED_BYTES=2*1024*1024;
     public static final int MAX_DICTIONARY_BYTES=2*1024*1024, MAX_DECODED_BYTES=2*1024*1024;
     public interface Decoder { byte[] decode(byte[] compressed,byte[] dictionary,int maximumOutputBytes); }
     public static final class Entry {

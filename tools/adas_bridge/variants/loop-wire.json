@@ -1,0 +1,9 @@
+{
+  "id": "loop-wire",
+  "position.ownership": 0,
+  "region": 990001,
+  "speedLimit": "zero",
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

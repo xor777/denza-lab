@@ -1,0 +1,8 @@
+{
+  "id": "loop-lanes",
+  "link.laneNum": 1,
+  "link.formway": 15,
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

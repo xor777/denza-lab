@@ -2,6 +2,8 @@ package dev.denza.adaslink;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -106,7 +108,23 @@ public final class OfflineVectorPackageTest {
         byte[] key=tiny();le(key).putLong(SECOND+8,Long.MIN_VALUE);fails(()->read(key),"noncanonical catalog key rejected");
         byte[] field=tiny();le(field).putShort(788,(short)20);fails(()->read(field),"uint64 field crosses table boundary");
         byte[] relative=tiny();le(relative).putInt(FIRST+16,2);fails(()->read(relative),"invalid relative reference");
+        byte[] unsigned=tiny();le(unsigned).putInt(FIRST+16,-1);fails(()->read(unsigned),"unsigned relative reference cannot wrap");
         byte[] terminated=tiny();terminated[933]=1;fails(()->read(terminated),"string terminator required");
+    }
+    private static void largeMappedPackage()throws Exception {
+        Path path=Files.createTempFile("offline-vector-large-", ".fb");
+        try(RandomAccessFile file=new RandomAccessFile(path.toFile(),"rw")) {
+            file.write(tiny());
+            // Observed Moscow package size, then the maximum supported single mapping.
+            // Sparse files exercise the file bound without allocating that much heap/disk.
+            for(long size:new long[]{826573656L,Integer.MAX_VALUE}) {
+                file.setLength(size);
+                OfflineVectorPackage p=new OfflineVectorPackage(file.getChannel().map(FileChannel.MapMode.READ_ONLY,0,size));
+                check(p.size()==2,"large mapped catalog accepted");
+                check(((Number)p.summary().get("fileBytes")).longValue()==size,"large mapped extent preserved");
+                check(Arrays.equals(p.compressed(p.find(new VectorRoadTile.TileId(1,0,1))),new byte[]{1,2,3}),"large mapped payload lookup");
+            }
+        } finally { Files.deleteIfExists(path); }
     }
     private static void corpus(Path root)throws Exception {
         Path packagePath=root.resolve("captures/yandex-offline-region-20261024/region-43/vmap3fb.fb");
@@ -142,7 +160,7 @@ public final class OfflineVectorPackageTest {
         String immutableHash=VectorRoadTile.digest(bytes);p.compressed(last);p.dictionary();check(VectorRoadTile.digest(bytes).equals(immutableHash),"reader and extraction preserve immutable backing bytes");
     }
     public static void main(String[]args)throws Exception {
-        synthetic();corpus(Paths.get(args.length==0?".":args[0]));
+        synthetic();largeMappedPackage();corpus(Paths.get(args.length==0?".":args[0]));
         System.out.println("OfflineVectorPackageTest: "+checks+" checks passed; fake decode does not validate native Zstd");
     }
 }

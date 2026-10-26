@@ -154,6 +154,8 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
     private short arriveCounter;
     private long lastLocationSend = Long.MIN_VALUE / 4, locationThrottle = 1000;
     private int oddLast;                    // DnpOddDistanceController.f13983c
+    private String oddLastCoverage = "";
+    private final Set<Integer> oddOpenCities = new HashSet<>();
     private int lastVehicleSpeed = Integer.MIN_VALUE;
     private int enteredTunnel = -1;
     private boolean cameraShown;
@@ -683,7 +685,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
             if (route==r && routeGeneration==generation && (!live || liveRouteCurrent(r,r.pathId(),generation)))
                 naviInfo(r, ni, passed, time, traffic, facilitiesEpoch);
         });
-        if (dnpSwitch) oddDistance();                                // DnpOddDistanceController.e()
+        if (dnpSwitch) oddDistance(r, ni);                            // DnpOddDistanceController.e()
     }
 
     private void naviInfo(Route r, int[] ni, double passed, double timeToFinish, double trafficSpeed, long facilitiesEpoch) {
@@ -1062,10 +1064,39 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
 
     // ------------------------------------------------------------------ DNP ODD distance
 
-    private void oddDistance() {
-        // The open-city set (KEY_OPEN_CITY) is empty without Amap's cloud cache: h(MAX), as the car logged.
-        oddLast = Integer.MAX_VALUE;
-        fire(Topics.ADV_AUTO_FUN_INFO, StockMessages.noOddRegionDistance(Integer.MAX_VALUE));
+    /** The actual ADAS ODD list replaces the empty-set compatibility default only after a valid response. */
+    public boolean onOddRegionCodes(byte[] payload) {
+        final Set<Integer> decoded;
+        try { decoded = OddDistance.decodeOpenCities(payload); }
+        catch (RuntimeException malformed) {
+            publisher.note("oddRegionCodesRejected", Json.object(), clock.now());
+            return false;
+        }
+        oddOpenCities.clear(); oddOpenCities.addAll(decoded); oddLastCoverage = "";
+        Map<String,Object> note = Json.object();
+        note.put("count", (long) decoded.size()); note.put("containsStockUrid372", decoded.contains(OddCoverage.STOCK_MAP_URID));
+        publisher.note("oddRegionCodes", note, clock.now());
+        return true;
+    }
+
+    private void oddDistance(Route expected, int[] ni) {
+        int distance = OddDistance.MAX;
+        String coverage = "emptyOpenCitySet";
+        if (!oddOpenCities.isEmpty()) {
+            StockPath path = expected == null ? null : expected.converted.path;
+            if (!OddCoverage.hasCompleteUrids(path)) coverage = "uridUnmapped";
+            else {
+                distance = OddDistance.calculate(path, ni[0], ni[1], ni[3], oddOpenCities);
+                coverage = "calculated";
+            }
+        }
+        oddLast = distance;
+        if (!coverage.equals(oddLastCoverage)) {
+            Map<String,Object> note = Json.object();
+            note.put("coverage", coverage); note.put("distance", (long) distance);
+            publisher.note("oddDistance", note, clock.now()); oddLastCoverage = coverage;
+        }
+        fire(Topics.ADV_AUTO_FUN_INFO, StockMessages.noOddRegionDistance(oddLast));
     }
 
     private void vehicleSpeed(int kmh) {
@@ -1081,6 +1112,7 @@ public final class StockFeed implements BridgeStatus, AutoCloseable {
 
     private void oddReset() {
         oddLast = 0;
+        oddLastCoverage = "";
         clock.cancel(tokenOdd);
     }
 

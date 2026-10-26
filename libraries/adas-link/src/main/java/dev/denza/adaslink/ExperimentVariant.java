@@ -41,10 +41,10 @@ public final class ExperimentVariant {
         STOCK
     }
 
-    // The stock's values on our roads (route-01 of first-full, 55 links; the parked chain's H0).
-    static final List<Long> ROAD_CLASS = list(9), FORMWAY = list(15), OWNERSHIP = list(0), DIRECTION = list(0, 1),
-            LANE_NUM = list(1, 2), ADMIN_CODE = list(990001), REGION = list(990001), POSITION_OWNERSHIP = list(0),
-            TRAFFIC_ROAD_CLASS = list(9);
+    // Stock values on our roads (first-full) plus the original Beijing survey-01-p006 donor.
+    static final List<Long> ROAD_CLASS = list(6, 7, 8, 9), FORMWAY = list(1, 7, 9, 10, 15), OWNERSHIP = list(0),
+            DIRECTION = list(0, 1), LANE_NUM = list(0, 1, 2), ADMIN_CODE = list(110000, 990001),
+            REGION = list(110000, 990001), POSITION_OWNERSHIP = list(0), TRAFFIC_ROAD_CLASS = list(6, 7, 8, 9);
     /** historySpeed in km/h: the factory bench sent 10-91, the car's stock 25. */
     public static final int HISTORY_MIN = 1, HISTORY_MAX = 120, ALTERNATE_MAX = 8;
     public static final String TRAFFIC_CLASS_LINK = "link";
@@ -71,8 +71,8 @@ public final class ExperimentVariant {
         return ms;
     }
     private static final String[] KEYS = {"id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction",
-            "link.laneNum", "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
-            "startProtocol", "naviSt", "instrumentNaviStatus"};
+            "link.laneNum", "link.adminCode", "link.hasMultiOut", "link.force", "region", "position.ownership", "traffic.roadClass",
+            "historySpeed", "speedLimit", "startProtocol", "naviSt", "instrumentNaviStatus"};
 
     public static final ExperimentVariant NONE = new ExperimentVariant(new LinkedHashMap<String, Object>());
 
@@ -82,6 +82,9 @@ public final class ExperimentVariant {
     public final Integer linkRoadClass, linkFormway, linkOwnership, linkDirection, linkLaneNum, region, positionOwnership,
             trafficRoadClass;
     public final Long linkAdminCode;
+    public final Boolean linkHasMultiOut;
+    /** Compatibility-only: replace even Yandex-sourced link attributes. */
+    public final boolean linkForce;
     /** traffic.roadClass "link": the class of the published link under the car. */
     public final boolean trafficRoadClassFromLink;
     public final HistoryMode historyMode;
@@ -108,6 +111,8 @@ public final class ExperimentVariant {
         linkLaneNum = member(m, "link.laneNum", LANE_NUM);
         Integer admin = member(m, "link.adminCode", ADMIN_CODE);
         linkAdminCode = admin == null ? null : Long.valueOf(admin);
+        linkHasMultiOut = bool(m, "link.hasMultiOut");
+        linkForce = Boolean.TRUE.equals(bool(m, "link.force"));
         region = member(m, "region", REGION);
         positionOwnership = member(m, "position.ownership", POSITION_OWNERSHIP);
         Object traffic = m.get("traffic.roadClass");
@@ -160,9 +165,9 @@ public final class ExperimentVariant {
     /** True when no switch changes anything: today's build. */
     public boolean isDefault() {
         return frame == null && linkRoadClass == null && linkFormway == null && linkOwnership == null && linkDirection == null
-                && linkLaneNum == null && linkAdminCode == null && region == null && positionOwnership == null
-                && trafficRoadClass == null && !trafficRoadClassFromLink && historyMode == HistoryMode.YANDEX && !speedLimitZero
-                && startProtocol == StartProtocol.BRIDGE && !naviSt && !instrumentNaviStatus;
+                && linkLaneNum == null && linkAdminCode == null && linkHasMultiOut == null && !linkForce && region == null
+                && positionOwnership == null && trafficRoadClass == null && !trafficRoadClassFromLink && historyMode == HistoryMode.YANDEX
+                && !speedLimitZero && startProtocol == StartProtocol.BRIDGE && !naviSt && !instrumentNaviStatus;
     }
 
     /** The coordinate frame this variant sends in; {@code fallback} when it names none. */
@@ -171,7 +176,7 @@ public final class ExperimentVariant {
     /** True when a link attribute is overridden: the converter must apply this variant. */
     public boolean overridesLinks() {
         return linkRoadClass != null || linkFormway != null || linkOwnership != null || linkDirection != null
-                || linkLaneNum != null || linkAdminCode != null;
+                || linkLaneNum != null || linkAdminCode != null || linkHasMultiOut != null;
     }
 
     /**
@@ -195,6 +200,8 @@ public final class ExperimentVariant {
         e.put("link.direction", linkDirection == null ? "yandex" : (Object) (long) linkDirection);
         e.put("link.laneNum", linkLaneNum == null ? "yandex" : (Object) (long) linkLaneNum);
         e.put("link.adminCode", linkAdminCode == null ? "yandex" : (Object) linkAdminCode);
+        e.put("link.hasMultiOut", linkHasMultiOut == null ? "yandex" : (Object) linkHasMultiOut);
+        e.put("link.force", linkForce);
         e.put("region", region == null ? "default" : (Object) (long) region);
         e.put("position.ownership", positionOwnership == null ? "yandex" : (Object) (long) positionOwnership);
         e.put("traffic.roadClass", trafficRoadClassFromLink ? TRAFFIC_CLASS_LINK : trafficRoadClass == null ? "yandex" : (Object) (long) trafficRoadClass);
@@ -227,6 +234,12 @@ public final class ExperimentVariant {
         Object v = m.get(key);
         if (!(v instanceof Long) || !allowed.contains(v)) throw bad(key + " must be one of " + allowed);
         return (int) (long) (Long) v;
+    }
+    private static Boolean bool(Map<String, Object> m, String key) {
+        if (!m.containsKey(key)) return null;
+        Object value = m.get(key);
+        if (!(value instanceof Boolean)) throw bad(key + " must be true or false");
+        return (Boolean) value;
     }
     private static Integer speed(Object v) {
         if (!(v instanceof Long) || (Long) v < HISTORY_MIN || (Long) v > HISTORY_MAX)

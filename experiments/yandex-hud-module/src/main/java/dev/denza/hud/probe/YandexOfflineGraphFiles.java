@@ -30,7 +30,10 @@ import java.util.TreeSet;
  */
 final class YandexOfflineGraphFiles {
     static final int MAX_PACKAGES = 128, MAX_FILE_BYTES = 32 * 1024 * 1024;
-    static final int MAX_VECTOR_FILE_BYTES = 512 * 1024 * 1024;
+    // A scoped mmap consumes address space, not a file-sized heap array. ByteBuffer uses int
+    // offsets, so this is the largest single mapping the reader can address. Tile/decode and
+    // matcher budgets remain independent of the installed regional package's byte size.
+    static final int MAX_VECTOR_FILE_BYTES = Integer.MAX_VALUE;
     static final int MAX_METADATA_BYTES = 65536, MAX_REGION_IDS = 1024, MAX_VERSION_BYTES = 128;
     static final long MAX_DISCOVERY_MS = 2000, TTL_MS = 5000;
 
@@ -51,7 +54,8 @@ final class YandexOfflineGraphFiles {
             maxBytes = vector ? MAX_VECTOR_FILE_BYTES : MAX_FILE_BYTES;
             version = header.version; ids = header.ids.clone(); fileStat = stat;
             this.metadata = metadata; this.metadataStat = metadataStat; this.metadataSha = metadataSha;
-            identity = digest(file.getPath() + "|" + stat.key() + "|" + metadataStat.key() + "|"
+            identity = digest(file.getPath() + "|" + stat.key() + "|"
+                    + (metadataStat == null ? "metadata_absent" : metadataStat.key()) + "|"
                     + metadataSha + "|" + id + "|" + release + "|" + version);
         }
         /** IDs embedded in driving.fb; empty for vmap3fb, whose binding is SDK/native folder. */
@@ -125,8 +129,9 @@ final class YandexOfflineGraphFiles {
                 File metadata = confined(root, new File(folder, "region.pb"));
                 try {
                     int maxBytes = vector ? MAX_VECTOR_FILE_BYTES : MAX_FILE_BYTES;
-                    Identity stat = stat(file, maxBytes), metaStat = stat(metadata, MAX_METADATA_BYTES);
-                    String metaSha = digest(read(metadata, metaStat, MAX_METADATA_BYTES));
+                    Identity stat = stat(file, maxBytes), metaStat = metadataStat(metadata);
+                    String metaSha = metaStat == null ? "metadata_absent"
+                            : digest(read(metadata, metaStat, MAX_METADATA_BYTES));
                     Header header;
                     try (RandomAccessFile input = new RandomAccessFile(file, "r")) {
                         header = header(input, stat.size, vector);
@@ -135,8 +140,7 @@ final class YandexOfflineGraphFiles {
                     boolean belongs = vector;
                     for (int member : header.ids) belongs |= member == id;
                     if (!belongs || !stat.equals(stat(file, maxBytes))
-                            || !metaStat.equals(stat(metadata, MAX_METADATA_BYTES))
-                            || !metaSha.equals(hashFile(metadata, metaStat, MAX_METADATA_BYTES))) throw bad("package_changed");
+                            || !metadataMatches(metadata, metaStat, metaSha)) throw bad("package_changed");
                     result.add(new Package(file, id, release, header, stat, metadata, metaStat, metaSha, vector));
                 } catch (IOException | ErrnoException | IllegalArgumentException e) { rejected++; }
             }
@@ -208,9 +212,31 @@ final class YandexOfflineGraphFiles {
 
     private static void check(Package source) throws IOException, ErrnoException {
         if (!source.fileStat.equals(stat(source.file, source.maxBytes))
-                || !source.metadataStat.equals(stat(source.metadata, MAX_METADATA_BYTES))
-                || !source.metadataSha.equals(hashFile(source.metadata, source.metadataStat, MAX_METADATA_BYTES)))
+                || !metadataMatches(source.metadata, source.metadataStat, source.metadataSha))
             throw bad("package_changed");
+        // Preserve the discovered format/version/embedded identity even for a sidecar-free
+        // SDK package. This does not join the SDK downloaded release to a decoded FB version.
+        try (RandomAccessFile input = new RandomAccessFile(source.file, "r")) {
+            if (!source.fileStat.equals(new Identity(Os.fstat(input.getFD())))) throw bad("package_changed");
+            Header current = header(input, source.fileStat.size, source.layer.equals("vmap3fb"));
+            if (!current.version.equals(source.version) || !java.util.Arrays.equals(current.ids, source.ids))
+                throw bad("package_changed");
+        }
+        if (!source.fileStat.equals(stat(source.file, source.maxBytes))) throw bad("package_changed");
+    }
+    /** SDK-managed packages need not have region.pb. Absence is itself a fenced state:
+     * a newly appearing sidecar invalidates the old package, just as removal or mutation does. */
+    private static Identity metadataStat(File file) throws IOException, ErrnoException {
+        try { return stat(file, MAX_METADATA_BYTES); }
+        catch (ErrnoException error) {
+            if (error.errno == OsConstants.ENOENT) return null;
+            throw error;
+        }
+    }
+    private static boolean metadataMatches(File file, Identity expected, String sha) throws IOException, ErrnoException {
+        Identity current = metadataStat(file);
+        return expected == null ? current == null
+                : expected.equals(current) && sha.equals(hashFile(file, expected, MAX_METADATA_BYTES));
     }
     private static File confined(File root, File child) throws IOException {
         File absolute = child.getAbsoluteFile(), canonical = child.getCanonicalFile();

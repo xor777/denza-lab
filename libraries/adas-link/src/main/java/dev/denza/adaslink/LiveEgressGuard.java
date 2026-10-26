@@ -384,6 +384,9 @@ public final class LiveEgressGuard implements StockFeed.GuardedLivePublisher, Au
         return result;
     }
 
+    /** Owner's final cached-prerequisite veto. No query, audit, ACK or path mutation. */
+    public void revokeCachedReadiness() { lastReadiness = null; }
+
     /**
      * Final post-marshalling check for the transport call currently owned by this guard. No
      * prerequisite callbacks, Binder, file writes or audit operations occur here. The Android

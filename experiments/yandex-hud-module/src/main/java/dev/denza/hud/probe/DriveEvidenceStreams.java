@@ -16,10 +16,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 final class DriveEvidenceStreams {
     /**
-     * Ring sizes for a two-hour drive (at least {@code generations - 1} full files kept), from the
-     * 2026-10-24 journals at the stock cadence: packets ~0.35 MiB a minute once repeats are compact
-     * and service 13 is recorded by one receiver; history ~1.3 KiB a second; the live journal ~0.31
-     * and the dry run ~0.2 MiB a minute. See DriveEvidenceStreamsTest for the arithmetic.
+     * At least {@code generations - 1} full files are kept. The original two-hour budget test uses
+     * a single service-13 observer at ~0.35 MiB/min. Build 17 also retains arm-owned statuses and
+     * can enable service 10, so that historical arithmetic is not a retention guarantee for it.
      */
     static final long RING_BYTES = 8L << 20, DRIVE_MS = 2L * 60 * 60 * 1000;
     static final int PACKET_GENERATIONS = 7, HISTORY_GENERATIONS = 3, LIVE_GENERATIONS = 6, DRY_RUN_GENERATIONS = 5;

@@ -150,6 +150,7 @@ public final class VariantWireTest {
         linkOverrides();
         dynamicOverrides();
         partialRoad();
+        compatibilityProfile();
         historySpeed();
         speedLimit();
         defaults();
@@ -262,7 +263,13 @@ public final class VariantWireTest {
                 + "\"traffic.roadClass\":\"link\",\"link.roadclass\":9}"));
         base.drive(route("dyn"), 0.2, 3.6, 0.2);
         rig.drive(route("dyn"), 0.2, 3.6, 0.2);
-        for (Map<String, Object> f : base.fires(Topics.SD_REGION)) check(l(inner(f), "regionId") == 0, "no variant: region 0");
+        check(!base.fires(Topics.SD_REGION).isEmpty(), "default region sent without a variant");
+        for (Map<String, Object> f : base.fires(Topics.SD_REGION)) {
+            Map<String, Object> m = inner(f);
+            check(l(m, "regionId") == 990001 && l(m, "provinceCode") == 990001 && l(m, "cityCode") == 990001
+                    && l(m, "countryCode") == 1 && l(m, "weatherType") == 0,
+                    "default region matches the successful stock NOA drive: " + m);
+        }
         check(!rig.fires(Topics.SD_REGION).isEmpty(), "region sent");
         for (Map<String, Object> f : rig.fires(Topics.SD_REGION)) {
             Map<String, Object> m = inner(f);
@@ -341,6 +348,47 @@ public final class VariantWireTest {
             check(ownNoted, c[2] + ": the ownership fill-in is attributed");
             check(classNoted == (expected == 9), c[2] + ": traffic.roadClass is attributed only when the switch put it on the wire");
         }
+    }
+
+    /** The maximal Chinese-donor experiment replaces sourced fields too, without moving geometry. */
+    @SuppressWarnings("unchecked")
+    static void compatibilityProfile() {
+        Rig rig = new Rig(v("{\"frame\":\"WGS84\",\"link.roadclass\":7,\"link.formway\":1,\"link.ownership\":0,"
+                + "\"link.direction\":1,\"link.laneNum\":0,\"link.adminCode\":110000,\"link.hasMultiOut\":true,\"link.force\":true,"
+                + "\"region\":110000,\"position.ownership\":0,\"traffic.roadClass\":\"link\",\"historySpeed\":{\"mode\":\"fixed\",\"value\":25},"
+                + "\"speedLimit\":\"zero\",\"startProtocol\":\"stock\",\"naviSt\":true,\"instrumentNaviStatus\":true}"));
+        rig.drive(route("compatibility-cn"), 0.2, 3.6, 0.2);
+        List<Map<String, Object>> links = links(routeBody(rig.fires(Topics.ROUTE).get(0)));
+        check(!links.isEmpty() && links.stream().anyMatch(x -> l(x, "roadclass") == 7), "Chinese donor route emitted");
+        for (Map<String, Object> link : links) {
+            check(l(link, "roadclass") == 7 && l(link, "formway") == 1 && l(link, "ownership") == 0
+                    && l(link, "direction") == 1 && l(link, "laneNum") == 0 && l(link, "adminCode") == 110000
+                    && Boolean.TRUE.equals(link.get("hasMultiOut")), "forced donor values on every link, including sourced ones: " + link);
+        }
+        for (Map<String, Object> f : rig.fires(Topics.SD_REGION)) {
+            Map<String, Object> region = inner(f);
+            check(l(region, "regionId") == 110000 && l(region, "provinceCode") == 110000 && l(region, "cityCode") == 110000
+                    && l(region, "countryCode") == 1, "Beijing region on every Region packet");
+        }
+        for (Map<String, Object> f : rig.fires(Topics.SD_VEHICLE_LOCATION))
+            if (d(inner(f), "curSDRouteID") > 0) check(l(inner(f), "currentRoadOwnership") == 0, "stock matched ownership");
+        check(rig.fires(Topics.TRAFFIC_INFO).stream().anyMatch(f -> l(inner(f), "roadClass") == 7),
+                "dynamic class follows the forced link");
+        check(l(inner(rig.fires(Topics.TRAFFIC_INFO).get(rig.fires(Topics.TRAFFIC_INFO).size() - 1)), "spdLmtSpeedValue") == 0,
+                "stock zero legal limit");
+        check(l(inner(rig.fires(Topics.SD_SPEED_INTERSECTION).get(rig.fires(Topics.SD_SPEED_INTERSECTION).size() - 1)), "historySpeed") == 25,
+                "fixed stock history speed");
+        boolean forced = false;
+        for (Map<String, Object> note : rig.notes("variantApplied")) {
+            if (!(note.get("links") instanceof Map)) continue;
+            for (Object value : ((Map<String, Object>) note.get("links")).values()) {
+                Map<String, Object> row = (Map<String, Object>) value;
+                check(Boolean.TRUE.equals(row.get("forced")) && l(row, "keptSourced") == 0 && l(row, "links") == links.size(),
+                        "forced application is fully attributed: " + row);
+                forced = true;
+            }
+        }
+        check(forced, "forced link attribution emitted");
     }
 
     /** historySpeed: fixed on every route; alternate by Yandex route ID, so there and back is an A/B. */

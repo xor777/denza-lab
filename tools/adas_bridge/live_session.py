@@ -64,15 +64,16 @@ class SessionError(ValueError):
 
 # The experiment variant: ExperimentVariant.java's schema, key for key and value for value.
 VARIANT_KEYS = ("id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum",
-                "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
-                "startProtocol", "naviSt", "instrumentNaviStatus")
-# The stock's values on our roads (route-01 of first-full, the parked chain's H0).
-VARIANT_MEMBERS = {"link.roadclass": (9,), "link.formway": (15,), "link.ownership": (0,), "link.direction": (0, 1),
-                   "link.laneNum": (1, 2), "link.adminCode": (990001,), "region": (990001,), "position.ownership": (0,)}
+                "link.adminCode", "link.hasMultiOut", "link.force", "region", "position.ownership", "traffic.roadClass",
+                "historySpeed", "speedLimit", "startProtocol", "naviSt", "instrumentNaviStatus")
+# Stock values on our roads plus the original Beijing survey-01-p006 donor.
+VARIANT_MEMBERS = {"link.roadclass": (6, 7, 8, 9), "link.formway": (1, 7, 9, 10, 15), "link.ownership": (0,),
+                   "link.direction": (0, 1), "link.laneNum": (0, 1, 2), "link.adminCode": (110000, 990001),
+                   "region": (110000, 990001), "position.ownership": (0,)}
 VARIANT_DEFAULT = {"link.roadclass": "yandex", "link.formway": "yandex", "link.ownership": "yandex",
-                   "link.direction": "yandex", "link.laneNum": "yandex", "link.adminCode": "yandex", "region": "default",
-                   "position.ownership": "yandex"}
-TRAFFIC_ROAD_CLASS = (9,)
+                   "link.direction": "yandex", "link.laneNum": "yandex", "link.adminCode": "yandex",
+                   "link.hasMultiOut": "yandex", "region": "default", "position.ownership": "yandex"}
+TRAFFIC_ROAD_CLASS = (6, 7, 8, 9)
 TRAFFIC_CLASS_LINK = "link"
 HISTORY_MIN, HISTORY_MAX, ALTERNATE_MAX = 1, 120, 8
 DEFAULT_FRAME = "WGS84"  # FieldDefaults.FRAME
@@ -146,7 +147,7 @@ def validate_variant(variant):
         _string(variant, "speedLimit", ("yandex", "zero"))
     if "startProtocol" in variant:
         _string(variant, "startProtocol", ("bridge", "stock"))
-    for key in ("naviSt", "instrumentNaviStatus"):
+    for key in ("link.hasMultiOut", "link.force", "naviSt", "instrumentNaviStatus"):
         if key in variant and type(variant[key]) is not bool:
             raise _bad(key + " must be true or false")
     return variant
@@ -157,7 +158,10 @@ def effective_variant(variant):
     validate_variant(variant)
     out = {"id": variant.get("id"), "frame": variant.get("frame", DEFAULT_FRAME)}
     for key in ("link.roadclass", "link.formway", "link.ownership", "link.direction", "link.laneNum", "link.adminCode",
-                "region", "position.ownership", "traffic.roadClass"):
+                "link.hasMultiOut"):
+        out[key] = variant.get(key, VARIANT_DEFAULT.get(key, "yandex"))
+    out["link.force"] = variant.get("link.force", False)
+    for key in ("region", "position.ownership", "traffic.roadClass"):
         out[key] = variant.get(key, VARIANT_DEFAULT.get(key, "yandex"))
     out["historySpeed"] = variant.get("historySpeed", {"mode": "yandex"})
     out["speedLimit"] = variant.get("speedLimit", "yandex")

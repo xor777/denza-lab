@@ -1,0 +1,8 @@
+{
+  "id": "loop-region",
+  "region": 990001,
+  "link.adminCode": 990001,
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

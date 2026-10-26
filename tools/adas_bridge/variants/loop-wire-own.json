@@ -1,0 +1,7 @@
+{
+  "id": "loop-wire-own",
+  "position.ownership": 0,
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

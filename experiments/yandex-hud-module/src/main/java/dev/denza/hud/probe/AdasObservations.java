@@ -39,9 +39,11 @@ final class AdasObservations {
             case MATCH:
                 matchedPaths=e.matchedPaths.clone(); matchedCodes=e.matchedCodes.clone();
                 matchCode=e.matchCode; routeInfo=e.routeInfo.clone(); matchAt=at; matchSession=sessionVersion; break;
-            default:
+            case NAV_STATUS: case TRAFFIC: case LOCATION:
                 stockAt = at;
                 if (e.stockEmpty()) stockEmptyAt = at;
+                break;
+            case VEHICLE_POSITION: break; // Passive raw evidence only; not stock-map activity or ADAS state.
         }
     }
 

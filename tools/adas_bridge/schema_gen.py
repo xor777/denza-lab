@@ -18,7 +18,11 @@ FILES = ['sd/map/inform/service/SomeipSdMapInformService.java',
          'navigation/sd/link2/service/SomeipNavigationSdLink2Service.java',
          'navi/path/user/select/sts/service/SomeipNaviPathUserSelectStsService.java',
          'navigation/path/match/status/service/SomeipNavigationPathMatchStatusService.java',
-         'pilot/status_/alarm/info/service/SomeipPilotStatusAlarmInfoService.java']
+         'pilot/status_/alarm/info/service/SomeipPilotStatusAlarmInfoService.java',
+         'vehicle/position/info/service/SomeipVehiclePositionInfoService.java']
+# The original VehiclePositionInfo dynamicMethod descriptor uses UINT32 (11)
+# and packed UINT32_LIST (43). Its Java int/IntList declarations alone lose this.
+VEHICLE_POSITION_UINT32 = {1, 2, 15, 16, 17, 19, 20, 25, 26, 27, 29, 30, 31, 32, 33, 37}
 SCALAR = {'int': 'int32', 'long': 'int64', 'boolean': 'bool', 'double': 'double', 'float': 'float',
           'String': 'string', 'ByteString': 'bytes', 'Internal.IntList': 'repeated int32',
           'Internal.LongList': 'repeated int64', 'Internal.DoubleList': 'repeated double',
@@ -47,6 +51,11 @@ def parse(path):
                     kind = 'repeated ' + SCALAR.get(inner, 'message:' + inner)
                 else:
                     kind = 'message:' + java
+                if current == 'VehiclePositionInfoNotifyStruct':
+                    if number in VEHICLE_POSITION_UINT32:
+                        kind = 'uint32'
+                    elif number in (35, 36):
+                        kind = 'repeated uint32'
                 fields[str(number)] = [name, kind]
             messages[current] = fields
 

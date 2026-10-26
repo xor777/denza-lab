@@ -1,0 +1,7 @@
+{
+  "id": "loop-limit",
+  "speedLimit": "zero",
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

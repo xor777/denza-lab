@@ -3,27 +3,42 @@ package dev.denza.hud.probe;
 import android.content.*;
 import android.os.*;
 import java.util.*;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
 
 /** Tests the production client; only the Android/Binder boundary is replaced. No device access. */
 public final class AdasPassiveClientTest {
     private static final String CLIENT="ts.car.someip.sdk.ISomeIpClientInterface", CALLBACK="ts.car.someip.sdk.ISomeIpCallback";
     private static final long PA=0x0001000D000D0001L, PU=PA+1, RA=0x0001002C002C0001L, RU=RA+1;
+    private static Path processFiles;
+    private static boolean positionEnabled, filesUnavailable;
+    private static String configOrigin;
+    private static final String POSITION_MARKER="denza-adas-vehicle-position.enabled";
     private static int checks;
     private static void check(boolean value,String message) { checks++; if(!value) throw new AssertionError(message); }
     private static final class Sink implements AdasPassiveClient.Sink {
         final ArrayDeque<Runnable> queue=new ArrayDeque<>(); final List<Long> topics=new ArrayList<>();
         final List<byte[]> payloads=new ArrayList<>(); final List<String> states=new ArrayList<>(); boolean admit=true;
         final List<Long> enqueuedTopics=new ArrayList<>(); int lifecycle;
+        DriveEvidenceStreams recorder;
         public boolean enqueue(Runnable task) { lifecycle++; return add(task); }
         public boolean enqueue(long topic,Runnable task) { enqueuedTopics.add(topic); return add(task); }
         boolean add(Runnable task) { if(!admit)return false; if(queue.size()>=1000)throw new AssertionError("Queue cap"); queue.add(task); return true; }
         public void state(String event,String detail) { states.add(event+":"+detail); }
-        public void event(long topic,long stamp,long at,byte[] payload) { topics.add(topic); payloads.add(payload); }
+        public void event(long topic,long stamp,long at,byte[] payload) {
+            topics.add(topic); payloads.add(payload);
+            if(recorder!=null)try{recorder.append(recorder.passive("overlay",null,"unarmed-source",topic,stamp,at,payload,1000));}
+            catch(java.io.IOException error){throw new AssertionError(error);}
+        }
         void drain() { int n=0; while(!queue.isEmpty()) { if(++n>1000)throw new AssertionError("Drain cap"); queue.remove().run(); } }
     }
     private static final class App extends Context {
         ServiceConnection connection; Intent intent; int unbinds;
         public String getPackageName() { return "test.navigator"; }
+        public java.io.File getFilesDir() {
+            if(filesUnavailable)throw new SecurityException("fixture files inaccessible");
+            return processFiles.toFile();
+        }
         public boolean bindService(Intent intent,ServiceConnection connection,int flags) { this.intent=intent; this.connection=connection; return true; }
         public void unbindService(ServiceConnection connection) { check(this.connection==connection,"Own binding only"); unbinds++; }
         void connect(Hal hal) { connection.onServiceConnected(intent.component,hal); }
@@ -35,11 +50,12 @@ public final class AdasPassiveClientTest {
     private static final class Hal extends Binder {
         final Map<Integer,Integer> references=new HashMap<>(); final Map<Long,Integer> subs=new HashMap<>();
         final Set<Integer> available=new HashSet<>(Arrays.asList(13,44)); final List<Call> calls=new ArrayList<>();
-        IBinder callback; int failStart=-1, queries, unregisters, oddRequests, oddResult; long failTopic=-1; boolean alive=true, availableHal=true, absentOddReply;
+        IBinder callback; int failStart=-1, throwStart=-1, queries, unregisters, oddRequests, oddResult; long failTopic=-1; boolean alive=true, availableHal=true, absentOddReply;
         @Override public boolean isBinderAlive(){return alive;}
         static int service(long topic){return (int)((topic>>>32)&0xffff);}
         int refs(int id){return references.getOrDefault(id,0);}
         int count(int tx){int n=0;for(Call c:calls)if(c.tx==tx)n++;return n;}
+        int count(int tx,long value){int n=0;for(Call c:calls)if(c.tx==tx&&c.value==value)n++;return n;}
         int call(int tx,long value)throws RemoteException {
             Parcel d=Parcel.obtain(),r=Parcel.obtain();d.writeInterfaceToken(CLIENT);d.writeLong(value);
             transact(tx,d,r,0);r.readException();return r.readInt();
@@ -64,7 +80,7 @@ public final class AdasPassiveClientTest {
                 return true;
             }
             long value=data.readLong();int id=service(value),result=0;calls.add(new Call(tx,value));
-            if(tx==4){if(id==failStart)result=11;else{result=refs(id)>0?13:0;references.put(id,refs(id)+1);}}
+            if(tx==4){if(id==throwStart)throw new RemoteException("optional start failed");if(id==failStart)result=11;else{result=refs(id)>0?13:0;references.put(id,refs(id)+1);}}
             else if(tx==5){check(refs(id)>0,"Stop only owned reference");references.put(id,refs(id)-1);}
             else if(tx==8){
                 if(refs(id)==0||value==failTopic)result=11;
@@ -155,9 +171,106 @@ public final class AdasPassiveClientTest {
         f.app.disconnect();check(f.sink.lifecycle==lifecycle+1,"binder loss is lifecycle work");f.client.close();
     }
     private static void passive()throws Exception {
-        Fixture f=new Fixture(false);f.start();check(f.hal.count(4)==4&&f.hal.count(8)==8,"Passive overlay service/topic set unchanged");
+        Fixture f=new Fixture(false);f.start();
+        check(f.hal.count(4)==(positionEnabled?5:4)&&f.hal.count(8)==(positionEnabled?9:8),"Passive overlay changes only optional position client/topic when enabled");
+        checkConfig(f,false);
         check(!f.client.liveAnswersReady(),"Passive overlay never a live-answer readiness source");
         check(f.client.requestOddRegionCodes()<0&&f.hal.count(10)==0,"the overlay's client never makes the ODD request");f.client.close();
+    }
+    private static void checkConfig(Fixture f,boolean bridge) {
+        check(f.sink.states.stream().anyMatch(s->s.startsWith("vehicle_position_config:")
+                &&s.contains("enabled="+positionEnabled+" ")&&s.contains("effective="+(!bridge&&positionEnabled)+" ")
+                &&s.contains("origin="+configOrigin+" ")&&s.contains("process-restart-required=true")),
+                "Effective observer flag, original marker decision and restart requirement recorded");
+    }
+    /** Missing/non-file/inaccessible marker prevents both native acquisitions, including reconnect. */
+    private static void positionOff()throws Exception {
+        Fixture f=new Fixture(false);f.start();checkConfig(f,false);
+        check(f.sink.states.contains("subscribed:8/8"),"OFF preserves all original passive subscriptions");
+        check(f.hal.count(4,AdasWire.VEHICLE_POSITION_SERVICE)==0&&f.hal.count(8,AdasWire.VEHICLE_POSITION)==0,
+                "OFF makes neither service10 startClient nor subscribe");
+        int queued=f.sink.enqueuedTopics.size();f.hal.emit(AdasWire.VEHICLE_POSITION,new byte[]{8,1});
+        check(f.sink.enqueuedTopics.size()==queued,"OFF ignores unexpected position callbacks before enqueue");
+        f.app.disconnect();f.app.connect(f.hal);f.sink.drain();
+        check(f.hal.count(4,AdasWire.VEHICLE_POSITION_SERVICE)==0&&f.hal.count(8,AdasWire.VEHICLE_POSITION)==0,
+                "OFF reconnect still makes zero optional acquisitions");
+        f.client.close();
+        check(f.hal.count(5,AdasWire.VEHICLE_POSITION_SERVICE)==0&&f.hal.count(9,AdasWire.VEHICLE_POSITION)==0,
+                "OFF cleanup never touches optional resources");
+    }
+    /** Changing the file does not switch an existing client, a reconnect, or a new client in this JVM. */
+    private static void processLatch()throws Exception {
+        Fixture existing=new Fixture(false);existing.start();
+        Path marker=processFiles.resolve(POSITION_MARKER);Files.deleteIfExists(marker);
+        if(!positionEnabled)Files.createFile(marker);
+        filesUnavailable=false;
+        existing.app.disconnect();existing.app.connect(existing.hal);existing.sink.drain();checkConfig(existing,false);
+        check(existing.hal.count(4,AdasWire.VEHICLE_POSITION_SERVICE)==(positionEnabled?2:0)
+                &&existing.hal.count(8,AdasWire.VEHICLE_POSITION)==(positionEnabled?2:0),"Reconnect retains process decision after marker mutation");
+        Fixture next=new Fixture(false);next.start();checkConfig(next,false);
+        check(next.hal.count(4,AdasWire.VEHICLE_POSITION_SERVICE)==(positionEnabled?1:0)
+                &&next.hal.count(8,AdasWire.VEHICLE_POSITION)==(positionEnabled?1:0),"Every new client retains first process decision");
+        Fixture bridge=new Fixture(true);bridge.start();checkConfig(bridge,true);
+        check(bridge.client.liveAnswersReady()&&bridge.hal.count(4)==2&&bridge.hal.count(8)==9,
+                "Bridge readiness/subscriptions unchanged under both process decisions");
+        existing.client.close();next.client.close();bridge.client.close();
+        check(existing.hal.refs(10)==0&&next.hal.refs(10)==0,"Latched reconnect/new-client cleanup releases only acquired optional clients");
+    }
+    /** The optional input records raw bytes without an arm, and never changes stock/ADAS state. */
+    private static void optionalPosition()throws Exception {
+        check(AdasWire.VEHICLE_POSITION==1125942857203713L&&AdasWire.VEHICLE_POSITION_SERVICE==3096267694145536L,
+                "Original packed service10/instance10 position event and service");
+        check(AdasWire.ANSWERS.length==5&&AdasWire.STOCK.length==3&&AdasPassiveClient.topics().length==8,
+                "Original required answer and stock arrays remain unchanged");
+        Fixture f=new Fixture(false);Path folder=Files.createTempDirectory("passive-position-");
+        Path raw=folder.resolve("packets.jsonl"),history=folder.resolve("history.jsonl");
+        f.sink.recorder=new DriveEvidenceStreams(new DriveEvidenceLog(history.toFile(),8192),new DriveEvidenceLog(raw.toFile(),8192));
+        f.start();check(f.sink.states.contains("subscribed:8/8"),"Optional setup does not change existing subscription status");
+        check(f.hal.count(4,AdasWire.VEHICLE_POSITION_SERVICE)==1&&f.hal.count(8,AdasWire.VEHICLE_POSITION)==1,"ON makes exactly one optional start and subscription");
+        check(f.hal.refs(10)==1&&f.hal.subs.get(AdasWire.VEHICLE_POSITION)==1,"Optional own service and event admitted");
+        byte[] payload={10,3,8,1,0};SystemClock.now=123456;
+        f.hal.emit(AdasWire.VEHICLE_POSITION,payload);check(!Files.exists(raw),"Binder callback queues before disk work");f.sink.drain();
+        String saved=new String(Files.readAllBytes(raw),StandardCharsets.UTF_8);
+        check(saved.contains("\"topic\":\"4000a000a8001\"")&&saved.contains("\"receivedAtElapsedMs\":123456"),"Unarmed passive capture keeps exact topic and monotonic receipt");
+        check(saved.contains("\"base64\":\""+Base64.getEncoder().encodeToString(payload)+"\"")&&saved.contains("\"receiverSession\":null")&&!saved.contains("armId"),"Raw bytes logged without an arm identity");
+        check(!Files.exists(history),"Optional position stays in raw budget, outside critical ACK history");
+        AdasObservations observations=new AdasObservations();observations.session(true,100);
+        observations.apply(AdasWire.decode(AdasWire.NAV_STATUS,AdasWire.navStatus(100)),200);
+        observations.apply(AdasWire.decode(AdasWire.VEHICLE_POSITION,payload),300);
+        check(observations.stockAt==200&&observations.stockEmptyAt==200&&observations.pilotAt==-1&&observations.selectedAt==-1&&observations.matchAt==-1,
+                "Vehicle position does not refresh stock indicator or ADAS answers");
+        AdasStateJournal journal=new AdasStateJournal(folder.resolve("journal.jsonl").toFile(),1000);
+        check(journal.observe("overlay",AdasWire.VEHICLE_POSITION,payload,300,1000)==null,"Raw-only position is not undecodable/changed ADAS state");
+        int delivered=f.sink.topics.size();f.hal.emit(AdasWire.VEHICLE_POSITION,new byte[]{2});f.client.close();f.sink.drain();
+        check(f.hal.refs(10)==0&&f.hal.subs.get(AdasWire.VEHICLE_POSITION)==0,"Close removes own optional service/subscription");
+        check(f.sink.topics.size()==delivered&&saved.equals(new String(Files.readAllBytes(raw),StandardCharsets.UTF_8)),"Queued optional callback cannot deliver or write after close");
+        check(f.sink.states.stream().anyMatch(s->s.startsWith("late_callback_discarded:")),"Queued optional close race is diagnosed");
+        Files.deleteIfExists(raw);Files.deleteIfExists(history);Files.deleteIfExists(folder.resolve("journal.jsonl"));Files.delete(folder);
+        Fixture bridge=new Fixture(true);bridge.start();bridge.sink.admit=false;int queued=bridge.sink.enqueuedTopics.size();
+        bridge.hal.emit(AdasWire.VEHICLE_POSITION,payload);
+        check(bridge.hal.refs(10)==0&&bridge.hal.count(4)==2&&bridge.hal.count(8)==9,"Live bridge never starts/subscribes optional service");
+        check(bridge.sink.enqueuedTopics.size()==queued&&bridge.client.liveAnswersReady(),"Position never enters bridge queue or changes answer readiness");
+        bridge.sink.admit=true;bridge.client.close();
+    }
+    private static void optionalFailuresAndReconnect()throws Exception {
+        for(int failure=0;failure<3;failure++){
+            Fixture f=new Fixture(false);
+            if(failure==0)f.hal.failStart=10;else if(failure==1)f.hal.failTopic=AdasWire.VEHICLE_POSITION;else f.hal.throwStart=10;
+            f.start();check(f.sink.states.contains("subscribed:8/8")&&!f.sink.states.stream().anyMatch(s->s.startsWith("client_setup_error:")),"Optional failure preserves base setup status");
+            Fixture bridge=new Fixture(true);bridge.start();check(bridge.client.liveAnswersReady(),"Optional passive failure cannot poison required bridge answer readiness");bridge.client.close();
+            final String diagnostic=failure==2?"optional_position_setup_error:":failure==0?"optional_position_start_client:":"optional_position_subscribe:";
+            check(f.sink.states.stream().anyMatch(s->s.startsWith(diagnostic)),"Optional failure recorded separately");
+            f.hal.emit(AdasWire.SELECTED,AdasWire.selected(901,200));f.sink.drain();check(f.sink.topics.contains(AdasWire.SELECTED),"Answer delivery survives optional setup failure");
+            f.client.close();check(f.hal.refs(13)==0&&f.hal.refs(44)==0&&f.hal.refs(10)==0,"Optional failure cleanup stops only successful starts");
+            check(f.hal.count(9)==8&&f.hal.count(5)==(failure==1?5:4),"Failed optional setup is never unsubscribed/stopped as a successful acquisition");
+        }
+        Fixture reconnect=new Fixture(false);reconnect.hal.references.put(10,2);reconnect.hal.subs.put(AdasWire.VEHICLE_POSITION,3);reconnect.start();
+        reconnect.hal.emit(AdasWire.VEHICLE_POSITION,new byte[]{1});int delivered=reconnect.sink.topics.size();
+        reconnect.app.disconnect();reconnect.sink.drain();check(reconnect.sink.topics.size()==delivered,"Queued old-connection position discarded");
+        reconnect.app.connect(reconnect.hal);reconnect.sink.drain();
+        reconnect.hal.emit(AdasWire.VEHICLE_POSITION,new byte[]{2});reconnect.sink.drain();check(reconnect.sink.topics.size()==delivered+1,"Optional position resumes after reconnect");
+        reconnect.client.close();
+        check(reconnect.hal.refs(10)==2&&reconnect.hal.subs.get(AdasWire.VEHICLE_POSITION)==3,"Reconnect cleanup preserves foreign optional client/subscription references");
     }
     /** The bridge's one request: the stock ODD region read on its own started service-13 client, once per call. */
     private static void oddRequest()throws Exception {
@@ -185,7 +298,16 @@ public final class AdasPassiveClientTest {
         f.client.close();check(f.client.requestOddRegionCodes()==-1&&f.hal.oddRequests==3,"Closed client never queries");
     }
     public static void main(String[] args)throws Exception {
-        fresh();existing();failures();epochs();admission();topics();passive();oddRegionQuery();oddRequest();
-        System.out.println("AdasPassiveClient production Binder harness: "+checks+" checks PASS");
+        String mode=args.length==0?"off":args[0];
+        processFiles=Files.createTempDirectory("passive-config-");Path marker=processFiles.resolve(POSITION_MARKER);
+        positionEnabled=mode.equals("on");filesUnavailable=mode.equals("error");
+        if(positionEnabled)Files.createFile(marker);else if(mode.equals("directory"))Files.createDirectory(marker);
+        configOrigin=positionEnabled?"marker-present":filesUnavailable?"marker-read-error:SecurityException":mode.equals("directory")?"marker-not-file":"marker-absent";
+        try {
+            fresh();existing();failures();epochs();admission();topics();passive();
+            if(positionEnabled){optionalPosition();optionalFailuresAndReconnect();}else positionOff();
+            oddRegionQuery();oddRequest();processLatch();
+            System.out.println("AdasPassiveClient production Binder harness ("+mode+"): "+checks+" checks PASS");
+        } finally {Files.deleteIfExists(marker);Files.delete(processFiles);}
     }
 }

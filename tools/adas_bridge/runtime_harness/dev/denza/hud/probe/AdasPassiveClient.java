@@ -9,6 +9,7 @@ final class AdasPassiveClient implements AutoCloseable {
     void start(){sink.state("binder_connected","fake boundary");}
     boolean liveAnswersReady(){return ready&&!closed;}long epoch(){return epoch;}boolean isClosed(){return closed;}
     int requestOddRegionCodes(){if(closed)throw new AssertionError("request after close");if(!liveAnswersReady())throw new AssertionError("ODD before readiness");requests.add(SystemClock.now);sink.state("odd_region_response","result=0");return 0;}
+    byte[] lastOddRegionResponse(){return null;}
     void answer(long t,byte[] b){long now=SystemClock.now;sink.enqueue(t,()->sink.event(t,0,now,b));}
     public void close(){closed=true;epoch++;sink.state("closed","own session");}
 }

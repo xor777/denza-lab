@@ -393,6 +393,23 @@ VARIANT_JAVA = ROOT / "libraries/adas-link/src/main/java/dev/denza/adaslink/Expe
 VARIANT_JAVA_TEST = ROOT / "libraries/adas-link/src/test/java/dev/denza/adaslink/ExperimentVariantTest.java"
 
 
+# The settlement loop's stock-like arm and its halving steps (tools/adas_bridge/README.md,
+# "Settlement loop"): five groups of the stock's own values, joined in the order of loop-all.
+LOOP_FRAME = ["frame"]
+LOOP_OWN = ["position.ownership", "link.ownership"]
+LOOP_LANES = ["link.laneNum", "link.formway"]
+LOOP_REGION = ["region", "link.adminCode"]
+LOOP_LIMIT = ["speedLimit"]
+LOOP_GROUPS = {"loop-all": LOOP_FRAME + LOOP_OWN + LOOP_LANES + LOOP_REGION + LOOP_LIMIT,
+               "loop-frame": LOOP_FRAME, "loop-rest": LOOP_OWN + LOOP_LANES + LOOP_REGION + LOOP_LIMIT,
+               "loop-own-lanes": LOOP_OWN + LOOP_LANES, "loop-own": LOOP_OWN, "loop-lanes": LOOP_LANES,
+               "loop-region": LOOP_REGION, "loop-limit": LOOP_LIMIT}
+# The values the stock sent during its CNOA holds (its own send log of 2026-10-23), no link fill-ins:
+# loop-wire and its single-field halves (loop-limit is the third).
+LOOP_WIRE = ["position.ownership", "region", "speedLimit"]
+LOOP_GROUPS.update({"loop-wire": LOOP_WIRE, "loop-wire-own": ["position.ownership"], "loop-wire-region": ["region"]})
+
+
 def java_string(literal):
     return literal.replace('\\"', '"').replace("\\\\", "\\")
 
@@ -409,12 +426,45 @@ class VariantSchemaTests(unittest.TestCase):
                   "drive-1.json": ["position.ownership", "traffic.roadClass", "region", "historySpeed", "startProtocol",
                                    "naviSt", "instrumentNaviStatus"],
                   "drive-2.json": ["frame", "position.ownership", "traffic.roadClass", "region", "historySpeed",
-                                   "startProtocol", "naviSt", "instrumentNaviStatus"]}
+                                   "startProtocol", "naviSt", "instrumentNaviStatus"],
+                  "compatibility-cn.json": ["frame", "link.roadclass", "link.formway", "link.ownership", "link.direction",
+                                   "link.laneNum", "link.adminCode", "link.hasMultiOut", "link.force", "region",
+                                   "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit", "startProtocol",
+                                   "naviSt", "instrumentNaviStatus"]}
+        base = ["startProtocol", "naviSt", "instrumentNaviStatus"]
+        for name, switches in LOOP_GROUPS.items():
+            expect[name + ".json"] = switches + base
         self.assertEqual(set(expect), {p.name for p in VARIANTS.glob("*.json")})
         for name, keys in expect.items():
             with self.subTest(name=name):
                 self.assertEqual(live.effective_variant(live.load_variant(VARIANTS / name))["overrides"], keys)
         self.assertIs(live.effective_variant(live.load_variant(VARIANTS / "H6.json"))["naviSt"], True)
+
+    def test_loop_steps_are_slices_of_one_stock_like_arm(self):
+        # Every step carries loop-all's own values for its switches and the build-15 drive's start
+        # (stock start, both side channels off); a switch outside the step stays at the build's value.
+        loops = {name: live.effective_variant(live.load_variant(VARIANTS / (name + ".json"))) for name in LOOP_GROUPS}
+        none = live.effective_variant({})
+        stock_like = loops["loop-all"]
+        self.assertEqual((stock_like["frame"], stock_like["position.ownership"], stock_like["link.ownership"],
+                          stock_like["link.laneNum"], stock_like["link.formway"], stock_like["region"],
+                          stock_like["link.adminCode"], stock_like["speedLimit"]),
+                         ("STOCK_GCJ", 0, 0, 1, 15, 990001, 990001, "zero"))
+        for name, switches in LOOP_GROUPS.items():
+            with self.subTest(name=name):
+                step = loops[name]
+                self.assertEqual((step["startProtocol"], step["naviSt"], step["instrumentNaviStatus"]), ("stock", False, False))
+                for key in live.VARIANT_KEYS:
+                    if key in ("id", "startProtocol", "naviSt", "instrumentNaviStatus"):
+                        continue
+                    self.assertEqual(step[key], stock_like[key] if key in switches else none[key], key)
+        groups = [LOOP_FRAME, LOOP_OWN, LOOP_LANES, LOOP_REGION, LOOP_LIMIT]
+        self.assertEqual(sorted(sum(groups, [])), sorted(LOOP_GROUPS["loop-all"]))
+        self.assertEqual(len(set(sum(groups, []))), len(sum(groups, [])))
+        # loop-wire fills no link field and keeps WGS-84; its halves split it one switch each.
+        self.assertFalse(any(key.startswith("link.") or key == "frame" for key in LOOP_WIRE))
+        self.assertEqual(sorted(LOOP_GROUPS["loop-wire-own"] + LOOP_GROUPS["loop-wire-region"] + LOOP_GROUPS["loop-limit"]),
+                         sorted(LOOP_WIRE))
 
     def test_rejects_every_case_the_java_schema_rejects(self):
         text = VARIANT_JAVA_TEST.read_text(encoding="utf-8")

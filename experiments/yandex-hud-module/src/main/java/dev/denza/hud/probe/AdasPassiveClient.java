@@ -11,6 +11,7 @@ import android.os.RemoteException;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -29,7 +30,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * it removes only its own subscriptions and clients.
  *
  * <p>Services: 13 and 44 (ADAS's answers), and 7 and 0x8202 (the IVI's own map feed, which the
- * stock map offers and fires; read here to see when it says "no route" over ours). See AdasWire.
+ * stock map offers and fires; read here to see when it says "no route" over ours). The passive
+ * overlay additionally attempts service 10's VehiclePositionInfo for raw evidence only when
+ * explicitly enabled by the process-latched marker below (OFF by default). Its failure does
+ * not change answer setup or readiness; bridge mode never subscribes to it.
  */
 final class AdasPassiveClient implements AutoCloseable {
     interface Sink {
@@ -47,6 +51,39 @@ final class AdasPassiveClient implements AutoCloseable {
     private final Sink sink;
     private final String session;
     private final boolean bridgeMode;
+    private final ObserverConfig observerConfig;
+
+    /** One immutable decision shared by every client/reconnect in this process. Restart to change. */
+    private static final class ObserverConfig {
+        static final String MARKER = "denza-adas-vehicle-position.enabled";
+        private static ObserverConfig process;
+        final boolean vehiclePosition;
+        final String origin, marker;
+        private ObserverConfig(boolean vehiclePosition, String origin, String marker) {
+            this.vehiclePosition = vehiclePosition; this.origin = origin; this.marker = marker;
+        }
+        static synchronized ObserverConfig process(Context context) {
+            if (process == null) {
+                String marker = "unavailable";
+                try {
+                    File files = context.getFilesDir();
+                    if (files == null) throw new IllegalStateException("Files directory unavailable");
+                    File file = new File(files, MARKER);
+                    marker = file.getAbsolutePath();
+                    boolean enabled = file.isFile();
+                    process = new ObserverConfig(enabled, enabled ? "marker-present"
+                            : file.exists() ? "marker-not-file" : "marker-absent", marker);
+                } catch (RuntimeException failure) {
+                    process = new ObserverConfig(false, "marker-read-error:" + failure.getClass().getSimpleName(), marker);
+                }
+            }
+            return process;
+        }
+        String detail(boolean bridgeMode) {
+            return "enabled=" + vehiclePosition + " effective=" + (!bridgeMode && vehiclePosition)
+                    + " origin=" + origin + " marker=" + marker + " process-restart-required=true";
+        }
+    }
     private volatile boolean pilotAvailable, pathAvailable, requiredSubscribed;
     private static final long PILOT_AVAILABLE = 0x0001000D000D0001L, PILOT_UNAVAILABLE = 0x0001000D000D0002L;
     private static final long PATH_AVAILABLE = 0x0001002C002C0001L, PATH_UNAVAILABLE = 0x0001002C002C0002L;
@@ -62,6 +99,7 @@ final class AdasPassiveClient implements AutoCloseable {
     private volatile boolean accepting = true;
     private volatile boolean halKnown, halAvailable;
     private volatile long invalidatedAt = -1;
+    private volatile byte[] lastOddRegionResponse;
     boolean transportAlive() { return !closed.get() && accepting && remote != null && (!halKnown || halAvailable); }
     boolean binderAlive() { return !closed.get() && accepting && remote != null; }
     Boolean halState() { return halKnown ? halAvailable : null; }
@@ -74,6 +112,7 @@ final class AdasPassiveClient implements AutoCloseable {
     AdasPassiveClient(Context context, Sink sink, boolean bridgeMode) {
         this.context = context.getApplicationContext(); this.sink = sink;
         this.bridgeMode = bridgeMode;
+        observerConfig = ObserverConfig.process(this.context);
         session = context.getPackageName() + ".session-" + UUID.randomUUID();
     }
 
@@ -124,6 +163,7 @@ final class AdasPassiveClient implements AutoCloseable {
             SomeIpReply response = readSomeIpData(reply);
             if (result == 0 && (response == null || response.payload == null))
                 throw new IllegalArgumentException("Successful ODD response missing");
+            if (result == 0) lastOddRegionResponse = response.payload.clone();
             sink.state("odd_region_response", "result=" + result + " topic="
                     + (response == null ? "absent" : Long.toHexString(response.topic)) + " payloadBase64="
                     + (response == null || response.payload == null ? "null" : Base64.getEncoder().encodeToString(response.payload)));
@@ -132,6 +172,11 @@ final class AdasPassiveClient implements AutoCloseable {
             sink.state("odd_region_error", failure.getClass().getSimpleName());
             return -200;
         } finally { reply.recycle(); data.recycle(); }
+    }
+
+    byte[] lastOddRegionResponse() {
+        byte[] response = lastOddRegionResponse;
+        return response == null ? null : response.clone();
     }
 
     private static void writeSomeIpData(Parcel data, long topic, long stamp, byte[] payload) {
@@ -169,6 +214,7 @@ final class AdasPassiveClient implements AutoCloseable {
             sink.enqueue(() -> {
                 if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
                 sink.state("binder_connected", session);
+                sink.state("vehicle_position_config", observerConfig.detail(bridgeMode));
                 try {
                     register(true); registered = true;
                     boolean setupOk = true;
@@ -191,6 +237,7 @@ final class AdasPassiveClient implements AutoCloseable {
                     }
                     requiredSubscribed = setupOk && remote==binder && connectionEpoch.get()==epoch && !closed.get() && accepting;
                     sink.state("subscribed", subscriptions.size() + "/" + subscriptionTopics().length);
+                    if (!bridgeMode && observerConfig.vehiclePosition) setupOptionalPosition(epoch);
                 } catch (Exception failure) { sink.state("client_setup_error", failure.getClass().getSimpleName()); }
             });
         }
@@ -209,6 +256,23 @@ final class AdasPassiveClient implements AutoCloseable {
             connectionEpoch.incrementAndGet(); readinessEpoch.incrementAndGet(); retryBrokenBinding();
         }
     };
+
+    /** An optional read-only input, isolated from the bridge's required answer proof and status. */
+    private void setupOptionalPosition(long epoch) {
+        try {
+            if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
+            int started = integerCall(4, AdasWire.VEHICLE_POSITION_SERVICE);
+            sink.state("optional_position_start_client", hex(AdasWire.VEHICLE_POSITION_SERVICE) + ":" + started);
+            if (started != 0 && started != 13) return;
+            clients.add(AdasWire.VEHICLE_POSITION_SERVICE);
+            if (closed.get() || !accepting || connectionEpoch.get() != epoch) return;
+            int subscribed = integerCall(8, AdasWire.VEHICLE_POSITION);
+            sink.state("optional_position_subscribe", hex(AdasWire.VEHICLE_POSITION) + ":" + subscribed);
+            if (subscribed == 0) subscriptions.add(AdasWire.VEHICLE_POSITION);
+        } catch (Exception failure) {
+            sink.state("optional_position_setup_error", failure.getClass().getSimpleName());
+        }
+    }
 
     void start() {
         if (bound || closed.get()) return;
@@ -341,7 +405,7 @@ final class AdasPassiveClient implements AutoCloseable {
         return false;
     }
     private boolean allowed(long topic) {
-        if (!bridgeMode) return AdasWire.allowed(topic);
+        if (!bridgeMode) return (topic != AdasWire.VEHICLE_POSITION || observerConfig.vehiclePosition) && AdasWire.allowed(topic);
         for (long allowed : subscriptionTopics()) if (topic == allowed) return true;
         return false;
     }

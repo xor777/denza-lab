@@ -143,6 +143,13 @@ public final class LiveEgressGuardTest {
                 "old prerequisite failure completed after replacement cannot close its healthy generation");
         check(oldQuery.packet(Topics.ROUTE,chunk(261,0,1,1))==0,"replacement retains its route group after stale prerequisite completion");
 
+        Rig localVeto=new Rig(true);localVeto.transport.admission=localVeto.guard::finalLeaseValid;localVeto.join();localVeto.route(269);localVeto.ack(269);localVeto.fine(269);
+        int beforeVeto=localVeto.transport.calls.size();localVeto.transport.afterMarshal=localVeto.guard::revokeCachedReadiness;
+        check(localVeto.position(269)!=0&&!localVeto.guard.isClosed()&&localVeto.transport.calls.size()==beforeVeto
+                &&localVeto.guard.currentPathId()==269&&localVeto.guard.confirmedPathId()==269,
+                "owner's final cached-prerequisite veto is local, preserves path/ACK and never enters transport");
+        localVeto.transport.afterMarshal=null;check(localVeto.position(269)==0,"a new readiness check can recover after local final veto");
+
         Rig binderCode=new Rig(true);binderCode.transport.admission=binderCode.guard::finalLeaseValid;binderCode.join();binderCode.begin(270,1);
         binderCode.transport.routeResult=-203;
         check(binderCode.packet(Topics.ROUTE,chunk(270,0,1,1))==-203&&binderCode.guard.isClosed(),

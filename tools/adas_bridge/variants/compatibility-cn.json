@@ -1,0 +1,20 @@
+{
+  "id": "compatibility-cn",
+  "frame": "WGS84",
+  "link.roadclass": 7,
+  "link.formway": 1,
+  "link.ownership": 0,
+  "link.direction": 1,
+  "link.laneNum": 0,
+  "link.adminCode": 110000,
+  "link.hasMultiOut": true,
+  "link.force": true,
+  "region": 110000,
+  "position.ownership": 0,
+  "traffic.roadClass": "link",
+  "historySpeed": {"mode": "fixed", "value": 25},
+  "speedLimit": "zero",
+  "startProtocol": "stock",
+  "naviSt": true,
+  "instrumentNaviStatus": true
+}

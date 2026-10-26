@@ -6,18 +6,42 @@ car's ADAS (Momenta, `getAdasType` 1) in place of the stock map
 Navigator and the stock map left installed and unmodified? The initial firmware
 feasibility study is now followed by an instrumented Navigator build, a host
 converter and a local mock receiver. Conversion benches run on a disposable
-emulator; car builds also collect passive evidence. Build 13 is installed; build 14 (SHA-256 `c57a9b04…`), which adds the experiment variant to the
-whole-route offline attributes, is built for the drive and not installed. On build 12 the parked car acknowledged two distinct Yandex routes
+emulator; car builds also collect passive evidence. Build 17 is built and signed
+locally, with recorder lifetime, optional service-10 control and reroute handoff
+corrections. Build 17 is installed by hash; the A1 OFF drive is complete and its
+session is closed. It retained nine 489–607 ms NOA-active runs, all ending in ICC;
+availability did not recover. Moving reroute gaps fell to 1.745–5.504 s, and both
+status recorders covered the drive and subsequent map hiding.
+See [build 17](#build-17-control-candidate-2026-10-25).
+The preceding verified installed APK was build 16
+and verified by APK SHA-256 (`cb97cacb…`), preserving build 15's offline-package
+fix and adding the passive position observer described below. Build 15 prepared downloaded-vector
+attributes for one selected route, decoding 67/67 tiles. This establishes that
+route's Android acquisition path, with unresolved attributes still explicit. See
+[the build-15 correction](#generic-vector-runtime-and-offline-prerequisite-2026-10-24).
+On build 12 the parked car acknowledged two distinct Yandex routes
 with explicit status 200, including cancellation and replacement within the same
-armed session, then received dynamic packets. NOA operation is not established.
+armed session, then received dynamic packets. Build 15 also received a real
+status-200 acknowledgement for the enriched route with `startProtocol: stock`,
+after its shortened-start comparison received none. A subsequent same-arm parked
+check accepted three paths across two manual replacements without stale path IDs
+in the retained position packets. Sustained NOA operation is not established; the subsequent build-15 drive
+retained brief active CNOA intervals while the feed continued, as described below.
 See [route replacement acceptance](#route-replacement-correction-build-12-2026-10-24).
 
 ## Current state
 
-Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
+| Default Region now reuses the successful stock/OSM drive's `990001/1/990001/990001` (region/country/province/city), without an arm override. Weather remains 0. Route-link adminCode remains independent | local source change; vehicle transmission and NOA effect unverified | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
+| URID 372 binds the stock SDK's map package and feeds its local ODD calculations; it is not a Region field in the active ADAS-type-1 wire. The production Java calculator matches the original Amap on 1,332/1,332 Beijing samples, including protobuf bytes. One Yandex route now has conservative route-specific annotation: 14/26 links (3,273/4,772 m) mapped to 372; 12 divergent links remain unknown, so its full feed retains MAX. Java and Python agree on 144/144 replay samples, including a controlled finite boundary on a fully mapped excerpt | local source + original-APK emulator differential + offline geometric annotation; generic Yandex annotation, receiver eligibility and Russia-wide coverage remain unresolved | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
+| Build 17 (`dd8dbce9…`, versionCode 739494317) A1 OFF retained nine NOA-active runs of 489–607 ms, each ending in ICC. Pure availability occupies 0.80% of observed moving time; service 10 is actually OFF. Five paths received SELECTED 200; 743 retained positions have no send errors. Reroute gaps are 1.745/1.828/2.418/5.504 s. Both recorders cover movement and another 151 s. Session closed after the owner's manual reboot, stock remains disabled | current-arm raw evidence; no sustained NOA; subscription-only explanation weakened, cause unresolved | [A1 drive](#build-17-a1-off-drive-review-2026-10-25) |
+| The completed build-16 `loop-wire` drive has five explicit DNP-active intervals of 495–589 ms, all ending in ICC. Five paths received SELECTED 200; 7,512 preclosure sends and 799 positions have no transport failures or wrong-path sends. First three dropouts precede the first reroute; the first four occur with ordinary matched ownership 0. Session closed, stock left disabled by owner request | current-arm raw evidence; no sustained CNOA, receiver cause unresolved | [Loop-wire drive](#loop-wire-drive-review-2026-10-25) |
+| Build 16 records service-13 states only through the overlay observer, which closes 30 s after the map Activity stops. AVC foregrounding ended that observer after its drive; guidance/live continued. All recorded movement precedes that cutoff. Installed build 17 retains both observers through its drive and later map hiding | build-16 source/raw lifecycle proof + build-17 moving recording receipt | [A1 drive](#build-17-a1-off-drive-review-2026-10-25) |
+| Build 16 records optional service-10 VehiclePositionInfo without requiring an arm. Its completed loop-frame drive received four explicit same-path SELECTED 200 replies and sent 562 current-path positions without transport failures; no explicit DNP available/active status was retained. Two moving reroutes interrupted positions for 8.264/7.469 s. The session is RESTORED, publisher closed, stock map enabled state 0. Output proximity does not establish the required route datum | installed SHA verified + bounded moving capture + restored state | [Build-16 position observer](#build-16-position-observer) |
+| Build 16 can tear down a ready replacement before its complete observation, adding about 2 s end plus 5 s fresh start. Installed build 17 retains guidance during bounded replacement while blocking old egress and requiring a fresh-path ACK. A1's four replacements commit without the old stop/start lifecycle, with 1.745–5.504 s position gaps; NOA dropouts remain | host regression + moving build-17 evidence | [Local handoff correction](#local-reroute-handoff-correction-2026-10-25) |
 | The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
 | There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
@@ -43,7 +67,15 @@ Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 | Yandex's own online graph is accessible before and after decoding; routes and graph loads were observed in SPb, Kazan and Novosibirsk with no OSM store. Directed edges, geometry, names, limits and endpoint levels are recovered; class and continuous lane count are not | native byte evidence + embedded dry-run integration, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | Online vector tiles contain literal road `class`, `fc`, `oneway`, structures and HD markings. Native local geometry, three TileId contexts and the ellipsoidal WGS84 projection are recovered; eight further native-success tiles decode completely (17,895 features) | native bytes + captures + independent host review, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | A captured Kazan route has 98.73% sampled 2D vector coverage, including ambiguity (94.08% unique + 4.65% ambiguous). A host review table supports 582 canonical graph fragments; raw class/fc/oneway are not recoded, and build 5 does not consume this table | host evidence only; no runtime ADAS enrichment, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
-| Local vector runtime prepares the entire chosen route through a separate downloaded-map attribute source; SDK inventory/path, a read-only vmap3fb reader and standard Zstd replace automatic offscreen camera acquisition. The converter consumes a source-independent interval contract | compiled into signed build 13; host Java route replay passes; Android runtime not exercised | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
+| Local vector runtime prepares the entire chosen route through a separate downloaded-map attribute source; SDK inventory/path, a read-only vmap3fb reader and standard Zstd replace automatic offscreen camera acquisition. The converter consumes a source-independent interval contract | installed build 15; actual Android app prepared one route, 67/67 tiles decoded; sampled attributes with explicit gaps/conflicts | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
+| Build 15's bounded parked source-only comparison sent an enriched 100-link route and selection through the real transport, both result 0; no same-path SELECTED ACK arrived in the retained 62.6-second window, so the guard withheld dynamics. The session was restored and the stock package returned to its recorded state 0 | physical parked observation; drive variants and NOA not accepted | [Build-15 parked comparison](#build-15-parked-comparison-2026-10-24) |
+| A subsequent build-15 comparison kept the same Yandex route and both optional vehicle side channels off, changing `startProtocol` to `stock`. ADAS acknowledged the new path with status 200 and the guarded feed sent dynamics; 104 successful packet sends are retained. Start messages, ODD request and the added start delay have not been separated causally | physical parked acceptance of this route and configuration; NOA not established | [Build-15 parked comparison](#build-15-parked-comparison-2026-10-24) |
+| The build-15 drive retained 126 explicit DNP-active intervals (median 786 ms, maximum 5415 ms), 113 immediate ICC-active exits and only city-family mode 2. All exits were bracketed by successful position sends within 2028 ms. Its 844 link instances contain no class 0/6, and 147/1799 positions disagree with dynamic road class; the receiver exit predicate remains unknown | actual car packets + installed-source audit; short activation, no sustained NOA acceptance | [Build-15 drive](#build-15-drive-review-2026-10-24) |
+| The owner confirms autonomous NOA↔ICC cycling after a stalk request. Three active intervals end before any new bridge packet; 124/126 exits have coherent route-position geometry. A retained stock control holds CNOA for 24.902 s with dynamic class -1/9, so missing class 6 does not explain every city dropout. Coordinate family, ownership and vehicle-speed provenance remain persistent differences, not proved receiver causes | raw packet replay + original stock log/source; host-only follow-up | [Immediate dropout](#immediate-dropout-follow-up) |
+| Original SDK native DR mode1 emits shifted Moscow coordinates correlated by inputTickTime; the GNSS path and public guard preserve WGS84. The pinned build-15 candidate matches the original inner function on 408 trip points, and 889 host field checks find no active coordinate bypass or double transform. Receiver datum and dropout causality remain unproved | original APK/ELF runtime + pinned-source host checks + parked selection; dropout unresolved | [Coordinate parity](#coordinate-parity-follow-up) |
+| On the same settlement streets where the stock held CNOA, build 15 sends values the stock never sends while guiding: position ownership -1 (stock 0 in 1,747/1,747 guided positions), and route links with laneNum 0, formway -1, ownership -1, adminCode 0, hasMultiOut false (stock 1–2, 15, 0, 990001, true in a later parked capture with another package; the holds' route bodies are not retained). Region 0, a non-zero speed limit and a located traffic light also persist; dynamic class -1, cadence and route progress are ruled out by the control. Receiver cause not proved | original stock logs/source + build-15 wire, joined by street; host-only | [Stock CNOA hold against build 15](#stock-cnoa-hold-against-build-15-field-by-field) |
+| The stock's longest hold, HNOA on Kievskoye for 54.2 s, sends class 6 and historySpeed 85; its CNOA holds in the settlement send 9/-1 and 25. Ownership 0, Region 990001, speed limit 0 and an open ODD are the same in both | original stock send log, host-only | [Stock CNOA hold against build 15](#stock-cnoa-hold-against-build-15-field-by-field) |
+| Build 15 accepted three paths across two manual replacements within one parked arm; all 160 decoded positions referenced their corresponding current path, and both stops sent real end statuses. A separate two-hour session subsequently obtained its own real ACK and dynamic sends, with autonomous logs growing | physical parked transport and recording checks; subsequent moving-trip evidence below; full-route attribute coverage and sustained NOA remain unverified | [Build-15 parked comparison](#build-15-parked-comparison-2026-10-24) |
 | Offline maps remain mandatory, with the owner-requested minimal check: at least one usable installed region. Neither full-route coverage nor equality with a separate offline route is required for this iteration | source implementation; inventory presence is not a claim about route coverage | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
 | A downloaded Yandex Kazan `driving.fb` exposes 298,104 directed indices, 297,181 admitted base-edge shapes and 156,842 raw attribute entries. A bounded Java reader and whole-route association pass host tests on the actual package. Raw road/access enums remain unconverted; active class/direction acquisition uses vmap3fb literals | native bytes + host Java checks; regional reader not integrated into feed | [Regional offline graph](#regional-offline-graph-2026-10-24) |
 | Post-drive read-only pull verified build 8 by APK SHA. The latest session has 1,362/1,362 FINE guidance samples at 2–364 ms; retained ADAS shows two ICC-active episodes and no service-44 packets. Raw status packets occupied 77.44% of the shared log, and the overlay listener closed during 26 active-guidance samples | physical retained logs + presence-aware offline replay; build 8 sent no Yandex route | [Post-drive review](#post-drive-read-only-review-2026-10-24) |
@@ -52,17 +84,17 @@ Updated 2026-10-24. Local parser acceptance is separate from vehicle acceptance.
 | Build 11 route and selection fires returned 0 with fresh hardware snapshots and actual remote-service availability; no matching service-44 ACK was received in the retained pre-departure window | historical build-11 parked car; superseded by build-12 ACKs below | [Build 11](#build-11-completeness-and-car-test-2026-10-24) |
 | Normal route cancellation closed the whole build-11 arm; build 12 keeps a healthy armed session idle between routes and distinguishes an ACK wait from send silence | host regression + two physical same-arm route ACKs and dynamics | [Route replacement](#route-replacement-correction-build-12-2026-10-24) |
 | Local candidate 13 refreshes same-route conditions, adds typed road facilities, preserves partial-source errors, latches terminal sender failures and clarifies the idle overlay | local host validation; not installed | [Local follow-up](#local-follow-up-candidate-13-2026-10-24) |
-| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 87 open after the local enrichment source audit; code anchors describe main with the experiment variant merged in; the engine rewrite at `6f97e3bb` and the merge have not been run on the car) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
+| Every value the bridge can send to ADAS has a contract row: provenance, mark against the stock, decision with evidence or the experiment that decides it, NOA risk (252 rows, 87 open after the local enrichment source audit; code anchors describe main with the experiment variant merged in; build 15 has bounded parked acceptance of manual replacement and the source-valued stock-start configuration; other experiment variants and moving behavior remain unverified) | Data, gated by tests | [Field contract](#field-contract-2026-10-24) |
 | Historical first parked H0 obtained ACK 200 and PathMatch but its ODD request failed with NullPointerException. The owner confirms this car never activates or displays NOA while stationary: the proposed cluster-message criterion is inapplicable. The revised control compares internal ADAS replies against the actual stock map | physical car + owner-directed revised method, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Corrected H0 ODD returned 0 and retained its 1,743-byte response as `odd_response` hex. Actual LISTEN recorded 1,800 pilot samples with zero publisher calls; no stock-route ACK/PathMatch was received, so the paired guidance control is not established. Stock was disabled again and the probe removed | physical H0/LISTEN + 34 Python tests / 127 core checks, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
-| The live engine no longer dies on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route while its offline admission remains valid (proof withdrawal requires a fresh path), sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps evidence for a two-hour drive; not yet run on the car | code + host harnesses, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
+| The live engine no longer dies on a reroute, pauses instead of going silent on a prerequisite gap, keeps one path per Yandex route while its offline admission remains valid (proof withdrawal requires a fresh path), sends positions at 1 Hz with their own indices, ends every session with the stock's statuses, resumes after a Navigator restart and keeps bounded rotating evidence (the build-16 position stream reduces measured retention below two hours). Build 15 has parked manual-replacement, stop and recorder-growth evidence; build-16 moving reroutes expose 8.264/7.469 s position gaps, and restart recovery remains unverified | code + host harnesses + bounded parked checks, 2026-10-24 | [Engine follow-up](#engine-follow-up-2026-10-24) |
 | Lane category 0/1/2 is supported by the recovered SDK enum and the stock's forwarding code; the Beijing sample's 255 is NULL, not a universal constant. TRAM/TAXI/BIKE → Other remains a declared coarse projection | corpus + source-oracle regression, 2026-10-24; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
 | Strict per-arm field switches and the separate MPC/instrument state switches are implemented for local controlled comparisons; instrument state is ON by default for new host sessions (explicit false disables it), MPC remains opt-in; their presence does not decide OPEN field rows | code + host harnesses; car not run | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
 | Instrument `0x43E0003A` is registered for both SET and cached GET on device 1007 and shell UID is allowed; its initial 65535 is unknown. Cache readback does not prove ECU receipt or an ADAS gate; the inspected MPC `0x4CA0004B` registration is request-only | original native corpus + bounded offline replay, 2026-10-24 | [Enrichment follow-up](#enrichment-follow-up-2026-10-24) |
-| The experiment variant (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
+| The experiment variant (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start. The completed build-16 drive exposes a reroute exception: route-subject reconciliation recreates the driver and repeats the fresh start and ODD. The default (bridge) start sends none, and a recreated driver keeps the session's frame. Included in installed build 15; only the source-valued bridge/stock-start comparison with both side channels off has been exercised here | code + host harnesses + bounded parked checks, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
-Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
+Contents: [Build 17 control](#build-17-control-candidate-2026-10-25) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
@@ -71,7 +103,7 @@ Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-2
 [ADAS status observer](#adas-status-observer) ·
 [Car trip recorder](#car-trip-recorder-2026-10-24) ·
 [Parked selection](#parked-route-selection-with-a-separate-probe-2026-10-24) ·
-[Post-drive review](#post-drive-read-only-review-2026-10-24) ·
+[Post-drive review](#post-drive-read-only-review-2026-10-24) · [Loop-wire drive](#loop-wire-drive-review-2026-10-25) ·
 [Pre-test review](#pre-test-firmware-review-2026-10-24) ·
 [Build 11 and completeness](#build-11-completeness-and-car-test-2026-10-24) ·
 [Route replacement](#route-replacement-correction-build-12-2026-10-24) ·
@@ -82,6 +114,269 @@ Contents: [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-2
 Paths below: `LM` = `captures/hud-firmware-20260923/jadx/BydLaunchermap/sources`,
 `SIP` = `captures/hud-firmware-20260923/jadx/SomeIpService/sources`,
 `YN` = `captures/firmware/yandexnavi-29.8.1-3b0dec32` (all git-ignored).
+
+## Region default from the successful stock drive (2026-10-25)
+
+The owner requested the region sent during the successful NOA run. The original
+`captures/stock-map-review-20261023/car/drive-02/drive.log` records successful
+Region sends on topic `1268847189590025` (`0x8202/0x8009`), including lines
+134, 399 and 808: `regionId:990001 countryCode:1 provinceCode:990001
+cityCode:990001 weatherid:0`. This is the stock/OSM drive with the retained
+CNOA holds, not a region inferred from Navigator's offline-map inventory.
+
+`FieldDefaults` now uses those three `990001` ids for both Navigator hosts,
+dry run and live, even with no `region` variant. Previously they were 0;
+build 17's A1 source-valued variant used that older default: its retained
+`postdrive/reports/transmission-a1/arm-review.json` has 774 Region packets with
+country 1 and region/province/city absent (proto3 zero). Explicit experiment
+variants remain compatible. The trace header records the new default.
+`link.adminCode` is a separate route attribute and is unchanged.
+This synthetic map code has no established general administrative or ODD meaning;
+reusing it is not evidence that NOA will hold. No vehicle install or arm is part
+of this source change. Historical zero-region measurements below describe the
+older APKs.
+
+Validation: `:adas-link:testDebugUnitTest` passes, including the existing
+`VariantWireTest` now decoding default Region output and checking all five
+values without an arm override, plus the field-contract and serializer oracles.
+
+**URID 372 is a separate internal namespace.** The stock-data builder
+`amap-injector/research/stock-map-native/global_db_moscow_bound372.py` binds
+adcode 990001 to URID 372 in `global.db`, selecting `chn/a372`. The original
+SDK exposes the road's URID through `LinkInfo.getURID()`.
+`LM/k/h/e0/d/f/m.java` compares these URIDs (and `BydOddInfos.cityURID`) with
+the open-city set; `LM/k/h/e0/c/f.java` computes the distance to a non-ODD city
+from them. These internal structures are distinct from the active
+ADAS-type-1 `NaviToEHPData` payload, which has link `adminCode`, not `URID`.
+`OddDistance` now ports the stock controller's URID-transition algorithm,
+including its empty-set MAX result, transition-before-length rule, 2 km
+look-ahead and Java int arithmetic. `StockFeed` consumes the actual ODD response
+retained by `AdasPassiveClient`; with complete internal URID annotation it emits
+the calculated distance, otherwise it deliberately retains MAX. URID is present
+only in `StockPath`, never added to the ADAS route wire. `OddCoverage.Catalog`
+separates the generic adcode-to-URID catalog from geographic adcode assignment;
+the confirmed `990001 -> 372` pair remains a Moscow stock-map bench input, not a
+Russia-wide default or a coverage override.
+
+The original-APK differential used factory route `survey-01-p006` (74 links,
+7,487 m, native URID 1) on the Beijing package. The six controlled cases each
+have 222 samples: retained 374-city ADAS list, native cities, empty list,
+excluded list and two labelled synthetic URID boundaries. All 1,332 production
+Java results match Amap's decoded distances and complete protobuf payloads;
+the independent Python oracle also passes 1,332/1,332. The synthetic
+covered-to-excluded case includes finite 81/40 m boundaries and zero outputs.
+The original run is emulator-only with `vehicle_operations=0`, status `observed`
+and baseline restored. Receipts: `captures/adas-odd-bench-20261025/java-check-v3.json`,
+`python-check-v3.json` and `prepared-v3/run/receipt.json`.
+
+This proves the universal calculation against one real factory route and
+controlled boundaries. It does not supply geographic URID annotation for Yandex
+routes in Russia, establish actual NOA coverage or prove sustained NOA. Merely
+putting 372 into Region would still not reproduce package selection or coverage.
+
+Validation after integration: `:adas-link:testDebugUnitTest` passes; Python ODD
+and live-session tests pass 54/54; the passive-client harness passes 2,631
+checks; runtime handoff/coordinator harnesses pass 82 + 337 checks.
+
+**One-route geometric URID annotation.** A second emulator-only reference run
+used the Moscow stock-map package and the endpoints of retained Yandex route
+`01a16d87-80aa-71cf-ba4e-cb002076aaa0`. Its receipt is observed, restored and
+has zero vehicle operations. Amap returned one local 6,000 m route with 84
+links; every native `LinkInfo` and exported link agrees on length and adcode,
+and every native URID is 372. The independent six-case calculator check passes
+1,512/1,512 samples. This Amap self-differential is separate from the Yandex
+annotation below; it is not an original-Amap calculation on Yandex geometry.
+
+`tools/adas_bridge/urid_annotation.py` verifies the native/exported link tables,
+converts the actual 380-point Yandex snapshot into the stock SDK frame and
+compares geometry. Samples are at most 12 m apart, candidates must lie within
+30 m and 60 degrees, and admission requires at least 90% matched samples plus
+exactly one candidate adcode and URID. The threshold is fixed in the receipt;
+it is not relaxed to obtain coverage. Unknown and ambiguous candidates remain
+zero. This route-specific tool does not alter `RouteConverter` or claim a map
+catalog for Russia.
+
+The Yandex route is 4,782.800 m before stock-link rounding and has 26 links.
+Fourteen links receive adcode 990001 and URID 372 from their geometric Amap
+candidates: 3,273 of 4,772 integer link metres (68.59%). Twelve remain
+unmapped, including one only 2/6 matched; none is ambiguous. Amap and Yandex do
+not follow identical geometry everywhere, so their different route lengths are
+not an error to hide by copying 372 onto every link. Per-link sample counts,
+mean/max nearest distances and all candidate keys are retained in
+`captures/urid-route01-20261025/annotation.json`; its `stockPath` is rebound by
+the production `OddCoverage.stockMapCatalog()` during replay.
+
+The retained real 374-city ODD response contains 372. Production Java and the
+independent Python oracle agree on 144/144 route-annotation replay samples. On
+the incomplete full route, all 78 samples deliberately return MAX through the
+production completeness guard. The longest fully mapped excerpt has 11 links:
+all 33 actual-list samples return MAX. A labelled synthetic exclusion of its
+last link returns finite 240–1,945 m distances on 16 samples, zero on four and
+MAX on 13 (including the 2 km horizon). This demonstrates finite arithmetic on
+a controlled complete subset, not a finite result for the whole Yandex route.
+Receipts: `captures/urid-route01-20261025/replay-expectations.json` and
+`java-replay-check.json`; seven focused Python tests and
+`:adas-link:testDebugUnitTest` pass. Generic geographic annotation, actual
+Russia-wide ODD coverage and NOA acceptance remain unresolved.
+
+## Build 17 control candidate (2026-10-25)
+
+Local signed ARM64 APK: `captures/yandex-feed17-20261025/build/YandexHUD-17-arm64-debug.apk`,
+version `29.8.1-YandexHUD.17`, code `739494317`, SHA-256
+`dd8dbce93c2d8b1c3a318ae88822ce8a9cb16c898fc739ed17282807dc886728`.
+Signature verification passes v2/v3 with the existing build-16 certificate
+`df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6`.
+No installation, ADB, emulator or live session was performed in this preparation.
+The working-copy offline-package corrections are preserved; OSM is absent.
+
+`AdasPassiveClient.ObserverConfig` latches the regular-file marker
+`files/denza-adas-vehicle-position.enabled` once per app process. Missing marker,
+directory or access error means OFF: no service-10 start/subscribe, including on
+reconnect. ON applies only to the existing passive observer; the live bridge's
+required answer receiver never acquires service 10. Each connection records
+`vehicle_position_config` with configured/effective values and marker origin.
+Changing this marker requires a full process restart, not reopening an Activity.
+
+The separate capture marker `files/denza-drive-capture.enabled` now latches
+recorder enablement and passive-observer retention together. During capture,
+hiding the map keeps its observer in both service-10 modes; UI windows still
+follow Activity lifetime. The existing live receiver also records its service-13
+callbacks, tagged with its arm and receiver. Thus camera foregrounding no longer
+removes the only status recorder. Closing a live session alone does not stop the
+capture observer: switching modes requires session closure, evidence collection
+and process restart. Observer retention is not conditional on service 10.
+
+The [bounded reroute handoff](#local-reroute-handoff-correction-2026-10-25) is
+included. It blocks old-path output during preparation, preserves the guidance
+lifecycle, and still requires valid offline admission, fresh-path ACK and FINE
+position. Timeout/cancellation and real transport errors still close the path.
+This corrects the reproduced 7–8 s lifecycle pause; the subsequent A1 moving
+measurement below retained four gaps of 1.745/1.828/2.418/5.504 s.
+
+Validation retained under `captures/yandex-feed17-20261025/`:
+
+- Passive client: independent JVM OFF/ON/OFF/directory/error runs,
+  483/699/483/483/483 assertions, all pass (2,631 total).
+- Runtime: 82 handoff and 337 coordinator checks pass, including service-13
+  recording for 35 s with no overlay, original receipt/bytes and late-callback
+  rejection. `recording-red.log` preserves the old filter's failure.
+- Archived build-15 versus current steady-route replay with the exact
+  `drive15-source-stockstart` variant: 68 sends each, matching topics and timing;
+  67 payloads identical. Only the route wrapper's wall-clock `time` differs;
+  normalizing that metadata makes all 68 equal. This does not cover ECU behavior,
+  Android scheduling or reroutes.
+- Full builder checks, D8/native compilation, APK source hashes, manifest/resource
+  checks, signature and ARM64/OSM-absence checks pass. `source.zip` preserves the
+  dirty and untracked sources with its manifest; binary inputs remain in the
+  existing private corpus. The independent source review found no blockers.
+
+The first control is OFF with the build-15 variant (WGS84, source-valued road
+fields, stock start, both optional navigation side channels false), then ON,
+then OFF again on this same APK and route. Compare availability separately from
+active intervals; engagement is not required to measure offers. This tests the
+subscription hypothesis, not a claim that service 10 caused the loss of offers.
+Old 69% summaries combined available OR active and used sampled seconds: do not
+compare them directly with a pure-availability time fraction.
+
+Collect each short leg separately. Projection from the build-16 raw packet
+cadence gives build-17 retention about 37–44 min with service 10 ON and 55–64 min
+OFF; these are estimates, not guaranteed durations. Return/pull within 20 min
+per leg. Use the current arm's `receiver=live` as the primary service-13 stream
+and overlay as an independent check; do not sum duplicate receivers.
+`drive_review._pilot` still prefers overlay when present, so its generic mixed
+folder totals are not sufficient for this control. Exact kit/plan receipts and
+the current procedure are in `captures/yandex-feed17-20261025/trip-kit.json`
+and `captures/drive-kit-20261025/LOOP.md`. Stock remains disabled by owner request;
+the previously closed `loop-wire` ledger must not be restored again.
+
+**Subsequent parked deployment, 2026-10-25 11:10-11:13 MSK.** Installed APK SHA
+matches the pinned build 17. The new A1 ledger records original stock state 3;
+arm `1fea7c6c-c2e4-4c28-8239-31bf256a0484` expires approximately 12:10:39 MSK.
+Both clients report `enabled=false effective=false origin=marker-absent`; no
+service-10 packets appear in the new source session. The previous suggested
+destination (Lugovaya Street 20) was selected and guidance started in P.
+ADAS returned real SELECTED 200 for path `1792915887`. At handoff, 1,024 actual
+packet sends include 101 positions, all successful and referencing that path.
+
+Opening stock `AutoVideoActivity` kept both service-13 streams alive: each
+receiver retained 519 callbacks on each of the three status topics in the
+53.52-second observation window, including 169 each after 35 seconds.
+`capture_observer_retained` was recorded; Navigator and AVC PIDs stayed unchanged
+and the crash buffer stayed empty. The recorder reported one raw queue drop,
+zero critical drops and zero post/write errors; this is not zero-loss acceptance.
+Yandex was returned to the foreground with a fresh matched FINE position and
+the route receipt visible. The owner was told A1 is ready for a short manual
+control drive and to return/collect within 20 minutes. No device operations
+followed that handoff until the owner returned. Moving results and closure are
+recorded below. Local receipts and closure ownership:
+`captures/yandex-feed17-20261025/deployment.json`, `current-A1-local.json`, and
+`sessions/20261025-110730-A1-off/{ready.json,camera-check-report.json,rollback.json}`.
+
+### Build-17 A1 OFF drive review (2026-10-25)
+
+Private evidence and reproducible analyzers:
+`captures/yandex-feed17-20261025/sessions/20261025-110730-A1-off/postdrive/`.
+`SUMMARY.md` links the three independent reviews under `reports/`: ADAS states,
+transmission and recording integrity. Installed APK SHA still matches the pinned
+build. The capture preserves all generations; 44/44 file hashes match the car.
+Only the current source/process and arm are analyzed; historical packets in the
+rings are excluded. The live service-13 receiver is primary. All 8,101 paired
+PilotStatus callbacks within 25 ms agree with the independent overlay receiver;
+one live callback is unpaired.
+
+**NOA did not become usable.** Nine explicit active-state runs last 489–607 ms
+(median 499 ms), each followed by explicit ICC-active. These are state runs, not
+a count of driver lever actions. Availability appears in 28 blips of 72–125 ms.
+Using receipt-to-next-receipt time, fresh FINE guidance and speed above 5 km/h,
+available occupies 2.689/335.593 s (0.8013%), active 4.575/335.593 s (1.3633%).
+On the same definitions the preceding loop-wire drive has 0.2017% available and
+0.8186% active. Routes differ; a separate shared-footprint comparison against
+build 15 also finds no practical return of its frequent offers. Do not compare
+these pure-availability time fractions directly with the old 69% sampled
+available-or-active number. NoaFamily remains explicitly 2. Reason 19 first
+appears 110.124 s after the last active-to-ICC exit; no retained reason identifies
+the cause of those nine exits.
+
+**Service 10 is actually OFF**, with no acquisition or packet in this source.
+This weakens the simple explanation that its subscription alone removed offers;
+it does not isolate a causal effect. A1 also differs from loop-wire in variant
+fields, the handoff and recorder changes, and external vehicle conditions. The
+planned ON/OFF pair has not been run; A1 supplies no recovered-offer baseline.
+
+**The two implemented fixes have moving evidence.** Five complete routes have
+five explicit SELECTED 200 replies. Retained logs contain 7,191 successful sends,
+including 743 positions. Four replacement handoffs commit without an intervening
+navigation stop, end or fresh-start lifecycle. Their position gaps are
+1.745/1.828/2.418/5.504 s versus loop-wire's 7.854/7.578/7.795/7.925 s. The longest
+new gap includes rejected old/unknown-path observations while Yandex still
+reports rerouting; it is not the old stop/start regression. Both observers cover
+all retained motion and another 151 s, including 128.5 s after later map hiding.
+The single raw drop was already present at parked handoff; no new observed drop,
+critical drop or post/write error occurs during the drive.
+
+All nine active-to-ICC exits are bracketed by successful positions of their
+acknowledged current path, with intervals of 999–1,015 ms. There is no local
+veto or lifecycle change within ±5 s of any exit. The first seven precede the
+first handoff. The first exit is 292.803 s after ACK (including parked warm-up)
+and 46.488 s after first recorded motion above 0.5 m/s. Thus these exits are not
+explained by the recorded reroute gaps or a local publication stop. All 743 A1
+positions explicitly carry source-valued ownership -1; preceding loop-wire
+ownership 0 also failed to remove dropouts, so neither observation isolates a
+single-field cause.
+
+**Termination and closure.** The owner manually rebooted the head unit because
+the network failed. Four source JSONL files have terminal NUL-only tails totaling
+50,856 bytes; complete preceding rows are retained. These are present in the
+hash-matched source, not transfer corruption. Counts above are retained lower
+bounds, not exact whole-session totals. The current crash buffer is empty but
+cannot establish pre-reboot crash absence or the network failure's cause.
+Persisted LIVE/heartbeat files refer to the old boot and are not current activity.
+After saving evidence, an owned closure removed only the stale arm and its tmp
+file. Changed boot/uptime, absent app/reader processes, unchanged APKs and stock
+state 3 were independently checked. The ledger is `CLOSED_AFTER_BOOT_CHANGE`,
+not ordinary `RESTORED`; normal end-status delivery and ECU route purge are not
+claimed. `closure-receipt.json` records the proof. Stock stays disabled; no
+automatic next leg was armed.
 
 ## NOA gap audit of the build-12 trip (2026-10-24)
 
@@ -749,13 +1044,18 @@ destination; city NOA unexplained, maybe `historySpeed`); whether `linkID`s
 must be stable or globally meaningful (the parked PathMatch reply does not settle this);
 the receiver's coordinate datum; how ADAS treats two interleaved writers.
 
-**Coordinates.** The stock map sends its SDK frame (the GCJ-style inner
-transform, applied in Moscow too: ~531–540 m from raw GNSS). Our OSM packages
-are encoded in the same frame (`native-gcj-unrestricted-candidate`), and on
-2026-10-23 ADAS confirmed those routes and drove highway NOA on them. The best
-current reading is that ADAS consumes that frame; a Yandex converter must
-apply the same transform to WGS-84 route points and positions. This is
-evidence, not proof (`noa-coordinate-contract-evidence-20261022.json`).
+**Coordinates.** The stock application forwards SDK-domain coordinates. The
+SDK output is mode-dependent: the controlled original-APK GNSS mode0 callback
+retains WGS84, whereas native DR mode1 produces a roughly 538 m shift on the
+same Moscow source track. Fresh `inputTickTime` joins, rather than packet-send
+timestamps, establish the DR result. The old 40 timestamp pairs collapse to
+only two stationary SDK positions and do not independently establish the
+conversion path. See [Coordinate parity](#coordinate-parity-follow-up).
+Our historical OSM packages use the candidate SDK frame, and the 2026-10-23
+car run obtained route confirmation and HNOA. Neither that compound experiment
+nor original-producer parity determines the external receiver's datum or
+proves that a frame change fixes the immediate dropout. The existing candidate
+is limited to 35–40 E / 54–58 N; it is not a global coordinate implementation.
 
 ## What Yandex gives us
 
@@ -828,7 +1128,9 @@ Proposed product architecture, in two places:
    (class of the current link, distance/time to destination, `SpdLmtSpeedValue`
    0 at first), status 101, `historySpeed`/`trafficFlowSpeed` from jams,
    ~~lights within 500 m~~ (corrected: apply the stock's lane-target distance gate,
-   independent of the next light's location), region 372. Off-route or lost: retain the
+   independent of the next light's location), ~~region 372~~ (corrected 2026-10-25:
+   372 is the stock SDK's internal URID; the successful drive's outbound Region
+   ids are 990001, see [region default](#region-default-from-the-successful-stock-drive-2026-10-25)). Off-route or lost: retain the
    latest guidance placement while fresh location coordinates continue; route end or
    Yandex gone: status 110 for 3 s, then 100
    and pathId −1, then stop.
@@ -974,7 +1276,8 @@ Navigator's location; DNP service, switch and no-sleep are assumed on in the
 installed dry run. Their exact BYDAuto getter sources and a separate shell-UID
 read path are now identified; normal Navigator UID access and the three actual
 car readings are not established ([Live gate sources](#live-publisher-gate-sources-2026-10-24)).
-Region codes stay at the stock defaults (no Amap adcodes);
+Region codes initially stayed at zero (no Amap adcodes); superseded by the
+[owner-requested successful-drive default](#region-default-from-the-successful-stock-drive-2026-10-25).
 jams and incidents are not mapped; ~~lane info (`0x800C`) and 3 km lanes (`0x800E`,
 sent empty as the car did) are not mapped~~ (superseded: junction signs now feed both
 lane surfaces, with per-lane losses recorded by `LaneGuidance`; continuous lane counts
@@ -1584,7 +1887,9 @@ Both the independent Python translation and the actual Java frame parser accept
 all 1596 stored frames (maximum declared content/window 852196 bytes); the Java
 parser also passes 11 boundary cases. The AAR's classes and four Android ABIs
 were inspected and pinned; its ARM64 library is packaged in the signed APK.
-JNI decompression on Android has not been executed.
+At the initial build-13 host acceptance, JNI decompression on Android had not
+been executed. The build-15 correction below now establishes packaged Zstd
+execution in the actual app for one selected route.
 
 `RouteAttributes` separates acquisition from conversion. `RouteVectorAttributes`
 streams tiles into whole-route samples and preserves independent class/direction
@@ -1623,7 +1928,8 @@ harness checks and produces the signed ARM64 APK pinned in the candidate-13 sect
 Compilation exposed three outdated test fixtures (nullable numeric ternary, RTree
 padding and the added SDK layout getter); those fixtures were corrected without
 weakening production validation. SDK callback linkage, packaged Zstd loading and
-Android execution remain unverified; neither APK was installed.
+Android execution remained unverified at that historical build-13 receipt. The
+build-15 correction below supersedes that runtime limitation for one actual route.
 
 A subsequent actual Java replay uses the exact saved route geometry and the 21
 already decompressed tiles, then runs the production tile planner, decoder,
@@ -1684,7 +1990,7 @@ at `0x20f7294` is an empty result (`1f7d00a9c0035fd6`), and regional `driving.fb
 borders are graph connections rather than coverage polygons. These limitations
 are recorded, not prerequisites for continuing attribute extraction.
 
-**Earlier first-publication gap; source fix is not yet runtime-accepted.** Later
+**Earlier first-publication gap; build 15 now runtime-checks acquisition on one route.** Later
 tiles can improve current-road dynamic information, but the published static
 link table remains unchanged. This is not repaired by repeatedly replacing the
 path as tiles arrive. The factory `DriveRouteManager.G()` (`g.java:93–104`)
@@ -1704,7 +2010,864 @@ policy, class approximation and the subsequently retired automatic requester.
 The owner first requested source-only changes, then authorized the complete
 build pinned above. Current source tests and host replays now run successfully;
 earlier receipts remain historical, and no host result establishes Android or
-car acceptance. Neither installation nor push was performed for this build.
+car acceptance. Installation was not performed at those historical receipts;
+build 15 was subsequently installed and checked as recorded below.
+
+**Build-15 correction: installed Android acquisition (2026-10-24).** Build 14
+was subsequently installed, but the actual app settled with
+`reason=no_supported_package` (retained in
+`captures/drive-kit-20261025/install-check/before15-denza-yandex-route-vector-status.json`)
+despite a usable SDK-inventory Moscow region 1.
+Its `vmap3fb.fb` is 826,573,656 bytes, exceeding the old 512 MiB cap, and has no
+`region.pb` sidecar. Build 15 makes that sidecar optional for the SDK-bound
+package: absence has its own identity sentinel and is rechecked, while a present
+sidecar keeps its stat/SHA fences. The package header/version identity is also
+rechecked around the scoped read. The read-only mmap cap is now
+`Integer.MAX_VALUE`, the ByteBuffer indexing limit; this does not allocate a
+file-sized heap array. The separate 2 MiB compressed-tile, dictionary and decoded-tile
+bounds, 4096-tile acquisition cap, aggregate byte and matcher budgets remain.
+Host mutation tests are retained in
+`captures/drive-kit-20261025/install-check/offline-discovery-fix/receipt.json`.
+
+The installed identity receipt
+`captures/drive-kit-20261025/install-check/installed15-identity.json` verifies
+`29.8.1-YandexHUD.15`, version code `739494315`, APK SHA-256
+`dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`.
+The actual app status
+`captures/drive-kit-20261025/install-check/after15-denza-yandex-route-vector-status.json`
+settled with `reason=prepared`: 67 requested/found/decoded tiles, zero missing,
+4,129,844 decoded bytes, 4945 ms. This checks the typed SDK callback, app-UID
+package-file access and packaged Android Zstd on this route. It does not establish
+the same result for every route or installed region.
+
+Of 511 route edges, that receipt reports `knownEdges=393`, `unmatchedEdges=34`
+and `conflictEdges=90`; these counters can overlap and must not be summed as a
+partition. Quality is `sampled_renderer_field_consensus`, with
+`exactNativeId=false`, `continuousCoverageProved=false` and
+`continuousLaneCountKnown=false`. Sample consensus is neither a native edge-ID
+join nor continuous coverage or a continuous lane-count source. The source is
+prepared with static attributes frozen and `sourceChangedSincePreparation=false`.
+The scope of this receipt is attribute acquisition for that specific route.
+
+The build receipt is
+`captures/yandex-feed15-20261025/build/build-report.json`; the matching source
+archive, including the native collector/relay sources, is
+`captures/yandex-feed15-20261025/source.zip`, SHA-256
+`684744d5de68f45e4ec6eb1df5dc832d2ac03912caca313254975fde07554762`.
+Earlier build-13 host/source-only limitations above remain historical, with this
+specific Android-route correction; full attribute coverage and factory parity
+remain unproved.
+
+### Build-15 parked comparison (2026-10-24)
+
+After acquisition, the bounded `parked15-source` session retained Yandex's
+coordinates and speed values, with both MPC/instrument writes disabled. The
+real route and selection sends returned 0 for pathId `1792860804`; the serialized
+route has 100 links. Road classes are 9 on 14 links, 8 on 26, 7 on 17 and -1 on
+43; direction is 1 on 22 links and 0 on 78. All laneNum values remain 0 and
+formway -1. These are actual outgoing values, not proof that all fields are known.
+
+No same-path SELECTED acknowledgement was retained during 62.6 seconds after
+selection. `confirmedPathId` stayed -1 and `real selection ACK required` blocked
+dynamic sends. A zero transport result and state `LIVE` do not prove receiver
+acceptance. This was not the runbook's `drive-1` or `drive-2` experiment, and does
+not establish a cause for the absent acknowledgement or readiness for NOA driving.
+
+The session was explicitly restored; its ledger records `RESTORED`, original
+and restored stock enabled state 0. The arm file and reader process are absent,
+both endpoints are closed and the last actual send time is unchanged. Progress
+and passive packet files grew autonomously; the crash buffer was unchanged.
+Evidence and byte hashes are in
+`captures/drive-kit-20261025/install-check/receipt15.json`, with the rollback
+ledger at `captures/drive-kit-20261025/ledgers/parked15-source.json`.
+
+**Subsequent same-route stock-start comparison.** With the same installed build,
+Yandex route and prepared attributes, `parked15-stockstart` changed only
+`startProtocol` to `stock`; both MPC/instrument side channels remained off.
+The retained `stockStart` reports a successful ODD region request, statuses
+100/100/106/106/106 and a 5000 ms pre-route phase. The real service-44 selection
+callback explicitly contains status 200 and the new pathId `1792861159`.
+The unchanged real-ACK guard accepted it and admitted dynamic packets;
+104 successful outgoing packets are retained, including the route, selection,
+position and dynamic data. The session was then restored to stock state 0.
+
+The acknowledged protobuf is 70,548 bytes and selection follows the route by
+3 ms. This rules out a universal 64 KiB receive limit or a mandatory 61–87 ms
+route-to-selection hold. Host comparison finds identical geometry, all 100 link
+records, IDs, attributes, cuts and schema after excluding the new pathId and
+five refreshed groupTime estimates; it does not treat those timing values as fixed.
+
+This is a successful parked configuration, not proof that one particular start
+message caused the earlier silence: the phase changes messages and timing
+together. Nor does route acknowledgement establish NOA eligibility or complete
+map semantics. The first failed comparison above remains valid historical
+evidence but does not describe this subsequent result. Exact bytes, hashes,
+decoded acknowledgement and restoration are retained at
+`captures/drive-kit-20261025/install-check/ack-analysis/stockstart-receipt.json`;
+the ledger is `captures/drive-kit-20261025/ledgers/parked15-stockstart.json`.
+
+**Manual replacement and departure recording check.** In a new parked arm,
+three paths (`1792861366`, `1792861464`, `1792861477`) each received an explicit
+raw service-44 status-200 callback. Both replacements included `navStop` and
+three actual NavigationStatus=100 sends before the next route. All 160 decoded
+position payloads referenced the path belonging to their attempt; none used an
+old path after the replacement route was published. The final 103-link route
+prepared 45/45 vector tiles with zero missing tiles. This is tile acquisition,
+not proof of complete or unambiguous attributes across the route. The session
+was restored, with its endpoints closed, reader stopped and stock state 0.
+Evidence: `captures/drive-kit-20261025/departure15/same-arm-acceptance.json`.
+
+The following two-hour `drive15-source-stockstart` arm kept those source-valued
+settings. At the 20:08 MSK parked check, path `1792861607` had an actual raw
+status-200 ACK; 952 successful dynamic/event sends after it were retained,
+including 97 correctly identified positions. Installed APK SHA was rechecked;
+the detached reader was alive, stock processes absent and package disabled by
+this arm, progress/packet files were growing, and the crash buffer was unchanged.
+The local `ACTIVE_SESSION.json` records the active ledger and expiry (24 October
+22:06:45 MSK). Its original stock state is 0 and requires explicit restore;
+expiry does not reenable the stock package. Receipts are `departure15/drive-acceptance.json`
+and `drive-wire-acceptance.json`. These establish parked route transmission and
+recorder readiness only: missed-turn rerouting, two-hour retention and NOA in
+motion still require evidence from the drive.
+
+### Build-15 drive review (2026-10-24)
+
+The owner reported frequent NOA offers followed by immediate degradation, and
+city NOA on the factory cluster on Kievskoye Highway. Raw packets confirm the
+pattern. The retained build-15 arm has 126 explicit DNP=1 intervals (status
+intervals, **not driver button presses**), median 786 ms and maximum 5415 ms to
+the next sample. 113 exits immediately carry explicit ICC=1. All 19,493 retained
+mode observations, including reconstructed compact repeats, are mode 2; none
+are highway mode 1. Absent fields remain absent, not observed zero.
+
+All 126 exits are bracketed by successful actual position sends with intervals
+at most 2028 ms. Seven real route sends receive explicit selection status 200;
+five distinct PathMatch payloads contain pathId/endIdx but no status or NOA
+distance. This separates short activation with a running, selected feed from
+the earlier build-12 episode after publisher closure. It does not establish
+sustained NOA or a receiver-level root cause.
+
+The actual 844 link instances in seven route bodies have class 7/8/9/-1 counts
+21/513/89/221, **no class 0/6**, and all carry formway=-1, laneNum=0 and
+ownership=-1. On a long first Kievskoye section, class7/direction1 accompanies
+a 5.415-second CNOA interval; a 2035-m return link carries class-1/direction0
+and a 618-ms interval. Yandex labels the first 2748.863-m section with display
+scheme HIGHWAY, while its route metadata has hasHighways=false; neither field
+alone establishes the legal or Amap class. The source crosswalk never produces
+0/6 and leaves category1 unresolved. However, the final vector status was
+replaced after route completion, so raw class/fc for these particular links
+were not retained: attributing their unknown class to category1 is unproved.
+
+Static versus dynamic class differs at 147/1799 positions, including 22 on
+Kievskoye-named links. In the installed source, NavigatorDriver retains the
+published static table but uses latest.roadMatch for dynamic lookup, then
+combines that match with the old link interval. This explains a producer-side
+consistency defect, not the ECU's precise degradation decision. The prior
+Amap+OSM positive control remains 54.103 s HNOA with 27 dynamic class6 samples,
+historySpeed85 and legal limit0. Its successful static route body is missing;
+source-tile lane/form values are not proven successful wire values.
+
+The main position cadence is now about 1 Hz (median1005.5 ms, p95=1087 ms).
+Two same-path gaps of2986/3259 ms occur despite fresh FINE guidance; both dry
+and LIVE location processing stall and then catch up. A separate stale offline
+inventory withdraws and republishes an unchanged route, producing a7830-ms
+gap. These defects need separate profiling; none of the126 NOA exits occurs
+inside a position gap over2.5 s. Final PAUSED follows a near-arrival sample,
+routeId:null and actual100/100/100 end statuses, not an established moving failure.
+
+The existing stock corpus maps raw alarm reason3 to the normal-DNP-exit UI
+string, without identifying the underlying cause. Reason19 remains unresolved.
+The notice dispatcher `f0.j(int,int)`, which the corpus jadx tree did not
+decompile, reads with `--single-class k.h.e0.c.j.f0 --show-bad-code`: notice 4 →
+«NOA/CNOA activated», 22 → «Downgraded to ICC» (已降级至车道保持巡航), 23 → «CNOA
+activated» again, 12 → «NOA exited». The later targeted DEX fallback and resource
+audit resolves 28 as «Avoid passing traffic» / 智慧避让中; 49 has no branch in
+this APK, as does reason19. These are what the driver is told, not why. So the trip's ADAS itself
+announced 22/23 in a loop: NOA held median 789 ms and the downgrade recurred every
+~1.4 s. Downgrade instants show no lag to any outbound topic that differs from
+random instants, so no single message of ours triggers them. The stock map's
+own family fallback is `x6.j()`: matched class 0 or 6 → HNOA, anything else → CNOA;
+`j0/o.java` otherwise copies ADAS `noaMode`. The owner adds that on the Amap+OSM
+drives CNOA came only inside the settlement and held for tens of seconds
+(25 s and 7 s), while this feed got CNOA offered on every road, Kievskoye included,
+and could not hold it. Decode, timing script and output:
+`…/postdrive-20261024-204337/reports/notice-decode/`. The next offline
+work on road completeness remains immutable per-route attribute provenance, a
+consistent published static/dynamic road view, evidence-backed expressway
+classification and profiling the processing/inventory gaps. Immediate dropout
+has priority over those improvements; the follow-up below separates it from
+highway-family selection. No eligibility-seeking field constant or
+vehicle-control write is justified by this review.
+
+APK SHA was verified before and after capture. The owned session was restored
+after evidence collection: arm absent, endpoints closed, reader gone, original
+stock enabled state0 restored, crash buffer unchanged. Private raw bytes,
+file:line receipts and rerunnable analyses are under
+`captures/drive-kit-20261025/postdrive-20261024-204337/reports/`, with
+`SUMMARY.md` and `summary.json` as the index. The standard aggregate includes
+older rings; the three targeted reports filter the actual current arm.
+
+#### Immediate dropout follow-up
+
+The owner clarified that one stalk request started repeated NOA→ICC→NOA
+cycling; he then cancelled with the stalk and tried again. The 126 active
+intervals must not be described as 126 manual attempts. In 100 of the 125
+adjacent pairs, the next DNP=1 arrives 497–892 ms after the exit (median603 ms).
+This is an observed recurrence, not a recovered ECU timer or permission rule.
+
+The current-arm phase audit reconstructs the same 126 intervals independently
+from raw packets. In27 intervals, no new position/TrafficInfo arrives between
+activation and exit; in3, no bridge packet of any topic arrives. Both transport
+attempt and successful-return timestamps were checked. Exits within100 ms of
+position account for12/126 (9.52%), versus551/5718 (9.64%) ordinary DNP=2
+control observations. All own navigation-status packets within±2 s of the
+boundaries are101; no own100/106/110 occurs there. A newly sent bridge packet
+is therefore not required for every dropout. A persistent invalid input,
+receiver state, or another publisher is not excluded by that result.
+
+Position/route auditing finds valid step/link indices in all1799 packets and
+coherent geometry and remaining distance at124/126 exits. A real but bounded
+defect occurs during rerouting: the saved source progress scalar stays fixed
+while the coordinate moves, producing up to170.84 m error in the sent link
+remaining distance. It affects exits70/71, not the general cycle. The known
+static/dynamic class mismatches and worker gaps likewise do not explain every
+immediate exit.
+
+The original stock log provides a closer positive control than HNOA alone:
+city mode2 holds24.902 s and7.205 s. The longer interval's12 retained road
+samples contain class-1 seven times and class9 five times, historySpeed25 and
+navigation101. All12 direct position log lines have ownership0; vehicle speed
+and GPS speed differ in8. The shorter interval has ownership0 in3/3 positions
+and different speeds in2/3. The highway interval has27/27 ownership0 and
+different speeds in13/27. Its PilotStatus duration is54.203 s; the older54.103 s
+report uses separate cluster-notice boundaries. Stock logcat is sparse and
+prints decoded scalar defaults; it is not a substitute for protobuf presence
+or a complete successful static route body. Unknown dynamic road class was
+compatible with sustained city activation in this control; this does not
+prove other road attributes are irrelevant.
+
+Three persistent producer differences now deserve specific contract checks:
+
+- The installed feed sends WGS84 route and position coordinates. The original
+  stock forwards SDK route and localization coordinates unchanged. On the
+  current drive, the installed candidate SDK-frame formula differs from WGS
+  by527.54–540.41 m (median537.51 m). This is a producer-frame difference,
+  not proof of the external receiver's expected datum. Internally consistent
+  route/position geometry alone cannot settle that question.
+- Current static and dynamic ownership are consistently-1, versus observed0
+  in the successful stock position samples. The native road/access source
+  must establish public/private semantics before a conversion is chosen;
+  neither a successful route ACK nor a road name establishes ownership.
+- The bridge uses GNSS speed for both speed fields in1799/1799 positions.
+  Original stock obtains vehicle speed independently. The missing provenance
+  is confirmed; an ECU speed-rejection condition is not.
+
+The drive also explicitly disabled MPC and instrument navigation-state side
+channels. The older stock log contains CAN navigation output, but does not pin
+the MPC value. These states remain part of the comparison, not a demonstrated
+cause or a reason to change several switches together.
+
+Next diagnostic work should recover an independent exit-reason signal and
+compare these persistent contracts against original stock output on the same
+saved inputs. A replacement build should be justified by that comparison;
+road enrichment alone must not be presented as a fix for the automatic cycle.
+The existing OTA framework admits `ADAS_NOA_QUIT_PROMPT` (`0x1FF0201C`) to
+generic GET/listener APIs on device1038. Its transport registration, live
+publication, value decoder and freshness semantics remain unproved; it was
+not recorded under its identifiers in this drive. It is a candidate for
+passive event capture with monotonic receive timestamps, not an already
+decoded exit reason. `ADAS_PREVIEW_ABNORMAL_REASON` has weaker app-name-only
+evidence. See `reports/dropout-notices/noa-quit-signal.md` for exact sources.
+No production code, installed APK, vehicle state or remote repository changed
+during this follow-up. Local evidence and reproducible scripts are
+`reports/dropout-phase/`, `reports/dropout-position/`,
+`reports/dropout-notices/`, and `reports/dropout-stock-control.{py,json}`
+under the post-drive capture above.
+
+#### Build-16 position observer
+
+Installed APK: `29.8.1-YandexHUD.16`, versionCode `739494316`, SHA-256
+`cb97cacb5dbb25d6fe186a91a30722eb2c7b3754c2cc17047a3839b8e6c44e1b`.
+The build uses the working copy, not clean main. `YandexOfflineGraphFiles.java`
+and `OfflineVectorPackage.java` are byte-identical to the pinned build-15 source
+archive. Only `AdasPassiveClient`, `AdasWire` and `AdasObservations` differ among
+the production module sources. Build/source/install receipts and the rollback APK
+are retained locally; nothing was pushed. The build-16 source archive SHA-256 is
+`8a7885fdc97556d16cfa265242b8f694e69c98136a0a621a1197d5e6e4413deb`.
+
+The overlay's passive receiver optionally starts service/instance 10/10 and
+subscribes to `0x0004000A000A8001`. Setup failure is isolated from the required
+ADAS answer subscriptions. Raw packets enter the existing bounded recorder;
+the observation does not change readiness, stock-writer detection, or publishing.
+The bridge receiver's required services and subscriptions are unchanged. Host
+decoding preserves all 37 descriptor fields and field presence. Vehicle speed,
+fusion status, position type and localization output offset are absent in this
+capture, not observed zero. The passive harness passed 557 checks and the full
+Python suite passed 320 tests; build pipeline checks and APK signature passed.
+
+The first installed capture spans 121.443 seconds with 2,025 service-10 records
+and no decoding errors. There are 1,977 fresh same-process guidance pairs within
+one second: median distance to Yandex's classified/matched WGS84 point is
+10.3425 m, versus 528.0192 m to the shifted candidate. No independent raw GNSS
+was recorded. Coordinates are effectively stationary. All packets contain
+`hdStatus=1`; constant lane/offset values have no established physical meaning.
+These are ADAS output coordinates; they do not prove its internal datum or the
+datum required for an incoming route, nor resolve the NOA dropout cause.
+
+Evidence: `captures/yandex-feed16-vehicle-position-20261024/`, especially
+`install-check/reports/local-recording-review/{review.json,review.md,rates.json}`
+and `frame-check/before.json`. The latter independently verifies the installed
+hash, park predicate, measured zero speed, absent arm, closed publisher and
+usable offline inventory. That initial passive check created no arm; the later owner-authorized loop-frame session is described below.
+
+Recorder counters show no drops, failed posts or write errors in this capture.
+Service 10 arrives at approximately 16.67 Hz and raises the measured packet log
+rate to 0.830 MiB/min. The existing seven 8-MiB generations retain roughly
+58 minutes in completed generations, at most 67.5 minutes total at that rate.
+The earlier two-hour estimate from build 15 does not apply to this new stream;
+moving-trip rates and retention remain unmeasured.
+
+**Follow-up: output proximity does not reject the shifted candidate.** An earlier
+chat conclusion that the 528 m separation made the candidate inappropriate for
+testing was premature. The observation does not determine the input contract.
+Local replay of the exact first 72-byte notification now covers the original
+`a0.d` parser, platform-210 branch, admission/buffer, `a0.b` and
+`PosService.setSignInfo` (`0x40000003`). Each successful run submitted the
+original packet once and 300 further copies with only the epoch timestamp
+rebased. All coordinates and other decoded fields were preserved; the fixture
+selects the platform branch and an original factory localization configuration.
+These are emulator fixtures, not modifications installed on the car.
+
+The fused-only run has 301 distinct submission ticks and no LocInfo callbacks.
+Separate controls supply three GNSS bootstrap samples at the same point, then
+the same fused replay: factory DR configuration yields one GNSS-linked output
+537.495 m from WGS84 and 0.034 m from the original inner transform; factory GNSS
+configuration yields one GNSS-linked output 0.041 m from WGS84. Neither output
+has an inputTickTime belonging to a fused submission. Thus the test reproduces
+configuration-dependent producer coordinates but does not establish a fused
+position output or ECU acceptance. Empty output is not proof of rejected data.
+The first spawn timeout and the subsequent fixture-field-name failure are
+retained separately and provide no acceptance evidence. Reproduction and exact
+event/tick joins: `captures/yandex-feed16-vehicle-position-20261024/fusion-replay/`
+(`analyze.py`, `analysis.json`, runs 03–05). No car command changed state during
+this follow-up, and the publisher was not armed.
+
+**Subsequent owner-authorized loop-frame session, 21:53 Moscow.** After fresh
+human P/parking-brake confirmation and measured zero speed, build 16 was armed
+for 30 minutes with `loop-frame`; both optional navigation side channels remain
+false and road/lane/speed fields use the Yandex source. Installed APK hash was
+verified before and after. Arm `21ed02f8-ebf8-4c03-b965-05f7077bc315` received an
+explicit same-path SELECTED 200 for `1792868010`. The retained pre-departure
+window contains 498 successful packet sends, 49 positions spanning 48.171 s,
+maximum interval 1059 ms, no transport failures and no rejection after ACK.
+All 49 position path IDs equal the confirmed route ID; this wire field is a
+double and must be compared numerically, not by integer-versus-float strings.
+There are 56 fresh guidance records and 931 service-10 packets, no recorder
+drop/write-error counters, and an unchanged crash buffer. The latest state is
+LIVE with fresh sends and no active prerequisite, failure or suspension. This
+establishes transmission and recording, not sustained NOA operation.
+
+The session was initially left armed with expiry about 22:23:29 Moscow and
+stock map state 3 (original state 0). It has now been restored after the drive,
+as recorded below. Ledger:
+`captures/yandex-feed16-vehicle-position-20261024/frame-check/loop-frame.rollback.json`.
+Pre-departure receipt, raw tails, screenshot and verifier are in `frame-check/live/`.
+
+**Completed loop-frame drive and restoration.** The owner reports that NOA was
+never offered. The current-arm capture covers 21:53:28.928–22:04:06.096 Moscow;
+movement in Yandex guidance is retained from 21:57:33.591 to 22:03:28.955.
+Analysis must be restricted to arm `21ed02f8-ebf8-4c03-b965-05f7077bc315` and
+recorder source session `8c1bb109-a4c7-48fa-b9ee-074197dcba99`: older ring
+entries contain earlier builds and their NOA episodes. The generic whole-folder
+review is not a current-arm summary.
+
+Four routes were fully reassembled and acknowledged with explicit same-path
+SELECTED status 200. There are 5,779 successful packet sends and 562 positions,
+no failed send results, no numeric current-path mismatch and no positions sent
+before the corresponding ACK. Maximum within-path position intervals are
+2,030/1,149/1,102/1,104 ms. Between paths, the first replacement interrupts
+positions for 13.600 s while sampled stationary. Two subsequent moving yaw
+reroutes interrupt positions for 8.264 and 7.469 s: route-specific offline
+admission is withdrawn, the old guidance end sequence runs, a fresh start and
+selection follow. The generic reason “Офлайн-карта загружена” is not evidence
+that the regional download disappeared. These gaps are a separate continuity
+finding; they do not explain the absence of NOA before those reroutes.
+
+The passive stream has no significant coverage gap during guidance. Raw
+PilotStatus packets contain no explicit `dNPStatus` available (2) or active (1)
+values; `dNPStatus` and `iCCStatus` are absent, not transmitted zero. Journal
+getter zeros must not be treated as raw zero evidence. Mode replies contain
+mode 2, which alone is not a NOA offer. Four selected-path acknowledgements do
+not establish NOA eligibility. Alarm reason 19 appears only after the final
+navStop; it does not explain the earlier lack of offers.
+
+The previous build-15 drive has explicit DNP availability/activity on the shared
+village footprint, not just on its separate highway section. Joining previous
+PilotStatus to preceding FINE guidance within 1.5 s, then to current moving
+WGS84 guidance within 30 m and the current speed range, retains 1,714 available
+and 263 active samples. Even with heading difference at most 30 degrees and
+speed difference at most 2 m/s, 501 available and 87 active samples remain.
+These are correlated samples, not independent stalk attempts. This reduces the
+road/speed-exposure explanation but does not control the route, surrounding
+traffic, driver request or ECU state; it is not a causal datum experiment.
+
+There are 10,620 service-10 positions in this arm and 9,877 fresh same-process
+pairs with classified/matched Yandex guidance. For the 5,060 pairs with guidance
+speed above 1 m/s, median distance to WGS84 is 4.411 m (p95 9.985 m), versus
+535.410 m to the shifted candidate (p95 543.188 m). All retain `hdStatus=1`.
+This is moving output-coordinate evidence, still not proof of the ECU's
+incoming-route or internal datum. The shifted variant did not achieve NOA
+availability in this drive; a coordinate root cause is not established.
+Actual reassembled wire routes verify all 640 retained source vertices against
+one transform plus the stock grid, with no identity or double-transform matches.
+557 fresh same-route outgoing-position/guidance joins within 600 ms have median
+error 0.185 m against one transform; this temporal comparison does not assert
+same-tick identity. The candidate was applied coherently, rather than accidentally
+twice.
+
+**Same streets, frame switch changed.** The switch moves coordinates and also the
+link IDs derived from them (all 142 checked IDs of both drives reproduce from the
+transformed geometry), so its effect cannot be split between the two; the
+other fields of the feed were equal. All 299 moving guidance samples of this
+arm (above 5 km/h, median 13.8 km/h) lie within 30 m of a point where build 15
+received a DNP offer on 2026-10-24 (median 2 m). On those same streets build 15,
+WGS-84 and otherwise the same feed, had DNP offered (2) or active (1) at 195 of
+284 moving positions (69 %); loop-frame had none. ICC was rarely available there
+in either drive (17/284 in build 15), so its absence today is not a new
+condition. With one arm and other differences (build 16's observer only, a later
+hour, a different route), this is an association: the shifted run had no offers
+where the WGS-84 run had them. It does not establish that the frame caused the
+change. **Superseded 2026-10-25:** the WGS-84 arms on the same streets the next
+day (loop-wire, build-17 A1 with the 2026-10-24 variant) also lost the offers
+(≤6 % on the first route), so this arm's missing offers cannot be attributed to
+the frame at all; the frame remains untested on the car. The stock's own shifted feed got
+5–6 DNP=2 onsets per 2026-10-23 drive against build 15's 1,055. The next arm keeps
+WGS-84 in the proposed comparison. The later `loop-wire` proposal removes link
+fill-ins from that comparison; it has not been armed in the 2026-10-25 local
+follow-up. Its ownership/region/limit values remain experimental, not established
+receiver requirements or a validated road description.
+
+**loop-wire, 2026-10-25 10:25–10:36 (arm `46b7e099`, build 16, WGS-84).** Five
+routes got SELECTED 200. Raw PilotStatus shows DNP available (2) only in seven
+blips of about 0.1 s and five activations, each DNP=1 for 495–589 ms, then ICC
+active for 4.3–29.6 s with no return to DNP; the driver saw «Degraded to ICC» at
+once. On the same streets (313 moving samples, median 16.8 km/h) DNP was offered
+or active at 2 of 313, against build 15's 210 of 303 (69 %) there. Both build-16
+arms, with different switches, lost the offers build 15 had; the one change
+common to them is build 16's overlay subscription to `10/0x8001
+VehiclePositionInfo` (a client of service 10 that build 15 never started; the
+stock map subscribes to it too and got 5–6 onsets per drive). This is a
+hypothesis, not a cause: the time of day and the car state also differ. The
+control that separates them is build 15 with its 2026-10-24 variant on the same
+streets.
+
+**Build 17 A1, 2026-10-25 11:10–11:22 (arm `1fea7c6c`, service 10 off, the
+2026-10-24 variant).** The subscription hypothesis does not hold: with service 10
+off and the exact build-15 variant, DNP was offered or active at 9 of 331 moving
+samples (3 %); nine activations of 498–607 ms each went straight to ICC. On the
+first route, before any reroute, builds 15 and 17 run the same feed code (17
+adds only the reroute replacement, live service-13 recording and the observer
+switch); there build 15 had DNP offered or active at 357 of 439 moving positions
+(81 %), A1 at 10 of 171 (6 %), on the same streets with the same field values
+(ownership -1, class 9, limits 20/60, historySpeed 18/7, Region 0). Lane-guidance
+messages (`Intersection`, `NextIntersectionLanes`) were sent only on 2026-10-24,
+but within that drive offers ran at 67 % with them and 70 % without, so they do
+not explain it either. The fall in offers since 2026-10-24 evening is therefore
+outside the feed: car state (a new boot on 2026-10-25), light or road conditions.
+The 0.5-s NOA→ICC drop itself appears in every configuration tried.
+
+The final persistent PAUSED state follows navStop/route absence, before arm
+expiry. Last sampled movement precedes that stop by 840 ms, so it cannot be
+labelled a proven stationary post-drive pause. After the owner's fresh P and
+parking-brake confirmation, evidence was copied before restoring the exact
+ledger. Restoration reached `RESTORED`; arm absent, publisher and answer
+endpoints closed, reader process absent, original stock enabled state 0, and
+installed build-16 APK hash unchanged. Before/after crash buffers are identical
+and contain only earlier morning entries. No new drive or variant was armed.
+
+Evidence and reproducible analyses: `frame-check/postdrive/` under the build-16
+capture, especially `reports/transmission/arm-review.json`,
+`reports/recording/focused-recording.json`, `reports/position/summary.json`,
+`reports/adas/REPORT.md` with its matched-footprint CSV,
+`capture-receipt.json`, and `after-restore.json`. All listed rotating generations
+were recovered. The initial bounded tar transfer stopped in an old generation;
+its complete files and a separate remainder transfer form the verified extracted
+capture. No input file or road-control setting was altered for analysis.
+
+#### Local diagnosis after the loop-frame drive
+
+The two moving reroute gaps now have a pinned-source explanation and a host-only
+reproduction. `LiveMapBridge.reconcileOffline` (`:131–147`) requires both a READY
+offline decision and equality of the current and published route subject. The
+route identity changes before its full converted observation reaches the sender.
+If reconciliation wins that ordering, it calls `endGuidance`, withdraws the route
+and creates a new `NavigatorDriver` even though the installed offline inventory
+is READY. The new driver loses the yaw lifecycle: the dry driver emits route type
+2, while LIVE treats the same replacement as type 1 and repeats a fresh start.
+If the complete observation arrives first, `verifiedReplacement` (`:592–596`)
+keeps the reroute lifecycle instead. Both orders are reproduced with unchanged
+build-16 production sources, a fake clock and a host-only Binder boundary.
+
+The actual 8.264/7.469 s gaps are dominated by 2.005/2.008 s for three end statuses
+and 5.006/5.007 s for the fresh-start hold. Real selection ACK latency is only
+103/32 ms. New-route dry conversion finished 1.209/1.406 s before the LIVE end
+sequence completed, so it cannot account for the remaining serial wait. The
+five-second start hold was a chosen experiment timing, not a recovered mandatory
+factory delay. Original Java keeps yaw replacement separate from navStop; an
+existing original-APK replay has nine yaw replacements with no intermediate
+100/106 phase (that emulator replay is lifecycle evidence, not ECU acceptance).
+The exact first reconciliation caller on the Android run is not logged.
+
+This establishes the cause of these two transmission gaps, **not** the cause of
+missing NOA offers or the older immediate dropouts: offers were absent before
+the first gap. The diagnosis itself changed neither control code nor gates;
+the subsequent local correction is recorded below. Reproducer,
+source/archive hashes and additive timelines are in
+`frame-check/postdrive/reports/reroute-cause/` under the build-16 capture.
+
+A second comparison uses 71 valid pairs of actual sent positions on shared
+village streets, with similar direction/speed and both paths selected and not
+ended. Road class 9, formway −1, lane count 0, direction 0, ownership −1, admin
+code 0 and static limit 0 are identical across all pairs. Dynamic class 9,
+legal limit, position ownership −1, navigation status 101 and region values are
+also unchanged. The four groups proposed by `loop-rest` therefore do not explain
+why offers disappeared between these two drives; this does not settle their
+possible contribution to the older short active intervals.
+
+All compared link IDs change. They are hashes of link grid coordinates after
+`Coordinates.toSdk`, not stable independent map identifiers: changing frame also
+changes derived link IDs. Twenty paired link geometries have different length
+or point-count segmentation, and dynamic progress/speed naturally differs.
+Consequently the effective variant changes one configured frame choice, but the
+wire comparison is not a byte-identical feed with only coordinate scalars changed.
+`reports/field-delta/` retains raw pairs, joins, link/coordinate checks and limits.
+
+Exact build15/16 source and APK comparison excludes a hidden converter update:
+all 46 archived adas-link files and all native libraries are identical. Only
+three production passive-observer Java files and version identity change;
+20,248 APK entries match, with manifest differences limited to versionCode/name.
+The additional service-10 subscription remains an uncontrolled build difference;
+there is no observed callback/drop/send failure attributable to it. Details:
+`reports/build-delta/`. All work in this follow-up is local; no build, installation
+or new arm was performed.
+
+#### Loop-wire drive review (2026-10-25)
+
+The owner reports no visible CNOA/ICC offers and immediate “Degraded to ICC”
+after activation. Raw ADAS status shows that a brief active CNOA state did
+occur: five explicit `dNPStatus=1` intervals, each followed by explicit
+`iCCStatus=1`, with city-family mode 2. These are five state intervals, not a
+count of independent stalk requests. Device wall times converted to Moscow:
+
+| First active response | First subsequent ICC response | Observed interval |
+| --- | --- | ---: |
+| 10:30:43.212 | 10:30:43.707 | 495 ms |
+| 10:31:05.724 | 10:31:06.232 | 508 ms |
+| 10:31:44.431 | 10:31:45.020 | 589 ms |
+| 10:34:17.817 | 10:34:18.321 | 504 ms |
+| 10:35:03.510 | 10:35:04.015 | 505 ms |
+
+These durations are between received status transitions at approximately 10 Hz,
+not sub-cycle ECU execution timing. Among 6,608 current-arm PilotStatus samples,
+DNP is explicitly active in 26, available in only seven isolated samples
+(68–109 ms intervals), and absent in 6,575. ICC is explicitly active in 654;
+no explicit ICC-available value is retained. This explains why the raw record
+can contain activation without the driver seeing a sustained offer. Absent
+fields are not observed zero. No `pilotNotice` is transmitted in the retained
+alarm stream; reason 19 appears only later at 10:35:56.431. It does not identify
+the cause of these five exits, and the cluster wording is the owner's observation.
+
+The original accepted path covers the first three exits, before any reroute
+teardown. Successful position sends bracket all five exits with intervals
+1,004–1,058 ms. The first four have normal matched ownership 0; no lifecycle
+change occurs within five seconds of those exits. The fifth is already in
+Yandex rerouting: unmatched ownership -1 begins before the exit, whereas the
+actual route teardown follows 3.961 s afterwards. Therefore neither the known
+handoff pause nor the unmatched-ownership interval explains every dropout.
+
+Scope is arm `46b7e099-b729-4447-a073-d628dd46f5b2`, recorder source
+`f232ba3b-1c6f-4478-a82e-a3f714de2237`, pinned build-16 APK `cb97cacb…`.
+Older ring generations and old-boot elapsed values are explicitly excluded.
+The preclosure capture has five complete routes with explicit same-path SELECTED
+200, 7,512 successful sends and 799 positions: no transport failure, wrong
+current-path ID or position before its path's ACK. Four replacement gaps are
+7.854/7.578/7.795/7.925 s. The local handoff correction below was not installed.
+All retained source vertices in those wire routes match the WGS84 stock grid.
+The variant sends Region 990001 throughout; legal-limit fields are absent with
+protobuf default 0. Matched positions (781) omit ownership with protobuf default
+0; 18 rerouting/unmatched positions explicitly retain -1. The variant is a
+matched-position fill-in, not an unconditional overwrite of the unmatched state.
+
+Sparse service-10/outbound joins at the five exits show location separation
+1.22–5.69 m and close headings, rather than a 537 m discrepancy. Different
+sample times and undeclared service-10 speed units prevent interpreting these
+pairs as a same-tick equality test or proof of the receiver's required datum.
+Route selection and successful transport still do not establish road matching,
+eligibility or the predicate that caused a downgrade. This compound variant
+failed to sustain CNOA; it does not eliminate interactions among its changed
+fields or establish a permanent replacement value for any field.
+
+**Recording boundary.** Last observed movement is 10:35:52.188. Raw ADAS
+continues to 10:36:11.574, then the overlay emits `closed` at 10:36:11.612.
+AVC camera foregrounding stopped Navigator's Activity at 10:35:41.613. The
+installed source confirms the overlay's 30-second linger and closure; the live
+receiver intentionally excludes service 13 from raw recording. Its continuing
+callback counter therefore does not replace the missing status record. The
+261 later FINE guidance samples all have speed 0: movement is covered, later
+stationary ADAS state is not. No malformed JSON, recorder drop/write-error
+counter, target crash or process restart was observed. Recording should be
+independent of overlay visibility before claiming full autonomous coverage.
+
+**Closure.** The arm was removed, stable publisher/answer closure proved and
+the owned reader stopped. Both navigation side channels were disabled in this
+variant and required no restoration. The owner explicitly requested that the
+stock map remain disabled: final state 3, no stock processes, original state 0
+retained in the ledger, final phase `CLOSED_STOCK_DISABLED`. A local wrapper
+reused all normal closure and identity checks but replaced the final package
+enable with disabled/stopped readback. Do not rerun plain `restore` against
+that closed ledger. No APK was installed, no new session armed and no push made.
+
+Evidence: `captures/drive-kit-20261025/loop-wire-20261025-102413/postdrive/`:
+`SUMMARY.md`, `capture-receipt.json`, hashes, before/after archives, closure
+script and three independent reports under `reports/adas`, `reports/transmission`,
+`reports/recording`. Times in the episode table use the recorder's device clock;
+host capture timestamps are not treated as synchronized clock pairs.
+
+#### Local reroute handoff correction (2026-10-25)
+
+The working copy now distinguishes a different route awaiting preparation from
+actual offline-data loss. `LiveMapBridge` blocks all old-route egress immediately,
+retains its driver/guidance lifecycle, and accepts only an observation with the
+current route ID, epoch, geometry hash and fresh offline admission. The new path
+still needs its own selection ACK and fresh FINE fix. A ready yaw replacement
+therefore avoids the old three-status end and five-second fresh-start phase;
+route preparation and actual ACK latency still remain.
+
+Pending lasts at most 5,000 ms from the first sender reconciliation. Further
+route changes and inventory refreshes do not extend it. Timeout, cancellation,
+arrival, unavailable/stale inventory and same-ID geometry/epoch changes retain
+the withdrawal path. Checks after potentially blocking refresh/conversion prevent
+late preparation from extending this window. Normal synchronous ADV_AUTO_FUN_INFO
+and asynchronous positions are covered separately from replacement behavior.
+`LiveEgressGuard.revokeCachedReadiness` only revokes cached admission at the final
+transaction boundary; genuine transport errors remain terminal.
+
+The same runtime regression fails on archived build-16 production sources at
+the reconcile-first case and passes on the candidate: 82 handoff checks and 261
+existing runtime checks. Separate compiled plain-main suites pass 411 guard,
+76 lifecycle and 19 offline-gate checks. Independent source review found and
+helped correct an initial overbroad veto of ordinary dynamic messages.
+Reproducer, before/after output and source hashes:
+`captures/reroute-fix-20261025/`. Initially source-only, this correction is now
+included in [local signed build 17](#build-17-control-candidate-2026-10-25), with
+337 runtime checks after the recorder regression was added. The APK is not
+installed and no vehicle session was armed in this preparation. It does not
+establish a cause or fix for NOA availability or immediate degradation.
+
+#### Coordinate parity follow-up
+
+The source for this comparison is the exact build-15 archive
+`684744d5de68f45e4ec6eb1df5dc832d2ac03912caca313254975fde07554762`,
+original stock APK
+`3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793`,
+and original `libAutoDice.so`
+`a3a0279dec67e158babb0cd84f8501596c4750b00fb04d74136e699aaa02fe5a`.
+Evidence lives in `reports/coordinate-parity/` under the post-drive capture.
+
+The native public guard at ELF VA `0x2092a4c` preserves Moscow coordinates;
+its China bounds differ from the inner transform. The pinned Java candidate
+and original inner wrapper at `0x20929dc` agree bit for bit on 408 retained trip
+points, including stock-grid rounding. Original machine-code host execution
+and Android native calls are separate checks. REA historical addresses are
+ELF VA + `0x100000`; Android hooks use loaded module base + ELF VA. Byte spans and
+hashes are recorded in `native/` and `batch/`.
+
+The original APK ran on a session-owned, read-only emulator. GNSS input used
+retained moving positions/speed/course, `isEncrypted=0` and fresh SDK ticks.
+The moving control retains GNSS mode0 and produced 340 callbacks for all 35
+input ticks. Across the seven shared inputs after initialization, its first
+callbacks are 0.262–5.927 m from WGS84; the DR callbacks are 0.382–5.822 m from
+the original inner-formula output. The two modes differ by 536.387–538.268 m
+on those same inputs. The DR run changes only the native
+`PosService.init` configuration through the original Java factory's
+`d(1,false)` result. No coordinate return value is substituted. Original
+location observers show 62 DR callbacks tied to 8 of 35 submitted input ticks.
+The first callback is 20.27 m from the inner-formula output; the next seven
+first callbacks are 0.38–5.82 m away, and approximately 536–542 m from WGS84.
+Input-to-first-callback delays are 55–97 ms. Both configurations still call
+the public GNSS guard, which returns unchanged coordinates: the DR shift
+occurs later in the position-processing path. Its exact later native call
+site has not been recovered.
+
+This is a native localization comparison, not a complete car-sensor replay:
+no wheel/IMU stream was supplied, and only 8 DR input ticks produced retained
+callbacks. The old real-car corpus records `locType:1`, making DR relevant,
+but neither that fact nor this fixture establishes the ECU's interpretation.
+No SOME/IP output or ADAS decision is observed in the emulator. The earlier
+stationary 40-pair fit reproduces numerically but contains only two unique SDK
+positions; the original zero-speed resend runnable can reuse a point. Its
+send timestamp must not be treated as the GNSS measurement timestamp.
+
+The field inventory covers 26 scalar fields / 13 coordinate-pair types. All
+nine active families use the selected frame exactly once; three reset-only
+families preserve zero and incidents remain an empty list. Pinned-source
+checks passed 612 existing and 277 added assertions. This is field plumbing,
+not independent numerical proof. Stock dynamic wrappers forward SDK doubles;
+build15 rounds most dynamic points to the route grid, while facilities retain
+doubles. The candidate has a Moscow envelope and the copied light-existence
+predicate assumes positive longitude/latitude, so global support remains open.
+Future nonempty incident/construction/interval-camera producers need explicit
+source-frame conversion; current zero output is not proof of their support.
+
+`candidate/variant.json` was prepared from the completed trip's exact variant
+and changes only `frame=STOCK_GCJ` plus the identifier. It was subsequently used
+in the owner-authorized parked comparison below and that session is closed.
+Stock start and both disabled navigation side channels are preserved. Host
+validation and the archived Java parser agree. All retained route/position
+points fit the candidate's envelope; this says nothing about a future route.
+No product default or APK changed. During the owner-confirmed P/parking-brake
+check, the installed APK SHA matched build15 and measured speed was zero.
+Session `f816346f-57db-4124-8959-3e462af7c0c4` sent path `1792866243`; ADAS explicitly
+confirmed the same path with SELECTED 200. PathMatch contained pathID and
+endIdx 664, with no match status or NOA distance. Over 66.856 s the retained
+egress has 497 successful packets and 60 positions, no transport failure, and a
+maximum position interval of 1098 ms. Both additional navigation channels
+remained disabled.
+
+Yandex recalculated the selected route before publication. The actual source
+snapshot has 550 points; the earlier 533-point selection is retained separately.
+Every one of 536 unique transformed source vertices occurs in the 665-point
+published route; 619 point instances match exactly on the stock grid. The
+remaining 46 interpolated instances lie within 0.0311 m of the transformed
+source polyline. For 20 position samples in the earlier capture, matched
+positions are 0.0075–0.0589 m from the transformed source guidance and roughly
+537.5 m from WGS84. Raw GNSS input pairing is not established by this guidance
+record. This verifies actual coordinate transmission and selection, not a
+NOA fix or the receiver's internal datum.
+
+The session restored successfully: arm absent, publisher/answer endpoints
+closed, reader process absent, original stock enabledState 0 restored, installed
+APK unchanged and crash buffer unchanged. Its temporary reader JAR/log were
+removed after local capture. The read-only quit-prompt getter returned raw 0
+before/after; publication, freshness and the meaning of 0 are still unknown.
+Evidence: `parked/{rollback,postflight,receiver-check,coordinate-wire-check}.json`.
+The car was released to the owner's other agent; this session retains no
+vehicle lease. The owned emulator and its forward were also stopped/removed.
+
+#### Stock CNOA hold against build 15, field by field
+
+A second host-only pass parsed every stock send template of
+`k/h/a0/c/c/a/f0.java` in both 2026-10-23 drive logs and joined it to the
+build-15 wire by street: positions within 25 m of the stock's own positions
+inside its 24.9-s and 7.2-s CNOA holds (stock coordinates inverted to WGS-84).
+Build 15 drove those streets at 20:18:15–20:18:25 and 20:37:34–20:37:36 and
+went active eight times there for 0.5–1.7 s. The stock log is decimated
+(`LogIntervalUtil.downConversion`, every 2nd–5th send), so values compare and
+rates do not; an absent proto3 field of ours counts as its wire default.
+
+What the stock never sends while guiding, and build 15 always does:
+position ownership is 0 in all 1,747 stock positions that carry a path across
+both drives (-1 only with no path); ours is -1 in all of them. The stock's
+parked route over the same streets (`first-full`, 55 links) carries laneNum
+1 (52) / 2 (3), formway 15, link ownership 0, adminCode 990001 and hasMultiOut
+true (54/55); every build-15 link carries laneNum 0, formway -1, ownership -1,
+adminCode 0 and hasMultiOut false. **Corrected 2026-10-25:** `first-full` was
+captured at 20:48 with package-d, after the hold drive; drive-02 ran package-b,
+which estimated LaneNum 1 where OSM had none and predates package-d's formway and
+ownership fields. No route body of the holds is retained, so these link values
+are not what ADAS received while CNOA held. The dynamic values in this paragraph
+(position ownership, Region, speed limit, light) do come from the hold drives'
+own send log. Persistent elsewhere: Region ids 990001
+against our 0; TrafficInfo speed limit 0 in all 2,413 stock records against
+the Yandex limit (20 on these streets, 60–90 on Kievskoye) plus camera speed
+and distance; traffic light exist 1 without coordinates against our 2 with the
+coordinates of a light ahead. Minor: our links are finer (median 23 m, a
+quarter under 10 m, minimum 1 m, against 47 m and 5 %); historySpeed 18 against
+25 on these streets; empty voice command and link mainAction 0; the stock sent
+no NextIntersectionLanes or Intersection in either drive.
+
+Equal, or shown harmless by the control: 1 Hz cadence of every periodic topic
+during our active intervals (the light at 0.6/s), NavigationStatus 101, tidal,
+tunnel, AdvAutoFunInfo, empty Lanes3km, parallel/mix-fork 2. **Corrected by the active-window recheck below:** the stock held CNOA while
+route indices/offsets froze, but both output coordinate pairs continued moving.
+This shows incomplete progress in those observed holds; it does not establish a
+universal rule about which progress fields the ECU needs.
+`ExperimentVariant` already switches frame, position ownership, link laneNum,
+formway, ownership and adminCode, region and a zero speed limit; it has no
+switch for the light, hasMultiOut or link granularity. Ranked list, script and
+output: `…/postdrive-20261024-204337/reports/stock-diff/`.
+
+**The stock's HNOA hold on Kievskoye, same send log (added 2026-10-26).** The
+longest stock hold of 2026-10-23 is HNOA at 19:14:43–19:15:38 (54.2 s), used above
+only as a reference. Inside it the stock sends TrafficInfo roadClass 6 in all 19
+records (the CNOA holds: 9 and -1) and historySpeed 85 in all 18 SpeedIntersection
+records (the CNOA holds: 25). The rest matches the CNOA holds: position ownership
+0 (28/28), Region 990001, noODDRegionDist 2147483647, speed limit 0, traffic light
+exist 1 without coordinates. NextAction carries iconType 5 with mainAction 8.
+This agrees with the earlier physical HNOA control in
+`captures/noa-bridge-audit-20261024/reports/stock-semantics.json` (27 samples:
+class 6, history speed 85, legal limit 0). historySpeed and class therefore follow
+the road type; one constant for every link does not reproduce either hold.
+Script: `stock_holds.py` in the same folder.
+
+**The frame, rechecked on car data.** An emulator run found that plain GNSS fed
+into the stock SDK stays WGS-84 in Moscow (the public conversion branch). That
+does not describe what reached ADAS on the car. Every moving stock position of
+2026-10-23 lies on build 15's Yandex track only after the candidate inverse:
+636/636 in drive-01 within 60 m, median 3.6 m (p90 10.0 m), and 675/1,027 in
+drive-02 (the rest are roads build 15 did not drive), median 2.9 m. Without the
+inverse, none comes within about 65 m; the candidate moves a point here by
+537.5 m. The stock's parked route over the same streets starts at its own
+shifted home position. These observations support shifted stock output positions and the separately
+captured parked route, including non-active stretches. **The complete route
+bodies during active holds are absent**; the parked route is from a different
+package and must not be presented as their byte proof. The car's input is not
+fully reproduced by the emulator: for the cached `autoType==210` branch,
+`a0.java` accepts
+`10/0x8001 VehiclePositionInfo` into buffered/interpolated `LocAllFusionPos`
+(signal type `0x40000003`) when HD status is1 or cached DNP is1/2. If that gate
+fails, this handler does not enqueue the packet; it does not establish a plain
+GNSS fallback. The non210 branch forwards raw longitude/latitude/timestamp to
+`b0.v`. The DNP cache itself is stabilized by repeated status triples.
+The actual CNOA-hold PID records `isLaneSrUi:false` before both windows, so the
+forced-210 emulator replay does not establish its platform branch. `locType`
+is selected separately and absent from that drive log. Where the car's shift
+arises stays open, and so does ADAS's own frame.
+`VehiclePositionInfo` is ADAS → IVI and was not captured by build15. Recording
+it can establish the frame of that output message, but cannot by itself settle
+the ECU's internal localization frame or its incoming-route contract. A WGS84
+output therefore does not rule out an incoming-route frame mismatch; a shifted
+output strengthens producer-parity evidence without proving dropout causality.
+The newer GNSS0/DR1 comparison above directly establishes mode-dependent SDK
+output on the same fresh inputs. The settlement loop remains a compound
+vehicle experiment, not an independent coordinate-contract oracle.
+
+**The candidate against the stock's own output.** Build 16's parked capture
+(400 `VehiclePositionInfo` samples, HD status 1, one point) puts ADAS's home
+pose 537.6 m from the stock's 2026-10-23 parked wire position (`first-full`) and
+0.4 m from it after the candidate transform (3.5 m from the stock's matched
+road point). The same transform puts build 15's Yandex route points on the
+stock's parked route over the same streets at median 3.0 m (p90 4.9 m, 137
+points); untransformed, the same points lie at median 524 m. Java
+`Coordinates.toSdk` and Python `stock.to_sdk` return identical values on these
+points. So `STOCK_GCJ` reproduces what the stock put on the wire from ADAS's own
+WGS-84 pose and reproduces that parked route. It is not a complete capture of
+the route/position input during active CNOA or HNOA, and is not a demonstrated fix.
+
+**Active-hold audit, correcting the earlier premise.** The 24.902 s and 7.205 s
+CNOA windows retain 12 and 3 distinct SDK `gpsPos`/first-match `stPos` pairs,
+all successful sends with positive vehicle speed. Original `e0.P` forwards
+`LocInfo.gpsPos` and `matchInfo[0].stPos`; neither is a raw Android GNSS oracle.
+During two frozen route-index/offset groups, GPS output moves 43.244 and
+36.809 m. Both coordinate pairs fit the retained shifted package-b geometry,
+but the association selects a segment by SDK proximity and is not input/output
+tick lineage. Full route bodies for active paths 100005/100006/100009 are absent;
+parked first-full path100002 belongs to later package-d. Raw GNSS, inputTickTime,
+locType and VehiclePositionInfo are also absent from the active drive log.
+The observed platform predicate is false, so the forced-210 replay remains a
+separate fixture. `mapProvider=1` alone is not an explicit datum declaration.
+Exact raw values, source getter/argument order, geometry joins and hashes:
+`frame-check/postdrive/reports/stock-frame-recheck/` under the build-16 capture.
 
 ### Regional offline graph (2026-10-24)
 
@@ -1860,6 +3023,13 @@ a numeric tag. Exact hashes, offsets and reproduction are retained in
 
 ## Car trip recorder (2026-10-24)
 
+**Current build-16 limitation, found 2026-10-25:** service-13 raw recording stops
+when the overlay observer closes after the map Activity is hidden. A live
+publisher and continuing guidance do not prove continuous status recording.
+The [loop-wire audit](#loop-wire-drive-review-2026-10-25) covers the entire observed
+moving portion but exposes this stationary tail gap. The build-7/8 receipts
+below remain historical bounded tests.
+
 Build 8 has replaced build 7 on the car; its installed identity and bounded
 clock check are recorded [above](#location-clock-domain-2026-10-24).
 Build 7 (`29.8.1-YandexHUD.7`, code `739494307`, SHA-256
@@ -1957,7 +3127,10 @@ callback time keep duplicate observations and sessions distinguishable.
 The 49-check stream regression floods the raw ring, verifies rare-reply
 retention even when raw writes fail, and distinguishes null from empty.
 No extra subscriber or new sending behavior is introduced. The unarmed
-display-owned listener still has its original visibility-dependent lifecycle.
+display-owned listener still had its original visibility-dependent lifecycle
+in that candidate. Build 16 later filtered service-13 from the live recorder;
+[build 17](#build-17-control-candidate-2026-10-25) restores it and retains the
+passive observer while capture is enabled, independently of Activity visibility.
 
 The latest two route snapshots have all 1,307 speed-limit entries and 12 lane
 signs, but no proved continuous lane count, road class or per-link access.
@@ -2223,7 +3396,8 @@ The open rows carry 19 high, 21 medium and 47 low NOA risks. These come first:
 - **Road semantics (H2, D-HWY).**
   - On links, roadclass, formway and ownership are −1, adminCode is 0, and direction is
     0, which the export reads as two-way (DRT raw 3 → 0).
-  - Region is 0.
+  - Region was 0; the [2026-10-25 default change](#region-default-from-the-successful-stock-drive-2026-10-25)
+    reuses the successful stock/OSM drive's 990001. Its geographic/ODD meaning remains open.
   - TrafficInfo class and position ownership are unknown −1 on a path that the same
     packets declare matched. Unknown is not proof of a universal off-route state.
   - historySpeed is the section's free-flow speed.
@@ -2420,8 +3594,14 @@ that left ADAS holding the route, an arm lost on a Navigator restart and evidenc
 that rotated out the start of the drive. The host-only rewrite (`134caa8e`..`6f97e3bb`)
 changes the dynamics, not the field values:
 
-- A missing prerequisite pauses LIVE egress without dropping the path, its real ACK or the
-  FINE anchor; the session ends only on a terminal cause (an actual send or audit failure,
+- A missing prerequisite normally pauses LIVE egress without dropping the path, its real ACK or the
+  FINE anchor. **Installed build-16 exception:** changing a ready route subject can trigger full route
+  teardown and a fresh guidance start before its new observation is admitted; the pinned
+  [post-drive reproduction](#local-diagnosis-after-the-loop-frame-drive) establishes the race.
+  The later [local handoff correction](#local-reroute-handoff-correction-2026-10-25)
+  keeps the guidance lifecycle for a bounded ready replacement while withholding old egress;
+  it has not been installed.
+  The arm itself ends only on a terminal cause (an actual send or audit failure,
   a transport epoch change, an arm or stock-package change) and keeps its first cause.
 - Sends run on their own normal-priority thread. Callbacks go through a queue that never
   refuses: service-44 answers are kept, service-13 status is shed oldest-first. Readiness
@@ -2436,8 +3616,9 @@ changes the dynamics, not the field values:
 - `FieldDefaults` names every sourceless value in one place (frame, vehicle-speed source,
   legal limit, facilities, region, unmatched class and ownership); every trace header
   records it. Vehicle speed stays GNSS: Navigator's process has no BYDAuto permission.
-- Evidence sized for a two-hour drive, service 13 recorded once, and `adas-journal.jsonl`
-  with every ADAS state transition, selection and PathMatch, never rotated within a drive.
+- Evidence was sized for the build-15 two-hour objective, with service 13 recorded once
+  and state transitions in `adas-journal.jsonl`. The added build-16 service-10 stream
+  reduces measured packet retention below two hours; see the position-observer measurements.
 
 Each defect has a regression test that failed on the old engine
 (`LiveDriveRegressionTest`, the runtime and passive-client harnesses). Not yet established
@@ -2481,8 +3662,12 @@ same road is still filled; `variantApplied` counts only what a switch put on the
 speed, lane count from sign width) stays removed. One ODD request implementation remains,
 build 13's fixed parcel (both inout objects, explicit length plus `writeByteArray`, the
 raw answer kept as base64 within 64 KiB): only H3's `startProtocol: stock` sends it,
-through the guard, once per fresh guidance start and never on a reroute; build 13's
-unconditional request before the armed feed is gone, so every other variant leaves H3 a
+through the guard, once per fresh guidance start. **Corrected by the build-16
+reproduction:** a direct reroute does not request ODD, but route-subject teardown
+recreates the driver, turns a yaw replacement into a fresh start, and requests ODD
+again. The local handoff correction above removes that extra fresh start for a
+ready replacement; the installed build 16 still has the recorded behavior.
+Build 13's unconditional request before the armed feed is gone, so every other variant leaves H3 a
 clean variable. A driver recreated after an offline withdrawal keeps the session's frame
 and variant (`LiveRuntimeTest.variantFrameAfterOfflineWithdrawal`). None of this has been
 built into a car build or run on the car.

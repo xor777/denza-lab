@@ -25,8 +25,9 @@ public final class FieldDefaults {
     }
     public static final VehicleSpeed VEHICLE_SPEED = VehicleSpeed.GNSS_STANDS_IN;
 
-    /** G01: Region regionId/province/city/weather and countryCode while Yandex names no region. */
-    public static final int REGION_ID = 0, PROVINCE_CODE = 0, CITY_CODE = 0, WEATHER = 0;
+    /** G01: reuse the stock/OSM region from the successful NOA drive (2026-10-23 drive-02).
+     * This synthetic map code is not a Yandex administrative region or an ODD eligibility claim. */
+    public static final int REGION_ID = 990001, PROVINCE_CODE = 990001, CITY_CODE = 990001, WEATHER = 0;
     public static final long COUNTRY_CODE = 1;
 
     /** P01/T01: the stock's unmatched values, sent while no complete graph road is under the car. */

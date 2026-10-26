@@ -1,0 +1,10 @@
+{
+  "id": "loop-own-lanes",
+  "position.ownership": 0,
+  "link.ownership": 0,
+  "link.laneNum": 1,
+  "link.formway": 15,
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

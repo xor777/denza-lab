@@ -937,6 +937,162 @@
     "message:TrafficInfo"
    ]
   },
+  "VehiclePositionInfoNotify": {
+   "1": [
+    "vehiclePositionInfoNotifyStruct",
+    "message:VehiclePositionInfoNotifyStruct"
+   ]
+  },
+  "VehiclePositionInfoNotifyStruct": {
+   "10": [
+    "acceleration",
+    "double"
+   ],
+   "5": [
+    "altitude",
+    "double"
+   ],
+   "30": [
+    "breakLight",
+    "uint32"
+   ],
+   "1": [
+    "checksum",
+    "uint32"
+   ],
+   "2": [
+    "counter",
+    "uint32"
+   ],
+   "27": [
+    "fusionStatus",
+    "uint32"
+   ],
+   "26": [
+    "hdmapVersion",
+    "uint32"
+   ],
+   "25": [
+    "hdStatus",
+    "uint32"
+   ],
+   "16": [
+    "hdLaneId",
+    "uint32"
+   ],
+   "7": [
+    "hdLaneLeftAngle",
+    "double"
+   ],
+   "21": [
+    "hdLaneLeftLateralOffset",
+    "double"
+   ],
+   "20": [
+    "hdLaneNum",
+    "uint32"
+   ],
+   "8": [
+    "hdLaneRightAngle",
+    "double"
+   ],
+   "22": [
+    "hdLaneRightLateralOffset",
+    "double"
+   ],
+   "19": [
+    "hdLaneSeq",
+    "uint32"
+   ],
+   "17": [
+    "hdLaneType",
+    "uint32"
+   ],
+   "15": [
+    "hdLinkId",
+    "uint32"
+   ],
+   "6": [
+    "heading",
+    "double"
+   ],
+   "31": [
+    "indicatorLight",
+    "uint32"
+   ],
+   "4": [
+    "latitude",
+    "double"
+   ],
+   "32": [
+    "lights",
+    "uint32"
+   ],
+   "37": [
+    "localizationOutputOffset",
+    "uint32"
+   ],
+   "3": [
+    "longitude",
+    "double"
+   ],
+   "18": [
+    "onLaneOffset",
+    "double"
+   ],
+   "24": [
+    "pitch",
+    "double"
+   ],
+   "29": [
+    "positionType",
+    "uint32"
+   ],
+   "28": [
+    "posConfidence",
+    "double"
+   ],
+   "23": [
+    "roll",
+    "double"
+   ],
+   "34": [
+    "targetCruiseSpeed",
+    "float"
+   ],
+   "35": [
+    "targetLaneIdArray",
+    "repeated uint32"
+   ],
+   "36": [
+    "targetLaneIdSegmentArray",
+    "repeated uint32"
+   ],
+   "14": [
+    "timestamp",
+    "double"
+   ],
+   "9": [
+    "vehicleSpeed",
+    "double"
+   ],
+   "33": [
+    "weather",
+    "uint32"
+   ],
+   "11": [
+    "xSpeed",
+    "double"
+   ],
+   "12": [
+    "ySpeed",
+    "double"
+   ],
+   "13": [
+    "zSpeed",
+    "double"
+   ]
+  },
   "aheadIntersectionsLanesInfoNotify": {
    "1": [
     "aheadIntersectionsLanesInfo",

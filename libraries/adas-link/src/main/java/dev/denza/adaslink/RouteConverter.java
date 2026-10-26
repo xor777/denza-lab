@@ -287,6 +287,7 @@ public final class RouteConverter {
         int[] sourced = new int[linkBeginS.size()];
         double[] linkSpeed = attributes(route, sections, path, linkBeginS, linkEndS, linkEnd, cumulative, match, sourced);
         Map<String, Object> applied = applyVariant(path, sourced, variant);
+        // URIDs require a geographic adcode mapper and catalog; adminCode alone is not universal.
         groups(sections, path);
         double[] segmentFree = new double[sections.size()];
         for (int i = 0; i < segmentFree.length; i++) segmentFree[i] = sections.get(i).freeFlowKmh;
@@ -412,10 +413,9 @@ public final class RouteConverter {
     }
 
     /**
-     * The variant's link overrides, each on the links whose attribute Yandex left unknown: a value
-     * from a graph road, the offline maps' class and one-way or a roundabout is never replaced
-     * (adminCode has no source at all). Highway ranges only cut links and give no value.
-     * Returns, per switch that is set, {value, links it set, links that kept their own value}.
+     * Link overrides normally fill only attributes Yandex left unknown. The explicit link.force
+     * compatibility experiment replaces sourced values too. Highway ranges only cut links.
+     * Returns, per switch, {value, links it set, links that kept their own value, forced}.
      */
     static Map<String, Object> applyVariant(StockPath path, int[] sourced, ExperimentVariant v) {
         Map<String, Object> applied = Json.object();
@@ -428,7 +428,8 @@ public final class RouteConverter {
             long set = 0, kept = 0;
             int link = 0;
             for (StockPath.Segment s : path.segments) for (StockPath.Link l : s.links) {
-                if ((sourced[link++] & bits[k]) != 0) { kept++; continue; }
+                if (!v.linkForce && (sourced[link] & bits[k]) != 0) { link++; kept++; continue; }
+                link++;
                 int value = values[k].intValue();
                 switch (k) {
                     case 0: l.roadClass = value; break;
@@ -442,7 +443,18 @@ public final class RouteConverter {
             }
             Map<String, Object> row = Json.object();
             row.put("value", values[k].longValue()); row.put("links", set); row.put("keptSourced", kept);
+            row.put("forced", v.linkForce);
             applied.put(keys[k], row);
+        }
+        if (v.linkHasMultiOut != null) {
+            long set = 0;
+            for (StockPath.Segment s : path.segments) for (StockPath.Link l : s.links) {
+                l.hasMultiOut = v.linkHasMultiOut; set++;
+            }
+            Map<String, Object> row = Json.object();
+            row.put("value", v.linkHasMultiOut); row.put("links", set); row.put("keptSourced", 0L);
+            row.put("forced", v.linkForce);
+            applied.put("link.hasMultiOut", row);
         }
         return applied;
     }

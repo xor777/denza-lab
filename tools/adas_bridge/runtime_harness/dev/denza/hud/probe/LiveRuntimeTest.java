@@ -95,6 +95,33 @@ public final class LiveRuntimeTest {
             check(LiveMapTransport.latest.count(Topics.SD_VEHICLE_LOCATION)>=1,"fixture streams positions on its confirmed path");return id;}
     }
     static final byte[] PILOT_STATUS={10,0};
+    /** No overlay exists in this harness. The live receiver must retain every status through a hidden-screen drive. */
+    static void recordingWithoutOverlay()throws Exception {
+        Rig r=new Rig();r.arm(true);r.streaming();
+        AdasPassiveClient listener=AdasPassiveClient.latest;
+        long pilot=0x0004000D000D8002L,alarm=0x0004000D000D8003L,mode=0x0004000D000D8005L;
+        byte[] active={10,2,40,1},icc={10,2,32,1},notice={10,2,56,22},city={10,2,24,2};
+        int start=DriveEvidence.packets.size();
+        for(int i=0;i<35;i++) {
+            r.evidence(true);r.observe(false);
+            long received=SystemClock.now;
+            byte[] state=(i%2==0)?active:icc;
+            listener.answer(pilot,state);listener.answer(alarm,notice);listener.answer(mode,city);
+            Handler.advance(0);
+            check(DriveEvidence.packets.size()==start+3*(i+1),"all three ADAS state topics recorded without an overlay, second "+i);
+            DriveEvidence.Record row=DriveEvidence.packets.get(start+3*i);
+            check(row.topic==pilot&&row.bytes==state&&row.received==received&&row.receiver.equals("live")&&row.session.equals(r.armId),
+                    "original pilot bytes, callback clock and arm survive recording");
+            Handler.advance(1000);
+        }
+        check(!listener.closed,"status recording continues beyond the old overlay's 30-second linger");
+        new File(r.context.files,"denza-adas-live-arm.json").delete();
+        Handler.advance(6000);
+        check(listener.closed,"disarm closes the owning receiver");
+        int ended=DriveEvidence.packets.size();
+        listener.answer(pilot,active);Handler.advance(0);
+        check(DriveEvidence.packets.size()==ended,"closed arm cannot append late statuses");
+    }
     static void clear(File f){File[] children=f.listFiles();if(children!=null)for(File c:children)clear(c);f.delete();}
     public static void main(String[] args)throws Exception {
         root=new File(args[0]);clear(root);root.mkdirs(); // App data of an earlier run would resume its arms.
@@ -104,14 +131,16 @@ public final class LiveRuntimeTest {
                 catch(java.lang.reflect.InvocationTargetException e){System.out.println(args[i]+": FAIL "+e.getCause());}}
             return;
         }
+        recordingWithoutOverlay();
         Rig live=new Rig();live.arm(true);check("LIVE".equals(live.state().get("state")),"real ready permits live feed");
         check(DriveEvidence.states.contains("live:"+live.armId+":binder_connected"),"live receiver lifecycle recorded with its arm");
         int records=DriveEvidence.packets.size();byte[] matchBytes={10,0};
         AdasPassiveClient.latest.answer(0x0004002C002C8001L,matchBytes);
         AdasPassiveClient.latest.answer(0x0004000D000D8002L,PILOT_STATUS);
         AdasPassiveClient.latest.answer(0x0001000D000D0001L,null);Handler.advance(0);
-        check(DriveEvidence.packets.size()==records+2,"match and null availability recorded; service-13 status is the overlay receiver's to record, once");
-        DriveEvidence.Record first=DriveEvidence.packets.get(records),last=DriveEvidence.packets.get(records+1);
+        check(DriveEvidence.packets.size()==records+3,"path answer, pilot state and null availability all belong to the live arm's evidence");
+        DriveEvidence.Record first=DriveEvidence.packets.get(records),last=DriveEvidence.packets.subList(records,records+3).stream()
+                .filter(row->row.topic==0x0001000D000D0001L).findFirst().get();
         check(first.bytes==matchBytes&&first.session.equals(live.armId)&&first.receiver.equals("live"),"actual callback bytes and receiver identity preserved");
         check(last.bytes==null&&last.received==SystemClock.now,"null availability and original callback time preserved");
         long id=live.route();LiveMapTransport tx=LiveMapTransport.latest;
@@ -197,6 +226,7 @@ public final class LiveRuntimeTest {
         Rig old=new Rig();old.arm.put("consumerSession",UUID.randomUUID().toString());old.arm(true);
         check("BLOCKED".equals(old.state().get("state"))&&Boolean.TRUE.equals(old.state().get("quiescent")),"another consumer's arm cannot bind sender");
 
+        RerouteHandoffTest.run();
         rerouteWithBlockedWorker();
         callbacksOfAnOldArm();
         firstCauseKept();

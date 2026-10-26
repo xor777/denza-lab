@@ -85,10 +85,13 @@ def _signed(value, bits):
 
 
 def _scalar(kind, wire, raw):
+    expected = 1 if kind == 'double' else 5 if kind == 'float' else 2 if kind in ('string', 'bytes') else 0
+    if wire != expected:
+        raise ValueError(f'{kind}: wire {wire}')
     if kind in ('int32', 'int64'):
-        if wire != 0:
-            raise ValueError(f'{kind}: wire {wire}')
         return _signed(raw, 32 if kind == 'int32' else 64)
+    if kind == 'uint32':
+        return raw & 0xffffffff
     if kind == 'bool':
         return bool(raw)
     if kind == 'double':
@@ -109,6 +112,8 @@ def decode(message, data):
     while offset < len(data):
         tag, offset = _varint(data, offset)
         number, wire = tag >> 3, tag & 7
+        if number == 0:
+            raise ValueError(f'{message}: field zero')
         if wire == 0:
             raw, offset = _varint(data, offset)
         elif wire == 1:
@@ -120,6 +125,8 @@ def decode(message, data):
             raw, offset = data[offset:offset + size], offset + size
         else:
             raise ValueError(f'{message}: wire type {wire}')
+        if offset > len(data):
+            raise ValueError(f'{message}: truncated field {number}')
         name, kind = fields.get(str(number), ('#' + str(number), None))
         if kind is None:
             out[name] = raw.hex() if isinstance(raw, (bytes, bytearray)) else raw
@@ -127,13 +134,17 @@ def decode(message, data):
         repeated = kind.startswith('repeated ')
         base = kind[9:] if repeated else kind
         if base.startswith('message:'):
+            if wire != 2:
+                raise ValueError(f'{message}: message wire {wire}')
             value = decode(base[8:], raw)
         elif repeated and wire == 2 and base not in ('string', 'bytes'):
             value, inner = [], 0
             while inner < len(raw):
                 if base in ('double', 'float'):
                     width = 8 if base == 'double' else 4
-                    value.append(_scalar(base, 1, raw[inner:inner + width]))
+                    if inner + width > len(raw):
+                        raise ValueError(f'{message}: truncated packed {base}')
+                    value.append(_scalar(base, 1 if base == 'double' else 5, raw[inner:inner + width]))
                     inner += width
                 else:
                     item, inner = _varint(raw, inner)

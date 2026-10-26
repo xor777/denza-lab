@@ -1,0 +1,8 @@
+{
+  "id": "loop-own",
+  "position.ownership": 0,
+  "link.ownership": 0,
+  "startProtocol": "stock",
+  "naviSt": false,
+  "instrumentNaviStatus": false
+}

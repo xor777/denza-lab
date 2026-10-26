@@ -1,7 +1,12 @@
 # YandexHUD — embedded Navigator HUD experiment
-Local candidate 13 adds continuing route-condition refresh, road-facility messages,
-partial-source recovery and terminal sender lifecycle corrections. It is **not installed**;
-build 12 remains the trip build. Evidence and remaining gaps: [local follow-up](../../research/adas-bridge/README.md#local-follow-up-candidate-13-2026-10-24).
+Local signed build 17 adds process-latched service-10 OFF/ON control (default OFF),
+capture recording independent of overlay visibility, and bounded reroute handoff.
+It is installed by hash; the completed A1 OFF drive retained nine 489–607 ms
+NOA-active runs, all ending in ICC. Availability remains below 1% of moving time.
+Moving reroute gaps fell to 1.745–5.504 s; both status recorders continued through
+movement and later map hiding. Session closed after the owner's manual reboot,
+stock stays disabled. Sources and checks:
+[A1 review](../../research/adas-bridge/README.md#build-17-a1-off-drive-review-2026-10-25).
 
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
@@ -43,8 +48,8 @@ timestamp, not a fix age; an EXTRAPOLATED location is never fresh.
 
 This export is gated to `ranchu`/`goldfish`. The independent dry-run bridge
 records what the stock map would send to `files/denza-adas-dry-run.jsonl` and
-fires nothing. Historical build 8 had only that publication path. Installed build
-12 retains the separate `LiveMapBridge` introduced in candidate 9, armed for one process through the stationary
+fires nothing. Historical build 8 had only that publication path. Current builds
+retain the separate `LiveMapBridge` introduced in candidate 9, armed for one process through the stationary
 host procedure; it never treats the dry run's assumed gates or emulated ACK as
 live evidence. See [the live candidate](../../research/adas-bridge/README.md#guarded-live-candidate-2026-10-24)
 and [the local converter and evidence](../../research/adas-bridge/README.md#local-prototype-2026-10-23)
@@ -59,7 +64,8 @@ road class remain unknown. See [the embedded graph and emulator acceptance](../.
 
 ## Car trip recorder (2026-10-24)
 
-**Build 12 is installed; build 8 below is historical rollback evidence.** It uses actual
+**Build 17 is installed; A1 parked checks passed. Earlier build evidence
+below is historical.** The live publisher uses actual
 BYDAuto integer getter snapshots, remote SOME/IP availability, successful route
 chunk sends and an explicit status-200 acknowledgement of its fresh path ID.
 Dynamic messages additionally require a current FINE fix. A lost transport or
@@ -67,9 +73,11 @@ gate closes that armed session; restoring an old file does not reopen it.
 The overlay's route-feed state reports actual sends only. An explicit same-path
 selection status 200 gives the route receipt; a path ID in PATH_MATCH alone
 cannot light a matched indicator. Its result semantics remain unproved.
-The dry-run recorder remains independent. The live audit adds two bounded 8 MiB files
-(`denza-adas-live.jsonl` and `.1`, plus at most one flush batch), so it adds about
-16 MiB to the recorder limits below. Heartbeat, gate, isolation and runtime-state
+The dry-run recorder remains independent. Build 17 keeps bounded 8 MiB file
+generations: seven raw packet files, three history files, six live audit files
+and five dry-run files (plus each writer's bounded flush overshoot). These
+supersede the historical two-file limits below; they do not guarantee two hours
+of raw evidence. Heartbeat, gate, isolation and runtime-state
 files are overwritten, not accumulated. Build 11 received no matching ACK. Build 12 received two actual route ACKs
 and sent dynamics while parked. See
 [build-11 acceptance and completeness](../../research/adas-bridge/README.md#build-11-completeness-and-car-test-2026-10-24).
@@ -82,10 +90,13 @@ Selection, PathMatch and availability are also retained with guidance; independe
 bounded queue budgets reserve space for those rare receipts. Guidance includes
 queue-drop, failed-post and write-error counters. This fixes the recording losses
 found in the [post-drive review](../../research/adas-bridge/README.md#post-drive-read-only-review-2026-10-24).
-The display-owned listener still follows Activity visibility; during an armed
-session the existing live client's recording is independent of that lifecycle.
-When unarmed, this does not promise continuous background ADAS recording.
-The current receipt is `captures/yandex-feed12-20261024/candidate12.json`;
+Build 16's service-13 callbacks were recorded only by the display observer; its
+30-second release after AVC foregrounding lost the stationary tail of the
+25.10 drive. Local build 17 corrects this: the live client records its own states,
+and the process-latched capture marker retains the existing passive observer
+while the Activity is hidden, equally with service 10 OFF and ON. Service 10
+has its own default-OFF marker and requires a full process restart to change.
+The historical build-12 receipt is `captures/yandex-feed12-20261024/candidate12.json`;
 `session1.rollback.json` there owns the two-hour car test and exact restoration.
 Two distinct routes received actual status200 in the same session, including
 cancellation/replacement and subsequent dynamic packets.

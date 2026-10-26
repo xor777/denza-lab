@@ -18,21 +18,25 @@ def main():
     classes = out / "classes"; classes.mkdir(exist_ok=True)
     harness = Path(__file__).resolve().parent
     production = ROOT / "experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe"
-    sources = sorted(harness.rglob("*.java")) + [production / "AdasPassiveClient.java", production / "AdasWire.java"]
+    sources = sorted(harness.rglob("*.java")) + [production / (name + ".java") for name in (
+        "AdasPassiveClient", "AdasWire", "AdasObservations", "DriveEvidenceStreams",
+        "DriveEvidenceLog", "AdasStateJournal", "RouteSnapshot", "Reflect")]
     receipt = {"schema": "denza-passive-client-host-test-v1", "deviceCalls": 0,
                "boundary": "In-memory typed Parcel/Binder fake; native replay/start-order behavior is an explicit fixture, not new device evidence",
                "runnerSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "sources": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}}
-    commands = [[str(args.java_home / "bin/javac"), "--release", "8", "-encoding", "UTF-8", "-d", str(classes), *map(str, sources)],
-                [str(args.java_home / "bin/java"), "-cp", str(classes), "dev.denza.hud.probe.AdasPassiveClientTest"]]
+    commands = [("compile", [str(args.java_home / "bin/javac"), "--release", "8", "-encoding", "UTF-8", "-d", str(classes), *map(str, sources)])]
+    # Separate JVMs exercise the real process latch; no test-only reset/injection exists in production.
+    commands += [("test-" + mode, [str(args.java_home / "bin/java"), "-cp", str(classes),
+                  "dev.denza.hud.probe.AdasPassiveClientTest", mode]) for mode in ("off", "on", "off", "directory", "error")]
     results = []
-    for index, command in enumerate(commands):
+    for index, (name, command) in enumerate(commands):
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=60)
-        log = result.stdout + result.stderr; (out / ("compile.log" if index == 0 else "test.log")).write_text(log)
-        results.append({"exitCode": result.returncode, "output": log})
+        log = result.stdout + result.stderr; (out / (str(index) + "-" + name + ".log")).write_text(log)
+        results.append({"name": name, "exitCode": result.returncode, "output": log})
         print(log, end="")
         if result.returncode: break
-    receipt["results"] = results; receipt["passed"] = len(results) == 2 and all(r["exitCode"] == 0 for r in results)
+    receipt["results"] = results; receipt["passed"] = len(results) == len(commands) and all(r["exitCode"] == 0 for r in results)
     (out / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     return 0 if receipt["passed"] else 1
 
