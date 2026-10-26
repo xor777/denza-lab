@@ -41,16 +41,20 @@ final class YandexOfflineAttributes {
         }
     }
     private static final class Input {
-        final String routeId, geometry, routeKey, sourceKey;
-        final long epoch;
+        final String routeId, geometry, routeKey, rawSignature, sourceKey;
+        final long epoch, preparationRevision;
         final YandexOfflineCachePath.PathSnapshot path;
         final YandexOfflineInventory.Snapshot inventory;
         Input(String id, long epoch, String geometry, YandexOfflineCachePath.PathSnapshot path,
-              YandexOfflineInventory.Snapshot inventory) {
+              YandexOfflineInventory.Snapshot inventory, Input previous) {
             routeId = id; this.epoch = epoch; this.geometry = geometry; this.path = path; this.inventory = inventory;
             routeKey = id + "|" + epoch + "|" + geometry;
-            sourceKey = routeKey + "|" + (path == null ? -1 : path.generation) + "|"
+            rawSignature = routeKey + "|" + (path == null ? -1 : path.generation) + "|"
                     + (inventory == null ? "" : inventory.fingerprint);
+            // Returning to an identical raw signature is a new preparation, not an old lease.
+            preparationRevision = previous == null ? 1 : previous.preparationRevision
+                    + (rawSignature.equals(previous.rawSignature) ? 0 : 1);
+            sourceKey = rawSignature + "|preparationRevision=" + preparationRevision;
         }
     }
     private static final class Work {
@@ -85,8 +89,8 @@ final class YandexOfflineAttributes {
     /** No filesystem access here. Fresh SDK snapshots also cancel obsolete background requests. */
     void sample(String routeId, long epoch, String geometry, YandexOfflineCachePath.PathSnapshot path,
                 YandexOfflineInventory.Snapshot inventory) {
-        Input next = new Input(routeId, epoch, geometry, path, inventory);
         synchronized (lock) {
+            Input next = new Input(routeId, epoch, geometry, path, inventory, current);
             if (current == null || !next.sourceKey.equals(current.sourceKey)) sourceWaitStartedAt = SystemClock.elapsedRealtime();
             current = next;
             if (!next.sourceKey.equals(completedSourceKey)) { completed = null; completedKey = null; completedSourceKey = null; }

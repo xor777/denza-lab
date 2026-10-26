@@ -3114,6 +3114,8 @@ regional answers, fresh inventory and path, and a completed reader result with
 the exact route/geometry/path-generation/inventory source key. Its `PREPARED`
 state is separate from the historical `AVAILABLE` inventory-only state. A map
 version or source-path change withdraws admission and retries the same route.
+Every source transition also increments a preparation revision: deleting and
+reinstalling the same version cannot revive its old cached or in-flight result.
 `LiveMapBridge` binds queued observations, retained routes and final transmission
 to that preparation generation; an old result cannot reopen a replacement source.
 A newly prepared source receives a new native path through the existing wrapper;
@@ -3131,12 +3133,12 @@ the route, because the unreadable package's possible overlap is unknown.
 Candidate 26 is `29.8.1-YandexHUD.26` / `739494326`, signed with the existing
 experiment certificate. APK:
 `captures/stock-sender-parity-20261025/product/build26/YandexHUD-26-arm64-debug.apk`,
-SHA-256 `dbbc9f62cfae7b5e222789d965bb6d0d2e15b9574ba27cc1e1de039e992fcc45`.
+SHA-256 `cf71e0d2bb76415bf6798667249253331bfa99face4ed3c5ddf3f31a5f720ec2`.
 All 180 module source hashes match the built source; APK signature, manifest
 and resource checks pass. The build runs 12 acquisition/coordinator host tests,
 64 library tests, 148 product runtime checks, 212 native-session checks and 400
-passive Binder checks. The new coordinator has 38 transition assertions; region
-lookup has 53, the real Kazan reader has 36, and the conservative planner has
+passive Binder checks. The new coordinator has 40 transition assertions; region
+lookup has 53, the real Kazan reader has 42, and the conservative planner has
 90,145. Reader 20 is unchanged. Build report, source hashes and candidate receipt
 are retained beside the APK, with `build26.log` in the parent directory.
 

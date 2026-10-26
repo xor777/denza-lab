@@ -62,8 +62,8 @@ class YandexOfflineAttributes {
   View(String key,boolean ready,String identity){sourceKey=key;preparationKey=key+"|"+identity;settled=true;readReady=ready;attributes=ready?SENTINEL:null;Map<String,Object> m=new LinkedHashMap<>();m.put("sourceKey",key);m.put("preparationKey",preparationKey);m.put("packageIdentity",identity);m.put("categoriesComplete",false);m.put("reason",ready?"read_ready":"reader_failed");m.put("reasonRussian",ready?"Прочитано":"Не удалось прочитать карты");status=Collections.unmodifiableMap(m);}
  }
  private static final RouteAttributes SENTINEL=new RouteAttributes(){public boolean matches(YandexRoute r){throw new AssertionError("reader sentinel cannot prove route matching");}public double[] cuts(){throw new AssertionError("not decoded attributes");}public RoadNetwork.KnownAttributes attributesBetween(double b,double e){throw new AssertionError("not decoded attributes");}public Map<String,Object> summary(){return Collections.emptyMap();}};
- String key,geometry;int samples;
- void sample(String id,long epoch,String geometry,YandexOfflineCachePath.PathSnapshot path,YandexOfflineInventory.Snapshot inventory){samples++;this.geometry=geometry;key=id+"|"+epoch+"|"+geometry+"|"+(path==null?-1:path.generation)+"|"+(inventory==null?"":inventory.fingerprint);}
+ String key,geometry,signature;int samples;long revision;
+ void sample(String id,long epoch,String geometry,YandexOfflineCachePath.PathSnapshot path,YandexOfflineInventory.Snapshot inventory){samples++;this.geometry=geometry;String next=id+"|"+epoch+"|"+geometry+"|"+(path==null?-1:path.generation)+"|"+(inventory==null?"":inventory.fingerprint);if(!Objects.equals(signature,next)){signature=next;revision++;}key=signature+"|"+revision;}
  String sourceKey(){return key;}
  View result(String identity){return new View(key,true,identity);}
  void deliver(YandexOfflineMapSource source,View view,long delay){new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->source.readerResult(view),delay);}
@@ -104,7 +104,9 @@ public class OfflineMapSourceHost {
   YandexOfflineAttributes.View third=reader.result("package-three");reader.deliver(source,third,0);Handler.advance(0);sample(source,api,"one",1,null,path,reader);check(live.ready(),"latest source result recovers without route reselection");
   sdk.required.install(false,0);Handler.advance(2000);sample(source,api,"one",1,null,path,reader);code(live,"regions_manual_download_required");
   check(source.available(SystemClock.now)&&!source.mayRead(),"deleting required region closes despite another installed usable map");
-  sdk.required.install(true,13);Handler.advance(2000);sample(source,api,"one",1,null,path,reader);code(live,"offline_read_pending");
+  sdk.required.install(true,12);Handler.advance(2000);sample(source,api,"one",1,null,path,reader);code(live,"offline_read_pending");
+  check(!third.sourceKey.equals(reader.sourceKey()),"same-version reinstall must get a new preparation identity");
+  source.readerResult(third);sample(source,api,"one",1,null,path,reader);code(live,"offline_read_pending");
   YandexOfflineAttributes.View restored=reader.result("restored-package");source.readerResult(restored);sample(source,api,"one",1,null,path,reader);check(live.ready(),"manual reinstall plus matching completed result restores admission");
   Handler.advance(started+YandexOfflineCachePath.TTL_MS-SystemClock.now);sample(source,api,"one",1,null,path,reader);code(live,"offline_path_unavailable");
   check(source.inventorySnapshot().ready(SystemClock.now),"path TTL closes with fresh installed inventory and cached regional readiness");

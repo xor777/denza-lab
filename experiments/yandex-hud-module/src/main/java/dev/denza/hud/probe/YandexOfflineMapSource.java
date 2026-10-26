@@ -55,7 +55,9 @@ final class YandexOfflineMapSource {
         YandexRouteRegions.Snapshot required = regions.sample(api, routeId, epoch,
                 subject.geometrySha256, geometryCopy, maps, now);
         reader.sample(routeId, epoch, subject.geometrySha256, path, maps);
-        preparationKey = reader.sourceKey();
+        String nextKey = reader.sourceKey();
+        if (!Objects.equals(preparationKey, nextKey)) readerView = null;
+        preparationKey = nextKey;
         // Invalidates queued/retained callbacks even when only a package version changed.
         live.sourcePreparation(subject, preparationKey);
         mayRead = required.ready(now) && maps.ready(now);
