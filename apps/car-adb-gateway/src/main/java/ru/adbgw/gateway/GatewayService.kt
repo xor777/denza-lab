@@ -90,12 +90,12 @@ class GatewayService : Service() {
     }
 
     private fun notification(state: GatewayUiState) = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_launcher)
-        .setContentTitle("Car ADB Gateway")
+        .setSmallIcon(R.drawable.ic_stat_gateway)
+        .setContentTitle("Удалённый доступ")
         .setContentText(state.headline)
         .setOngoing(state.enabled)
         .setContentIntent(openAppIntent())
-        .addAction(0, "Отключить", disableIntent())
+        .addAction(0, "Выключить доступ", disableIntent())
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         .build()
 
@@ -103,7 +103,7 @@ class GatewayService : Service() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         notificationManager().createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Удалённый доступ", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Надёжное соединение автомобиля с relay"
+                description = "Связь машины с сервером"
             },
         )
     }

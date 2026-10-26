@@ -46,7 +46,7 @@ class GatewayStateMachineTest {
             ),
             adbState = AdbState.Available,
         )
-        assertEquals("Удалённый компьютер работает", enrolled.headline)
+        assertEquals("Компьютер работает", enrolled.headline)
     }
 
     @Test
