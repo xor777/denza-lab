@@ -21,17 +21,29 @@ type fakeRunner struct {
 	pairConfirmation bool
 	pairSubmits      int
 	sshCalls         []string
+	sshArgs          [][]string
+	adbConnectOutput string
+	// detachedFailures[i] is written to the log of the i-th Detached call,
+	// which then fails; an empty or missing entry succeeds.
+	detachedFailures []string
+	detachedCalls    [][]string
+	pipeCalls        [][]string
+	interactiveCalls [][]string
 }
 
 func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
 	if name == "ssh-keygen" {
 		return exec.CommandContext(ctx, name, args...).CombinedOutput()
 	}
+	if name == "adb" {
+		return []byte(runner.adbConnectOutput), nil
+	}
 	if name != "ssh" {
 		return nil, nil
 	}
 	joined := strings.Join(args, " ")
 	runner.sshCalls = append(runner.sshCalls, joined)
+	runner.sshArgs = append(runner.sshArgs, args)
 	if strings.Contains(joined, "cag-pair@adbgw.ru") {
 		runner.pairSubmits++
 		fields := strings.Fields(args[len(args)-1])
@@ -82,7 +94,29 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 	return nil, nil
 }
 
-func (runner *fakeRunner) Interactive(context.Context, map[string]string, string, ...string) error {
+func (runner *fakeRunner) Interactive(_ context.Context, _ map[string]string, name string, args ...string) error {
+	runner.interactiveCalls = append(runner.interactiveCalls, append([]string{name}, args...))
+	return nil
+}
+
+func (runner *fakeRunner) Detached(_ context.Context, _ map[string]string, logPath string, name string, args ...string) error {
+	index := len(runner.detachedCalls)
+	runner.detachedCalls = append(runner.detachedCalls, append([]string{name}, args...))
+	failure := ""
+	if index < len(runner.detachedFailures) {
+		failure = runner.detachedFailures[index]
+	}
+	if err := os.WriteFile(logPath, []byte(failure), 0o600); err != nil {
+		return err
+	}
+	if failure != "" {
+		return errors.New("exit status 255")
+	}
+	return nil
+}
+
+func (runner *fakeRunner) Pipe(_ context.Context, _ map[string]string, _ string, name string, args ...string) error {
+	runner.pipeCalls = append(runner.pipeCalls, append([]string{name}, args...))
 	return nil
 }
 

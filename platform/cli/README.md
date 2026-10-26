@@ -35,6 +35,12 @@ it only after vehicle confirmation. If replacement fails or expires, the
 previous local identity and active bundle remain usable. After success,
 `known_hosts` contains only the relay pin list and the current vehicle host key.
 
+Every `ssh` call runs with `-F none`, so `~/.ssh/config` cannot change it, and
+paths are quoted for OpenSSH because the macOS directory name contains a space.
+The background tunnel writes its messages to `tunnel.log` and the relay leg of
+each inner connection to `proxy.log`, both in the same directory; their tails
+appear in `cag` error messages.
+
 `cag connect` leaves a keepalive-protected SSH tunnel in the background. The
 `disconnect` command closes this Mac's tunnel; it does not disable the relay on
 the vehicle. Use the vehicle UI when remote access must stay disabled after a
