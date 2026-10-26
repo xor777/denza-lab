@@ -266,10 +266,22 @@ ADB/inner SSH and the relay tunnel are supervised independently:
 - ADB is checked every 30 seconds, including adbd restarts and endpoint changes.
   Authorization is rechecked, while background app-ops are not rewritten for a
   stable endpoint.
-- Relay reconnect uses jittered exponential backoff from 1 to 60 seconds. Each
+- Relay reconnect uses jittered exponential backoff from 1 to 15 seconds. Each
   attempt connects by hostname and performs DNS resolution again.
-- A network change closes the old tunnel and immediately resets backoff.
-- SSH heartbeat interval is 30 seconds, with at most three missed replies.
+- A network change, or a network that becomes validated, closes the old tunnel,
+  aborts an attempt in flight, resets the backoff and wakes the loop at once
+  (`RelayRetryPacer`).
+- If the relay still holds the previous session's port, the forward is refused
+  ("Tcpip forwarding request denied") and the car retries every 2.5 seconds for
+  up to 30 seconds; the relay drops a silent car session within about
+  15 seconds.
+- The heartbeat is `keepalive@openssh.com` every 10 seconds, with at most three
+  unanswered, and the session's idle timeout is two minutes.
+- The relay client and the inner server use one light algorithm set, as the
+  legacy LAN gateway did (`SshAlgorithms`): ecdh-sha2-nistp256 (Conscrypt),
+  curve25519-sha256 and diffie-hellman-group14-sha256; aes128-gcm and aes128-ctr;
+  hmac-sha2-256(-etm). There is no post-quantum key exchange in pure Java on the
+  car. Authentication may take 30 seconds and the TCP connect 15.
 - The watchdog restores a missing loopback server without restarting healthy
   components.
 - DNS failures, no network, relay restart, sleep/wake, and temporary ADB loss
@@ -505,11 +517,18 @@ returned, and the Mac had the car back at `127.0.0.1:5555` about 2.5 minutes
 after the cut. About 1.5 minutes of that was the old tunnel's heartbeat running
 out and up to a minute the Mac's reconnect backoff.
 
+After the recovery rework (heartbeat, wake on network change, port-busy retry,
+light algorithms, relay keepalive 5 s x 3, Mac backoff capped at 10 s), measured
+on an Android 15 emulator through `adbgw.ru` as the time `adb shell` from the
+computer did not answer: Wi-Fi to mobile data 27 s, mobile data back to Wi-Fi
+7 s, and 19 s after the network returned from a 30-second total loss. The build
+was then installed on the owner's car remotely, with keys and registration
+kept.
+
 Required before production:
 
 - a wake from the car's sleep (quickboot) without opening the app;
-- recovery after a network change within the 90-second target (2.5 minutes on
-  2026-10-26);
+- the same network-change timings measured on the head unit;
 - verify API levels 26, 31, 34 and 36 (33 on the head unit and 35 on the emulator are done);
 - test installation and ADB approval, reboot, sleep/wake, network switching,
   adbd and relay restart, and Mac/Linux computer replacement on a real head
