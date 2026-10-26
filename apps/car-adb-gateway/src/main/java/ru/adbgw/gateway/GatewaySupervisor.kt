@@ -20,7 +20,9 @@ class GatewaySupervisor(
     private val relayClient: RelayClient,
     private val onEvent: (GatewayEvent) -> Unit,
     private val onSupportEvent: (String) -> Unit,
-    private val onRegistrationExpired: (String) -> Unit,
+    // The relay refused the vehicle key. Returns true when the registration was dropped (the
+    // supervisor stops), false while the rejection is unconfirmed (keep retrying).
+    private val onRegistrationRejected: (String) -> Boolean,
 ) {
     private val appContext = context.applicationContext
     private val detector = AdbEndpointDetector()
@@ -126,10 +128,7 @@ class GatewaySupervisor(
                     lastReported = current
                     onSupportEvent("Relay получил актуальный адрес ADB")
                 } catch (error: RelayAccessException) {
-                    if (error.permanent) {
-                        handlePermanent(error)
-                        return
-                    }
+                    if (error.permanent && handlePermanent(error)) return
                     onSupportEvent("Адрес ADB будет отправлен relay повторно")
                 }
             }
@@ -169,9 +168,8 @@ class GatewaySupervisor(
                             registration = renewLease(registration)
                             nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
                         } catch (error: RelayAccessException) {
-                            if (error.permanent) {
+                            if (error.permanent && handlePermanent(error)) {
                                 opened.close()
-                                handlePermanent(error)
                                 return
                             }
                             nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
@@ -183,12 +181,9 @@ class GatewaySupervisor(
                 opened.close()
                 if (tunnel === opened) tunnel = null
             } catch (error: RelayAccessException) {
-                if (error.permanent) {
-                    handlePermanent(error)
-                    return
-                }
+                if (error.permanent && handlePermanent(error)) return
                 onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
-                onSupportEvent("Relay временно недоступен")
+                if (!error.registrationRejected) onSupportEvent("Relay временно недоступен")
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -225,10 +220,15 @@ class GatewaySupervisor(
         onSupportEvent("Незавершённое подключение компьютера восстановлено")
     }
 
-    private fun handlePermanent(error: RelayAccessException) {
+    /**
+     * Returns true when the loop must stop: a host-key mismatch or corrupt keys (fail closed), or a
+     * key rejection the gate confirmed. An unconfirmed rejection returns false and the loop retries.
+     */
+    private fun handlePermanent(error: RelayAccessException): Boolean {
         val message = error.message ?: "Relay отклонил ключ автомобиля"
-        if (error.registrationRejected) onRegistrationExpired(message)
-        else onEvent(GatewayEvent.PermanentFailure(message))
+        if (error.registrationRejected) return onRegistrationRejected(message)
+        onEvent(GatewayEvent.PermanentFailure(message))
+        return true
     }
 
     @Synchronized

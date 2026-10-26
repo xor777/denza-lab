@@ -31,6 +31,12 @@ class RelayClient(
     // Test-only hook: records the address MINA asks the tunnel client to accept a forwarded
     // channel to. Null in production.
     private val tunnelForwardObserver: ((org.apache.sshd.server.forward.TcpForwardingFilter.Type, org.apache.sshd.common.util.net.SshdSocketAddress) -> Unit)? = null,
+    // A test shortens these so a stalled server is noticed in about a second.
+    private val connectTimeout: Duration = Duration.ofSeconds(12),
+    private val authTimeout: Duration = Duration.ofSeconds(12),
+    // Called after the relay accepted a registered vehicle key (tunnel or control), never for the
+    // invite code. Clears the evidence of earlier rejections.
+    private val onRegisteredKeyAccepted: () -> Unit = {},
 ) {
     suspend fun enroll(code: String, label: String, endpoint: AdbEndpoint): RelayRegistration =
         withContext(Dispatchers.IO) {
@@ -123,7 +129,7 @@ class RelayClient(
             throw error
         } catch (error: Throwable) {
             runCatching { client.stop() }
-            throw classify(error, mismatch.get(), authenticationFailure = false)
+            throw classify(error, mismatch.get())
         }
     }
 
@@ -164,7 +170,7 @@ class RelayClient(
         } catch (error: RelayAccessException) {
             throw error
         } catch (error: Throwable) {
-            throw classify(error, mismatch.get(), authenticationFailure = false)
+            throw classify(error, mismatch.get())
         } finally {
             runCatching { client.stop() }
         }
@@ -179,14 +185,14 @@ class RelayClient(
         authenticationFailurePermanent: Boolean,
     ): ClientSession {
         val session = try {
-            client.connect(username, relayHost, relaySshPort).verify(Duration.ofSeconds(12)).session
+            client.connect(username, relayHost, relaySshPort).verify(connectTimeout).session
         } catch (error: Throwable) {
-            throw classify(error, mismatch.get(), authenticationFailure = false)
+            throw classify(error, mismatch.get())
         }
         keyPair?.let(session::addPublicKeyIdentity)
         password?.let(session::addPasswordIdentity)
         try {
-            session.auth().verify(Duration.ofSeconds(12))
+            session.auth().verify(authTimeout)
         } catch (error: Throwable) {
             runCatching { session.close(true) }
             if (mismatch.get()) {
@@ -196,17 +202,26 @@ class RelayClient(
                     permanent = true,
                 )
             }
-            throw RelayAccessException(
-                if (authenticationFailurePermanent) {
-                    "Relay rejected the registered vehicle key"
-                } else {
-                    "Relay rejected the invite code"
-                },
-                error,
-                permanent = authenticationFailurePermanent,
-                registrationRejected = authenticationFailurePermanent,
-            )
+            if (!authenticationFailurePermanent) {
+                // The invite path is unchanged: any failure reads as a refused invite and is retried
+                // by the person, never by wiping anything.
+                throw RelayAccessException("Relay rejected the invite code", error)
+            }
+            if (isDefinitiveAuthRejection(error) && error.causeSequence().none { it is GeneralSecurityException }) {
+                // The server answered and refused every key we offered. Even this is only evidence:
+                // the registration is dropped after RegistrationRejectionGate confirms it.
+                throw RelayAccessException(
+                    "Relay rejected the registered vehicle key",
+                    error,
+                    permanent = true,
+                    registrationRejected = true,
+                )
+            }
+            // A timeout, a reset during key exchange, a session closed before the answer: the
+            // network, not the relay's verdict. Retried with backoff.
+            throw classify(error, hostMismatch = false)
         }
+        if (authenticationFailurePermanent) onRegisteredKeyAccepted()
         return session
     }
 
@@ -258,7 +273,6 @@ class RelayClient(
     private fun classify(
         error: Throwable,
         hostMismatch: Boolean,
-        authenticationFailure: Boolean,
     ): RelayAccessException = when {
         hostMismatch -> RelayAccessException(
             "Relay identity changed; connection stopped for safety",
@@ -267,11 +281,6 @@ class RelayClient(
         )
         error.causeSequence().any { it is GeneralSecurityException } -> RelayAccessException(
             "Vehicle keys are corrupt; connection stopped for safety",
-            error,
-            permanent = true,
-        )
-        authenticationFailure -> RelayAccessException(
-            "Relay rejected the registered vehicle key",
             error,
             permanent = true,
         )
@@ -299,6 +308,19 @@ internal fun preferPinnedHostKeyAlgorithm(
     require(pinned.isNotEmpty()) { "Pinned relay host-key algorithm is unavailable" }
     return pinned + factories.filterNot { it.name == "ssh-ed25519" }
 }
+
+/**
+ * True only when the relay definitively refused authentication: MINA ran out of methods after the
+ * server answered every offered key with a failure (`SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE`).
+ * Timeouts, IO errors and a session closed during key exchange or auth are not a rejection.
+ */
+internal fun isDefinitiveAuthRejection(error: Throwable): Boolean = error.causeSequence().any {
+    (it is org.apache.sshd.common.SshException &&
+        it.disconnectCode == org.apache.sshd.common.SshConstants.SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE) ||
+        it.message?.contains(NO_MORE_AUTH_METHODS_MESSAGE) == true
+}
+
+private const val NO_MORE_AUTH_METHODS_MESSAGE = "No more authentication methods available"
 
 private fun Throwable.causeSequence(): Sequence<Throwable> = generateSequence(this) { it.cause }
 

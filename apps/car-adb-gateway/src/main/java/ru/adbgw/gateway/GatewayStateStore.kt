@@ -3,7 +3,7 @@ package ru.adbgw.gateway
 import android.content.Context
 import org.json.JSONObject
 
-class GatewayStateStore(context: Context) : InnerGatewayStore {
+class GatewayStateStore(context: Context) : InnerGatewayStore, RejectionEvidenceStore {
     private val preferences = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun isEnabled(): Boolean = preferences.getBoolean(KEY_ENABLED, true)
@@ -81,9 +81,27 @@ class GatewayStateStore(context: Context) : InnerGatewayStore {
         .remove(KEY_PAIRING)
         .remove(KEY_PAIRING_REQUEST)
         .remove(KEY_PENDING_PAIR_COMMIT)
+        .remove(KEY_REJECTION_FIRST_AT)
+        .remove(KEY_REJECTION_COUNT)
         .putBoolean(KEY_ENABLED, true)
         .putBoolean(KEY_KEY_ROTATION_REQUIRED, true)
         .commit()
+
+    override fun rejectionEvidence(): RejectionEvidence? {
+        val count = preferences.getInt(KEY_REJECTION_COUNT, 0)
+        if (count <= 0) return null
+        return RejectionEvidence(preferences.getLong(KEY_REJECTION_FIRST_AT, 0L), count)
+    }
+
+    override fun saveRejectionEvidence(value: RejectionEvidence?): Boolean {
+        val editor = preferences.edit()
+        if (value == null) {
+            editor.remove(KEY_REJECTION_FIRST_AT).remove(KEY_REJECTION_COUNT)
+        } else {
+            editor.putLong(KEY_REJECTION_FIRST_AT, value.firstAtMillis).putInt(KEY_REJECTION_COUNT, value.count)
+        }
+        return editor.commit()
+    }
 
     fun isKeyRotationRequired(): Boolean = preferences.getBoolean(KEY_KEY_ROTATION_REQUIRED, false)
 
@@ -132,6 +150,8 @@ class GatewayStateStore(context: Context) : InnerGatewayStore {
         private const val KEY_PAIRING_REQUEST = "pairing_request_id"
         private const val KEY_PENDING_PAIR_COMMIT = "pending_pair_commit"
         private const val KEY_KEY_ROTATION_REQUIRED = "key_rotation_required"
+        private const val KEY_REJECTION_FIRST_AT = "relay_rejection_first_at"
+        private const val KEY_REJECTION_COUNT = "relay_rejection_count"
 
         fun registrationToJson(value: RelayRegistration): JSONObject = JSONObject()
             .put("device_id", value.deviceId)

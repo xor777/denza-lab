@@ -27,6 +27,7 @@ object GatewayRepository {
     private var keyStore: SshKeyStore? = null
     private var relayClient: RelayClient? = null
     private var supervisor: GatewaySupervisor? = null
+    private var rejectionGate: RegistrationRejectionGate? = null
     @Volatile private var approvalWatch: Job? = null
 
     val state: StateFlow<GatewayUiState> = stateFlow.asStateFlow()
@@ -47,9 +48,11 @@ object GatewayRepository {
         } else {
             null
         }
-        val relay = RelayClient(keys)
+        val gate = RegistrationRejectionGate(store)
+        val relay = RelayClient(keys, onRegisteredKeyAccepted = gate::recordSuccess)
         appContext = app
         stateStore = store
+        rejectionGate = gate
         keyStore = keys
         relayClient = relay
         dispatch(GatewayEvent.Initialized(store.registration(), store.isEnabled()))
@@ -77,7 +80,7 @@ object GatewayRepository {
             relayClient = requireRelay(),
             onEvent = ::dispatch,
             onSupportEvent = ::support,
-            onRegistrationExpired = ::handleRegistrationExpired,
+            onRegistrationRejected = ::handleRegistrationRejected,
         ).also { supervisor = it }
         current.start()
     }
@@ -273,14 +276,36 @@ object GatewayRepository {
         support("Истёкшая регистрация удалена; для нового подключения созданы новые ключи")
     }
 
+    /**
+     * The relay definitively refused the registered vehicle key. Drops the registration only once
+     * [RegistrationRejectionGate] confirms it; until then the registration stays and the caller
+     * retries. Returns true when the registration is gone (or could not be kept), so the caller
+     * stops.
+     */
+    @Synchronized
+    private fun handleRegistrationRejected(message: String): Boolean {
+        if (requireStore().registration() == null) return true
+        when (val verdict = requireGate().recordRejection()) {
+            is RejectionVerdict.Unconfirmed -> {
+                support("Сервер не принял ключ машины; повторим (${verdict.count} из ${verdict.required})")
+                return false
+            }
+            RejectionVerdict.Confirmed -> {
+                handleRegistrationExpired(message)
+                return true
+            }
+        }
+    }
+
     private fun handleRegistrationRejection(error: Throwable): Boolean {
         if (error !is RelayAccessException || !error.registrationRejected) return false
-        handleRegistrationExpired(error.message ?: "Регистрация автомобиля истекла")
-        return true
+        return handleRegistrationRejected(error.message ?: "Регистрация автомобиля истекла")
     }
 
     private fun readable(error: Throwable): String = when (error) {
-        is RelayAccessException -> if (error.permanent) {
+        is RelayAccessException -> if (error.registrationRejected) {
+            "Сервер не принял ключ машины; повторим позже"
+        } else if (error.permanent) {
             error.message ?: "Подключение остановлено для безопасности"
         } else {
             error.message ?: "Relay временно недоступен"
@@ -292,6 +317,7 @@ object GatewayRepository {
     private fun requireStore(): GatewayStateStore = checkNotNull(stateStore)
     private fun requireKeys(): SshKeyStore = checkNotNull(keyStore)
     private fun requireRelay(): RelayClient = checkNotNull(relayClient)
+    private fun requireGate(): RegistrationRejectionGate = checkNotNull(rejectionGate)
 
     private const val AUTH_WAIT_POLL_MILLIS = 3_000L
     private const val AUTH_WAIT_TOTAL_MILLIS = 2L * 60L * 1_000L

@@ -151,7 +151,10 @@ class InnerGatewayServer(
             onSupportEvent("Компьютер ${commit.clientLabel} подтверждён; прежний доступ отозван")
             true
         } catch (error: RelayAccessException) {
-            if (error.permanent) onPermanentFailure(error.message ?: "Relay отклонил ключ автомобиля")
+            // A refused vehicle key is judged by the supervisor's confirmation gate, not here.
+            if (error.permanent && !error.registrationRejected) {
+                onPermanentFailure(error.message ?: "Relay отклонил ключ автомобиля")
+            }
             onSupportEvent("Не удалось завершить подключение компьютера: ${error.message}")
             false
         }
