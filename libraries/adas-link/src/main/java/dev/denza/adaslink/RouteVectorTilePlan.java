@@ -19,6 +19,7 @@ public final class RouteVectorTilePlan {
     public static final class Window {
         public final List<VectorRoadTile.TileId> required, missing;
         public final double fromMetres, toMetres, requestedToMetres;
+        /** Moving-window point samples, or whole-route seed plus visited subdivision nodes. */
         public final int samples;
         public final boolean truncated;
         private Window(Set<VectorRoadTile.TileId> required, Set<VectorRoadTile.TileId> observed,
@@ -54,12 +55,61 @@ public final class RouteVectorTilePlan {
         double requested = Math.min(cumulative[cumulative.length - 1], from + config.aheadMetres);
         return scan(from,requested,index,config.maxTiles,config.maxSamples,observed);
     }
-    /** Catalog queries over the whole selected route. Resource caps are not a moving horizon;
-     * truncation is explicit and never called full-route completion. */
+    /** Conservative coverage of every native tile intersected by the selected lon/lat polyline.
+     * Longitude uses the short dateline crossing; native projected latitude is monotone on each
+     * segment. Thus each segment lies inside its projected endpoint rectangle. Subdivide until
+     * a rectangle is at most 2x2 cells, then admit every cell and its configured neighbor ring.
+     * No distance sampling or minimum physical cell width can skip a crossed tile. Resource
+     * limits count unique tiles and subdivision work; any unfinished piece means truncated. */
     public Window wholeRoute(int maximumTiles,int maximumSamples) {
         if(maximumTiles<1||maximumTiles>4096||maximumSamples<1||maximumSamples>500000)
             throw new IllegalArgumentException("bounded full-route plan required");
-        return scan(0,cumulative[cumulative.length-1],0,maximumTiles,maximumSamples,Collections.emptySet());
+        LinkedHashSet<VectorRoadTile.TileId> required=new LinkedHashSet<>();
+        double requested=cumulative[cumulative.length-1],covered=0; int work=1,n=1<<config.zoom;
+        LinkedHashSet<VectorRoadTile.TileId> seed=neighbors(tile(lon[0],lat[0],config.zoom),config.neighborRadius);
+        if(!admit(required,seed,maximumTiles))return new Window(required,Collections.emptySet(),0,0,requested,work,true);
+        ArrayDeque<Piece> pending=new ArrayDeque<>();
+        for(int segment=0;segment<lon.length-1;segment++) {
+            if(lon[segment]==lon[segment+1]&&lat[segment]==lat[segment+1])continue;
+            pending.addLast(new Piece(lon[segment],lat[segment],lon[segment]+delta(lon[segment],lon[segment+1]),lat[segment+1],0,1));
+            while(!pending.isEmpty()) {
+                if(work>=maximumSamples)return new Window(required,Collections.emptySet(),0,covered,requested,work,true);
+                Piece p=pending.removeLast();work++;
+                double x0=gridX(p.lon0,config.zoom),x1=gridX(p.lon1,config.zoom);
+                double y0=gridY(p.lat0,config.zoom),y1=gridY(p.lat1,config.zoom);
+                // Outward rounding includes exact boundary/corner touches conservatively.
+                int left=(int)Math.floor(Math.nextAfter(Math.min(x0,x1),Double.NEGATIVE_INFINITY));
+                int right=(int)Math.floor(Math.nextAfter(Math.max(x0,x1),Double.POSITIVE_INFINITY));
+                int top=Math.max(0,(int)Math.floor(Math.nextAfter(Math.min(y0,y1),Double.NEGATIVE_INFINITY)));
+                int bottom=Math.min(n-1,(int)Math.floor(Math.nextAfter(Math.max(y0,y1),Double.POSITIVE_INFINITY)));
+                if(right-left<=1&&bottom-top<=1) {
+                    LinkedHashSet<VectorRoadTile.TileId> group=new LinkedHashSet<>();
+                    for(int y=top;y<=bottom;y++)for(int x=left;x<=right;x++)
+                        group.addAll(neighbors(new VectorRoadTile.TileId(Math.floorMod(x,n),y,config.zoom),config.neighborRadius));
+                    // +180 has a native clamped endpoint identity, while unwrapped interiors wrap.
+                    if(p.end==1)group.addAll(neighbors(tile(lon[segment+1],lat[segment+1],config.zoom),config.neighborRadius));
+                    if(!admit(required,group,maximumTiles))return new Window(required,Collections.emptySet(),0,covered,requested,work,true);
+                    covered=cumulative[segment]+(cumulative[segment+1]-cumulative[segment])*p.end;
+                } else {
+                    double mid=(p.begin+p.end)/2,longitude=(p.lon0+p.lon1)/2,latitude=(p.lat0+p.lat1)/2;
+                    if(mid<=p.begin||mid>=p.end)return new Window(required,Collections.emptySet(),0,covered,requested,work,true);
+                    // Depth-first in route order, so covered always describes a completed prefix.
+                    pending.addLast(new Piece(longitude,latitude,p.lon1,p.lat1,mid,p.end));
+                    pending.addLast(new Piece(p.lon0,p.lat0,longitude,latitude,p.begin,mid));
+                }
+            }
+        }
+        return new Window(required,Collections.emptySet(),0,requested,requested,work,false);
+    }
+    private static final class Piece {
+        final double lon0,lat0,lon1,lat1,begin,end;
+        Piece(double a,double b,double c,double d,double begin,double end) {
+            lon0=a;lat0=b;lon1=c;lat1=d;this.begin=begin;this.end=end;
+        }
+    }
+    private static boolean admit(Set<VectorRoadTile.TileId> required,Set<VectorRoadTile.TileId> group,int maximum) {
+        int extra=0;for(VectorRoadTile.TileId tile:group)if(!required.contains(tile))extra++;
+        if(extra>maximum-required.size())return false;required.addAll(group);return true;
     }
     private Window scan(double from,double requested,int index,int maximumTiles,int maximumSamples,Set<VectorRoadTile.TileId> observed) {
         double at=from,covered=from;
@@ -103,11 +153,16 @@ public final class RouteVectorTilePlan {
     }
     public static VectorRoadTile.TileId tile(double longitude, double latitude, int zoom) {
         coordinate(longitude, latitude); if (zoom < 0 || zoom > 30) throw new IllegalArgumentException("tile zoom");
+        long n=1L<<zoom;
+        long x=(long)Math.floor(gridX(longitude,zoom)),y=(long)Math.floor(gridY(latitude,zoom));
+        return new VectorRoadTile.TileId((int)Math.max(0,Math.min(n-1,x)),(int)Math.max(0,Math.min(n-1,y)),zoom);
+    }
+    private static double gridX(double longitude,int zoom) { return (1L<<zoom)*(longitude+180)/360; }
+    private static double gridY(double latitude,int zoom) {
         double phi = Math.toRadians(Math.max(-89.3, Math.min(89.3, latitude))), s = Math.sin(phi), e = 0.08181919092890692;
         double q = Math.tan(Math.PI / 4 + phi / 2) * Math.pow((1 - e * s) / (1 + e * s), e / 2);
         double u = Math.max(-Math.PI, Math.min(Math.PI, Math.log(q))); long n = 1L << zoom;
-        long x = (long) Math.floor(n * (longitude + 180) / 360), y = (long) Math.floor(n * (Math.PI - u) / (2 * Math.PI));
-        return new VectorRoadTile.TileId((int) Math.max(0, Math.min(n - 1, x)), (int) Math.max(0, Math.min(n - 1, y)), zoom);
+        return n*(Math.PI-u)/(2*Math.PI);
     }
     public static Center tileCenter(VectorRoadTile.TileId id) {
         if (id == null) throw new IllegalArgumentException("observed tile ID required");

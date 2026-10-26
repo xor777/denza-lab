@@ -21,19 +21,22 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/** Whole selected-route attribute acquisition. SDK observations enter from main; bounded file
- * work owns a separate worker. A completed attempt is frozen for the route, including explicit
- * partial/empty results. Completeness is not an additional offline-map admission gate. */
+/** Whole selected-route acquisition. Only a complete bounded corridor read is readReady.
+ * Category gaps remain explicit. The coordinator owns publication of a successful snapshot;
+ * changed SDK package versions allow a fresh attempt even on an unchanged selected route. */
 final class YandexOfflineAttributes {
     static final int MAX_TILES = 4096, MAX_SAMPLES = 500000, MAX_PACKAGES = 64;
     static final long MAX_DECODED_BYTES = 256L * 1024 * 1024, MAX_WORK_MS = 20000;
     static final long MAX_PATH_WAIT_MS = 10000;
     static final class View {
         final boolean settled;
+        final boolean readReady;
+        final String sourceKey, preparationKey;
         final RouteAttributes attributes;
         final Map<String,Object> status;
-        View(boolean done, RouteAttributes attributes, Map<String,Object> status) {
-            settled = done; this.attributes = attributes;
+        View(boolean done, boolean ready, RouteAttributes attributes, Map<String,Object> status) {
+            settled = done; readReady = ready; this.attributes = attributes;
+            sourceKey = (String) status.get("sourceKey"); preparationKey = (String) status.get("preparationKey");
             this.status = Collections.unmodifiableMap(new LinkedHashMap<>(status));
         }
     }
@@ -68,9 +71,15 @@ final class YandexOfflineAttributes {
     private String checkedGeometry;
 
     YandexOfflineAttributes() {
-        decoder = new OfflineTileDecoder();
+        this(backgroundWorker(), new OfflineTileDecoder());
+    }
+    YandexOfflineAttributes(Handler worker, OfflineVectorPackage.Decoder decoder) {
+        if (worker == null || decoder == null) throw new IllegalArgumentException("worker and decoder required");
+        this.worker = worker; this.decoder = decoder;
+    }
+    private static Handler backgroundWorker() {
         HandlerThread thread = new HandlerThread("denza-offline-attributes", android.os.Process.THREAD_PRIORITY_BACKGROUND);
-        thread.start(); worker = new Handler(thread.getLooper());
+        thread.start(); return new Handler(thread.getLooper());
     }
 
     /** No filesystem access here. Fresh SDK snapshots also cancel obsolete background requests. */
@@ -78,11 +87,16 @@ final class YandexOfflineAttributes {
                 YandexOfflineInventory.Snapshot inventory) {
         Input next = new Input(routeId, epoch, geometry, path, inventory);
         synchronized (lock) {
-            if (current == null || !next.routeKey.equals(current.routeKey)) sourceWaitStartedAt = SystemClock.elapsedRealtime();
+            if (current == null || !next.sourceKey.equals(current.sourceKey)) sourceWaitStartedAt = SystemClock.elapsedRealtime();
             current = next;
-            if (!next.routeKey.equals(completedKey)) { completed = null; completedKey = null; completedSourceKey = null; }
+            if (!next.sourceKey.equals(completedSourceKey)) { completed = null; completedKey = null; completedSourceKey = null; }
             if (wanted != null && !wanted.input.sourceKey.equals(next.sourceKey)) wanted = null;
         }
+    }
+
+    String sourceKey() {
+        Input input = current;
+        return input == null ? null : input.sourceKey;
     }
 
     /** ADAS conversion worker; never waits for disk or decompression. */
@@ -95,15 +109,10 @@ final class YandexOfflineAttributes {
                 checkedGeometry = RouteVectorAttributes.geometryFingerprint(route); checkedRoute = route;
             }
             if (!input.geometry.equals(checkedGeometry)) return view(false, null, "waiting_for_current_geometry", input);
-            if (completed != null && input.routeKey.equals(completedKey)) {
-                Map<String,Object> report = new LinkedHashMap<>(completed.status);
-                report.put("staticAttributesFrozen", true);
-                report.put("sourceChangedSincePreparation", !input.sourceKey.equals(completedSourceKey));
-                return new View(true, completed.attributes, report);
-            }
             long now = SystemClock.elapsedRealtime();
             if (input.inventory == null || !input.inventory.ready(now))
-                return view(false, null, "waiting_for_offline_inventory", input);
+                return view(input.inventory != null && !input.inventory.valid, null,
+                        input.inventory != null && !input.inventory.valid ? input.inventory.reasonCode : "waiting_for_offline_inventory", input);
             if (input.path == null || !input.path.ready(now)) {
                 String reason = input.path == null ? "not_requested" : input.path.reasonCode;
                 boolean terminal = !"not_requested".equals(reason) && !"path_stale".equals(reason) && !"ready".equals(reason);
@@ -113,6 +122,7 @@ final class YandexOfflineAttributes {
                 }
                 return view(false, null, "waiting_for_offline_path", input);
             }
+            if (completed != null && input.sourceKey.equals(completedSourceKey)) return completed;
             if ((running == null || !running.input.sourceKey.equals(input.sourceKey))
                     && (wanted == null || !wanted.input.sourceKey.equals(input.sourceKey))) wanted = new Work(input, route);
             if (!scheduled && wanted != null) { scheduled = true; worker.post(this::drain); }
@@ -133,7 +143,8 @@ final class YandexOfflineAttributes {
                 result = view(true, null, "offline_attributes_rejected", work.input);
                 Map<String,Object> detail = new LinkedHashMap<>(result.status);
                 detail.put("error", failure.getClass().getSimpleName() + ": " + failure.getMessage());
-                result = new View(true, null, detail);
+                detail.put("failureCode", failure.getMessage());
+                result = new View(true, false, null, detail);
             }
             synchronized (lock) {
                 if (current != null && current.sourceKey.equals(work.input.sourceKey)
@@ -150,20 +161,27 @@ final class YandexOfflineAttributes {
         long started = SystemClock.elapsedRealtime(); check(work, started);
         RouteVectorTilePlan.Window plan = new RouteVectorTilePlan(work.route.lon, work.route.lat).wholeRoute(MAX_TILES, MAX_SAMPLES);
         if (plan.truncated) return view(true, null, "route_tile_budget", work.input);
+        Map<String,Object> detail = new LinkedHashMap<>();
+        detail.put("tilesRequested", plan.required.size());
+        detail.put("coverageScope", "conservative_segment_tile_corridor");
+        detail.put("neighborRadius", 1);
         Input latest = current;
         YandexOfflineGraphFiles.Snapshot files = YandexOfflineGraphFiles.discoverVectors(latest.path, latest.inventory, started);
-        if (!files.valid) return view(true, null, files.reasonCode, work.input);
-        if (files.rejectedCount != 0) return view(true, null, "offline_package_unreadable_or_unsupported", work.input);
-        if (files.files.size() > MAX_PACKAGES) return view(true, null, "package_budget", work.input);
+        detail.put("packageDiscovery", files.status());
+        if (!files.valid) return report(null, files.reasonCode, work.input, detail);
+        if (files.rejectedCount != 0) return report(null, "offline_package_unreadable_or_unsupported", work.input, detail);
+        if (files.files.size() > MAX_PACKAGES) return report(null, "package_budget", work.input, detail);
         RouteVectorAttributes.Builder builder = new RouteVectorAttributes.Builder(work.route);
         Set<VectorRoadTile.TileId> found = new HashSet<>();
         List<Map<String,Object>> packages = new ArrayList<>();
+        detail.put("packages", packages);
         long[] decodedBytes = {0}; int[] decodedTiles = {0};
         for (YandexOfflineGraphFiles.Package source : files.files) {
             check(work, started);
             // Even duplicate tile IDs in overlapping regions are consumed: a second version
             // may contradict the first. Never silently choose by directory iteration order.
-            Map<String,Object> receipt = YandexOfflineGraphFiles.mapStable(source, bytes -> {
+            Map<String,Object> receipt;
+            try { receipt = YandexOfflineGraphFiles.mapStable(source, bytes -> {
                 OfflineVectorPackage catalog = new OfflineVectorPackage(bytes);
                 byte[] dictionary = catalog.dictionary(); int hits = 0;
                 MessageDigest evidence = sha();
@@ -184,27 +202,52 @@ final class YandexOfflineAttributes {
                 }
                 Map<String,Object> row = new LinkedHashMap<>();
                 row.put("regionId", source.regionId); row.put("packageIdentity", source.identity);
+                row.put("packagePath", source.file.getPath());
                 row.put("version", catalog.version); row.put("downloadedRelease", source.downloadedRelease);
                 row.put("tilesDecoded", hits); row.put("dictionarySha256", hex(sha().digest(dictionary)));
                 row.put("tileEvidenceSha256", hex(evidence.digest())); return row;
-            });
+            }); } catch (IOException | RuntimeException | LinkageError failure) {
+                Map<String,Object> rejected = new LinkedHashMap<>();
+                rejected.put("regionId", source.regionId); rejected.put("packagePath", source.file.getPath());
+                rejected.put("packageIdentity", source.identity); rejected.put("errorType", failure.getClass().getSimpleName());
+                rejected.put("error", failure.getMessage()); rejected.put("rejected", true); packages.add(rejected);
+                detail.put("failureCode", failure.getMessage());
+                return report(null, "offline_attributes_rejected", work.input, detail);
+            }
             packages.add(receipt);
         }
         check(work, started);
         // A rename/update of any earlier package invalidates the entire accumulated result.
         latest = current;
         YandexOfflineGraphFiles.Snapshot after = YandexOfflineGraphFiles.discoverVectors(latest.path, latest.inventory, SystemClock.elapsedRealtime());
-        if (!after.valid || !files.identity.equals(after.identity)) throw new IOException("offline_packages_changed");
+        if (!after.valid || after.rejectedCount != 0 || !files.identity.equals(after.identity)) {
+            detail.put("packageDiscoveryAfter", after.status());
+            return report(null, "offline_packages_changed", work.input, detail);
+        }
         RouteVectorAttributes.Result attributes = builder.finish();
         check(work, started);
-        Map<String,Object> report = new LinkedHashMap<>(view(true, attributes, "prepared", work.input).status);
-        report.put("tilesRequested", plan.required.size()); report.put("tilesFound", found.size());
-        report.put("tilesMissing", plan.required.size() - found.size()); report.put("decodedTiles", decodedTiles[0]);
-        report.put("decodedBytes", decodedBytes[0]); report.put("packages", packages);
-        report.put("elapsedMs", SystemClock.elapsedRealtime() - started); report.put("attributes", attributes.summary());
-        report.put("fieldEvidence", attributes.evidence);
-        report.put("fullRouteCoverageProved", false); report.put("staticAttributesFrozen", true);
-        return new View(true, attributes, report);
+        detail.put("tilesFound", found.size()); detail.put("tilesMissing", plan.required.size() - found.size());
+        List<Map<String,Object>> missing = new ArrayList<>();
+        for (VectorRoadTile.TileId tile : plan.required) if (!found.contains(tile) && missing.size() < 64) {
+            Map<String,Object> row = new LinkedHashMap<>(); row.put("x", tile.x); row.put("y", tile.y); row.put("z", tile.z);
+            RouteVectorTilePlan.Center center = RouteVectorTilePlan.tileCenter(tile);
+            row.put("longitude", center.lon); row.put("latitude", center.lat); missing.add(row);
+        }
+        detail.put("missingTiles", missing); detail.put("missingTileDiagnosticsLimit", 64);
+        detail.put("missingTileDiagnosticsTruncated", plan.required.size() - found.size() > missing.size());
+        detail.put("decodedTiles", decodedTiles[0]); detail.put("decodedBytes", decodedBytes[0]);
+        detail.put("elapsedMs", SystemClock.elapsedRealtime() - started);
+        if (found.size() != plan.required.size()) return report(null, "offline_route_tiles_missing", work.input, detail);
+        if (attributes.truncated) return report(null, "attribute_match_budget", work.input, detail);
+        detail.put("attributes", attributes.summary()); detail.put("fieldEvidence", attributes.evidence);
+        int knownCategories = 0;
+        for (RouteVectorAttributes.Span span : attributes.spans)
+            if (!span.ambiguous && span.rendererClass.functionalClass() != null) knownCategories++;
+        detail.put("categorySpansKnown", knownCategories); detail.put("categorySpansTotal", attributes.spans.size());
+        detail.put("categoriesComplete", !attributes.spans.isEmpty() && knownCategories == attributes.spans.size());
+        detail.put("packageIdentity", files.identity);
+        detail.put("routeTileCoverageChecked", true);
+        return report(attributes, "prepared", work.input, detail);
     }
 
     private void check(Work work, long started) throws IOException {
@@ -217,12 +260,35 @@ final class YandexOfflineAttributes {
     private static View view(boolean settled, RouteAttributes attributes, String reason, Input input) {
         Map<String,Object> status = new LinkedHashMap<>();
         status.put("schema", "denza-offline-route-attributes-v1"); status.put("settled", settled);
+        boolean ready = attributes != null && "prepared".equals(reason);
+        status.put("readReady", ready); status.put("state", ready ? "ready" : settled ? "blocked" : "pending");
         status.put("reason", reason); status.put("source", "yandex_downloaded_vector");
+        status.put("reasonRussian", russian(reason));
         status.put("routeId", input == null ? null : input.routeId);
         status.put("epoch", input == null ? -1 : input.epoch);
         status.put("geometrySha256", input == null ? null : input.geometry);
-        status.put("coverageAdmissionRequired", false);
-        return new View(settled, attributes, status);
+        status.put("coverageAdmissionRequired", true); status.put("fullRouteCoverageProved", false);
+        status.put("routeTileCoverageChecked", false);
+        status.put("categoriesComplete", false); status.put("staticAttributesFrozen", false);
+        status.put("sourceKey", input == null ? null : input.sourceKey);
+        status.put("preparationKey", input == null ? null : input.sourceKey);
+        return new View(settled, ready, attributes, status);
+    }
+    private static View report(RouteAttributes attributes, String reason, Input input, Map<String,Object> detail) {
+        View base = view(true, attributes, reason, input);
+        Map<String,Object> status = new LinkedHashMap<>(base.status); status.putAll(detail);
+        return new View(true, base.readReady, attributes, status);
+    }
+    private static String russian(String reason) {
+        if ("prepared".equals(reason)) return "Офлайн-карты всего маршрута прочитаны";
+        if ("offline_route_tiles_missing".equals(reason) || "no_supported_package".equals(reason)
+                || "no_usable_regions".equals(reason))
+            return "Загрузите офлайн-карты всего выбранного маршрута в Яндексе и дождитесь окончания загрузки";
+        if ("reading_offline_attributes".equals(reason)) return "Проверяем офлайн-карты всего выбранного маршрута";
+        if (reason.startsWith("waiting_for_")) return "Ожидаем выбранный маршрут и сведения об офлайн-картах";
+        if (reason.contains("budget")) return "Маршрут превышает пределы безопасного чтения офлайн-карт";
+        if (reason.contains("changed") || reason.contains("superseded")) return "Офлайн-карты обновились; требуется повторная проверка";
+        return "Не удалось достоверно прочитать офлайн-карты всего маршрута. Проверьте загрузку и обновление карт в Яндексе";
     }
     private static MessageDigest sha() {
         try { return MessageDigest.getInstance("SHA-256"); }

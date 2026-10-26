@@ -67,7 +67,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Online vector tiles contain literal road `class`, `fc`, `oneway`, structures and HD markings. Native local geometry, three TileId contexts and the ellipsoidal WGS84 projection are recovered; eight further native-success tiles decode completely (17,895 features) | native bytes + captures + independent host review, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | A captured Kazan route has 98.73% sampled 2D vector coverage, including ambiguity (94.08% unique + 4.65% ambiguous). A host review table supports 582 canonical graph fragments; raw class/fc/oneway are not recoded, and build 5 does not consume this table | host evidence only; no runtime ADAS enrichment, 2026-10-24 | [Yandex-only extraction](#yandex-only-graph-extraction-2026-10-24) |
 | Local vector runtime prepares the entire chosen route through a separate downloaded-map attribute source; SDK inventory/path, a read-only vmap3fb reader and standard Zstd replace automatic offscreen camera acquisition. The converter consumes a source-independent interval contract | compiled into signed build 13; host Java route replay passes; Android runtime not exercised | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
-| Offline maps remain mandatory, with the owner-requested minimal check: at least one usable installed region. Neither full-route coverage nor equality with a separate offline route is required for this iteration | source implementation; inventory presence is not a claim about route coverage | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
+| Candidate 26 replaces the historical inventory-only gate: sampled route-region discovery requires manually installed maps, then every planned conservative route-corridor tile must be read before ADAS publication. Unknown/conflicting categories retain the donor fallback; successful tile reading does not prove HNOA | experimental source; host checks, Android/JNI and car acceptance pending | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
 | A downloaded Yandex Kazan `driving.fb` exposes 298,104 directed indices, 297,181 admitted base-edge shapes and 156,842 raw attribute entries. A bounded Java reader and whole-route association pass host tests on the actual package. Raw road/access enums remain unconverted; active class/direction acquisition uses vmap3fb literals | native bytes + host Java checks; regional reader not integrated into feed | [Regional offline graph](#regional-offline-graph-2026-10-24) |
 | Post-drive read-only pull verified build 8 by APK SHA. The latest session has 1,362/1,362 FINE guidance samples at 2–364 ms; retained ADAS shows two ICC-active episodes and no service-44 packets. Raw status packets occupied 77.44% of the shared log, and the overlay listener closed during 26 active-guidance samples | physical retained logs + presence-aware offline replay; build 8 sent no Yandex route | [Post-drive review](#post-drive-read-only-review-2026-10-24) |
 | Build 11 fixes dynamic legal-limit suppression and lane-sign loss, adds intersection/next/ahead-lane senders and preserves captured traffic context. Static route `speedLimit=0` remains factory-compatible | host tests + historical build-11 installation; retained in build 12 with parked dynamic sends | [Build 11](#build-11-completeness-and-car-test-2026-10-24) |
@@ -756,7 +756,7 @@ highway admission gate, not a moving NOA result.
 The second route's 39 static links all carried `speedLimit=0`; decoded Region
 packets carried 990001. Its review retained 390 positions with no gap above
 2.5 s and one ACK 200, 36 ms after selection. Evidence and the independent
-review are under `captures/stock-sender-parity-20261025/product/live25-kyiv/`.
+review are under `captures/stock-sender-parity-20261025/product/live25-kiev/`.
 The first route's ordinary UI cancellation ended its arm with `map fire result
 1`; the host restored it before creating the second arm. Both arms and the
 expired previous arm were restored with stable endpoint closure, and the final
@@ -3040,8 +3040,8 @@ highway/speed estimate and junction-sign-width to continuous-lane-count rule are
 removed in this follow-up; unresolved vector fields must not silently fall back
 to those estimates. Actual junction lane guidance and known graph fields remain.
 
-At the owner's request, the offline prerequisite is deliberately minimal for
-this iteration: fresh SDK inventory with **at least one usable downloaded
+**Historical inventory-only policy, superseded by candidate 26 below.** At the owner's earlier request, the offline prerequisite was deliberately minimal for
+that iteration: fresh SDK inventory with **at least one usable downloaded
 region**, independent of other recognised but unusable regions. It does not
 prove that this region covers the route. The production state is `AVAILABLE`,
 `mode=inventory_only`, `completeRouteCoverageChecked=false`, with no fabricated
@@ -3051,7 +3051,7 @@ Hardware, genuine ACK and sender ownership checks are unchanged. The earlier
 mandatory full-route coverage gate is superseded; it must not leave this build
 permanently waiting for an unimplemented coverage provider.
 
-The full-route coverage investigation is parked. An alternate OFFLINE route may
+The alternate-route coverage investigation remains parked. An alternate OFFLINE route may
 legitimately differ because of traffic and is not an admission condition.
 Its diagnostic prototype remains outside APK sources in
 `offline-route-diagnostic/`. The pinned SDK's OFFLINE `matchRoute` implementation
@@ -3059,7 +3059,8 @@ at `0x20f7294` is an empty result (`1f7d00a9c0035fd6`), and regional `driving.fb
 borders are graph connections rather than coverage polygons. These limitations
 are recorded, not prerequisites for continuing attribute extraction.
 
-**Earlier first-publication gap; source fix is not yet runtime-accepted.** Later
+**Earlier first-publication gap; the candidate-26 admission change below supersedes
+the attempt-only/fallback policy, but is not yet runtime-accepted.** Later
 tiles can improve current-road dynamic information, but the published static
 link table remains unchanged. This is not repaired by repeatedly replacing the
 path as tiles arrive. The factory `DriveRouteManager.G()` (`g.java:93–104`)
@@ -3080,6 +3081,70 @@ The owner first requested source-only changes, then authorized the complete
 build pinned above. Current source tests and host replays now run successfully;
 earlier receipts remain historical, and no host result establishes Android or
 car acceptance. Neither installation nor push was performed for this build.
+
+#### Manual offline maps and route preparation (candidate 26, 2026-10-26)
+
+The owner now requires manual map installation before preparing the ADAS route.
+Ordinary Navigator routing is unchanged. `YandexRouteRegions` uses the pinned SDK's
+real `RegionsAtPointListener` and `requestRegionsAtPoint`, without downloads or
+SDK state setters. It samples the selected route at 5 km intervals and both ends
+(maximum 5,000 km / 1,024 points). Returned parent/child IDs are alternatives:
+one usable catalog region per sampled point suffices. Missing regions produce
+«Загрузите карты Яндекса: …» in the existing ADAS feed status. A callback has a
+5 s deadline and at most two attempts; the entire discovery has a 180 s bound.
+Completed answers are cached by route ID, epoch and exact ordered geometry;
+fresh inventory re-evaluates a manual download or deletion without redoing lookup.
+Regional sampling alone never admits transmission.
+
+The downloaded vector reader is the second prerequisite. It must find and decode
+all tiles in the conservative segment corridor, within 4,096 tiles, 500,000
+planner work units, 64 packages, 256 MiB decoded bytes and 20 s of reader work.
+Incomplete, unsupported, changed or unreadable data remains blocked; viewport
+vector tiles no longer provide a fallback after failure. `settled` means an
+attempt ended, while `readReady` alone means its complete planned read succeeded.
+The status includes package rejection details and bounded missing-tile coordinates.
+The missing `region.pb` sidecar is permitted only with before/after absence fences;
+present sidecars retain identity checks. Both mmap file-size bounds now permit
+files up to `Integer.MAX_VALUE`, including the captured 826,573,656-byte Moscow
+package; decoded-memory limits did not increase. A sparse Moscow header fixture
+proves header discovery and mapping bounds, not complete Moscow tile decoding.
+
+`YandexOfflineMapSource` is the only live-admission writer. It requires current
+regional answers, fresh inventory and path, and a completed reader result with
+the exact route/geometry/path-generation/inventory source key. Its `PREPARED`
+state is separate from the historical `AVAILABLE` inventory-only state. A map
+version or source-path change withdraws admission and retries the same route.
+`LiveMapBridge` binds queued observations, retained routes and final transmission
+to that preparation generation; an old result cannot reopen a replacement source.
+A newly prepared source receives a new native path through the existing wrapper;
+the factory `stocknative` core is unchanged.
+
+Tile coverage and known road classes remain different claims. The matcher still
+records sampled geometric ambiguity and missing/contradictory raw `class/fc`;
+`categoriesComplete` stays false when those gaps exist. The approved donor recipe
+is unchanged: section `HIGHWAY` takes class 6, otherwise typed fc 1/2–4/5–6/7–9
+maps to 6/7/8/9, and missing fc takes class 9. Full tile reading does not establish
+that Kievskoye will be class 6 or that NOA will hold. The reader conservatively
+rejects any unreadable usable installed package, even if another package covers
+the route, because the unreadable package's possible overlap is unknown.
+
+Candidate 26 is `29.8.1-YandexHUD.26` / `739494326`, signed with the existing
+experiment certificate. APK:
+`captures/stock-sender-parity-20261025/product/build26/YandexHUD-26-arm64-debug.apk`,
+SHA-256 `dbbc9f62cfae7b5e222789d965bb6d0d2e15b9574ba27cc1e1de039e992fcc45`.
+All 180 module source hashes match the built source; APK signature, manifest
+and resource checks pass. The build runs 12 acquisition/coordinator host tests,
+64 library tests, 148 product runtime checks, 212 native-session checks and 400
+passive Binder checks. The new coordinator has 38 transition assertions; region
+lookup has 53, the real Kazan reader has 36, and the conservative planner has
+90,145. Reader 20 is unchanged. Build report, source hashes and candidate receipt
+are retained beside the APK, with `build26.log` in the parent directory.
+
+This is an experimental candidate. Host discovery, reader, coordinator and
+sender lifecycle checks do not establish SDK/JNI execution or car acceptance.
+No install, arm or vehicle operation was performed for candidate 26.
+The retained build-25 parked evidence is in
+`captures/stock-sender-parity-20261025/product/live25-kiev/`.
 
 ### Regional offline graph (2026-10-24)
 

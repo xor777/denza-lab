@@ -21,7 +21,7 @@ public final class NativeProductRuntimeTest {
     static void check(boolean value,String reason){checks++;if(!value)throw new AssertionError(reason);}
     static final class Rig {
         final Context context;final LiveMapBridge bridge;final String reader=UUID.randomUUID().toString();
-        final Map<String,Object> arm=Json.object();String consumer;long seq,epoch;String routeId="route-a";double vehicleKmh=18;
+        final Map<String,Object> arm=Json.object();String consumer,preparationKey;long seq,epoch;String routeId="route-a";double vehicleKmh=18;
         OfflineMapGate.Subject subject;
         Rig()throws Exception{
             Handler.reset();context=new Context(new File(root,"case-"+(++serial)));
@@ -34,7 +34,8 @@ public final class NativeProductRuntimeTest {
         void write(String name,Map<String,Object> value)throws Exception{Files.write(new File(context.files,name).toPath(),Json.write(value).getBytes(StandardCharsets.UTF_8));}
         @SuppressWarnings("unchecked")Map<String,Object> read(String name)throws Exception{return (Map<String,Object>)Json.parse(new String(Files.readAllBytes(new File(context.files,name).toPath()),StandardCharsets.UTF_8));}
         Map<String,Object> state()throws Exception{return read("denza-adas-live-state.json");}
-        void subject(String id){if(!Objects.equals(routeId,id))epoch++;routeId=id;subject=new OfflineMapGate.Subject(id,epoch,id==null?null:GEOM);bridge.sourceRoute(subject);offline();}
+        void subject(String id){if(!Objects.equals(routeId,id))epoch++;routeId=id;OfflineMapGate.Subject next=new OfflineMapGate.Subject(id,epoch,id==null?null:GEOM);if(!Objects.equals(subject,next))preparationKey=null;subject=next;bridge.sourceRoute(subject);offline();}
+        void preparation(String key){bridge.sourcePreparation(subject,key);preparationKey=key;}
         void offline(){if(subject!=null)bridge.offlineMap(OfflineMapGate.Snapshot.available(subject,SystemClock.now,INVENTORY));}
         void evidence(boolean enabled)throws Exception{
             offline();Map<String,Object> row=Json.object(),values=Json.object();
@@ -46,7 +47,7 @@ public final class NativeProductRuntimeTest {
             Map<String,Object> isolation=Json.object();isolation.put("schema","denza-adas-stock-isolation-v1");isolation.put("bootId",BOOT);isolation.put("consumerSession",consumer);isolation.put("readerSession",reader);isolation.put("stockAbsent",true);isolation.put("startedAtElapsedMs",SystemClock.now);isolation.put("completedAtElapsedMs",SystemClock.now);write("denza-adas-stock-isolation.json",isolation);
         }
         void arm()throws Exception{subject(routeId);evidence(true);write("denza-adas-live-arm.json",arm);Handler.advance(1000);}
-        NativeNavigationInput input(boolean route){NativeNavigationInput o=new NativeNavigationInput();o.monotonicMs=SystemClock.now;o.routeEpoch=epoch;o.routeId=routeId;o.offlineGeometrySha256=routeId==null?null:GEOM;o.mode=routeId==null?"off":"guidance";o.positionOnRoute=true;o.scalar=.2;o.timeToFinishS=50;o.locationClass="FINE";o.lon=37.6002;o.lat=55.7002;o.rawLon=37.60019;o.rawLat=55.70019;o.speedMps=5;o.heading=45;o.stamp=SystemClock.now;o.rawAtElapsedMs=SystemClock.now;
+        NativeNavigationInput input(boolean route){NativeNavigationInput o=new NativeNavigationInput();o.monotonicMs=SystemClock.now;o.routeEpoch=epoch;o.routeId=routeId;o.offlineGeometrySha256=routeId==null?null:GEOM;o.offlinePreparationKey=preparationKey;o.mode=routeId==null?"off":"guidance";o.positionOnRoute=true;o.scalar=.2;o.timeToFinishS=50;o.locationClass="FINE";o.lon=37.6002;o.lat=55.7002;o.rawLon=37.60019;o.rawLat=55.70019;o.speedMps=5;o.heading=45;o.stamp=SystemClock.now;o.rawAtElapsedMs=SystemClock.now;
             if(route&&routeId!=null)o.route=new YandexRoute(routeId,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},Collections.singletonList(new YandexRoute.Section(0,2,"STRAIGHT",null,60)),null,null,null,null,null,null);return o;}
         void observe(boolean route)throws Exception{observe(input(route));}
         void observe(NativeNavigationInput o)throws Exception{long wall=1792836000000L+SystemClock.now;bridge.observe(o,FixFreshness.capture(SystemClock.now,wall,SystemClock.now,SystemClock.now,wall),null);Handler.advance(0);}
@@ -58,7 +59,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
-        freshnessRecovery();incoherentProgressRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();refreshLatency();
+        freshnessRecovery();incoherentProgressRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();preparationGeneration();refreshLatency();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
         try{LiveSessionLease.read(Json.write(invalid),BOOT,disarmed.consumer,SystemClock.now);}catch(IllegalArgumentException expected){rejected=true;}check(rejected,"legacy variant arm rejected");
@@ -219,12 +220,64 @@ public final class NativeProductRuntimeTest {
         long previous=pathB[0];OfflineMapGate.Subject sameB=r.subject;
         r.bridge.sourceRoute(new OfflineMapGate.Subject(null,r.epoch,null));r.bridge.sourceRoute(sameB);
         r.evidence(true);b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);
+        check(r.bridge.status().pathId==previous&&field(r.bridge,"retainedRoute")==null,"withdrawal/reappearance cannot replay route retained by another source generation");
+        b=r.input(true);b.route=twoSections(r.routeId);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);
         check(r.bridge.status().pathId!=previous&&r.bridge.status().pathId>0,"withdrawal/reappearance gives same Yandex ID a fresh native lifetime/path");
         check("WGS84".equals(r.state().get("coordinateFrame"))&&((Number)r.state().get("coordinateRouteOrdinal")).longValue()==2,"source lifetime restart retains Yandex frame/ordinal association");
         int restartedLanes=wire.count(Topics.SD_AHEAD_LANES);r.advanceEvidence(1000);r.evidence(true);b=r.input(false);b.speedMps=0;b.lon=37.6015;b.lat=55.7015;b.rawLon=37.60149;b.rawLat=55.70149;r.observe(b);r.advanceEvidence(1000);
         check(wire.count(Topics.SD_AHEAD_LANES)>restartedLanes,"fresh source lifetime lets original v0 recreate its lane timer");
         r.close();
     }
+    static void preparationGeneration()throws Exception{
+        Rig r=new Rig();r.arm();long first=r.route();LiveMapTransport wire=LiveMapTransport.latest;
+        long generation=fieldLong(r.bridge,"sourceGeneration");NativeNavigationInput stale=r.input(true);
+        // Leave the previous complete route in the coordinator's pending handoff.
+        long wall=1792836000000L+SystemClock.now;
+        r.bridge.observe(stale,FixFreshness.capture(SystemClock.now,wall,SystemClock.now,SystemClock.now,wall),null);
+        r.preparation("maps-release-a");
+        check(fieldLong(r.bridge,"sourceGeneration")==generation+1&&field(r.bridge,"offlineSnapshot")==null,"same route/geometry preparation change synchronously revokes old gate and generation");
+        check(!wire.admission.allow(Topics.ROUTE)&&!wire.admission.allow(Topics.SD_VEHICLE_LOCATION),"old path egress closes at preparation change before worker callback");
+        r.offline();
+        check(!wire.admission.allow(Topics.ROUTE),"new gate with same geometry cannot authorize previously published generation");
+        int routes=wire.count(Topics.ROUTE),pathTraffic=pathTraffic(wire);
+        NativeNavigationInput current=r.input(false);r.bridge.observe(current,FixFreshness.capture(SystemClock.now,wall,SystemClock.now,SystemClock.now,wall),null);
+        check(((NativeNavigationInput)field(field(r.bridge,"pending"),"input")).route==null,"coalescing does not carry complete old preparation into a new key");
+        Handler.advance(0);
+        check(wire.count(Topics.ROUTE)==routes&&pathTraffic(wire)==pathTraffic&&r.bridge.status().pathId==first,"queued old route and retained old route cannot republish under renewed gate");
+        check(field(r.bridge,"retainedRoute")==null,"retained route is bound to source generation");
+        r.observe(true);long second=r.bridge.status().pathId;
+        check(second>0&&second!=first&&wire.count(Topics.ROUTE)>routes,"coherent complete route for new preparation publishes fresh path");
+        NativeNavigationInput copied=r.input(false).copy();check("maps-release-a".equals(copied.offlinePreparationKey),"preparation key survives immutable input handoff");
+        Object location=field(r.bridge,"locationInput");routes=wire.count(Topics.ROUTE);
+        r.observe(stale);
+        check(field(r.bridge,"locationInput")==location&&wire.count(Topics.ROUTE)==routes&&r.bridge.status().pathId==second,"stale same-route/same-geometry observation is ignored before handoff");
+        generation=fieldLong(r.bridge,"sourceGeneration");Object gate=field(r.bridge,"offlineSnapshot");r.bridge.sourcePreparation(r.subject,"maps-release-a");
+        check(fieldLong(r.bridge,"sourceGeneration")==generation&&field(r.bridge,"offlineSnapshot")==gate,"same preparation identity keeps current generation and gate");
+        r.bridge.sourcePreparation(new OfflineMapGate.Subject(r.routeId,r.epoch,GEOM.replace('a','c')),"stale-worker");
+        check(fieldLong(r.bridge,"sourceGeneration")==generation&&field(r.bridge,"offlineSnapshot")==gate,"preparation for another subject cannot mutate current source");
+        r.preparation("maps-release-b");r.offline();routes=wire.count(Topics.ROUTE);r.observe(false);
+        check(wire.count(Topics.ROUTE)==routes&&field(r.bridge,"retainedRoute")==null,"previously consumed retained route is unavailable after second preparation change");
+        // Within one preparation, a later progress observation may still coalesce its route.
+        NativeNavigationInput ready=r.input(true),progress=r.input(false);
+        r.bridge.observe(ready,null,null);r.bridge.observe(progress,null,null);
+        check(((NativeNavigationInput)field(field(r.bridge,"pending"),"input")).route!=null,"same preparation retains normal complete-route coalescing");
+        Handler.advance(0);long third=r.bridge.status().pathId;
+        check(third>0&&third!=second&&wire.count(Topics.ROUTE)>routes,"new coherent preparation can replace held old path after coalescing");
+        check(!wire.closed,"preparation changes keep the explicitly armed sender alive");
+        r.close();
+        Rig boundary=new Rig();boundary.arm();long oldPath=boundary.route();boundary.advanceEvidence(1000);
+        LiveMapTransport boundaryWire=LiveMapTransport.latest;long[] newPath={-1};int[] sentAtSwap={-1};
+        boundaryWire.beforeAdmissionTopic=Topics.SD_VEHICLE_LOCATION;
+        boundaryWire.beforeAdmission=()->{try{
+            boundary.preparation("same-geometry-new-package");boundary.evidence(true);boundary.observe(true);
+            newPath[0]=boundary.bridge.status().pathId;sentAtSwap[0]=boundaryWire.topics.size();
+        }catch(Exception error){throw new AssertionError(error);}};
+        boundary.observe(false);
+        check(newPath[0]>0&&newPath[0]!=oldPath&&sentAtSwap[0]>=0,"new preparation publishes its own path while an old payload waits at actual transport boundary");
+        check(boundaryWire.topics.size()==sentAtSwap[0],"already dequeued old same-geometry payload cannot enter the replacement preparation");
+        boundary.close();
+    }
+    static int pathTraffic(LiveMapTransport wire){int count=0;for(long topic:wire.topics)if(topic!=Topics.NAVIGATION_STATUS)count++;return count;}
     static YandexRoute twoSections(String id){return new YandexRoute(id,new double[]{37.6,37.601,37.602},new double[]{55.7,55.701,55.702},Arrays.asList(new YandexRoute.Section(0,1,"STRAIGHT",null,30),new YandexRoute.Section(1,2,"STRAIGHT",null,30)),null,null,null,null,null,null);}
     static void refreshLatency()throws Exception{
         Rig fast=new Rig();fast.arm();fast.evidence(true);fast.context.pm.nextReadDelayMs=20;fast.route();Handler.advance(0);LiveMapTransport wire=LiveMapTransport.latest;

@@ -93,9 +93,9 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('new Identity(Os.fstat(input.getFD()))', source)
         self.assertIn('FileChannel.MapMode.READ_ONLY', source)
         self.assertIn('MUST finish all access inside this call', source)
-        self.assertIn('MAX_VECTOR_FILE_BYTES = 512 * 1024 * 1024', source)
+        self.assertIn('MAX_VECTOR_FILE_BYTES = Integer.MAX_VALUE', source)
         self.assertIn('return new Header(version, new int[0])', source)
-        self.assertIn('source.metadataSha.equals(hashFile(', source)
+        self.assertIn('metadataMatches(source.metadata, source.metadataStat, source.metadataSha)', source)
 
     @unittest.skipUnless((CORPUS / 'driving.fb').is_file(), 'local firmware corpus absent')
     def test_actual_driving_header_and_malformed_offset(self):

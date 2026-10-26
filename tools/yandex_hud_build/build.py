@@ -177,6 +177,10 @@ def main():
     offline_zstd = prepare_offline_zstd(args.out, abis=tuple(dependency_abis))
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     run(['python3', ROOT/'tools/yandex_hud_build/stock_camera_defaults.py', '--check'])
+    run(['python3', '-m', 'unittest', 'tools.yandex_hud_build.test_route_regions',
+         'tools.yandex_hud_build.test_offline_graph_files_source', 'tools.yandex_hud_build.test_offline_graph_files_host',
+         'tools.yandex_hud_build.test_offline_attributes_source',
+         'tools.yandex_hud_build.test_offline_map_source_host'], cwd=ROOT)
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     # The HUD wire and compositor shared with Denza Apps; the plain-Java part the module's fields
     # pass through (the scene, the placement table, the road packet) runs in the host tests too.
@@ -252,11 +256,11 @@ def main():
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8',
          '-classpath', os.pathsep.join(map(str, (android, stub_jar, offline_zstd['classes_jar']))), '-d', classes, *sources])
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8',
-         '-classpath', os.pathsep.join(map(str, (classes, android))), '-d', unit_classes,
+         '-classpath', os.pathsep.join(map(str, (classes, android, stub_jar))), '-d', unit_classes,
          ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/YandexOfflineMapSourceHashTest.java'])
-    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android))),
+    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android, stub_jar))),
          'dev.denza.hud.probe.YandexOfflineMapSourceHashTest'])
-    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android))),
+    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android, stub_jar))),
          'dev.denza.hud.probe.RotatingWriterTest'])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
     with zipfile.ZipFile(args.out/'module.jar') as module:

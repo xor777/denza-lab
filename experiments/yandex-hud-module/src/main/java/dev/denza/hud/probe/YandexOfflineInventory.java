@@ -14,12 +14,19 @@ final class YandexOfflineInventory {
         final boolean valid;
         final String fingerprint, reasonCode, reasonRussian, catalogDigest;
         final List<Map<String,Object>> regions;
+        /** Full immutable catalog, including AVAILABLE rows required for manual route downloads. */
+        final List<Map<String,Object>> catalogRows;
         final int catalogCount, usableCount;
         Snapshot(long at, long generation, boolean valid, String fingerprint, String code, String russian,
                  String digest, List<Map<String,Object>> regions, int count, int usable) {
+            this(at,generation,valid,fingerprint,code,russian,digest,regions,regions,count,usable);
+        }
+        Snapshot(long at, long generation, boolean valid, String fingerprint, String code, String russian,
+                 String digest, List<Map<String,Object>> regions, List<Map<String,Object>> catalog, int count, int usable) {
             observedAt = at; this.generation = generation; this.valid = valid; this.fingerprint = fingerprint;
             reasonCode = code; reasonRussian = russian; catalogDigest = digest;
             this.regions = Collections.unmodifiableList(new ArrayList<>(regions)); catalogCount = count; usableCount = usable;
+            catalogRows = Collections.unmodifiableList(new ArrayList<>(catalog));
         }
         boolean ready(long now) { return valid && usableCount > 0 && now >= observedAt && now - observedAt < TTL_MS; }
         Map<String,Object> status() {
@@ -61,6 +68,11 @@ final class YandexOfflineInventory {
                 long idLong = integer(access.call(region,"getId"),"region_invalid");
                 if (idLong < 0 || idLong > Integer.MAX_VALUE) throw new Invalid("region_invalid"); int id = (int)idLong;
                 if (canonical.containsKey(id)) throw new Invalid("duplicate_region");
+                Object nameObject=access.call(region,"getName"), parentObject=access.call(region,"getParentId");
+                if(!(nameObject instanceof String) || ((String)nameObject).trim().isEmpty() || ((String)nameObject).length()>512)
+                    throw new Invalid("region_name_invalid");
+                Long parent=parentObject==null?null:integer(parentObject,"region_parent_invalid");
+                if(parent!=null&&(parent<0||parent>Integer.MAX_VALUE||parent==id))throw new Invalid("region_parent_invalid");
                 Object stateObject = access.call(manager,"getState",id);
                 if (!(stateObject instanceof Enum<?>)) throw new Invalid("state_invalid");
                 String state = ((Enum<?>)stateObject).name();
@@ -91,6 +103,7 @@ final class YandexOfflineInventory {
                 if(ready)try { Object legacy=access.call(manager,"isLegacyPath",id);if(legacy instanceof Boolean)legacyPath=(Boolean)legacy; }
                 catch(RuntimeException unsupportedLayout) { /* Reader reports layout unavailable. */ }
                 Map<String,Object> row = new LinkedHashMap<>(); row.put("id",id); row.put("state",state);
+                row.put("name",nameObject); row.put("parentId",parent==null?null:parent.intValue());
                 row.put("downloadedReleaseTime",downloaded); row.put("currentReleaseTime",release); row.put("progress",progress);
                 row.put("usable",ready); row.put("reasonCode",regionReason); row.put("isLegacyPath",legacyPath);
                 canonical.put(id,Collections.unmodifiableMap(row));
@@ -100,13 +113,14 @@ final class YandexOfflineInventory {
             for (Map<String,Object> row : canonical.values()) {
                 stable.append(row.get("id")).append('|').append(row.get("state")).append('|').append(row.get("downloadedReleaseTime"))
                         .append('|').append(row.get("currentReleaseTime")).append('|').append(row.get("progress"))
-                        .append('|').append(row.get("isLegacyPath")).append('\n');
+                        .append('|').append(row.get("isLegacyPath")).append('|').append(row.get("name"))
+                        .append('|').append(row.get("parentId")).append('\n');
                 if (!row.get("state").equals("AVAILABLE") || row.get("downloadedReleaseTime") != null && ((Long)row.get("downloadedReleaseTime")) > 0)
                     nonAvailable.add(row);
             }
             String digest = hash(stable.toString());
-            if (usable == 0) return finish(now,false,blocking == null ? "no_usable_regions" : blocking,nonAvailable,digest,count,0);
-            return finish(now,true,outdated ? "ready_outdated" : "ready",nonAvailable,digest,count,usable);
+            if (usable == 0) return finish(now,false,blocking == null ? "no_usable_regions" : blocking,nonAvailable,new ArrayList<>(canonical.values()),digest,count,0);
+            return finish(now,true,outdated ? "ready_outdated" : "ready",nonAvailable,new ArrayList<>(canonical.values()),digest,count,usable);
         } catch (Invalid e) {
             return finish(now,false,e.code,Collections.emptyList(),"",count,0);
         } catch (RuntimeException e) {
@@ -119,9 +133,12 @@ final class YandexOfflineInventory {
         return last == null ? new Snapshot(0,0,false,hash("not_polled"),"not_polled",russian("not_polled"),"",Collections.emptyList(),0,0).status() : last.status();
     }
     private Snapshot finish(long now,boolean valid,String code,List<Map<String,Object>> regions,String digest,int count,int usable) {
+        return finish(now,valid,code,regions,Collections.emptyList(),digest,count,usable);
+    }
+    private Snapshot finish(long now,boolean valid,String code,List<Map<String,Object>> regions,List<Map<String,Object>> catalog,String digest,int count,int usable) {
         String fingerprint = hash(valid + "|" + code + "|" + digest + "|" + count + "|" + usable);
         long generation = last == null ? 1 : last.generation + (last.fingerprint.equals(fingerprint) ? 0 : 1);
-        return last = new Snapshot(now,generation,valid,fingerprint,code,russian(code),digest,regions,count,usable);
+        return last = new Snapshot(now,generation,valid,fingerprint,code,russian(code),digest,regions,catalog,count,usable);
     }
     private void owner() { if (Thread.currentThread() != owner) throw new IllegalStateException("offline inventory owner thread required"); }
     private static long integer(Object o,String code) { if (!(o instanceof Integer) && !(o instanceof Long)) throw new Invalid(code); return ((Number)o).longValue(); }

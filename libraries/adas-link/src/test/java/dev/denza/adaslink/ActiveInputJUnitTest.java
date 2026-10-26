@@ -10,7 +10,9 @@ public class ActiveInputJUnitTest {
         VectorTilePacketTest.main(new String[0]);
     }
     @Test public void vectorCacheLifecycle() throws Exception { VectorRoadTileCacheTest.main(new String[0]); }
-    @Test public void offlinePackageParserBoundaries() { OfflineVectorPackageTest.synthetic(); OfflineVectorPackageTest.malformed(); }
+    @Test public void offlinePackageParserBoundaries() throws Exception {
+        OfflineVectorPackageTest.synthetic(); OfflineVectorPackageTest.malformed(); OfflineVectorPackageTest.largeScopedMapping();
+    }
     @Test public void graphParserBoundaries() throws Exception { GraphTileTest.synthetic(); }
     @Test public void graphCacheLifecycle() throws Exception {
         GraphTileCacheTest.basic(); GraphTileCacheTest.budgets(); GraphTileCacheTest.lifecycleRace(false);

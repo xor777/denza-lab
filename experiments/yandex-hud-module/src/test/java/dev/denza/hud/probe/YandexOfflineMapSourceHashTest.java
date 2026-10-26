@@ -3,7 +3,7 @@ package dev.denza.hud.probe;
 import dev.denza.adaslink.OfflineMapGate;
 import java.util.*;
 
-/** Inventory-only production policy and exact geometry identity; no map IO or coverage assertion. */
+/** Product admission requires regional readiness and a completed current-source read. */
 public final class YandexOfflineMapSourceHashTest {
     static int checks;
     static void check(boolean ok,String why){checks++;if(!ok)throw new AssertionError(why);}
@@ -49,33 +49,54 @@ public final class YandexOfflineMapSourceHashTest {
         Map<String,Object> boundary=route();boundary.put("points",Arrays.asList(Arrays.asList(-180,-90),Arrays.asList(180,90)));
         check(YandexOfflineMapSource.geometryHash(boundary,"current").length()==64,"inclusive WGS84 boundaries");
     }
+    static YandexRouteRegions.Snapshot regions(OfflineMapGate.Subject s,YandexOfflineInventory.Snapshot maps,boolean ready){
+        return new YandexRouteRegions.Snapshot(s.routeId,s.epoch,s.geometrySha256,maps,maps.observedAt,1,maps.fingerprint,
+                ready?"regions_ready":"regions_missing",ready?"Регион загружен":"Загрузите карты Яндекса: Москва",true,ready,
+                2,2,1000,Collections.emptyList(),Collections.emptyList());
+    }
+    static YandexOfflineAttributes.View read(String key,boolean ready){
+        Map<String,Object> status=new LinkedHashMap<>();status.put("sourceKey",key);status.put("preparationKey",key);
+        status.put("reason","offline_route_tiles_missing");status.put("reasonRussian","Загрузите карты всего маршрута");
+        dev.denza.adaslink.YandexRoute r=new dev.denza.adaslink.YandexRoute("current",new double[]{0,.001},new double[]{0,.002},
+                Collections.emptyList(),null,null,null,null,null,null);
+        return new YandexOfflineAttributes.View(true,ready,ready?new dev.denza.adaslink.RouteVectorAttributes.Builder(r).finish():null,status);
+    }
     static void admission(){
-        String fingerprint="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        String fp="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         OfflineMapGate.Subject subject=new OfflineMapGate.Subject("current",1,YandexOfflineMapSource.geometryHash(route(),"current"));
-        YandexOfflineInventory.Snapshot maps=new YandexOfflineInventory.Snapshot(1000,1,true,fingerprint,"ready","Карта доступна",
-                fingerprint,Collections.emptyList(),1,1);
-        OfflineMapGate.Snapshot available=YandexOfflineMapSource.admissionSnapshot(subject,maps,1000);
-        check(available.state==OfflineMapGate.State.AVAILABLE&&available.code.equals("offline_inventory_ready")
-                &&available.proofFingerprint==null,"production ready path is AVAILABLE inventory, not fabricated route coverage");
-        check(OfflineMapGate.check(subject,available,1000).ready,"actual production snapshot admits without a coverage proof");
-        OfflineMapGate.Snapshot stale=YandexOfflineMapSource.admissionSnapshot(subject,maps,6000);
-        check(stale.state==OfflineMapGate.State.UNAVAILABLE&&stale.code.equals("offline_stale"),"source uses exact gate TTL boundary and explicit stale reason");
-        check(YandexOfflineMapSource.admissionSnapshot(subject,maps,999).state==OfflineMapGate.State.UNAVAILABLE,"future inventory cannot admit");
+        YandexOfflineInventory.Snapshot maps=new YandexOfflineInventory.Snapshot(1000,1,true,fp,"ready","Карта доступна",
+                fp,Collections.emptyList(),1,1);
+        YandexRouteRegions.Snapshot required=regions(subject,maps,true);
+        YandexOfflineAttributes.View read=read("current-source",true);
+        OfflineMapGate.Snapshot prepared=YandexOfflineMapSource.admissionSnapshot(subject,maps,required,read,"current-source",true,1000);
+        check(prepared.state==OfflineMapGate.State.PREPARED&&prepared.proofFingerprint.matches("[0-9a-f]{64}"),"prepared state binds source evidence");
+        check(OfflineMapGate.check(subject,prepared,1000).ready,"complete regional read permits current source");
+        check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,maps,null,null,"current-source",true,1000),1000).ready,
+                "installed region alone cannot admit product");
+        OfflineMapGate.Snapshot missing=YandexOfflineMapSource.admissionSnapshot(subject,maps,regions(subject,maps,false),read,"current-source",true,1000);
+        check(!OfflineMapGate.check(subject,missing,1000).ready&&missing.reason.contains("Москва"),"missing required region prompts named manual download");
+        for(YandexOfflineAttributes.View value:new YandexOfflineAttributes.View[]{null,read("current-source",false),read("old-source",true)})
+            check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,maps,required,value,"current-source",true,1000),1000).ready,
+                    "pending, partial and stale-source results never admit");
+        check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,maps,required,read,"current-source",false,1000),1000).ready,
+                "path readiness required even after a successful read");
+        for(long now:new long[]{999,6000})
+            check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,maps,required,read,"current-source",true,now),now).ready,
+                    "future/stale inventory blocks");
         for(String geometry:new String[]{null,"invalid"}){
             OfflineMapGate.Subject partial=new OfflineMapGate.Subject("current",1,geometry);
-            check(YandexOfflineMapSource.admissionSnapshot(partial,maps,1000).state==OfflineMapGate.State.UNAVAILABLE,"valid geometry required before inventory admission");
+            check(YandexOfflineMapSource.admissionSnapshot(partial,maps,required,read,"current-source",true,1000).state==OfflineMapGate.State.UNAVAILABLE,"geometry required");
         }
-        check(YandexOfflineMapSource.admissionSnapshot(new OfflineMapGate.Subject(null,2,null),maps,1000).state==OfflineMapGate.State.PENDING,
-                "cancelled route remains inactive despite installed maps");
+        check(YandexOfflineMapSource.admissionSnapshot(new OfflineMapGate.Subject(null,2,null),maps,required,read,"current-source",true,1000).state==OfflineMapGate.State.PENDING,
+                "route cancellation cannot inherit completed read");
         OfflineMapGate.Subject replacement=new OfflineMapGate.Subject("new",2,subject.geometrySha256);
-        check(!OfflineMapGate.check(replacement,available,1000).ready,"previous subject inventory snapshot cannot admit replacement route");
-        check(OfflineMapGate.check(replacement,YandexOfflineMapSource.admissionSnapshot(replacement,maps,1000),1000).ready,
-                "same fresh installed inventory can be explicitly scoped to new current route");
-        YandexOfflineInventory.Snapshot missing=new YandexOfflineInventory.Snapshot(1000,2,false,fingerprint,"no_usable_regions","Карта отсутствует",
-                fingerprint,Collections.emptyList(),0,0);
-        OfflineMapGate.Snapshot unavailable=YandexOfflineMapSource.admissionSnapshot(subject,missing,1000);
-        check(unavailable.state==OfflineMapGate.State.UNAVAILABLE&&unavailable.code.equals("no_usable_regions")
-                &&!OfflineMapGate.check(subject,unavailable,1000).ready,"missing usable region blocks actual production path");
+        check(!OfflineMapGate.check(replacement,YandexOfflineMapSource.admissionSnapshot(replacement,maps,required,read,"current-source",true,1000),1000).ready,
+                "old region discovery cannot admit replacement");
+        check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,maps,required,read,null,true,1000),1000).ready,"source key mandatory");
+        YandexOfflineInventory.Snapshot changed=new YandexOfflineInventory.Snapshot(1000,2,true,subject.geometrySha256,"ready","Карта доступна",
+                subject.geometrySha256,Collections.emptyList(),1,1);
+        check(!OfflineMapGate.check(subject,YandexOfflineMapSource.admissionSnapshot(subject,changed,required,read,"current-source",true,1000),1000).ready,
+                "catalog change invalidates regional result before new read");
     }
     public static void main(String[]args){hash();errors();admission();System.out.println("YandexOfflineMapSourceHashTest: "+checks+" checks passed");}
 }

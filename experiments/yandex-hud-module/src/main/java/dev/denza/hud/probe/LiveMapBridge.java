@@ -53,6 +53,7 @@ final class LiveMapBridge {
     private volatile AdasFeed.Snapshot published=AdasFeed.DISABLED;
     private volatile LiveSessionLease arm;
     private volatile OfflineMapGate.Subject sourceSubject;
+    private volatile String sourcePreparationKey;
     private volatile OfflineMapGate.Snapshot offlineSnapshot;
     private long sourceEpoch=-1,activeEpoch=-1,lastSend=-1,lastObservation=-1;
     private volatile boolean finished=true;
@@ -70,7 +71,7 @@ final class LiveMapBridge {
     private List<String> lineageProcesses=new ArrayList<>();
     private NativeNavigationInput latest;
     private YandexRoute retainedRoute;
-    private long retainedRouteEpoch=-1;
+    private long retainedRouteEpoch=-1,retainedGeneration=-1;
     private volatile double gpsSpeedKmh=Double.NaN;
     private volatile long gpsSpeedAt=-1;
     private OfflineMapGate.Subject publishedSubject;
@@ -132,8 +133,17 @@ final class LiveMapBridge {
     synchronized void sourceRoute(OfflineMapGate.Subject subject){
         if(subject!=null&&subject.epoch<sourceEpoch)return;
         if(subject!=null)sourceEpoch=subject.epoch;
-        if(!java.util.Objects.equals(subject,sourceSubject)){sourceGeneration++;AndroidStockRuntime owned=runtime;if(owned!=null)owned.inputGeneration(sourceGeneration);}
+        if(!java.util.Objects.equals(subject,sourceSubject)){
+            offlineSnapshot=null;sourcePreparationKey=null;sourceGeneration++;
+            AndroidStockRuntime owned=runtime;if(owned!=null)owned.inputGeneration(sourceGeneration);
+        }
         sourceSubject=subject;
+    }
+    /** Main coordinator's immutable preparation identity; workers cannot renew an old gate. */
+    synchronized void sourcePreparation(OfflineMapGate.Subject subject,String key){
+        if(!java.util.Objects.equals(subject,sourceSubject)||java.util.Objects.equals(key,sourcePreparationKey))return;
+        offlineSnapshot=null;sourcePreparationKey=key;sourceGeneration++;
+        AndroidStockRuntime owned=runtime;if(owned!=null)owned.inputGeneration(sourceGeneration);
     }
     void offlineMap(OfflineMapGate.Snapshot snapshot){offlineSnapshot=snapshot;}
     private OfflineMapGate.Decision offline(long now){return OfflineMapGate.check(sourceSubject,offlineSnapshot,now);}
@@ -266,6 +276,7 @@ final class LiveMapBridge {
         boolean arrived=latest!=null&&latest.finished;
         if(session!=null&&!session.navigating()&&(withdrawn||arrived))
             return NativeTransportAdmission.terminal(topic);
+        if(topic!=Topics.NAVIGATION_STATUS&&publishedGeneration!=sourceGeneration)return false;
         if(topic!=Topics.NAVIGATION_STATUS&&topic!=Topics.ROUTE&&topic!=Topics.PATH_SELECTED&&!dynamicFresh(now))return false;
         return offline(now).ready&&java.util.Objects.equals(publishedSubject,sourceSubject);
     }
@@ -392,19 +403,26 @@ final class LiveMapBridge {
     void observe(NativeNavigationInput original,FixFreshness.Sample fix,RoadNetwork unusedRoads){
         NativeNavigationInput copy=original.copy();boolean post;
         final Pending observation;
-        synchronized(this){if(!matchesSubject(copy,sourceSubject))return;observation=new Pending(copy,fix,sourceGeneration);}
-        locationInput=observation;
-        synchronized(handoff){if(pending!=null){coalesced++;if(copy.route==null&&pending.input.route!=null&&java.util.Objects.equals(copy.routeId,pending.input.routeId)&&copy.routeEpoch==pending.input.routeEpoch)copy.route=pending.input.route;}post=pending==null;pending=observation;}
+        synchronized(this){
+            if(!matchesSubject(copy,sourceSubject,sourcePreparationKey))return;
+            observation=new Pending(copy,fix,sourceGeneration);
+            synchronized(handoff){
+                if(pending!=null){coalesced++;if(pending.generation==observation.generation&&copy.route==null&&pending.input.route!=null&&java.util.Objects.equals(copy.routeId,pending.input.routeId)&&copy.routeEpoch==pending.input.routeEpoch)copy.route=pending.input.route;}
+                post=pending==null;pending=observation;
+            }
+            locationInput=observation;
+        }
         if(post)worker.post(this::observePending);
     }
     private void observePending(){
         Pending next;synchronized(handoff){next=pending;pending=null;}if(next==null)return;
         NativeNavigationInput o=next.input;final OfflineMapGate.Subject subject;
-        synchronized(this){subject=sourceSubject;if(next.generation!=sourceGeneration||!matchesSubject(o,subject))return;}
+        synchronized(this){subject=sourceSubject;if(next.generation!=sourceGeneration||!matchesSubject(o,subject,sourcePreparationKey))return;}
         latest=o;lastObservation=SystemClock.elapsedRealtime();
-        if(o.route!=null){retainedRoute=o.route;retainedRouteEpoch=o.routeEpoch;}
-        if(o.routeId==null){retainedRoute=null;retainedRouteEpoch=-1;}
-        if(o.route==null&&retainedRoute!=null&&retainedRouteEpoch==o.routeEpoch&&java.util.Objects.equals(retainedRoute.routeId,o.routeId))o.route=retainedRoute;
+        if(retainedGeneration!=next.generation){retainedRoute=null;retainedRouteEpoch=-1;retainedGeneration=-1;}
+        if(o.route!=null){retainedRoute=o.route;retainedRouteEpoch=o.routeEpoch;retainedGeneration=next.generation;}
+        if(o.routeId==null){retainedRoute=null;retainedRouteEpoch=-1;retainedGeneration=-1;}
+        if(o.route==null&&retainedRoute!=null&&retainedGeneration==next.generation&&retainedRouteEpoch==o.routeEpoch&&java.util.Objects.equals(retainedRoute.routeId,o.routeId))o.route=retainedRoute;
         if(next.fix!=null)o.fixAgeMs=next.fix.ageMs(lastObservation,wallClock.getAsLong());
         if(o.rawAtElapsedMs<0||o.rawAtElapsedMs>lastObservation||lastObservation-o.rawAtElapsedMs>1500){o.rawLon=Double.NaN;o.rawLat=Double.NaN;}
         if(!o.simulated&&"FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&Double.isFinite(o.speedMps)&&o.speedMps>=0){gpsSpeedKmh=o.speedMps*3.6;gpsSpeedAt=lastObservation-o.fixAgeMs;}
@@ -432,12 +450,11 @@ final class LiveMapBridge {
         }catch(NativeEnvironment.DataUnavailable missing){dataUnavailable=missing.getMessage();session.invalidateLocation();state="PAUSED";reason=dataUnavailable;}
         catch(Exception error){stop("Ошибка входных данных",error.toString());}
     }
-    private static boolean matchesSubject(NativeNavigationInput o,OfflineMapGate.Subject subject){return subject!=null&&subject.epoch==o.routeEpoch&&java.util.Objects.equals(subject.routeId,o.routeId)&&java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256);}
+    private static boolean matchesSubject(NativeNavigationInput o,OfflineMapGate.Subject subject,String key){return subject!=null&&subject.epoch==o.routeEpoch&&java.util.Objects.equals(subject.routeId,o.routeId)&&java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256)&&java.util.Objects.equals(key,o.offlinePreparationKey);}
     private boolean locationFresh(long now){
         Pending current=locationInput;if(current==null)return false;NativeNavigationInput o=current.input;
         OfflineMapGate.Subject subject=sourceSubject;
-        if(subject==null||subject.epoch!=o.routeEpoch||!java.util.Objects.equals(subject.routeId,o.routeId)
-                ||!java.util.Objects.equals(subject.geometrySha256,o.offlineGeometrySha256)||o.simulated||!"FINE".equals(o.locationClass))return false;
+        if(current.generation!=sourceGeneration||!matchesSubject(o,subject,sourcePreparationKey)||o.simulated||!"FINE".equals(o.locationClass))return false;
         long age=inputAge(current,now);
         return age>=0&&age<=1500&&o.rawAtElapsedMs>=0&&now>=o.rawAtElapsedMs&&now-o.rawAtElapsedMs<=1500
                 &&coordinate(o.rawLon,o.rawLat)&&coordinate(o.lon,o.lat)

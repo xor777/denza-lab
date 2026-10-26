@@ -13,7 +13,7 @@ public final class OfflineMapGateTest {
         check(available.state == OfflineMapGate.State.AVAILABLE && available.proofFingerprint == null,
                 "inventory-only state never fabricates a coverage proof");
         check(available.code.equals("offline_inventory_ready") && available.reason.equals("Офлайн-карта загружена"),
-                "production inventory status is explicit");
+                "legacy inventory-only status is explicit");
         check(!OfflineMapGate.check(route, null, 10000).ready, "default is blocked");
         check(!OfflineMapGate.check(new OfflineMapGate.Subject("new", 1, a), available, 10000).ready, "ID bound");
         check(!OfflineMapGate.check(new OfflineMapGate.Subject("route", 2, a), available, 10000).ready, "epoch bound");
@@ -34,6 +34,10 @@ public final class OfflineMapGateTest {
                 "future explicit coverage state remains supported");
         check(!OfflineMapGate.check(route, OfflineMapGate.Snapshot.verified(route, 10000, a, null), 10000).ready,
                 "explicit coverage state still requires its real proof fingerprint");
+        check(OfflineMapGate.check(route, OfflineMapGate.Snapshot.prepared(route, 10000, a, b), 10000).ready,
+                "completed read state accepted with source fingerprint");
+        check(!OfflineMapGate.check(route, OfflineMapGate.Snapshot.prepared(route, 10000, a, null), 10000).ready,
+                "completed read needs source fingerprint");
         System.out.println("OfflineMapGateTest: " + checks + " checks passed");
     }
 }

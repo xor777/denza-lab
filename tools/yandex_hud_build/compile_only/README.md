@@ -4,7 +4,13 @@ The nested `OfflineCacheManager.PathGetterListener` interface is transcribed fro
 Navigator 29.8.1 `classes11.dex`. Compile these signatures to a separate output
 directory and use that directory only as a javac classpath. Exclude all stub
 classes from the module jar and dex: the running Navigator provides the real SDK
-interface through its classloader.
+interface through its classloader. The top-level `RegionsAtPointListener` is also
+from `classes11.dex`: `onRegions(List<Integer>)` and `onError(com.yandex.runtime.Error)`.
+The latter is an interface with `isValid(): boolean` in `classes14.dex`.
+`YandexRouteRegions` checks listener classloader identity before invoking the
+read-only `requestRegionsAtPoint(Point, RegionsAtPointListener)` method. Its
+geographical IDs form alternatives for a point; they are not an AND list of
+downloads. No SDK download or automatic-update method is called.
 
 `YandexOfflineCachePath` checks that its typed interface and the reflected SDK
 interface are the same `Class` before requesting the path. Runtime listener/JNI

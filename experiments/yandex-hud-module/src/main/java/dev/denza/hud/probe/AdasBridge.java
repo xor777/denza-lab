@@ -52,7 +52,6 @@ final class AdasBridge {
     private final YandexOfflineMapSource offlineMaps;
     private final YandexOfflineCachePath offlinePath = new YandexOfflineCachePath();
     private final YandexOfflineAttributes offlineAttributes = new YandexOfflineAttributes();
-    private final ObservedVectorRouteAttributes observedAttributes = new ObservedVectorRouteAttributes();
     private String attributesAppliedKey;
     private long offlineReportedAt;
     private final FixFreshness.Tracker fixes = new FixFreshness.Tracker();
@@ -137,10 +136,10 @@ final class AdasBridge {
         }
         o.routeEpoch=routeRefresh.route(o.routeId);
         // Bind installed-map admission to the current route before either queue can consume it.
-        offlineMaps.sample(api, o.routeId, o.routeEpoch, copy, now);
+        offlineMaps.sample(api, o.routeId, o.routeEpoch, copy, offlinePath.sample(api, now), offlineAttributes, now);
         o.offlineGeometrySha256 = offlineMaps.geometrySha256();
-        offlineAttributes.sample(o.routeId, o.routeEpoch, o.offlineGeometrySha256,
-                offlinePath.sample(api, now), offlineMaps.inventorySnapshot());
+        o.offlinePreparationKey = offlineMaps.preparationKey();
+        final boolean mayReadOffline = offlineMaps.mayRead();
         final Map<String,Object> offlineStatus;
         if (now - offlineReportedAt >= 5000) {
             offlineReportedAt = now; offlineStatus = offlineMaps.status();
@@ -189,7 +188,6 @@ final class AdasBridge {
                 if (o.routeId == null || o.mode.equals("off")) {
                     graphRoute = null; graphGeneration = -1; vectorGeneration = -1; currentRoads=null;
                     attributesAppliedKey = null;
-                    observedAttributes.clear();
                 } else if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
                     GraphTileCache.Snapshot graph = YandexGraphSource.snapshot();
                     VectorRoadTileCache.Snapshot vectors = YandexVectorSource.snapshot();
@@ -215,20 +213,18 @@ final class AdasBridge {
             }
             try {
                 if(!routeRefresh.current(o.routeEpoch))return;
-                YandexOfflineAttributes.View attributes = offlineAttributes.prepare(graphRoute);
-                if (graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
-                    // Initial publication waits for the bounded acquisition attempt, never for
-                    // an invented full-coverage percentage. Partial results keep explicit gaps.
-                    if (!attributes.settled) o.route = null;
-                    else {
-                        dev.denza.adaslink.RouteAttributes selected=attributes.attributes;
-                        if(selected==null)selected=observedAttributes.prepare(graphRoute,o.routeEpoch,o.offlineGeometrySha256,
-                                YandexVectorSource.snapshot(),String.valueOf(attributes.status.get("reason")));
-                        graphRoute.additionalAttributes = selected;
-                        String key = o.routeEpoch + "|" + o.offlineGeometrySha256;
-                        if (!key.equals(attributesAppliedKey)) { o.route = graphRoute; attributesAppliedKey = key; }
+                YandexOfflineAttributes.View attributes = mayReadOffline ? offlineAttributes.prepare(graphRoute) : null;
+                offlineMaps.readerResult(attributes);
+                // There is no fallback to viewport tiles: an incomplete regional read stays closed.
+                o.route = null;
+                if (attributes != null && attributes.readReady && attributes.attributes != null
+                        && java.util.Objects.equals(o.offlinePreparationKey, attributes.sourceKey)
+                        && graphRoute != null && graphRoute.routeId.equals(o.routeId)) {
+                    graphRoute.additionalAttributes = attributes.attributes;
+                    if (!attributes.preparationKey.equals(attributesAppliedKey) || routeCopy != null) {
+                        o.route = graphRoute; attributesAppliedKey = attributes.preparationKey;
                     }
-                } else o.route = null;
+                }
                 // Include queue/conversion delay and suspend since the original, immutable anchor.
                 o.monotonicMs = SystemClock.elapsedRealtime();
                 o.fixAgeMs = fix.ageMs(o.monotonicMs, System.currentTimeMillis());
@@ -236,7 +232,7 @@ final class AdasBridge {
                 if (offlineStatus != null)
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-offline-map-status.json"), offlineStatus);
                 if (offlineStatus != null) {
-                    Map<String,Object> status=new java.util.LinkedHashMap<>(attributes.status);
+                    Map<String,Object> status=new java.util.LinkedHashMap<>(attributes == null ? Collections.<String,Object>emptyMap() : attributes.status);
                     if(graphRoute!=null&&graphRoute.additionalAttributes!=null)
                         status.put("selectedAttributes",graphRoute.additionalAttributes.summary());
                     RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-yandex-route-vector-status.json"), status);

@@ -108,6 +108,21 @@ public final class OfflineVectorPackageTest {
         byte[] relative=tiny();le(relative).putInt(FIRST+16,2);fails(()->read(relative),"invalid relative reference");
         byte[] terminated=tiny();terminated[933]=1;fails(()->read(terminated),"string terminator required");
     }
+    static void largeScopedMapping() throws Exception {
+        Path file=Files.createTempFile("offline-vector-large-", ".fb");
+        try {
+            try(java.io.RandomAccessFile output=new java.io.RandomAccessFile(file.toFile(),"rw")) {
+                output.write(tiny()); output.setLength(826573656L);
+            }
+            try(java.nio.channels.FileChannel input=java.nio.channels.FileChannel.open(file)) {
+                ByteBuffer mapping=input.map(java.nio.channels.FileChannel.MapMode.READ_ONLY,0,input.size());
+                OfflineVectorPackage catalog=new OfflineVectorPackage(mapping);
+                check(catalog.size()==2,"large mapped container uses bounded catalog access");
+                check(((Number)catalog.summary().get("fileBytes")).intValue()==826573656,"Moscow-sized mapping is not a heap decode budget");
+                check(catalog.dictionary().length==4,"large file keeps independent dictionary allocation bound");
+            }
+        } finally { Files.delete(file); }
+    }
     static void corpus(Path root)throws Exception {
         Path packagePath=root.resolve("captures/yandex-offline-region-20261024/region-43/vmap3fb.fb");
         Path fixtures=root.resolve("captures/yandex-vector-enrichment-20261024/offline-vmap");
@@ -142,7 +157,7 @@ public final class OfflineVectorPackageTest {
         String immutableHash=VectorRoadTile.digest(bytes);p.compressed(last);p.dictionary();check(VectorRoadTile.digest(bytes).equals(immutableHash),"reader and extraction preserve immutable backing bytes");
     }
     public static void main(String[]args)throws Exception {
-        synthetic();corpus(Paths.get(args.length==0?".":args[0]));
+        synthetic();largeScopedMapping();corpus(Paths.get(args.length==0?".":args[0]));
         System.out.println("OfflineVectorPackageTest: "+checks+" checks passed; fake decode does not validate native Zstd");
     }
 }

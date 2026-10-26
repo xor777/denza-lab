@@ -9,7 +9,7 @@ public final class YandexOfflineInventoryTest {
     static void check(boolean ok,String message){checks++;if(!ok)throw new AssertionError(message);}
     enum State {AVAILABLE,COMPLETED,OUTDATED,DOWNLOADING,PAUSED,NEED_UPDATE,UNSUPPORTED,FUTURE}
     static final class Region {
-        final int id; Object state,release=20L,downloaded; Object progress,legacyPath=Boolean.FALSE;
+        final int id; Object state,release=20L,downloaded; Object progress,legacyPath=Boolean.FALSE,name="Карта",parentId;
         Region(int id,State state,Long downloaded,float progress){this.id=id;this.state=state;this.downloaded=downloaded;this.progress=progress;}
     }
     static final class Fake implements YandexOfflineInventory.Access {
@@ -29,6 +29,7 @@ public final class YandexOfflineInventoryTest {
                 if(method.equals("isLegacyPath"))return r.legacyPath;
             }else{
                 Region r=(Region)o;if(method.equals("getId"))return r.id;if(method.equals("getReleaseTime"))return r.release;
+                if(method.equals("getName"))return r.name;if(method.equals("getParentId"))return r.parentId;
             }
             throw new AssertionError("unexpected SDK operation "+method);
         }
@@ -48,10 +49,12 @@ public final class YandexOfflineInventoryTest {
         check(again!=first&&again.fingerprint.equals(first.fingerprint)&&again.generation==first.generation&&f.reads>reads,"fresh observation keeps canonical fingerprint");
         check(first.ready(4999)&&!first.ready(5000)&&!again.ready(1999),"exact five-second TTL and future snapshot fail closed");
         check(inventory.ready(6999)&&!inventory.ready(7000),"availability getter expires relative to latest observation");
-        check(f.calls.equals(new HashSet<>(Arrays.asList("getOfflineCacheManager","regions","getId","getReleaseTime","getState","getProgress","getDownloadedReleaseTime","isLegacyPath"))),"strict getter-only surface");
+        check(first.catalogRows.size()==2,"manual-download discovery retains AVAILABLE catalog entries");
+        check(f.calls.equals(new HashSet<>(Arrays.asList("getOfflineCacheManager","regions","getId","getName","getParentId","getReleaseTime","getState","getProgress","getDownloadedReleaseTime","isLegacyPath"))),"strict getter-only surface");
         try{first.regions.clear();throw new AssertionError("mutable inventory");}catch(UnsupportedOperationException ok){checks++;}
         try{first.regions.get(0).put("state","AVAILABLE");throw new AssertionError("mutable row");}catch(UnsupportedOperationException ok){checks++;}
         try{first.status().clear();throw new AssertionError("mutable status");}catch(UnsupportedOperationException ok){checks++;}
+        try{first.catalogRows.clear();throw new AssertionError("mutable catalog");}catch(UnsupportedOperationException ok){checks++;}
     }
     static void policy(){
         YandexOfflineInventory.Snapshot old=read(new Region(43,State.OUTDATED,9L,1));
@@ -93,6 +96,9 @@ public final class YandexOfflineInventoryTest {
         a.state=State.COMPLETED;f.regions.add(a);YandexOfflineInventory.Snapshot restored=inventory.poll(f,13000);
         check(restored.valid&&!deleted.ready(13000),"new inventory can recover; old invalid snapshot remains invalid");
         check(inventory.poll(f,12000).reasonCode.equals("clock_invalid"),"clock rollback invalidates poll");
+        Fake named=new Fake(good(43));YandexOfflineInventory names=new YandexOfflineInventory();
+        YandexOfflineInventory.Snapshot before=names.poll(named,0);named.regions.get(0).name="Казань";named.regions.get(0).parentId=11119;
+        check(!before.fingerprint.equals(names.poll(named,2000).fingerprint),"name and parent changes are in canonical catalog identity");
     }
     static void layout(){
         Region region=good(43);Fake fake=new Fake(region);YandexOfflineInventory inventory=new YandexOfflineInventory();
@@ -129,6 +135,11 @@ public final class YandexOfflineInventoryTest {
         YandexOfflineInventory.Snapshot tooLarge=new YandexOfflineInventory().poll(large,1000);
         check(!tooLarge.valid&&tooLarge.reasonCode.equals("catalog_truncated")&&large.reads==2,"oversized catalog rejected before region JNI reads");
         check(new YandexOfflineInventory().poll(new Fake(),-1).reasonCode.equals("clock_invalid"),"negative observation clock rejected");
+        Region named=good(43);named.name="Казань";named.parentId=11119;
+        check(read(named).catalogRows.get(0).get("parentId").equals(11119),"nullable SDK parent and display name retained");
+        named.name="";check(read(named).reasonCode.equals("region_name_invalid"),"empty display name is not invented");
+        named.name="Казань";named.parentId=43;
+        check(read(named).reasonCode.equals("region_parent_invalid"),"self parent fails closed");
     }
     static void thread()throws Exception{
         YandexOfflineInventory inventory=new YandexOfflineInventory();Fake f=new Fake(good(1));AtomicReference<Throwable> result=new AtomicReference<>();

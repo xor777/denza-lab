@@ -5,7 +5,7 @@ import java.util.Objects;
 /** Route-scoped offline admission. Available inventory does not establish route coverage. */
 public final class OfflineMapGate {
     public static final long MAX_AGE_MS = 5000;
-    public enum State { PENDING, UNAVAILABLE, AVAILABLE, VERIFIED }
+    public enum State { PENDING, UNAVAILABLE, AVAILABLE, VERIFIED, PREPARED }
 
     public static final class Subject {
         public final String routeId, geometrySha256;
@@ -45,6 +45,11 @@ public final class OfflineMapGate {
             return new Snapshot(subject, observedAtMs, inventoryFingerprint, State.AVAILABLE,
                     "offline_inventory_ready", "Офлайн-карта загружена", null);
         }
+        /** Regional discovery and a completed bounded route-tile read; not proof that every category is known. */
+        public static Snapshot prepared(Subject subject, long observedAtMs, String inventoryFingerprint, String proofFingerprint) {
+            return new Snapshot(subject, observedAtMs, inventoryFingerprint, State.PREPARED,
+                    "offline_route_prepared", "Офлайн-карты маршрута прочитаны", proofFingerprint);
+        }
         /** Only verified local coverage of this chosen online route may call this; an alternate route is no proof. */
         public static Snapshot verified(Subject subject, long observedAtMs, String inventoryFingerprint, String proofFingerprint) {
             return new Snapshot(subject, observedAtMs, inventoryFingerprint, State.VERIFIED,
@@ -65,11 +70,11 @@ public final class OfflineMapGate {
         if (!expected.equals(snapshot.subject)) return no("route_mismatch", "Предпроверка офлайн-карт относится к другому маршруту");
         if (snapshot.observedAtMs < 0 || snapshot.observedAtMs > now || now - snapshot.observedAtMs >= MAX_AGE_MS)
             return no("offline_stale", "Нет свежего списка загруженных офлайн-карт");
-        if (snapshot.state != State.AVAILABLE && snapshot.state != State.VERIFIED)
+        if (snapshot.state != State.AVAILABLE && snapshot.state != State.VERIFIED && snapshot.state != State.PREPARED)
             return no(snapshot.code == null ? "offline_unavailable" : snapshot.code,
                     snapshot.reason == null || snapshot.reason.isEmpty() ? "Офлайн-карта недоступна" : snapshot.reason);
         if (!sha(snapshot.inventoryFingerprint)) return no("inventory_unavailable", "Нет достоверного списка загруженных офлайн-карт");
-        if (snapshot.state == State.VERIFIED && !sha(snapshot.proofFingerprint))
+        if ((snapshot.state == State.VERIFIED || snapshot.state == State.PREPARED) && !sha(snapshot.proofFingerprint))
             return no("proof_unavailable", "Нет доказательства офлайн-покрытия текущего маршрута");
         return new Decision(true, snapshot.code, snapshot.reason);
     }
