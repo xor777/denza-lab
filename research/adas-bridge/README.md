@@ -23,7 +23,7 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-27. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
@@ -40,6 +40,7 @@ Updated 2026-10-26. Local parser acceptance is separate from vehicle acceptance.
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
 | Candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; no vehicle operation; complete moving-zero elimination remains unfulfilled | [Candidate 28](#candidate-28-recipe-correction) |
+| Offline review of the proposed correction preserves all original >=1 m link attributes while removing all 23 zero links: 131 → 90 links. Its literal speed fallback adds two derivatives around 33 km/h but still misses the frozen coordinate | isolated Java sender replay + independent Python calculation; product code/APK unchanged, no vehicle operation | [Correction recalculation](#offline-correction-recalculation-2026-10-27) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
 | Lane policy: keep absent count at 0, which is present in the owner-provided factory-output inventory; prioritize sourced history speed and ownership. Existing full vector tiles contain marking/surface geometry but no explicit count key in the inspected sample | source audit: 29 tiles / 63,704 features; candidate 23 adds separate owner evidence on a narrow subset | [Lane input decision](#lane-input-decision-and-targeted-vector-audit-2026-10-25) |
@@ -3866,6 +3867,60 @@ return, verify integrity and close each old arm before starting the next. The
 motion ring is finite; preserve a bounded host stream as an additional copy when
 connection is available. Its absence or interruption must be recorded, never
 assumed away. This protocol is prepared locally; no install or arm has occurred.
+
+### Offline correction recalculation (2026-10-27)
+
+The owner requested calculation only for
+`captures/build27-recipe-20261026/CORRECTION-20261027.md`, which described the old
+candidate 27. The comparison uses committed candidate 28 and retains results in
+`captures/stock-sender-parity-20261025/product/correction29-offline-20261027/REPORT.md`.
+The directory name does not identify a built candidate 29. Product sources,
+the factory core and APK 28 are unchanged; no car, emulator or network was used.
+
+An isolated adapter copy implements the proposed exact-metre bands: below 1 m
+inherits an admissible neighbor's effective attributes; [1,10) m requires equal
+native attributes, ignoring raw Yandex differences. Source gaps, light boundaries,
+linkType changes and left-endpoint maneuvers are barriers within each section.
+The declared scan prefers a legal previous neighbor, otherwise the next, and
+revisits after each join. The recorded route becomes **90 links, zero zero-length
+links, 13 exact-sub10 links / eight rounded-sub10 links**. Baseline counts are
+131 / 23 / 54 exact-sub10 / 49 rounded-sub10; candidate 28 gives 77 / 0 / 0 / 0.
+All remaining short links are blocked by differing native roadClass, with the
+first also touching a section boundary. The critical section starts with
+2 m class 9 followed by 737 m class 8; it no longer becomes one 739 m class-8 link.
+
+All 108 original intervals of at least 1 m retain all 12 compared effective
+attributes; candidate 28 changed roadClass on 16 of them (108.17 exact metres).
+Eight sections, 562 ordered serialized points, six traffic-light coordinates,
+section-end actions, exact 12,094.511 m geometry and rounded 12,092 m length
+remain. The unchanged sender serializes 90 positive links; the local harness
+checks source-span progress and wire indices/offsets for the 45 recorded fixes.
+An independent Python algorithm matches every link boundary, attribute and metric.
+This bounded real-fixture result does not accept every generic barrier case:
+the fixture has no tunnels/ferries or adjacent sub1m chains. Explicit structure
+endpoints, including equal-linkType overlaps, and chain order need definition
+before production implementation.
+
+Eight of the 13 exact-short survivors have protected original intervals whose
+class 9 is a fallback: six level_structure_conflict, one raw_class_or_type_conflict
+and one unmatched. Thus the preserved class boundary is not always an observed
+road transition. This identifies an additional fragmentation mechanism, not a
+proven NOA cause or authorization to silently extend neighboring classifications.
+
+Independent speed arithmetic verified original hashes, all 45 source rows and
+prior same-arm autoservice reads (source ages 172–1187 ms). There are 11 exact SDK
+zeros, 13 SDK values below 0.3 m/s, and six exact zeros with fresh CAN >5.4 km/h.
+Candidate 28 replaces three exact zeros; literal CORRECTION replaces five, leaving
+three versus one moving zeros. The two extra values are 32.65 and 32.27 km/h
+against nearest CAN reads of 13 and 11 km/h. Unsynchronized readings do not prove
+the exact error, but cannot justify calling these substitutions correct speed.
+The 14:32:55 fix moves only 0.062 m, so both policies retain zero despite CAN 16.
+The claimed stop through 14:32:40 contains CAN 9 km/h at :38 and :39; both policies
+derive positive speed there. Both CAN-zero samples remain zero in this fixture.
+Android measured speed/raw source timestamps are absent, so Android-first priority
+is untested. These speed results are input arithmetic, not wire replay of the new
+speed policy. Merge refinement is supported; literal speed acceptance must be
+corrected before implementation. No new trip is needed to establish these gaps.
 
 ### Regional offline graph (2026-10-24)
 
