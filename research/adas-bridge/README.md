@@ -36,7 +36,7 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
-| The owner requested a minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | exact `dcbb3f82…` installed 2026-10-29; one legacy arm, path `1793270936` confirmed and live output recorded; village drive pending | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
+| Minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | 2026-10-29 verified village loop: offered-or-active 66.94% of measured moving time; 62 short active episodes, median 0.906 s / max 3.191 s; session restored | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3500,29 +3500,71 @@ analysis and are not an acceptance criterion.
 
 #### Minimal build-15 control (2026-10-29)
 
-After build29's verified export and RESTORED ledger, the owner explicitly
-confirmed stationarity through installation15 and route start. The exact
+After build 29's verified export and RESTORED ledger, the owner explicitly
+confirmed stationarity through installation 15 and route start. The exact
 historical APK `dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`
-replaced29 with `install -r -d -t`, preserving app data. Signatures match, the
+replaced 29 with `install -r -d -t`, preserving app data. Signatures match, the
 installer completed successfully, and the installed base.apk SHA/version were
 verified. Build29 remains pinned for an explicitly requested rollback.
 
 Only one `drive15-source-stockstart` arm was issued, using the pinned compatible
 legacy host and reader from the earlier repeat. No preliminary parked arms,
-ten-minute dwell or reboot were performed. The stock map remained disabled3 with
+ten-minute dwell or reboot were performed. The stock map remained disabled (3) with
 no process. Legacy coordinate and field policies were retained unchanged; no
-build29 policies were transplanted into15. This is a same-day 29-to-15 control,
+build 29 policies were transplanted into 15. This is a same-day 29-to-15 control,
 not proof of a reset ADAS state or isolation of one code difference.
 
-The first home suggestion, Vnukovo Country Club (shown15min/12km), was selected,
-matching the destination used for29. The actual owner-requested drive remains
-the village loop with automatic rerouting. Arm
-`2500361b-11d2-4c8f-baee-9d21c5d808f6` confirmed path `1793270936`; current runtime
-state is LIVE, offline ready, with actual successful transport results and
-fresh read-only logging. The arm is left active for the drive, lifetime two hours.
-Evidence, exact commands and its own `rollback.json` are under
-`captures/bisect-pre-arm-20261027/run15-minimal-20261029/`. Export and legacy-host
-restore remain pending until the owner returns. No moving outcome is established.
+The first home suggestion, Vnukovo Country Club (shown 15 min / 12 km), was selected,
+matching the destination used for 29. The owner drove the village loop with
+automatic rerouting and reported frequent offers with immediate disengagement
+on activation. Arm `2500361b-11d2-4c8f-baee-9d21c5d808f6` confirmed all five
+published paths, starting with `1793270936`.
+
+**Verified result.** The common duration metric (speed >1.5 m/s, speed TTL
+1,500 ms, PilotStatus TTL 1,000 ms) measures 283.402 s moving, of which
+128.852 s is DNP2/available and 60.862 s DNP1/active: **66.9417% offered or
+active**. The movement samples span 13:51:03.373–13:56:35.756 MSK. All five
+published-path intervals have full speed coverage, and the moving denominator
+has full pilot coverage. The whole arm also contains 94.131 s of unknown speed,
+overwhelmingly before the first route; those intervals are not called stopped
+or included as measured movement. There are 62 active episodes across all
+speeds, median first-positive to next-different sample 0.906 s, maximum
+3.191 s (last actually active sample at 3.081 s), none censored. Of these,
+54 end with ICC1; the episode count is not a count of driver button presses.
+
+The canonical pre-export wire has 647 successful position sends, no wrong-path
+or before-ACK position, and five ACK 200 paths. Four reroute position gaps are
+7.548–7.715 s, longer than 29's 2.738–4.424 s. Nineteen active exits happen before
+the first reroute gap; 60 of all 62 exits sit between ordinary position sends
+0.981–1.102 s apart. Ten of eleven downgrade-to-ICC notice 22 onsets sit
+between ordinary position sends 0.997–1.094 s apart; one sits in a reroute gap.
+These pauses cannot alone explain the offer difference or most short retention.
+The pipelines also differ in coordinate policy, road/region values, serialization
+and cadence. NextAction and SpeedIntersection have median intervals about 1 s
+in 15 versus 100 ms in 29; this is a measured difference, not a proven defect in
+the factory sender.
+
+This result establishes that the preliminary parked-arm series and ten-minute
+dwell were **not necessary for frequent offers in today's sequence**, with the
+stock map still disabled. It does not isolate a particular adapter field or
+prove an ECU reset: 29 and 15 ran in the same boot. Retention still fails. The
+next useful work is offline comparison of the two retained inputs and actual
+outputs, using 15 as a positive availability control, not as the factory-core
+acceptance oracle. No further drive or code change follows automatically.
+
+Evidence, reproducible analyses, exact commands and the owned `rollback.json`
+are under `captures/bisect-pre-arm-20261027/run15-minimal-20261029/`; start at
+`RETURN.md`, `analysis-outcome/README.md` and `analysis-pipeline/README.md`.
+The fixed archive is 8,342,441 bytes, SHA256
+`8876e8dd503711269b4f2b6bcac21121e973cf4e1b954e8d2be156349c30c281`, identical
+on device and host; gzip CRC and all 128 extracted files are verified. It contains
+all seven packet-ring files. Historical motion files are from 29, not 15. The
+legacy host completed RESTORED; independent reads prove arm removal, STOPPED,
+quiescence, closed server/answer connections, owned reader exit, stock state 3
+with no process and the exact 15 APK still installed. The host recorder stopped;
+only the owned temporary export archive was removed. No new crash appeared.
+Legacy closure removes the arm; this receipt does not claim a modern graceful
+terminal-message drain.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
@@ -4022,8 +4064,16 @@ establish correction of the measured moving-speed-zero symptom, not activation.
 The live receiver retained 9,600 PilotStatus receipts over 13:00:23.337–13:16:23.538
 MSK, maximum interval 304 ms. No positive NOA or ICC available/active value was
 observed. Both fields are omitted in the raw protobufs; the generated-getter
-change journal reports 0/0. Omitted fields remain unknown under the presence
-contract, so this is not silently converted into a 0% known-state metric.
+change journal reports 0/0. **Correction after the minimal 15 control:** every
+one of these 9,600 packets has a present PilotStatus parent structure, so the
+omitted scalar fields have effective proto3 value 0, consistently with the
+historical availability metric. The earlier statement that all such omissions
+must remain unknown was incorrect. Raw wire presence remains recorded separately;
+a missing parent, unresolved repeated payload or expired observation is still
+unknown. DNP/ICC are 0 throughout this covered live-receipt interval, with no
+positive availability or activation; an independently reconstructed example and
+counts are in the minimal 15 capture's
+`analysis-outcome/drive29-presence-correction.json`.
 All five paths received explicit SELECTED 200 in both receivers. Four quit
 getter readings were raw 18, and a later short alarmReason 19 burst occurred;
 their meanings remain unresolved. The reported activation-failed wording alone
@@ -4415,9 +4465,12 @@ does not establish equivalence of Yandex's annotations or ADAS eligibility.
 `historySpeed` currently derives from available typical/free-flow speed; it
 must not be replaced with a fixed value merely correlated with a past offer.
 
-Field presence must remain explicit in received-status interpretation: absent
-DNP is unknown, not a measured off state; missing selection status is not an
-ACK. Outbound encoding still follows the original proto3 serializer, which
+Field presence must remain explicit in received-status interpretation.
+**Corrected 2026-10-29:** an omitted DNP scalar inside a present PilotStatus
+structure has effective proto3 value 0; a missing structure, unusable payload
+or expired observation is unknown. The earlier blanket rule "absent DNP is
+unknown" conflated these cases. Missing selection status is still not an
+ACK 200. Outbound encoding still follows the original proto3 serializer, which
 omits ordinary scalar defaults; manufacturing explicit zeros would not improve
 fidelity. Real selection confirmation is already required in the live path.
 
