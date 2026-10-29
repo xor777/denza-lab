@@ -38,8 +38,8 @@ ARM = "files/denza-adas-live-arm.json"
 LIVE_STOP = "files/denza-adas-live-stop.json"
 COORDINATE_FRAMES = ("WGS84", "NATIVE_GCJ_UNRESTRICTED_CANDIDATE", "ALTERNATE_ROUTES")
 DEFAULT_COORDINATE_FRAME = "NATIVE_GCJ_UNRESTRICTED_CANDIDATE"
-ADAPTER_EXPERIMENT_SCHEMA = "denza-adas-adapter-experiments-v2"
-ADAPTER_EXPERIMENT_FLAGS = ("lightWithin500", "speedFromFixes", "coherentProgress", "mergeShortLinks")
+ADAPTER_EXPERIMENT_SCHEMA = "denza-adas-adapter-experiments-v3"
+ADAPTER_EXPERIMENT_FLAGS = ("lightWithin500", "speedFromFixes", "coherentProgress", "mergeShortLinks", "speedFromVehicle")
 HEARTBEAT = "files/denza-adas-consumer.json"
 STATE = "files/denza-adas-live-state.json"
 GATES = "files/denza-adas-gates.json"
@@ -73,9 +73,9 @@ def adapter_experiments(value):
 
 
 def adapter_profile(profile, overrides=None):
-    if profile not in ("candidate28", "baseline26"):
+    if profile not in ("candidate29", "baseline26"):
         raise SessionError("unknown adapter profile")
-    values = {key: profile == "candidate28" for key in ADAPTER_EXPERIMENT_FLAGS}
+    values = {key: profile == "candidate29" and key != "speedFromFixes" for key in ADAPTER_EXPERIMENT_FLAGS}
     for key, value in (overrides or {}).items():
         if key not in values or type(value) is not bool:
             raise SessionError("invalid adapter override")
@@ -650,7 +650,7 @@ def arm(device, expected, jar, jar_sha, lifetime, ledger_path, *, stationary_con
     if variant is not None:
         raise SessionError("factory sender does not accept legacy experiment variants")
     # The Python API keeps absent policy backward-compatible. The CLI explicitly
-    # chooses candidate28 (or baseline26) and proves runtime support before mutation.
+    # chooses candidate29 (or baseline26) and proves runtime support before mutation.
     experiments = adapter_experiments(experiments) if experiments is not None else None
     checked_sha(jar_sha)
     if not stationary_confirmed:
@@ -864,10 +864,14 @@ def main(argv=None):
             command.add_argument("--stationary-confirmed", action="store_true")
             command.add_argument("--dry-run", action="store_true")
             command.add_argument("--coordinate-frame", choices=COORDINATE_FRAMES, default=DEFAULT_COORDINATE_FRAME)
-            command.add_argument("--adapter-profile", choices=("candidate28", "baseline26"), default="candidate28")
+            command.add_argument("--adapter-profile", choices=("candidate29", "baseline26"), default="candidate29",
+                                 help="candidate29 enables light/progress/merge/CAN policies; legacy displacement stays off; baseline26 disables all")
             for option, key in (("light-within-500", "lightWithin500"), ("speed-from-fixes", "speedFromFixes"),
-                                ("coherent-progress", "coherentProgress"), ("merge-short-links", "mergeShortLinks")):
-                command.add_argument("--" + option, dest=key, action=argparse.BooleanOptionalAction, default=None)
+                                ("coherent-progress", "coherentProgress"), ("merge-short-links", "mergeShortLinks"),
+                                ("speed-from-vehicle", "speedFromVehicle")):
+                command.add_argument("--" + option, dest=key, action=argparse.BooleanOptionalAction, default=None,
+                                     help=("Prefer fresh valid CAN speed for every admitted fix; otherwise use original SDK speed without displacement"
+                                           if key == "speedFromVehicle" else None))
     args = parser.parse_args(argv)
     try:
         if args.command == "build-reader":

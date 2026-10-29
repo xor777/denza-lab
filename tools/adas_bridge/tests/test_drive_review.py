@@ -1017,6 +1017,37 @@ class StockNativeJournal(unittest.TestCase):
 
 
 class MotionAuditReview(unittest.TestCase):
+    def test_can_primary_sdk_fallback_and_failed_attempt_remain_distinct_from_old_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            car = Car(tmp)
+            self.native(car)
+            flags = {"schema": "denza-adas-adapter-experiments-v3", "lightWithin500": True,
+                     "speedFromFixes": False, "coherentProgress": True, "mergeShortLinks": True,
+                     "speedFromVehicle": True}
+            accepted = self.row(4100, adapterExperiments=flags, speedSource="autoservice_vehicle_speed",
+                                speedReason="autoservice_vehicle_speed", nativeInputSpeedKmh=16,
+                                vehicleSpeedInputReadReason="fresh_valid", vehicleSpeedInputKmh=16,
+                                vehicleSpeedInputSourceAtElapsedMs=4000, vehicleSpeedInputSourceAgeMs=100,
+                                latestObservedVehicleSpeedKmh=16, latestObservedVehicleSpeedSourceAgeMs=100)
+            fallback = self.row(4200, adapterExperiments=flags, sdkSpeedMps=5, selectedSpeedMps=5,
+                                nativeInputSpeedKmh=18, speedSource="yandex_sdk", speedReason="vehicle_unavailable_sdk_fallback",
+                                vehicleSpeedInputReadReason="speed_non_finite", vehicleSpeedInputKmh=None,
+                                vehicleSpeedInputSourceAgeMs=None, latestObservedVehicleSpeedKmh=16,
+                                latestObservedVehicleSpeedSourceAgeMs=200)
+            rejected = dict(fallback, adapterSubmissionElapsedMs=4300, sdkSpeedMps=None,
+                            admissionReason="invalid_sdk_speed")
+            rejected.pop("nativeInputSpeedKmh")
+            car.motion = [accepted, fallback, rejected]
+            m = run(car.write())["motion"]
+            self.assertEqual(m["acceptedBySpeedSource"], {"autoservice_vehicle_speed": 1, "yandex_sdk": 1})
+            self.assertEqual(m["zeroSdk"]["acceptedMovingCorrections"], 1)
+            self.assertEqual(m["byAdmission"], {"accepted": 2, "invalid_sdk_speed": 1})
+            self.assertEqual(m["observations"][0]["vehicleSpeedInputSourceAgeMs"], 100)
+            self.assertEqual(m["observations"][1]["vehicleSpeedInputReadReason"], "speed_non_finite")
+            self.assertIsNone(m["observations"][1]["vehicleSpeedInputKmh"])
+            self.assertEqual(m["observations"][1]["nativeInputSpeedKmh"], 18)
+            self.assertTrue(m["observations"][0]["adapterExperiments"]["speedFromVehicle"])
+
     @staticmethod
     def row(t, arm="new-arm", **fields):
         row = {"kind": "native_motion_input", "armId": arm, "sourceSessionId": NAVIGATOR,

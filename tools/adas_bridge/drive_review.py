@@ -1827,6 +1827,7 @@ def motion(drive, clock):
                           "sdkSpeedMps", "selectedSpeedMps", "nativeInputSpeedKmh", "speedSource", "speedReason", "speedSelectedAtElapsedMs",
                           "derivedSpeedMps", "derivedDistanceM", "derivedDtMs", "derivedSource", "derivedConsistencyEvidence", "derivedConsistencyUpperMps",
                           "derivedPreviousSdkSpeedMps", "derivedPreviousVehicleMps", "derivedCurrentVehicleMps", "vehicleReadSequence",
+                          "vehicleSpeedInputReadReason", "vehicleSpeedInputKmh", "vehicleSpeedInputSourceAtElapsedMs", "vehicleSpeedInputSourceAgeMs", "vehicleSpeedInputObservedAtElapsedMs", "vehicleSpeedInputExpiresAtElapsedMs",
                           "latestObservedVehicleSpeedKmh", "latestObservedVehicleSpeedAgeMs", "latestObservedVehicleSpeedSourceAtElapsedMs", "latestObservedVehicleSpeedSourceAgeMs",
                           "rawAtElapsedMs", "rawTimestampMs", "rawAgeMs", "rawHasSpeed", "rawSpeedMps", "rawMock", "locationClass", "positionOnRoute",
                           "progressPathId", "progressSegment", "progressLink", "progressPoint", "progressLinkRemainM", "adapterExperiments")

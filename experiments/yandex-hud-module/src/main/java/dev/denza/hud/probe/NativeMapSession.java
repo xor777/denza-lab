@@ -22,6 +22,8 @@ final class NativeMapSession implements AutoCloseable {
     private final java.util.function.Consumer<java.util.Map<String,Object>> motionAudit;
     private String lastMotionAuditKey, motionReason, progressReason;
     private String motionSpeedReason;
+    private String motionVehicleReadReason;
+    private boolean motionUsesVehicleSpeed;
     private double motionSelectedSpeed;
     private long motionSpeedSelectedAt;
     private double motionDerivedSpeed=Double.NaN,motionDerivedDistance=Double.NaN;
@@ -61,6 +63,16 @@ final class NativeMapSession implements AutoCloseable {
     private Boolean service, effectiveSwitch, awake;
     private boolean offRouteActive,offRouteReplacementPending,arrivalPending,draining,routeProgressReady,forceRouteRefresh;
     private Float latestVehicleSpeed;private long vehicleSpeedObservedAt=-1,vehicleSpeedSourceAt=-1;
+    /** Every received read attempt, including an invalid one, supersedes the last input
+     * for the explicit CAN experiment. The original sender's finite-only callback stays separate. */
+    private static final class VehicleSpeedRead {
+        final float kmh;final long sourceAt,observedAt;
+        VehicleSpeedRead(float kmh,long sourceAt,long observedAt){this.kmh=kmh;this.sourceAt=sourceAt;this.observedAt=observedAt;}
+    }
+    private VehicleSpeedRead latestVehicleSpeedRead;
+    private final java.util.concurrent.atomic.AtomicLong vehicleFenceGeneration=new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.ConcurrentHashMap<Object,Long> vehicleLocationDeadlines=new java.util.concurrent.ConcurrentHashMap<>();
+    private boolean canLocationMayBeRetained;
     private RejectedPreparation rejectedPreparation;
     /** Source snapshots and their attribute results are owned immutable observations. A new
      * snapshot/result may change admission; another fix on the same observation cannot. */
@@ -135,6 +147,7 @@ final class NativeMapSession implements AutoCloseable {
     void observe(NativeNavigationInput o){
         if(closed||draining)return;
         motionReason="not_admitted";progressReason="not_updated";motionLocationInput=null;motionSpeedReason=null;motionSelectedSpeed=Double.NaN;motionSpeedSelectedAt=-1;
+        motionVehicleReadReason=null;motionUsesVehicleSpeed=false;
         motionDerivedSpeed=Double.NaN;motionDerivedDistance=Double.NaN;motionDerivedDt=-1;motionDerivedSource=null;motionConsistency=null;
         motionConsistencyUpper=Double.NaN;motionPreviousSdkSpeed=Double.NaN;motionPreviousVehicleMps=null;motionCurrentVehicleMps=null;
         try{observeInput(o);}finally{auditMotion(o);}
@@ -171,8 +184,8 @@ final class NativeMapSession implements AutoCloseable {
             policy.put("roadClassPolicy",routePolicy.roadClass.name());
             policy.put("historySpeedPolicy",routePolicy.historySpeed.name());
             policy.put("adapterExperiments",routePolicy.experiments.toMap());
-            policy.put("gpsSpeedSourcePolicy",routePolicy.experiments.speedFromFixes?"sdk_below_0.3_adjacent_fine_displacement_raw_pair_then_sdk_pair":"yandex_sdk");
-            if(routePolicy.experiments.speedFromFixes){
+            policy.put("gpsSpeedSourcePolicy",routePolicy.experiments.speedFromVehicle?"EXPERIMENT_fresh_autoservice_vehicle_speed_else_original_sdk":routePolicy.experiments.speedFromFixes?"sdk_below_0.3_adjacent_fine_displacement_raw_pair_then_sdk_pair":"yandex_sdk");
+            if(routePolicy.experiments.speedFromFixes&&!routePolicy.experiments.speedFromVehicle){
                 policy.put("speedFromFixesWindowMs",java.util.Arrays.asList(200,1500));policy.put("speedFromFixesMinDistanceM",1);
                 policy.put("speedFromFixesConsistency","EXPERIMENT: fresh actual vehicle zero veto; upper disagreement max(2*v,v+2m/s) from independent vehicle endpoint readings, otherwise positive SDK endpoint; no manufacturer physical-limit claim; no independent anchor and both SDK speeds zero cannot distinguish a jump from movement");
             }
@@ -184,27 +197,36 @@ final class NativeMapSession implements AutoCloseable {
                 value.put("field",decision.field);value.put("source",decision.source);value.put("kind",decision.kind.name());
                 value.put("meaning",decision.meaning);value.put("absence",decision.absence);decisions.add(value);
             }
-            if(routePolicy.experiments.speedFromFixes){
+            if(routePolicy.experiments.speedFromFixes&&!routePolicy.experiments.speedFromVehicle){
                 java.util.Map<String,Object> speedDecision=dev.denza.adaslink.Json.object();
                 speedDecision.put("field","LocInfo.speed / VehicleLocation.GPSspeed");speedDecision.put("kind","DERIVED");
                 speedDecision.put("source","adjacent fresh FINE source fixes; independently timestamped non-mock raw coordinates preferred, SDK matched pair otherwise");
                 speedDecision.put("meaning","EXPERIMENT: SDK speed below 0.3m/s with displacement at least 1m over 200–1500ms uses distance/time, subject to logged source-consistency guards; positive SDK speed remains exact");
                 speedDecision.put("absence","retain original SDK speed on first fix, missing/invalid pair, stop, gap, reset or disagreement; no coordinate fabrication or CAN-to-GPS substitution");decisions.add(speedDecision);
             }
+            if(routePolicy.experiments.speedFromVehicle){
+                java.util.Map<String,Object> speedDecision=dev.denza.adaslink.Json.object();
+                speedDecision.put("field","LocInfo.speed / VehicleLocation.GPSspeed");speedDecision.put("kind","EXPERIMENTAL_DONOR");
+                speedDecision.put("source","actual autoservice vehicle-speed read, device1013/FID0x94400008/transaction7, km/h; original read-start elapsed timestamp");
+                speedDecision.put("meaning","EXPERIMENT: prefer fresh valid CAN speed/3.6 for every otherwise admitted FINE fix, including zero and positive/invalid SDK speed. This is not an assertion of factory fused-location equivalence; factory vehicleSpeed remains a separate environment read under the same CAN-first/current-fresh-SDK-fallback policy");
+                speedDecision.put("absence","use original SDK speed when the latest read is missing, invalid, future or older than1500ms; no cached-CAN/displacement fallback, no invented movement; invalid SDK plus unavailable CAN remains inadmissible");decisions.add(speedDecision);
+            }
             policy.put("fields",decisions);policy.put("blockers",candidate.blockers());routeAudit.accept(policy);
             if(!candidate.admitted()){invalidateLocation();blocked=String.join("; ",candidate.blockers());rejectedPreparation=new RejectedPreparation(o,blocked);return;}
             rejectedPreparation=null;
             long previous=route==null?-1:route.getPathID();
             route=candidate;routeId=o.routeId;geometry=o.offlineGeometrySha256;routeEpoch=o.routeEpoch;
+            vehicleFenceGeneration.incrementAndGet();
             currentPathReason=forceRouteRefresh?"source_lifetime_restart":"route_observation";lastCoherentFix=Long.MIN_VALUE;lastProgressScalar=Double.NaN;
             previousMotionFix=null;
             forceRouteRefresh=false;
             routeProgressReady=false;lastNaviInfo=null;lastHistoryReset=-1;
             blocked=null;lastFix=Long.MIN_VALUE;lastNavi=-1;arrivalPending=false;offRouteReplacementPending=false;
             if(!navigating){navigating=true;sender.navigationCreated();sender.navigationStarted();sender.navigationReset();
-                if(latestVehicleSpeed!=null&&runtime.elapsedRealtime()>=vehicleSpeedObservedAt&&runtime.elapsedRealtime()-vehicleSpeedObservedAt<=1500)sender.vehicleSpeedUpdated(latestVehicleSpeed);
+                if(!routePolicy.experiments.speedFromVehicle&&latestVehicleSpeed!=null&&runtime.elapsedRealtime()>=vehicleSpeedObservedAt&&runtime.elapsedRealtime()-vehicleSpeedObservedAt<=1500)sender.vehicleSpeedUpdated(latestVehicleSpeed);
             }
             if(previous>0)sender.pathChanged(previous,route.getPathID());
+            vehicleLocationDeadlines.clear();
             sender.routeUpdated(route.result(),route);
         }
         if(route==null||!navigating||!o.routeId.equals(routeId)||o.routeEpoch!=routeEpoch)return;
@@ -233,12 +255,23 @@ final class NativeMapSession implements AutoCloseable {
         if("FINE".equals(o.locationClass)&&o.fixAgeMs>=0&&o.fixAgeMs<=1500&&!o.simulated){
             YandexNativeAdapter.Location l=new YandexNativeAdapter.Location();
             l.scalar=o.scalar;l.matchedLon=o.lon;l.matchedLat=o.lat;l.rawLon=o.rawLon;l.rawLat=o.rawLat;
-            // Preserve every existing SDK admission check before selecting another speed source.
-            if(!Double.isFinite(o.speedMps)||o.speedMps<0){motionReason="invalid_sdk_speed";invalidateLocation();return;}
-            l.speedMps=o.speedMps;l.headingDeg=o.heading;l.simulated=o.simulated;l.onRoute=o.positionOnRoute;
+            if(routePolicy.experiments.speedFromVehicle){
+                // This explicitly selected experiment replaces only the speed input. All
+                // coordinate/fix/progress admission still runs before original P is queued.
+                previousMotionFix=null;motionSpeedSelectedAt=runtime.elapsedRealtime();motionVehicleReadReason=vehicleReadReason(motionSpeedSelectedAt);
+                motionUsesVehicleSpeed="fresh_valid".equals(motionVehicleReadReason);
+                motionSpeedReason=motionUsesVehicleSpeed?"autoservice_vehicle_speed":"vehicle_unavailable_sdk_fallback";
+                motionSelectedSpeed=motionUsesVehicleSpeed?latestVehicleSpeedRead.kmh/3.6:o.speedMps;
+                if(!Double.isFinite(motionSelectedSpeed)||motionSelectedSpeed<0){motionReason="invalid_sdk_speed";invalidateLocation();return;}
+                l.speedMps=motionSelectedSpeed;
+            }else{
+                if(!Double.isFinite(o.speedMps)||o.speedMps<0){motionReason="invalid_sdk_speed";invalidateLocation();return;}
+                l.speedMps=o.speedMps;
+            }
+            l.headingDeg=o.heading;l.simulated=o.simulated;l.onRoute=o.positionOnRoute;
             NativeModels.LocInfo info=YandexNativeAdapter.location(route,l);
             if(info!=null){
-                if(o.stamp<=(routePolicy.experiments.coherentProgress?lastCoherentFix:lastFix)){
+                if(o.stamp<=(routePolicy.experiments.coherentProgress||routePolicy.experiments.speedFromVehicle?lastCoherentFix:lastFix)){
                     if(previousMotionFix!=null&&o.stamp<previousMotionFix.stamp)previousMotionFix=null;
                     motionReason="duplicate_or_regressed_fix";return;
                 }
@@ -247,12 +280,48 @@ final class NativeMapSession implements AutoCloseable {
                     else if(!offRoute||!routeProgressReady){motionReason="missing_current_progress";invalidateLocation();return;}
                     else progressReason="offroute_retains_factory_envelope";
                 }
-                motionSpeedSelectedAt=runtime.elapsedRealtime();motionSelectedSpeed=speedFromFixes(o);
-                if(motionSelectedSpeed!=o.speedMps){l.speedMps=motionSelectedSpeed;info=YandexNativeAdapter.location(route,l);}
-                sender.locationUpdated(info,runtime.elapsedRealtime()+1500-o.fixAgeMs);lastFix=o.stamp;lastCoherentFix=o.stamp;motionLocationInput=info;motionReason="accepted";
+                if(!routePolicy.experiments.speedFromVehicle){
+                    motionSpeedSelectedAt=runtime.elapsedRealtime();motionSelectedSpeed=speedFromFixes(o);
+                    if(motionSelectedSpeed!=o.speedMps){l.speedMps=motionSelectedSpeed;info=YandexNativeAdapter.location(route,l);}
+                }
+                long validUntil=runtime.elapsedRealtime()+1500-o.fixAgeMs;
+                if(motionUsesVehicleSpeed)validUntil=Math.min(validUntil,latestVehicleSpeedRead.sourceAt+1500);
+                if(motionUsesVehicleSpeed){canLocationMayBeRetained=true;fenceVehicleSpeedRead(latestVehicleSpeedRead.sourceAt);}
+                sender.locationUpdated(info,validUntil);lastFix=o.stamp;lastCoherentFix=o.stamp;motionLocationInput=info;motionReason="accepted";
             }
             else{motionReason="invalid_location_input";invalidateLocation();}
         }else{motionReason="stale_or_non_fine_fix";invalidateLocation();}
+    }
+    private String vehicleReadReason(long now){
+        VehicleSpeedRead read=latestVehicleSpeedRead;
+        if(read==null)return "read_missing";
+        if(!Float.isFinite(read.kmh))return "speed_non_finite";
+        if(read.kmh<0)return "speed_negative";
+        if((double)read.kmh>Integer.MAX_VALUE)return "speed_outside_native_range";
+        if(read.sourceAt<0)return "source_time_missing";
+        if(read.sourceAt>now)return "source_time_future";
+        if(now-read.sourceAt>1500)return "source_stale";
+        return "fresh_valid";
+    }
+    private void fenceVehicleSpeedRead(long sourceAt){
+        Object fence=new Object();long expiresAt=sourceAt+1501,generation=vehicleFenceGeneration.get();
+        vehicleLocationDeadlines.put(fence,sourceAt+1500);
+        // A newer P may be throttled by the unchanged factory sender and therefore does
+        // not prove it replaced an earlier stationary repeat. Keep each submitted source's
+        // fence until expiry; conservatively revoke retained location work on this path.
+        runtime.post(StockRuntime.Queue.MMT,fence,null,Math.max(0,expiresAt-runtime.elapsedRealtime()),()->{
+            // Only the thread-safe sender facade is touched from MMT; session observations
+            // remain owned by the input thread. A new path/source lifetime fences old tasks.
+            if(!closed&&vehicleFenceGeneration.get()==generation)sender.invalidateLocation();
+            // Keep the expired entry visible to final egress until the MMT token removal
+            // has run. A delayed older stationary task can otherwise execute before us.
+            vehicleLocationDeadlines.remove(fence);
+        });
+    }
+    boolean locationSpeedFresh(long now){
+        if(!routePolicy.experiments.speedFromVehicle)return true;
+        for(long deadline:vehicleLocationDeadlines.values())if(now>deadline)return false;
+        return true;
     }
     private Double freshVehicleMps(long now){
         return latestVehicleSpeed!=null&&latestVehicleSpeed>=0&&vehicleSpeedSourceAt>=0&&now>=vehicleSpeedSourceAt&&now-vehicleSpeedSourceAt<=1500?latestVehicleSpeed/3.6:null;
@@ -308,7 +377,12 @@ final class NativeMapSession implements AutoCloseable {
         a.put("rawHasBearing",o.rawHasBearing);a.put("rawBearing",finite(o.rawBearing));a.put("rawMock",o.rawMock);a.put("rawSourceLon",finite(o.rawSourceLon));a.put("rawSourceLat",finite(o.rawSourceLat));
         String speedDecision=motionSpeedReason==null?"not_selected_"+motionReason:motionSpeedReason;
         double selected=motionSpeedReason==null?o.speedMps:motionSelectedSpeed;
-        a.put("selectedSpeedMps",finite(selected));a.put("speedReason",speedDecision);a.put("speedSource","derived_from_adjacent_fixes".equals(speedDecision)?motionDerivedSource:"yandex_sdk");a.put("speedSelectedAtElapsedMs",motionSpeedSelectedAt);
+        a.put("selectedSpeedMps",finite(selected));a.put("speedReason",speedDecision);a.put("speedSource",routePolicy.experiments.speedFromVehicle?("autoservice_vehicle_speed".equals(speedDecision)?"autoservice_vehicle_speed":"yandex_sdk"):"derived_from_adjacent_fixes".equals(speedDecision)?motionDerivedSource:"yandex_sdk");a.put("speedSelectedAtElapsedMs",motionSpeedSelectedAt);
+        a.put("vehicleSpeedInputReadReason",motionVehicleReadReason==null?vehicleReadReason(runtime.elapsedRealtime()):motionVehicleReadReason);
+        VehicleSpeedRead read=latestVehicleSpeedRead;
+        a.put("vehicleSpeedInputKmh",read==null?null:finite(read.kmh));a.put("vehicleSpeedInputSourceAtElapsedMs",read==null?null:read.sourceAt);
+        a.put("vehicleSpeedInputSourceAgeMs",read==null||read.sourceAt<0?null:runtime.elapsedRealtime()-read.sourceAt);a.put("vehicleSpeedInputObservedAtElapsedMs",read==null?null:read.observedAt);
+        a.put("vehicleSpeedInputExpiresAtElapsedMs",motionUsesVehicleSpeed&&read!=null?read.sourceAt+1501:null);
         a.put("derivedSpeedMps",finite(motionDerivedSpeed));a.put("derivedDistanceM",finite(motionDerivedDistance));a.put("derivedDtMs",motionDerivedDt<0?null:motionDerivedDt);a.put("derivedSource",motionDerivedSource);a.put("derivedConsistencyEvidence",motionConsistency);
         a.put("derivedConsistencyUpperMps",finite(motionConsistencyUpper));a.put("derivedPreviousSdkSpeedMps",finite(motionPreviousSdkSpeed));a.put("derivedPreviousVehicleMps",motionPreviousVehicleMps);a.put("derivedCurrentVehicleMps",motionCurrentVehicleMps);
         a.put("matchedLon",finite(o.lon));a.put("matchedLat",finite(o.lat));a.put("rawLon",finite(o.rawLon));a.put("rawLat",finite(o.rawLat));a.put("heading",finite(o.heading));a.put("scalar",finite(o.scalar));a.put("timeToFinishS",finite(o.timeToFinishS));a.put("positionOnRoute",o.positionOnRoute);a.put("simulated",o.simulated);
@@ -332,7 +406,7 @@ final class NativeMapSession implements AutoCloseable {
         lastHistoryReset=observedAt;historyResetFresh=fresh;
     }
     void clientInitialized(boolean ready){if(!closed)sender.clientInitialized(ready);}
-    void sourceGenerationChanged(){forceRouteRefresh=route!=null;lastNavi=-1;lastNaviInfo=null;lastHistoryReset=-1;lastProgressScalar=Double.NaN;lastCoherentFix=Long.MIN_VALUE;routeProgressReady=false;invalidateLocation();}
+    void sourceGenerationChanged(){vehicleFenceGeneration.incrementAndGet();forceRouteRefresh=route!=null;lastNavi=-1;lastNaviInfo=null;lastHistoryReset=-1;lastProgressScalar=Double.NaN;lastCoherentFix=Long.MIN_VALUE;routeProgressReady=false;invalidateLocation();vehicleLocationDeadlines.clear();}
     private RouteFrame routeFrame(String id,boolean remember){
         if(id==null)return null;RouteFrame existing=routeFrames.get(id);if(existing!=null)return existing;
         if(routeFrames.size()>=FRAME_ROUTE_LIMIT)return null;
@@ -351,7 +425,9 @@ final class NativeMapSession implements AutoCloseable {
     void serviceEvent(long topic){if(closed)return;if((topic>>>48)==1){if((topic&0xffff)==1)sender.serviceAvailable(topic);else if((topic&0xffff)==2)sender.serviceUnavailable(topic);}}
     void pathSelected(byte[] payload){if(!closed&&navigating)sender.pathSelected(payload);}
     private void stopNavigation(){
+        vehicleFenceGeneration.incrementAndGet();
         invalidateLocation();
+        vehicleLocationDeadlines.clear();
         if(navigating){navigating=false;sender.navigationCancelled();sender.navigationStopped();sender.navigationDestroyed();}
         route=null;routeId=null;geometry=null;lastFix=Long.MIN_VALUE;lastNavi=-1;lastNaviInfo=null;lastHistoryReset=-1;
         lastCoherentFix=Long.MIN_VALUE;lastProgressScalar=Double.NaN;currentPathReason=null;
@@ -360,11 +436,23 @@ final class NativeMapSession implements AutoCloseable {
         rejectedPreparation=null;
         offRouteActive=false;offRouteReplacementPending=false;
     }
-    void invalidateLocation(){previousMotionFix=null;sender.invalidateLocation();lastFix=Long.MIN_VALUE;}
+    void invalidateLocation(){canLocationMayBeRetained=false;previousMotionFix=null;sender.invalidateLocation();lastFix=Long.MIN_VALUE;}
     void openCitiesUpdated(java.util.List<Integer> values){if(!closed)sender.openCitiesUpdated(values);}
     void cityCodes(java.util.List<Integer> values){openCitiesUpdated(values);}
     void vehicleSpeedUpdated(float kmh){vehicleSpeedUpdated(kmh,runtime.elapsedRealtime());}
-    void vehicleSpeedUpdated(float kmh,long sourceStartedAtElapsedMs){if(!closed&&!draining&&Float.isFinite(kmh)){latestVehicleSpeed=kmh;vehicleSpeedObservedAt=runtime.elapsedRealtime();vehicleSpeedSourceAt=sourceStartedAtElapsedMs;sender.vehicleSpeedUpdated(kmh);}}
+    void vehicleSpeedObserved(float kmh,long sourceStartedAtElapsedMs){
+        if(closed||draining)return;
+        long observedAt=runtime.elapsedRealtime();latestVehicleSpeedRead=new VehicleSpeedRead(kmh,sourceStartedAtElapsedMs,observedAt);
+        if(routePolicy.experiments.speedFromVehicle&&canLocationMayBeRetained&&!"fresh_valid".equals(vehicleReadReason(observedAt)))invalidateLocation();
+    }
+    void vehicleSpeedUpdated(float kmh,long sourceStartedAtElapsedMs){
+        if(closed||draining)return;
+        vehicleSpeedObserved(kmh,sourceStartedAtElapsedMs);long observedAt=runtime.elapsedRealtime();
+        if(Float.isFinite(kmh)){latestVehicleSpeed=kmh;vehicleSpeedObservedAt=observedAt;vehicleSpeedSourceAt=sourceStartedAtElapsedMs;sender.vehicleSpeedUpdated(kmh);}
+    }
+    void effectiveVehicleSpeedUpdated(float kmh){
+        if(!closed&&!draining&&routePolicy.experiments.speedFromVehicle&&Float.isFinite(kmh)&&kmh>=0&&(double)kmh<=Integer.MAX_VALUE)sender.vehicleSpeedUpdated(kmh);
+    }
     boolean arrivalPending(){return arrivalPending;}
     /** Finish through original cancellation/arrival callbacks while the caller owns a bounded drain. */
     boolean beginGracefulStop(){

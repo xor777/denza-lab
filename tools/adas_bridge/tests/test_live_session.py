@@ -213,7 +213,7 @@ class ProcedureTests(unittest.TestCase):
         self.assertFalse(self.ledger.exists())
 
     def test_adapter_policy_is_pinned_in_arm_ledger_and_runtime_acceptance(self):
-        policy = live.adapter_profile("candidate28", {"mergeShortLinks": False})
+        policy = live.adapter_profile("candidate29", {"mergeShortLinks": False})
         row = self.arm(experiments=policy)
         self.assertEqual(row["adapterExperiments"], policy)
         self.assertEqual(row["arm"]["adapterExperiments"], policy)
@@ -223,20 +223,69 @@ class ProcedureTests(unittest.TestCase):
     def test_adapter_policy_requires_runtime_capability_before_any_mutation(self):
         self.device.adapter_schema = None
         with self.assertRaisesRegex(live.SessionError, "does not support"):
-            self.arm(experiments=live.adapter_profile("candidate28"))
+            self.arm(experiments=live.adapter_profile("candidate29"))
         self.assertFalse(self.ledger.exists())
         self.assertNotIn(("stock_enabled", 3), self.device.calls)
         self.assertNotIn("reader_start", self.device.calls)
 
+    def test_v1_v2_runtime_capabilities_cannot_arm_the_can_speed_policy(self):
+        for schema in ("denza-adas-adapter-experiments-v1", "denza-adas-adapter-experiments-v2"):
+            with self.subTest(schema=schema):
+                self.device.calls.clear()
+                self.device.adapter_schema = schema
+                with self.assertRaisesRegex(live.SessionError, "does not support"):
+                    self.arm(experiments=live.adapter_profile("candidate29"))
+                self.assertFalse(self.ledger.exists())
+                mutations = [call for call in self.device.calls if call in ("reader_start", "stock_stop", "disarm")
+                             or isinstance(call, tuple) and call[0] in ("write", "stock_enabled", "navi_write", "instrument_write")]
+                self.assertEqual(mutations, [])
+                self.assertEqual(self.device.files, {})
+                self.assertEqual(self.device.enabled, 0)
+
+    def test_speed_from_vehicle_false_is_pinned_through_arm_lease_and_confirmation(self):
+        policy = live.adapter_profile("candidate29", {"speedFromVehicle": False})
+        row = self.arm(experiments=policy)
+        self.assertFalse(row["adapterExperiments"]["speedFromVehicle"])
+        self.assertFalse(row["adapterExperiments"]["speedFromFixes"])
+        self.assertEqual(row["arm"]["adapterExperiments"], policy)
+        self.assertEqual(row["acceptance"]["adapterExperiments"], policy)
+        self.assertEqual(json.loads(self.ledger.read_text())["adapterExperiments"], policy)
+
+    def test_old_policies_and_incomplete_v3_flags_fail_before_device_access(self):
+        complete = live.adapter_profile("candidate29")
+        self.assertEqual(complete["schema"], "denza-adas-adapter-experiments-v3")
+        self.assertEqual(len(complete), 6)
+        self.assertFalse(complete["speedFromFixes"])
+        self.assertTrue(all(complete[key] for key in live.ADAPTER_EXPERIMENT_FLAGS if key != "speedFromFixes"))
+        self.assertTrue(all(not live.adapter_profile("baseline26")[key] for key in live.ADAPTER_EXPERIMENT_FLAGS))
+        old_v2 = dict(complete, schema="denza-adas-adapter-experiments-v2")
+        old_v2.pop("speedFromVehicle")
+        old_v1 = dict(old_v2, schema="denza-adas-adapter-experiments-v1")
+        old_v1["rawGnssSpeed"] = old_v1.pop("speedFromFixes")
+        malformed = [old_v1, old_v2]
+        for key in live.ADAPTER_EXPERIMENT_FLAGS:
+            missing = dict(complete)
+            missing.pop(key)
+            malformed.append(missing)
+            for value in (None, 0, 1, "true", "false"):
+                malformed.append({**complete, key: value})
+        for policy in malformed:
+            with self.subTest(policy=policy), self.assertRaisesRegex(live.SessionError, "invalid adapter"):
+                self.arm(experiments=policy)
+        self.assertEqual(self.device.calls, [])
+        self.assertFalse(self.ledger.exists())
+        with self.assertRaisesRegex(live.SessionError, "unknown adapter profile"):
+            live.adapter_profile("candidate28")
+
     def test_adapter_policy_mismatch_rolls_back(self):
         self.device.wrong_adapter_policy = True
         with self.assertRaisesRegex(live.SessionError, "runtime did not confirm adapter"):
-            self.arm(experiments=live.adapter_profile("candidate28"))
+            self.arm(experiments=live.adapter_profile("candidate29"))
         self.assertNotIn(live.ARM, self.device.files)
         self.assertEqual(self.device.enabled, 0)
 
     def test_build27_policy_cannot_silently_select_the_new_speed_algorithm(self):
-        old = live.adapter_profile("candidate28")
+        old = live.adapter_profile("candidate29")
         old["schema"] = "denza-adas-adapter-experiments-v1"
         old["rawGnssSpeed"] = old.pop("speedFromFixes")
         with self.assertRaisesRegex(live.SessionError, "invalid adapter"):
@@ -244,14 +293,14 @@ class ProcedureTests(unittest.TestCase):
         self.assertEqual(self.device.calls, [])
         self.device.adapter_schema = "denza-adas-adapter-experiments-v1"
         with self.assertRaisesRegex(live.SessionError, "does not support"):
-            self.arm(experiments=live.adapter_profile("candidate28"))
+            self.arm(experiments=live.adapter_profile("candidate29"))
         self.assertFalse(self.ledger.exists())
         self.assertNotIn(("stock_enabled", 3), self.device.calls)
         self.assertNotIn("reader_start", self.device.calls)
 
     def test_adapter_policy_malformed_is_rejected_before_device_access(self):
-        for policy in ({}, {**live.adapter_profile("candidate28"), "speedFromFixes": 1},
-                       {**live.adapter_profile("candidate28"), "extra": True}):
+        for policy in ({}, {**live.adapter_profile("candidate29"), "speedFromFixes": 1},
+                       {**live.adapter_profile("candidate29"), "extra": True}):
             with self.assertRaisesRegex(live.SessionError, "invalid adapter"):
                 self.arm(experiments=policy)
         self.assertEqual(self.device.calls, [])
@@ -497,7 +546,9 @@ class ProcedureTests(unittest.TestCase):
             self.assertEqual(plan["lifetimeMs"], 60000)
             self.assertEqual(plan["sender"], "stocknative")
             self.assertEqual(plan["coordinateFrame"], live.DEFAULT_COORDINATE_FRAME)
-            self.assertEqual(plan["adapterExperiments"], live.adapter_profile("candidate28"))
+            self.assertEqual(plan["adapterExperiments"], live.adapter_profile("candidate29"))
+            self.assertTrue(plan["adapterExperiments"]["speedFromVehicle"])
+            self.assertEqual(plan["requiredRuntimeCapability"], "denza-adas-adapter-experiments-v3")
             self.assertNotIn("variant", plan)
             self.assertFalse(self.ledger.exists())
 
@@ -520,8 +571,11 @@ class ProcedureTests(unittest.TestCase):
                 "--version-code", str(APK.version_code), "--version-name", APK.version_name,
                 "--reader-jar", str(self.jar), "--reader-sha256", self.digest, "--lifetime-ms", "60000"]
         for options, expected in [(["--adapter-profile", "baseline26"], live.adapter_profile("baseline26")),
+                                  (["--no-speed-from-vehicle"], live.adapter_profile("candidate29", {"speedFromVehicle": False})),
+                                  (["--speed-from-fixes"], live.adapter_profile("candidate29", {"speedFromFixes": True})),
+                                  (["--adapter-profile", "baseline26", "--speed-from-vehicle"], live.adapter_profile("baseline26", {"speedFromVehicle": True})),
                                   (["--no-light-within-500", "--no-speed-from-fixes"],
-                                   live.adapter_profile("candidate28", {"lightWithin500": False, "speedFromFixes": False})),
+                                   live.adapter_profile("candidate29", {"lightWithin500": False, "speedFromFixes": False})),
                                   (["--adapter-profile", "baseline26", "--light-within-500"],
                                    live.adapter_profile("baseline26", {"lightWithin500": True}))]:
             with patch.object(live, "Device", side_effect=AssertionError("must not access device")):

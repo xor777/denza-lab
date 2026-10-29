@@ -327,8 +327,7 @@ final class LiveMapBridge {
         synchronized(this){ownedRuntime.inputGeneration(sourceGeneration);runtime=ownedRuntime;}
         final dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy routePolicy=dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy.STOCK_LIKE_BY_ROAD.withExperiments(owner.adapterExperiments);
         ProductNativeEnvironment env=new ProductNativeEnvironment(context,()->session!=null&&session.navigating(),()->inputs==null?null:inputs.gates,()->{
-            AdasGateSnapshot.Snapshot snapshot=inputs==null?null:inputs.gates;
-            Double speed=snapshot==null?null:snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
+            Double speed=effectiveVehicleSpeed(SystemClock.elapsedRealtime());
             if(speed==null)throw new NativeEnvironment.DataUnavailable("vehicle speed unavailable");return speed;
         },new ProductNativeEnvironment.ClientOperations(){
             public void startClientOrSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeStart(values);return null;});}
@@ -336,7 +335,9 @@ final class LiveMapBridge {
             public void unSubscribe(Map<Long,Long[]> values){onWorker(()->{ownedAnswers.nativeUnsubscribe(values);return null;});}
         },routePolicy.donorProfile);
         if(!env.ready())throw new IllegalStateException("actual AutoType unavailable");
-        environment=env;note("environment",Json.write(env.sourceStatus()));
+        environment=env;Map<String,Object> environmentSources=env.sourceStatus();
+        if(owner.adapterExperiments.speedFromVehicle)environmentSources.put("vehicle_speed","EXPERIMENT: fresh valid autoservice speed; original fresh Yandex SDK speed on missing/invalid CAN; never cached CAN or an invented zero");
+        note("environment",Json.write(environmentSources));
         StockTransport wire=new StockTransport(){
             public int fire(long topic,byte[] payload){final long generation=ownedRuntime.inputGeneration();return onWorker(()->ownedRuntime.inputScope(generation,()->{
                 if(arm!=owner||finished||transport!=ownedTransport||runtime!=ownedRuntime||topic!=Topics.NAVIGATION_STATUS&&!ownedRuntime.currentInput(generation))return -203;
@@ -393,12 +394,22 @@ final class LiveMapBridge {
         OfflineMapGate.Subject subject=sourceSubject;
         if(!java.util.Objects.equals(publishedSubject,subject)||subject==null||!session.acceptsRoute(subject.routeId,subject.epoch,subject.geometrySha256))return;
         AdasGateSnapshot.Snapshot snapshot=inputs.gates;Double value=snapshot.vehicleSpeedKmh(SystemClock.elapsedRealtime(),1500);
-        if(value!=null&&(snapshot.sequence!=speedSequence||session.pathId()!=speedPolicyPath)){
+        boolean vehiclePrimary=vehicleSpeedExperiment();
+        if((value!=null||vehiclePrimary)&&(snapshot.sequence!=speedSequence||session.pathId()!=speedPolicyPath||vehiclePrimary&&!validVehicleSpeed(value))){
             long generation=publishedGeneration;speedSequence=snapshot.sequence;speedPolicyPath=session.pathId();
-            // vehicleSpeedKmh already validated this exact source interval. Queue receipt must
-            // not rejuvenate an old autoservice reading used by the displacement consistency gate.
-            long sourceStartedAt=((Number)snapshot.vehicleSpeed.get("startedAtElapsedMs")).longValue();
-            runtime.inputScope(generation,()->session.vehicleSpeedUpdated(value.floatValue(),sourceStartedAt));
+            // A failed or expired latest read revokes the selected CAN source, including
+            // an older still-fresh cached reading. Keep the historical finite-only callback
+            // path when the experiment is disabled. Receipt must never refresh source age.
+            long sourceStartedAt=value==null?-1:((Number)snapshot.vehicleSpeed.get("startedAtElapsedMs")).longValue();
+            runtime.inputScope(generation,()->{
+                if(vehiclePrimary&&!validVehicleSpeed(value)){
+                    session.vehicleSpeedObserved(value==null?Float.NaN:value.floatValue(),sourceStartedAt);
+                    Double fallback=effectiveVehicleSpeed(SystemClock.elapsedRealtime());
+                    // This callback also owns the factory stationary ODD timer. A cached
+                    // CAN zero must not survive a real SDK fallback indicating movement.
+                    if(fallback!=null)session.effectiveVehicleSpeedUpdated(fallback.floatValue());
+                }else session.vehicleSpeedUpdated(value.floatValue(),sourceStartedAt);
+            });
         }
     }
     private <T>T onWorker(Callable<T> task){
@@ -450,6 +461,13 @@ final class LiveMapBridge {
                 if(deliveredSourceGeneration!=next.generation){session.sourceGenerationChanged();deliveredSourceGeneration=next.generation;}
                 if(o.routeId==null||"off".equals(o.mode)||o.finished){session.observe(o);return;}
                 if(!offline(admissionNow).ready||hardwareFailure(admissionNow)!=null)return;
+                if(vehicleSpeedExperiment()){
+                    // Seed selection before observe starts the first route. The independent
+                    // factory speed callback keeps its existing post-route ordering below.
+                    Double speed=actualVehicleSpeed(admissionNow);
+                    long sourceAt=speed==null?-1:((Number)inputs.gates.vehicleSpeed.get("startedAtElapsedMs")).longValue();
+                    session.vehicleSpeedObserved(speed==null?Float.NaN:speed.floatValue(),sourceAt);
+                }
                 if(!locationFresh(admissionNow)||!o.positionOnRoute)session.invalidateLocation();
                 if(environment!=null&&locationFresh(admissionNow)){double[] sdk=session.sdkCoordinate(o.routeId,o.lon,o.lat);if(sdk!=null)environment.location(sdk[0],sdk[1]);}
                 session.observe(o);
@@ -470,13 +488,28 @@ final class LiveMapBridge {
         long age=inputAge(current,now);
         return age>=0&&age<=1500&&o.rawAtElapsedMs>=0&&now>=o.rawAtElapsedMs&&now-o.rawAtElapsedMs<=1500
                 &&coordinate(o.rawLon,o.rawLat)&&coordinate(o.lon,o.lat)
-                &&Double.isFinite(o.speedMps)&&o.speedMps>=0&&Double.isFinite(o.heading)
+                &&((vehicleSpeedExperiment()&&validVehicleSpeed(actualVehicleSpeed(now)))||(Double.isFinite(o.speedMps)&&o.speedMps>=0))&&Double.isFinite(o.heading)
                 &&(session==null||session.supportsCoordinates(o.routeId,o.lon,o.lat,o.rawLon,o.rawLat));
     }
     private long inputAge(Pending input,long now){return input.fix!=null?input.fix.ageMs(now,wallClock.getAsLong())
             :now<input.inputAt||input.fixAgeAtInput<0||input.fixAgeAtInput>1500?Long.MAX_VALUE:input.fixAgeAtInput+now-input.inputAt;}
     private static boolean coordinate(double lon,double lat){return Double.isFinite(lon)&&Double.isFinite(lat)&&lon>=-180&&lon<=180&&lat>=-90&&lat<=90;}
-    private boolean dynamicFresh(long now){return locationFresh(now)&&inputs!=null&&inputs.gates!=null&&inputs.gates.vehicleSpeedKmh(now,1500)!=null;}
+    private boolean vehicleSpeedExperiment(){return arm!=null&&arm.adapterExperiments.speedFromVehicle;}
+    private Double actualVehicleSpeed(long now){return inputs==null||inputs.gates==null?null:inputs.gates.vehicleSpeedKmh(now,1500);}
+    private static boolean validVehicleSpeed(Double speed){return speed!=null&&Double.isFinite(speed)&&speed>=0&&speed<=Integer.MAX_VALUE;}
+    private Double effectiveVehicleSpeed(long now){
+        Double actual=actualVehicleSpeed(now);
+        if(!vehicleSpeedExperiment()||validVehicleSpeed(actual))return actual;
+        // The factory P callback independently asks for vehicleSpeed. The same explicit
+        // experiment must allow the SDK fallback here too, or no fallback reaches the wire.
+        Pending current=locationInput;
+        if(current!=null&&locationFresh(now)){
+            double sdk=current.input.speedMps*3.6;
+            if(validVehicleSpeed(sdk))return sdk;
+        }
+        return null;
+    }
+    private boolean dynamicFresh(long now){return locationFresh(now)&&effectiveVehicleSpeed(now)!=null&&(session==null||session.locationSpeedFresh(now));}
     private void readStopRequest(){
         if(finished||draining||arm==null||!file(STOP).isFile())return;
         try{Map<String,Object> request=LiveSessionLease.object(read(file(STOP),4096));long now=SystemClock.elapsedRealtime();

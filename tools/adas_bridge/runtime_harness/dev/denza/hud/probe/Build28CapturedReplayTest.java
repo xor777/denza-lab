@@ -28,7 +28,8 @@ public final class Build28CapturedReplayTest {
         try {
             Class<?> type=Class.forName("dev.denza.adaslink.yandexnative.AdapterExperiments");
             return (YandexNativeAdapter.Policy)p.getClass().getMethod("withExperiments",type)
-                    .invoke(p,type.getField("CANDIDATE").get(null));
+                    .invoke(p,type.getConstructor(boolean.class,boolean.class,boolean.class,boolean.class)
+                            .newInstance(true,true,true,true)); // Frozen build-28 policy; later experiments stay off.
         } catch(ReflectiveOperationException error){throw new AssertionError("candidate experiments unavailable",error);}
     }
     static final class RecordedAttributes implements RouteAttributes {

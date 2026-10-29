@@ -39,7 +39,8 @@ Updated 2026-10-27. Local parser acceptance is separate from vehicle acceptance.
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
-| Candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; no vehicle operation; complete moving-zero elimination remains unfulfilled | [Candidate 28](#candidate-28-recipe-correction) |
+| Candidate 29 uses fresh CAN for location speed, with original SDK speed on missing/invalid/stale CAN; the speed policy is independently switchable at arm time | local wire replay: 45/45 use CAN, 6/6 moving SDK zeros removed, 2 stops retained; signed artifact pending; no vehicle operation | [Candidate 29](#candidate-29-can-speed-experiment) |
+| Historical candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; speed policy superseded by candidate 29; no vehicle operation | [Candidate 28](#candidate-28-recipe-correction) |
 | Offline review of the proposed correction preserves all original >=1 m link attributes while removing all 23 zero links: 131 → 90 links. Its literal speed fallback adds two derivatives around 33 km/h but still misses the frozen coordinate | isolated Java sender replay + independent Python calculation; product code/APK unchanged, no vehicle operation | [Correction recalculation](#offline-correction-recalculation-2026-10-27) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
 | Candidate 22 combines the real Yandex section base-time speed proxy with owner-confirmed public ownership on exact fully traversed WGS84 edges; native core remains unchanged | historical 22 parked receipt: ACK 200, historySpeed 7, public ownership 4/42; superseded before a drive by 23 | [Candidate 22 inputs](#candidate-22-free-flow-proxy-and-confirmed-public-roads) |
@@ -95,7 +96,7 @@ Updated 2026-10-27. Local parser acceptance is separate from vehicle acceptance.
 | Historical experiment variant, not used by candidate 15 (strict per-arm switches: frame, link and position fill-ins, region, historySpeed, speedLimit, startProtocol, naviSt, instrumentNaviStatus) is now in main together with the offline attributes. A fill-in never overwrites a value Yandex knows (graph road, offline class and one-way, roundabout), per field, and the highway rule stays removed. One ODD request mechanism remains: the fixed parcel, sent only through the guard under `startProtocol: stock`, once per fresh guidance start, never on a reroute; the default (bridge) start sends none. A driver recreated after an offline withdrawal keeps the session's frame. Not yet built into a car build or run on the car | code + host harnesses, 2026-10-24 | [Parked experiment kit](#parked-experiment-kit-2026-10-24) |
 | Verdict: feasible with conditions — the transport is open; the blockers are the idle stock map's competing 1 Hz feed, the unknown receiver semantics (coordinate frame, link IDs, path-match) and safety validation | assessment | [Verdict](#verdict-and-plan) |
 
-Contents: [Candidate 28](#candidate-28-recipe-correction) · [Original sender parity](#original-sender-parity-2026-10-25) · [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
+Contents: [Candidate 29](#candidate-29-can-speed-experiment) · [Candidate 28](#candidate-28-recipe-correction) · [Original sender parity](#original-sender-parity-2026-10-25) · [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) · [Build-12 NOA gap audit](#noa-gap-audit-of-the-build-12-trip-2026-10-24) · [Local follow-up](#local-follow-up-candidate-13-2026-10-24) · [Transport](#transport) · [One writer](#one-writer) ·
 [Idle stock map](#what-the-idle-stock-map-still-sends) ·
 [Provider path](#no-official-provider-path) · [Contract](#contract) ·
 [Yandex data](#what-yandex-gives-us) · [Converter](#the-converter) ·
@@ -3767,6 +3768,9 @@ the local tests.
 
 ### Candidate 28 recipe correction
 
+Historical checkpoint: its speed policy is superseded by candidate 29 below;
+the build-28 route merge policy remains active in that candidate.
+
 Owner review overturned candidate 27's recipe acceptance, not its mechanical
 build results. Candidate 28 explicitly changes the policy and schema to
 `denza-adas-adapter-experiments-v2`. `candidate28` enables `lightWithin500`,
@@ -3868,14 +3872,92 @@ motion ring is finite; preserve a bounded host stream as an additional copy when
 connection is available. Its absence or interruption must be recorded, never
 assumed away. This protocol is prepared locally; no install or arm has occurred.
 
+### Candidate 29 CAN speed experiment
+
+The owner chose a bounded experiment: use the car's measured speed directly,
+without position-derived recovery or smoothing. `speedFromVehicle` is an
+independent per-arm flag in strict schema `denza-adas-adapter-experiments-v3`.
+`candidate29` enables light filtering, coherent progress, link merging and CAN
+speed; the historical `speedFromFixes` flag is false. Thus switching only
+`--no-speed-from-vehicle` restores original SDK location speed without enabling
+the derivative. This needs a new stationary arm, not an APK reinstall. Old
+v1/v2 hosts and policies are rejected before mutation; baseline26 remains all-off.
+
+For each otherwise admitted FINE fix, a finite nonnegative autoservice reading
+(device 1013, FID `0x94400008`, transaction 7, km/h) aged 0–1500 ms supplies
+`LocInfo.speed`. Age starts at the original read, not callback delivery. A
+measured zero remains zero. Missing, failed, future or stale CAN selects the
+original Yandex SDK speed, including its actual zero if present; it never
+supplies zero merely because a read failed and never retains a prior CAN value.
+The latest failed attempt revokes a previously cached valid reading. SDK speed
+may be invalid when fresh valid CAN is available; if neither source is valid,
+location is withheld. Coordinates, progress admission and hardware gates remain.
+
+The factory sender independently asks `realSpeed()` while processing location.
+The product environment uses the same CAN-first/SDK-fallback policy under this
+flag; otherwise SDK fallback would be blocked before reaching the wire. This is
+an explicit experiment in both speed inputs, not a claim that CAN and GPS are
+the same sensor. Selected CAN input expires before queued consumption, and a
+source-time fence cancels retained factory stationary repeats after expiry.
+Final transport admission also checks pending source deadlines, so an overdue
+repeat cannot escape ahead of its expiry task after a stalled sender queue.
+A newer submitted fix alone cannot retire that fence: the original sender may
+throttle it. A fence may conservatively cancel newer pending location work;
+the next admitted fix recovers. The speed-change callback also follows the
+SDK fallback so a prior CAN zero cannot keep the stationary ODD-distance timer
+running while SDK speed indicates movement. The factory core is unchanged.
+
+The motion journal retains original SDK speed, the selected source, valid CAN
+value and original timestamps, age and selection/fallback reason. Unavailable
+upstream CAN is forwarded as an invalid sample, so its detailed reader failure
+reason must be joined from the vehicle-read journal; it is not reconstructed
+from a cached value. The analyzer
+preserves these fields and keeps submission evidence separate from actual wire
+output. Recorded CAN=0 stops are not relabeled as missing reads. The separate 90-link
+merge refinement was an offline proposal and is not included here: this
+build retains candidate28's 77-link route policy, including its documented
+experimental inheritance of attributes. No coordinate smoothing is introduced.
+
+Corpus inspection confirms the stock locator receives vehicle speed:
+`VelocityPulse` calls `LocationController.setSpeed`, which submits a `LocPulse`
+with datatype 8 to the native position service. The fusion algorithm remains
+opaque. `BydAutoSpeed.realSpeed` also has device/GPS fallback paths. The stock
+sender separately reads `LocInfo.speed` and vehicle speed, so this does not
+establish equality between factory fused-location speed and CAN. Exact corpus
+paths and evidence are retained in
+`captures/stock-sender-parity-20261025/product/candidate29-qa/independent/REVIEW.md`.
+
+Local checks passed: 74 library JUnit tests; 262 product-coordinator, 328
+session, 6,112 frozen-28 and 974 candidate-29 replay/lifecycle assertions;
+110 host/analyzer/packaging Python tests with two optional-corpus skips.
+All 45 recorded CAN reads are source-fresh (172–1187 ms). All 45 factory
+`GPSspeed` fields use the corresponding CAN value under native integer
+conversion; all six moving SDK-zero samples become positive, both CAN-zero
+stops remain zero, and low rolling 1/1/5 km/h is preserved. Geometry, progress
+and route payload remain unchanged by speed selection. The independently
+recorded source still does not contain raw Android coordinates/timestamps;
+SDK coordinates are an explicit raw-admission test scaffold.
+
+Product tests cover the first route-start packet, positive/invalid SDK speed,
+failed/missing/stale/future CAN fallback on both actual wire speed fields,
+queued old-CAN revocation, old-CAN-zero to moving-SDK recovery, and existing
+coordinate/FINE/freshness rejection. A delayed-queue adversary proves that
+an overdue captured stationary repeat is blocked at final output. All-off
+wire regression retains 489 byte-identical transcript rows against `bbc9707e`,
+SHA-256 `cea4373b19616a420dcb2c2d885fee29b89f07a9b8f94f3fb91ae10e88656f31`.
+These are finite offline checks, not evidence that NOA will activate.
+Artifact identity is recorded below after the signed build completes. No car installation, arm, stationary acceptance or NOA result has
+occurred for this candidate. A successful B pass would implicate the package;
+the speed flag can then be disabled alone to test its contribution in a new arm.
+
 ### Offline correction recalculation (2026-10-27)
 
 The owner requested calculation only for
 `captures/build27-recipe-20261026/CORRECTION-20261027.md`, which described the old
 candidate 27. The comparison uses committed candidate 28 and retains results in
 `captures/stock-sender-parity-20261025/product/correction29-offline-20261027/REPORT.md`.
-The directory name does not identify a built candidate 29. Product sources,
-the factory core and APK 28 are unchanged; no car, emulator or network was used.
+The directory name identifies this isolated calculation, not the later APK 29.
+At this checkpoint product sources, the factory core and APK 28 were unchanged; no car, emulator or network was used.
 
 An isolated adapter copy implements the proposed exact-metre bands: below 1 m
 inherits an admissible neighbor's effective attributes; [1,10) m requires equal

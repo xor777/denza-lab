@@ -59,7 +59,7 @@ public final class NativeProductRuntimeTest {
     public static void main(String[] args)throws Exception{
         root=new File(args[0]);erase(root);root.mkdirs();
         runtimeCancellation();
-        adapterExperimentArm();
+        adapterExperimentArm();canSpeedProductWire();canSpeedInvalidInputs();canSpeedReadRevocation();canStoppedReadFallsBackToMovingSdk();canSpeedQueuedReadRevocation();
         freshnessRecovery();incoherentProgressRecovery();gracefulShutdown();cityRequestRecovery();coordinateArm();inflightGeneration();preparationGeneration();refreshLatency();
         Rig disarmed=new Rig();check(Boolean.TRUE.equals(disarmed.state().get("quiescent")),"unarmed owns no transports");check("stocknative".equals(disarmed.state().get("sender")),"fixed sender identity");
         Map<String,Object> invalid=new LinkedHashMap<>(disarmed.arm);invalid.put("variant",Json.object());boolean rejected=false;
@@ -129,7 +129,8 @@ public final class NativeProductRuntimeTest {
         dev.denza.adaslink.yandexnative.AdapterExperiments flags=dev.denza.adaslink.yandexnative.AdapterExperiments.CANDIDATE;
         check(dev.denza.adaslink.yandexnative.AdapterExperiments.SCHEMA.equals(r.state().get("adapterExperimentsSchema")),"unarmed runtime advertises adapter schema before host mutation");
         r.arm.put("adapterExperiments",flags.toMap());r.arm();long path=r.route();
-        check(flags.toMap().equals(r.state().get("adapterExperiments")),"runtime echoes the complete arm policy");
+        check(flags.toMap().size()==6&&flags.speedFromVehicle&&!flags.speedFromFixes,"candidate29 pins primary CAN speed and disables legacy displacement");
+        check(flags.toMap().equals(r.state().get("adapterExperiments")),"runtime echoes the complete five-flag arm policy");
         NativeMapSession session=(NativeMapSession)field(r.bridge,"session");
         dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy policy=(dev.denza.adaslink.yandexnative.YandexNativeAdapter.Policy)field(session,"routePolicy");
         check(flags.toMap().equals(policy.experiments.toMap()),"candidate flags reach the actual adapter policy");
@@ -143,10 +144,101 @@ public final class NativeProductRuntimeTest {
         long sourceReadAt=SystemClock.now;r.evidence(true);Handler.advance(20);r.observe(false);
         check(fieldLong(session,"vehicleSpeedSourceAt")==sourceReadAt,"product forwards actual autoservice source time into displacement consistency gate");
         check(fieldLong(session,"vehicleSpeedObservedAt")>sourceReadAt,"later delivery does not rejuvenate the source clock");
-        Map<String,Object> changed=new LinkedHashMap<>(r.arm);changed.put("adapterExperiments",dev.denza.adaslink.yandexnative.AdapterExperiments.BASELINE.toMap());
+        Map<String,Object> changed=new LinkedHashMap<>(r.arm),changedFlags=new LinkedHashMap<>(flags.toMap());changedFlags.put("speedFromVehicle",false);changed.put("adapterExperiments",changedFlags);
         r.write("denza-adas-live-arm.json",changed);Handler.advance(1000);
-        check(!"LIVE".equals(r.state().get("state")),"same arm cannot silently replace candidate flags while publishing");
+        check(!"LIVE".equals(r.state().get("state")),"same arm cannot silently replace primary-CAN speed flag while publishing");
         r.close();
+    }
+    static Rig canSpeedRig(double canKmh,double sdkMps)throws Exception{
+        Rig r=new Rig();r.vehicleKmh=canKmh;
+        r.arm.put("adapterExperiments",dev.denza.adaslink.yandexnative.AdapterExperiments.CANDIDATE.toMap());r.arm();
+        NativeNavigationInput first=r.input(true);first.speedMps=sdkMps;r.observe(first);
+        check(r.bridge.status().pathId>0,"CAN policy still admits the real product route");
+        LiveMapTransport initialWire=LiveMapTransport.latest;int firstLocation=-1;for(int i=0;i<initialWire.topics.size();i++)if(initialWire.topics.get(i)==Topics.SD_VEHICLE_LOCATION){firstLocation=i;break;}
+        check(firstLocation>=0&&locationSpeed(initialWire,firstLocation,"GPSspeed")==((int)canKmh),"FIRST actual route-start location selects current CAN rather than initial SDK fallback; SDK="+sdkMps);
+        Handler.block(1);r.evidence(true);NativeNavigationInput second=r.input(false);second.speedMps=sdkMps;r.observe(second);
+        check(LiveMapTransport.latest.count(Topics.SD_VEHICLE_LOCATION)>0,"fresh CAN reaches actual product location wire after source-generation admission");return r;
+    }
+    @SuppressWarnings("unchecked")static int locationSpeed(LiveMapTransport wire,int packet,String key){
+        Map<String,Object> body=(Map<String,Object>)Topics.schema(Topics.SD_VEHICLE_LOCATION).decode(wire.payloads.get(packet)).get("sdVehicleLocation");
+        return ((Number)body.getOrDefault(key,0)).intValue();
+    }
+    static int locationSpeed(LiveMapTransport wire,String key){
+        for(int i=wire.topics.size()-1;i>=0;i--)if(wire.topics.get(i)==Topics.SD_VEHICLE_LOCATION)return locationSpeed(wire,i,key);
+        throw new AssertionError("no actual product VehicleLocation");
+    }
+    static Map<String,Object> motion(Rig r){
+        for(int i=DriveEvidence.motion.size()-1;i>=0;i--){Map<String,Object> row=DriveEvidence.motion.get(i);if(r.arm.get("armId").equals(row.get("armId")))return row;}
+        throw new AssertionError("no motion audit for product arm");
+    }
+    static void optionalCan(Rig r,String failure)throws Exception{
+        Map<String,Object> gate=r.read("denza-adas-gates.json");gate.put("sequence",++r.seq);
+        if("missing".equals(failure))gate.remove("vehicleSpeed");
+        else{
+            @SuppressWarnings("unchecked")Map<String,Object> speed=(Map<String,Object>)gate.get("vehicleSpeed");
+            if("error".equals(failure))speed.put("status","read_error");
+            else if("negative".equals(failure))speed.put("value",-1);
+            else{long at=SystemClock.now+("future".equals(failure)?1:-1501);speed.put("startedAtElapsedMs",at);speed.put("completedAtElapsedMs",at);}
+        }
+        r.write("denza-adas-gates.json",gate);
+    }
+    static void canSpeedProductWire()throws Exception{
+        for(double sdk:new double[]{25,Double.NaN,-1}){
+            Rig r=canSpeedRig(18,sdk);LiveMapTransport wire=LiveMapTransport.latest;
+            check(locationSpeed(wire,"GPSspeed")==18&&locationSpeed(wire,"vehicleSpeed")==18,"actual product GPS and vehicle speed use fresh CAN18 despite diagnostic SDK="+sdk);
+            check("autoservice_vehicle_speed".equals(motion(r).get("speedSource")),"product audit identifies actual CAN source independently of SDK validity");r.close();
+        }
+        Rig stop=canSpeedRig(0,25);LiveMapTransport wire=LiveMapTransport.latest;
+        check(locationSpeed(wire,"GPSspeed")==0&&locationSpeed(wire,"vehicleSpeed")==0,"actual CAN stop overrides positive SDK on product wire without inventing movement");stop.close();
+    }
+    static void canSpeedInvalidInputs()throws Exception{
+        for(int invalid=0;invalid<7;invalid++){
+            Rig r=canSpeedRig(18,Double.NaN);LiveMapTransport wire=LiveMapTransport.latest;
+            r.advanceEvidence(1001);r.evidence(true);NativeNavigationInput bad=r.input(false);bad.speedMps=Double.NaN;
+            if(invalid==0)bad.lon=181;else if(invalid==1)bad.rawLon=181;else if(invalid==2)bad.heading=Double.NaN;
+            else if(invalid==3)bad.locationClass="COARSE";else if(invalid==4)bad.simulated=true;else if(invalid==6)bad.rawAtElapsedMs=SystemClock.now-1501;
+            int before=wire.count(Topics.SD_VEHICLE_LOCATION);
+            if(invalid==5){long now=SystemClock.now,wall=1792836000000L+now;r.bridge.observe(bad,FixFreshness.capture(now-1501,wall-1501,now,now,wall),null);Handler.advance(0);}else r.observe(bad);
+            r.advanceEvidence(1000);
+            check(!wire.closed&&wire.count(Topics.SD_VEHICLE_LOCATION)==before,"fresh CAN cannot bypass coordinate/raw/heading/FINE/simulation/source-age gate "+invalid);
+            r.evidence(true);NativeNavigationInput fresh=r.input(false);fresh.speedMps=Double.NaN;r.observe(fresh);
+            check(wire.count(Topics.SD_VEHICLE_LOCATION)>before&&locationSpeed(wire,"GPSspeed")==18,"valid FINE coordinates with diagnostic NaN SDK recover on same CAN18 arm after gate "+invalid);r.close();
+        }
+    }
+    static void canSpeedReadRevocation()throws Exception{
+        for(String invalid:new String[]{"missing","error","negative","future","stale"}){
+            Rig r=canSpeedRig(36,5);LiveMapTransport wire=LiveMapTransport.latest;r.advanceEvidence(1001);r.evidence(true);
+            optionalCan(r,invalid);int before=wire.count(Topics.SD_VEHICLE_LOCATION);NativeNavigationInput sdk=r.input(false);sdk.speedMps=5;r.observe(sdk);
+            check(wire.count(Topics.SD_VEHICLE_LOCATION)>before&&locationSpeed(wire,"GPSspeed")==18&&locationSpeed(wire,"vehicleSpeed")==18,"latest "+invalid+" optional CAN read revokes old CAN36 and uses original SDK18 on actual product wire; before="+before+" after="+wire.count(Topics.SD_VEHICLE_LOCATION)+" GPS="+locationSpeed(wire,"GPSspeed")+" vehicle="+locationSpeed(wire,"vehicleSpeed")+" state="+r.state()+" audit="+motion(r));
+            check(!"fresh_valid".equals(motion(r).get("vehicleSpeedInputReadReason"))&&"yandex_sdk".equals(motion(r).get("speedSource")),"invalid optional read is propagated into adapter audit instead of retaining earlier fresh CAN: "+invalid);
+            r.advanceEvidence(1001);r.evidence(true);optionalCan(r,invalid);before=wire.count(Topics.SD_VEHICLE_LOCATION);NativeNavigationInput noSource=r.input(false);noSource.speedMps=Double.NaN;r.observe(noSource);Handler.advance(0);
+            check(!wire.closed&&wire.count(Topics.SD_VEHICLE_LOCATION)==before,"invalid SDK and "+invalid+" CAN withhold location without fabricating zero");
+            Handler.block(1);r.evidence(true);r.observe(false);check(wire.count(Topics.SD_VEHICLE_LOCATION)>before&&locationSpeed(wire,"GPSspeed")==36,"fresh valid CAN36 recovery reaches same product wire after "+invalid);r.close();
+        }
+    }
+    static void canStoppedReadFallsBackToMovingSdk()throws Exception{
+        Rig r=canSpeedRig(0,5);LiveMapTransport wire=LiveMapTransport.latest;
+        check(locationSpeed(wire,"GPSspeed")==0,"initial real CAN stop reaches actual product wire");
+        r.advanceEvidence(1001);r.evidence(true);optionalCan(r,"missing");int before=wire.count(Topics.SD_VEHICLE_LOCATION);
+        NativeNavigationInput moving=r.input(false);moving.speedMps=5;moving.scalar=.4;moving.lon=37.6004;moving.lat=55.7004;r.observe(moving);
+        check(wire.count(Topics.SD_VEHICLE_LOCATION)>before&&locationSpeed(wire,"GPSspeed")==18&&locationSpeed(wire,"vehicleSpeed")==18,"old CAN0 cannot leave factory moving-speed callbacks stationary after missingCAN plus original SDK5");
+        check("yandex_sdk".equals(motion(r).get("speedSource")),"stopped-to-moving recovery remains original SDK fallback in audit");r.close();
+    }
+    static void consumePendingWithoutNativeDrain(Rig r,NativeNavigationInput input)throws Exception{
+        long now=SystemClock.now,wall=1792836000000L+now;r.bridge.observe(input,FixFreshness.capture(now,wall,now,now,wall),null);
+        java.lang.reflect.Method consume=LiveMapBridge.class.getDeclaredMethod("observePending");consume.setAccessible(true);
+        java.util.concurrent.FutureTask<Void> workerCall=new java.util.concurrent.FutureTask<>(()->{consume.invoke(r.bridge);return null;});
+        ((Handler)field(r.bridge,"worker")).post(workerCall);workerCall.get();
+    }
+    static void canSpeedQueuedReadRevocation()throws Exception{
+        Rig r=canSpeedRig(36,5);LiveMapTransport wire=LiveMapTransport.latest;r.advanceEvidence(1001);r.evidence(true);
+        int begin=wire.topics.size(),before=wire.count(Topics.SD_VEHICLE_LOCATION);consumePendingWithoutNativeDrain(r,r.input(false));
+        check(wire.count(Topics.SD_VEHICLE_LOCATION)==before&&((Number)motion(r).get("nativeInputSpeedKmh")).intValue()==36,"real coordinator submits CAN36 while original native location work remains queued");
+        Handler.block(1);optionalCan(r,"error");consumePendingWithoutNativeDrain(r,r.input(false));Handler.advance(0);
+        check(wire.count(Topics.SD_VEHICLE_LOCATION)>before,"replacement SDK observation reaches actual transport after queued invalid-CAN revocation");
+        for(int i=begin;i<wire.topics.size();i++)if(wire.topics.get(i)==Topics.SD_VEHICLE_LOCATION)
+            check(locationSpeed(wire,i,"GPSspeed")==18&&locationSpeed(wire,i,"vehicleSpeed")==18,"queued earlier CAN36 cannot escape after invalid latest read; only original SDK18 reaches product wire");
+        check("yandex_sdk".equals(motion(r).get("speedSource")),"queued revocation preserves explicit SDK fallback provenance");r.close();
     }
     static void runtimeCancellation(){
         Handler.reset();List<String> effects=new ArrayList<>();AndroidStockRuntime runtime=new AndroidStockRuntime(error->{throw new AssertionError(error);});

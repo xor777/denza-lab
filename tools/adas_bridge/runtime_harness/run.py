@@ -14,4 +14,5 @@ def main():
     subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.NativeProductRuntimeTest',str(a.out/'fixtures')],check=True)
     subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.NativeMapSessionTest'],check=True)
     subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.Build28CapturedReplayTest',str(pathlib.Path(__file__).parent/'fixtures/build28-village.json')],check=True)
+    subprocess.run([str(jdk/'java'),'-cp',str(classes),'dev.denza.hud.probe.Build29CapturedReplayTest',str(pathlib.Path(__file__).parent/'fixtures/build28-village.json')],check=True)
 if __name__=='__main__':main()

@@ -82,20 +82,32 @@ publisher but does not restore the stock package; run `restore` after the test.
 
 New `plan` and `arm` commands accept `--coordinate-frame` with `NATIVE_GCJ_UNRESTRICTED_CANDIDATE` (default), `WGS84`, or explicit `ALTERNATE_ROUTES`. Alternation starts native and pins the frame per Yandex route ID for the arm; progress, retry and geometry refresh do not toggle it. Legacy arms without the field retain WGS84. Effective frames appear in route input policy and trip reports. The first stationary candidate uses fixed native mode.
 
-Candidate 28 uses a separate, strict `adapterExperiments` arm object. New
-`plan`/`arm` commands default to `--adapter-profile candidate28`: all of
-`lightWithin500`, `speedFromFixes`, `coherentProgress`, `mergeShortLinks` are true.
+Candidate 29 uses a separate, strict `adapterExperiments` arm object. New
+`plan`/`arm` commands default to `--adapter-profile candidate29`: `lightWithin500`,
+`coherentProgress`, `mergeShortLinks`, `speedFromVehicle` are true;
+the older `speedFromFixes` derivative is false.
 `--adapter-profile baseline26` sets all false. Independent Boolean overrides
 are `--[no-]light-within-500`, `--[no-]speed-from-fixes`,
-`--[no-]coherent-progress`, `--[no-]merge-short-links`. These change adapter
+`--[no-]coherent-progress`, `--[no-]merge-short-links`, `--[no-]speed-from-vehicle`. These change adapter
 inputs only; they are not a sender selection or the historical variant below.
-The runtime must advertise `denza-adas-adapter-experiments-v2` while quiescent,
+The runtime must advertise `denza-adas-adapter-experiments-v3` while quiescent,
 before any arm mutation, then echo the exact effective flags. Thus this host
 refuses to arm an older APK even with the all-off profile; use the retained
 historical host for an explicitly planned older-build experiment. An absent
 object from a historical arm retains baseline behavior in the new APK.
-Build 27 used v1 and a different raw-speed policy; it is intentionally rejected
-by the current host before mutation. Its pinned host/APK remain historical.
+Builds 27 and 28 used v1/v2; both are rejected by this host before mutation.
+Their pinned host/APK pairs remain historical. With `speedFromVehicle` enabled,
+fresh valid autoservice speed supplies `LocInfo.speed` for every admitted FINE
+fix, including positive SDK speed and CAN zero. Missing, invalid, future or
+older-than-1500-ms CAN selects the original SDK speed. It never retains an old
+CAN reading, invents a zero, or derives speed from coordinates. The independent
+native `vehicleSpeed` getter uses the same CAN-first/SDK-fallback policy so the
+fallback can reach the wire. This experiment takes precedence over `speedFromFixes`.
+In candidate29, `--no-speed-from-vehicle` restores original SDK location speed
+without enabling derivation. With the new flag disabled, the four older flags
+retain their build-28 semantics. The route
+merge policy is unchanged from build 28; the separate 90-link offline proposal
+has not been promoted into this experiment.
 Flags are pinned in both arm and rollback ledger; changing one needs a new
 stationary arm. No source or protocol changes are made in the factory core.
 

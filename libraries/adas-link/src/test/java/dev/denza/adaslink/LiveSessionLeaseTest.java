@@ -21,12 +21,12 @@ public final class LiveSessionLeaseTest {
         check(a.adapterExperiments.toMap().equals(AdapterExperiments.BASELINE.toMap()));
         Map<String,Object> configured=arm();configured.put("adapterExperiments",AdapterExperiments.CANDIDATE.toMap());
         LiveSessionLease candidate=read(configured,1000);
-        check(candidate.adapterExperiments.lightWithin500&&candidate.adapterExperiments.speedFromFixes
-                &&candidate.adapterExperiments.coherentProgress&&candidate.adapterExperiments.mergeShortLinks);
+        check(candidate.adapterExperiments.lightWithin500&&!candidate.adapterExperiments.speedFromFixes
+                &&candidate.adapterExperiments.coherentProgress&&candidate.adapterExperiments.mergeShortLinks&&candidate.adapterExperiments.speedFromVehicle);
         check(!candidate.same(a));
-        for(String flag:new String[]{"lightWithin500","speedFromFixes","coherentProgress","mergeShortLinks"}){
+        for(String flag:new String[]{"lightWithin500","speedFromFixes","coherentProgress","mergeShortLinks","speedFromVehicle"}){
             Map<String,Object> changedFlags=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());
-            changedFlags.put(flag,false);Map<String,Object> toggled=arm();toggled.put("adapterExperiments",changedFlags);
+            changedFlags.put(flag,!Boolean.TRUE.equals(changedFlags.get(flag)));Map<String,Object> toggled=arm();toggled.put("adapterExperiments",changedFlags);
             check(!candidate.same(read(toggled,1000)));
             for(Object invalid:new Object[]{null,0L,"false"}){
                 Map<String,Object> badFlags=new java.util.LinkedHashMap<>(changedFlags);badFlags.put(flag,invalid);
@@ -40,6 +40,15 @@ public final class LiveSessionLeaseTest {
         Map<String,Object> oldPolicy=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());
         oldPolicy.put("schema","denza-adas-adapter-experiments-v1");oldPolicy.put("rawGnssSpeed",oldPolicy.remove("speedFromFixes"));
         Map<String,Object> oldArm=arm();oldArm.put("adapterExperiments",oldPolicy);bad(()->read(oldArm,1000));
+        Map<String,Object> v2=new java.util.LinkedHashMap<>(AdapterExperiments.CANDIDATE.toMap());
+        v2.put("schema","denza-adas-adapter-experiments-v2");v2.remove("speedFromVehicle");
+        Map<String,Object> v2Arm=arm();v2Arm.put("adapterExperiments",v2);bad(()->read(v2Arm,1000));
+        AdapterExperiments fourFlag=new AdapterExperiments(true,true,true,true);
+        check(!fourFlag.speedFromVehicle&&fourFlag.lightWithin500&&fourFlag.speedFromFixes&&fourFlag.coherentProgress&&fourFlag.mergeShortLinks);
+        check(fourFlag.toMap().size()==6&&AdapterExperiments.SCHEMA.equals(fourFlag.toMap().get("schema")));
+        check(!AdapterExperiments.read(fourFlag.toMap()).speedFromVehicle);
+        check(!AdapterExperiments.BASELINE.speedFromVehicle);
+        checks++;try{AdapterExperiments.CANDIDATE.toMap().put("speedFromVehicle",false);throw new AssertionError("mutable policy");}catch(UnsupportedOperationException expected){}
         for(LiveSessionLease.FrameMode mode:LiveSessionLease.FrameMode.values()){
             Map<String,Object> framed=arm();framed.put("coordinateFrame",mode.name());LiveSessionLease lease=read(framed,1000);
             check(lease.frameMode==mode);check(!lease.same(a));check(lease.same(read(framed,1000)));
