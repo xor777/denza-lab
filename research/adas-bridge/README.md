@@ -39,7 +39,7 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
-| Candidate 29 uses fresh CAN for location speed, with original SDK speed on missing/invalid/stale CAN; the speed policy is independently switchable at arm time | APK29 from `8407fa58`, SHA `56dc2009…`, installed 2026-10-29; parked route confirmed, fresh CAN and live output recorded; village drive pending | [Candidate 29](#candidate-29-can-speed-experiment) |
+| Candidate 29 uses fresh CAN for location speed, with original SDK speed on missing/invalid/stale CAN; the speed policy is independently switchable at arm time | 2026-10-29 village drive: 280 moving SDK-zero observations corrected, no observed NOA/ICC available or active state; all five paths ACKed; export verified and session restored | [Candidate 29](#candidate-29-can-speed-experiment) |
 | Historical candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; speed policy superseded by candidate 29; no vehicle operation | [Candidate 28](#candidate-28-recipe-correction) |
 | Offline review of the proposed correction preserves all original >=1 m link attributes while removing all 23 zero links: 131 → 90 links. Its literal speed fallback adds two derivatives around 33 km/h but still misses the frozen coordinate | isolated Java sender replay + independent Python calculation; product code/APK unchanged, no vehicle operation | [Correction recalculation](#offline-correction-recalculation-2026-10-27) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
@@ -3957,9 +3957,9 @@ closure passed. `build29/HANDOFF.md`, `candidate-receipt.json`, `SHA256SUMS`,
 source archive, pinned host/reader and zero-device-call `plan.json` retain the
 reviewable handoff. Baseline byte equality and captured speed replay were
 rechecked against the final build's test classes. The subsequent stationary
-installation is recorded below; no moving NOA result is established yet. If the
-drive with all four changes improves availability or retention, the speed flag
-can then be disabled alone to test its contribution in a new arm.
+installation and unsuccessful village drive are recorded below. The speed flag
+remains independently switchable; this drive does not establish a benefit to
+NOA availability or retention.
 
 On 2026-10-29 the owner confirmed the car would remain stationary for installation
 and route start. Build 29 replaced installed build 26 without clearing app data;
@@ -3979,8 +3979,48 @@ The crash buffer is unchanged from preflight. Evidence is retained in
 `captures/stock-sender-parity-20261025/product/drive29-20261029/parked-receipt.json`
 and `parked-final-state.json`; `drive.rollback.json` owns this arm. A bounded
 read-only host stream is running in addition to the on-device journals. The arm
-was deliberately left active for the owner's village loop; export and restore
-remain pending until the owner returns.
+was deliberately left active for the owner's village loop. The subsequent
+export and restore completed as recorded below.
+
+**Village result, 2026-10-29.** The owner reported repeated “NOA activating
+failed” or “ICC activating failed” and no improvement. Movement with fresh CAN
+at least 3 km/h was recorded from 13:07:55.423 to 13:13:44.364 MSK, maximum
+26 km/h. Of 3,226 accepted moving inputs, all 280 original SDK-zero observations
+selected positive CAN. All 319 outgoing location packets paired with fresh
+moving CAN had positive GPSspeed and vehicleSpeed. Selected CAN ages were
+66–1495 ms; four expired-CAN SDK fallbacks occurred after stopping. One raw
+position was rejected at 13:13:22.990 because its age was 1,956 ms. These facts
+establish correction of the measured moving-speed-zero symptom, not activation.
+
+The live receiver retained 9,600 PilotStatus receipts over 13:00:23.337–13:16:23.538
+MSK, maximum interval 304 ms. No positive NOA or ICC available/active value was
+observed. Both fields are omitted in the raw protobufs; the generated-getter
+change journal reports 0/0. Omitted fields remain unknown under the presence
+contract, so this is not silently converted into a 0% known-state metric.
+All five paths received explicit SELECTED 200 in both receivers. Four quit
+getter readings were raw 18, and a later short alarmReason 19 burst occurred;
+their meanings remain unresolved. The reported activation-failed wording alone
+does not identify an ECU refusal cause.
+
+The four moving path replacements coincide with location gaps of 3.181, 3.341,
+2.738 and 4.424 s. Two further moving gaps within a path were 2.085 and 2.006 s.
+These timing gaps remain candidates for offline comparison, not proven causes
+of the failed activation. No additional test drive is required to compare their
+windows, input indices and failure signals with the retained build-15/26 data.
+
+The return archive contains all seven packet-ring files and all three motion
+files; gzip CRC, extraction and per-file hashes are verified in `integrity.json`.
+Four malformed historical lines are identified separately; the current trip's
+motion and packet analysis excludes earlier source sessions and boots. Capture
+times differ between files because the live export is not atomic. The deduplicated
+host stream fills the later wire tail through the same motion cutoff. Two larger
+post-restore gzip transfers were interrupted and retained as `.partial`, unused
+for analysis; the complete pre-restore trip archive is unaffected. The final
+200-row live tail, independent state read and owned rollback ledger prove original
+terminal output, closed endpoints, arm removal and original stock package state 3.
+The host recorder is stopped. Capture owner:
+`captures/stock-sender-parity-20261025/product/drive29-20261029/RETURN.md`;
+independent analyses are `analysis-motion/REPORT.md` and `analysis-outcome/README.md`.
 
 ### Offline correction recalculation (2026-10-27)
 
