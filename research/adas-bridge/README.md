@@ -39,7 +39,8 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | 2026-10-29 verified village loop: offered-or-active 66.94% of measured moving time; 62 short active episodes, median 0.906 s / max 3.191 s; session restored | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
 | Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 trip archived; local SHA/CRC verified and session RESTORED; sign remains off; moving outcome not yet independently audited here | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
 | Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 trip archived, SHA/CRC verified; session RESTORED; moving outcome not independently audited here | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
-| Historical15 `loop-limit` plus one-shot road type9 / machine navigation limit20, with Denza Apps sign writer off | 2026-10-29 parked: two setters acknowledged, ADAS sign raw5 unchanged, SELECTED200 and11 actual TrafficInfo0 packets; drive pending | [Build15 machine limit20](#build15-with-machine-navigation-limit20-2026-10-29) |
+| Historical15 `loop-limit` plus one-shot road type9 / machine navigation limit20, with Denza Apps sign writer off | 2026-10-29 return exported with SHA/CRC verification; session RESTORED; moving outcome not yet independently audited here | [Build15 machine limit20](#build15-with-machine-navigation-limit20-2026-10-29) |
+| Historical15 adds optional `speedLimit=fixed20` at the final TrafficInfo serialization point; the product factory sender is unchanged | isolated APK69ef8198 built, unchanged version/certificate, only module DEX differs; local lifecycle wire tests and independent review pass; installation pending | [Historical15 fixed20](#historical15-fixed20-candidate-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3696,11 +3697,71 @@ Lease expires17:24:49 MSK. On-device recording does not require the host connect
 the bounded host copy is supplemental. After return: complete export, SHA/CRC,
 pinned restore; leave sign off unless the owner requests otherwise. The external
 plan's proposed causal interpretations are hypotheses, not acceptance findings;
-there is no moving outcome yet and no automatic product change is authorized
-by a single result. Evidence owner:
+the moving outcome has not been independently audited here and no automatic
+product change follows from a single result. The departure status is superseded
+by the verified return below. Evidence owner:
 `captures/bisect-pre-arm-20261027/run15-limit20-20261029/READY.md`,
 `signal-one-shot.json`, `wire-proof.json`, `ready-receipt.json`, `check_ready.py`
 and the owned `rollback.json`.
+
+The next request closed this arm after a complete export:8,073,223 bytes,
+130 members, SHA256`f85b0763b7198e6da41ab9b5338345cd47b1ad0f1c719217c23e67feb2202a7d`,
+identical remote/local hashes and verified gzip CRC. The pinned restore completed
+RESTORED. Independent reads prove arm absence, STOPPED/quiescence, closed server
+and answer endpoints, owned reader exit, stock state3/no process, exact original15
+still installed and sign=false. Only the owned temporary remote archive was
+removed after verification. See `run15-limit20-20261029/RETURN.md` and
+`return/closure-proof.json`; legacy closure does not establish modern terminal drain.
+
+#### Historical15 fixed20 candidate (2026-10-29)
+
+The owner requested the next experiment from original
+`captures/yandex-feed15-20261025/source.zip` (SHA684744d5…), not the current product.
+Runtime Java changes are limited to ExperimentVariant and StockFeed: parse,
+serialize and account for fixed20; retain SDK limits in the existing stored
+value/audit; force20 only in the sole final TrafficInfo send; annotate its
+currentRoadSpeed wire audit. Therefore resetAll may reset stored roadSpeed0
+without leaking0 through this variant. Existing yandex/zero policies are retained.
+
+Missing non-ZIP build prerequisites were reconstructed separately from historical
+commit14d26e42, with one compatible historical test stub fromc16361c4. Every
+runtime Java input remains ZIP plus the two changes; native sources and fonts
+were verified against retained build15 evidence. The unmodified snapshot build.py
+passed its complete checks, including manifest/resource semantics. This is a
+provenance-documented reconstruction, not a claim that ZIP alone is buildable.
+
+APK SHA256`69ef8198805fec75b4017b37b644c0067dba2e192e049842accec27dfe5cc002`,
+version29.8.1-YandexHUD.15/code739494315, ARM64. Both original and candidate
+signatures verify with certificate SHA256
+`df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6`.
+Exhaustive uncompressed APK comparison finds20,249 entries identical, no additions
+or removals; only classes17.dex and three META-INF signing files differ. Native
+libraries, original DEX hooks, manifest, resources, fonts and theme are unchanged.
+
+Dedicated tests pass154 baseline/209 candidate checks. All20 fixed20 TrafficInfo
+payloads decode to20, covering first send without an SDK limit, SDK0/20/60, stop,
+reset, restart, direct route replacement and yaw reroute. Each of three legacy
+traces has204 rows; only four volatile route outer timestamps are normalized,
+all other rows and payload bytes compare literally. Independent source/wire/APK
+review found no defect. This is offline acceptance, not proof of live guard,
+transport or NOA behavior.
+
+The pinned legacy host remains immutable. A copy under the run folder changes
+only the speedLimit enum to permit fixed20; fixed30 and numeric20 are rejected,
+legacy effective variants unchanged. `loop-limit20.json` changes only speedLimit,
+keeping id=loop-limit. The source and host diffs are retained beside the run plan.
+No autoservice setters are planned for this run. Installation is pending fresh
+owner stationarity confirmation; use install-r only, never uninstall. After
+installation verify the actual APK hash, then one arm with two stationary routes
+and explicit SELECTED200, first/all retained TrafficInfo20 before and after
+guidance reset. After the drive export and restore; retain the new APK unless
+owner requests rollback.
+
+Candidate evidence: `captures/yandex-feed15-fixed20-20261029/README.md`,
+`candidate-summary.json`, `source.diff`, `apk-equivalence.json`, `tests/receipt.json`,
+`build-prerequisites-provenance.json` and `build/build-report.json`.
+Run owner: `captures/bisect-pre-arm-20261027/run15-fixed20-20261029/`, including
+`host-validation.json`, both diffs and the prepared `commands.json`.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
