@@ -36,6 +36,7 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Candidate 26 village drive produced intermittent CNOA availability and a brief active response followed by ICC. All 11 paths after the abandoned first suggestion received ACK 200, but position gaps reached 13.303 s; the CNOA exit itself had continuous output | physical raw packets and owner observation; about 0.7 s active, sustained CNOA still not achieved; session restored | [Candidate 26 drive](#candidate-26-village-drive-2026-10-26) |
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
+| The owner requested a minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | exact `dcbb3f82…` installed 2026-10-29; one legacy arm, path `1793270936` confirmed and live output recorded; village drive pending | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3496,6 +3497,32 @@ subsets, not paired trials or causal estimates; speed-bin tables and ambiguous
 nearby directional support are retained in `analysis-metric/spatial-report.md`
 and `spatial-result.json`. Direction grouping thresholds were declared during
 analysis and are not an acceptance criterion.
+
+#### Minimal build-15 control (2026-10-29)
+
+After build29's verified export and RESTORED ledger, the owner explicitly
+confirmed stationarity through installation15 and route start. The exact
+historical APK `dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`
+replaced29 with `install -r -d -t`, preserving app data. Signatures match, the
+installer completed successfully, and the installed base.apk SHA/version were
+verified. Build29 remains pinned for an explicitly requested rollback.
+
+Only one `drive15-source-stockstart` arm was issued, using the pinned compatible
+legacy host and reader from the earlier repeat. No preliminary parked arms,
+ten-minute dwell or reboot were performed. The stock map remained disabled3 with
+no process. Legacy coordinate and field policies were retained unchanged; no
+build29 policies were transplanted into15. This is a same-day 29-to-15 control,
+not proof of a reset ADAS state or isolation of one code difference.
+
+The first home suggestion, Vnukovo Country Club (shown15min/12km), was selected,
+matching the destination used for29. The actual owner-requested drive remains
+the village loop with automatic rerouting. Arm
+`2500361b-11d2-4c8f-baee-9d21c5d808f6` confirmed path `1793270936`; current runtime
+state is LIVE, offline ready, with actual successful transport results and
+fresh read-only logging. The arm is left active for the drive, lifetime two hours.
+Evidence, exact commands and its own `rollback.json` are under
+`captures/bisect-pre-arm-20261027/run15-minimal-20261029/`. Export and legacy-host
+restore remain pending until the owner returns. No moving outcome is established.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
