@@ -37,6 +37,7 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
 | Minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | 2026-10-29 verified village loop: offered-or-active 66.94% of measured moving time; 62 short active episodes, median 0.906 s / max 3.191 s; session restored | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
+| Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 parked: same APK, sign=false and writer silent; setters returned1, ADAS sign remained raw5; one arm and ACK200, drive pending | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3565,6 +3566,52 @@ with no process and the exact 15 APK still installed. The host recorder stopped;
 only the owned temporary export archive was removed. No new crash appeared.
 Legacy closure removes the arm; this receipt does not claim a modern graceful
 terminal-message drain.
+
+#### Build15 without the Denza Apps sign writer (2026-10-29)
+
+After the minimal15 control, the owner explicitly requested the same installed
+historical APK without reinstall, no preliminary arms, the Denza Apps HUD
+speed-limit switch off, and two one-shot parked map inputs: road type
+`0x4CA00050=9` and speed limit `0x4CA00040=0`. The owner freshly confirmed
+stationarity through preparation and route start. No code or APK changed.
+
+The initial Denza Apps preferences were `enabled=false`, `sign=true`; the UI
+therefore disabled the sign row. To operate that row through the panel, the
+overall switch was temporarily enabled, sign switched off, then the overall
+switch restored off. Before/after preferences prove the only persistent change
+is `sign=false`. Denza Apps remained running. The original empty log does not
+establish whether this writer was active in the previous drive. After the
+transition, a40.53 s observation with a live Navigator route contained no
+`DenzaHudSpeedLimit` lines; a separate bounded read-only logger remains on
+through the new trip. This observes that named writer, not every possible
+autoservice writer.
+
+At14:16:10.838 and14:16:11.533 MSK, transact6/device1023 wrote the two exact
+values once each; both setters returned1. ADAS1038/FID`0x2D500020`, transact5,
+returned raw5 before, immediately after, and after the new route start. The
+known positive-limit encoding maps raw5 to20 km/h. Thus dispatch was answered,
+but the ADAS sign did not change on the standing car. Direct reads of the two
+SETTING properties returned-10011, so they do not prove stored9/0. No write was
+repeated to chase a preferred readback; clearing semantics are not inferred
+from the positive-limit formula.
+
+The previous retained Navigator route was ended before the writes. One
+`drive15-source-stockstart` arm, `3a4bd8f9-6dfd-41ec-89f0-ec9873ab683f`, used the
+same pinned legacy host/reader, WGS84 and unchanged field policies; stock map
+remained disabled3 with no process. The first home suggestion was again Vnukovo
+Country Club15 min/12 km, for the owner's actual village loop with the east exit
+and reroutes. Path`1793272648` received explicit SELECTED200 at elapsed97069228.
+The14:18:30 parked receipt proves LIVE,58 actual position sends, no sign-writer
+log line, sign=false, park1/speed0 and unchanged crash buffer. Lease expires
+16:16:56 MSK. This establishes departure readiness only, not NOA retention.
+
+Evidence owner: `captures/bisect-pre-arm-20261027/run15-no-sign-20261029/READY.md`,
+with `signal-one-shot.json`, `hud-toggle-receipt.json`, `ready-receipt.json`,
+bounded stream collectors and the owned `rollback.json`. On return, export all
+rings and the writer log, verify integrity, then use the pinned legacy restore.
+Leave the speed-sign switch off until the owner separately requests it on.
+The new arm shares the preceding boot, process and recorder source; analysis
+must additionally isolate the new arm's physical journal boundary.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
