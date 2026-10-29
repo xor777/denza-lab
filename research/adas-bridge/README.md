@@ -23,7 +23,7 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-27. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Updated 2026-10-27. Local parser acceptance is separate from vehicle acceptance.
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
-| Candidate 29 uses fresh CAN for location speed, with original SDK speed on missing/invalid/stale CAN; the speed policy is independently switchable at arm time | signed local APK29 from `8407fa58`, SHA `56dc2009…`; 45/45 replay speeds use CAN, 6/6 moving SDK zeros removed, 2 stops retained; not installed or armed | [Candidate 29](#candidate-29-can-speed-experiment) |
+| Candidate 29 uses fresh CAN for location speed, with original SDK speed on missing/invalid/stale CAN; the speed policy is independently switchable at arm time | APK29 from `8407fa58`, SHA `56dc2009…`, installed 2026-10-29; parked route confirmed, fresh CAN and live output recorded; village drive pending | [Candidate 29](#candidate-29-can-speed-experiment) |
 | Historical candidate 28 removes all 23 zero links on the recorded path and adds displacement-derived speed; 3 of 6 moving zero-speed cases still remain in the matched-fix replay | signed local review APK built from committed `37431201`, SHA `47186127…`; speed policy superseded by candidate 29; no vehicle operation | [Candidate 28](#candidate-28-recipe-correction) |
 | Offline review of the proposed correction preserves all original >=1 m link attributes while removing all 23 zero links: 131 → 90 links. Its literal speed fallback adds two derivatives around 33 km/h but still misses the frozen coordinate | isolated Java sender replay + independent Python calculation; product code/APK unchanged, no vehicle operation | [Correction recalculation](#offline-correction-recalculation-2026-10-27) |
 | Historical `COMPATIBILITY_CN` used one Beijing donor set on every link, Region 110000 and URID 1. Candidate 25 replaces it in the active product path; its evidence and attribution remain readable | candidate 24 built and package-checked; no retained vehicle acceptance | [Compatibility-CN donor profile](#compatibility-cn-donor-profile-local-2026-10-25) |
@@ -3956,9 +3956,31 @@ build receipt. APK v2/v3 signatures, resources, manifest, ABI and product source
 closure passed. `build29/HANDOFF.md`, `candidate-receipt.json`, `SHA256SUMS`,
 source archive, pinned host/reader and zero-device-call `plan.json` retain the
 reviewable handoff. Baseline byte equality and captured speed replay were
-rechecked against the final build's test classes. No car installation, arm, stationary acceptance or NOA result has
-occurred for this candidate. A successful B pass would implicate the package;
-the speed flag can then be disabled alone to test its contribution in a new arm.
+rechecked against the final build's test classes. The subsequent stationary
+installation is recorded below; no moving NOA result is established yet. If the
+drive with all four changes improves availability or retention, the speed flag
+can then be disabled alone to test its contribution in a new arm.
+
+On 2026-10-29 the owner confirmed the car would remain stationary for installation
+and route start. Build 29 replaced installed build 26 without clearing app data;
+the installed `base.apk` hash and version match the candidate above. The pinned
+host armed all four policies, with `speedFromFixes=false`, for two hours. The stock
+map was already disabled (package state 3), had no process, and remains isolated;
+restore must preserve that original state. A home-screen route suggestion was
+started, and runtime `LIVE` confirmed path `1793268111427`, offline route readiness
+and the exact requested flags.
+
+The parked receipt contains 263 actual location packets over 267.004 seconds
+(largest interval 2.990 seconds), region/province/city 990001, and 2,677 accepted
+motion observations selecting fresh CAN zero. This is a stationary result and
+does not exercise moving CAN fallback or establish NOA availability. The new
+route's merge audit is 132 to 78 links, with all 23 zero-length links removed.
+The crash buffer is unchanged from preflight. Evidence is retained in
+`captures/stock-sender-parity-20261025/product/drive29-20261029/parked-receipt.json`
+and `parked-final-state.json`; `drive.rollback.json` owns this arm. A bounded
+read-only host stream is running in addition to the on-device journals. The arm
+was deliberately left active for the owner's village loop; export and restore
+remain pending until the owner returns.
 
 ### Offline correction recalculation (2026-10-27)
 
