@@ -38,7 +38,8 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
 | Minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | 2026-10-29 verified village loop: offered-or-active 66.94% of measured moving time; 62 short active episodes, median 0.906 s / max 3.191 s; session restored | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
 | Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 trip archived; local SHA/CRC verified and session RESTORED; sign remains off; moving outcome not yet independently audited here | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
-| Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 parked: same APK, two one-shot inputs acknowledged, SELECTED200, 15 actual TrafficInfo packets with effective limit0; drive pending | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
+| Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 trip archived, SHA/CRC verified; session RESTORED; moving outcome not independently audited here | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
+| Historical15 `loop-limit` plus one-shot road type9 / machine navigation limit20, with Denza Apps sign writer off | 2026-10-29 parked: two setters acknowledged, ADAS sign raw5 unchanged, SELECTED200 and11 actual TrafficInfo0 packets; drive pending | [Build15 machine limit20](#build15-with-machine-navigation-limit20-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3654,11 +3655,52 @@ continued; the host tail resumed without overwriting earlier files. The complete
 return archive is required to cover these host gaps. Lease expiry is16:51:27 MSK;
 host collectors retain their original bound around16:45. After return, export,
 verify integrity, then pinned restore; leave sign off until the owner requests
-otherwise. No moving NOA outcome is established yet.
+otherwise. The departure-only status is superseded by the closure below; the moving outcome
+has not been independently audited here.
 
 Evidence: `captures/bisect-pre-arm-20261027/run15-limit0-20261029/READY.md`,
 `signal-one-shot.json`, `variant-verification.json`, `wire-proof.json`,
 `verify_wire.py`, `ready-receipt.json` and owned `rollback.json`.
+
+The owner later supplied Claude's read-only return archive:8,201,828 bytes,
+130 members, SHA256`8bca6d714e4facd4180b905c377459303948605dedd66d03de0f78d89d2991b0`.
+It matches the saved receipt and passes gzip CRC. The pinned restore completed
+RESTORED; independent reads prove arm removal, STOPPED, quiescence, both endpoints
+closed, owned reader absent, stock state3/no process and exact15 still installed.
+The old host collectors were stopped. Closure evidence is in
+`run15-limit0-20261029/return-closed/`; no modern terminal-drain claim is made.
+
+#### Build15 with machine navigation limit20 (2026-10-29)
+
+The owner authorized the next village loop and freshly confirmed stationarity
+through preparation and start. Exact15, pinned legacy host/reader, boot/process,
+stock disabled3 and sign=false remain. No reinstall, reboot or preliminary arm.
+An independent offline check proves the one-shot script changes only the limit
+value0→20; `loop-limit.json` remains byte-identical to the preceding experiment.
+
+At15:24:15.641 and15:24:16.266 MSK, transact6/device1023 sent road type9 and
+SETTING_SPEED_LIMIT_SET20 once each; both returned1. Direct SETTING reads still
+return-10011. ADAS0x2D500020 is raw5 before, after, and after route start, consistent
+with20 km/h but unchanged from before the intervention. Thus request acceptance
+is established, not stored-value readback or a causal change in ADAS behavior.
+
+One arm`a704e9af-850d-4851-b399-e889bb7be1bc` uses `loop-limit`, WGS84 and unchanged
+other field policies. The first home suggestion is Vnukovo Country Club15min/12km.
+Path`1793276811` received explicit SELECTED200 and the same-path accepted callback.
+The15:27 parked receipt proves LIVE, active guidance,11 actual position sends
+and11 successful TrafficInfo sends with effective limit0 (omitted zero scalar
+inside the decoded existing body). Sign remains off, Denza Apps stays running,
+its named writer log is empty, park1/speed0 and crash buffer are unchanged.
+
+Lease expires17:24:49 MSK. On-device recording does not require the host connection;
+the bounded host copy is supplemental. After return: complete export, SHA/CRC,
+pinned restore; leave sign off unless the owner requests otherwise. The external
+plan's proposed causal interpretations are hypotheses, not acceptance findings;
+there is no moving outcome yet and no automatic product change is authorized
+by a single result. Evidence owner:
+`captures/bisect-pre-arm-20261027/run15-limit20-20261029/READY.md`,
+`signal-one-shot.json`, `wire-proof.json`, `ready-receipt.json`, `check_ready.py`
+and the owned `rollback.json`.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
