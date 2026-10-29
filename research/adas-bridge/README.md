@@ -40,7 +40,7 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 trip archived; local SHA/CRC verified and session RESTORED; sign remains off; moving outcome not yet independently audited here | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
 | Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 trip archived, SHA/CRC verified; session RESTORED; moving outcome not independently audited here | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
 | Historical15 `loop-limit` plus one-shot road type9 / machine navigation limit20, with Denza Apps sign writer off | 2026-10-29 return exported with SHA/CRC verification; session RESTORED; moving outcome not yet independently audited here | [Build15 machine limit20](#build15-with-machine-navigation-limit20-2026-10-29) |
-| Historical15 adds optional `speedLimit=fixed20` at the final TrafficInfo serialization point; the product factory sender is unchanged | isolated APK69ef8198 built, unchanged version/certificate, only module DEX differs; local lifecycle wire tests and independent review pass; installation pending | [Historical15 fixed20](#historical15-fixed20-candidate-2026-10-29) |
+| Historical15 adds optional `speedLimit=fixed20` at the final TrafficInfo serialization point; the product factory sender is unchanged | installed over15 with hash verified; two same-arm stationary SELECTED200 routes, all80 captured TrafficInfo20 including after guidance reset; drive pending | [Historical15 fixed20](#historical15-fixed20-candidate-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3750,12 +3750,28 @@ The pinned legacy host remains immutable. A copy under the run folder changes
 only the speedLimit enum to permit fixed20; fixed30 and numeric20 are rejected,
 legacy effective variants unchanged. `loop-limit20.json` changes only speedLimit,
 keeping id=loop-limit. The source and host diffs are retained beside the run plan.
-No autoservice setters are planned for this run. Installation is pending fresh
-owner stationarity confirmation; use install-r only, never uninstall. After
-installation verify the actual APK hash, then one arm with two stationary routes
-and explicit SELECTED200, first/all retained TrafficInfo20 before and after
-guidance reset. After the drive export and restore; retain the new APK unless
-owner requests rollback.
+After fresh owner confirmation, install-r completed successfully with the same
+version and certificate and no uninstall. The complete installed APK hash matches
+69ef8198; the incremental installer reported all files loaded. No autoservice
+setters were issued. Stock map remains disabled3, sign=false, and the named sign
+writer is silent; ADAS sign stays raw5 before the arm and at readiness.
+
+One arm`df63189a-03d8-4f54-b48a-2ce5d6e287c2` uses the copied host and fixed20.
+Two home-suggestion routes to Vnukovo Country Club16min/12km received explicit
+SELECTED200 plus accepted same-path callbacks:1793280920 then1793281067.
+A saved same-arm state between them proves guidanceActive=false. The first proof
+contains10 TrafficInfo20 packets including the first send; the combined proof
+contains80 actual successful TrafficInfo sends, all20, with9 after the second
+ACK and80 position sends. This is a guidance reset and new route within one arm,
+not an additional preliminary arm or a moving reroute acceptance claim.
+
+At16:38 MSK, the second route is LIVE, sign remains off, park1/speed0 and crash
+buffer unchanged. Lease ends18:34:15 MSK. The owner may now do the single planned
+village loop; NOA maximum/sign behavior and retention are not established by
+these stationary feed checks. On-device logs continue without host connectivity.
+After return export+verify then restore; retain the new APK unless rollback is
+requested. Readiness and raw phase proofs are in the run folder's READY.md,
+ready-receipt.json, first/replacement-proof.json and first/replacement-wire.jsonl.
 
 Candidate evidence: `captures/yandex-feed15-fixed20-20261029/README.md`,
 `candidate-summary.json`, `source.diff`, `apk-equivalence.json`, `tests/receipt.json`,
