@@ -37,7 +37,8 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | A common elapsed-time metric reproduces the first-path availability difference: build 15 81.64%, A1 3.55%; high offer share remains separate from short active retention | offline raw-log reconstruction and independent duration check; not a moving result of the new repeat | [Replay preparation](#review-of-the-proposed-24-october-replay) |
 | Original build 15 (`dcbb3f82…`) was reinstalled for the owner-authorized preparation repeat; all three parked arms closed and the following trip arm received ACK 200 | verified village-loop logs: offered-or-active 60.20% of measured moving time; 67 short active episodes, median 0.706 s / max 2.692 s; session restored | [Historical build-15 repeat](#historical-build-15-repeat-on-the-car) |
 | Minimal historical-15 control after the unsuccessful 29 drive: no preliminary arms or ten-minute dwell; stock navigation stays disabled | 2026-10-29 verified village loop: offered-or-active 66.94% of measured moving time; 62 short active episodes, median 0.906 s / max 3.191 s; session restored | [Minimal build-15 control](#minimal-build-15-control-2026-10-29) |
-| Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 parked: same APK, sign=false and writer silent; setters returned1, ADAS sign remained raw5; one arm and ACK200, drive pending | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
+| Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 trip archived; local SHA/CRC verified and session RESTORED; sign remains off; moving outcome not yet independently audited here | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
+| Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 parked: same APK, two one-shot inputs acknowledged, SELECTED200, 15 actual TrafficInfo packets with effective limit0; drive pending | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -3605,13 +3606,59 @@ The14:18:30 parked receipt proves LIVE,58 actual position sends, no sign-writer
 log line, sign=false, park1/speed0 and unchanged crash buffer. Lease expires
 16:16:56 MSK. This establishes departure readiness only, not NOA retention.
 
-Evidence owner: `captures/bisect-pre-arm-20261027/run15-no-sign-20261029/READY.md`,
-with `signal-one-shot.json`, `hud-toggle-receipt.json`, `ready-receipt.json`,
-bounded stream collectors and the owned `rollback.json`. On return, export all
-rings and the writer log, verify integrity, then use the pinned legacy restore.
-Leave the speed-sign switch off until the owner separately requests it on.
-The new arm shares the preceding boot, process and recorder source; analysis
-must additionally isolate the new arm's physical journal boundary.
+The departure-only status above is now superseded: the owner supplied the return
+archive before the next experiment. Its local SHA256 is
+`f743b029ea925534739060bc33d4287bc29cfa393cc3b05d7d5aaaafda9f1d8b`,
+8,725,882 bytes,130 members; it matches the saved pull receipt and passes gzip
+CRC. This session independently completed the pinned restore and proved arm
+removal, STOPPED, quiescence, closed endpoints, owned reader exit, stock state3
+with no process and the same15 APK. Its host collectors stopped. The external
+analysis motivated the following trial; its moving-result numbers have not yet
+been independently audited here. This is legacy arm-removal closure, not a claim
+of modern terminal-message drain.
+
+Evidence owner: `captures/bisect-pre-arm-20261027/run15-no-sign-20261029/`,
+including `READY.md`, `claude-pull/receipt.json` and `return-closed/closure-proof.json`.
+The speed-sign switch remains off. Both experiments share boot, process and
+recorder source, so analysis must isolate each physical arm boundary.
+
+#### Build15 with zero feed speed limit (2026-10-29)
+
+The owner requested `run15-limit0-PLAN.md` and freshly confirmed stationarity.
+No reinstall, reboot, preliminary arm or source change was made. The existing
+`loop-limit` variant differs from `drive15-source-stockstart` only in its name
+and speedLimit=yandex→zero (plus the derived override list). The original source
+archive and pinned host dry run confirm compatibility with this historical15;
+this is not the current factory-sender host.
+
+At14:50:57.376 and14:50:58.525 MSK, road type9 and limit0 were written once each
+with the same exact transact6/device1023 calls. Both returned1. Direct SETTING
+reads remained-10011; ADAS0x2D500020 remained raw5 before/after and after route
+start. Thus the two write requests were acknowledged, without evidence that
+ADAS cleared its displayed sign.
+
+One arm`6995ed87-13b4-42c8-85f3-6e22561e2b9e` uses the same pinned APK/host/reader,
+WGS84 and unchanged other field policies. The first home suggestion was Vnukovo
+Country Club16 min/12 km; the owner plans the village loop with the east exit.
+Path`1793274869` received explicit SELECTED200 and an accepted same-path callback.
+The14:56 parked receipt proves LIVE, guidance active, park1/speed0, stock map
+absent, Denza Apps PID18235, sign=false, no sign-writer log lines and unchanged
+crash buffer. Fifteen captured successful TrafficInfo sends all have effective
+spdLmtSpeedValue0: the existing protobuf serializer omits zero field8, while the
+TrafficInfo body itself is present and decoded. Twenty actual position sends
+were captured alongside them. These checks establish feed readiness only.
+
+The slow connection required temporarily pausing the large host tail for UI
+transfer and direct reads. On-device recording and the separate sign logger
+continued; the host tail resumed without overwriting earlier files. The complete
+return archive is required to cover these host gaps. Lease expiry is16:51:27 MSK;
+host collectors retain their original bound around16:45. After return, export,
+verify integrity, then pinned restore; leave sign off until the owner requests
+otherwise. No moving NOA outcome is established yet.
+
+Evidence: `captures/bisect-pre-arm-20261027/run15-limit0-20261029/READY.md`,
+`signal-one-shot.json`, `variant-verification.json`, `wire-proof.json`,
+`verify_wire.py`, `ready-receipt.json` and owned `rollback.json`.
 
 #### Build 26 longer-trip departure (2026-10-26)
 
