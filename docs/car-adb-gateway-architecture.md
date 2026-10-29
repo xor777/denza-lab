@@ -1,7 +1,10 @@
 # Car ADB Gateway — Relay-Only Architecture
 
 Status: current design of the implementation in this repository, last checked
-2026-10-26. The lease and garbage-collection lifecycle passed local acceptance,
+2026-10-29. The relay moved from Vultr Amsterdam to VDSina Moscow,
+`212.193.11.249`, with its host keys and existing registrations preserved
+([CAG-019](car-adb-gateway-decision-log.md#cag-019)). The old address temporarily
+forwards port 443 while the previous 24-hour DNS TTL expires. The lease and garbage-collection lifecycle passed local acceptance,
 an idempotent Ansible rollout, and live checks on `adbgw.ru`. From 2026-10-18 to
 2026-10-20 the public port sat behind a transparent sslh that also served a
 download page ([CAG-014](car-adb-gateway-decision-log.md#cag-014)); the page moved
@@ -64,6 +67,13 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 
 `ops/ansible` configures stock OpenSSH and the commands in `platform/relay/`.
 Port 22 remains the administrative endpoint; port 443 serves the application.
+The active host is VDSina Moscow. Administration uses `dmitry` and the existing
+operator key, with passwordless sudo; remote root and password or
+keyboard-interactive administration are disabled. During DNS convergence, use
+`212.193.11.249` explicitly for administration. The old Vultr host retains its
+admin port but only forwards application TCP to the new host; its runtime state
+writers are disabled. The temporary forwarding policy and removal procedure
+live in [the Ansible field guide](../ops/ansible/README.md#relay-migration-and-temporary-source-bridge).
 The relay serves nothing else: the download page and the APKs live on GitHub
 ([CAG-015](car-adb-gateway-decision-log.md#cag-015)), and the sslh multiplexer of
 [CAG-014](car-adb-gateway-decision-log.md#cag-014) is gone.
@@ -408,10 +418,28 @@ reached the car through `adbgw.ru`.
   reduce this risk.
 - Uninstalling the APK removes private keys and state. A fresh install requires
   a new enrollment invite from an administrator.
-- There is no application-level backup workflow; the accepted recovery boundary
-  is the existing full-VM backup.
+- There is no scheduled application-level backup workflow. The 2026-10-29
+  migration saved a private manual snapshot of the host keys and runtime state.
+  Automatic provider backups on the new VDSina host are disabled; the previous
+  full-VM backup boundary must not be assumed for the replacement.
 
 ## 8. Verification Status
+
+On 2026-10-29 the VDSina migration passed 14 baseline checks and all 64 relay
+checks, including the unchanged pin through public port 443, real DNS resolution,
+service-account isolation, state locks, loopback-only administration, firewall
+and synchronized time. A final Ansible rollout reported 59 OK, zero changes and
+zero failures. Production-profile Ansible lint passed for the whole configuration.
+The final source snapshot and the replacement's state have identical SHA-256
+`ddb94dce5fdcde57c2a17da92eb009972d17abb1ff6a04ab363ce307fb594447`:
+one device, one client, one grant, no pending replacements or codes. Fresh SSH
+connections verified key-only `dmitry` and passwordless sudo, and rejected root
+and password-only administration. Both authoritative DNS servers, Cloudflare
+and Google returned `212.193.11.249`. The old public IP also returned the same
+pin through its temporary TCP bridge; its web UI and GC were inactive.
+The car was not connected during this acceptance, so ADB and the original
+mobile hotspot path through Moscow remain unverified. Evidence is private under
+`captures/cag-migration-2026-10-29/`; operational cleanup is in the Ansible guide.
 
 Completed locally and on `adbgw.ru` for the lifecycle revision on 2026-07-18:
 
@@ -525,20 +553,34 @@ computer did not answer: Wi-Fi to mobile data 27 s, mobile data back to Wi-Fi
 was then installed on the owner's car remotely, with keys and registration
 kept.
 
+Throughput, measured on 2026-10-29 from the owner's Mac to the car on home
+Wi-Fi. Taking a car screenshot needed about two minutes. The Mac reaches the
+relay through a VPN, and its old exit delivered about 5-20 KB/s downstream;
+after a VPN switch the relay sent 3 MB in 3.3 s, and `adb push` ran at 2.5 MB/s.
+The rest is ADB itself: every data packet waits for its OKAY, and the path Mac →
+VPN → Amsterdam → car is long. So `adb exec-out screencap -p`, which streams the
+PNG in small writes, took 6-9 s for 0.55 MB. Encoding to a file on the car takes
+about 0.35 s, after which `exec-out cat` moves the file in a few large packets:
+1.4-2.8 s in all.
+
 On a phone's mobile hotspot (an operator in Russia) the car never got in: on
 2026-10-26 twelve connections in five minutes reached the relay's sshd and each
 ended in `Timeout before authentication`. The same car on home Wi-Fi logs in
 within a second, and the 14:30 false wipe came from the same operator address.
-The relay is a Vultr server in Amsterdam (AS20473). The likely cause is the
+At the time, the relay was a Vultr server in Amsterdam (AS20473). The likely cause was the
 operator throttling traffic to foreign hosting, perhaps also because port 443
 carries SSH rather than TLS. Lost large packets on the mobile path are not ruled
 out. Not yet confirmed from a computer on the same hotspot. If confirmed, the
-fix is a relay hosted in Russia that takes over `adbgw.ru` with the same host
-key, so the pin in the app and the CLI still holds (CAG-003).
+proposed fix was a relay hosted in Russia taking over `adbgw.ru` with the same
+host key, so the pin in the app and the CLI would still hold (CAG-003).
+The owner made that infrastructure change on 2026-10-29, moving to VDSina Moscow
+with the original identity and grants (CAG-019). The same hotspot path and a
+live-car connection through the new host still need verification; the move
+does not confirm the earlier root-cause hypothesis.
 
 Required before production:
 
-- a relay reachable from Russian mobile networks (see above);
+- verify the new Moscow relay from the same Russian mobile network (see above);
 - a wake from the car's sleep (quickboot) without opening the app;
 - the same network-change timings measured on the head unit;
 - verify API levels 26, 31, 34 and 36 (33 on the head unit and 35 on the emulator are done);
