@@ -3128,6 +3128,18 @@ Status: in the product (`HudNativeSpeedLimit.kt`); on the car since 2026-10-11
 (build 65): the sign is read and goes out in field 11; the car's own sign takes
 writes while driving (14 confirmed, 7 late, of 75 on the 2026-10-11 drive).
 
+**These writes reach ADAS (2026-10-29).** `0x4CA00040` and `0x4CA00050` are the
+stock map's own inputs to the ADAS controller, not a display-only sign. The stock
+writes the road type from the matched link on every change
+(`LM/com/autosdk/bussiness/location/instrument/LocationBaseInstrument.java:183-207`,
+`AdasDataTransfer.transferRoadClass`: class 0→1, 1→2, 2→3, 3→4, 4/5→5, 6→6, 7→7,
+8→8, 9→9, 10→10, unknown→0, ramp formways→11) and the map limit on change
+(`NaviService.java:1421`). Our writer instead ends every write with road type 6,
+the class the factory treats as HNOA road, on any street, and rewrites while the
+car's camera disagrees. With the YandexHUD ADAS bridge armed this is a second,
+uncoordinated writer of ADAS inputs. See `research/adas-bridge/README.md`,
+"The speed-sign writer as an ADAS input", on the branch `adas-odd-parity`.
+
 **First run on the car (2026-10-11, build 63 then 65, parked).**
 - Yandex showed a 20 sign, and every road packet went out with no limit. The
   view exists (`text_speedlimit` inside the clickable `speedlimitview_guidance`,
