@@ -12,9 +12,6 @@ from identity import BUILD_NUMBER, LABEL, VERSION_CODE, VERSION_NAME
 from manifest import LAUNCH_TARGET, QUERIED_PACKAGES, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
-from native_graph import build as build_native_graph
-from native_vector import build as build_native_vector
-from offline_zstd import prepare as prepare_offline_zstd
 
 ROOT = Path(__file__).resolve().parents[2]
 PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
@@ -57,7 +54,7 @@ def verify_manifest(original, candidate, env):
         raise RuntimeError('Experimental launcher label missing on the launch activity')
     target(after).attrib[android + 'label'] = target(before).attrib[android + 'label']
     queries = after.find('queries')
-    for queried in QUERIED_PACKAGES:  # HUD service, Denza Apps host, stock-map state read.
+    for queried in QUERIED_PACKAGES:  # The HUD service, and Denza Apps as the host.
         added = [node for node in queries if node.tag == 'package'
                  and node.attrib == {android + 'name': queried}]
         if len(added) != 1: raise RuntimeError('Package query mismatch: ' + queried)
@@ -91,11 +88,6 @@ def main():
     env = dict(os.environ, JAVA_HOME=str(java))
     build_tools = sdk / 'build-tools/36.0.0'
     android = sdk / 'platforms/android-35/android.jar'
-    with zipfile.ZipFile(args.apk) as original:
-        dependency_abis = sorted({name.split('/')[1] for name in original.namelist()
-                                  if name.startswith('lib/') and name.endswith('.so')})
-    if args.abi != 'universal': dependency_abis = [args.abi]
-    offline_zstd = prepare_offline_zstd(args.out, abis=tuple(dependency_abis))
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     run(['python3', ROOT/'tools/yandex_hud_build/stock_camera_defaults.py', '--check'])
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
@@ -110,58 +102,13 @@ def main():
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
          *sorted((link/'dev/denza/hudlink/camera').glob('*.java')),
-         ROOT/'libraries/adas-link/src/main/java/dev/denza/adaslink/FixFreshness.java',
-         *[ROOT/'libraries/adas-link/src/main/java/dev/denza/adaslink'/(name+'.java')
-           for name in ('VectorRoadTile', 'VectorRoadTileCache', 'RouteVectorTilePlan')],
          camera_tests/'CameraTest.java', camera_tests/'StockCameraTest.java',
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
-         package/'StockHudSymbols.java', package/'RouteSnapshot.java', package/'GuidanceSnapshot.java', package/'TrafficSignalSnapshot.java',
+         package/'StockHudSymbols.java',
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
-         package/'YandexVectorPrefetch.java',
-         package/'YandexRouteVectorSource.java',
-         package/'YandexOfflineInventory.java',
-         package/'EvidencePolicy.java', package/'DriveEvidenceLog.java', package/'DriveEvidenceStreams.java', package/'AdasStateJournal.java',
-         # The ADAS status overlay's plain-Java part: wire, observations, rules, figures.
-         *[package/(name + '.java') for name in ('AdasWire', 'AdasFeed', 'AdasObservations', 'AdasOverlayState', 'AdasSvgPath', 'AdasDigits', 'CallbackQueue')],
-         *[p for p in sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))
-           if p.name != 'YandexOfflineMapSourceHashTest.java']])
-    # The map-to-ADAS bridge (libraries/adas-link): its plain-Java part and its tests, which read the
-    # car's stock route and the recorded Navigator routes from the git-ignored captures/ corpus.
-    adas = ROOT / 'libraries/adas-link/src/main/java'
-    adas_android = {'AndroidScheduler.java', 'SomeIpPublisher.java'}
-    adas_classes = args.out / 'adas-test-classes'; adas_classes.mkdir()
-    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', adas_classes,
-         *[p for p in sorted((adas/'dev/denza/adaslink').glob('*.java')) if p.name not in adas_android],
-         *sorted((ROOT/'libraries/adas-link/src/test/java/dev/denza/adaslink').glob('*.java'))])
-    run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.AdasLinkTest', ROOT])
-    for suite in ('DynamicLegalLimitTest', 'LaneGuidanceTest', 'YandexTrafficContextTest', 'RoadFacilitiesTest', 'ConditionsRefreshTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite, ROOT])
-    for suite in ('VectorRoadTileTest', 'VectorRoadTileCacheTest', 'VectorTilePacketTest',
-                  'VectorRoadEnrichmentTest', 'RouteVectorTilePlanTest', 'OfflineMapGateTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite, ROOT])
-    run(['python3', '-m', 'unittest', 'tools.adas_bridge.tests.test_lane_wire', 'tools.adas_bridge.tests.test_facilities_wire'], cwd=ROOT)
-    run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.FixFreshnessTest'])
-    for suite in ('AdasGateSnapshotTest', 'RealPathAckTest', 'LiveStockFeedTest', 'LiveEgressGuardTest', 'LiveSessionLeaseTest', 'LiveDriveRegressionTest'):
-        run([java/'bin/java', '-cp', adas_classes, 'dev.denza.adaslink.' + suite,
-             *([ROOT] if suite == 'RealPathAckTest' else [])])
-    run(['python3', ROOT/'tools/adas_bridge/runtime_harness/run.py', '--out', args.out/'live-runtime-harness'])
-    run(['python3', ROOT/'tools/adas_bridge/passive_client_harness/run.py', '--out', args.out/'passive-client-harness'])
+         *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.RouteSnapshotTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexVectorPrefetchTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexRouteVectorSourceTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.YandexOfflineInventoryTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.GuidanceSnapshotTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.TrafficSignalSnapshotTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.EvidencePolicyTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveEvidenceLogTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveEvidenceStreamsTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.CallbackQueueTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.DriveJournalTest'])
-    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.AdasOverlayTest',
-         ROOT/'experiments/adas-status-probe/src/test/fixtures/native-status-car-20261023.txt',
-         ROOT/'tools/design-canvas/luminofor/spec.json'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',
          ROOT/'research/yandex-hud-renderer/stock-camera-projection-oracle.csv',
@@ -175,43 +122,14 @@ def main():
         if 'assets/denza-hud/stock/' + name + '.png' not in artwork:
             raise RuntimeError('Missing mapped stock artwork: ' + name)
     classes = args.out / 'module-classes'; classes.mkdir()
-    # Only signatures for the SDK's real JNI callback. Never package these classes: the
-    # original Navigator DEX owns the interface and its classloader identity.
-    sdk_stubs = args.out / 'sdk-compile-only'; sdk_stubs.mkdir()
-    stub_sources = sorted((ROOT/'tools/yandex_hud_build/compile_only').rglob('*.java'))
-    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android,
-         '-d', sdk_stubs, *stub_sources])
-    stub_jar = args.out/'sdk-compile-only.jar'
-    run([java/'bin/jar', 'cf', stub_jar, '-C', sdk_stubs, '.'])
-    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java')) + sorted(adas.rglob('*.java'))
-    source_hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
-    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8',
-         '-classpath', os.pathsep.join(map(str, (android, stub_jar, offline_zstd['classes_jar']))), '-d', classes, *sources])
-    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8',
-         '-classpath', os.pathsep.join(map(str, (classes, android))), '-d', unit_classes,
-         ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/YandexOfflineMapSourceHashTest.java'])
-    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android))),
-         'dev.denza.hud.probe.YandexOfflineMapSourceHashTest'])
-    run([java/'bin/java', '-cp', os.pathsep.join(map(str, (classes, unit_classes, android))),
-         'dev.denza.hud.probe.RotatingWriterTest'])
+    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java'))
+    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
-    with zipfile.ZipFile(args.out/'module.jar') as module:
-        if any(name.startswith('com/yandex/') for name in module.namelist()):
-            raise RuntimeError('SDK compile-only classes leaked into module.jar')
     dex = args.out/'module-dex'; dex.mkdir()
-    run([build_tools/'d8', '--min-api', '26', '--lib', android, '--classpath', stub_jar,
-         '--output', dex, args.out/'module.jar', offline_zstd['classes_jar']], env=env)
-    if {p.name for p in dex.glob('*.dex')} != {'classes.dex'}:
-        raise RuntimeError('Module DEX count changed; packaging must account for every DEX')
+    run([build_tools/'d8', '--min-api', '26', '--lib', android, '--output', dex, args.out/'module.jar'], env=env)
     patcher = args.out/'patcher'; patcher.mkdir()
     run([java/'bin/javac', '-cp', args.jadx_jar, '-d', patcher, ROOT/'tools/yandex_hud_build/PatchHooks.java'])
-    native_graph = build_native_graph(args.apk, args.out)
-    native_vector = build_native_vector(args.apk, args.out)
     changes = dict(artwork)
-    changes[native_graph["apk_entry"]] = Path(native_graph["library"]).read_bytes()
-    changes[native_vector["apk_entry"]] = Path(native_vector["library"]).read_bytes()
-    for entry in offline_zstd['native_entries'] + offline_zstd['asset_entries']:
-        changes[entry['apk_entry']] = Path(entry['path']).read_bytes()
     with zipfile.ZipFile(args.apk) as original:
         excluded = excluded_native_entries(original, args.abi)
         removed_native_bytes = sum(original.getinfo(name).compress_size for name in excluded)
@@ -227,10 +145,6 @@ def main():
         changes[extra] = (dex/'classes.dex').read_bytes()
         changes['classes'+str(int(extra[7:-4])+1)+'.dex'] = (args.out/'guidance-hook.dex').read_bytes()
         changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs', args.renderer_profile], cwd=ROOT)
-        # The ADAS overlay sets its words in the board's own Roboto (Apache 2.0, licence alongside),
-        # not the system's: the glass and tools/design-canvas/adas-overlay then measure alike.
-        for name in ('Roboto-400.ttf', 'Roboto-500.ttf', 'Roboto-LICENSE.txt'):
-            changes['assets/denza-hud/fonts/' + name] = (ROOT/'tools/design-canvas/luminofor/fonts'/name).read_bytes()
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w', allowZip64=False) as output:
             for info in original.infolist():
                 if info.filename in excluded:
@@ -238,8 +152,7 @@ def main():
                 if info.filename.startswith('META-INF/') and (info.filename.endswith(('.SF','.RSA','.DSA','.EC')) or info.filename == 'META-INF/MANIFEST.MF'):
                     continue
                 output.writestr(info, changes.pop(info.filename, original.read(info.filename)))
-            for name, content in changes.items():
-                output.writestr(name, content, compress_type=zipfile.ZIP_STORED if name.endswith('.so') else zipfile.ZIP_DEFLATED)
+            for name, content in changes.items(): output.writestr(name, content, compress_type=zipfile.ZIP_DEFLATED)
     run([build_tools/'zipalign', '-P', '16', '-f', '4', args.out/'unsigned.apk', args.out/'aligned.apk'])
     # Dedicated local experimental identity, never committed. No original certificate spoofing.
     identity = ROOT/'captures/yandex-hud-signing'; identity.mkdir(exist_ok=True)
@@ -263,18 +176,11 @@ def main():
     new_value = old_value.replace(ORIGINAL_ACCOUNT_TYPE, ACCOUNT_TYPE)
     if before_resources.count(old_value) != 1 or after_resources != before_resources.replace(old_value, new_value):
         raise RuntimeError('Unexpected resource change beyond passport_account_type')
-    if source_hashes != {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}:
-        raise RuntimeError('Module sources changed during build; rebuild from a stable snapshot')
     report = {'input_sha256': PIN, 'apk': str(result), 'sha256': hashlib.sha256(result.read_bytes()).hexdigest(),
-              'extra_dex': extra, 'module_source_sha256': source_hashes,
+              'extra_dex': extra, 'module_source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
               'package': 'ru.yandex.yandexnavi', 'label': LABEL, 'build_number': BUILD_NUMBER,
               'version': VERSION_NAME, 'version_code': VERSION_CODE, 'debuggable': True,
-              'runtime': 'embedded Java and ARM64 graph/vector observers, no Frida or root', 'manifest_semantic_check': 'passed'}
-    report['native_graph'] = native_graph['report']
-    report['native_vector'] = native_vector['report']
-    report['offline_zstd'] = offline_zstd['report']
-    report['sdk_compile_only_sha256'] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                                         for p in stub_sources}
+              'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
     report['abi'] = args.abi
@@ -300,21 +206,6 @@ def main():
             if before.read(name) != after.read(name): changed.append(name)
         if set(changed) != allowed: raise RuntimeError('Unexpected changed APK entries: '+str(changed))
         report['changed_original_entries'] = changed
-        module_dex = after.read(extra)
-        forbidden = (b'Ldev/denza/adaslink/RoadStore;', b'denza-adas-roads.bin')
-        if any(value in module_dex for value in forbidden):
-            raise RuntimeError('OSM loader leaked into the application DEX')
-        if any('denza-adas-roads' in name for name in after.namelist()):
-            raise RuntimeError('OSM store leaked into APK entries')
-        if after.read(native_graph['apk_entry']) != Path(native_graph['library']).read_bytes():
-            raise RuntimeError('Native collector changed while packaging')
-        if after.read(native_vector['apk_entry']) != Path(native_vector['library']).read_bytes():
-            raise RuntimeError('Native vector collector changed while packaging')
-        for entry in offline_zstd['native_entries'] + offline_zstd['asset_entries']:
-            if hashlib.sha256(after.read(entry['apk_entry'])).hexdigest() != entry['sha256']:
-                raise RuntimeError('Offline Zstd dependency changed while packaging')
-        report['osm_in_apk'] = False
-        report['osm_absence_check'] = 'no RoadStore class, database path, or packaged store'
         for name, content in artwork.items():
             if after.read(name) != content: raise RuntimeError('Stock asset changed: ' + name)
     (args.out/'build-report.json').write_text(json.dumps(report, indent=2)+'\n')

@@ -1,10 +1,9 @@
 """Minimal binary-XML edit: query the HUD service and the host, and mark an experimental debug build.
 
-Scoped package-visibility queries (Android 11+): the stock SOME/IP service the module writes the HUD
+Two package-visibility queries (Android 11+): the stock SOME/IP service the module writes the HUD
 through when it draws by itself, and Denza Apps, whose host service it binds to be hosted
 (docs/hud-output-architecture.md, 5). Without the second, bindService cannot see Denza Apps and
-the module always draws by itself. The stock map is queried so the live bridge can
-verify its disabled-user state; this adds no permission or control over that app.
+the module always draws by itself.
 
 The application and MapActivity labels become LABEL: the launcher shortcut is an alias without a
 label of its own, which Android resolves through its target activity, so both are needed for the
@@ -24,9 +23,8 @@ SHARED_PERMISSION = 'com.yandex.permission.READ_CREDENTIALS'
 HUD_SERVICE_PACKAGE = 'com.ts.car.someip.service'
 # HudHostProtocol.PACKAGE in libraries/hud-link.
 HOST_PACKAGE = 'dev.denza.apps'
-STOCK_MAP_PACKAGE = 'com.byd.launchermap'
 # The <package> queries added, in order, at the end of <queries>.
-QUERIED_PACKAGES = (HUD_SERVICE_PACKAGE, HOST_PACKAGE, STOCK_MAP_PACKAGE)
+QUERIED_PACKAGES = (HUD_SERVICE_PACKAGE, HOST_PACKAGE)
 
 
 def chunks(data, start=8):
@@ -86,7 +84,7 @@ def edit(data):
             size, pos = length(pool, pos, True)
         strings.append(bytes(pool[pos:pos + size * (1 if utf8 else 2)]).decode('utf-8' if utf8 else 'utf-16le'))
     # The host's package goes last, so the strings of the earlier edit keep their positions.
-    additions = [HUD_SERVICE_PACKAGE, VERSION_NAME, 'debuggable', LABEL, HOST_PACKAGE, STOCK_MAP_PACKAGE]
+    additions = [HUD_SERVICE_PACKAGE, VERSION_NAME, 'debuggable', LABEL, HOST_PACKAGE]
     if 'package' not in strings:
         additions.append('package')
     new_strings = strings + additions

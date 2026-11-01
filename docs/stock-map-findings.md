@@ -246,8 +246,8 @@ same surfaces.
 Work on loading our own data into the stock map (from 2026-10-21) lives in
 the private repository [`xor777/amap-injector`](https://github.com/xor777/amap-injector),
 with its code, evidence and findings. It was frozen on 2026-10-24 as the
-reference for the Yandex → ADAS bridge
-([research/adas-bridge/README.md](../research/adas-bridge/README.md)).
+reference for the Yandex → ADAS bridge (`research/adas-bridge/README.md` on the
+branch `stock-sender-parity`).
 
 ## Deeper Yandex integration (2026-10-15)
 

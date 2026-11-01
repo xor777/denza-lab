@@ -29,9 +29,6 @@ project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 include(":hud-link")
 project(":hud-link").projectDir = file("libraries/hud-link")
 
-include(":adas-link")
-project(":adas-link").projectDir = file("libraries/adas-link")
-
 // The disposable on-device probes under experiments/ and the frozen legacy app are configured
 // only on request, so that an ordinary product build does not pay for nine modules it never
 // touches. Ask for them with the `experiments` property:
@@ -92,9 +89,6 @@ if (providers.gradleProperty("experiments").isPresent) {
 
     include(":cluster-glow-probe")
     project(":cluster-glow-probe").projectDir = file("experiments/cluster-glow-probe")
-
-    include(":adas-parked-player-probe")
-    project(":adas-parked-player-probe").projectDir = file("experiments/adas-parked-player-probe")
 
     // Frozen, maintenance-only (see CLAUDE.md). Kept buildable until it is retired.
     include(":denza-gateway")

@@ -16,12 +16,6 @@ final class HudEmulatorControl {
     private long pollAt, themeAt, themeStamp, sequence, recorded, recordEvery, recordLimit;
     private String lastCommand = "";
     private String recordedRoute;
-    private String attemptedRoute;
-    private long routeAttemptAt = -10_000, recordedRouteAt = -10_000, identityFailureAt = -10_000;
-    private Object identityFailureRoute, recordedObject, attemptedObject;
-    /** Serialization and the fsync'd write of the route copy run here, never on Navigator's main thread. */
-    private android.os.Handler writer;
-    private volatile boolean writing, writeFailed;
     private boolean iconSheet;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
@@ -102,62 +96,20 @@ final class HudEmulatorControl {
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator theme rejected", error); return null; }
     }
 
-    /** Rich diagnostic route copy; routeId/points retain the existing AR evidence contract. Emulator only. */
+    /** Independent native geometry export for checking received AR against the original route. Emulator only. */
     void route(Object route) {
-        if (!enabled || route == null) return;
-        long now = android.os.SystemClock.elapsedRealtime();
-        if (route == identityFailureRoute && now - identityFailureAt < 10_000) return;
-        String id;
+        if (!enabled) return;
         try {
-            id = (String) api.call(route, "getRouteId");
-            if (id == null) throw new IllegalStateException("Missing route identity");
-            identityFailureRoute = null;
-        } catch (Exception error) {
-            identityFailureRoute = route; identityFailureAt = now;
-            Log.w("DenzaYandexHud", "native route identity failed", error);
-            return;
-        }
-        // A new route id is copied at once; the same route is refreshed at most once a
-        // minute (conditions may populate after the first result), a failed attempt after ten seconds.
-        // MapKit hands out a new wrapper object on every read: the route id is the identity.
-        boolean changed = !id.equals(recordedRoute) || writeFailed;
-        if (!changed && now - recordedRouteAt < 60_000) return;
-        if (id.equals(attemptedRoute) && now - routeAttemptAt < 10_000) return;
-        if (writing) return; // one write in flight; the next tick tries again
-        attemptedRoute = id; attemptedObject = route; routeAttemptAt = now;
-        try {
-            long wallAt = System.currentTimeMillis();
-            // The MapKit tree must be copied on the main thread; that copy is all that runs here.
-            final java.util.Map<String, Object> reference = new RouteSnapshot(api).read(route);
-            final long copied = android.os.SystemClock.elapsedRealtime();
-            reference.put("sourceSessionId", NavigationEvidence.SOURCE_SESSION_ID);
-            reference.put("capturedAtUnixMs", wallAt);
-            reference.put("capturedAtElapsedRealtimeMs", now);
-            reference.put("readDurationMs", copied - now);
-            recordedObject = route;
-            recordedRoute = id;
-            recordedRouteAt = copied;
-            if (writer == null) {
-                android.os.HandlerThread thread = new android.os.HandlerThread("denza-hud-evidence", android.os.Process.THREAD_PRIORITY_BACKGROUND);
-                thread.start();
-                writer = new android.os.Handler(thread.getLooper());
+            String id = (String) api.call(route, "getRouteId");
+            if (id.equals(recordedRoute)) return;
+            org.json.JSONArray points = new org.json.JSONArray();
+            for (Object point : (java.util.List<?>) api.call(api.call(route, "getGeometry"), "getPoints"))
+                points.put(new org.json.JSONArray().put(api.call(point, "getLongitude")).put(api.call(point, "getLatitude")));
+            JSONObject reference = new JSONObject().put("routeId", id).put("points", points);
+            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "denza-hud-native-route.json"))) {
+                out.write(reference.toString().getBytes(StandardCharsets.UTF_8));
             }
-            writing = true;
-            writeFailed = false;
-            writer.post(() -> {
-                try {
-                    long begin = android.os.SystemClock.elapsedRealtime();
-                    String json = RouteSnapshot.json(reference);
-                    long serialized = android.os.SystemClock.elapsedRealtime();
-                    RouteSnapshot.writeAtomic(new File(context.getFilesDir(), "denza-hud-native-route.json"), json);
-                    Log.i("DenzaYandexHud", "route evidence copy=" + (copied - now) + "ms serialize=" + (serialized - begin)
-                            + "ms write=" + (android.os.SystemClock.elapsedRealtime() - serialized) + "ms json=" + json.length());
-                } catch (Exception error) {
-                    writeFailed = true; // retried after ten seconds, as before
-                    Log.w("DenzaYandexHud", "native route evidence failed", error);
-                }
-                finally { writing = false; }
-            });
+            recordedRoute = id;
         } catch (Exception error) { Log.w("DenzaYandexHud", "native route evidence failed", error); }
     }
 

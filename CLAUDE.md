@@ -47,7 +47,6 @@ and a contents list. Read that first; then `rg -n '^#{2,3} ' <doc>` and
 | `feature/cloud` | [docs/telematics/README.md](docs/telematics/README.md) — the car's own cloud client (`cloudmanager`) over Wi-Fi, the «Облако» tile, result codes. |
 | `feature/diagnostics` | [docs/vehicle-diagnostics-architecture.md](docs/vehicle-diagnostics-architecture.md) — normative: the read-only whitelist, the resident shell helper and its line protocol, the ECU catalog, the scan engine, the acceptance order. What the car answers: [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md), "Diagnostics and DTC". |
 | `feature/hud`, `feature/fse`, `experiments/yandex-hud-module`, `libraries/hud-link` | [docs/hud-output-architecture.md](docs/hud-output-architecture.md) — normative: one writer per HUD, layers and fields → surfaces → mode, which app hosts the compositor. [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD as a display and the working recipe on this car; [docs/fse-app-installation.md](docs/fse-app-installation.md) — installing on the passenger computer; [research/fse-firmware/README.md](research/fse-firmware/README.md), with BydHud's direct-drive internals (inactive on this car) in `bydhud-direct-drive.md` there. Turn-by-turn guidance: [docs/instrument-display-findings.md](docs/instrument-display-findings.md), "HUD turn-by-turn guidance". |
-| `libraries/adas-link`, `tools/adas_bridge`, the ADAS overlay in `experiments/yandex-hud-module` | [research/adas-bridge/README.md](research/adas-bridge/README.md) — the map→ADAS contract, transport and one-writer rules, the Yandex bridge and its bench (`tools/adas_bridge/README.md`, "Differential bench"). Factory reference data (the Beijing city pack, the stock feed on factory data) lives in the private `xor777/amap-injector`. Publishing to the car's ADAS stays off until the owner approves a stationary test. |
 | `feature/cluster`, `feature/mirrors`, `feature/navigation` | [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Contour, Mirrors, navigation projection. |
 | `feature/simulcast`, DiShare in `:dishare-bridge` | [docs/dishare-api-notes.md](docs/dishare-api-notes.md) |
 | `feature/speaker` | [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) |
@@ -77,6 +76,11 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
   `research/telematics-firmware/persistent_runtime.c`,
   `docs/cloud-custom-runtime-contract.md`, the CUSTOM mode of `feature/cloud`),
   moved off main in `eed3a411`.
+- Branch `stock-sender-parity` — the map → ADAS (NOA) bridge: `libraries/adas-link`,
+  `tools/adas_bridge`, `research/adas-bridge`, the ADAS probes and the ADAS overlay in
+  the YandexHUD module, moved off main on 2026-11-01. Branch `adas-odd-parity` is a
+  second line of the same work (ODD parity, YandexHUD build 17) not yet merged into it.
+  Merge main into them; they come back to main only when the bridge is finished.
 
 ## The car
 
@@ -104,7 +108,6 @@ The default build configures the products and the library they share:
 | `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` and `:hud-link` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
 | `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, compositor and session policy, and the stock HUD camera, plain Java 8, also compiled into the YandexHUD module) |
-| `:adas-link` | `libraries/adas-link/` | `dev.denza.adaslink` (library: the stock map's feed to ADAS rebuilt from Yandex route and guidance, dry run by default, plain Java 8, also compiled into the YandexHUD module) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The on-device probes and the frozen legacy app are configured only when the
@@ -139,7 +142,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
-./gradlew :dishare-bridge:testDebugUnitTest :hud-link:testDebugUnitTest :adas-link:test
+./gradlew :dishare-bridge:testDebugUnitTest :hud-link:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
