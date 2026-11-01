@@ -133,12 +133,19 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
 - `vhds-diagnostic-trigger-path-20261021.json` retains the configurable CAN
   predicate and ECU/service/parameter schema, its type4/prefix02 sender and
   the separately bounded prefix03 sibling. The known direct parser entry is
-  test-property gated; scheduler and constructor bindings remain incomplete.
+  test-property gated; that pass left scheduler and constructor bindings incomplete.
   No real task, ECU assignment, warning-to-DTC mapping or dictionary was
   recovered. Parsing/sending can change state and is not a readback route.
   Run `python3 research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py`.
   Later source evidence closes its constructor binding in
   `rea-vhds-binder-route-20261021.json`; the original bounded report is retained.
+- `rea-native-pilot-20261021.json` records an isolated REA/Ghidra AArch64 trial:
+  seven library functions match the known Binder contract; four daemon functions
+  plus independent byte checks bind the producer's flag/condition variable to
+  the diagnostic worker. Runtime thread activation and real task data remain
+  unknown. Temporary tools, caches and projects were removed; compact compressed
+  evidence stays in `captures/rea-pilot-20261021/`. Replay with
+  `PYTHONDONTWRITEBYTECODE=1 python3 research/vehicle-diagnostics/check_rea_native_pilot.py`.
 - `ecm-owner3-route-20261021.json` traces the stock prefix03 consumer and MCU
   framing/size/arbitration boundary. Its positive length range7..922 still
   rejects the hypothesized1035-byte ECM registry; it does not offer a larger

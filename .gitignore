@@ -18,3 +18,13 @@ ops/ansible/.ansible/
 __pycache__/
 *.py[cod]
 .venv-firmware/
+# Local agent scratch data, session exports and per-machine settings.
+.kimi*/
+session-exports/
+chat-exports/
+.claude/worktrees/
+.claude/settings.local.json
+.worktrees/
+# Research maintained in the private repository.
+/tools/stock-map/
+/research/stock-map-native/

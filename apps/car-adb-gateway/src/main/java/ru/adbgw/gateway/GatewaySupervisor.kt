@@ -1,12 +1,15 @@
 package ru.adbgw.gateway
 
 import android.content.Context
+import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicReference
 
 class GatewaySupervisor(
@@ -17,21 +20,36 @@ class GatewaySupervisor(
     private val relayClient: RelayClient,
     private val onEvent: (GatewayEvent) -> Unit,
     private val onSupportEvent: (String) -> Unit,
-    private val onRegistrationExpired: (String) -> Unit,
+    // The relay refused the vehicle key. Returns true when the registration was dropped (the
+    // supervisor stops), false while the rejection is unconfirmed (keep retrying).
+    private val onRegistrationRejected: (String) -> Boolean,
 ) {
+    private val appContext = context.applicationContext
     private val detector = AdbEndpointDetector()
-    private val provisioner = AdbProvisioner(context.applicationContext)
+    private val provisioner = AdbProvisioner(appContext)
+    // The app's own ADB identity, used only to sign for a tunnelled computer in the proxy channel.
+    // It never submits the public key, so its authorization policy is immaterial.
+    private val adbSigningClient =
+        LocalAdbClient(appContext, "car-adb-gateway@local", LocalAdbClient.AuthorizationPolicy.PASSIVE)
+    private val adbHandshake = AdbHandshakeProxy { clientIn, clientOut, adbdIn, adbdOut ->
+        adbSigningClient.proxyAdbConnect(clientIn, clientOut, adbdIn, adbdOut)
+    }
     private val endpoint = AtomicReference<AdbEndpoint?>(null)
     private var adbJob: Job? = null
     private var relayJob: Job? = null
     private var innerServer: InnerGatewayServer? = null
-    private var tunnel: RelayTunnel? = null
-    private val relayBackoff = RetryBackoff()
+    @Volatile private var tunnel: RelayTunnel? = null
+    private val relayPacer = RelayRetryPacer()
     @Volatile private var networkGeneration: Long = 0
 
     @Synchronized
     fun start() {
-        if (adbJob?.isActive == true || relayJob?.isActive == true) return
+        if (adbJob?.isActive == true || relayJob?.isActive == true) {
+            // Already running: an explicit start (the app opened, a boot or update broadcast)
+            // retries the relay now instead of at the end of its backoff.
+            relayPacer.wake()
+            return
+        }
         val registration = stateStore.registration() ?: return
         if (!stateStore.isEnabled()) return
         ensureInnerServer()
@@ -46,6 +64,7 @@ class GatewaySupervisor(
         relayJob?.cancel()
         adbJob = null
         relayJob = null
+        relayClient.abortTunnelAttempt()
         tunnel?.close()
         tunnel = null
         innerServer?.close()
@@ -54,13 +73,26 @@ class GatewaySupervisor(
         onEvent(GatewayEvent.ClientChanged(ClientState.Waiting, null, System.currentTimeMillis()))
     }
 
+    /**
+     * The default network appeared, changed or went away: the tunnel and any attempt in flight are
+     * on the old one, so both go, and the relay loop tries again at once with its backoff restarted.
+     */
     @Synchronized
     fun networkChanged() {
         networkGeneration += 1
-        relayBackoff.reset()
         tunnel?.close()
         tunnel = null
+        relayClient.abortTunnelAttempt()
+        relayPacer.wake()
         onSupportEvent("Сеть изменилась; соединение будет создано заново")
+    }
+
+    /**
+     * The default network passed Android's validation, so it now carries traffic. A relay loop
+     * waiting out its backoff tries at once; a working tunnel is left alone.
+     */
+    fun networkValidated() {
+        relayPacer.wake()
     }
 
     private suspend fun adbLoop(registration: RelayRegistration) {
@@ -115,10 +147,7 @@ class GatewaySupervisor(
                     lastReported = current
                     onSupportEvent("Relay получил актуальный адрес ADB")
                 } catch (error: RelayAccessException) {
-                    if (error.permanent) {
-                        handlePermanent(error)
-                        return
-                    }
+                    if (error.permanent && handlePermanent(error)) return
                     onSupportEvent("Адрес ADB будет отправлен relay повторно")
                 }
             }
@@ -130,7 +159,12 @@ class GatewaySupervisor(
         var registration = initialRegistration
         var observedGeneration = networkGeneration
         var nextLeaseRenewalAtMillis = 0L
+        var reportedPortBusy = false
         while (scope.isActive && stateStore.isEnabled()) {
+            // A wake from here on (a network change, a validated network, start()) ends the pause
+            // that follows this attempt.
+            val wakeMark = relayPacer.mark()
+            var portBusy = false
             onEvent(GatewayEvent.RelayChanged(RelayState.Connecting))
             try {
                 recoverPendingPairCommit(registration)
@@ -140,7 +174,7 @@ class GatewaySupervisor(
                 }
                 if (endpoint.get() == null || innerServer?.isRunning != true) {
                     onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
-                    delay(1_000)
+                    relayPacer.pause(WAITING_POLL_MILLIS, wakeMark)
                     continue
                 }
                 val opened = relayClient.openTunnel(registration) { error ->
@@ -149,35 +183,43 @@ class GatewaySupervisor(
                     }
                 }
                 tunnel = opened
-                relayBackoff.reset()
+                relayPacer.connected()
+                reportedPortBusy = false
                 onEvent(GatewayEvent.RelayChanged(RelayState.Connected))
                 onSupportEvent("Соединение с relay восстановлено")
-                while (scope.isActive && stateStore.isEnabled() && opened.isOpen) {
-                    if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
-                        try {
-                            registration = renewLease(registration)
-                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
-                        } catch (error: RelayAccessException) {
-                            if (error.permanent) {
-                                opened.close()
-                                handlePermanent(error)
-                                return
+                try {
+                    // A network change while the tunnel was being opened leaves it on the old network.
+                    while (scope.isActive && stateStore.isEnabled() && opened.isOpen &&
+                        observedGeneration == networkGeneration
+                    ) {
+                        if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
+                            try {
+                                registration = renewLease(registration)
+                                nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
+                            } catch (error: RelayAccessException) {
+                                if (error.permanent && handlePermanent(error)) return
+                                nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
+                                onSupportEvent("Продление регистрации будет повторено через пять минут")
                             }
-                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
-                            onSupportEvent("Продление регистрации будет повторено через пять минут")
                         }
+                        delay(TUNNEL_POLL_MILLIS)
                     }
-                    delay(2_000)
+                } finally {
+                    // Also on stop(): a cancelled loop must not leave the tunnel open on the relay.
+                    opened.close()
+                    if (tunnel === opened) tunnel = null
                 }
-                opened.close()
-                if (tunnel === opened) tunnel = null
             } catch (error: RelayAccessException) {
-                if (error.permanent) {
-                    handlePermanent(error)
-                    return
-                }
+                if (error.permanent && handlePermanent(error)) return
                 onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
-                onSupportEvent("Relay временно недоступен")
+                portBusy = error.relayPortBusy
+                when {
+                    portBusy -> if (!reportedPortBusy) {
+                        reportedPortBusy = true
+                        onSupportEvent("Relay ещё держит прежний туннель; повторяем каждые несколько секунд")
+                    }
+                    !error.registrationRejected -> onSupportEvent("Relay временно недоступен")
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -187,11 +229,11 @@ class GatewaySupervisor(
             }
 
             if (observedGeneration != networkGeneration) {
+                // networkChanged() already restarted the backoff.
                 observedGeneration = networkGeneration
-                relayBackoff.reset()
                 continue
             }
-            delay(relayBackoff.nextDelayMillis())
+            relayPacer.pause(relayPacer.nextDelayMillis(portBusy), wakeMark)
         }
     }
 
@@ -214,10 +256,15 @@ class GatewaySupervisor(
         onSupportEvent("Незавершённое подключение компьютера восстановлено")
     }
 
-    private fun handlePermanent(error: RelayAccessException) {
+    /**
+     * Returns true when the loop must stop: a host-key mismatch or corrupt keys (fail closed), or a
+     * key rejection the gate confirmed. An unconfirmed rejection returns false and the loop retries.
+     */
+    private fun handlePermanent(error: RelayAccessException): Boolean {
         val message = error.message ?: "Relay отклонил ключ автомобиля"
-        if (error.registrationRejected) onRegistrationExpired(message)
-        else onEvent(GatewayEvent.PermanentFailure(message))
+        if (error.registrationRejected) return onRegistrationRejected(message)
+        onEvent(GatewayEvent.PermanentFailure(message))
+        return true
     }
 
     @Synchronized
@@ -225,10 +272,14 @@ class GatewaySupervisor(
         if (innerServer?.isRunning == true) return
         val server = InnerGatewayServer(
             endpointProvider = endpoint::get,
-            keyStore = keyStore,
-            stateStore = stateStore,
-            registrationProvider = stateStore::registration,
-            relayClient = relayClient,
+            innerHostKey = keyStore.innerHostKeyPair,
+            store = stateStore,
+            pairingCommitter = PairingCommitter { fingerprint ->
+                val registration = stateStore.registration()
+                    ?: throw RelayAccessException("Автомобиль ещё не зарегистрирован")
+                runBlocking(Dispatchers.IO) { relayClient.commitPairing(registration, fingerprint) }
+            },
+            adbHandshake = adbHandshake,
             onClientChanged = { state, label, at ->
                 onEvent(GatewayEvent.ClientChanged(state, label, at))
             },
@@ -247,5 +298,7 @@ class GatewaySupervisor(
     companion object {
         private const val LEASE_RENEW_INTERVAL_MILLIS = 24L * 60L * 60L * 1_000L
         private const val LEASE_RETRY_INTERVAL_MILLIS = 5L * 60L * 1_000L
+        private const val WAITING_POLL_MILLIS = 1_000L
+        private const val TUNNEL_POLL_MILLIS = 2_000L
     }
 }

@@ -1,13 +1,19 @@
 # Car ADB Gateway — Relay-Only Architecture
 
 Status: current design of the implementation in this repository, last checked
-2026-10-20. The lease and garbage-collection lifecycle passed local acceptance,
+2026-10-29. The relay moved from Vultr Amsterdam to VDSina Moscow,
+`212.193.11.249`, with its host keys and existing registrations preserved
+([CAG-019](car-adb-gateway-decision-log.md#cag-019)). The old address temporarily
+forwards port 443 while the previous 24-hour DNS TTL expires. The lease and garbage-collection lifecycle passed local acceptance,
 an idempotent Ansible rollout, and live checks on `adbgw.ru`. From 2026-10-18 to
 2026-10-20 the public port sat behind a transparent sslh that also served a
 download page ([CAG-014](car-adb-gateway-decision-log.md#cag-014)); the page moved
 to GitHub and sshd owns port 443 again
-([CAG-015](car-adb-gateway-decision-log.md#cag-015)). Head-unit end-to-end and
-soak tests are still required before production use.
+([CAG-015](car-adb-gateway-decision-log.md#cag-015)). On 2026-10-26 the whole
+chain - enrollment, tunnel, pairing, `cag connect`, `adb shell` - first worked
+end to end, on an Android 15 emulator and then on the owner's DiLink 5.1 head
+unit, through the production relay ([Verification](#8-verification-status)); a
+wake from the car's sleep and the soak test are still ahead.
 
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
 where ADB is available locally. It can be installed alongside the existing
@@ -61,6 +67,13 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 
 `ops/ansible` configures stock OpenSSH and the commands in `platform/relay/`.
 Port 22 remains the administrative endpoint; port 443 serves the application.
+The active host is VDSina Moscow. Administration uses `dmitry` and the existing
+operator key, with passwordless sudo; remote root and password or
+keyboard-interactive administration are disabled. During DNS convergence, use
+`212.193.11.249` explicitly for administration. The old Vultr host retains its
+admin port but only forwards application TCP to the new host; its runtime state
+writers are disabled. The temporary forwarding policy and removal procedure
+live in [the Ansible field guide](../ops/ansible/README.md#relay-migration-and-temporary-source-bridge).
 The relay serves nothing else: the download page and the APKs live on GitHub
 ([CAG-015](car-adb-gateway-decision-log.md#cag-015)), and the sslh multiplexer of
 [CAG-014](car-adb-gateway-decision-log.md#cag-014) is gone.
@@ -83,7 +96,9 @@ second login prompt.
 TTY, shell, X11, agent forwarding, tunnel devices, user RC files, and Unix
 socket forwarding are disabled. The control key stays registered while access
 is disabled so the user can enable it manually again; that key cannot forward
-traffic.
+traffic. A vehicle session that stops answering is dropped after about 15
+seconds (`ClientAliveInterval 5`, `ClientAliveCountMax 3` for `cag-device`), so
+a reconnecting vehicle can bind its port again within the recovery target.
 
 ### 3.2 State, Codes, and Rate Limiting
 
@@ -105,6 +120,12 @@ state directory.
 explicit POSIX ACL read/traverse access to the state and lock files. OpenSSH
 and fail2ban own source authentication throttling, so rejected passwords do not
 rewrite the JSON state.
+
+The lock file is `root:cag-state 0660` and the forced commands run as
+`cag-enroll`, `cag-pair` and `cag-control`, so only the lock's owner repairs its
+mode. `cag-state lock-check` takes the exclusive lock and writes a private file
+in the state directory exactly as a mutation does, without replacing the state;
+`verify-relay-host.yml` runs it as each of those accounts.
 
 - Enrollment code: `XXXX-XXXX`, default TTL 60 minutes, one vehicle. A retry
   with the same device key after a lost response is idempotent; a different
@@ -130,6 +151,11 @@ sudo cag-admin rename DEVICE_ID "Ivan - N9, black"
 sudo cag-admin remove DEVICE_ID
 sudo cag-admin doctor
 ```
+
+`remove` and the hourly GC end only the sessions of the removed vehicles. All
+vehicles share `cag-device` and all computers `cag-client`, so sessions are found
+by relay port: the vehicle's session owns the loopback listener on it and a
+computer's session holds a loopback connection to it.
 
 ### 3.3 Administrator Web UI
 
@@ -182,9 +208,12 @@ backup is disabled ([CAG-010](car-adb-gateway-decision-log.md#cag-010)).
 ### 4.1 First-Time Setup
 
 1. The app creates its own ADB RSA key when it first attempts a local shell.
-2. If raw adbd requires authorization, Android shows the standard system
-   dialog. The user approves it and taps the retry action
-   ([CAG-007](car-adb-gateway-decision-log.md#cag-007)).
+2. If raw adbd requires authorization, the app offers its key once, Android
+   shows the standard system dialog, and the app moves on by itself a few
+   seconds after the person taps Allow. Background checks never offer the key;
+   only opening the app without access and the «Запросить снова» button do
+   ([CAG-007](car-adb-gateway-decision-log.md#cag-007),
+   [CAG-017](car-adb-gateway-decision-log.md#cag-017)).
 3. The app verifies shell access and makes a best-effort attempt to apply
    available device-idle and background app-op settings through the authorized
    local ADB connection.
@@ -198,10 +227,24 @@ backup is disabled ([CAG-010](car-adb-gateway-decision-log.md#cag-010)).
 Detection order is smart socket `5037`, then raw adbd `5555`; loopback is tested
 first, followed by every local non-loopback IPv4 address on the head unit. The
 endpoint type and actual host are sent to the relay and included in the pairing
-bundle. Inner SSH allows forwarding only to the exact detected host and port.
+bundle.
 
-With raw port `5555`, the computer's standard ADB key can trigger a second
-Android authorization dialog. This is expected.
+Inner SSH accepts a `direct-tcpip` channel only to port 5555 or 5037 and always
+connects it to the endpoint the car holds now, whatever host the computer asks
+for, because the bundle's host is frozen at pairing. Any other port is refused.
+No listener is opened for this: the channel itself (`AdbProxyChannel`) carries
+the bytes.
+
+- Port 5037, the smart socket: a plain pass-through.
+- Port 5555, raw adbd: the channel ends the ADB handshake itself
+  ([CAG-016](car-adb-gateway-decision-log.md#cag-016)). It passes the computer's
+  CNXN to adbd unchanged, signs adbd's AUTH token with the app's approved key
+  (`LocalAdbClient.proxyAdbConnect`), passes adbd's CNXN back and then pipes
+  bytes. The public key is never offered on this path, so the car never asks
+  about the computer's key, including after the week that expires an unused
+  "always allow" key. A refused signature or an STLS request closes the channel
+  with a support event. Data checksums are not verified on this path: adb and
+  adbd at protocol `0x01000001` send zero.
 
 ### 4.3 State and Visible Activity
 
@@ -233,16 +276,31 @@ ADB/inner SSH and the relay tunnel are supervised independently:
 - ADB is checked every 30 seconds, including adbd restarts and endpoint changes.
   Authorization is rechecked, while background app-ops are not rewritten for a
   stable endpoint.
-- Relay reconnect uses jittered exponential backoff from 1 to 60 seconds. Each
+- Relay reconnect uses jittered exponential backoff from 1 to 15 seconds. Each
   attempt connects by hostname and performs DNS resolution again.
-- A network change closes the old tunnel and immediately resets backoff.
-- SSH heartbeat interval is 30 seconds, with at most three missed replies.
+- A network change, or a network that becomes validated, closes the old tunnel,
+  aborts an attempt in flight, resets the backoff and wakes the loop at once
+  (`RelayRetryPacer`).
+- If the relay still holds the previous session's port, the forward is refused
+  ("Tcpip forwarding request denied") and the car retries every 2.5 seconds for
+  up to 30 seconds; the relay drops a silent car session within about
+  15 seconds.
+- The heartbeat is `keepalive@openssh.com` every 10 seconds, with at most three
+  unanswered, and the session's idle timeout is two minutes.
+- The relay client and the inner server use one light algorithm set, as the
+  legacy LAN gateway did (`SshAlgorithms`): ecdh-sha2-nistp256 (Conscrypt),
+  curve25519-sha256 and diffie-hellman-group14-sha256; aes128-gcm and aes128-ctr;
+  hmac-sha2-256(-etm). There is no post-quantum key exchange in pure Java on the
+  car. Authentication may take 30 seconds and the TCP connect 15.
 - The watchdog restores a missing loopback server without restarting healthy
   components.
 - DNS failures, no network, relay restart, sleep/wake, and temporary ADB loss
-  are recoverable. If the lease expired or the device was removed, the app
-  clears stale registration/trust and stages a fresh tunnel/control/inner-host
-  key set for enrollment. Host-key mismatch and corrupt keys remain visible,
+  are recoverable, and so is any authentication that times out or is cut off.
+  If the lease expired or the device was removed, the relay refuses the key;
+  after three such refusals over at least 15 minutes with no success between
+  them ([CAG-018](car-adb-gateway-decision-log.md#cag-018)), the app clears
+  stale registration/trust and stages a fresh tunnel/control/inner-host key set
+  for enrollment. Host-key mismatch and corrupt keys remain visible,
   fail-closed errors.
 
 Force Stop is an Android platform boundary: an ordinary APK cannot restart
@@ -259,10 +317,19 @@ user action and a successful short control connection
 
 ## 5. User Interface
 
-The app is landscape-first for a 15–16 inch display. The main screen has a large
-status card, vehicle name, live activity, one connect-or-replace-computer action,
-and one disconnect-remote-access action. SSH, PAM, forwarding, smart sockets,
-and fingerprints appear only under Support.
+The app is landscape-first for a 15–16 inch display and is drawn in the car's
+own dark kit, the language of Denza Apps' Luminofor: black ground, flat plates,
+live graphics in the dock's blue with a glow, the car's orange for "waiting on
+the person" and red for "stopped". The centre of every screen is the connection
+chain «Машина — Сервер — Компьютер»: each node says its state in a word or two
+(ADB, relay, the trusted computer), a link lights up when that hop works, and
+pulses run along both links while the computer holds an ADB channel
+([CAG-008](car-adb-gateway-decision-log.md#cag-008)). Under it are one headline
+and at most one line of detail, and at the bottom one connect-or-replace-computer
+action and one switch-off action. SSH, relay ports, endpoints and the event log
+appear only in the «Сведения» sheet. The screens are stateless
+(`GatewayScreens`, `ConnectionChain`); the debug build's `ScreenFixtureActivity`
+renders each scene from a fixed state.
 
 Two separate full-access warnings
 ([CAG-013](car-adb-gateway-decision-log.md#cag-013)) appear:
@@ -270,23 +337,28 @@ Two separate full-access warnings
 1. before first vehicle enrollment;
 2. before every developer pairing code is displayed.
 
-The pairing screen says that the code must be shared only with a trusted person
-and shows `cag pair XXXX-XXXX`. There is no computer list: the user works with
+The pairing warning says that the code must be shared only with a trusted
+person; the code card that follows shows the code, the time left and
+`cag pair XXXX-XXXX`. There is no computer list: the user works with
 one current computer and an explicit replacement action.
 
 ## 6. Developer CLI
 
 `platform/cli/` builds one Go binary for macOS and Linux and does not modify
-`~/.ssh/config`. Runtime dependencies are system OpenSSH and Android Platform
+`~/.ssh/config`; every `ssh` call runs with `-F none`, so that file cannot change
+it either. Paths are quoted for OpenSSH, because the macOS directory name
+contains a space. Runtime dependencies are system OpenSSH and Android Platform
 Tools when an ADB command is executed.
 
 ```text
 cag pair <CODE>
 cag pair --new-key <CODE>
-cag connect
-cag connect -- adb ...
+cag connect [--port N]
+cag connect [--port N] -- adb ...
+cag connect [--port N] --watch
 cag status
 cag disconnect
+cag service install [--port N] | uninstall | status
 ```
 
 State lives in the platform user configuration directory: `~/.config/cag` on
@@ -298,8 +370,38 @@ vehicle confirms it; successful replacement leaves only relay pins and the
 current vehicle key in `known_hosts`.
 
 `cag connect` keeps a ControlMaster tunnel in the background with a 30-second
-keepalive. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mode allocates a
-free local port and runs `adb connect`.
+keepalive. The master's messages go to `tunnel.log` and the relay leg of each
+inner connection to `proxy.log`, both in the state directory, and their tails
+appear in `cag` errors. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mode
+runs `adb connect`, and the serial is `127.0.0.1:N`.
+
+The local port is fixed, because tools address the car by its serial: 15555 by
+default, and `--port N` is remembered in `settings.json`. A port held by another
+program is an error, never a reason to pick another one. The master's PID, from
+`-O check`, is kept in `master.pid`, and a process is treated as ours only when
+its command line is our ssh master with our socket. So a deleted socket or a
+stale file never orphans a master and never makes our own listener look like
+somebody else's.
+
+`cag connect --watch` is the supervisor: one per config, held by `watch.lock`.
+It polls every 10 seconds, reconnects with jittered backoff from 1 to 10
+seconds, waits quietly while another program holds the port, and attaches the
+adb serial when it is not `device`. A master that stops answering gets two more
+polls before it is replaced. On SIGTERM the supervisor closes the masters it
+started and leaves alone one opened by hand; each state change is one line in
+`watch.log`. `cag service install` runs it under launchd
+(`~/Library/LaunchAgents/ru.adbgw.cag.plist`) or a `systemd --user` unit.
+
+On the owner's Mac the port is 5555, the serial every repository tool and doc
+already uses. While the legacy LAN tunnel holds that port the supervisor waits,
+and it takes the port over within one poll once the LAN tunnel is gone; the
+tools never change. Live on 2026-10-26, on port 15556 against the car: the
+supervisor waited while a dummy held the port and took it over 12 seconds after
+it was freed, a second supervisor exited, a killed master was replaced in
+17 seconds, a deleted socket was healed in 34 seconds, and SIGTERM closed its
+own master. The same day, on the owner's Mac, the LAN tunnel was stopped and the
+supervisor took port 5555 over in one poll; `adb -s 127.0.0.1:5555 shell` then
+reached the car through `adbgw.ru`.
 
 ## 7. Residual Risks
 
@@ -316,10 +418,28 @@ free local port and runs `adb connect`.
   reduce this risk.
 - Uninstalling the APK removes private keys and state. A fresh install requires
   a new enrollment invite from an administrator.
-- There is no application-level backup workflow; the accepted recovery boundary
-  is the existing full-VM backup.
+- There is no scheduled application-level backup workflow. The 2026-10-29
+  migration saved a private manual snapshot of the host keys and runtime state.
+  Automatic provider backups on the new VDSina host are disabled; the previous
+  full-VM backup boundary must not be assumed for the replacement.
 
 ## 8. Verification Status
+
+On 2026-10-29 the VDSina migration passed 14 baseline checks and all 64 relay
+checks, including the unchanged pin through public port 443, real DNS resolution,
+service-account isolation, state locks, loopback-only administration, firewall
+and synchronized time. A final Ansible rollout reported 59 OK, zero changes and
+zero failures. Production-profile Ansible lint passed for the whole configuration.
+The final source snapshot and the replacement's state have identical SHA-256
+`ddb94dce5fdcde57c2a17da92eb009972d17abb1ff6a04ab363ce307fb594447`:
+one device, one client, one grant, no pending replacements or codes. Fresh SSH
+connections verified key-only `dmitry` and passwordless sudo, and rejected root
+and password-only administration. Both authoritative DNS servers, Cloudflare
+and Google returned `212.193.11.249`. The old public IP also returned the same
+pin through its temporary TCP bridge; its web UI and GC were inactive.
+The car was not connected during this acceptance, so ADB and the original
+mobile hotspot path through Moscow remain unverified. Evidence is private under
+`captures/cag-migration-2026-10-29/`; operational cleanup is in the Ansible guide.
 
 Completed locally and on `adbgw.ru` for the lifecycle revision on 2026-07-18:
 
@@ -354,10 +474,116 @@ On 2026-10-20 CAG-015 retired it: sslh, the return path, Caddy and port 80 were
 removed, sshd listens on 443 again, and `verify-relay-host.yml` passed 59 checks,
 including the pinned key through public 443 and nothing of sslh left behind.
 
+### 2026-10-26: Why remote access never came up, and the first end-to-end run
+
+Until 2026-10-26 no vehicle ever finished enrollment: on the relay `cag-admin
+list` was empty and no port had ever been handed out. Seven independent defects
+each stopped the chain on its own, and every one of them got past the unit
+tests, because those ran as the file owner, on a desktop JVM, with fakes that
+computed ADB checksums:
+
+| Where | Defect | Fix |
+| --- | --- | --- |
+| Relay | `cag-state` chmod-ed the root-owned lock before every mutation; as `cag-enroll`, `cag-pair` or `cag-control` that is `EPERM`, so enroll, renew, pairing and endpoint updates all failed (the journal shows a `cag-enroll` login on 2026-07-25 and no registration) | only the owner repairs the mode; `lock-check` runs as each service account in `verify-relay-host.yml` |
+| Android | the inner SSH server was a bare `SshServer()`, whose `start()` throws "KeyExchangeFactories not set", so the supervisor waited forever and never opened the tunnel | `SshServer.setUpDefaultServer()` |
+| Android | MINA asked Android's stripped Bouncy Castle (registered as "BC") for EC parameters; `ECCurves` failed in its static initializer ("No EC params for nistp384") on the first key load | `SshdRuntime` disables MINA's BC registrar; EC comes from Conscrypt, Ed25519 from EdDSA |
+| Android | the tunnel client kept MINA's reject-all forwarding filter, so every connection the relay forwarded back was refused | a filter that admits only forwarded channels to `127.0.0.1:2222` |
+| Android | the ADB proxy verified data checksums, which adb and adbd at `0x01000001` send as zero | no checksum check on the proxy path |
+| CLI | on macOS the config path contains a space: the known-hosts path and the ControlPath split, so every relay call failed host-key verification | values quoted, the control socket only through `-S`, with a short fallback when the path is too long for a Unix socket |
+| CLI | the pairing code leaked into `cag __proxy` (askpass mode is inherited by the ProxyCommand), and `cag connect` hung on the ssh master's inherited stdio | `__proxy` ignores askpass; the master writes to `tunnel.log` |
+
+The relay was rebooted onto its pending kernel update the same day, the fixes were rolled
+out with `relay-host.yml`, and `verify-relay-host.yml` passed 64 checks
+(including `lock-check` as the three service accounts and the `cag-device`
+keepalive).
+
+Tests: `GatewayChainIntegrationTest` runs the real `RelayClient` tunnel and the
+real `InnerGatewayServer` against a MINA relay, a fake adbd that verifies the RSA
+signature, and a MINA "computer" (reach adbd with the app key, pair with a code,
+refuse another port, close on a refused signature without offering a key);
+`AdbProxyConnectTest` covers the handshake, including zero checksums; relay 59
+unit tests; CLI tests run the real `ssh -G` on a config dir with spaces.
+
+Live, on an Android 15 emulator (2560x1600, the head unit's size) through
+`adbgw.ru`, with a fresh `cag` and a config directory containing a space:
+invite → enrollment in the app → tunnel (its port listening on the relay) →
+pairing code on the screen → `cag pair` → `cag connect` → `adb shell` answered
+as uid 2000, and the screen showed «Компьютер работает» with pulses on both
+links. Updating the APK without opening it brought the tunnel back in about
+8 seconds (`MY_PACKAGE_REPLACED`); a cold reboot without opening the app brought
+it back 16 seconds after `boot_completed`, and `cag connect -- adb shell`
+worked again with no code. The emulator's adbd needs no authorization, so the
+signing half of the proxy is proven by the tests, not yet live.
+
+The same day on the owner's head unit (DiLink 5.1, Android 13, firmware
+`TP1A.220624.014`), parked, driven over the existing LAN ADB: the first launch
+offered the app's key once and the stock *Allow USB debugging?* dialog showed
+its fingerprint, which matched the app's key computed from its public key. With *Always allow* ticked and Allow tapped, adbd logged
+`adb client authorized` and the app moved to the code by itself, with no tap
+(CAG-017). Enrollment with an invite, the tunnel, the pairing
+code and `cag pair` on the owner's Mac, from `~/Library/Application Support/cag`,
+followed. `cag connect` put the car on the Mac's adb as `device` at once, and
+`adb shell` answered as uid 2000 through `adbgw.ru`. No second dialog appeared:
+adbd authorized the app's key for the computer's session (CAG-016). The car's
+«Disable background Apps» switch for the app, set by the install, was turned
+off in the same session; that is what lets the wake's `BOOT_COMPLETED` start
+it.
+
+Later that day the car lost its registration in the field: on a network change
+a reconnect timed out during key exchange, and the app took that for a rejected
+key, wiped itself and rotated its keys (14:30 MSK on the key files, the relay's
+`Timeout before authentication` the same minute). The owner had to enter a new
+invite and a new pairing code at the car. CAG-018 fixed the classification and
+added a confirmation gate. The fixed build was installed with no one at the car:
+the APK was pushed through CAG itself and a detached shell script on the car ran
+`pm install -r` and reopened the app, which survives the install cutting the
+tunnel. The «Disable background Apps» switch the install re-armed was turned off
+again over the same route. The car's Wi-Fi was then switched off for two minutes
+by a detached script that switched it back on. The registration, the keys and
+the trusted computer survived, the car logged in with the same key once Wi-Fi
+returned, and the Mac had the car back at `127.0.0.1:5555` about 2.5 minutes
+after the cut. About 1.5 minutes of that was the old tunnel's heartbeat running
+out and up to a minute the Mac's reconnect backoff.
+
+After the recovery rework (heartbeat, wake on network change, port-busy retry,
+light algorithms, relay keepalive 5 s x 3, Mac backoff capped at 10 s), measured
+on an Android 15 emulator through `adbgw.ru` as the time `adb shell` from the
+computer did not answer: Wi-Fi to mobile data 27 s, mobile data back to Wi-Fi
+7 s, and 19 s after the network returned from a 30-second total loss. The build
+was then installed on the owner's car remotely, with keys and registration
+kept.
+
+Throughput, measured on 2026-10-29 from the owner's Mac to the car on home
+Wi-Fi. Taking a car screenshot needed about two minutes. The Mac reaches the
+relay through a VPN, and its old exit delivered about 5-20 KB/s downstream;
+after a VPN switch the relay sent 3 MB in 3.3 s, and `adb push` ran at 2.5 MB/s.
+The rest is ADB itself: every data packet waits for its OKAY, and the path Mac →
+VPN → Amsterdam → car is long. So `adb exec-out screencap -p`, which streams the
+PNG in small writes, took 6-9 s for 0.55 MB. Encoding to a file on the car takes
+about 0.35 s, after which `exec-out cat` moves the file in a few large packets:
+1.4-2.8 s in all.
+
+On a phone's mobile hotspot (an operator in Russia) the car never got in: on
+2026-10-26 twelve connections in five minutes reached the relay's sshd and each
+ended in `Timeout before authentication`. The same car on home Wi-Fi logs in
+within a second, and the 14:30 false wipe came from the same operator address.
+At the time, the relay was a Vultr server in Amsterdam (AS20473). The likely cause was the
+operator throttling traffic to foreign hosting, perhaps also because port 443
+carries SSH rather than TLS. Lost large packets on the mobile path are not ruled
+out. Not yet confirmed from a computer on the same hotspot. If confirmed, the
+proposed fix was a relay hosted in Russia taking over `adbgw.ru` with the same
+host key, so the pin in the app and the CLI would still hold (CAG-003).
+The owner made that infrastructure change on 2026-10-29, moving to VDSina Moscow
+with the original identity and grants (CAG-019). The same hotspot path and a
+live-car connection through the new host still need verification; the move
+does not confirm the earlier root-cause hypothesis.
+
 Required before production:
 
-- complete relay → CLI → inner SSH → real ADB end-to-end verification;
-- verify API levels 26, 31, 34, 35, and 36;
+- verify the new Moscow relay from the same Russian mobile network (see above);
+- a wake from the car's sleep (quickboot) without opening the app;
+- the same network-change timings measured on the head unit;
+- verify API levels 26, 31, 34 and 36 (33 on the head unit and 35 on the emulator are done);
 - test installation and ADB approval, reboot, sleep/wake, network switching,
   adbd and relay restart, and Mac/Linux computer replacement on a real head
   unit;

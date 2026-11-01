@@ -7,10 +7,10 @@ import kotlin.random.Random
 
 class RetryBackoffTest {
     @Test
-    fun `backoff grows and caps at sixty seconds`() {
+    fun `backoff grows and caps at fifteen seconds`() {
         val backoff = RetryBackoff(jitterRatio = 0.0, random = Random(1))
         val values = List(8) { backoff.nextDelayMillis() }
-        assertEquals(listOf(1_000L, 2_000L, 4_000L, 8_000L, 16_000L, 32_000L, 60_000L, 60_000L), values)
+        assertEquals(listOf(1_000L, 2_000L, 4_000L, 8_000L, 15_000L, 15_000L, 15_000L, 15_000L), values)
     }
 
     @Test
@@ -25,7 +25,7 @@ class RetryBackoffTest {
     fun `jitter stays within configured bounds`() {
         val backoff = RetryBackoff(jitterRatio = 0.2, random = Random(9))
         repeat(20) {
-            assertTrue(backoff.nextDelayMillis() in 1_000L..60_000L)
+            assertTrue(backoff.nextDelayMillis() in 1_000L..15_000L)
         }
     }
 }

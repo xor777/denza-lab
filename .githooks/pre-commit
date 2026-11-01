@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Reject staged additions/changes covered by Git's ignore rules."""
+
+import os
+import subprocess
+import sys
+
+
+staged = subprocess.check_output([
+    "git", "diff", "--cached", "--name-only", "--no-renames",
+    "--diff-filter=ACMRT", "-z",
+])
+if not staged:
+    sys.exit(0)
+
+ignored = subprocess.run(
+    ["git", "check-ignore", "--no-index", "--stdin", "-z"],
+    input=staged, stdout=subprocess.PIPE,
+)
+if ignored.returncode == 1:
+    sys.exit(0)
+if ignored.returncode != 0:
+    sys.exit(ignored.returncode)
+
+print("Commit blocked: staged files match Git ignore rules:", file=sys.stderr)
+for path in ignored.stdout.split(b"\0"):
+    if path:
+        print(f"  {os.fsdecode(path)!r}", file=sys.stderr)
+print("Remove these files from the index; keep local/private data outside commits.",
+      file=sys.stderr)
+sys.exit(1)

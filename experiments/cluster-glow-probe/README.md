@@ -27,6 +27,10 @@ On the car the owner picked ×6 and size ×1.6 in the design's shape. `spec.json
 (`max 0.78`, `radius 544`, `reachBelow 87.8`). The strengths are relative to the spec the scenes were
 rendered from, so scenes rendered after that change make ×1 the new glow.
 
+On the road that build was too bright and lit through ordinary driving. On 2026-10-26 the glow
+became `0.65·(|P| / span)^1.5` over the band's own spans, 300 kW out and 100 kW back, with radius
+442. The probe draws that curve now, and its ×1 is that glow.
+
 ## Build
 
 ```bash

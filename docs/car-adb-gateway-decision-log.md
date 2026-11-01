@@ -80,7 +80,7 @@ to the replacement. The normative current design lives in
 <a id="cag-007"></a>
 ## CAG-007 — Standard ADB Authorization
 
-- **Status / date:** Accepted — 2026-07-18.
+- **Status / date:** Accepted — 2026-07-18. Amended 2026-10-26: the second desktop approval below is gone ([CAG-016](#cag-016)), and the key is offered only on request ([CAG-017](#cag-017)).
 - **Context:** An ordinary APK cannot silently authorize its own ADB key.
 - **Decision:** An app-private ADB RSA key and the standard Android authorization dialog are mandatory parts of onboarding.
 - **Rationale:** This uses the real platform trust boundary without root or a system APK.
@@ -98,7 +98,7 @@ to the replacement. The normative current design lives in
 - **Rationale:** These signals are reliable and give useful life to the large status display.
 - **Alternatives:** Parse ADB shell traffic; keep a raw log; show no activity.
 - **Consequences and risks:** The exact command is not visible; active means an ADB channel is open, not that traffic is continuous.
-- **Evidence:** Listeners in `InnerGatewayServer` and `StatusCard`; no payload logger exists.
+- **Evidence:** Listeners in `InnerGatewayServer`; the main screen's connection chain (`ConnectionChain`) pulses along both links while an ADB channel is open; no payload logger exists.
 - **Revisit if:** A privacy-reviewed command-audit requirement appears.
 
 <a id="cag-009"></a>
@@ -140,7 +140,7 @@ to the replacement. The normative current design lives in
 <a id="cag-012"></a>
 ## CAG-012 — Self-Healing Boundaries
 
-- **Status / date:** Accepted — 2026-07-18.
+- **Status / date:** Accepted — 2026-07-18. Amended 2026-10-26: a relay rejection of the vehicle key no longer fails closed at once ([CAG-018](#cag-018)).
 - **Context:** Network, relay, sleep, and adbd failures are normal, but identity and key errors must not retry forever.
 - **Decision:** Supervise ADB/inner SSH independently from the relay; retry transient failures with bounded jitter; fail closed on mismatch, revocation, or corruption. Force Stop requires manual launch.
 - **Rationale:** Healthy components remain available and security failures stay visible.
@@ -158,7 +158,7 @@ to the replacement. The normative current design lives in
 - **Rationale:** These are different high-impact actions involving different participants.
 - **Alternatives:** One onboarding disclaimer; a footnote; no repeated warning.
 - **Consequences and risks:** One additional tap in an infrequent, high-impact workflow.
-- **Evidence:** Two independent `AlertDialog` flows in `MainActivity`.
+- **Evidence:** Two independent warning dialogs in `GatewayScreens` (`GatewayOverlay.EnrollWarning`, `GatewayOverlay.PairWarning`), each confirmed before its action.
 - **Revisit if:** Managed policy provides equivalent informed consent outside the APK.
 
 <a id="cag-014"></a>
@@ -184,3 +184,39 @@ to the replacement. The normative current design lives in
 - **Consequences and risks:** `https://adbgw.ru` no longer answers in a browser; the page lives at `https://xor777.github.io/denza-lab/` until a custom domain's CNAME is added. GitHub handles complaints under its own DMCA process. The unauthenticated API allows 60 requests per hour per address; past that, the page links to the releases list. Downloads depend on GitHub reachability from the reader's network.
 - **Evidence:** Releases `denza-apps-v0.7.1`, `yandex-hud-29.8.1-YandexHUD.2` and `hud-speed-79.0-mod.1`; Pages built from `gh-pages`. The `relay_host` role removes the CAG-014 pieces. `verify-relay-host.yml` (59 checks, 2026-10-20) requires sshd alone on 443 and port 80 closed, checks that no unit, nft table or fwmark rule of sslh remains, and checks the pinned key through public 443.
 - **Revisit if:** GitHub becomes unreachable for the readers, or the page needs anything a static page cannot do.
+
+<a id="cag-016"></a>
+## CAG-016 — The Computer's ADB Goes Through the App's Key
+
+- **Status / date:** Accepted — 2026-10-26. Replaces the raw-adbd consequence of [CAG-007](#cag-007) ("raw desktop ADB may request a second approval"); the app's own key and its one prompt stay.
+- **Context:** In raw mode the computer's adb key reached adbd through the tunnel, so the car asked for that key on first use and again whenever it had not connected for `adb_allowed_connection_time` (a week by default). Nobody is at a remote car to tap Allow, so remote access depended on a key that silently expires.
+- **Decision:** For a `direct-tcpip` channel to port 5555 the inner gateway ends the ADB handshake itself: it passes the computer's CNXN to adbd unchanged, answers adbd's AUTH by signing with the app's already approved key, passes adbd's CNXN back and then pipes bytes. It never offers a public key on this path. The proxy runs inside the SSH channel; no listener is added, because any app on the head unit could reach a loopback port. The requested host is ignored and the car connects to the endpoint it holds now; port 5037 stays a plain pass-through and any other port is refused.
+- **Rationale:** One approval at onboarding by a person at the car. The app's key stays fresh because the supervisor uses it every 30 seconds.
+- **Alternatives:** Keep the second prompt; a loopback ADB proxy port (gives every local app the app's trust); writing the desktop key into `adb_keys` (needs a privileged write).
+- **Consequences and risks:** adbd sees every remote session as the app's key, so the computer's key is never presented to the car. The computer gets the authority the app already has; inner SSH authentication stays the gate. If the app's key is revoked, remote ADB stops until someone at the car approves it again, and the car's screen says so.
+- **Evidence:** `AdbProxyChannel`, `LocalAdbClient.proxyAdbConnect`; `GatewayChainIntegrationTest` (a fake adbd verifies the app key's signature and never receives a public key) and `AdbProxyConnectTest`; live `adb shell` through `adbgw.ru` on an emulator and on the owner's DiLink 5.1 on 2026-10-26, where the computer's session was authorized with no dialog ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
+- **Revisit if:** adbd requires TLS on the classic port, or an audit needs each computer's own key at adbd.
+
+<a id="cag-017"></a>
+## CAG-017 — The ADB Key Is Offered Only When the Person Asks
+
+- **Status / date:** Accepted — 2026-10-26. Refines [CAG-007](#cag-007) and [CAG-012](#cag-012).
+- **Context:** The supervisor retried a refused key every 10 seconds with the automatic policy, so the public key went out about every 20 seconds. Each offer takes a slot in the head unit's prompt queue, and a stuck queue is a known failure on DiLink ([ADB authorization recovery](adb-authorization-recovery.md)).
+- **Decision:** Background checks are passive and never send the key. The key is offered once per explicit request: when the app opens without access, and when the person taps the retry button. After an offer the app checks passively every few seconds and moves on by itself once Allow is tapped.
+- **Rationale:** One prompt per intention; the queue never fills behind the person's back.
+- **Alternatives:** Timed automatic re-offers; no re-offer at all.
+- **Consequences and risks:** A prompt that never appears, or was dismissed, needs the person to tap the retry button.
+- **Evidence:** `AdbProvisioner` (passive by default, `requestAuthorization()` the one offer) and `GatewayRepository.prepareAdb()`; the supervisor builds only the passive client. On the owner's DiLink 5.1 on 2026-10-26 the first launch offered the key once, the dialog showed the app's own fingerprint, and the app went on by itself after Allow ([architecture, verification](car-adb-gateway-architecture.md#8-verification-status)).
+- **Revisit if:** Firmware offers a documented way to read the prompt queue.
+
+<a id="cag-018"></a>
+## CAG-018 — A Relay Rejection Is Confirmed Before the Car Forgets Itself
+
+- **Status / date:** Accepted — 2026-10-26. Amends [CAG-012](#cag-012).
+- **Context:** On 2026-10-26 the owner's car wiped its registration and rotated its keys although the relay had rejected nothing. While the car changed networks, a reconnect reached the relay but did not finish key exchange within 12 seconds; the relay logged `Timeout before authentication`, and the app took any authentication failure for a rejected key. Recovery needed a new invite, a new pairing code and a trip to the car.
+- **Decision:** Only MINA's definitive refusal - no authentication methods left (`SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE`) - counts as a rejection; timeouts, resets and sessions closed during authentication are transient and retried. Even a rejection is acted on only when confirmed: at least three, the first at least 15 minutes old, with no successful authentication in between. Until then the app keeps its registration and retries. Host-key mismatch and corrupt keys still fail closed at once.
+- **Rationale:** A false wipe costs a person at the car; waiting a quarter of an hour on a genuinely removed registration costs nothing.
+- **Alternatives:** Keep failing closed on the first failure; never wipe and leave removal to a person.
+- **Consequences and risks:** A removed or expired car keeps trying for about 15 minutes before it shows the code screen.
+- **Evidence:** `RelayAuthClassificationTest` (rejected key, stalled authentication, dropped connection, session closed during authentication) and `RegistrationRejectionGateTest`. Live: the fix was installed remotely on the owner's car, its Wi-Fi was switched off for two minutes and back on, and the car came back with the same keys, registration and trusted computer.
+- **Revisit if:** The relay gains an explicit "unknown device" answer the app can read before authentication fails.

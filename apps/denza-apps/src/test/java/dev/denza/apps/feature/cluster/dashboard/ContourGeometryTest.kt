@@ -265,4 +265,30 @@ class ContourGeometryTest {
 
     private fun level(v: Float): Float =
         Silhouette.y(v, Trace.ZERO, Trace.TOP, Trace.DROP, Trace.UP_TO, Trace.DOWN_TO)
+
+    /**
+     * The glow is the band's own share raised to [Band.GLOW_EXPONENT]: dark through ordinary
+     * driving, full exactly where the band is full, and luminofor.js computes the same curve.
+     */
+    @Test
+    fun theGlowStaysDarkUntilTheBandNearsItsEnd() {
+        assertEquals(0f, g.glowAlpha(0f), 0f)
+        assertEquals(Band.GLOW_MAX, g.glowAlpha(Band.OUT_KW), 1e-6f)
+        assertEquals(Band.GLOW_MAX, g.glowAlpha(-Band.IN_KW), 1e-6f)
+        assertEquals("past the span it holds", Band.GLOW_MAX, g.glowAlpha(2 * Band.OUT_KW), 1e-6f)
+        assertEquals(
+            "the span is the scale, not the kilowatts",
+            g.glowAlpha(Band.OUT_KW / 2), g.glowAlpha(-Band.IN_KW / 2), 1e-6f,
+        )
+        val half = g.glowAlpha(Band.OUT_KW / 2)
+        assertTrue("slow, then fast: the second half of the span adds more", Band.GLOW_MAX - half > half)
+        // Recorded drives spend 90 % of their moving time under 28 kW.
+        assertTrue("28 kW lights ${g.glowAlpha(28f)}", g.glowAlpha(28f) < 0.025f)
+        assertTrue(
+            "luminofor.js draws the same curve",
+            SpecJson.read("luminofor/luminofor.js").contains(
+                "const ga = CB.glow.max * Math.pow(Math.min(1, absP / (P < 0 ? CB.inKw : CB.outKw)), CB.glow.exponent);",
+            ),
+        )
+    }
 }

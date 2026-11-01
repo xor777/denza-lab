@@ -98,15 +98,15 @@ data class GatewayUiState(
 
     val headline: String
         get() = when {
-            permanentFailure != null -> "Нужна помощь"
-            !isEnrolled -> "Подготовка подключения"
-            !enabled -> "Удалённый доступ выключен"
-            adbState == AdbState.AuthorizationRequired -> "Подтвердите доступ на экране"
-            adbState != AdbState.Available -> "Проверяем доступ к системе"
-            relayState == RelayState.Connected && clientState == ClientState.Active -> "Удалённый компьютер работает"
-            relayState == RelayState.Connected && clientState == ClientState.Connected -> "Компьютер подключён, ожидает"
-            relayState == RelayState.Connected -> "Ожидание компьютера"
-            else -> "Восстанавливаем соединение"
+            permanentFailure != null -> "Доступ остановлен"
+            !isEnrolled -> "Подключение машины"
+            !enabled -> "Доступ выключен"
+            adbState == AdbState.AuthorizationRequired -> "Разрешите ADB на экране"
+            adbState != AdbState.Available -> "Проверяем ADB"
+            relayState == RelayState.Connected && clientState == ClientState.Active -> "Компьютер работает"
+            relayState == RelayState.Connected && clientState == ClientState.Connected -> "Компьютер на связи"
+            relayState == RelayState.Connected -> "Ждём компьютер"
+            else -> "Подключаемся к серверу"
         }
 }
 

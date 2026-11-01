@@ -8,12 +8,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from relay import cag_state
 from relay.cag_state import (
     DEVICE_LEASE_SECONDS,
     RelayState,
     StateError,
     build_parser,
+    disconnect_relay_ports,
     public_key_fingerprint,
+    relay_port_session_pids,
 )
 
 
@@ -399,6 +402,149 @@ class RelayStateTest(unittest.TestCase):
         with mock.patch("relay.cag_state.os.fsync", side_effect=tracking_fsync):
             self.state.create_invite()
         self.assertTrue(fsynced_directory)
+
+    def test_mutations_succeed_when_another_account_owns_the_lock(self):
+        # On the relay state.lock is root:cag-state 0660 and the mutations run
+        # as cag-enroll, cag-pair and cag-control. The kernel refuses chmod by a
+        # non-owner even when the mode would not change.
+        self.state.create_invite()
+        lock = self.state.lock_path
+        lock_identity = os.stat(lock)
+        real_chmod, real_fchmod = os.chmod, os.fchmod
+
+        def is_lock(status: os.stat_result) -> bool:
+            return (status.st_dev, status.st_ino) == (lock_identity.st_dev, lock_identity.st_ino)
+
+        def chmod(path, mode, *args, **kwargs):
+            if is_lock(os.stat(path)):
+                raise PermissionError(1, "Operation not permitted", str(path))
+            return real_chmod(path, mode, *args, **kwargs)
+
+        def fchmod(fd, mode):
+            if is_lock(os.fstat(fd)):
+                raise PermissionError(1, "Operation not permitted")
+            return real_fchmod(fd, mode)
+
+        with mock.patch("relay.cag_state.os.geteuid", return_value=os.geteuid() + 1), mock.patch(
+            "relay.cag_state.os.chmod", side_effect=chmod
+        ), mock.patch("relay.cag_state.os.fchmod", side_effect=fchmod):
+            _, _, bundle = self.enroll_device()
+            device_id = bundle["device_id"]
+            self.pair_and_commit(device_id, b"laptop")
+            self.state.renew_lease(device_id)
+            self.state.set_endpoint(device_id, "raw", "127.0.0.1")
+            self.state.set_enabled(device_id, False)
+            self.state.set_enabled(device_id, True)
+            self.state.lock_check()
+            self.state.migrate()
+
+        self.assertEqual("raw", self.raw_state()["devices"][device_id]["endpoint_mode"])
+        self.assertIn(device_id, self.raw_state()["grants"])
+
+    def test_lock_owner_repairs_lock_mode(self):
+        self.state.create_invite()
+        os.chmod(self.state.lock_path, 0o600)
+        self.state.create_invite()
+        self.assertEqual(0o660, stat.S_IMODE(os.stat(self.state.lock_path).st_mode))
+
+    def test_lock_check_takes_exclusive_lock_without_writing_state(self):
+        self.enroll_device()
+        state_path = Path(self.temporary.name) / "state.json"
+        before = state_path.read_bytes()
+        before_mtime = state_path.stat().st_mtime_ns
+        self.clock.value += 7_200  # the invite is now expired; lock-check must not clean it
+
+        result = self.state.lock_check()
+
+        self.assertTrue(result["exclusive_lock"])
+        self.assertTrue(result["state_directory_writable"])
+        self.assertEqual(1, result["devices"])
+        self.assertEqual(before, state_path.read_bytes())
+        self.assertEqual(before_mtime, state_path.stat().st_mtime_ns)
+        leftovers = [path.name for path in Path(self.temporary.name).iterdir() if path.name.startswith(".")]
+        self.assertEqual([], leftovers)
+
+    @unittest.skipIf(os.geteuid() == 0, "root ignores file modes")
+    def test_lock_check_refuses_an_account_without_lock_write_access(self):
+        self.state.create_invite()
+        os.chmod(self.state.lock_path, 0o440)
+        try:
+            with self.assertRaisesRegex(StateError, "cannot take the relay state lock"):
+                self.state.lock_check()
+        finally:
+            os.chmod(self.state.lock_path, 0o660)
+
+    def test_remove_and_gc_report_the_relay_ports_they_free(self):
+        _, _, first = self.enroll_device()
+        _, _, second = self.enroll_device("-2")
+        removed = self.state.remove_device(first["device_id"])
+        self.assertEqual(first["relay_device_port"], removed["relay_port"])
+
+        self.clock.value += DEVICE_LEASE_SECONDS + 1
+        collected = self.state.gc()
+        self.assertEqual([second["relay_device_port"]], collected["removed_ports"])
+
+    def test_cli_remove_disconnects_only_that_vehicle_port(self):
+        _, _, first = self.enroll_device()
+        self.enroll_device("-2")
+        with mock.patch.object(cag_state, "disconnect_relay_ports", return_value=2) as disconnect, mock.patch(
+            "sys.stdout"
+        ):
+            code = cag_state.main(
+                ["--root", self.temporary.name, "remove-device", "--disconnect", first["device_id"]]
+            )
+        self.assertEqual(0, code)
+        disconnect.assert_called_once_with([first["relay_device_port"]])
+
+    def write_fake_proc(self, root: Path) -> None:
+        header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+
+        def row(local: str, remote: str, state: str, inode: int) -> str:
+            return f"   0: {local} {remote} {state} 00000000:00000000 00:00000000 00000000   997        0 {inode} 1 0 100 0 0 10 0\n"
+
+        (root / "net").mkdir(parents=True)
+        (root / "net" / "tcp").write_text(
+            header
+            + row("0100007F:4E20", "00000000:0000", "0A", 1001)  # vehicle A listener 127.0.0.1:20000
+            + row("0100007F:4E20", "0100007F:C350", "01", 1002)  # accepted computer connection
+            + row("0100007F:C350", "0100007F:4E20", "01", 1003)  # computer side of that connection
+            + row("0100007F:4E21", "00000000:0000", "0A", 1004)  # vehicle B listener 127.0.0.1:20001
+            + row("0A00000A:D431", "08080808:4E20", "01", 1005)  # unrelated remote port 20000
+        )
+        processes = {
+            1: (0, [1001]),  # root monitor sharing a descriptor: never signalled
+            101: (997, [1001, 1002]),  # vehicle A tunnel session (cag-device)
+            102: (997, [1004]),  # vehicle B tunnel session (cag-device)
+            103: (997, [1005]),
+            201: (998, [1003]),  # computer session for vehicle A (cag-client)
+        }
+        for pid, (uid, inodes) in processes.items():
+            process = root / str(pid)
+            (process / "fd").mkdir(parents=True)
+            (process / "status").write_text(f"Name:\tsshd-session\nUid:\t{uid}\t{uid}\t{uid}\t{uid}\n")
+            for index, inode in enumerate(inodes, start=3):
+                os.symlink(f"socket:[{inode}]", process / "fd" / str(index))
+
+    def test_relay_port_sessions_are_found_per_vehicle(self):
+        proc_root = Path(self.temporary.name) / "proc"
+        self.write_fake_proc(proc_root)
+
+        self.assertEqual({101, 201}, relay_port_session_pids(20_000, {997, 998}, proc_root))
+        self.assertEqual({102}, relay_port_session_pids(20_001, {997, 998}, proc_root))
+        self.assertEqual(set(), relay_port_session_pids(20_002, {997, 998}, proc_root))
+
+        signalled: list[tuple[int, int]] = []
+        count = disconnect_relay_ports(
+            [20_000], {997, 998}, proc_root, kill=lambda pid, sig: signalled.append((pid, sig))
+        )
+        self.assertEqual(2, count)
+        self.assertEqual([(101, cag_state.signal.SIGTERM), (201, cag_state.signal.SIGTERM)], signalled)
+
+    def test_admin_wrapper_disconnects_only_affected_vehicles(self):
+        script = (Path(__file__).resolve().parents[1] / "cag-admin").read_text(encoding="utf-8")
+        self.assertNotIn("pkill", script)
+        self.assertIn('exec /opt/cag/cag-state remove-device --disconnect "$2"', script)
+        self.assertIn("exec /opt/cag/cag-state gc --disconnect", script)
 
     def test_admin_wrapper_preserves_a_leading_dash_rename_label(self):
         wrapper = Path(__file__).resolve().parents[1] / "cag-admin"

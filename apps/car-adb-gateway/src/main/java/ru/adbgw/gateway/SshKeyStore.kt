@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.KeyPair
 
-class SshKeyStore(context: Context) {
+class SshKeyStore(context: Context) : RelayKeyStore {
     private val appFiles = context.applicationContext.filesDir
 
     private val tunnelFile = File(appFiles, "relay_device_key")
@@ -18,19 +18,19 @@ class SshKeyStore(context: Context) {
     private var cachedControlKeyPair: KeyPair? = null
     private var cachedInnerHostKeyPair: KeyPair? = null
 
-    val tunnelKeyPair: KeyPair get() = synchronized(this) {
+    override val tunnelKeyPair: KeyPair get() = synchronized(this) {
         cachedTunnelKeyPair ?: loadRsa(tunnelFile).also { cachedTunnelKeyPair = it }
     }
-    val controlKeyPair: KeyPair get() = synchronized(this) {
+    override val controlKeyPair: KeyPair get() = synchronized(this) {
         cachedControlKeyPair ?: loadRsa(controlFile).also { cachedControlKeyPair = it }
     }
     val innerHostKeyPair: KeyPair get() = synchronized(this) {
         cachedInnerHostKeyPair ?: loadRsa(innerHostFile).also { cachedInnerHostKeyPair = it }
     }
 
-    val tunnelPublicKey: String get() = PublicKeyEntry.toString(tunnelKeyPair.public)
-    val controlPublicKey: String get() = PublicKeyEntry.toString(controlKeyPair.public)
-    val innerHostPublicKey: String get() = PublicKeyEntry.toString(innerHostKeyPair.public)
+    override val tunnelPublicKey: String get() = PublicKeyEntry.toString(tunnelKeyPair.public)
+    override val controlPublicKey: String get() = PublicKeyEntry.toString(controlKeyPair.public)
+    override val innerHostPublicKey: String get() = PublicKeyEntry.toString(innerHostKeyPair.public)
 
     @Synchronized
     fun preserveLegacyControlIdentity(hasRegistration: Boolean) {

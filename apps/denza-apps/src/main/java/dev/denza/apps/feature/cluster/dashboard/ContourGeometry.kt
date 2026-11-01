@@ -11,6 +11,7 @@ import dev.denza.apps.feature.vehicle.EngineTrace
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -70,17 +71,25 @@ internal object ContourGeometry {
     fun peakIntensity(age: Float): Float = max(0.2f, 0.6f - age * 0.07f)
 
     /**
-     * The zero's pool of light: 0.78·√(|P| / 120), saturated at 120 kW. Six times the 0.13 it was
-     * drawn at until 2026-10-20, which no one could see on the car: the owner picked ×6 on the
-     * driver's display itself with `:cluster-glow-probe`.
+     * The zero's pool of light: 0.65·(|P| / span)^1.5, the span being the band's own - 300 kW out
+     * of the pack, 100 kW back into it - so the glow is full exactly when the band is.
+     *
+     * The curve rises slowly and then fast, the band's square root turned over: the band shows the
+     * small numbers, the light only the big ones. Recorded drives spend 90 % of their moving time
+     * under 28 kW, where this is at most 4 levels of 255; it reaches 25, the brightest the first,
+     * unseen glow ever got, near 90 kW out and 30 kW back. Until 2026-10-20 it was 0.13·√(|P| / 120 kW), which no one could see on the car; the
+     * owner then picked ×6 with `:cluster-glow-probe`, which lit through ordinary driving, and on
+     * 2026-10-26 asked for one step down and a curve that starts slow.
      */
-    fun glowAlpha(kilowatts: Float): Float =
-        Band.GLOW_MAX * sqrt(min(1f, abs(kilowatts) / Band.GLOW_FULL_KW))
+    fun glowAlpha(kilowatts: Float): Float {
+        val span = if (kilowatts < 0f) Band.IN_KW else Band.OUT_KW
+        return Band.GLOW_MAX * min(1f, abs(kilowatts) / span).pow(Band.GLOW_EXPONENT)
+    }
 
     /** The glow is not drawn under this, which is where the board stops drawing it too. */
     const val GLOW_MIN: Float = 0.005f
 
-    /** How much taller than wide the glow's ellipse is: from the axis to the stock band and 87.8 past. */
+    /** How much taller than wide the glow's ellipse is: from the axis to the stock band and 63.9 past. */
     const val GLOW_SQUASH: Float =
         (Cluster.STOCK_BOTTOM - Grid.AXIS + Band.GLOW_REACH_BELOW) / Band.GLOW_RADIUS
 

@@ -3,7 +3,7 @@ package ru.adbgw.gateway
 import android.content.Context
 import org.json.JSONObject
 
-class GatewayStateStore(context: Context) {
+class GatewayStateStore(context: Context) : InnerGatewayStore, RejectionEvidenceStore {
     private val preferences = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun isEnabled(): Boolean = preferences.getBoolean(KEY_ENABLED, true)
@@ -19,9 +19,9 @@ class GatewayStateStore(context: Context) {
         .putString(KEY_REGISTRATION, registrationToJson(value).toString())
         .commit()
 
-    fun trustedClientKey(): String? = preferences.getString(KEY_TRUSTED_CLIENT_KEY, null)
+    override fun trustedClientKey(): String? = preferences.getString(KEY_TRUSTED_CLIENT_KEY, null)
 
-    fun trustedClientLabel(): String? = preferences.getString(KEY_TRUSTED_CLIENT_LABEL, null)
+    override fun trustedClientLabel(): String? = preferences.getString(KEY_TRUSTED_CLIENT_LABEL, null)
 
     fun saveTrustedClient(publicKey: String, label: String): Boolean = preferences.edit()
         .putString(KEY_TRUSTED_CLIENT_KEY, publicKey)
@@ -39,7 +39,7 @@ class GatewayStateStore(context: Context) {
         return requestId
     }
 
-    fun pendingPairCommit(): PendingPairCommit? {
+    override fun pendingPairCommit(): PendingPairCommit? {
         val raw = preferences.getString(KEY_PENDING_PAIR_COMMIT, null) ?: return null
         return runCatching {
             val json = JSONObject(raw)
@@ -50,7 +50,7 @@ class GatewayStateStore(context: Context) {
         }.getOrNull()
     }
 
-    fun savePendingPairCommit(value: PendingPairCommit): Boolean = preferences.edit()
+    override fun savePendingPairCommit(value: PendingPairCommit): Boolean = preferences.edit()
         .putString(
             KEY_PENDING_PAIR_COMMIT,
             JSONObject()
@@ -60,7 +60,7 @@ class GatewayStateStore(context: Context) {
         )
         .commit()
 
-    fun finalizePairCommit(publicKey: String, label: String): Boolean = preferences.edit()
+    override fun finalizePairCommit(publicKey: String, label: String): Boolean = preferences.edit()
         .putString(KEY_TRUSTED_CLIENT_KEY, publicKey)
         .putString(KEY_TRUSTED_CLIENT_LABEL, label)
         .remove(KEY_PENDING_PAIR_COMMIT)
@@ -68,7 +68,7 @@ class GatewayStateStore(context: Context) {
         .remove(KEY_PAIRING_REQUEST)
         .commit()
 
-    fun clearPairing(): Boolean = preferences.edit()
+    override fun clearPairing(): Boolean = preferences.edit()
         .remove(KEY_PAIRING)
         .remove(KEY_PAIRING_REQUEST)
         .remove(KEY_PENDING_PAIR_COMMIT)
@@ -81,9 +81,27 @@ class GatewayStateStore(context: Context) {
         .remove(KEY_PAIRING)
         .remove(KEY_PAIRING_REQUEST)
         .remove(KEY_PENDING_PAIR_COMMIT)
+        .remove(KEY_REJECTION_FIRST_AT)
+        .remove(KEY_REJECTION_COUNT)
         .putBoolean(KEY_ENABLED, true)
         .putBoolean(KEY_KEY_ROTATION_REQUIRED, true)
         .commit()
+
+    override fun rejectionEvidence(): RejectionEvidence? {
+        val count = preferences.getInt(KEY_REJECTION_COUNT, 0)
+        if (count <= 0) return null
+        return RejectionEvidence(preferences.getLong(KEY_REJECTION_FIRST_AT, 0L), count)
+    }
+
+    override fun saveRejectionEvidence(value: RejectionEvidence?): Boolean {
+        val editor = preferences.edit()
+        if (value == null) {
+            editor.remove(KEY_REJECTION_FIRST_AT).remove(KEY_REJECTION_COUNT)
+        } else {
+            editor.putLong(KEY_REJECTION_FIRST_AT, value.firstAtMillis).putInt(KEY_REJECTION_COUNT, value.count)
+        }
+        return editor.commit()
+    }
 
     fun isKeyRotationRequired(): Boolean = preferences.getBoolean(KEY_KEY_ROTATION_REQUIRED, false)
 
@@ -91,7 +109,7 @@ class GatewayStateStore(context: Context) {
         .putBoolean(KEY_KEY_ROTATION_REQUIRED, false)
         .commit()
 
-    fun pairingWindow(): PairingWindow? {
+    override fun pairingWindow(): PairingWindow? {
         val raw = preferences.getString(KEY_PAIRING, null) ?: return null
         return runCatching {
             val json = JSONObject(raw)
@@ -104,7 +122,7 @@ class GatewayStateStore(context: Context) {
         }.getOrNull()
     }
 
-    fun savePairingWindow(value: PairingWindow?): Boolean {
+    override fun savePairingWindow(value: PairingWindow?): Boolean {
         val editor = preferences.edit()
         if (value == null) {
             editor.remove(KEY_PAIRING)
@@ -132,6 +150,8 @@ class GatewayStateStore(context: Context) {
         private const val KEY_PAIRING_REQUEST = "pairing_request_id"
         private const val KEY_PENDING_PAIR_COMMIT = "pending_pair_commit"
         private const val KEY_KEY_ROTATION_REQUIRED = "key_rotation_required"
+        private const val KEY_REJECTION_FIRST_AT = "relay_rejection_first_at"
+        private const val KEY_REJECTION_COUNT = "relay_rejection_count"
 
         fun registrationToJson(value: RelayRegistration): JSONObject = JSONObject()
             .put("device_id", value.deviceId)

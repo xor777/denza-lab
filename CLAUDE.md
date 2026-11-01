@@ -78,6 +78,14 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
   `docs/cloud-custom-runtime-contract.md`, the CUSTOM mode of `feature/cloud`),
   moved off main in `eed3a411`.
 
+## The car
+
+ADB serial `127.0.0.1:5555`, the same for every tool and doc. Car ADB Gateway
+(`cag connect --watch`, LaunchAgent `ru.adbgw.cag`) serves it through `adbgw.ru`
+from any network; until it takes the port, a legacy LAN tunnel may hold it.
+`cag status` says which. Never `adb disconnect` it or kill its tunnel: other
+sessions share it.
+
 ## Shell
 
 - The shell is zsh: quote globs (`grep -r --include='*.kt'`) or use

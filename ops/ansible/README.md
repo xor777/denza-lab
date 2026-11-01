@@ -72,7 +72,8 @@ ssh adbgw.ru sudo cag-admin doctor
 # update the human-readable relay label
 ssh adbgw.ru sudo cag-admin rename DEVICE_ID "Ivan - N9, black"
 
-# emergency revoke; active device/client SSH sessions are recycled automatically
+# emergency revoke; this vehicle's tunnel and its computer's sessions are closed,
+# other vehicles stay connected
 ssh adbgw.ru sudo cag-admin remove DEVICE_ID
 ```
 

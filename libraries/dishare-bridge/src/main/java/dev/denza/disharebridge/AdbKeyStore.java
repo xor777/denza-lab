@@ -63,11 +63,23 @@ final class AdbKeyStore {
     }
 
     synchronized byte[] signToken(byte[] token) throws GeneralSecurityException {
+        return signToken(keyPair(), token);
+    }
+
+    /**
+     * Signs an ADB AUTH token with a given RSA key pair, exactly as {@link #signToken(byte[])}.
+     *
+     * <p>Extracted so the proxy handshake ({@link LocalAdbClient#proxyAdbConnect}) can sign with
+     * this client's key without opening a transport, and so the signing can be exercised in a plain
+     * JVM test with a bare key pair. The byte layout is unchanged: raw RSA over a PKCS#1 v1.5
+     * block whose digest is the token treated as a SHA-1 hash.
+     */
+    static byte[] signToken(KeyPair keyPair, byte[] token) throws GeneralSecurityException {
         if (token.length != 20) {
             throw new GeneralSecurityException("Unexpected ADB auth token length " + token.length);
         }
-        PrivateKey privateKey = keyPair().getPrivate();
-        PublicKey publicKey = keyPair().getPublic();
+        PrivateKey privateKey = keyPair.getPrivate();
+        PublicKey publicKey = keyPair.getPublic();
         if (!(privateKey instanceof RSAPrivateKey) || !(publicKey instanceof RSAPublicKey)) {
             throw new GeneralSecurityException("ADB key is not RSA");
         }

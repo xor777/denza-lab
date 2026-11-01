@@ -53,7 +53,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | ISG: the complete positive reply contains231 bytes,57 entries/56 distinct raw codes,status00. Duplicate C1D487 at positions28/40 triggered the old reader policy. The revised reader accepts57 ordered records/56 unique codes offline; the historical live pass remains failed. The separately inspected stock IP-client190A parser appends raw records without deduplication, but its use for this CAN capture is not established. ECM NRC13 origin remains open without its first CAN reply; status masks are not general registry pagination | complete ISG wire response; native implementation evidence; ECM cause open | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21); [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Reader followup](#diagnostic-reader-and-applicability-followup-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
 | Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; the packed-resource audit found only domain-list containers, while manual caches can use extensionless names. No new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
-| VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
+| VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02; the REA pilot additionally binds its flag/condition-variable handoff to threadLoop and notify_hal_diagnostic in source. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema, worker handoff and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Factory scripts: normal completion/startup can remove Scripts and the saved task. Conditional afterRunRes persistence can retain selected formatted DTC/description pairs, without script tuple or ECU software. Manual package location is recoverable through classify_cache.db and media_cache.db in source. One approved live export found RUNNING_TASK/afterRunRes absent; no script or dictionary recovered. The manual app has no declared DB provider, and its private DB contents remain unknown | firmware plus live missing-key result; applicable content open | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21); [Cache recovery](#diagnostic-cache-and-component-package-followup-2026-10-21) |
 | The MCU preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. A DID alone cannot assign a child role. Neither the seven-entry SMM registry nor 49 outer OTA entries/35 media-component packages resolves the nine missing roles. otaUpdateDownloadFileInfo can hold a package description, but the approved live export found the key absent. Other download caches omit its descriptive binding | firmware and live cache exclusion; nine roles and physical brake identity open | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21); [Component packages](#diagnostic-cache-and-component-package-followup-2026-10-21) |
 | Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; rear torque can wrap in GB packing, and null-service getter failure can leave a reused caller buffer untouched. Units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
@@ -5290,8 +5290,30 @@ requiring the previous extracted **byte** to be zero. This is not a general
 comparison-edge detector: equality to zero can retrigger on consecutive zero
 samples. Selected nodes are copied into the type4 vector at object `+5D8`;
 `notify_hal_diagnostic` selects that vector and sender `257A0` emits prefix
-`02` through device1033/`AA00010A`. The intermediate scheduling handoff is
-not fully traced, so no runtime timing or execution claim follows.
+`02` through device1033/`AA00010A`. The initial pass left the intermediate
+scheduling handoff untraced; the later REA pilot below resolves the shared
+flag/condition-variable producer and consumer in source. Runtime thread
+activation, timing and execution remain unobserved.
+
+**REA pilot: the worker handoff, source-only.** On the same hashed `vhds`,
+Ghidra's references lead from `notify_hal_diagnostic` to `VHDS::threadLoop`
+at `251A0` and its adjusted-this entry at `25660`. The CAN handler's allowed,
+nonempty-vector path sets type4 with `strh 0x0402` at object `+65E`, takes mutex
+`+328`, writes `0x0101` at `+639` (thus setting byte `+63A`), and signals condition
+variable `+2F8` at `2745C`. The worker holds that same mutex, waits on that same
+condition while byte `+63A` is zero, calls `25200` at `251C4`, then clears the
+byte. The adjusted entry subtracts `28` from its incoming this pointer and
+reaches the same object fields/callee. The consumer reads type byte `+65F`.
+Six original-byte ranges (680 bytes / 170 AArch64 instructions), independently
+decoded with Capstone, corroborate these offsets, stores and direct calls.
+
+This closes the source-level synchronization link, not the daemon's runtime
+thread lifecycle or the applicability of any configured task. No firmware code,
+Binder transaction or vehicle operation ran. The earlier report remains a record
+of its original bounded pass. New tool evidence and replay are
+[`rea-native-pilot-20261021.json`](../research/vehicle-diagnostics/rea-native-pilot-20261021.json)
+and [`check_rea_native_pilot.py`](../research/vehicle-diagnostics/check_rea_native_pilot.py);
+setup/address/cleanup details are in the [firmware corpus](firmware-corpus.md#native-analysis-with-rea).
 
 The sender takes service and parameters from its node without a read-only
 SID whitelist at that boundary. Its controller can also call

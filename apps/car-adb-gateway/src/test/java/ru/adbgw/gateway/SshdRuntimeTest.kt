@@ -14,4 +14,11 @@ class SshdRuntimeTest {
 
         assertEquals(appHome, PathUtils.getUserHomeFolder())
     }
+
+    @Test
+    fun `the platform's stripped Bouncy Castle is kept away from MINA`() {
+        SshdRuntime.initialize(Files.createTempDirectory("cag-sshd-home"))
+
+        assertEquals("false", System.getProperty(SshdRuntime.BOUNCY_CASTLE_ENABLED_PROPERTY))
+    }
 }
