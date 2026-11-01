@@ -1,0 +1,499 @@
+{
+  "schema": "proj2-main-acceptance-summary-v1",
+  "passed": true,
+  "offlineOnly": true,
+  "networkOperations": 0,
+  "adbOperations": 0,
+  "inputSha256": "4a831d8f584df145224a9ded65e2d0d0967b05ff87a8b4c67a7e052600563780",
+  "freeze": {
+    "manifest": "/Users/dmitry/Dev/denza-gateway/captures/yandex-feed15-proj2-20261031/tests/runtime-wire-view/source-freeze.json",
+    "sha256": "87891526c286b08609c6671dccb00ac4b67626136b86cc30e6f2a7beb486db87",
+    "fileCount": 132,
+    "allCurrentHashesMatch": true,
+    "mismatches": []
+  },
+  "sourceStableThroughRun": true,
+  "yandexAllOriginalPayloadBytesEqual": true,
+  "rawProjectedAllTopicTimeSequencesEqual": true,
+  "unapprovedWireBytesEqual": true,
+  "scenarioCount": 3,
+  "packetPairs": 2034,
+  "rawAllowedNumericDifferences": 1066,
+  "maxAbsSendTimeDeltaMs": 0,
+  "meaningfulEffect": {
+    "passed": true,
+    "scenarios": [
+      {
+        "name": "recorded-fixed20-moving",
+        "successfulPositions": 95,
+        "coordinateChangesAbove0_5m": 68,
+        "coordinateShift4to8mCount": 18,
+        "coordinateShiftM": {
+          "min": 0.0,
+          "median": 2.084462324350411,
+          "max": 10.893982736752983
+        },
+        "positionsWithChangedIndicesOffsetsCourse": 69,
+        "positionSourceSuccessful": 95,
+        "missingRawForwardFallbackEmitted": false,
+        "queuedRawAge1600FallbackEmitted": false,
+        "successfulSourceReasons": {
+          "projected": 95
+        }
+      },
+      {
+        "name": "recorded-fine-timing-reconstruction",
+        "successfulPositions": 95,
+        "coordinateChangesAbove0_5m": 73,
+        "coordinateShift4to8mCount": 18,
+        "coordinateShiftM": {
+          "min": 0.0642024993962181,
+          "median": 2.084462324350411,
+          "max": 10.893982736752983
+        },
+        "positionsWithChangedIndicesOffsetsCourse": 74,
+        "positionSourceSuccessful": 95,
+        "missingRawForwardFallbackEmitted": false,
+        "queuedRawAge1600FallbackEmitted": false,
+        "successfulSourceReasons": {
+          "projected": 95
+        }
+      },
+      {
+        "name": "boundary-queues-ack-reroute",
+        "successfulPositions": 10,
+        "coordinateChangesAbove0_5m": 10,
+        "coordinateShift4to8mCount": 0,
+        "coordinateShiftM": {
+          "min": 50.000725038167914,
+          "median": 64.00266418504185,
+          "max": 75.00108755717503
+        },
+        "positionsWithChangedIndicesOffsetsCourse": 10,
+        "positionSourceSuccessful": 10,
+        "missingRawForwardFallbackEmitted": true,
+        "queuedRawAge1600FallbackEmitted": true,
+        "successfulSourceReasons": {
+          "projected": 7,
+          "missing_raw": 1,
+          "stale_raw": 2
+        }
+      }
+    ],
+    "failures": []
+  },
+  "restoredQueueFineLease": [
+    {
+      "passed": true,
+      "positions": 5,
+      "cadenceMs": 1001,
+      "mode": "fixed20"
+    },
+    {
+      "passed": true,
+      "positions": 5,
+      "cadenceMs": 1001,
+      "mode": "yandex"
+    },
+    {
+      "passed": true,
+      "positions": 5,
+      "cadenceMs": 1001,
+      "mode": "rawProjected"
+    }
+  ],
+  "negativeControl": {
+    "source": "captures/yandex-feed15-proj-20261029/source",
+    "expectedRejected": true,
+    "actuallyRejected": true,
+    "failureCount": 9437,
+    "comparison": "negative-control-comparison.json"
+  },
+  "cadence": [
+    {
+      "name": "recorded-fixed20-moving",
+      "baselineCadence": {
+        "topicCounts": {
+          "NavigationStatus": 98,
+          "naviSDRoute": 1,
+          "pathSelected": 1,
+          "tidalLane": 95,
+          "naviActionAndCamera": 95,
+          "speedIntersectionInformation": 95,
+          "regionalAndWeather": 95,
+          "sdVehicleLocation": 95,
+          "TrafficInfo": 95,
+          "tunnel": 95,
+          "sdTrafficLight": 95,
+          "roadFacilities": 37,
+          "aheadIntersectionsLanesInfo": 9
+        },
+        "positionIntervalsMs": {
+          "n": 94,
+          "median": 1005.0
+        },
+        "nextActionToPositionMs": {
+          "n": 95,
+          "median": 0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      },
+      "candidateCadence": {
+        "topicCounts": {
+          "NavigationStatus": 98,
+          "naviSDRoute": 1,
+          "pathSelected": 1,
+          "tidalLane": 95,
+          "naviActionAndCamera": 95,
+          "speedIntersectionInformation": 95,
+          "regionalAndWeather": 95,
+          "sdVehicleLocation": 95,
+          "TrafficInfo": 95,
+          "tunnel": 95,
+          "sdTrafficLight": 95,
+          "roadFacilities": 37,
+          "aheadIntersectionsLanesInfo": 9
+        },
+        "positionIntervalsMs": {
+          "n": 94,
+          "median": 1005.0
+        },
+        "nextActionToPositionMs": {
+          "n": 95,
+          "median": 0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "recorded-fine-timing-reconstruction",
+      "baselineCadence": {
+        "topicCounts": {
+          "NavigationStatus": 101,
+          "naviSDRoute": 1,
+          "pathSelected": 1,
+          "regionalAndWeather": 95,
+          "sdVehicleLocation": 95,
+          "TrafficInfo": 95,
+          "tunnel": 95,
+          "sdTrafficLight": 95,
+          "AdvAutoFunInfo": 95,
+          "tidalLane": 95,
+          "naviActionAndCamera": 95,
+          "speedIntersectionInformation": 95,
+          "roadFacilities": 33,
+          "aheadIntersectionsLanesInfo": 10
+        },
+        "positionIntervalsMs": {
+          "n": 94,
+          "median": 1004.0
+        },
+        "nextActionToPositionMs": {
+          "n": 94,
+          "median": 413.0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "pathSelected",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      },
+      "candidateCadence": {
+        "topicCounts": {
+          "NavigationStatus": 101,
+          "naviSDRoute": 1,
+          "pathSelected": 1,
+          "regionalAndWeather": 95,
+          "sdVehicleLocation": 95,
+          "TrafficInfo": 95,
+          "tunnel": 95,
+          "sdTrafficLight": 95,
+          "AdvAutoFunInfo": 95,
+          "tidalLane": 95,
+          "naviActionAndCamera": 95,
+          "speedIntersectionInformation": 95,
+          "roadFacilities": 33,
+          "aheadIntersectionsLanesInfo": 10
+        },
+        "positionIntervalsMs": {
+          "n": 94,
+          "median": 1004.0
+        },
+        "nextActionToPositionMs": {
+          "n": 94,
+          "median": 413.0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "pathSelected",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "boundary-queues-ack-reroute",
+      "baselineCadence": {
+        "topicCounts": {
+          "NavigationStatus": 15,
+          "naviSDRoute": 2,
+          "pathSelected": 2,
+          "intersection": 10,
+          "nextIntersectionLanesInfo": 10,
+          "tidalLane": 10,
+          "naviActionAndCamera": 10,
+          "speedIntersectionInformation": 10,
+          "sdTraffiIncident": 2,
+          "regionalAndWeather": 10,
+          "sdVehicleLocation": 10,
+          "TrafficInfo": 10,
+          "tunnel": 12,
+          "sdTrafficLight": 10,
+          "roadFacilities": 2,
+          "aheadIntersectionsLanesInfo": 1,
+          "AdvAutoFunInfo": 1
+        },
+        "positionIntervalsMs": {
+          "n": 9,
+          "median": 1001
+        },
+        "nextActionToPositionMs": {
+          "n": 10,
+          "median": 0.0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "sdTraffiIncident",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      },
+      "candidateCadence": {
+        "topicCounts": {
+          "NavigationStatus": 15,
+          "naviSDRoute": 2,
+          "pathSelected": 2,
+          "intersection": 10,
+          "nextIntersectionLanesInfo": 10,
+          "tidalLane": 10,
+          "naviActionAndCamera": 10,
+          "speedIntersectionInformation": 10,
+          "sdTraffiIncident": 2,
+          "regionalAndWeather": 10,
+          "sdVehicleLocation": 10,
+          "TrafficInfo": 10,
+          "tunnel": 12,
+          "sdTrafficLight": 10,
+          "roadFacilities": 2,
+          "aheadIntersectionsLanesInfo": 1,
+          "AdvAutoFunInfo": 1
+        },
+        "positionIntervalsMs": {
+          "n": 9,
+          "median": 1001
+        },
+        "nextActionToPositionMs": {
+          "n": 10,
+          "median": 0.0
+        },
+        "actionToPositionCountRatio": 1.0,
+        "firstPositionsContext": [
+          [
+            "sdTraffiIncident",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ],
+          [
+            "speedIntersectionInformation",
+            "regionalAndWeather",
+            "sdVehicleLocation",
+            "TrafficInfo",
+            "tunnel",
+            "sdTrafficLight"
+          ]
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Saved guidance preserves actual original SDK stamps/deltas/ages; source geometry original. Raw coordinate age0 is a disclosed counterfactual input because actual fixed20 raw age was not recorded.",
+    "Dense cadence uses actual accepted-FINE event times, ages and speed. SDK identity is a unique ordinal; coordinates/scalar hold the latest preceding recorded guidance.",
+    "Host queue runs deterministically with zero task execution duration. Dense replay ratio NaviInfo/position=1.0 and median NextAction-to-position413ms in BOTH sources; it does not establish the on-car2/3 ratio or100ms median.",
+    "Camera/lane/light/tunnel boundary and ACK/reroute/deferred expiry/missing-raw fixture is synthetic and labeled. No car acceptance is claimed."
+  ]
+}

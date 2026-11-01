@@ -23,7 +23,7 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-31. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
@@ -40,7 +40,14 @@ Updated 2026-10-29. Local parser acceptance is separate from vehicle acceptance.
 | Owner-requested historical-15 trial with the Denza Apps speed-sign switch off and one-shot road type9 / limit0 | 2026-10-29 trip archived; local SHA/CRC verified and session RESTORED; sign remains off; moving outcome not yet independently audited here | [Build15 without sign writer](#build15-without-the-denza-apps-sign-writer-2026-10-29) |
 | Historical15 with sign writer off and `loop-limit`: only feed speed-limit policy changes from Yandex to zero | 2026-10-29 trip archived, SHA/CRC verified; session RESTORED; moving outcome not independently audited here | [Build15 limit0](#build15-with-zero-feed-speed-limit-2026-10-29) |
 | Historical15 `loop-limit` plus one-shot road type9 / machine navigation limit20, with Denza Apps sign writer off | 2026-10-29 return exported with SHA/CRC verification; session RESTORED; moving outcome not yet independently audited here | [Build15 machine limit20](#build15-with-machine-navigation-limit20-2026-10-29) |
-| Historical15 adds optional `speedLimit=fixed20` at the final TrafficInfo serialization point; the product factory sender is unchanged | installed over15 with hash verified; two same-arm stationary SELECTED200 routes, all80 captured TrafficInfo20 including after guidance reset; drive pending | [Historical15 fixed20](#historical15-fixed20-candidate-2026-10-29) |
+| Historical15 adds optional `speedLimit=fixed20` at the final TrafficInfo serialization point; the product factory sender is unchanged | trip archived with independently verified SHA/CRC; fixed20 session RESTORED; moving outcome not independently audited here | [Historical15 fixed20](#historical15-fixed20-candidate-2026-10-29) |
+| Historical15 fixed20 with `frame=STOCK_GCJ`, unchanged installed APK and host | parked actual SELECTED200, all21 TrafficInfo20, associated position shift537.5m and all644 route points agree with transformed source; exact same-tick raw GPS comparison unavailable; drive pending | [Historical15 GCJ](#historical15-gcj-frame-trial-2026-10-29) |
+| Historical15 fixed20 adds opt-in `position.source=rawProjected` using fresh GNSS and one coherent route scalar | 2026-10-31 trip exported and RESTORED; actual projection confirmed, NOA8 holds0.389–0.593s, positive moving DNP1.62% vs fixed20 70.00%; send-order confound prevents coordinate-only attribution | [Historical15 projection](#historical15-raw-projected-position-2026-10-31) |
+| The owner's proj2 plan requires identical topic/time sequences while changing only position-derived numbers | historical literal-upstream STOP resolved by explicit owner approval for original-Yandex event state plus projected numeric wire view; new candidate paired test passes2034 packets with0ms delta; installed/hash verified; control A exported/RESTORED, moving positive DNP1.028%; first street covered mostly above target speed; same-APK repeat A2 exported/RESTORED, proper street/speed but DNP1/2 only1.291%; positive baseline still absent, B not started | [Proj2 feasibility](#proj2-hard-rule-feasibility-2026-10-31) |
+| Exact 29 October fixed20 APK is repeated to separate the new APK from changed live conditions | returned/exported/RESTORED; offers0.108s/125.792s observed motion, four half-second DNP1 pulses toICC; route shorter, no recovery on overlap | [Exact fixed20 repeat](#exact-fixed20-apk-repeat-2026-10-31) |
+| Owner restored original build15 with the whole retained APK, install only | full-file install stage completed with SHAdcbb3f82 verified; subsequent original15 drive separately owner-authorized | [Original15 restore](#original-build15-restored-by-full-apk-install-2026-10-31) |
+| Original15 baseline is driven with the saved source/stock-start variant, Yandex limits and position | exported/RESTORED; zero DNP2, four0.483-0.592s DNP1 pulses toICC; original15 retained, owner proposes HU reboot | [Original15 baseline](#original15-baseline-experiment-2026-10-31) |
+| Original15 repeats after verified HU boot155 and owner-requested Navigator restart | arm/path200,16 near-home positions proved; GPS intermittent, owner accepts one diagnostic loop; active | [Post-reboot diagnostic](#original15-after-head-unit-reboot-2026-10-31) |
 | Build 26 longer trip repeats first NOA availability within 5.77 m and the same direction as its earlier village drive; five brief active series occur on class 9 before the turn | two retained physical trips, no causal attribution; export verified, arm removed; later restart blocked feed and graceful closure proof is unavailable | [Build 26 longer trip](#build-26-longer-trip-departure-2026-10-26) |
 | Same-corridor comparison finds matched-position stutter and zero SDK speed in both original 15 and 26; the later 26 positive window has smooth SDK motion but short retention. Independent vehicle speed is already supplied by autoservice | retained inputs/output and source audit; neither GNSS interference nor NOA causality established; owner subsequently authorized candidate 27 below | [Position and speed audit](#spatial-comparison-and-position-jitter-2026-10-26) |
 | Candidate 27 combines four independent per-arm adapter policies: actual-next-light 500 m mask, measured Android GPS speed, source-coherent progress, and compatible tiny-link merging. All four default on in the new host; factory core is unchanged | local mechanical checks passed, but owner review rejected recipe acceptance: all 23 zeros remain and displacement speed recovery is absent; not installed or armed | [Candidate 27](#candidate-27-bundled-adapter-experiment) |
@@ -5263,3 +5270,498 @@ calendar estimate or assumed ICC-only fallback follows from the current data.
   "Pipeline review and car defects"), `docs/hud-projection-findings.md`
   (service 266, sender checks), `docs/instrument-display-findings.md`
   ("The car's speed sign from Yandex").
+
+## Historical15 GCJ frame trial (2026-10-29)
+
+Evidence: `captures/bisect-pre-arm-20261027/run15-gcj-20261029/READY.md`,
+`offline-wire-proof.json`, `ready-receipt.json`. The prior fixed20 drive archive
+was locally verified against Claude's receipt (SHA256 `1b3fa9ee…`, 130 members,
+gzip CRC), then its arm was restored. The existing fixed20 APK SHA `69ef8198…`
+was verified on the car; no installation, build, or autoservice setter occurred.
+With fresh owner stationary confirmation, the same copied host opened arm
+`3e5fc1eb-93a1-44bd-bff3-440fd73b9c04`; only frame and variant identifier changed.
+Existing Yandex guidance was adopted without UI actions. ADAS returned explicit
+SELECTED200 for path1793282458; all21 retained TrafficInfo packets carry20.
+All21 associated-road positions exactly equal the transformed nearby recorded
+SDK position, shifted537.501876m. All644 actual route points lie within0.033m
+of the transformed source polyline. Source/send gaps are105–209ms. The raw
+position is542.825–543.063m from nearby matched WGS coordinates; these are not
+the raw GPS source. The archived logger omits raw measurement coordinates and
+identity, so exact same-tick raw comparison remains unproved.
+The feed remains active for the owner's village loop; moving outcome pending.
+One run can support or weaken the coordinate hypothesis, not establish the
+ECU datum or exclude a contributing coordinate effect by itself.
+
+## Historical15 raw-projected position (2026-10-31)
+
+The owner requested the plan `captures/bisect-pre-arm-20261027/run15-proj-PLAN.md`
+as a preparation task before connecting the car. The historical15 fixed20 source
+is the base; this experiment does not modify the active product factory core.
+The reproducible patch and source contract are in
+[historical15-raw-projection](historical15-raw-projection/README.md).
+
+Signed candidate SHA256
+`b5fe2dd63786600a50ddc1a41f9cedc7b915f772a86734a04e128bfc311e0af1`
+retains version15 and its certificate. All 20,249 unchanged APK entries match
+fixed20; only module classes17.dex and signing metadata differ. The unchanged
+historical builder passed all gates. Five existing Java files and one new
+plain-Java projector implement the new per-arm `position.source` switch; absent
+or `yandex` preserve the historical path. WGS84, fixed20, stock start and both
+disabled navigation side channels remain the prepared arm policy. No service10
+subscription is added. No car command, install or arm ran during preparation.
+
+The chosen projected scalar feeds point, course, route indices, offsets,
+destination distance and road lookups before they are used. The bounded search
+is -20/+150 m around the last successfully sent position, with lateral cutoff
+25 m and raw age 0..1500 ms. Compensation uses provided vehicle speed or raw GNSS
+speed times raw age. Integration required variant-only synchronous progress and
+location on the existing serial sender plus FINE-lease refresh before that send.
+The rejected-position path restores local navigation state. A fallback Yandex
+scalar behind the last sent point is forward-clamped together with its point and
+fields, explicitly labelled `yandexForwardClamped`. If raw GNSS expires during
+preceding Binder calls, the projected position is dropped without transport
+invocation; the next observation selects fallback. These are explicit recipe
+refinements, not claims of unqualified Yandex fallback in every case.
+
+Evidence under `captures/yandex-feed15-proj-20261029/`: 61 projector checks,
+132 independent decoded-packet checks, and the actual coordinator/guard under
+fake Android/Binder emitting 5/5 packets at 1001 ms cadence. Removing the new
+pre-FINE refresh reproduces the zero-send regression. The default-path comparison
+passes 209 checks for each snapshot and three 204-row traces; only volatile outer
+route JSON time is normalized, all remaining data and other payloads are literal
+equal. Independent geometry replay passes 8,959 calls with a 0.0001 m tolerance.
+Reviewed source hashes equal the final builder's source hashes.
+
+The target recorded eastbound interval has 42 samples. Assuming raw age zero,
+all-sample mean advance is 3.864 m, versus 4.162 m among 39 accepted projections;
+three samples correlate with rerouting fallback. Accepted lateral median/p90/max
+is 0.879/2.690/11.497 m, so the strict <=5 m expectation is not met everywhere.
+Actual raw age is absent from that trip's wire logs; the replay cannot establish
+real age compensation or NOA benefit. See `replay/REPORT.md`, `REVIEW.md` and
+`acceptance-receipt.json`. Operational preparation, copied host, final commands
+and prior GCJ archive verification are in
+`captures/bisect-pre-arm-20261027/run15-proj-20261031/`. Live acceptance is pending.
+
+### Stationary acceptance of historical15 projection
+
+On 2026-10-31 the owner connected the car and explicitly confirmed stationary
+installation/start. Full installed SHA matched `b5fe2dd6…` after `install -r`.
+No uninstall or autoservice setter was used. One arm
+`87931313-9ee6-43ba-a18d-d9865aa14b31` adopted the first home suggestion,
+ЖК Внуково Кантри Клаб. Path1793436677 received actual same-path SELECTED200.
+All 36 retained successful VehicleLocation packets have paired `positionSource`
+audits with rawProjected decisions, matching point/course/step/link/offsets.
+All 36 TrafficInfo packets carry20. Max associated-point distance from the
+actual transmitted route is0.005917m; source raw age at send486–838ms; stationary
+GPS speed0 and projected progress minus Yandex0m. There were89 expected
+pre-ACK refusals and no post-ACK drops. These are stationary protocol/geometry
+results, not moving NOA acceptance. The feed was left active for the owner's loop.
+
+The previous GCJ arm file survived a full device reboot. Its pinned host removed
+the owned arm and asked its reader to stop, then reported boot-change code2;
+its ROLLBACK_PENDING ledger is retained unchanged. Independent reboot cleanup
+proof establishes a new boot, old Navigator process absence, then stable fresh
+current-boot quiescence/closed endpoints without an arm. The original stock APK
+identity/state3 matched exactly. Current readiness proves parked predicate1,
+measured speed0, no stock processes, sign switchfalse/no writer lines and
+unchanged crash buffer. Evidence and exact expiry are in
+`captures/bisect-pre-arm-20261027/run15-proj-20261031/READY.md`,
+`stationary-proof.json`, `ready-receipt.json` and the prior return's
+`closure-after-reboot-proof.json`.
+
+### RawProjected village drive and return (2026-10-31)
+
+The owner requested independent assessment before giving observations. All130
+export members, including seven passive-packet and six live-journal rings, were
+retained. Archive SHA256
+`6b9d9c1178e6ef172edde24cfa33dd0b6b27c143f751e07c750b2dd2218b2e44`,
+9,630,544bytes, remote/local match and gzip CRC verified. Restore then completed;
+independent proof has no arm, STOPPED/quiescent/closed endpoints, original stock
+state3/no processes, projection APK retained, signfalse and unchanged crash buffer.
+
+Eight DNP-active episodes last0.389–0.593s, all immediately end in ICC=1. At
+reported15–20km/h the longest is0.499s, versus2.094s in the fixed20 comparator.
+Using the same wire-speed/time method, positive DNP1/2 occupies1.619% of271.908s
+observed movement versus69.997% of294.592s on29Oct; available-only0.393% vs48.338%.
+An independent guidance-time method gives1.47% vs66.36%. All moving time has fresh
+status coverage; omitted scalar means factory getter0, not a missing whole packet.
+ICC itself holds up to23.701s. No hidden exit cause is decoded.
+
+Projection was delivered on806/827 actual positions, with exact point/course/
+index/offset audit joins and successful geometry checks. All five paths ACK200;
+all827 TrafficInfo20. On the selected eastern road at15–20km/h,43 projected sends
+have mean lead5.429m, raw age median265ms; no service10 subscription or dynamic
+freshness/DNP/sleep/transport failure explains the observed loss. The intended
+roughly5m shift occurred, but no active interval occurs in the strict east group.
+Both actual loops cover only one shared initial east traverse before turning
+north; neither supplies two complete passes of the requested stock corridor.
+
+A material implementation limitation prevents coordinate-only attribution:
+rawProjected also moves progress/NaviInfo into the location send and changes
+AdvAutoFunInfo ordering. Actual NextAction→Position median is6ms (p90 11ms),
+versus100ms (p90 394ms) fixed20. Point choice and phase/order were not independently
+controlled. Between-day/reboot/session conditions and error relative to ADAS pose
+are also unmeasured. The candidate did not meet its predicted retention outcome;
+this does not prove which difference caused the availability loss. An eventual
+same-APK yandex-source control can separate the bundled flag from current car
+conditions; geometry and scheduling should be separated offline before another
+trial. No new arm or code change followed this analysis.
+
+Evidence: `captures/bisect-pre-arm-20261027/run15-proj-20261031/REPORT.md`,
+`RETURN.md`, three independent `analysis/` reports and `return/closure-proof.json`.
+
+## Proj2 hard-rule feasibility (2026-10-31)
+
+The owner explicitly required unchanged topic inventory/order/timing (±5ms),
+queues, throttle and FINE, and ordered a stop rather than an unapproved workaround.
+Before implementing the new candidate, a bounded offline counterexample ran the
+actual unchanged fixed20 NavigatorDriver/StockFeed/ManualScheduler and the retained
+projector. The same synthetic input has a camera2001m ahead; upstream projection
+advances6m. Fixed20 cameras() enters its<2000m window and emits an additional
+NextAction. The paired traces contain27 vs28 sends, with first topic/time mismatch
+atindex18,time106000ms; cameraType also changes0→7. A nonboundary2101→2095m control
+keeps27=27 sends and all topic/times equal. All156 input-source hashes are unchanged.
+
+This proves a conflict in the literal upstream-scalar approach, not impossibility
+of every architecture. naviInfoDue itself is clock-only; scalar-dependent lane,
+light, camera, tunnel and arrival decisions remain even after restoring old queues.
+An implementation separating Yandex event/control progress from projected numeric
+payload values is a possible owner-approved alternative, not an automatic change.
+
+Preparation stopped under hard rule2. No runtime/host edits, APK build, installation
+or arm occurred. READY.md starts exactly «Отступлений от плана нет», then explicitly
+marks the task stopped/not ready. This limited counterexample is not represented
+as completed LiveMapBridge acceptance or full startup byte equivalence; unchanged
+wall-clock route fields prevent claiming the latter from this harness. Evidence:
+`captures/bisect-pre-arm-20261027/run15-proj2-20261031/READY.md`,
+`feasibility/REVIEW.md` and `feasibility/counterexample/`. Owner decision pending.
+
+## Proj2 approved numeric-only wire view (2026-10-31)
+
+After the explicit hard-rule stop, the owner amended rule2 to authorize any
+implementation preserving topic/time sequence and changing only the permitted
+position-derived numeric fields. Original Yandex now controls all events,
+thresholds, producer state, queues, throttle and FINE. A separate projected wire
+view changes payload locals only; its route-bound forward floor commits on
+successful projection-bearing packets. Missing/aged raw falls back numerically
+without suppressing a scheduled packet; original raw slots/categories/speed stay
+unchanged. LiveMapBridge is byte-identical to fixed20.
+
+Candidate SHA256
+`def9486240a8aa12decd4e943232e63667c9ed83f77c0c6d8f27aa779f256683`
+retains15/code739494315/certificate. Full unchanged historical builder passes;
+20,249 APK entries are identical, only classes17.dex/signing metadata differ.
+All132 frozen source hashes equal built source. Reproducible patch and compact
+receipt: [historical15-proj2](historical15-proj2/README.md).
+
+The main actual LiveMapBridge/driver/feed/guard harness uses fake Android/Binder
+and an explicit identical test-only wall-clock seam. Three same-input scenarios
+produce2034 packets per mode, exact topic/time/order equality0ms. yandex payloads
+are byte-equal fixed20; rawProjected has1066 permitted numeric differences and
+all unapproved wire bytes/order remain equal. The prior synchronous projection
+is rejected9437times. Independent review adds7scenarios/262packets per mode,
+and actual restored-queue FINE ticks1001ms produce5/5 positions.
+
+Recorded guidance is sparse and raw age unavailable; the additional accepted-FINE
+timestamp reconstruction does not reproduce historical worker scheduling. The
+fixed20 fixture itself givesNI/position1.0 and NextAction→Position median413ms,
+so historical2/3 and100ms are not claimed. This is a disclosed evidence limit,
+not a changed runtime schedule. Strict same-input acceptance passes; live rule4
+still requires actual A/B bundle/frequency comparison before B departure.
+
+No device action/install/arm during preparation. READY starts «Отступлений от
+плана нет». Plans A=yandex and B=rawProjected share one APK and all other fields.
+One pass each on the31Oct route, first street37.0621–37.0651 at15–20km/h with
+lever activation when offered; export/verify/restore A before B. No B if A has
+no offers, and no B departure if parked actual-wire cadence/order disagrees.
+Evidence: `captures/yandex-feed15-proj2-20261031/tests/acceptance/REPORT.md`,
+`REVIEW.md`, `build/build-report.json` and operational
+`captures/bisect-pre-arm-20261027/run15-proj2-20261031/READY.md`.
+
+### Proj2 control A stationary departure
+
+Owner confirmed connected/stationary installation and A start on2026-10-31. APK
+SHAdef94862… installed with-r and verified on device. Control source=yandex,
+fixed20/WGS84/stock start, both side channelsfalse; no autoservice setter. One
+actual arm8642943f-48d1-47fc-aa67-6d7ddcf68586 selected first home suggestion
+ЖК Внуково Кантри Клаб. Path1793442035 received explicit SELECTED200. All30
+post-ACK positions/TrafficInfo pass; limit20 and no projection audit. All30
+core bundles Region→Position→TrafficInfo→Tunnel→TrafficLight,29 NextAction
+packets, median action→position143ms (3–203ms). This is actual A parked input,
+not the unavailable historical worker reconstruction. B comparison still required.
+
+One Android stock-package diagnostic timeout occurred before any ledger/arm was
+created. Absent arm/ledger and current quiescence were proved; a later complete
+query responded in1.85s, then identical unchanged host/variant created the only
+actual A session. No preliminary arms or host-timeout widening. Final ready
+receipt verifies parked predicate1/speed0, stock3/noPIDs, signfalse/no writer
+lines and unchanged crash buffer. Feed left active for A's owner-driven loop;
+no moving NOA acceptance and no B start yet. Return export/verify/restore before
+considering B; no B if A has no offers. Exact expiry and receipts: operational
+`run15-proj2-20261031/A/READY.md`, `ready-receipt.json`, `stationary-proof.json`.
+
+### Proj2 control A return and repeat A2
+
+The first control is retained as useful data, not discarded: the key east street
+37.0621–37.0651 was covered for about30.119s, but only8.015s at15–20km/h;
+mean sent speed21.867km/h. The north turn was near37.06985, beyond the planned
+37.0655. The street's active episode lasted0.493s at23km/h. Across observed
+motion, DNP1/2 occupied1.028% (available0.680%, active0.348%); three activations
+lasted0.499/0.505/0.493s, each followed by ICC. The old fixed20 high-offer
+positive control has not reproduced. This is projection OFF; the cause is
+not established. All1067 TrafficInfo limits were20; four routes received200.
+
+A return archive has130 members, SHA256
+`01f4abcef42d7d761d360235f4efee84bfe61c4d86236d3e7cf84b1344cc02d9`;
+remote/local hash and gzip CRC verified. Initial restore removed the arm but
+could not accept a stale private snapshot. After waking Navigator without any
+arm, fresh DISARMED/quiescent/closed endpoints were obtained and the unchanged
+host completed RESTORED. Original stock state3/noPIDs, APK retained, signfalse,
+crash buffer unchanged. Exact evidence and independent analyses live under
+`run15-proj2-20261031/A/return/` and `A/analysis/{route,noa}/`.
+
+The owner requested a proper repeat and freshly confirmed home/start/stationary.
+A2 uses the same installed APK/variant, no reinstall or setters. Arm
+2020a6ab-5573-4e88-86b3-ecf890d54a9a, current path1793447479 SELECTED200,
+25 checked positions/TrafficInfo20 and no projection audit. Preparation had
+one route restart: the initial capture had no current path, but later data
+showed the first route also reached200; both accepted paths are retained.
+This is disclosed as a preparation deviation, not called a pristine one-route
+preparation. Actual A2 parked NI/position1.0, median action→position6ms
+(range2–992ms); no changes are made to force a desired phase. B's real bundle
+order/frequency comparison remains mandatory. A2 expires16:45:04MSK; feed
+left active for the owner, B not started. Receipts: `A2/READY.md`,
+`ready-receipt.json`, `stationary-proof.json`, `preparation-notes.json`.
+
+### Proj2 repeat control A2 returned
+
+A2 is exported and RESTORED. SHA256
+`fb6bcacb19026a4e7e8316cbb6efb6d80159d68f77b6dc7b9e0ff1b5ddde3954`,
+9,090,652bytes/130members, remote/local SHA and gzip CRC verified. First tar
+failed on a disappearing atomic `.tmp`; retry excluded only temporary snapshot
+names, without ignoring errors or journals. Current arm file absent, fresh
+STOPPED/quiescent and both endpoints closed; STOPPED retains the terminal
+arm identity. Original stock state3/noPIDs and APK SHA retained, signfalse,
+unchanged crash buffer; only owned collectors/export cleaned up.
+
+The requested road repeat succeeded: first street14:55:54.953-14:56:36.602,
+42points, mean15.524km/h (13-19),32.414s at15-20. The north turn was near
+37.06555-37.06588, followed by the small loop and home. One active0.486s
+on the exact planned segment occurred at sent speed14; no available/active
+NOA on that segment at15-20. Wider east_common includes163ms of a different
+episode before37.0621; these windows are kept separate.
+
+Across279.823s observed motion, DNP1/2=1.291% (active3.460s, available0.152s).
+Seven activations0.486-0.503s all fell to ICC. All743 TrafficInfo limits20,
+no positionSource notes; all five paths accepted200 (two before movement,
+three moving reroutes), and no positions precede their own ACK. Route
+comparability is now substantially better than A, but old fixed20's positive
+baseline has not reproduced. This cannot identify projection as the cause
+(control projection OFF), nor prove a vehicle/day cause.
+
+A2 moving NextAction-to-following-position median95ms is close to old
+fixed20 97ms (A199.5ms, prior projected6ms). Its core location bundles retain
+the normal order. Different actual inputs still give different topic ratios;
+this close median phase is not a complete schedule-identity proof.
+
+B remains unstarted. Literal plan gate is zero offers; A2 has rare positive
+states, so deferring B is a recommendation based on no control opportunities
+on the required street/speed, not an invented acceptance threshold. Evidence:
+`run15-proj2-20261031/A2/RETURN.md`, `return-summary.json`,
+`return/closure-proof.json`, `analysis/{route,noa}/REPORT.md`.
+
+### Exact fixed20 APK repeat 2026-10-31
+
+Owner authorized one repeat of the exact retained29October fixed20 APK after
+A2 still gave1.291% positive DNP. Full installed SHA
+`69ef8198805fec75b4017b37b644c0067dba2e192e049842accec27dfe5cc002`
+verified, version15, install-r with data retained; unchanged legacy host and
+loop-limit variant, WGS84/fixed20/stock start, both side channelsfalse.
+Old APK uses Yandex position and has no position.source switch. One actual
+arm b9d995e0-246b-4d1f-9d8e-5e4419dbcf8c and one accepted path1793450941;
+SELECTED200,40 post-ACK positions/TrafficInfo, all20. Core order unchanged;
+39 NextAction/40 positions, parked median action-to-position200ms.
+
+Serving install timed out with newer APK still installed. Own slow full push
+and non-delivering stdin writer were stopped by exact owned PID only. Exact
+byte-range transfer reused verified installed bytes and transferred3,408,594
+literal bytes. No compilation, recompression or signing; local byte comparison,
+device file SHA and installed SHA all match the retained original. pm install-r
+returnedSuccess. Full proof/scripts in operational delta-transfer directory.
+Shared ADB/tunnel/keys untouched; own transfer temporaries cleaned up. These
+connection observations are not a general CAG root-cause diagnosis.
+
+A pre-ledger host boot_count-read timeout created no arm; absent ledger/arm
+proved, unchanged host retried and created the only actual session. No
+preliminary arms or additional selected routes. Final receipt15:49:58MSK: 
+stationary0, stock3/noPIDs, signfalse/no writer lines, ADAS sign raw5 unchanged,
+crash buffer unchanged, no vehicle setters. Lease17:48:08MSK; feed left active
+for one same-route loop, first street15-20km/h. Moving acceptance pending.
+Evidence: run15-fixed20-repeat-20261031/{READY.md,offline-review.json,
+ready-receipt.json,stationary-proof.json}. On return: verified full export then
+restore. Frequent offers would implicate the new APK without proving a non-wire
+cause; absent recovery leaves cause open, with factory navigation a separate
+potential next control.
+
+### Exact fixed20 repeat returned 2026-10-31
+
+Purpose was recovery of frequent offers on the exact original APK, not a
+retention fix. Owner reports no visible offers and immediate ICC after lever.
+Verified export9,178,959bytes/130members, SHA256
+`4c7896fe482042b2108fd2dceeecd671ee7eaa73011f7f9f03ab40ad89367616`,
+remote/local match and gzip CRC. RESTORED; fresh terminal STOPPED/quiescent,
+actual arm file absent and endpoints closed, original stock3/noPIDs, old APK
+SHA retained, signfalse, unchanged crash buffer. Only owned capture/export
+resources stopped/removed; no new test started.
+
+Observed classified motion125.792s: offered DNP2 only0.108s (0.086%), DNP1
+0.985s; combined0.869% versus old29October69.997%. Four raw DNP1 pulses
+0.489-0.509s all end inICC; two at getter-default speed0, moving ones at
+4 and14km/h. These pulses do not establish sustained NOA. All observed
+15-20km/h exposure48.740s has DNP1/2 zero. All933 TrafficInfo limits20,
+933 positions after matching ACKs, five ACK200, all9456 attempts result0.
+Fresh Pilot coverage spans all classified motion; reroute gaps are excluded,
+not called stopped.
+
+Route is shorter than requested: north turn near37.06333-37.06349 instead
+of37.0655, then home. Visited target portion at15-20 is10.030s, no DNP1/2.
+This limits inference to visited overlap; do not demand another route repeat
+without a new specific purpose. The exact old APK did not restore positive
+behavior on that overlap; this alone identifies neither vehicle nor reboot
+as cause, and does not prove equality of all inputs/persistent state.
+
+Initial graph snapshot suspicion is NOT a wire-loss finding. Current online
+graph has0mapped versus117old; separate downloaded-vector provider is
+prepared67/67tiles with matching package/dictionary/tile evidence and
+393known/34unmatched/90conflict edges in old29 and repeat terminal snapshots.
+Snapshots bind terminal route epochs, not frozen departure history. Actual
+departure target Route links4-7 are identical old29/repeat in ALL JSON fields
+and coordinates: class9,direction0,formway-1,ownership-1,lane0,limit0. Common
+street TrafficInfo9/20 and VehicleLocationstep3/link0/ownership-1 also equal.
+This does not establish identity of every dynamic field, cadence or receiver
+state. Detailed evidence: run15-fixed20-repeat-20261031/analysis/{noa,route,
+input-provider}/, return-summary.json and RETURN.md. A factory-navigation
+control under the same conditions is a separate possible next test, not yet
+authorized or started.
+
+### Original build15 restored by full APK install 2026-10-31
+
+Owner explicitly selected install only and confirmed stationary. Exact retained
+`captures/yandex-feed15-20261025/build/YandexHUD-15-arm64-debug.apk`, SHA256
+`dcbb3f8242aff7bffa925ba0a76e32abf72f71e68d2a75ec22d7d10fd7a98416`,
+was installed with ordinary `adb install --no-streaming -r`. The whole
+220,955,326byte APK was pushed in63.827s (reported3.3MB/s), then Success.
+No binary patch/range reconstruction, recompilation, uninstall or data clearing.
+Full installed SHA and version739494315/29.8.1-YandexHUD.15 verified at
+16:26:13MSK. No new arm, route or manual app launch. Arm file remains absent;
+retained terminal bridge state STOPPED/quiescent with closed endpoints, stock
+state3/noPIDs and identity preserved, crash buffer unchanged. No moving/runtime
+functional acceptance is inferred from installation. Installed ordinary15
+predates fixed20/projection; existing vehicle-side sign settings were not reset.
+Evidence: `captures/bisect-pre-arm-20261027/install-original15-20261031/`
+preinstall.json, install-attempt.json, install-result.json, postinstall-proof.json.
+
+### Original15 baseline experiment 2026-10-31
+
+After the installation-only handoff, owner explicitly requested an experiment
+and freshly confirmed stationary. Original APKdcbb3f82 remains installed; no
+reinstall/rebuild. Unchanged copied legacy hostSHA
+`c49650d29bbebd2eec5ac4651d48ae789b714c554e2fcf388c726eb2d9df5d17`,
+exact saved drive15-source-stockstart variant, WGS84, Yandex position and
+speed limits, stock start, both side channelsfalse. No fixed20/projection.
+Sign writer remainsfalse by prior owner decision; no vehicle type/limit setters
+or other car-state reset. Existing ADAS sign raw5 retained in before/ready
+readback; this is not a vehicle reset or recreation of every24October condition.
+
+One actual arm3016d88c-a5ae-4a77-a75a-2afb7599158e and one home-suggestion
+route to Vnukovo Country Club,15min/12km. Path1793453713 SELECTED200; first
+five positions/TrafficInfo checked, all current limits20 from Yandex. Original
+policy allows later limit changes; no fixed20 requirement is imposed. Parked
+core bundles retain normal order, five NextAction/five positions and10.5ms
+median interval; short parked phase is not proof of synchronous implementation.
+No auxiliary projection notes.
+
+Ready16:36:33MSK, lease18:33:37MSK; stationary0, stock3/noPIDs, signfalse/zero
+writer lines, unchanged crash buffer, same installed original SHA. Feed left
+active for one owner-driven small loop. Goal is recovery of frequent offers;
+activation attempts and holding are measured separately, not promised fixed.
+First east street15-20km/h to north turn37.0655, then same small loop; after
+return full verified export then restore. Evidence: run15-original-20261031/
+{READY.md,offline-pins.json,offline-review.json,ready-receipt.json,
+stationary-proof.json,departure-summary.json}. Moving result pending.
+
+### Original15 baseline returned 2026-10-31
+
+Whole original15 APKdcbb3f82 with Yandex-limit policy also did not recover
+frequent offers: current-arm raw DNP2=0 packets/0s. Four DNP1 pulses
+0.513/0.592/0.504/0.483s all end inICC; no sustained NOA established.
+Classified motion155.820s contains1.609s DNP1; this is not the entire physical
+trip duration. Old source15 comparison has70.951% offered/active under its
+recorded conditions; do not assume all settings are equal. All552 TI use
+Yandex values20x494/60x58, zero absent; first TI after all five ACKs are
+20/60/20/20/20, so a zero-reset failure was not observed on this drive.
+All552 positions after same-path ACKs, all5651 transport attempts result0.
+
+Visited shorter loop again turns north near37.0634 rather than37.0655.
+Required street has22 moving wire samples, sent mean10.864km/h (5-16),
+only4.036s at15-20; DNP1/2 absent on this visited portion. These are SDK/wire
+values, not verified physical speed or evidence about owner actions. Current
+independent CAN is unavailable: retained motion files belong to29October.
+The49.587s Pilot gap occurs after last moving sample16:42:49.962, not on
+the moving street. Shared target links4-7 remain equal in every field and
+coordinate to fixed20 repeat/old29fixed20; common TI20/class9 and VLstep3/
+link0/ownership-1 also equal. Full wire/input/receiver identity is unproved.
+
+Export8,789,748bytes/130members, SHA256
+`98b9a48b0caf201229cff5cc7c4a24ad42a4c1032e0651f06f2ccd51b7698456`,
+remote/local equal and gzip CRC verified. Initial restore removed arm but
+failed fresh-closure proof: state LIVE was312,961ms stale after return.
+Navigator was resumed with ARM ABSENT, then unchanged host restore succeeded.
+Independent fresh DISARMED/quiescent, endpoints closed, no arm; stock3/noPIDs,
+original APK SHA retained, signfalse and unchanged crash buffer. This
+post-return stale snapshot does not establish why moving NOA offers were absent.
+Own stream collectors stopped and verified own remote archive removed.
+Evidence: run15-original-20261031/{RETURN.md,return-summary.json,analysis/
+noa/REPORT.md,analysis/route/REPORT.md,return/closure-proof.json}.
+
+Owner now proposes rebooting the head unit and asking for the same arm again.
+No reboot or next arm has been performed by the assistant. Keep original APK/
+variant/settings; record actual boot identity/uptime before and after, without
+assuming a head-unit reboot resets every ADAS ECU or identifies a defect.
+A new arm still requires owner confirmation after the restart.
+
+### Original15 after head-unit reboot 2026-10-31
+
+Owner rebooted HU and freshly confirmed stationary. BOOT_COUNT155 versus154,
+bootcf5b79ce-7c35-3821-a253-f9a471afaa96 versusc504fbc6..., elapsed252230ms
+at preflight. Original APKdcbb3f82 unchanged, no reinstall/rebuild; host/variant
+byte-identical original drive15-source-stockstart, WGS84/Yandex, both side
+channelsfalse, sign writerfalse. ADAS sign readback changed fromraw5 before
+reboot to raw0; no setter restored it. Do not call this zero km/h or assume
+every ADAS ECU was rebooted.
+
+Initial SDK position54.17160/33.23294 produced350km guidance; EXTRAPOLATED and
+stale FINE. No arm existed during diagnosis. Android location dump uses opaque
+coordinate formatting; it does not prove raw GPS equals that SDK position.
+Owner requested simple Navigator restart; force-stop/start only, no data clear
+or location setting changes. New SDK session551f128a... returned to near-home
+37.062115/55.518595 and12km guidance, initially still EXTRAPOLATED.
+
+One new arm a23b3386-f86e-482c-bfa7-8e4966b07dbe on boot155, existing local
+guidance path1793456268 SELECTED200. Initial actual position sends were
+blocked by unmodified FINE lease guard. Later16 successful positions/TI were
+proved, current limits20 from Yandex; both GPS and associated coordinate slots
+are within46m of prior home anchor. Minimum parked receipt17:21:59MSK is
+not proof of uninterrupted freshness. Latest separate check again showed
+EXTRAPOLATED, FINE age30.584s and last actual position age30.572s. Feed remains
+armed and naturally pauses/resumes with current FINE; no guard bypass.
+
+Owner then explicitly accepted one diagnostic loop despite intermittent GPS.
+No promise of a clean reboot-only NOA comparison. Measure actual successful
+position windows and NOA within them; preserve gaps as unknown, not stops or
+NOA0. Lease19:17:45MSK. On return full verified export then restore. Evidence
+under run15-original-reboot-20261031: prearm.json, navigator-restart.json,
+progress-before-route.jsonl, progress-after-navigator-restart.jsonl,
+stationary-proof.json, ready-receipt.json, coordinate-recovery-proof.json,
+current-position-status.json, departure-status.json and READY.md. Active
+owner drive pending; no moving result claimed.

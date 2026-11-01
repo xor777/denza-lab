@@ -1,0 +1,628 @@
+--- fixed20/experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java
++++ proj/experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe/AdasBridge.java
+@@ -209,7 +209,14 @@
+             }
+         }
+         Location gps = raw;
+-        if (gps != null && now - gps.getElapsedRealtimeNanos() / 1_000_000 <= 1500) { o.rawLon = gps.getLongitude(); o.rawLat = gps.getLatitude(); }
++        if (gps != null && now - gps.getElapsedRealtimeNanos() / 1_000_000 <= 1500) {
++            // Preserve the historical raw wire-slot admission when the variant is absent.
++            o.rawLon = gps.getLongitude(); o.rawLat = gps.getLatitude();
++            long rawStamp = gps.getElapsedRealtimeNanos() / 1_000_000;
++            o.rawFixElapsedMs = rawStamp;
++            o.rawAgeMs = rawStamp > 0 && now >= rawStamp ? now - rawStamp : -1;
++            o.rawSpeedMps = gps.hasSpeed() ? gps.getSpeed() : Double.NaN;
++        }
+         final Map<String, Object> routeCopy = copy;
+         final FixFreshness.Sample fix = sampledFix;
+         worker.post(() -> {
+--- fixed20/libraries/adas-link/src/main/java/dev/denza/adaslink/ProjectedWirePosition.java
++++ proj/libraries/adas-link/src/main/java/dev/denza/adaslink/ProjectedWirePosition.java
+@@ -0,0 +1,118 @@
++package dev.denza.adaslink;
++
++import java.util.Map;
++
++/**
++ * Numeric wire view only. No event, spatial callback, throttle or queue reads this state.
++ * A successful projection-bearing packet commits its scalar floor, independently of Yandex's
++ * original progress state. Each new wire path starts with a fresh floor.
++ */
++public final class ProjectedWirePosition {
++    private final YandexRoute route;
++    private final RoutePositionProjector projector;
++    private long pathId = Long.MIN_VALUE;
++    private double emittedScalar = Double.NaN;
++
++    ProjectedWirePosition(YandexRoute route) {
++        this.route = route;
++        RoutePositionProjector candidate;
++        try { candidate = new RoutePositionProjector(route); }
++        catch (IllegalArgumentException invalid) { candidate = null; }
++        projector = candidate;
++    }
++
++    /** Immutable classified fix, without replacing any of the driver's original inputs. */
++    public static final class Input {
++        final ProjectedWirePosition owner;
++        final double scalar, lon, lat, course, rawLon, rawLat, speed;
++        final long rawElapsedMs, rawAgeMs, capturedMs, observedMs, sdkStamp;
++        final String routeId, speedSource;
++        Input(ProjectedWirePosition owner, NavigatorDriver.Observation o, double course, long observedMs) {
++            this.owner=owner; scalar=o.scalar; lon=o.lon; lat=o.lat; this.course=course;
++            rawLon=o.rawLon; rawLat=o.rawLat; rawElapsedMs=o.rawFixElapsedMs; rawAgeMs=o.rawAgeMs;
++            capturedMs=o.monotonicMs; this.observedMs=observedMs; sdkStamp=o.stamp; routeId=o.routeId;
++            if(o.vehicleSpeedKmh!=null && Double.isFinite(o.vehicleSpeedKmh) && o.vehicleSpeedKmh>=0) {
++                speed=o.vehicleSpeedKmh/3.6; speedSource="vehicle";
++            } else if(Double.isFinite(o.rawSpeedMps) && o.rawSpeedMps>=0) {
++                speed=o.rawSpeedMps; speedSource="raw_gnss";
++            } else { speed=Double.NaN; speedSource="none"; }
++        }
++        View select(long pathId, long now) { return select(pathId,now,true); }
++        View select(long pathId, long now, boolean currentPath) {
++            long age=rawElapsedMs>=0 ? now>=rawElapsedMs ? now-rawElapsedMs : -1 : ageAt(rawAgeMs,capturedMs,now);
++            double chosen=scalar, chosenLon=lon, chosenLat=lat, chosenCourse=course;
++            boolean clamped=false;
++            RoutePositionProjector.Result result=null;
++            String reason=!currentPath ? "no_current_wire_path" : owner==null ? "not_current_guidance" : owner.projector==null ? "invalid_geometry" : "projected";
++            if(currentPath && owner!=null && owner.projector!=null) {
++                if(owner.pathId!=pathId) { owner.pathId=pathId; owner.emittedScalar=Double.NaN; }
++                double previous=Double.isFinite(owner.emittedScalar)?owner.emittedScalar:scalar;
++                result=owner.projector.project(rawLon,rawLat,previous,speed,age);
++                reason=result.reason;
++                if("stale_raw".equals(reason) && age>RoutePositionProjector.MAX_RAW_AGE_MS
++                        && ageAtSelection(observedMs)>=0 && ageAtSelection(observedMs)<=RoutePositionProjector.MAX_RAW_AGE_MS)
++                    reason="raw_aged_before_send";
++                if(result.success) { chosen=result.scalar; chosenLon=result.lon; chosenLat=result.lat; }
++                else if(Double.isFinite(owner.emittedScalar) && scalar<owner.emittedScalar) {
++                    chosen=owner.emittedScalar; double[] point=owner.projector.point(chosen);
++                    chosenLon=point[0]; chosenLat=point[1]; clamped=true;
++                }
++                if(result.success || clamped) chosenCourse=RouteConverter.bearing(owner.route,chosen);
++            }
++            return new View(this,pathId,now,age,chosen,chosenLon,chosenLat,chosenCourse,result,reason,clamped,currentPath);
++        }
++        private long ageAtSelection(long now) {
++            return rawElapsedMs>=0 ? now>=rawElapsedMs?now-rawElapsedMs:-1 : ageAt(rawAgeMs,capturedMs,now);
++        }
++    }
++
++    static final class View {
++        final Input input;
++        final long pathId, now, age;
++        final double scalar, lon, lat, course;
++        final RoutePositionProjector.Result result;
++        final String reason;
++        final boolean clamped, currentPath;
++        View(Input input,long pathId,long now,long age,double scalar,double lon,double lat,double course,
++                RoutePositionProjector.Result result,String reason,boolean clamped,boolean currentPath) {
++            this.input=input; this.pathId=pathId; this.now=now; this.age=age; this.scalar=scalar;
++            this.lon=lon; this.lat=lat; this.course=course; this.result=result; this.reason=reason; this.clamped=clamped; this.currentPath=currentPath;
++        }
++        boolean guided() { return currentPath && input.owner!=null && input.owner.projector!=null && Double.isFinite(scalar); }
++        boolean projected() { return result!=null && result.success; }
++        double passed(RouteConverter.Converted c) { return c.metres(scalar); }
++        /** Keep the original Yandex-selected target, even when the numeric view has passed it. */
++        int distance(int original,double originalPassed,RouteConverter.Converted c) {
++            if(!guided() || original<=0 || !Double.isFinite(originalPassed))return original;
++            return Math.max(0,RouteConverter.round(original-(passed(c)-originalPassed)));
++        }
++        void sent(int result) {
++            if(result!=0 || !guided() || input.owner.pathId!=pathId)return;
++            input.owner.emittedScalar=Double.isFinite(input.owner.emittedScalar)
++                    ?Math.max(input.owner.emittedScalar,scalar):scalar;
++        }
++        Map<String,Object> audit() {
++            Map<String,Object> out=Json.object();
++            out.put("requestedSource","rawProjected"); out.put("appliedSource",projected()?"rawProjected":clamped?"yandexForwardClamped":"yandex");
++            out.put("reason",reason); out.put("routeId",input.routeId); out.put("sdkStamp",input.sdkStamp);
++            out.put("yandexScalar",finite(input.scalar)); out.put("chosenScalar",finite(scalar));
++            out.put("fallbackClamped",clamped); out.put("rawAgeMs",age==Long.MAX_VALUE?null:age);
++            out.put("rawAgeAtSendMs",age>=0 && age!=Long.MAX_VALUE?age:null);
++            out.put("speedMps",finite(input.speed)); out.put("speedSource",input.speedSource);
++            out.put("projectedScalar",result==null?null:finite(result.projectedScalar));
++            out.put("lateralM",result==null?null:finite(result.lateralM)); out.put("advanceM",result==null?0:result.advanceM);
++            out.put("alongDeltaM",guided()?finite(input.owner.projector.metres(scalar)-input.owner.projector.metres(input.scalar)):null);
++            out.put("matchedLon",finite(lon)); out.put("matchedLat",finite(lat));
++            out.put("forwardState","last_successful_wire");
++            out.put("decisionAtMs",now); out.put("observedAtMs",input.observedMs);
++            out.put("downstreamDelayMs",Math.max(0,now-input.observedMs)); out.put("attemptAtMs",now);
++            return out;
++        }
++    }
++    private static Object finite(double value) { return Double.isFinite(value)?value:null; }
++    private static long ageAt(long age,long captured,long now) {
++        if(age<0 || now<captured)return -1;
++        long delay=now-captured;
++        return age>Long.MAX_VALUE-delay?Long.MAX_VALUE:age+delay;
++    }
++}
+--- fixed20/libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java
++++ proj/libraries/adas-link/src/main/java/dev/denza/adaslink/NavigatorDriver.java
+@@ -55,7 +55,9 @@
+         public long stamp = Long.MIN_VALUE, fixAgeMs = Long.MAX_VALUE;
+         public boolean simulated;
+         // The raw platform GNSS fix (passive provider), NaN when none fresh.
+-        public double rawLon = Double.NaN, rawLat = Double.NaN;
++        public double rawLon = Double.NaN, rawLat = Double.NaN, rawSpeedMps = Double.NaN;
++        /** Raw platform elapsed-realtime anchor, independently of the SDK clock. */
++        public long rawFixElapsedMs = -1, rawAgeMs = Long.MAX_VALUE;
+         /** Vehicle speed from the car, km/h; null when unknown (GNSS speed stands in, flagged). */
+         public Double vehicleSpeedKmh;
+         /** Conversions of {@link #route} made ahead, off the sending thread ({@link #prepare}); null: convert here. */
+@@ -69,7 +71,8 @@
+             o.finished = finished; o.positionOnRoute = positionOnRoute; o.scalar = scalar; o.timeToFinishS = timeToFinishS;
+             o.trafficSpeedMps = trafficSpeedMps; o.speedLimitMps = speedLimitMps; o.locationClass = locationClass;
+             o.lon = lon; o.lat = lat; o.speedMps = speedMps; o.heading = heading; o.stamp = stamp; o.fixAgeMs = fixAgeMs;
+-            o.simulated = simulated; o.rawLon = rawLon; o.rawLat = rawLat; o.vehicleSpeedKmh = vehicleSpeedKmh; o.prepared = prepared;
++            o.simulated = simulated; o.rawLon = rawLon; o.rawLat = rawLat; o.rawSpeedMps = rawSpeedMps;
++            o.rawFixElapsedMs = rawFixElapsedMs; o.rawAgeMs = rawAgeMs; o.vehicleSpeedKmh = vehicleSpeedKmh; o.prepared = prepared;
+             return o;
+         }
+     }
+@@ -138,6 +141,9 @@
+     private double lastRemainM = Double.MAX_VALUE;
+     private boolean firstNaviInfo;
+     private final Object watchdog = "navigator-watchdog";
++    // A data-only view; the original observation continues to drive every event and lookup.
++    private ProjectedWirePosition wireProjection;
++    private String wireRouteId;
+ 
+     public NavigatorDriver(StockFeed feed, Coordinates.Frame frame, Scheduler clock) {
+         this(feed, frame, ExperimentVariant.NONE, clock);
+@@ -166,7 +172,7 @@
+         lastObservation = o.monotonicMs;
+         clock.cancel(watchdog);
+         clock.post(watchdog, WATCHDOG_MS, () -> {
+-            if (naving) { naving = false; current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null; feed.onNavStop(); }
++            if (naving) { naving = false; current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null; resetWireProjection(); feed.onNavStop(); }
+         });
+         boolean active = o.routeId != null && !o.mode.equals("off") && !retired.contains(o.routeId);
+         if (o.finished && naving) {
+@@ -175,7 +181,7 @@
+             feed.onTrafficEvents();
+             feed.onNaviArrive();
+             feed.onNavStop();
+-            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null;
++            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null; resetWireProjection();
+             active = false;
+         }
+         if (!active && naving) {
+@@ -188,7 +194,7 @@
+                 feed.onNaviArrive();
+             }
+             feed.onNavStop();
+-            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null;
++            current = null; latest = null; routeRoads = null; currentRouteId = null; currentContent = null; resetWireProjection();
+         }
+         if (active) {
+             if (o.route != null && o.route.routeId.equals(o.routeId)
+@@ -216,6 +222,7 @@
+                         feed.onNavStart();
+                         lastLimit = Integer.MIN_VALUE; // onNavStart resets the dynamic road limit.
+                     }
++                    resetWireProjection();
+                     current = converted;
+                     routeRoads = roads;
+                     currentRoute = o.route;
+@@ -302,10 +309,21 @@
+         boolean fine = "FINE".equals(o.locationClass) && !Double.isNaN(o.lon) && o.stamp != Long.MIN_VALUE;
+         if (!fine || o.stamp <= lastStamp || o.fixAgeMs < 0 || o.fixAgeMs > MAX_FIX_AGE_MS) return;
+         lastStamp = o.stamp;
++        ProjectedWirePosition.Input wirePosition = null;
++        if (variant.rawProjected) {
++            if (onCurrent && o.mode.equals("guidance")) {
++                if (wireProjection == null || !currentRouteId.equals(wireRouteId)) {
++                    wireProjection = new ProjectedWirePosition(currentRoute); wireRouteId = currentRouteId;
++                }
++            }
++            double wireCourse = onCurrent ? RouteConverter.bearing(currentRoute, o.scalar) : o.heading;
++            wirePosition = new ProjectedWirePosition.Input(onCurrent && o.mode.equals("guidance") ? wireProjection : null,
++                    o, wireCourse, clock.now());
++        }
+         if (naving && current != null && o.mode.equals("guidance") && o.positionOnRoute && o.routeId.equals(currentRouteId)
+                 && !Double.isNaN(o.scalar))
+             if (naviInfoDue(o.monotonicMs)) {
+-                feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps));
++                feed.onProgress(new StockFeed.Progress(o.scalar, o.timeToFinishS, o.trafficSpeedMps, wirePosition));
+                 lastRemainM = current.totalM - current.metres(o.scalar);
+                 // Amap's first traffic-event update follows the guidance start by about a second.
+                 if (firstNaviInfo) { firstNaviInfo = false; feed.onTrafficEvents(); }
+@@ -316,6 +334,7 @@
+                 o.simulated, o.fixAgeMs, o.vehicleSpeedKmh);
+         // Without guided progress retain the last NaviInfo; LocInfo itself does not clamp offsets to0.
+         if (onCurrent && o.mode.equals("guidance")) fix.scalar = o.scalar;
++        fix.wirePosition = wirePosition;
+         // Amap's LocMatchInfo: on the route, the graph road the route matched under the car, if any.
+         RoadNetwork.Fragment road = onCurrent && lookup != null && lookup.roadMatch != null ? lookup.roadMatch.fragmentAt(o.scalar) : null;
+         if (road != null) {
+@@ -331,6 +350,8 @@
+         }
+         feed.onLocation(fix);
+     }
++
++    private void resetWireProjection() { wireProjection = null; wireRouteId = null; }
+ 
+     public boolean naving() { return naving; }
+     /** The Yandex route ID published now, or null. */
+--- fixed20/libraries/adas-link/src/main/java/dev/denza/adaslink/ExperimentVariant.java
++++ proj/libraries/adas-link/src/main/java/dev/denza/adaslink/ExperimentVariant.java
+@@ -71,7 +71,7 @@
+         return ms;
+     }
+     private static final String[] KEYS = {"id", "frame", "link.roadclass", "link.formway", "link.ownership", "link.direction",
+-            "link.laneNum", "link.adminCode", "region", "position.ownership", "traffic.roadClass", "historySpeed", "speedLimit",
++            "link.laneNum", "link.adminCode", "region", "position.ownership", "position.source", "traffic.roadClass", "historySpeed", "speedLimit",
+             "startProtocol", "naviSt", "instrumentNaviStatus"};
+ 
+     public static final ExperimentVariant NONE = new ExperimentVariant(new LinkedHashMap<String, Object>());
+@@ -88,6 +88,8 @@
+     /** FIXED: the one value; ALTERNATE: per Yandex route ID in order, null = Yandex's own. */
+     public final List<Integer> historyValues;
+     public final boolean speedLimitZero, speedLimitFixed20, naviSt, instrumentNaviStatus;
++    /** Position adapter only; absent/yandex preserves the historical pipeline. */
++    public final boolean rawProjected;
+     public final StartProtocol startProtocol;
+     private final Map<String, Object> given;
+ 
+@@ -110,6 +112,10 @@
+         linkAdminCode = admin == null ? null : Long.valueOf(admin);
+         region = member(m, "region", REGION);
+         positionOwnership = member(m, "position.ownership", POSITION_OWNERSHIP);
++        String positionSource = m.containsKey("position.source") ? string(m, "position.source") : "yandex";
++        if (!positionSource.equals("yandex") && !positionSource.equals("rawProjected"))
++            throw bad("position.source yandex or rawProjected");
++        rawProjected = positionSource.equals("rawProjected");
+         Object traffic = m.get("traffic.roadClass");
+         if (TRAFFIC_CLASS_LINK.equals(traffic)) { trafficRoadClassFromLink = true; trafficRoadClass = null; }
+         else { trafficRoadClassFromLink = false; trafficRoadClass = member(m, "traffic.roadClass", TRAFFIC_ROAD_CLASS); }
+@@ -163,7 +169,7 @@
+         return frame == null && linkRoadClass == null && linkFormway == null && linkOwnership == null && linkDirection == null
+                 && linkLaneNum == null && linkAdminCode == null && region == null && positionOwnership == null
+                 && trafficRoadClass == null && !trafficRoadClassFromLink && historyMode == HistoryMode.YANDEX && !speedLimitZero && !speedLimitFixed20
+-                && startProtocol == StartProtocol.BRIDGE && !naviSt && !instrumentNaviStatus;
++                && !rawProjected && startProtocol == StartProtocol.BRIDGE && !naviSt && !instrumentNaviStatus;
+     }
+ 
+     /** The coordinate frame this variant sends in; {@code fallback} when it names none. */
+@@ -198,6 +204,8 @@
+         e.put("link.adminCode", linkAdminCode == null ? "yandex" : (Object) linkAdminCode);
+         e.put("region", region == null ? "default" : (Object) (long) region);
+         e.put("position.ownership", positionOwnership == null ? "yandex" : (Object) (long) positionOwnership);
++        // Keep historical absent-key trace headers byte-for-byte stable.
++        if (given.containsKey("position.source")) e.put("position.source", rawProjected ? "rawProjected" : "yandex");
+         e.put("traffic.roadClass", trafficRoadClassFromLink ? TRAFFIC_CLASS_LINK : trafficRoadClass == null ? "yandex" : (Object) (long) trafficRoadClass);
+         Map<String, Object> h = Json.object();
+         h.put("mode", historyMode.name().toLowerCase(java.util.Locale.ROOT));
+--- fixed20/libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java
++++ proj/libraries/adas-link/src/main/java/dev/denza/adaslink/StockFeed.java
+@@ -84,6 +84,8 @@
+         public int roadClass = FieldDefaults.ROAD_CLASS_UNMATCHED, ownership = FieldDefaults.OWNERSHIP_UNMATCHED;
+         /** Yandex guided-route scalar; NaN without route progress, retaining the last NaviInfo. */
+         public double scalar = Double.NaN;
++        /** Payload-only input; never used by an event, lookup, queue or throttle. */
++        public ProjectedWirePosition.Input wirePosition;
+         public Fix(double matchedLon, double matchedLat, double rawLon, double rawLat, double speedMps, double heading, boolean simulated,
+                    long ageMs, Double vehicleSpeedKmh) {
+             this.matchedLon = matchedLon; this.matchedLat = matchedLat; this.rawLon = rawLon; this.rawLat = rawLat; this.speedMps = speedMps;
+@@ -94,7 +96,12 @@
+     /** Guidance progress on the current route (Amap NaviInfo's inputs). */
+     public static final class Progress {
+         public final double scalar, timeToFinishS, trafficSpeedMps;
++        public final ProjectedWirePosition.Input wirePosition;
+         public Progress(double scalar, double timeToFinishS, double trafficSpeedMps) {
++            this(scalar,timeToFinishS,trafficSpeedMps,null);
++        }
++        public Progress(double scalar, double timeToFinishS, double trafficSpeedMps, ProjectedWirePosition.Input wirePosition) {
++            this.wirePosition=wirePosition;
+             this.scalar = scalar; this.timeToFinishS = timeToFinishS; this.trafficSpeedMps = trafficSpeedMps;
+         }
+     }
+@@ -168,6 +175,8 @@
+     private boolean arrivePending;
+     private long lastPublishAttempt = Long.MIN_VALUE / 4;
+     private long routeRetries;
++    private ProjectedWirePosition.Input wirePosition;
++    private double wireNaviPassed = Double.NaN, wireTunnelPassed = Double.NaN;
+ 
+     /** A converted route with its pathId, the Amap RouteType it came with, and its own request. */
+     public static final class Route {
+@@ -318,6 +327,7 @@
+         }
+         publisher.note("navStop", Json.object(), clock.now());
+         naving = false;
++        wirePosition = null; wireNaviPassed = Double.NaN;
+         clearStart();
+         setMapState(100);
+         clock.post(null, 0, this::resetAll);
+@@ -409,6 +419,7 @@
+         publisher.note("routeResult", f, clock.now());
+         variantRoute(result);
+         this.route = result;
++        wirePosition = null; wireNaviPassed = Double.NaN;
+         lastPublishAttempt = clock.now();
+         // The new path's first position goes with the first fresh fix after its ACK, not a second later.
+         lastLocationSend = Long.MIN_VALUE / 4;
+@@ -681,12 +692,15 @@
+         final long facilitiesEpoch=facilitiesProgressEpoch;
+         clock.post(null, 0, () -> {
+             if (route==r && routeGeneration==generation && (!live || liveRouteCurrent(r,r.pathId(),generation)))
+-                naviInfo(r, ni, passed, time, traffic, facilitiesEpoch);
++                naviInfo(r, ni, passed, time, traffic, facilitiesEpoch, p.wirePosition);
+         });
+         if (dnpSwitch) oddDistance();                                // DnpOddDistanceController.e()
+     }
+ 
+-    private void naviInfo(Route r, int[] ni, double passed, double timeToFinish, double trafficSpeed, long facilitiesEpoch) {
++    private void naviInfo(Route r, int[] ni, double passed, double timeToFinish, double trafficSpeed, long facilitiesEpoch,
++            ProjectedWirePosition.Input wireInput) {
++        // The original Yandex values below continue to own all event/target decisions.
++        wirePosition = wireInput; wireNaviPassed = passed;
+         RouteConverter.Converted c = r.conditions;
+         int seg = ni[0], link = ni[1], linkRemain = ni[3], segRemain = ni[4], routeRemain = ni[5], remainLights = ni[6];
+         StockPath.Segment segment = c.path.segments.get(seg);
+@@ -857,7 +871,8 @@
+             publisher.note("laneSignDecisions",f,clock.now());
+             shownLaneKey=key;shownLaneTimestamp=wallClock();
+         }
+-        int a = fire(Topics.SD_INTERSECTION,StockMessages.intersection(laneDist,next.back(),next.front()));
++        ProjectedWirePosition.View wire = numericWireView();
++        int a = fireWire(Topics.SD_INTERSECTION,StockMessages.intersection(wireDistance(wire,laneDist),next.back(),next.front()),wire);
+         int b = fire(Topics.SD_NEXT_LANES,StockMessages.nextLanes(next.back(),next.front(),next.extend(),next.recommend(),next.backType(),next.frontType(),laneSeg,laneLink,shownLaneTimestamp));
+         if (a == 0 && b == 0) shownLane = next;
+     }
+@@ -917,6 +932,7 @@
+     }
+ 
+     private void location(Fix fix, int gpsSpeed, int realSpeed) {
++        wirePosition = fix.wirePosition;
+         double[] matched, raw;
+         try {
+             matched = Coordinates.toSdk(fix.matchedLon, fix.matchedLat, config.frame);
+@@ -938,7 +954,7 @@
+             variantPosition(fix);
+             sendRegion();
+             weather = FieldDefaults.WEATHER;
+-            int sent = locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course);
++            int sent = locationBundle(gpsSpeed, realSpeed, gLon, gLat, rLon, rLat, course, fix);
+             publishFacilities(route, lanePassedM, raw[0], raw[1]);
+             offCourse = false;
+             // A refused position (no ACK yet, stale fix) does not use up the second.
+@@ -999,12 +1015,12 @@
+ 
+     /** H0(): the location bundle, or the stationary loop. */
+     /** Returns the position's own send result. */
+-    private int locationBundle(int gpsSpeed, int realSpeed, double gLon, double gLat, double rLon, double rLat, int course) {
++    private int locationBundle(int gpsSpeed, int realSpeed, double gLon, double gLat, double rLon, double rLat, int course, Fix fix) {
+         clock.cancel(tokenSeg);
+         if (!live && (realSpeed == 0 || gpsSpeed == 0)) {
+             clock.post(tokenSeg, 0, new Runnable() {                // class a: no tunnel in the loop
+                 @Override public void run() {
+-                    sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course);
++                    sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course, fix);
+                     sendTrafficInfo();
+                     light();
+                     clock.post(tokenSeg, 1000, this);
+@@ -1012,7 +1028,7 @@
+             });
+             return 0;
+         }
+-        int position = sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course);
++        int position = sendPosition(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course, fix);
+         sendTrafficInfo();
+         sendTunnel();
+         light();
+@@ -1168,34 +1184,85 @@
+     }
+ 
+     private void setTunnel(int dist, int state, double sLon, double sLat, double eLon, double eLat) {
++        wireTunnelPassed = wireNaviPassed;
+         tunnelDist = dist; tunnelState = state; tStartLon = sLon; tStartLat = sLat; tEndLon = eLon; tEndLat = eLat;
+     }
+     private void clearTunnel() { setTunnel(0, 0, 0, 0, 0, 0); }
+ 
+     // ------------------------------------------------------------------ f0 senders
+ 
+-    private int sendPosition(double gLon, double gLat, double rLon, double rLat, int realSpeed, int gpsSpeed, int course) {
+-        return fire(Topics.SD_VEHICLE_LOCATION, StockMessages.vehicleLocation(gLon, gLat, rLon, rLat, realSpeed, gpsSpeed, course, niPathId,
+-                niSegIdx, niLinkIdx, niSegDist, niLinkRemain, niOwnership));
++    private int sendPosition(double gLon, double gLat, double rLon, double rLat, int realSpeed, int gpsSpeed, int course, Fix fix) {
++        // Select at the actual call, after every original queue and the Region send. No packet
++        // is refused because raw GNSS aged: the complete numeric view falls back coherently.
++        ProjectedWirePosition.View wire = fix.wirePosition==null ? null : fix.wirePosition.select(niPathId,clock.now(),route!=null && naving && niPathId==route.pathId()
++                && route.converted.routeId.equals(fix.wirePosition.routeId));
++        int segment=niSegIdx, link=niLinkIdx, segmentRemain=niSegDist, linkRemain=niLinkRemain;
++        int destination=distToDest;
++        boolean guided=wire!=null && wire.guided() && route!=null && niPathId==route.pathId();
++        if(guided) {
++            double[] matched=Coordinates.toSdk(wire.lon,wire.lat,config.frame);
++            rLon=Coordinates.grid(matched[0]); rLat=Coordinates.grid(matched[1]);
++            course=Double.isNaN(wire.course)?0:(int)wire.course;
++            int[] ni=route.conditions.naviInfo(wire.passed(route.conditions));
++            segment=ni[0]; link=ni[1]; linkRemain=ni[3]; segmentRemain=ni[4]; destination=ni[5];
++        }
++        // gLon/gLat retain the ORIGINAL matched-point fallback when raw is absent.
++        int result=fireWire(Topics.SD_VEHICLE_LOCATION,StockMessages.vehicleLocation(gLon,gLat,rLon,rLat,realSpeed,gpsSpeed,
++                course,niPathId,segment,link,segmentRemain,linkRemain,niOwnership),guided?wire:null);
++        if(wire!=null) {
++            Map<String,Object> audit=wire.audit();
++            audit.put("phase","position_attempt"); audit.put("fireInvoked",true); audit.put("transportAttempted",null);
++            audit.put("publisherMode",publisher.mode().name()); audit.put("result",result); audit.put("success",result==0);
++            audit.put("frozenDecision",true); audit.put("wireMatchedLon",rLon); audit.put("wireMatchedLat",rLat);
++            audit.put("pathId",niPathId); audit.put("segmentIndex",segment); audit.put("linkIndex",link);
++            audit.put("segmentRemainingM",segmentRemain); audit.put("linkRemainingM",linkRemain);
++            audit.put("destinationRemainingM",destination); audit.put("course",course);
++            publisher.note("positionSource",audit,clock.now());
++        }
++        return result;
++    }
++
++    private ProjectedWirePosition.View numericWireView() {
++        if(!config.variant.rawProjected || wirePosition==null || route==null || !naving || niPathId!=route.pathId()
++                || !route.converted.routeId.equals(wirePosition.routeId))return null;
++        ProjectedWirePosition.View out=wirePosition.select(niPathId,clock.now());
++        return out.guided()?out:null;
++    }
++    private int wireDistance(ProjectedWirePosition.View wire,int original) {
++        return wire==null ? original : wire.distance(original,wireNaviPassed,route.conditions);
++    }
++    private int fireWire(long topic,byte[] payload,ProjectedWirePosition.View wire) {
++        int result=fire(topic,payload);
++        if(wire!=null)wire.sent(result);
++        return result;
+     }
+ 
+     private void sendTrafficInfo() {
+-        fire(Topics.TRAFFIC_INFO, StockMessages.trafficInfo(jamLength, distToJam, jamStatus, passTime, construction, cLon, cLat, config.variant.speedLimitFixed20 ? 20 : roadSpeed,
+-                eyeSpeed, eyeDist, iStartLon, iStartLat, iEndLon, iEndLat, iSpeed, offCourse, distToDest, timeToDest, roadClass));
+-    }
+-
+-    private void sendTunnel() { fire(Topics.SD_TUNNEL, StockMessages.tunnel(tunnelDist, tunnelState, tStartLon, tStartLat, tEndLon, tEndLat)); }
++        ProjectedWirePosition.View wire=numericWireView();
++        int destination=wire==null ? distToDest : route.conditions.naviInfo(wire.passed(route.conditions))[5];
++        fireWire(Topics.TRAFFIC_INFO, StockMessages.trafficInfo(jamLength, distToJam, jamStatus, passTime, construction, cLon, cLat, config.variant.speedLimitFixed20 ? 20 : roadSpeed,
++                eyeSpeed, wireDistance(wire,eyeDist), iStartLon, iStartLat, iEndLon, iEndLat, iSpeed, offCourse, destination, timeToDest, roadClass),wire);
++    }
++
++    private void sendTunnel() {
++        ProjectedWirePosition.View wire=numericWireView();
++        fireWire(Topics.SD_TUNNEL, StockMessages.tunnel(wire==null?tunnelDist:wire.distance(tunnelDist,wireTunnelPassed,route.conditions), tunnelState, tStartLon, tStartLat, tEndLon, tEndLat),tunnelDist>0?wire:null);
++    }
+ 
+     private void sendRegion() { fire(Topics.SD_REGION, StockMessages.region(regionId, countryCode, provinceCode, cityCode, weather)); }
+ 
+     private void f0TidalLane(int rampDist, int tidalLane) { fire(Topics.SD_TIDAL_LANE, StockMessages.tidalLane(rampDist, tidalLane)); }
+ 
+     private void f0ActionCamera() {
+-        fire(Topics.SD_ACTION_CAMERA, StockMessages.actionAndCamera(icon, actMain, actAssist, actDistance, cameraType, cameraDistance));
++        ProjectedWirePosition.View wire=numericWireView();
++        fireWire(Topics.SD_ACTION_CAMERA, StockMessages.actionAndCamera(icon, actMain, actAssist,
++                wireDistance(wire,actDistance), cameraType, wireDistance(wire,cameraDistance)),actDistance>0 || cameraDistance>0?wire:null);
+     }
+ 
+     private void f0SpeedIntersection() {
+-        fire(Topics.SD_SPEED_INTERSECTION, StockMessages.speedIntersection(flowSpeed, historySpeed, hasParallel, hasMixFork, hasSolid, solidDistance, voice));
++        ProjectedWirePosition.View wire=numericWireView();
++        fireWire(Topics.SD_SPEED_INTERSECTION, StockMessages.speedIntersection(flowSpeed, historySpeed, hasParallel, hasMixFork, hasSolid,
++                wireDistance(wire,solidDistance), voice),solidDistance>0?wire:null);
+     }
+ 
+     /** Every dynamic sender returns early while ADAS sleeps ({@code f0.f13251b}); route and selection do not. */
+--- fixed20/libraries/adas-link/src/main/java/dev/denza/adaslink/RoutePositionProjector.java
++++ proj/libraries/adas-link/src/main/java/dev/denza/adaslink/RoutePositionProjector.java
+@@ -0,0 +1,115 @@
++package dev.denza.adaslink;
++
++/** A bounded WGS-84 route projection. Plain Java 8; no SDK, car or clock dependency. */
++public final class RoutePositionProjector {
++    public static final double BACK_M = 20, FORWARD_M = 150, MAX_LATERAL_M = 25;
++    public static final long MAX_RAW_AGE_MS = 1500;
++    private static final double EARTH_M = 6371000;
++    private final double[] lon, lat, cumulative;
++
++    public static final class Result {
++        public final boolean success;
++        public final String reason;
++        /** Final scalar, and raw geometric scalar before age compensation / forward floor. */
++        public final double scalar, projectedScalar, lon, lat, lateralM, advanceM;
++        private Result(boolean success, String reason, double scalar, double projectedScalar,
++                double lon, double lat, double lateralM, double advanceM) {
++            this.success=success; this.reason=reason; this.scalar=scalar; this.projectedScalar=projectedScalar;
++            this.lon=lon; this.lat=lat; this.lateralM=lateralM; this.advanceM=advanceM;
++        }
++        static Result failure(String reason, double lateralM) {
++            return new Result(false,reason,Double.NaN,Double.NaN,Double.NaN,Double.NaN,lateralM,0);
++        }
++    }
++
++    public RoutePositionProjector(YandexRoute route) {
++        lon=route.lon.clone(); lat=route.lat.clone(); cumulative=new double[lon.length];
++        for(int i=0;i<lon.length;i++) {
++            if(!coordinate(lon[i],lat[i]))throw new IllegalArgumentException("route coordinate");
++            if(i>0)cumulative[i]=cumulative[i-1]+Coordinates.distance(lon[i-1],lat[i-1],lon[i],lat[i]);
++        }
++        if(!(totalM()>0))throw new IllegalArgumentException("empty route geometry");
++    }
++
++    /**
++     * Window is centred on the previous chosen scalar (Yandex scalar for the first fix).
++     * A segment is clipped in along-route metres: a perpendicular foot outside the window is
++     * rejected, never pulled onto its artificial endpoint. This avoids accepting a nearby branch
++     * or a fix past +150 m merely because the boundary itself is less than 25 m away.
++     */
++    public Result project(double rawLon,double rawLat,double previousScalar,double speedMps,long rawAgeMs) {
++        if(!coordinate(rawLon,rawLat))return Result.failure("missing_raw",Double.NaN);
++        if(rawAgeMs<0 || rawAgeMs>MAX_RAW_AGE_MS)return Result.failure("stale_raw",Double.NaN);
++        if(!validScalar(previousScalar))return Result.failure("invalid_previous",Double.NaN);
++        double previousM=metres(previousScalar), low=Math.max(0,previousM-BACK_M), high=Math.min(totalM(),previousM+FORWARD_M);
++        double best=Double.POSITIVE_INFINITY, bestScalar=Double.NaN;
++        double scaleX=EARTH_M*Math.cos(Math.toRadians(rawLat))*Math.PI/180;
++        double scaleY=EARTH_M*Math.PI/180;
++        for(int i=0;i<lon.length-1;i++) {
++            double length=cumulative[i+1]-cumulative[i];
++            if(length<=0 || cumulative[i+1]<low || cumulative[i]>high)continue;
++            double ax=(lon[i]-rawLon)*scaleX, ay=(lat[i]-rawLat)*scaleY;
++            double dx=(lon[i+1]-lon[i])*scaleX, dy=(lat[i+1]-lat[i])*scaleY;
++            double norm=dx*dx+dy*dy;
++            if(!(norm>0))continue;
++            double t=Math.max(0,Math.min(1,-(ax*dx+ay*dy)/norm));
++            double at=cumulative[i]+t*length;
++            if(at<low-1e-7 || at>high+1e-7)continue;
++            double distance=Math.hypot(ax+t*dx,ay+t*dy);
++            // An internal vertex is not a new projection target merely because its neighbor's
++            // closer foot was outside the search window. Keep genuine corner nearest vertices.
++            if(t==0 && closerNeighbor(i-1,-1,rawLon,rawLat,scaleX,scaleY,distance))continue;
++            if(t==1 && closerNeighbor(i+1,1,rawLon,rawLat,scaleX,scaleY,distance))continue;
++            // On a crossing, prefer the closest progress to our anchor for equal distances.
++            if(distance<best-1e-7 || (Math.abs(distance-best)<=1e-7
++                    && Math.abs(at-previousM)<Math.abs(metres(bestScalar)-previousM))) {
++                best=distance; bestScalar=i+t;
++            }
++        }
++        if(!Double.isFinite(bestScalar))return Result.failure("outside_window",Double.NaN);
++        if(best>MAX_LATERAL_M)return Result.failure("lateral_distance",best);
++        double advance=Double.isFinite(speedMps) && speedMps>=0 ? speedMps*rawAgeMs/1000.0 : 0;
++        double at=Math.min(totalM(),Math.max(previousM,metres(bestScalar)+advance));
++        if(at>high+1e-7)return Result.failure("outside_window",best);
++        double scalar=scalarAt(at), point[]=point(scalar);
++        return new Result(true,"projected",scalar,bestScalar,point[0],point[1],best,advance);
++    }
++
++    private boolean closerNeighbor(int edge,int direction,double rawLon,double rawLat,
++            double scaleX,double scaleY,double distance) {
++        while(edge>=0 && edge<lon.length-1) {
++            double ax=(lon[edge]-rawLon)*scaleX,ay=(lat[edge]-rawLat)*scaleY;
++            double dx=(lon[edge+1]-lon[edge])*scaleX,dy=(lat[edge+1]-lat[edge])*scaleY;
++            double norm=dx*dx+dy*dy;
++            if(norm>0) {
++                double t=Math.max(0,Math.min(1,-(ax*dx+ay*dy)/norm));
++                return Math.hypot(ax+t*dx,ay+t*dy)<distance-1e-7;
++            }
++            edge+=direction;
++        }
++        return false;
++    }
++
++    public boolean validScalar(double scalar) { return Double.isFinite(scalar) && scalar>=0 && scalar<=lon.length-1; }
++    public double totalM() { return cumulative[cumulative.length-1]; }
++    public double metres(double scalar) {
++        return validScalar(scalar) ? RouteConverter.metres(cumulative,scalar) : Double.NaN;
++    }
++    /** A scalar's exact interpolated WGS-84 point, also used for a forward-clamped fallback. */
++    public double[] point(double scalar) {
++        if(!validScalar(scalar))throw new IllegalArgumentException("scalar");
++        int i=Math.min((int)Math.floor(scalar),lon.length-2); double t=scalar-i;
++        return new double[]{lon[i]+t*(lon[i+1]-lon[i]),lat[i]+t*(lat[i+1]-lat[i])};
++    }
++    private double scalarAt(double metres) {
++        if(metres>=totalM())return lon.length-1;
++        int low=0,high=cumulative.length-1;
++        while(low+1<high) { int mid=(low+high)>>>1; if(cumulative[mid]<=metres)low=mid;else high=mid; }
++        while(low<cumulative.length-2 && cumulative[low+1]==cumulative[low])low++;
++        double length=cumulative[low+1]-cumulative[low];
++        return low+(length>0 ? (metres-cumulative[low])/length : 0);
++    }
++    private static boolean coordinate(double x,double y) {
++        return Double.isFinite(x) && Double.isFinite(y) && x>=-180 && x<=180 && y>=-90 && y<=90;
++    }
++}
