@@ -6,7 +6,7 @@ those actions at Denza Apps.
 
 ## Current state
 
-Updated 2026-10-15. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
+Updated 2026-10-26. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
 Denza Apps points the three stock default-app roles at chosen packages, and how the steering
 wheel's Play/Pause and voice keys are answered.
 
@@ -16,6 +16,7 @@ Everything else here is a dated findings journal.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
+| Build 79 on the Z9GT: `DEFAULT_MAP_SWITCH=com.byd.launchermap` while the installed stock map is disabled (`enabled=3`); navigation says «Не установлено» and the tile «Не проверено». Music/video remain confirmed. Who disabled/reset the map is unknown | live | 2026-10-26 | [Disabled stock map](#disabled-stock-map-makes-the-shortcuts-tile-unverified-2026-10-26) |
 | Navigator 29.8.1 original and HUD debug APK: English locale selects the ordinary microphone / `Listening…` widget; Russian selects Alice and a button tap starts unsilenced MIC. The owner reports automatic language on the car; explicit Russian and restart still need car confirmation | emulator + code; car pending | 2026-10-15 | [Alice language selection](#alice-language-selection-in-the-hud-build-2026-10-15) |
 | Navigator 29.8.1 exposes different microphones for free map (`navi_service_open_voice_search`) and route guidance (`guidance_open_voice_search`); semantic clicks on both start sustained unsilenced MIC. The empty-text deep link, even followed by `alice_oknyx`, did not start listening | live | 2026-10-11 | [Alice in Yandex Navigator](#alice-in-yandex-navigator-2026-10-11), [Route microphone correction](#route-microphone-correction) |
 | Physical voice key `320` (scanCode `290`, device `2`): build 73 opens Alice with sustained MIC in visible Navigator, including an unfocused split pane and hidden route controls; fully hidden Navigator leaves stock BYD. Build 69 fixed the route ID, build 70 removed the manual-touch prerequisite, build 73 removed the input-focus prerequisite | live | 2026-10-11 | [Route microphone correction](#route-microphone-correction), [Hidden route controls](#hidden-route-controls-without-a-manual-touch), [Visible split](#visible-navigator-in-split-screen) |
@@ -1912,6 +1913,33 @@ which voice and Shortcuts still open the stock map. One residual case remains.
 If the driver sets the stock map in the stock settings and Denza Apps does not
 read PersonBean before the navigator's next update, that update puts the
 navigator back. `NavigationRoleRepairTest` holds the decision.
+
+### Disabled stock map makes the Shortcuts tile unverified (2026-10-26)
+
+Read-only diagnosis on the owner's Z9GT, Denza Apps `0.7.1` / build 79.
+The PersonBean query returned exactly one valid row per role:
+`DEFAULT_MAP_SWITCH=com.byd.launchermap`, `MUSIC_SWITCH=ru.yandex.music`,
+`VIDEO_SWITCH=com.vk.vkvideo`. The navigation package is installed at
+`/system/app/BydLaunchermap/BydLaunchermap.apk`, but `dumpsys package` reports
+`installed=true hidden=false suspended=false enabled=3` (disabled by user), and
+`pm list packages -d com.byd.launchermap` lists it. Neither MAIN+INFO nor
+MAIN+LAUNCHER resolves it. Yandex Navigator remains installed and its launcher
+resolves to `ru.yandex.yandexnavi/.core.NavigatorActivity`.
+
+`DefaultAppsRuntime.providerState` treats a confirmed package missing from the
+launchable catalog as ERROR / `DefaultAppsWords.GONE` («Не установлено»).
+`DashboardTiles.defaultApps` turns any role ERROR into «Не проверено»; this is
+not evidence that the provider query failed. The panel showed the navigation
+error and healthy Yandex Music / VK Video rows. Stored `pick_navigation` is
+still `ru.yandex.yandexnavi`, but that preference does not override PersonBean.
+Who disabled the stock map or reset the role, and when, is not established;
+the known AutoVoice update reset is only a possible explanation.
+
+Evidence: `captures/shortcuts-20261026/` (`roles.txt`, `stock-map-package.txt`,
+`disabled-stock-map.txt`, `app.png`, `panel.png`). No package, role or product
+code changes; the temporary narrow log tag was restored to empty. To repair
+the assignment, select the desired installed navigator in the navigation row;
+no repair was performed during this diagnosis.
 
 ### App-UID ContentResolver access (live-proven 2026-09-03)
 
