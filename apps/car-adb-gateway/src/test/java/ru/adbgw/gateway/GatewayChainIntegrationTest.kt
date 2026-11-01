@@ -66,7 +66,7 @@ class GatewayChainIntegrationTest {
         }
     }
 
-    @Test
+    @Test(timeout = 45_000)
     fun `computer reaches adb through the relay tunnel using the app key`() {
         val appKey = rsa()
         val computerKey = rsa()
@@ -123,6 +123,8 @@ class GatewayChainIntegrationTest {
         assertEquals(AdbWire.A_WRTE, echoed.command)
         assertArrayEquals("the payload survives the round trip through adbd", payload, echoed.payload)
 
+        assertBulkRoundTrip(toCar, fromCar)
+
         assertArrayEquals("the client's banner reached adbd unchanged", clientBanner, adbd.clientBanner())
         assertTrue("adbd's token was answered with a verifying signature", adbd.signatureVerified())
         assertFalse("the app public key is never sent", adbd.sawPublicKey())
@@ -136,7 +138,7 @@ class GatewayChainIntegrationTest {
         inner.close()
     }
 
-    @Test
+    @Test(timeout = 45_000)
     fun `a stock OpenSSH client reaches adb with ssh -W through the tunnel`() {
         val ssh = openSshTool("ssh")
         val keygen = openSshTool("ssh-keygen")
@@ -200,6 +202,7 @@ class GatewayChainIntegrationTest {
         val payload = "shell:echo denza\u0000".toByteArray(StandardCharsets.UTF_8)
         AdbWire.write(toCar, AdbWire.A_WRTE, 7, 9, payload)
         assertArrayEquals(payload, AdbWire.read(fromCar).payload)
+        assertBulkRoundTrip(toCar, fromCar)
         // The ADB pipe stays open on EOF; the handshake lines are long written by now.
         process.destroy()
         process.waitFor(5, TimeUnit.SECONDS)
@@ -322,6 +325,25 @@ class GatewayChainIntegrationTest {
         runCatching { channel.close(true) }
         runCatching { session.close(false) }
         inner.close()
+    }
+
+    /** A concurrent burst exercises both SSH windows beyond their initial 2 MiB capacity. */
+    private fun assertBulkRoundTrip(toCar: OutputStream, fromCar: InputStream) {
+        val bulk = ByteArray(8 * 1024 * 1024) { (it * 31).toByte() }
+        val writeFailure = AtomicReference<Throwable?>(null)
+        val writer = Thread({
+            try {
+                toCar.write(bulk)
+                toCar.flush()
+            } catch (error: Throwable) {
+                writeFailure.set(error)
+            }
+        }, "cag-test-bulk-writer").apply { isDaemon = true; start() }
+        assertArrayEquals("8 MiB survives both directions without exhausting an SSH window",
+            bulk, readExactly(fromCar, bulk.size))
+        writer.join(5_000)
+        assertFalse("bulk writer completed", writer.isAlive)
+        assertEquals("bulk writer had no error", null, writeFailure.get())
     }
 
     // --- harness ---------------------------------------------------------------------------------

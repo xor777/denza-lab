@@ -1,7 +1,9 @@
 # Car ADB Gateway — Relay-Only Architecture
 
 Status: current design of the implementation in this repository, last checked
-2026-10-29. The relay moved from Vultr Amsterdam to VDSina Moscow,
+2026-10-31. Bulk uploads through Moscow recovered after the owner's network
+disconnect/reconnect, but the cause of the earlier live-channel degradation
+remains open (see the 2026-10-31 investigation below). The relay moved from Vultr Amsterdam to VDSina Moscow,
 `212.193.11.249`, with its host keys and existing registrations preserved
 ([CAG-019](car-adb-gateway-decision-log.md#cag-019)). The old address temporarily
 forwards port 443 while the previous 24-hour DNS TTL expires. The lease and garbage-collection lifecycle passed local acceptance,
@@ -557,11 +559,13 @@ Throughput, measured on 2026-10-29 from the owner's Mac to the car on home
 Wi-Fi. Taking a car screenshot needed about two minutes. The Mac reaches the
 relay through a VPN, and its old exit delivered about 5-20 KB/s downstream;
 after a VPN switch the relay sent 3 MB in 3.3 s, and `adb push` ran at 2.5 MB/s.
-The rest is ADB itself: every data packet waits for its OKAY, and the path Mac →
+In that screenshot measurement, ADB's packet acknowledgements explained the
+remaining overhead: every data packet waits for its OKAY, and the path Mac →
 VPN → Amsterdam → car is long. So `adb exec-out screencap -p`, which streams the
 PNG in small writes, took 6-9 s for 0.55 MB. Encoding to a file on the car takes
 about 0.35 s, after which `exec-out cat` moves the file in a few large packets:
-1.4-2.8 s in all.
+1.4-2.8 s in all. This result does not explain the separate bulk-upload stalls
+observed on 2026-10-31 below.
 
 On a phone's mobile hotspot (an operator in Russia) the car never got in: on
 2026-10-26 twelve connections in five minutes reached the relay's sshd and each
@@ -577,6 +581,72 @@ The owner made that infrastructure change on 2026-10-29, moving to VDSina Moscow
 with the original identity and grants (CAG-019). The same hotspot path and a
 live-car connection through the new host still need verification; the move
 does not confirm the earlier root-cause hypothesis.
+
+### 2026-10-31: Bulk uploads stall while the watch still reports connected
+
+**Current state:** the symptom was reproduced, and normal `adb push` recovered
+after the owner disconnected and returned the car's connection. The precise
+blocking mechanism and its trigger are not established. No gateway update,
+relay reconfiguration, ADB-server restart or investigator-triggered tunnel
+replacement was performed. The CAG app PID remained the same across the pause.
+
+The failing Mac tunnel had been open since 15:00 MSK. Short commands answered,
+but both default `adb push` and `adb push -Z` of an incompressible 8 MiB file
+failed to finish within 56 seconds each. Concurrent size queries also timed
+out. Stopping only each test's own client allowed short commands to answer
+again. A separate raw ADB channel through that same SSH session advertised
+1 MiB maximum payload; individual 256 KiB WRTE packets received their OKAY
+after about 6.6 and 16.7 seconds respectively. Those were slow completed
+transfers, not evidence of an absolute file-size limit.
+
+The relay was idle, with ample RAM and no sustained TCP send queues in the
+snapshots. A separate Mac-to-relay SSH upload on admin port 22 delivered
+4 MiB in 3.605 seconds. On a fresh diagnostic SSH transport through the normal
+relay route, 8 MiB of SSH IGNORE traffic reached the inner server in about
+1.17 seconds after key exchange; its subsequent refusal of `auth_none` proved
+the server had processed the preceding packets. The host key was checked
+against the existing pin. No successful inner authentication occurred, so the
+trusted computer session was not replaced. This test bypasses ADB and channel
+data flow control and uses a different SSH client: it proves available path
+capacity, **not** the cause of the stalled ADB channel. Likewise, the port-22
+measurement does not exclude a problem specific to the existing port-443 path.
+
+After the owner's pause, the existing watch automatically opened a new Mac
+tunnel at 16:02:54 MSK. At 16:04–16:05, `push -Z` delivered the same 8 MiB file
+in 4.301 seconds end to end, and default `push` in 4.009 seconds. Both returned
+exit 0 and the car's SHA-256 matched the local input. Short commands answered
+in about 0.2 seconds. Thus the ordinary file-transfer path works after
+reconnection; attributing the earlier failure to a specific SSH window, the
+VPN, firmware, compression or a permanent size limit would exceed the evidence.
+
+Two distinct diagnostic pitfalls were confirmed:
+
+- `adb exec-out dd ...` does **not** upload a supplied stdin. The ADB client
+  only copies remote output in this mode; `exec-in` copies local stdin. The
+  [AOSP command handler](https://android.googlesource.com/platform/packages/modules/adb/+/882334464c178849d2322711424d2836d4593fe4/client/commandline.cpp)
+  explicitly selects one of those directions. The
+  earlier empty literal file is explained by this command choice, separately
+  from the reproduced `push` stalls. An `exec-in` client exit alone also does
+  not establish remote file integrity: use a bounded byte count and verify
+  the remote size and SHA-256 afterward.
+- The watch's healthy state is a liveness check, not a transfer check.
+  `watch.go:observe` asks the local ControlMaster `-O check` and
+  `port.go:adbSerialState` reads the local ADB server's `adb devices` listing.
+  Neither performs a device round trip or measures data progress. Consequently
+  a stalled transfer can coexist with `cag status: connected` and `device`.
+  One timed-out shell query during a bulk upload is not a sufficient reason
+  to replace the shared tunnel: the reproduction also blocked those queries.
+
+Local validation now sends an 8 MiB concurrent burst through both SSH windows
+in each of the MINA-client and stock-OpenSSH integration cases, with a fake
+adbd echo and bounded test lifetime. All 64 CAG unit tests passed. These tests
+cover bulk forwarding but do not reproduce the long-lived live-session fault.
+The installed APK hash matched the pre-existing local APK; no new APK was
+installed. Measurements, socket/CPU snapshots and test output are retained
+locally in `captures/cag-transfer-2026-10-31/`. Further diagnosis needs transfer
+progress and SSH channel/window observations during the next natural failure,
+before a planned idle reconnect; avoid replacing an active shared session just
+to test a hypothesis.
 
 Required before production:
 
