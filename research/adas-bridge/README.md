@@ -31,10 +31,11 @@ See [route replacement acceptance](#route-replacement-correction-build-12-2026-1
 
 ## Current state
 
-Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
+Updated 2026-10-31. Local parser acceptance is separate from vehicle acceptance.
 
 | Claim | Status | Section |
 | --- | --- | --- |
+| The speed limit we send does not change how long NOA holds at speed. Over four build-15 drives on 2026-10-29, at 15 km/h or more, nothing held over 3.2 s, whether we sent Yandex's limit, 0 or a fixed 20 (287/287 sends on the wire). The day's one long hold, 25.8 s, was at 3.7 km/h. The stock held CNOA 16–25 s at 16–19 km/h with limit 0. NOA's 40 maximum and the 20/40 sign persist with any limit; no car setting sets them, and their source is open. With the stock's coordinate frame build 15 got no NOA offers at all (0 of 327 moving positions), so offers need WGS-84 from us. On the eastbound exit stretch at 14–19 km/h, ours held 0.6–1.3 s where the stock held 16–25 s: place, direction and speed are matched, so the cause is in the feed On 2026-10-31 a position projected from the raw fix (5.4 m ahead of Yandex's), sent together with a changed NaviInfo cadence, left DNP offered 1.6 % of moving time and no engagement over 0.6 s; ICC held up to 23.7 s | car packets + wire proof + positions + settings screens + owner's eyes | [Build-15 drive](#build-15-drive-review-2026-10-24), «The fixed-20 drive», «The stock-frame drive» |
 | Default Region now reuses the successful stock/OSM drive's `990001/1/990001/990001` (region/country/province/city), without an arm override. Weather remains 0. Route-link adminCode remains independent | local source change; vehicle transmission and NOA effect unverified | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
 | URID 372 binds the stock SDK's map package and feeds its local ODD calculations; it is not a Region field in the active ADAS-type-1 wire. The production Java calculator matches the original Amap on 1,332/1,332 Beijing samples, including protobuf bytes. One Yandex route now has conservative route-specific annotation: 14/26 links (3,273/4,772 m) mapped to 372; 12 divergent links remain unknown, so its full feed retains MAX. Java and Python agree on 144/144 replay samples, including a controlled finite boundary on a fully mapped excerpt | local source + original-APK emulator differential + offline geometric annotation; generic Yandex annotation, receiver eligibility and Russia-wide coverage remain unresolved | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
 | Build 17 (`dd8dbce9…`, versionCode 739494317) A1 OFF retained nine NOA-active runs of 489–607 ms, each ending in ICC. Pure availability occupies 0.80% of observed moving time; service 10 is actually OFF. Five paths received SELECTED 200; 743 retained positions have no send errors. Reroute gaps are 1.745/1.828/2.418/5.504 s. Both recorders cover movement and another 151 s. Session closed after the owner's manual reboot, stock remains disabled | current-arm raw evidence; no sustained NOA; subscription-only explanation weakened, cause unresolved | [A1 drive](#build-17-a1-off-drive-review-2026-10-25) |
@@ -42,7 +43,7 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | Build 16 records service-13 states only through the overlay observer, which closes 30 s after the map Activity stops. AVC foregrounding ended that observer after its drive; guidance/live continued. All recorded movement precedes that cutoff. Installed build 17 retains both observers through its drive and later map hiding | build-16 source/raw lifecycle proof + build-17 moving recording receipt | [A1 drive](#build-17-a1-off-drive-review-2026-10-25) |
 | Build 16 records optional service-10 VehiclePositionInfo without requiring an arm. Its completed loop-frame drive received four explicit same-path SELECTED 200 replies and sent 562 current-path positions without transport failures; no explicit DNP available/active status was retained. Two moving reroutes interrupted positions for 8.264/7.469 s. The session is RESTORED, publisher closed, stock map enabled state 0. Output proximity does not establish the required route datum | installed SHA verified + bounded moving capture + restored state | [Build-16 position observer](#build-16-position-observer) |
 | Build 16 can tear down a ready replacement before its complete observation, adding about 2 s end plus 5 s fresh start. Installed build 17 retains guidance during bounded replacement while blocking old egress and requiring a fresh-path ACK. A1's four replacements commit without the old stop/start lifecycle, with 1.745–5.504 s position gaps; NOA dropouts remain | host regression + moving build-17 evidence | [Local handoff correction](#local-reroute-handoff-correction-2026-10-25) |
-| The stock map publishes to ADAS through the same exported `SomeIpServerService` Binder that `:hud-link` already uses from an app UID; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
+| **Corrected 2026-10-26:** on this IVI the stock map publishes through its own HIDL handle on `vendor.ts.someip@1.0` (`ro.someipsdk.connectserver.type=HIDL` selects `SomeIpServerProxyImplHidl`), not through the exported `SomeIpServerService` Binder that `:hud-link` uses from an app UID; both reach the same HAL; the IVI offers the services (vsomeip, `someip_stack.json`), and no layer checks the sender, the topic or the payload | firmware | [Transport](#transport) |
 | An app UID can therefore fire every map→ADAS event (services 7, 43, 45 and `0x8202`) and receive ADAS's answers (services 13, 44, 10) through `SomeIpClientService`, which fans events out to every subscribed session | firmware | [Transport](#transport) |
 | There is no exclusive IVI writer: offers are reference-counted per session and fires are unconditional; the ECU's arbitration between two publishers remains unknown | firmware; receiver policy open | [One writer](#one-writer) |
 | The stock map, alive but not navigating, still fires position (pathId −1), TrafficInfo (roadClass −1) and NavigationStatus 100 about once a second; this is the main conflict with our feed | firmware + car logs | [Idle stock map](#what-the-idle-stock-map-still-sends) |
@@ -74,6 +75,10 @@ Updated 2026-10-25. Local parser acceptance is separate from vehicle acceptance.
 | The owner confirms autonomous NOA↔ICC cycling after a stalk request. Three active intervals end before any new bridge packet; 124/126 exits have coherent route-position geometry. A retained stock control holds CNOA for 24.902 s with dynamic class -1/9, so missing class 6 does not explain every city dropout. Coordinate family, ownership and vehicle-speed provenance remain persistent differences, not proved receiver causes | raw packet replay + original stock log/source; host-only follow-up | [Immediate dropout](#immediate-dropout-follow-up) |
 | Original SDK native DR mode1 emits shifted Moscow coordinates correlated by inputTickTime; the GNSS path and public guard preserve WGS84. The pinned build-15 candidate matches the original inner function on 408 trip points, and 889 host field checks find no active coordinate bypass or double transform. Receiver datum and dropout causality remain unproved | original APK/ELF runtime + pinned-source host checks + parked selection; dropout unresolved | [Coordinate parity](#coordinate-parity-follow-up) |
 | On the same settlement streets where the stock held CNOA, build 15 sends values the stock never sends while guiding: position ownership -1 (stock 0 in 1,747/1,747 guided positions), and route links with laneNum 0, formway -1, ownership -1, adminCode 0, hasMultiOut false (stock 1–2, 15, 0, 990001, true in a later parked capture with another package; the holds' route bodies are not retained). Region 0, a non-zero speed limit and a located traffic light also persist; dynamic class -1, cadence and route progress are ruled out by the control. Receiver cause not proved | original stock logs/source + build-15 wire, joined by street; host-only | [Stock CNOA hold against build 15](#stock-cnoa-hold-against-build-15-field-by-field) |
+| Outside build 15, every DNP offer or engagement in the village, from five different feeds including the stock's own CNOA holds, lies on one stretch in one direction (village road eastbound to the exit turn at 37.0691, 55.5159). There the stock held CNOA 7–25 s; builds 16–26 were offered 0–8 % of the time and held at most 1.2 s | ADAS service-13 packets + Yandex positions, all retained drives | [Where DNP goes active](#stock-cnoa-hold-against-build-15-field-by-field) |
+| A replay of the 24.10 evening on 2026-10-26 (build 15, three parked arms, stock map enabled before each arm) got DNP offers for 60.2 % of moving time again, in daylight; engagements still held at most 2.7 s. No code path lets the stock package's enabled state reach ADAS without its process, and the head-unit logs cover none of the good arms | car replay + firmware corpus + head-unit logcat, host-only analysis | [What ADAS itself reported](#what-adas-itself-reported-2026-10-24-to-2026-10-25-added-2026-10-26) |
+| Of the drives of 2026-10-24 and 2026-10-25, only build 15's (24.10 20:17–20:38) got DNP offers (65 % of moving time); build 12 earlier that day and builds 16, 17 and 21 after it got 0–3 %. ADAS's ODD answer, service availability and noaMode are identical across them, and it sends no reason code while not offering. Lower speed explains ICC readiness, not DNP | ADAS's own service-13 packets, all retained rings, host-only | [What ADAS itself reported](#what-adas-itself-reported-2026-10-24-to-2026-10-25-added-2026-10-26) |
+| The unencrypted IDC source for 2026-10-31 is exported and its container fully consumed: 186 collector timestamps, 6,444 fixed-size frames and 52 text records. The 6,392 binary envelopes are decoded too: 16-bit sequence, marker, controller time and uptime, protocol tag and end marker. Their 233-byte bodies remain unproved; no explicit NOA/DNP/CNOA/HNOA/ICC reason is established | stock file export + strict offline parsers | [What ADAS itself reported](#what-adas-itself-reported-2026-10-24-to-2026-10-25-added-2026-10-26) |
 | The stock's longest hold, HNOA on Kievskoye for 54.2 s, sends class 6 and historySpeed 85; its CNOA holds in the settlement send 9/-1 and 25. Ownership 0, Region 990001, speed limit 0 and an open ODD are the same in both | original stock send log, host-only | [Stock CNOA hold against build 15](#stock-cnoa-hold-against-build-15-field-by-field) |
 | Build 15 accepted three paths across two manual replacements within one parked arm; all 160 decoded positions referenced their corresponding current path, and both stops sent real end statuses. A separate two-hour session subsequently obtained its own real ACK and dynamic sends, with autonomous logs growing | physical parked transport and recording checks; subsequent moving-trip evidence below; full-route attribute coverage and sustained NOA remain unverified | [Build-15 parked comparison](#build-15-parked-comparison-2026-10-24) |
 | Offline maps remain mandatory, with the owner-requested minimal check: at least one usable installed region. Neither full-route coverage nor equality with a separate offline route is required for this iteration | source implementation; inventory presence is not a claim about route coverage | [Generic runtime and offline prerequisite](#generic-vector-runtime-and-offline-prerequisite-2026-10-24) |
@@ -840,6 +845,17 @@ The service forwards `startSomeIpService` / `fireEvent` to one HIDL client of
 the routing manager `someipd-routing` offers the services on `192.168.195.2`
 with SOME/IP-SD on `224.0.2.4:30490`
 (`captures/hud-firmware-20260923/system/system/etc/someip/someip_stack.json`).
+
+**Corrected 2026-10-26:** the Binder path above is `SomeIpServerProxyImpl`, the
+non-HIDL branch. On this IVI `ro.someipsdk.connectserver.type=HIDL`
+(`captures/split-firmware-20260923/system/system/build.prop:265`), so
+`SomeIpServerProxy.getInstance` (`LM/ts/car/someip/sdk/SomeIpServerProxy.java:15-26`)
+returns `SomeIpServerProxyImplHidl`, and the stock map holds its own HIDL handle
+on `vendor.ts.someip@1.0`. The 2026-10-21 car log shows the HAL removing two HIDL
+clients and stopping the offers of services 7, 43, 45 and 0x8202 within 100 ms of
+the stock map's force-stop, and ADAS subscribing again after the restart
+(`captures/stock-map-car-network-20261021/car-russian-startup-all.txt:587-991`,
+`:5579-5677`). `:hud-link` still uses the Binder path described here.
 
 **Topic layout.** A 64-bit topic is `kind(4 bits) | service(16) | instance(16) | id(16)`:
 `0x4…` an event, `0xB…` a service, `0x1…` service available, `0x2…` a method.
@@ -2425,6 +2441,415 @@ error 0.185 m against one transform; this temporal comparison does not assert
 same-tick identity. The candidate was applied coherently, rather than accidentally
 twice.
 
+**What ADAS itself reported, 2026-10-24 to 2026-10-25 (added 2026-10-26).** All
+retained rings, deduplicated, ADAS's own service-13 packets while moving (Yandex
+speed above 1.5 m/s). Share of time with DNP offered (2) or active (1): build 12 on
+2026-10-24 13:25–13:49, 0 % (56 % of the time above 70 km/h); build 15 on
+2026-10-24 20:17–20:38, 65 %; build 16 at 21:57–22:03, 0 %; build 16 loop-wire on
+2026-10-25 10:30, 1 %; build 17 A1 at 11:15, 2–3 %; candidate 21 at 18:09, 0 %.
+The build-15 drive is the only one with offers, before or after it, and its offers
+lasted the whole drive (28–86 % per two minutes). Unchanged across these drives: the
+ODD answer (result 0, 374 cities 1–375 including 372, identical bytes from
+19:59 on 2026-10-24 to 11:11 on 2026-10-25), pilot and path service availability
+(true), noaMode 2. ADAS sends no notice or alarm code while it is not offering;
+notices 4, 22, 12, 23, 28 and 49 occur only in the build-15 drive, at drops of an
+engaged NOA. Later drives on the same streets were slower (median 14–17 km/h against
+37), which explains ICC readiness (above 30 km/h 70–95 % in every drive) but not
+DNP: build 15 had offers at 10–20 km/h 65 % of the time, later drives 0–3 %.
+Whether build 12's route was accepted during its drive was not checked. Scripts:
+`captures/adas-days-20261026/`.
+
+**Build 15 (24.10 20:17) against build 17 A1 (25.10 11:15), what we sent.** Both
+arms used the same variant (`drive15-source-stockstart`, WGS-84, Yandex fields,
+stock start, NaviSt and instrument status off), the same nine ADAS subscriptions
+(A1 additionally recorded service 10 as disabled), the same start sequence (ODD
+request, NavigationStatus 100/106, route, dynamics held until SELECTED 200) and
+1 Hz cadence. A1's main path `1792915887` carries the same 103 links with the same
+attributes as build 15's first path `1792861607`, both RouteType 1 and ACKed; DNP was
+offered on 81 % of build 15's moving positions on that path and 6 % of A1's. Three
+differences remain and none follows the offers: only build 15 sent Intersection /
+NextIntersectionLanes (551 each); A1's later replacement paths were RouteType 2 (three)
+and 99 (one); NextAction iconType 3 and trafficLightExist 1 vs 2 depend on the
+direction of travel. Inside build 15's drive the offer share stays 62–88 % for every
+value of trafficLightExist, iconType, roadClass, speed limit, historySpeed and
+curStepId; inside A1 it stays 0–12 %. ADAS's own messages carry nothing beyond DNP/
+ICC/ACC, alarm/notice and noaMode. Scripts: `captures/wire-15-vs-a1-20261026/`.
+
+Code 15 → 16 → 17 (all three built from uncommitted trees on `b46acae3`; pins are
+the archived `source.zip` of `captures/yandex-feed15-20261025/`,
+`yandex-feed16-vehicle-position-20261024/` and `yandex-feed17-20261025/`, 128/128
+module hashes each): the feed builders, cadence, field defaults, route conversion,
+path IDs, start protocol, variant parsing and side channels are byte-identical.
+Build 16 adds an inbound service-10 subscription on the overlay client (off again in
+A1); build 17 replaces a mid-guidance route without end statuses after a pause of up
+to 5 s and re-checks readiness before publishing. Those act only at reroutes; A1's
+first path, before any reroute, already had 6 %. The arms differ in prior state:
+build 15's arm followed a parked arm whose path was left at ADAS, and the stock map
+was enabled until that arm disabled it (A1: fresh process, stock already disabled).
+Loop-frame on 24.10 21:57 shared both conditions and got no offers, but it also
+shifted coordinates, so neither condition is ruled out.
+
+The 2026-10-26 replay of the 24.10 evening (build 15, the same three parked arms,
+stock map enabled before each arm and not running) got DNP offered or active for
+60.2 % of moving time, in daylight; 67 engagements held 0.1–2.7 s
+(`captures/replay-20261024-evening/postdrive/analysis-metric/report.md`).
+
+**Stock map and head-unit logs, searched for a mechanism (2026-10-26).** No code
+path in the stock map, SomeIpService, someipSystemService, AdasAgentService,
+AmapService, MapHelper, DiCarServer or VehicleConfig acts on the stock package's
+enabled state toward ADAS; only UI components read it (launcher3, SystemUI,
+recents). Everything the stock map sends outside the feed needs its process: at
+start `sendReset` writes SpeedLimit 0x4CA00040 = 0, NaviSt 0x4CA0004B = 0, NaviCorp
+0x4CA00048 = 1 and the instrument map-transfer flag
+(`LM/com/byd/automap/application/AutoApplication.java:882-898`), and it offers
+services 7, 43, 45 and 0x8202; NaviService writes ZoneCode 0x4CA0004D and NaviSt
+1/2 for cruise or guidance. These FIDs are set-only, so whether a value persists
+after the process dies is unknown. AdasAgentService sends 0x4CA00066 once at start
+from its preferences (1 NOA authorised, 3 HNOA only, 2 neither;
+`AgentPositionService.checkFirstLocationState`). In both arms that got offers the
+stock process was not running (`stockPidsBefore=[]`); before loop-wire it was
+running and offers did not come. Head-unit logcat covers neither the good arms
+(only the telephony buffer from 19:53 to 20:08 on 24.10) nor A1, contains no
+SOME/IP offer, subscribe or ADAS line in any session, and none exists for 26.10.
+One observation remains untested: the good 24.10 drive ran Navigator under
+`ru.yandex.yandexmaps.app.MapActivity`, the bad 24.10-night, 25.10-loop-wire and
+24.10-midday drives under `.core.NavigatorActivity`.
+
+**The speed-sign writer as an ADAS input (added 2026-10-29).** Denza Apps'
+native speed sign (`apps/denza-apps/.../feature/hud/HudNativeSpeedLimit.kt`)
+writes `SETTING_RODE_TYPE_SET` 0x4CA00050 = 7, `SETTING_SPEED_LIMIT_SET`
+0x4CA00040 = Yandex's limit, then 0x4CA00050 = 6, 100 ms apart, and repeats while
+the ADAS readback `ADAS_SLA_OUTPUT_SPEED_LIMIT` differs (the camera's sign
+included). These are the stock map's own ADAS inputs, written by its location
+module rather than by the SOME/IP sender we ported: the stock sets the road type
+from the matched link's class on every change (village class 9 → 9, M-3 class 6
+→ 6, unknown → 0, ramps → 11; `LocationBaseInstrument.submit2ADAS`,
+`AdasDataTransfer.transferRoadClass`) and the map limit on change
+(`NaviService.updateSpeedInfo`, 0 on the OSM village streets). Consequences, by
+code: while the writer runs, ADAS is told road type 6 (the factory's HNOA class)
+on any street, and the speed-limit assistance gets Yandex's limit, re-applied
+whenever the camera moves it; while it does not run, no one writes the road type
+at all in builds 26–29 (the property is set-only, so the last value written
+stays). On 2026-10-29 with build 15 and no parking preparation the owner saw NOA
+offered often, engaging at the posted limit (60 at 20 km/h), returning to it after
+being lowered with the stalk, and dropping as the car's sign jumped. Retained
+head-unit logcat does not cover the writer's `DenzaHudSpeedLimit` lines in any
+drive, so which drives had it running is not established from logs.
+
+On 2026-10-29 two build-15 drives without parking preparation followed. The first
+(arm `2500361b`) had 62 DNP engagements, none longer than 3.2 s. Before the second
+(arm `3a4bd8f9`) the sign writer was switched off in Denza Apps (the HUD master
+switch was already off, so it may not have written in the first drive either) and
+road type 9 and limit 0 were written once while parked; the ADAS readback stayed
+raw 5 (20 km/h). The second drive had 31 engagements, holds of 25.8 s
+(14:25:30–14:25:56), 8.2 s and 4.9 s. Build 15 sends Yandex's limit in TrafficInfo
+every second: 20 on most village streets, 60 on some pieces (38 of 173 moving
+samples), one one-second 20→60→20 spike at 14:25:47 inside the long hold. No
+engagement starts or ends within 3 s of a change of the sent limit (0/31 each).
+All nine engagements while 60 was being sent ended within 1.7 s; all three long
+holds came under 20 (**corrected 2026-10-29:** all three were at crawling speed —
+the 25.8-s hold averaged 3.7 km/h and covered 53 m; at 15 km/h or more no
+engagement in this drive held over 1.5 s, so the limit is not shown to matter; see
+«The fixed-20 drive» below). The owner saw NOA engage at the sent limit and return to it
+after being lowered with the stalk; the stock sent limit 0 throughout its CNOA and
+HNOA holds. Pull: `captures/bisect-pre-arm-20261027/run15-no-sign-20261029/claude-pull/`
+(read-only, no restore), `analyze.py`.
+
+The next build-15 drive (arm `6995ed87`, variant `loop-limit`: TrafficInfo limit
+0; road type 9 and limit 0 written again while parked) had 26 engagements, the
+longest 7.0 s and 3.4 s. Nothing we sent carried 40: TrafficInfo limit, camera and
+interval-camera speeds were 0 throughout, historySpeed 18/7, NextAction cameras 0.
+The owner saw the car's sign at 20 before engaging, 40 on engaging, NOA taking 40
+as its maximum, then the sign alternating 20/40 with NOA dropping. With TrafficInfo
+20 (the previous drive) NOA took 20; with 60 it took 60. Notice 54, absent from the
+earlier drives, appeared 38 times; its meaning is not yet decoded. Pull:
+`captures/bisect-pre-arm-20261027/run15-limit0-20261029/claude-pull/`.
+
+**The car's own speed settings, and where 40 is not (2026-10-29).** Read on the
+parked car from the settings screens and the autoservice getters, without changing
+anything (`captures/adas-settings-20261029/`: `read_settings.py`, `read_islc.py`,
+screenshots):
+- Driving Assist mode is NOA. Target Speed Offset is percentage, 0 %
+  (`ADAS_AIM_SPEED_OFFSET_MODE` 2, `_PERCENTAGE` code 1). The screen defines the
+  controlled target speed as the current road limit plus that offset.
+- The «Intelligent Speed Limit Control» row (Close / Manual Confirmation / Auto,
+  `SpeedLimitAssist` and `SpeedLimitAssistControl` in CarSettingPlatform) is shown
+  only for mode states 0 and 1 (ACC, ICC) and hidden for NOA. NOA follows the road
+  limit, and no setting changes that.
+- ISLA switch 1, ISLC status `0x2D50000B` 0, `ADAS_SLA_OUTPUT_SPEED_LIMIT` raw 5
+  (20 km/h). Safety Assist has no speed rows. No setting holds 40.
+
+The ADAS readback stayed raw 5 across both parked IVI writes of the day: limit 0 at
+14:16 and limit 20 at 15:24:16 (`run15-limit20-20261029/signal-one-shot.json`).
+Neither moved it. After the 20 write, with TrafficInfo still 0 (arm `a704e9af`),
+the owner again saw the sign at 20 and NOA's maximum at 40 while still parked, and
+the 20/40 alternation on a short drive. By the owner's account the sign stays at 20
+while driving until NOA is requested with the stalk, and alternates from that
+moment on, so a drive without the bridge would not show it. So with a navigation limit of 0, ADAS takes
+40 from a source of its own. It does not come from our sends, the offset, the IVI
+limit property or a setting. That source (a default by road class or the camera) is
+not identified.
+
+~~One reading fits the three drives, untested: NOA holds when the navigation limit
+agrees with the 20 that ADAS already shows.~~ **Falsified by the fixed-20 drive
+below.**
+
+**The fixed-20 drive (arm `df63189a`, 16:34–16:47).** The build-15 snapshot with a
+third `speedLimit` value, `fixed20`, which puts 20 in every TrafficInfo at send
+time: `ExperimentVariant` and `StockFeed.sendTrafficInfo` only, classes17.dex and
+the signature files changed, the certificate is the historical one (SHA `69ef8198…`,
+`captures/yandex-feed15-fixed20-20261029/`). The wire carried 20 in all 287 moving
+TrafficInfo sends, after the parked route replacement too. The drive had 63
+engagements. 34 of them were at 15 km/h or more, the longest 3.1 s; the longest
+overall was 3.1 s. The owner saw the same 40 maximum and 20/40 sign, and the stalk
+did not change the set speed.
+
+Speed during the holds, across the day's drives (`claude-pull/analyze.py` + the
+positions sent):
+
+| Drive | Longest hold | Its mean speed, distance | Longest at ≥ 15 km/h |
+| --- | --- | --- | --- |
+| Yandex limit (`3a4bd8f9`) | 25.8 s | 3.7 km/h, 53 m | 1.5 s |
+| Limit 0 (`6995ed87`) | 7.0 s | sent 0 km/h, 21 m | 2.4 s |
+| Fixed 20 (`df63189a`) | 3.1 s | 30 km/h, 18 m | 3.1 s |
+| Stock, 23.10 (three holds) | 24.9 s | 19 km/h, 122 m (others 16.0 s / 67 m, 7.2 s / 17 m) | 24.9 s |
+
+The limit we send (Yandex's, 0 or 20) does not change how long NOA holds at speed.
+The stock held 16–25 s at 16–19 km/h with limit 0; build 15 holds at most about 3 s
+at those speeds with any limit. The 40 and the sign alternation remain unexplained,
+and they are not shown to cause the drops.
+
+The coordinate frame was the largest difference from the stock not yet tested on
+the car. The stock sends positions and the route in its SDK frame, 537 m from WGS-84
+here. Its only test (loop-frame, 24.10 21:57) fell on an evening when no variant got
+offers (see «Same streets, frame switch changed»). Build 15 already has the switch
+(`frame: STOCK_GCJ`), and the pinned host accepts it. Tested in the next drive.
+
+**The stock-frame drive (arm `3e5fc1eb`, 17:01–17:14).** One change against the
+fixed-20 drive: `frame: STOCK_GCJ`. Same APK `69ef8198…`, `speedLimit: fixed20`,
+same host copy. Parked wire proof by Codex
+(`run15-gcj-20261029/READY.md`, `offline-wire-proof.json`):
+- associated-road positions shifted 537.50 m from the source;
+- all 644 route points within 0.033 m of the transformed Yandex polyline;
+- SELECTED 200;
+- TrafficInfo 20.
+
+The sent positions stayed shifted through the drive. **NOA was never offered:**
+DNP status 0 at all 327 moving positions (17:07–17:14), no engagements and no
+notices. ACC was available. An hour earlier on the same streets, with WGS-84, DNP
+was offered or active at 194 of 258 moving positions. With loop-frame on 24.10 this
+is the second shifted run without offers, so for our feed the offer depends on
+WGS-84 coordinates. The stock's own shifted feed did get rare offers and held them,
+so its frame alone is not what makes it hold. The car slept between the drive and
+the pull. The Navigator process that resumed the arm at 17:17 is a new process
+after wake, and `analyze.py` must take the arm's first `liveSession.armed` line,
+not the `resumed` one. Pull: `run15-gcj-20261029/claude-pull/` (read-only; adds
+`offers.py`, `stretch_holds.py`).
+
+**Same street, same direction, same speed.** Engagements that start on the
+eastbound exit stretch, all WGS-84 drives of the day (`stretch_holds.py`):
+- at 14–19 km/h, ours held 0.6–1.3 s: 14:24:26 0.6 s at 16; 15:01:58 0.9 s at 15;
+  15:02:00 0.6 s at 19; 16:42:45–48 three holds of 1.1–1.3 s at 14–18;
+- at 23–34 km/h, the longest were 3.1 and 2.4 s;
+- re-engagements followed every 1–2 s;
+- the factory core (build 26, 26.10) at the same exit turn: one engagement of
+  0.67 s in the village pass, five of 0.36–1.21 s on the afternoon trip
+  (`captures/adas-days-20261026/collected.pkl`); build 29 on 29.10 got no NOA or
+  ICC availability in the village at all (branch `stock-sender-parity`, `eb470b92`);
+- the stock held 16.0 and 24.9 s there at 16–19 km/h with limit 0.
+
+Both our adapter and the factory core drop within about a second where the stock
+held. What they share is the Yandex input (route and position), not the sender.
+
+Place, direction and speed are matched. The difference lies in what the two feeds
+send there, not in the road. The stock's route body on this stretch was not
+retained (see the stretch comparison), so links and route attributes cannot yet be
+compared field by field.
+
+**Our position against the car's own pose (2026-10-29, host only).** The two build-16
+drives that recorded ADAS's `10/0x8001 VehiclePositionInfo` (16.7 Hz) were joined
+with our VehicleLocation sends. Both streams are stamped with
+`SystemClock.elapsedRealtime()`, so the lag is not a clock artifact. Script and
+report: `captures/position-lag-20261029/`.
+
+| Drive, ADAS speed | n | Raw point to pose, p50 | Matched point to pose, p50 / p90 | Matched point lags by, p50 |
+| --- | ---: | --- | --- | --- |
+| 24.10 loop-frame, 5–15 km/h | 242 | 2.3 m | 5.0 / 12.3 m | 0.68 s |
+| 24.10 loop-frame, 15–30 km/h | 80 | 4.1 m | 9.4 / 11.0 m | 1.25 s |
+| 25.10 loop-wire, 5–15 km/h | 40 | 1.9 m | 6.7 / 28.5 m | 0.95 s |
+| 25.10 loop-wire, 15–30 km/h | 7 | 2.0 m | 5.1 / 5.3 m | 1.00 s |
+
+The lag sits in the matched (associated-road) point, which comes from Yandex's route
+progress. The raw fix is 2–4 m from the pose. Link, offset and step are derived from
+the same progress. VehicleLocation carries no timestamp, so ADAS cannot correct
+for the lag. At crawling speed the matched point is about a metre off; at 20 km/h
+it is 5–9 m off. This fits holds that last only near standstill.
+
+This is a hypothesis, not a cause: ADAS's tolerance is unknown and no channel
+reports why it downgrades. The stock forwards its SDK localization
+(`gpsPos`, `matchInfo[0].stPos`). Its freshness is not measured, and its
+VehiclePositionInfo path was gated off during the CNOA holds (see «Active-hold
+audit»).
+
+**The projected-position drive (2026-10-31, arm `87931313`, 11:50–12:05).** Build 15
+fixed20 plus `position.source: rawProjected` (APK `b5fe2dd6…`,
+`captures/yandex-feed15-proj-20261029/`). The associated point, scalar, link, step,
+offsets and course come from the raw GNSS fix projected onto the route and advanced
+by GNSS speed × fix age.
+
+The projector did what was specified:
+- 806 of 827 positions were projected;
+- on the eastbound street at 15–20 km/h the point ran 5.4 m ahead of Yandex's (mean);
+- the median lateral distance was 1.3 m.
+
+The candidate also changed a second thing. NaviInfo and its topics (TidalLane,
+NextAction, SpeedIntersection, AdvAutoFunInfo) now go out synchronously with every
+position, 816 times, against 500 per 755 positions in fixed20, and immediately
+before it, so the packet order changed. Field values of those topics are unchanged.
+Codex's review: `captures/bisect-pre-arm-20261027/run15-proj-20261031/analysis/`.
+
+Result:
+- DNP was offered or active for 1.6 % of moving time, against 70 % in fixed20 on
+  29.10;
+- eight engagements of 0.39–0.59 s, each straight into ICC;
+- no DNP at all on the eastbound street;
+- ICC itself held up to 23.7 s at about 16 km/h, so lane keeping works on these
+  streets at those speeds;
+- notice 15 (meaning not established) came once, 1.5 s after the first exit, where
+  the owner took over from a start beside the kerb.
+
+The lag hypothesis was therefore not tested on holds: there were no offers on the
+street. The loss of offers has three candidates:
+- the projected position;
+- the NaviInfo cadence and order;
+- the day and boot.
+
+The same APK with `position.source: yandex` reproduces fixed20 (Codex's
+compatibility checks), so arming it on the same outing separates the day from the
+change.
+
+**The control on 31.10 did not reproduce 29.10 (arm `2020a6ab`, 14:45–15:03).** The
+second projection candidate was run with `position.source: yandex`. The planned
+loop and the stock's street were driven at 15.5 km/h mean. DNP was offered or
+active for 1.29 % of moving time, against 70 % on 29.10. There were seven
+engagements of about 0.5 s, all into ICC, and none on the street at 15–20 km/h. The
+projection arm was not run (`run15-proj2-20261031/A2/RETURN.md`).
+
+Fixed20 (29.10) and this control were compared offline
+(`run15-proj2-20261031/claude-compare/`: `wire_diff.py`, `adas_diff.py`).
+
+The same on both days:
+- every topic sent, its rate per position and its median interval;
+- every field's value set, apart from path IDs and distance to destination;
+- the ten ADAS gate values read before the arm (`denza-adas-gates.json`);
+- Navigator's launch activity;
+- `noaMode` 2.
+
+Only the availability ADAS reports differs. What else differs:
+- **the APK** — the projection candidate, wire-identical in `yandex` mode on the bench,
+  against the fixed20 APK `69ef8198…`;
+- **the head-unit boot** — rebooted on 31.10 to close the stock-frame arm;
+- **the car's two days in between.**
+
+**The exact 29.10 APK on 31.10 (arm `b9d995e0`, 15:50–).** The fixed20 APK
+`69ef8198…` was reinstalled with `install -r`, together with the 29.10 host copy
+and variant. Codex reported no deviations from the plan. DNP was offered or active
+for 0.87 % of moving time, against 70 % on 29.10. There were four engagements of
+about 0.5 s, all into ICC, and no DNP during 48.7 s at 15–20 km/h. The common
+first-street route links matched 29.10 in every JSON field
+(`run15-fixed20-repeat-20261031/RETURN.md`). The APK, the projection and what we
+send are therefore ruled out as the cause of the lost offers.
+
+All five offering drives of 29.10 ran in head-unit boot `2866c383`, which started
+about 28.10 11:20 (elapsed time at the arms). Build 29 in the same boot at 13:00
+got no offers either. All three drives of 31.10 ran in boot `c504fbc6`, which
+started 31.10 11:03 after Codex's reboot. Offers depend on both the build and a car
+or boot state we cannot read. Neither build writes the stock's start-up FIDs
+(NaviCorp 0x4CA00048, ZoneCode 0x4CA0004D), and NaviSt 0x4CA0004B stays off in
+every build-15 variant.
+
+The car keeps one daily archive of the driving controller's own log in
+`/sdcard/Adas/idclogs/` (`IDC_<date>_<ms>.zip`, 30 files from 2026-09-23, owner
+`u0_a100`, readable by adb shell). That includes 23.10 (stock holds), 24, 26 and
+29.10 (offers) and 31.10. They were pulled read-only to
+`captures/idc-logs-20261031/zips/` (9.3 MB). Each holds one `.log` (0.9–5 MB)
+encrypted with AES (zip method 99), and the password is not known.
+
+The encrypted ZIP is no longer the only readable route. A separately authorized
+stock BydLogTool export obtained today's unencrypted source before daily
+compression: `captures/idc-logs-20261031/idc-2026-10-31-verified.log`, 1,644,708
+bytes, SHA-256 `936f80e49f722e374488598d68bc4e316329789abd392b618903e555a7912352`.
+Server MD5 and cleanup/state checks passed. `tools/idc_log_text.py` consumes the
+whole container strictly: 186 big-endian collector timestamps and 6,444 frames
+of 255 bytes. The 52 `0x0159` text records are extracted under
+`captures/idc-logs-20261031/decoded/`; they concern MCU/AVM/PM/SM startup and
+errors, with no explicit NOA/DNP/CNOA/HNOA/ICC reason.
+
+`tools/idc_log_binary.py` decodes all 6,392 binary envelopes. The former labels
+`0x0049`–`0x0e49` were not distinct record types: byte 0 is `0x49`, bytes 1–2
+are a big-endian 16-bit sequence. Byte 3 is the marker, bytes 4–8 are controller
+MM/DD/HH/mm/ss, bytes 10–12 are big-endian uptime in ms, bytes 13–20 contain the
+constant protocol tag `020069290f1a0106`, bytes 21–253 are the body and byte 254
+is `0xFE`; byte 9 is zero throughout. Of these records, 6,388 have marker `0x38`
+and about two-second cadence; four startup records have marker `0x00` and an
+unsynchronised 2026-01-01 date. Controller time carries no timezone or year.
+Outputs are `IDC_2026-10-31.binary.jsonl` (one full envelope per line) and
+`.binary.summary.json` in the same decoded directory, with all four sequence
+discontinuities retained. The 233-byte bodies remain unproved and are preserved
+as hex without invented signal names, so this has not established why offers
+disappeared or engagements downgrade.
+
+The controller time is UTC. The 31.10 binary records cover 11:43–15:47 MSK; the
+only 29.10 records are 14 from 18:46 MSK, parked. Matched against the 31.10
+projection drive's PilotStatus (`captures/idc-logs-20261031/correlate.py`, body
+offsets):
+- body byte 174 is 12 in 28 of 31 ICC-active records and in both DNP records, and
+  9 in 426 of 427 others, so it is a lateral-assist state;
+- body bytes 12, 13 and 21 follow driving against standing (r ≈ ±0.85 with the
+  sent speed).
+
+The record is therefore the controller's own state, but none of it covers driving
+on a day with offers. The older daily archives remain encrypted. On a future day
+with offers, that day's log has to be exported the same day to compare against
+31.10.
+
+AdasAgentService, a persistent app, starts `AgentPositionService` itself on every
+boot. Each start sends `ADAS_LOCATE_AUTOORIZATION_STATUS_SET` 0x4CA00066 from its
+own preferences (1 NOA, 3 HNOA only, 2 neither). It has no readable status FID,
+so the value sent after the 31.10 boot is unknown.
+
+Notice 54 has no branch in the stock map's dispatcher (`k.h.e0.c.j.f0.j`, read with
+`--single-class --show-bad-code`). All 38 occurrences fall in 15:02:31–15:02:35,
+around one 1.4-s engagement.
+
+Outside build 15, every
+DNP offer and engagement in the village lies on one stretch in one direction: the
+village road eastbound from about 37.0618, 55.5170 to the exit turn at 37.0691,
+55.5159 (heading 88–118°, then 36–82° through the turn). The stock's three CNOA
+holds of 2026-10-23 (16.0, 24.9 and 7.2 s) start on its western part; build 16 and
+17's 0.5-s engagements lie along it; candidate 21 (25.10 18:12), build 26 in the
+village (26.10 14:32–14:33) and build 26 on the 26.10 afternoon trip (17:34:22–
+17:34:33) got their only offers at the same exit turn, in the same direction. Five
+different feeds light the same place. On that stretch eastbound DNP was offered or
+active for 68–70 % of the time with build 15, 0–8 % with builds 16, 17, 21 and 26,
+while the stock held CNOA there; build 15 also offers on the other streets (76 %
+westbound on the same road). Scripts: `captures/adas-days-20261026/places.py`,
+`corridor.py`.
+
+On that stretch, the stock's CNOA holds against build 26's two offer passes
+(`captures/stretch-stock-vs-26-20261026/REPORT.md`): Region, historySpeed, ODD,
+position ownership, limit, tidal lane, navigation status, tunnel and Lanes3km are
+equal. Build 26 reports `trafficLightExist=2` with a light about 1.9 km ahead for
+the whole stretch; the stock reported 1 throughout. That is the factory core on our
+inputs: `OriginalMmtSender:588` passes `dstLinkDistance`, the distance to the
+lane-query target, which stays 0 because we feed no intersection lanes, so any light
+within the 3-km lookahead passes the `< 500` send condition. Yandex's location speed
+drops to 0 for single seconds while moving; build 26 forwards it, and the core's
+stationary branch repeats the last position. The route has one 512-m link along the
+street and 67-, 2- and 0-m links at the exit turn. In both passes the offers began
+right after the car pulled away from a stop at the exit junction and turned left.
+The stock's route body on this stretch is not retained, so links cannot be compared.
+
 **Same streets, frame switch changed.** The switch moves coordinates and also the
 link IDs derived from them (all 142 checked IDs of both drives reproduce from the
 transformed geometry), so its effect cannot be split between the two; the
@@ -2440,7 +2865,7 @@ where the WGS-84 run had them. It does not establish that the frame caused the
 change. **Superseded 2026-10-25:** the WGS-84 arms on the same streets the next
 day (loop-wire, build-17 A1 with the 2026-10-24 variant) also lost the offers
 (≤6 % on the first route), so this arm's missing offers cannot be attributed to
-the frame at all; the frame remains untested on the car. The stock's own shifted feed got
+the frame at all; the frame remains untested on the car (**tested 2026-10-29:** build 15 with `STOCK_GCJ` got no offers either, an hour after WGS-84 got them on the same streets; see «The stock-frame drive»). The stock's own shifted feed got
 5–6 DNP=2 onsets per 2026-10-23 drive against build 15's 1,055. The next arm keeps
 WGS-84 in the proposed comparison. The later `loop-wire` proposal removes link
 fill-ins from that comparison; it has not been armed in the 2026-10-25 local
