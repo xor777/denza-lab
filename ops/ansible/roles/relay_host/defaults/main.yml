@@ -1,6 +1,6 @@
 ---
 relay_host_domain: adbgw.ru
-relay_host_public_ipv4: 95.179.132.238
+relay_host_public_ipv4: 212.193.11.249
 relay_host_admin_ssh_port: 22
 relay_host_ssh_port: 443
 relay_host_enrollment_enabled: true

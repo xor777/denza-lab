@@ -1,0 +1,66 @@
+---
+- name: Account for the temporary migration bridge source address
+  hosts: gateways
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Require an explicit temporary bridge address
+      ansible.builtin.assert:
+        that:
+          - relay_migration_proxy_ipv4 is defined
+          - relay_migration_proxy_ipv4 is match('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+          - relay_migration_proxy_ipv4 != ansible_host
+
+  tasks:
+    # TCP proxying combines clients under the old host's source address. Keep
+    # one attacker's failed authentication from banning every cached-DNS client.
+    # Key/code authentication and the global connection limits still apply.
+    - name: Configure the temporary SSH source aggregation exception
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/11-ansible-cag-migration-proxy.conf
+        content: "PerSourcePenaltyExemptList {{ relay_migration_proxy_ipv4 }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+        validate: /usr/sbin/sshd -t -f %s
+      when: relay_migration_proxy_enabled | default(true) | bool
+      notify: Apply migration proxy policy
+
+    - name: Configure the temporary fail2ban source aggregation exception
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/zz-cag-migration-proxy.local
+        content: "[sshd]\nignoreip = 127.0.0.1/8 ::1 {{ relay_migration_proxy_ipv4 }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+      when: relay_migration_proxy_enabled | default(true) | bool
+      notify: Apply migration proxy policy
+
+    - name: Remove temporary source aggregation exceptions after DNS converges
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/ssh/sshd_config.d/11-ansible-cag-migration-proxy.conf
+        - /etc/fail2ban/jail.d/zz-cag-migration-proxy.local
+      when: not (relay_migration_proxy_enabled | default(true) | bool)
+      notify: Apply migration proxy policy
+
+  handlers:
+    - name: Validate SSH before applying the proxy policy
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+      listen: Apply migration proxy policy
+
+    - name: Reload SSH proxy policy
+      ansible.builtin.systemd_service:
+        name: ssh.service
+        state: reloaded
+      listen: Apply migration proxy policy
+
+    - name: Reload fail2ban proxy policy
+      ansible.builtin.systemd_service:
+        name: fail2ban.service
+        state: reloaded
+      listen: Apply migration proxy policy

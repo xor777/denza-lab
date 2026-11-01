@@ -37,7 +37,7 @@ to the replacement. The normative current design lives in
 - **Decision:** Use only `adbgw.ru:443` and fingerprint `SHA256:w02E2cvN65HmjeC6h9aLY/6zovde3nvqorQPYtNRp6c` in Android and the CLI.
 - **Rationale:** A copied code cannot silently direct the vehicle to an attacker's host.
 - **Alternatives:** Self-hosted address in the UI; TOFU; host-certificate CA.
-- **Consequences and risks:** Host migration or key rotation requires a coordinated update. The configurable self-hosted relay from v2 is superseded.
+- **Consequences and risks:** Host-key rotation requires a coordinated update. A host migration that preserves the host keys and runtime state needs no client update ([CAG-019](#cag-019)). The configurable self-hosted relay from v2 is superseded.
 - **Evidence:** Constants in Android and Go; Ansible verification checks DNS and the fingerprint.
 - **Revisit if:** Signed key rotation or a separate enterprise build becomes available.
 
@@ -220,3 +220,15 @@ to the replacement. The normative current design lives in
 - **Consequences and risks:** A removed or expired car keeps trying for about 15 minutes before it shows the code screen.
 - **Evidence:** `RelayAuthClassificationTest` (rejected key, stalled authentication, dropped connection, session closed during authentication) and `RegistrationRejectionGateTest`. Live: the fix was installed remotely on the owner's car, its Wi-Fi was switched off for two minutes and back on, and the car came back with the same keys, registration and trusted computer.
 - **Revisit if:** The relay gains an explicit "unknown device" answer the app can read before authentication fails.
+
+<a id="cag-019"></a>
+## CAG-019 — Moscow Relay With the Existing Identity
+
+- **Status / date:** Accepted — 2026-10-29. Clarifies the migration consequence of [CAG-003](#cag-003).
+- **Context:** The owner requested moving adbgw from Vultr Amsterdam to VDSina Russia after the mobile-network failures recorded in the architecture's verification section. The cause of those failures remains unconfirmed.
+- **Decision:** Run the relay on VDSina Moscow, `212.193.11.249`, with the original SSH host keys and schema-v3 registrations and grants. Keep `adbgw.ru:443` and the application pin unchanged. Configure the host only through Ansible, with key-only `dmitry` administration, passwordless sudo, no remote root, UFW and fail2ban. Freeze all state writers on the old Vultr host, `95.179.132.238`; during the old A record's 24-hour cache lifetime, let its port 443 forward TCP to the new relay. Only the replacement owns mutable runtime state.
+- **Rationale:** Existing apps and computers keep their identity and pairing, and clients with cached DNS still reach the same authoritative relay.
+- **Alternatives:** Change the pin and update every client; leave two independently writable relays during DNS convergence; drop clients with cached DNS.
+- **Consequences and risks:** The temporary proxy hides original source addresses. Only the old host's IP is exempted from source penalties and fail2ban on the replacement; authentication and global connection limits remain. Remove those exceptions when the bridge is retired, after at least 24 hours of authoritative DNS convergence. During overlap administer the replacement by IP because source port 22 stays on the source. The owner's 20 RUB/day order excludes paid automatic backups; the private migration snapshot is manual. Moving the host does not establish mobile-network or live-car acceptance.
+- **Evidence:** `ops/ansible/playbooks/relay-migration-{identity,source,proxy}.yml`, the updated inventory, and the private deployment logs in `captures/cag-migration-2026-10-29/`. Baseline 14 OK, relay 64 OK, final rollout 59 OK / 0 changed, full production-profile lint passed. The replacement accepts the original pinned host identity and reports one device, one client and one grant; its state hash matches the frozen source snapshot. Fresh SSH connections confirmed `dmitry` and passwordless sudo, with root and password-only authentication rejected.
+- **Revisit if:** The DNS cache window is over, the source bridge is no longer needed, or the same mobile path still cannot connect to Moscow.

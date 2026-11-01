@@ -7,6 +7,7 @@
       - procps
       - util-linux
       - acl
+      - systemd-timesyncd
     state: present
 
 - name: Create the relay state group

@@ -2,6 +2,17 @@
 
 Ansible configuration for the Car ADB Gateway VPS.
 
+The active relay is VDSina service `3291062`, Moscow, `212.193.11.249`
+(Ubuntu 26.04, 1 vCPU, 2 GiB RAM, 50 GB, 20 RUB/day), migrated from Vultr on
+2026-10-29. Administrative SSH is `dmitry` with the existing operator key and
+passwordless sudo; root, password and keyboard-interactive administration are
+disabled. SSH runs as a persistent service, with socket activation disabled.
+The relay role explicitly installs its time-synchronization service rather
+than depending on what the provider image includes.
+The existing resolver pair is managed in inventory with Cloudflare first and
+Google second. The Google resolver seen from this VPS retained the old A record
+after cutover, while Cloudflare already served the new authoritative address.
+
 ## Local Setup
 
 ```bash
@@ -99,7 +110,7 @@ role still removes what that left: sslh, its return path, Caddy and port 80.
 
 ```bash
 .venv-ansible/bin/ansible-playbook -u root --ask-pass playbooks/bootstrap.yml
-ssh dmitry@95.179.132.238 'sudo -n true'
+ssh dmitry@212.193.11.249 'sudo -n true'
 .venv-ansible/bin/ansible-playbook \
   -e confirm_ssh_lockdown=true \
   playbooks/lockdown.yml
@@ -118,9 +129,100 @@ Never store passwords or private keys in inventory or Ansible variables.
 ## DNS
 
 ```text
-A  @  95.179.132.238
+A  @  212.193.11.249
 ```
 
 The relay currently uses only the IPv4 record above. Port 443 carries SSH. The
 verification playbook checks both DNS resolution and the pinned Ed25519 host-key
 fingerprint.
+
+## Relay migration and temporary source bridge
+
+The 2026-10-29 move preserves all three SSH host keys and the schema-v3 runtime
+state, including the existing device and trusted computer. Android and the CLI
+keep their existing endpoint and pin; no APK or pairing change is needed.
+Private backups, host keys and deployment logs are under the ignored,
+owner-only `captures/cag-migration-2026-10-29/`. They must never enter Git.
+VDSina automatic backups are disabled; this snapshot is a manual migration
+backup, not a recurring backup policy.
+
+The source `95.179.132.238` no longer runs a writable relay: its application
+SSH listener, web UI and garbage collection are stopped. A systemd TCP proxy
+on its public port 443 forwards clients whose DNS cache still holds that IP
+to `212.193.11.249:443`. The old admin port 22 still belongs to the source;
+use the new IP explicitly for administration during DNS convergence.
+
+The old A record had TTL 86400. Keep the source for at least 24 hours after
+both authoritative nameservers publish the new IP, then drain/stop the bridge
+before retiring the old VPS. For this cutover, do not begin before
+2026-10-30 12:10 MSK. No automatic retirement is scheduled. Do not run `relay-host.yml` against the retired
+source: that would enable its old state writers again.
+
+The bridge combines clients under the source IP. The replacement has a
+temporary, source-specific OpenSSH penalty exemption and fail2ban ignore entry
+for `95.179.132.238`, managed by `relay-migration-proxy.yml`. Key/code
+authentication and global connection limits still apply. See
+[OpenSSH's source-penalty policy](https://man.openbsd.org/sshd_config#PerSourcePenaltyExemptList).
+Remove those two exceptions once the bridge is stopped:
+
+```bash
+.venv-ansible/bin/ansible gateways -b -e ansible_host=95.179.132.238 \
+  -m ansible.builtin.systemd_service \
+  -a 'name=cag-migration-forward.socket enabled=false state=stopped'
+.venv-ansible/bin/ansible gateways -b -e ansible_host=95.179.132.238 \
+  -m ansible.builtin.systemd_service \
+  -a 'name=cag-migration-forward.service state=stopped'
+
+.venv-ansible/bin/ansible-playbook \
+  -e relay_migration_proxy_ipv4=95.179.132.238 \
+  -e relay_migration_proxy_enabled=false playbooks/relay-migration-proxy.yml
+```
+
+Acceptance on 2026-10-29: baseline `14 OK`, relay `64 OK`, final rollout
+`59 OK / 0 changed`, no failures, and production-profile lint passed. The final
+snapshot and destination state had the same SHA-256. The car was not connected,
+so this is server acceptance; live-car ADB and the Russian mobile path remain.
+
+For a future migration, first prepare, lock down and reboot an empty replacement
+using the normal playbooks. Save the source's six `ssh_host_*_key[.pub]` files
+in a private local directory as flat filenames, and update inventory to the
+replacement. The migration playbooks then run in this order (the source IP
+override is deliberate):
+
+```bash
+.venv-ansible/bin/ansible-playbook \
+  -e ansible_host=95.179.132.238 \
+  -e confirm_relay_source_migration=true -e relay_migration_phase=freeze \
+  -e relay_migration_target_ipv4=212.193.11.249 \
+  -e relay_identity_directory=/absolute/private/snapshot \
+  playbooks/relay-migration-source.yml
+
+.venv-ansible/bin/ansible-playbook \
+  -e confirm_relay_identity_restore=true \
+  -e relay_identity_directory=/absolute/private/snapshot \
+  playbooks/relay-migration-identity.yml
+
+.venv-ansible/bin/ansible-playbook \
+  -e relay_migration_proxy_ipv4=95.179.132.238 \
+  playbooks/relay-migration-proxy.yml
+
+.venv-ansible/bin/ansible-playbook \
+  -e ansible_host=95.179.132.238 \
+  -e confirm_relay_source_migration=true -e relay_migration_phase=forward \
+  -e relay_migration_target_ipv4=212.193.11.249 \
+  playbooks/relay-migration-source.yml
+```
+
+`freeze` disables source writers and application sessions, then fetches the final
+state under its exclusive lock. Identity restore checks the application pin and
+refuses to overwrite a populated replacement with different runtime state.
+Verify the preserved host identity before replacing the new IP's bootstrap
+known-hosts entry. After verifying both public IPs, change only the root A
+record in REG.RU, leaving `bt` and `www` unchanged, and run both verification
+playbooks against the replacement.
+
+If restoring fails before the replacement accepts any state changes, the
+source's original state and backed-up SSH configuration remain available for
+rollback through Ansible. Once the replacement accepts mutations, its current
+state must be transferred back before any rollback; the frozen source snapshot
+is no longer authoritative.

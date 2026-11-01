@@ -1,4 +1,9 @@
 ---
+- name: Restart systemd-resolved
+  ansible.builtin.systemd_service:
+    name: systemd-resolved.service
+    state: restarted
+
 - name: Restart fail2ban
   ansible.builtin.service:
     name: fail2ban

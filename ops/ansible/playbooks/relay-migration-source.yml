@@ -1,0 +1,168 @@
+---
+- name: Retire the source relay and bridge cached DNS clients to its replacement
+  hosts: gateways
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Require an explicit source migration phase
+      ansible.builtin.assert:
+        that:
+          - confirm_relay_source_migration | default(false) | bool
+          - relay_migration_phase | default('') in ['freeze', 'forward']
+          - relay_migration_target_ipv4 is defined
+          - relay_migration_target_ipv4 is match('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+          - ansible_host != relay_migration_target_ipv4
+
+  tasks:
+    - name: Freeze and export the last source state
+      when: relay_migration_phase == 'freeze'
+      block:
+        - name: Require a private local snapshot directory
+          ansible.builtin.assert:
+            that:
+              - relay_identity_directory is defined
+              - relay_identity_directory is match('^/')
+
+        - name: Disable source background state writers
+          ansible.builtin.systemd_service:
+            name: "{{ item }}"
+            state: stopped
+            enabled: false
+          loop:
+            - cag-gc.timer
+            - cag-web.service
+
+        - name: Stop any in-progress source garbage collection
+          ansible.builtin.systemd_service:
+            name: cag-gc.service
+            state: stopped
+
+        - name: Release the application port while retaining administrative SSH
+          ansible.builtin.replace:
+            path: /etc/ssh/sshd_config.d/20-ansible-cag-relay.conf
+            regexp: '^Port 443$'
+            replace: '# Port 443 moved to the replacement relay; see migration bridge.'
+            backup: true
+          notify: Release source application listener
+
+        - name: Validate the source SSH configuration
+          ansible.builtin.command: /usr/sbin/sshd -t
+          changed_when: false
+
+        - name: Close the application listener before exporting state
+          ansible.builtin.meta: flush_handlers
+
+        - name: End only application sessions on the retired source
+          ansible.builtin.command:
+            argv:
+              - pkill
+              - -TERM
+              - -u
+              - cag-device,cag-client,cag-control,cag-enroll,cag-pair
+          register: relay_migration_source_sessions
+          changed_when: relay_migration_source_sessions.rc == 0
+          failed_when: relay_migration_source_sessions.rc not in [0, 1]
+
+        - name: Snapshot the quiescent state under its exclusive lock
+          ansible.builtin.command:
+            argv:
+              - flock
+              - -x
+              - /opt/cag/state/locks/state.lock
+              - install
+              - -m
+              - "0600"
+              - /opt/cag/state/state.json
+              - /root/cag-migration-state.json
+          changed_when: true
+
+        - name: Fetch the final state without logging its contents
+          ansible.builtin.fetch:
+            src: /root/cag-migration-state.json
+            dest: "{{ relay_identity_directory }}/state.json"
+            flat: true
+          no_log: true
+
+        - name: Restrict the local final state snapshot
+          delegate_to: localhost
+          become: false
+          ansible.builtin.file:
+            path: "{{ relay_identity_directory }}/state.json"
+            mode: "0600"
+
+    - name: Forward cached DNS clients to the verified replacement
+      when: relay_migration_phase == 'forward'
+      block:
+        - name: Verify the destination pin from the source network
+          ansible.builtin.shell: >-
+            set -o pipefail &&
+            ssh-keyscan -T 10 -t ed25519 -p 443 {{ relay_migration_target_ipv4 }} 2>/dev/null
+            | ssh-keygen -lf - -E sha256
+          args:
+            executable: /bin/bash
+          register: relay_migration_destination_key
+          changed_when: false
+
+        - name: Require the existing application identity on the replacement
+          ansible.builtin.assert:
+            that:
+              - relay_host_ed25519_fingerprint in relay_migration_destination_key.stdout
+
+        - name: Install the temporary forwarding service
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/cag-migration-forward.service
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Unit]
+              Description=Temporary CAG migration TCP bridge
+              After=network-online.target
+              Wants=network-online.target
+
+              [Service]
+              ExecStart=/usr/lib/systemd/systemd-socket-proxyd {{ relay_migration_target_ipv4 }}:443
+              DynamicUser=yes
+              NoNewPrivileges=yes
+              PrivateTmp=yes
+              ProtectSystem=strict
+              ProtectHome=yes
+              RestrictAddressFamilies=AF_INET AF_INET6
+          notify: Restart migration forwarder
+
+        - name: Install the temporary forwarding socket
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/cag-migration-forward.socket
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Unit]
+              Description=Temporary CAG migration listener for cached DNS
+
+              [Socket]
+              ListenStream=0.0.0.0:443
+              NoDelay=true
+
+              [Install]
+              WantedBy=sockets.target
+
+        - name: Enable the source forwarding socket
+          ansible.builtin.systemd_service:
+            name: cag-migration-forward.socket
+            enabled: true
+            state: started
+            daemon_reload: true
+
+  handlers:
+    - name: Release source application listener
+      ansible.builtin.systemd_service:
+        name: ssh.service
+        state: reloaded
+
+    - name: Restart migration forwarder
+      ansible.builtin.systemd_service:
+        name: cag-migration-forward.service
+        state: restarted
+        daemon_reload: true

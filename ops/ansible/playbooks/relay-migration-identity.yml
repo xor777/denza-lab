@@ -1,0 +1,127 @@
+---
+- name: Restore the existing relay identity on an empty replacement host
+  hosts: gateways
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Require an explicit migration target and private local snapshot
+      ansible.builtin.assert:
+        that:
+          - confirm_relay_identity_restore | default(false) | bool
+          - relay_identity_directory is defined
+          - relay_identity_directory is match('^/')
+          - ansible_host == relay_host_public_ipv4
+        fail_msg: Restore only to the prepared replacement host with a private snapshot.
+
+    - name: Verify the snapshot has the pinned relay host key
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -lf
+          - "{{ relay_identity_directory }}/ssh_host_ed25519_key.pub"
+          - -E
+          - sha256
+      register: relay_identity_fingerprint
+      changed_when: false
+
+    - name: Require the existing application pin
+      ansible.builtin.assert:
+        that:
+          - relay_identity_fingerprint.stdout.split()[1] == relay_host_ed25519_fingerprint
+
+    - name: Inspect replacement state without exposing registrations
+      ansible.builtin.slurp:
+        src: /opt/cag/state/state.json
+      register: relay_identity_existing
+      no_log: true
+
+    - name: Refuse to overwrite a populated replacement relay
+      ansible.builtin.assert:
+        that:
+          - >-
+            (relay_identity_existing.content | b64decode | from_json)
+            == (lookup('ansible.builtin.file', relay_identity_directory ~ '/state.json') | from_json)
+            or
+            (
+              ((relay_identity_existing.content | b64decode | from_json).devices | length == 0)
+              and ((relay_identity_existing.content | b64decode | from_json).clients | length == 0)
+              and ((relay_identity_existing.content | b64decode | from_json).grants | length == 0)
+              and ((relay_identity_existing.content | b64decode | from_json).pending | length == 0)
+              and ((relay_identity_existing.content | b64decode | from_json).codes | length == 0)
+            )
+        fail_msg: The replacement already has runtime state; reconcile it before restoring.
+      no_log: true
+
+  tasks:
+    - name: Pause replacement lifecycle writers while restoring
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: stopped
+      loop:
+        - cag-gc.timer
+        - cag-gc.service
+        - cag-web.service
+
+    - name: Restore identity and validate before resuming lifecycle writers
+      block:
+        - name: Preserve SSH host identities used by existing clients
+          ansible.builtin.copy:
+            src: "{{ relay_identity_directory }}/{{ item }}"
+            dest: "/etc/ssh/{{ item }}"
+            owner: root
+            group: root
+            mode: "{{ '0644' if item.endswith('.pub') else '0600' }}"
+          loop:
+            - ssh_host_ed25519_key
+            - ssh_host_ed25519_key.pub
+            - ssh_host_rsa_key
+            - ssh_host_rsa_key.pub
+            - ssh_host_ecdsa_key
+            - ssh_host_ecdsa_key.pub
+          no_log: true
+          diff: false
+          notify: Reload migrated SSH identity
+
+        - name: Restore the validated runtime snapshot atomically
+          ansible.builtin.copy:
+            src: "{{ relay_identity_directory }}/state.json"
+            dest: /opt/cag/state/state.json
+            owner: root
+            group: cag-state
+            mode: "0660"
+          no_log: true
+          diff: false
+
+        - name: Restore authorized-key reader access
+          ansible.posix.acl:
+            path: /opt/cag/state/state.json
+            entity: cag-authkeys
+            etype: user
+            permissions: r--
+            state: present
+
+        - name: Validate the restored registrations
+          ansible.builtin.command: /usr/local/sbin/cag-admin doctor
+          changed_when: false
+
+        - name: Validate the restored SSH identities
+          ansible.builtin.command: /usr/sbin/sshd -t
+          changed_when: false
+
+      always:
+        - name: Resume replacement lifecycle writers
+          ansible.builtin.systemd_service:
+            name: "{{ item }}"
+            state: started
+          loop:
+            - cag-gc.timer
+            - cag-web.service
+
+  handlers:
+    - name: Reload migrated SSH identity
+      ansible.builtin.systemd_service:
+        name: ssh.service
+        state: reloaded

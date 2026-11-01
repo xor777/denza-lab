@@ -8,7 +8,7 @@
     - name: Read effective SSH settings
       ansible.builtin.shell: >-
         set -o pipefail &&
-        /usr/sbin/sshd -T -C user={{ admin_user }},addr=127.0.0.1,host=localhost |
+        /usr/sbin/sshd -T -C user={{ admin_user }},addr=127.0.0.1,host=localhost,lport={{ relay_host_admin_ssh_port | default(22) }} |
         grep -E '^(permitrootlogin|passwordauthentication|pubkeyauthentication|maxauthtries|x11forwarding|allowagentforwarding) '
       args:
         executable: /bin/bash

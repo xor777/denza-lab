@@ -27,6 +27,52 @@
     name: "{{ base_packages }}"
     state: present
 
+- name: Retire SSH socket activation so sshd owns its configured ports
+  ansible.builtin.systemd_service:
+    name: ssh.socket
+    enabled: false
+    state: stopped
+  register: base_ssh_socket_retired
+
+- name: Enable the persistent SSH daemon
+  ansible.builtin.systemd_service:
+    name: ssh.service
+    enabled: true
+    state: "{{ 'restarted' if base_ssh_socket_retired is changed else 'started' }}"
+
+- name: Create the resolver configuration directory
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: gateway_dns_servers | default([]) | length > 0
+  tags: relay_dns
+
+- name: Prefer the configured DNS resolver pair
+  ansible.builtin.copy:
+    dest: /etc/systemd/resolved.conf.d/20-ansible-gateway-dns.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible. Prefer these resolvers over DHCP-provided DNS.
+      [Resolve]
+      DNS={{ gateway_dns_servers | join(' ') }}
+      Domains=~.
+  when: gateway_dns_servers | default([]) | length > 0
+  notify: Restart systemd-resolved
+  tags: relay_dns
+
+- name: Remove the resolver override when provider DNS is requested
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d/20-ansible-gateway-dns.conf
+    state: absent
+  when: gateway_dns_servers | default([]) | length == 0
+  notify: Restart systemd-resolved
+  tags: relay_dns
+
 - name: Create the admin user
   ansible.builtin.user:
     name: "{{ admin_user }}"
