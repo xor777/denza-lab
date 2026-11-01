@@ -76,11 +76,12 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
   `research/telematics-firmware/persistent_runtime.c`,
   `docs/cloud-custom-runtime-contract.md`, the CUSTOM mode of `feature/cloud`),
   moved off main in `eed3a411`.
-- Branch `stock-sender-parity` — the map → ADAS (NOA) bridge: `libraries/adas-link`,
-  `tools/adas_bridge`, `research/adas-bridge`, the ADAS probes and the ADAS overlay in
-  the YandexHUD module, moved off main on 2026-11-01. Branch `adas-odd-parity` is a
-  second line of the same work (ODD parity, YandexHUD build 17) not yet merged into it.
-  Merge main into them; they come back to main only when the bridge is finished.
+- Branches `stock-sender-parity` and `adas-odd-parity` — the map → ADAS (NOA) bridge:
+  `libraries/adas-link`, `tools/adas_bridge`, `research/adas-bridge`, the ADAS probes and
+  the ADAS overlay in the YandexHUD module, moved off main on 2026-11-01. Two parallel
+  lines of the same work, kept side by side: YandexHUD builds 15 and 18–29 come from
+  the first, 16–17 (ODD parity) from the second. Merge main into them; they come back
+  to main only when the bridge is finished.
 
 ## The car
 
