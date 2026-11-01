@@ -25,7 +25,9 @@ final class Scenes {
         final float axis;
         final float stockBottom;
         final float glowMax;
-        final float glowFullKw;
+        final float glowExponent;
+        final float outKw;
+        final float inKw;
         final float glowRadius;
         final float glowReachBelow;
         final int ink;
@@ -38,7 +40,9 @@ final class Scenes {
             axis = (float) o.getDouble("axis");
             stockBottom = (float) o.getDouble("stockBottom");
             glowMax = (float) glow.getDouble("max");
-            glowFullKw = (float) glow.getDouble("fullKw");
+            glowExponent = (float) glow.getDouble("exponent");
+            outKw = (float) o.getDouble("outKw");
+            inKw = (float) o.getDouble("inKw");
             glowRadius = (float) glow.getDouble("radius");
             glowReachBelow = (float) glow.getDouble("reachBelow");
             ink = Color.parseColor(o.getString("ink"));

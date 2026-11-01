@@ -25,6 +25,13 @@ const (
 	innerUser       = "cag"
 	defaultSmartADB = 5037
 	defaultRawADB   = 5555
+
+	// defaultWaitDelay bounds how long a finished ssh can keep the caller
+	// waiting for pipes that a background child (a ProxyCommand) still holds.
+	defaultWaitDelay = 5 * time.Second
+	tunnelLogName    = "tunnel.log"
+	proxyLogName     = "proxy.log"
+	maxProxyLogBytes = 1 << 20
 )
 
 var relayHostKeys = []string{
@@ -54,11 +61,21 @@ type PendingPair struct {
 }
 
 type commandRunner interface {
+	// Run returns the combined output of a command that exits on its own.
 	Run(context.Context, map[string]string, string, ...string) ([]byte, error)
+	// Interactive connects the command to this process's terminal.
 	Interactive(context.Context, map[string]string, string, ...string) error
+	// Detached runs a command that leaves a process in the background (ssh -f):
+	// stdin is /dev/null and stdout and stderr go to the log file, so nothing
+	// the background process inherits can hold the caller.
+	Detached(ctx context.Context, env map[string]string, logPath string, name string, args ...string) error
+	// Pipe passes stdin and stdout through and appends stderr to a log file.
+	Pipe(ctx context.Context, env map[string]string, stderrPath string, name string, args ...string) error
 }
 
-type systemRunner struct{}
+type systemRunner struct {
+	waitDelay time.Duration
+}
 
 func (systemRunner) command(ctx context.Context, env map[string]string, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -71,11 +88,16 @@ func (systemRunner) command(ctx context.Context, env map[string]string, name str
 
 func (runner systemRunner) Run(ctx context.Context, env map[string]string, name string, args ...string) ([]byte, error) {
 	cmd := runner.command(ctx, env, name, args...)
+	cmd.WaitDelay = runner.waitDelay
 	output, err := cmd.CombinedOutput()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		// The command itself succeeded; a child it left behind kept the pipe.
+		err = nil
+	}
 	if err != nil {
 		message := strings.TrimSpace(string(output))
 		if message != "" {
-			return output, fmt.Errorf("%s: %s", err, message)
+			return output, fmt.Errorf("%w: %s", err, message)
 		}
 	}
 	return output, err
@@ -89,11 +111,61 @@ func (runner systemRunner) Interactive(ctx context.Context, env map[string]strin
 	return cmd.Run()
 }
 
+func (runner systemRunner) Detached(ctx context.Context, env map[string]string, logPath string, name string, args ...string) error {
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		return err
+	}
+	defer devNull.Close()
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", logPath, err)
+	}
+	defer logFile.Close()
+	cmd := runner.command(ctx, env, name, args...)
+	cmd.Stdin = devNull
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	cmd.WaitDelay = runner.waitDelay
+	err = cmd.Run()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	return err
+}
+
+func (runner systemRunner) Pipe(ctx context.Context, env map[string]string, stderrPath string, name string, args ...string) error {
+	flags := os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	if info, err := os.Stat(stderrPath); err == nil && info.Size() > maxProxyLogBytes {
+		flags |= os.O_TRUNC
+	}
+	logFile, err := os.OpenFile(stderrPath, flags, 0o600)
+	if err != nil {
+		if logFile, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0); err != nil {
+			return err
+		}
+	}
+	defer logFile.Close()
+	cmd := runner.command(ctx, env, name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = logFile
+	return cmd.Run()
+}
+
 type App struct {
 	runner     commandRunner
 	configDir  string
 	executable string
 	stdout     io.Writer
+	// defaultPort is used when no port was chosen; tests replace it so they
+	// never probe the real one.
+	defaultPort int
+	// The service command's view of the system, replaced in tests.
+	processes processTable
+	goos      string
+	homeDir   string
+	lookPath  func(string) (string, error)
 }
 
 func New() *App {
@@ -106,16 +178,46 @@ func New() *App {
 		configDir = filepath.Join(base, "cag")
 	}
 	executable, _ := os.Executable()
+	if absolute, err := filepath.Abs(executable); err == nil {
+		executable = absolute
+	}
+	home, _ := os.UserHomeDir()
 	return &App{
-		runner:     systemRunner{},
-		configDir:  configDir,
-		executable: executable,
-		stdout:     os.Stdout,
+		runner:      systemRunner{waitDelay: defaultWaitDelay},
+		configDir:   configDir,
+		executable:  executable,
+		stdout:      os.Stdout,
+		defaultPort: defaultLocalPort,
+		processes:   systemProcesses{},
+		goos:        runtime.GOOS,
+		homeDir:     home,
+		lookPath:    exec.LookPath,
 	}
 }
 
 func newForTest(runner commandRunner, configDir, executable string, stdout io.Writer) *App {
-	return &App{runner: runner, configDir: configDir, executable: executable, stdout: stdout}
+	return &App{
+		runner:      runner,
+		configDir:   configDir,
+		executable:  executable,
+		stdout:      stdout,
+		defaultPort: testDefaultPort(),
+		processes:   systemProcesses{},
+		goos:        runtime.GOOS,
+		homeDir:     filepath.Join(configDir, "home"),
+		lookPath:    func(string) (string, error) { return "", exec.ErrNotFound },
+	}
+}
+
+// testDefaultPort is a currently free ephemeral port, so tests never touch
+// the real default port.
+func testDefaultPort() int {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return 0
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port
 }
 
 func (app *App) Run(ctx context.Context, args []string) error {
@@ -152,15 +254,24 @@ func (app *App) Run(ctx context.Context, args []string) error {
 			return errors.New("usage: cag disconnect")
 		}
 		return app.disconnect(ctx)
+	case "service":
+		return app.service(ctx, args[1:])
 	case "__proxy":
-		if len(args) != 2 {
+		if len(args) != 2 && len(args) != 3 {
 			return errors.New("invalid proxy invocation")
 		}
 		port, err := strconv.Atoi(args[1])
 		if err != nil || port < 1024 || port > 65535 {
 			return errors.New("invalid proxy port")
 		}
-		return app.proxy(ctx, port)
+		identityName := "identity"
+		if len(args) == 3 {
+			identityName = args[2]
+		}
+		if !validIdentityName(identityName) {
+			return errors.New("invalid proxy identity")
+		}
+		return app.proxy(ctx, port, identityName)
 	default:
 		app.usage()
 		return fmt.Errorf("unknown command %q", args[0])
@@ -169,15 +280,76 @@ func (app *App) Run(ctx context.Context, args []string) error {
 
 func (app *App) usage() {
 	fmt.Fprintln(app.stdout, `Usage:
-	  cag pair XXXX-XXXX
-	  cag pair --new-key XXXX-XXXX
-  cag connect
-  cag connect -- adb [arguments...]
+  cag pair XXXX-XXXX
+  cag pair --new-key XXXX-XXXX
+  cag connect [--port N]
+  cag connect [--port N] -- adb [arguments...]
+  cag connect [--port N] --watch
   cag status
-  cag disconnect`)
+  cag disconnect
+  cag service install [--port N]
+  cag service uninstall
+  cag service status`)
 }
 
 func (app *App) path(name string) string { return filepath.Join(app.configDir, name) }
+
+// maxControlSocketPath leaves room for the 17-character suffix OpenSSH adds to
+// the ControlPath while it binds, under macOS's 104-byte sun_path limit.
+const maxControlSocketPath = 103 - 17
+
+// controlSocket is the ControlMaster socket. It lives in the config directory
+// unless that path is too long for a Unix socket; then it moves to the user's
+// private runtime or temporary directory under a name derived from the config
+// directory, so each config keeps its own master.
+func (app *App) controlSocket() string {
+	socket := app.path("session.sock")
+	if len(socket) <= maxControlSocketPath {
+		return socket
+	}
+	base := os.Getenv("XDG_RUNTIME_DIR")
+	if base == "" {
+		base = os.TempDir()
+	}
+	sum := sha256.Sum256([]byte(app.configDir))
+	return filepath.Join(base, fmt.Sprintf("cag-%d-%x.sock", os.Getuid(), sum[:6]))
+}
+
+// AskpassSecret reports whether this process was started by OpenSSH as the
+// askpass helper and returns the pairing code to print. ssh also hands its
+// environment to the ProxyCommand, so the proxy is never an askpass call.
+func AskpassSecret(args []string, getenv func(string) string) (string, bool) {
+	if getenv("CAG_ASKPASS_MODE") != "1" {
+		return "", false
+	}
+	if len(args) > 0 && args[0] == "__proxy" {
+		return "", false
+	}
+	return getenv("CAG_ASKPASS_SECRET"), true
+}
+
+func clearAskpassEnvironment() {
+	for _, key := range []string{"CAG_ASKPASS_MODE", "CAG_ASKPASS_SECRET", "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE"} {
+		os.Unsetenv(key)
+	}
+	if os.Getenv("DISPLAY") == "cag" {
+		os.Unsetenv("DISPLAY")
+	}
+}
+
+func validIdentityName(name string) bool { return name == "identity" || name == "identity.next" }
+
+// sshPercentEscape protects a path from OpenSSH's %-token expansion, which
+// applies to identity files, known-hosts files, control paths and ProxyCommand.
+func sshPercentEscape(value string) string { return strings.ReplaceAll(value, "%", "%%") }
+
+// sshPathOption builds one "-o Key=value" argument for a path. OpenSSH splits
+// option values at whitespace (the macOS config dir is "Application Support")
+// and UserKnownHostsFile even takes several files, so the value is quoted.
+func sshPathOption(key, path string) string {
+	quoted := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(sshPercentEscape(path))
+	return key + `="` + quoted + `"`
+}
 
 func (app *App) ensureConfig() error {
 	if err := os.MkdirAll(app.configDir, 0o700); err != nil {
@@ -339,6 +511,7 @@ func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
 	if err := app.writeKnownHostsForBundle(*bundle, temporaryKnownHosts); err != nil {
 		return err
 	}
+	proxyLogOffset := fileSize(app.path(proxyLogName))
 	confirmation, err := app.runner.Run(
 		ctx,
 		askpassEnvironment(app.executable, code),
@@ -346,7 +519,8 @@ func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
 		app.innerArgsWithIdentity(*bundle, temporaryKnownHosts, pending.IdentityName, false, "pair-complete")...,
 	)
 	if err != nil {
-		return fmt.Errorf("pairing confirmation was interrupted; rerun the same cag pair command: %w", err)
+		return fmt.Errorf("pairing confirmation was interrupted; rerun the same cag pair command: %w%s",
+			err, logDetail("relay", app.logSince(proxyLogName, proxyLogOffset)))
 	}
 	if !strings.HasPrefix(strings.TrimSpace(string(confirmation)), "OK") {
 		return errors.New("the car returned an invalid pairing confirmation")
@@ -460,7 +634,7 @@ func askpassEnvironment(executable, code string) map[string]string {
 }
 
 func (app *App) relayPairArgs(code, payload string) []string {
-	return append(app.relayHostArgs(false),
+	return append(app.relayHostArgs(""),
 		"-o", "BatchMode=no",
 		"-o", "PreferredAuthentications=password",
 		"-o", "PubkeyAuthentication=no",
@@ -470,17 +644,20 @@ func (app *App) relayPairArgs(code, payload string) []string {
 	)
 }
 
-func (app *App) relayHostArgs(withIdentity bool) []string {
+// relayHostArgs are the outer connection to the relay. identityName is empty
+// for the password-only pairing account.
+func (app *App) relayHostArgs(identityName string) []string {
 	args := []string{
+		"-F", "none",
 		"-T", "-p", strconv.Itoa(relaySSHPort),
 		"-o", "StrictHostKeyChecking=yes",
-		"-o", "UserKnownHostsFile=" + app.path("known_hosts"),
+		"-o", sshPathOption("UserKnownHostsFile", app.path("known_hosts")),
 		"-o", "GlobalKnownHostsFile=/dev/null",
 		"-o", "LogLevel=ERROR",
 	}
-	if withIdentity {
+	if identityName != "" {
 		args = append(args,
-			"-i", app.path("identity"),
+			"-i", sshPercentEscape(app.path(identityName)),
 			"-o", "BatchMode=yes",
 			"-o", "IdentitiesOnly=yes",
 		)
@@ -579,8 +756,8 @@ func (app *App) installBundleHostKey(bundle DeviceBundle) error {
 
 func innerAlias(deviceID string) string { return "cag-device-" + deviceID }
 
-func (app *App) proxyCommand(port int) string {
-	return shellQuote(app.executable) + " __proxy " + strconv.Itoa(port)
+func (app *App) proxyCommand(port int, identityName string) string {
+	return sshPercentEscape(shellQuote(app.executable) + " __proxy " + strconv.Itoa(port) + " " + identityName)
 }
 
 func shellQuote(value string) string {
@@ -593,14 +770,15 @@ func (app *App) innerArgs(bundle DeviceBundle, knownHosts string, batch bool, co
 
 func (app *App) innerArgsWithIdentity(bundle DeviceBundle, knownHosts, identityName string, batch bool, command ...string) []string {
 	args := []string{
+		"-F", "none",
 		"-T",
-		"-i", app.path(identityName),
+		"-i", sshPercentEscape(app.path(identityName)),
 		"-o", "IdentitiesOnly=yes",
 		"-o", "StrictHostKeyChecking=yes",
 		"-o", "HostKeyAlias=" + innerAlias(bundle.DeviceID),
-		"-o", "UserKnownHostsFile=" + knownHosts,
+		"-o", sshPathOption("UserKnownHostsFile", knownHosts),
 		"-o", "GlobalKnownHostsFile=/dev/null",
-		"-o", "ProxyCommand=" + app.proxyCommand(bundle.RelayDevicePort),
+		"-o", "ProxyCommand=" + app.proxyCommand(bundle.RelayDevicePort, identityName),
 		"-o", "LogLevel=ERROR",
 	}
 	if batch {
@@ -616,14 +794,18 @@ func (app *App) innerArgsWithIdentity(bundle DeviceBundle, knownHosts, identityN
 	return append(args, command...)
 }
 
-func (app *App) proxy(ctx context.Context, port int) error {
-	args := append(app.relayHostArgs(true),
+// proxy is the inner connection's ProxyCommand. It inherits the inner ssh's
+// environment (including askpass variables during pairing) and stderr, so it
+// clears the former and keeps its own ssh's messages in proxy.log.
+func (app *App) proxy(ctx context.Context, port int, identityName string) error {
+	clearAskpassEnvironment()
+	args := append(app.relayHostArgs(identityName),
 		"-o", "ServerAliveInterval=30",
 		"-o", "ServerAliveCountMax=3",
 		"-W", "127.0.0.1:"+strconv.Itoa(port),
 		"cag-client@"+relayHost,
 	)
-	return app.runner.Interactive(ctx, nil, "ssh", args...)
+	return app.runner.Pipe(ctx, nil, app.path(proxyLogName), "ssh", args...)
 }
 
 func (app *App) loadBundle() (DeviceBundle, error) {
@@ -641,74 +823,126 @@ func (app *App) loadBundle() (DeviceBundle, error) {
 	return bundle, nil
 }
 
-func (app *App) controlCheck(ctx context.Context, bundle DeviceBundle) bool {
-	if _, err := os.Stat(app.path("session.sock")); err != nil {
-		return false
-	}
-	args := app.innerArgs(bundle, app.path("known_hosts"), true)
-	args = append(args[:len(args)-1], "-S", app.path("session.sock"), "-O", "check", args[len(args)-1])
-	_, err := app.runner.Run(ctx, nil, "ssh", args...)
-	return err == nil
-}
-
-func (app *App) startTunnel(ctx context.Context, bundle DeviceBundle) (int, error) {
-	if app.controlCheck(ctx, bundle) {
-		return app.readLocalPort()
-	}
-	os.Remove(app.path("session.sock"))
-	os.Remove(app.path("local-port"))
+// tunnelArgs start the background ControlMaster that carries ADB. The car
+// forwards its ADB ports to whatever endpoint it detects now, so the host in
+// the bundle is only a hint and a stale one does not matter.
+func (app *App) tunnelArgs(bundle DeviceBundle, localPort int) []string {
 	targetPort := defaultSmartADB
 	if bundle.EndpointMode == "raw" {
 		targetPort = defaultRawADB
 	}
-	for attempt := 0; attempt < 20; attempt++ {
-		localPort, err := freeLocalPort()
-		if err != nil {
-			return 0, err
-		}
-		args := app.innerArgs(bundle, app.path("known_hosts"), true)
-		last := args[len(args)-1]
-		args = append(args[:len(args)-1],
-			"-o", "ExitOnForwardFailure=yes",
-			"-o", "ServerAliveInterval=30",
-			"-o", "ServerAliveCountMax=3",
-			"-o", "ControlMaster=yes",
-			"-o", "ControlPath="+app.path("session.sock"),
-			"-S", app.path("session.sock"),
-			"-M", "-N", "-f",
-			"-L", fmt.Sprintf("127.0.0.1:%d:%s:%d", localPort, bundle.EndpointHost, targetPort),
-			last,
-		)
-		if _, err := app.runner.Run(ctx, nil, "ssh", args...); err == nil {
-			if err := writeAtomic(app.path("local-port"), []byte(strconv.Itoa(localPort)+"\n"), 0o600); err != nil {
-				return 0, err
+	args := app.innerArgs(bundle, app.path("known_hosts"), true)
+	last := args[len(args)-1]
+	return append(args[:len(args)-1],
+		"-o", "ExitOnForwardFailure=yes",
+		"-o", "ServerAliveInterval=30",
+		"-o", "ServerAliveCountMax=3",
+		"-o", "ControlMaster=yes",
+		"-S", sshPercentEscape(app.controlSocket()),
+		"-M", "-N", "-f",
+		"-L", fmt.Sprintf("127.0.0.1:%d:%s:%d", localPort, forwardHost(bundle), targetPort),
+		last,
+	)
+}
+
+func forwardHost(bundle DeviceBundle) string {
+	ip := net.ParseIP(bundle.EndpointHost)
+	if ip == nil || ip.To4() == nil || ip.IsUnspecified() || ip.IsMulticast() {
+		return "127.0.0.1"
+	}
+	return ip.To4().String()
+}
+
+// isLocalBindFailure recognises ssh failing to listen on the chosen local
+// port, the only failure that another port can fix.
+func isLocalBindFailure(output string) bool {
+	return strings.Contains(output, "Could not request local forwarding") ||
+		strings.Contains(output, "cannot listen to port")
+}
+
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}
+
+// logSince returns what a log file gained after offset, capped to its tail.
+func (app *App) logSince(name string, offset int64) string {
+	data, err := os.ReadFile(app.path(name))
+	if err != nil || int64(len(data)) <= offset {
+		return ""
+	}
+	data = data[offset:]
+	if len(data) > 2048 {
+		data = data[len(data)-2048:]
+	}
+	return string(data)
+}
+
+func logDetail(label, text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	return fmt.Sprintf("\n%s: %s", label, text)
+}
+
+type connectOptions struct {
+	port    int
+	watch   bool
+	adbArgs []string // nil without "-- adb"
+}
+
+func parseConnectArgs(args []string) (connectOptions, error) {
+	usage := errors.New("usage: cag connect [--port N] [--watch | -- adb ...]")
+	var options connectOptions
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--":
+			rest := args[index+1:]
+			if len(rest) == 0 || rest[0] != "adb" || options.watch {
+				return options, usage
 			}
-			return localPort, nil
+			options.adbArgs = append([]string{}, rest[1:]...)
+			return options, nil
+		case arg == "--watch":
+			options.watch = true
+		case arg == "--port" || strings.HasPrefix(arg, "--port="):
+			value := strings.TrimPrefix(arg, "--port=")
+			if arg == "--port" {
+				if index+1 >= len(args) {
+					return options, usage
+				}
+				index++
+				value = args[index]
+			}
+			port, err := parseLocalPort(value)
+			if err != nil {
+				return options, err
+			}
+			options.port = port
+		default:
+			return options, usage
 		}
 	}
-	return 0, errors.New("could not open a local ADB port")
-}
-
-func freeLocalPort() (int, error) {
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		return 0, err
-	}
-	defer listener.Close()
-	return listener.Addr().(*net.TCPAddr).Port, nil
-}
-
-func (app *App) readLocalPort() (int, error) {
-	data, err := os.ReadFile(app.path("local-port"))
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(strings.TrimSpace(string(data)))
+	return options, nil
 }
 
 func (app *App) connect(ctx context.Context, args []string) error {
-	if len(args) > 0 && (len(args) < 2 || args[0] != "--" || args[1] != "adb") {
-		return errors.New("usage: cag connect [-- adb ...]")
+	options, err := parseConnectArgs(args)
+	if err != nil {
+		return err
+	}
+	if options.watch {
+		if options.port != 0 {
+			if _, err := app.localPort(options.port); err != nil {
+				return err
+			}
+		}
+		return app.watch(ctx)
 	}
 	bundle, err := app.loadBundle()
 	if err != nil {
@@ -717,25 +951,31 @@ func (app *App) connect(ctx context.Context, args []string) error {
 	if err := app.ensureIdentity(ctx); err != nil {
 		return err
 	}
-	localPort, err := app.startTunnel(ctx, bundle)
+	localPort, err := app.localPort(options.port)
 	if err != nil {
 		return err
 	}
-	if len(args) == 0 {
-		fmt.Fprintf(app.stdout, "Connected. Local ADB port: %d (%s).\n", localPort, bundle.EndpointMode)
-		return nil
-	}
-	adbArgs := args[2:]
-	if bundle.EndpointMode == "smart" {
-		return app.runner.Interactive(ctx, map[string]string{
-			"ADB_SERVER_SOCKET": fmt.Sprintf("tcp:127.0.0.1:%d", localPort),
-		}, "adb", adbArgs...)
-	}
-	serial := fmt.Sprintf("127.0.0.1:%d", localPort)
-	if _, err := app.runner.Run(ctx, nil, "adb", "connect", serial); err != nil {
+	if _, err := app.startTunnel(ctx, bundle, localPort); err != nil {
 		return err
 	}
-	return app.runner.Interactive(ctx, nil, "adb", append([]string{"-s", serial}, adbArgs...)...)
+	serial := loopbackAddress(localPort)
+	if options.adbArgs == nil {
+		if bundle.EndpointMode == "smart" {
+			fmt.Fprintf(app.stdout, "Connected. ADB server: tcp:%s (smart).\n", serial)
+		} else {
+			fmt.Fprintf(app.stdout, "Connected. Serial: %s (%s).\n", serial, bundle.EndpointMode)
+		}
+		return nil
+	}
+	if bundle.EndpointMode == "smart" {
+		return app.runner.Interactive(ctx, map[string]string{
+			"ADB_SERVER_SOCKET": "tcp:" + serial,
+		}, "adb", options.adbArgs...)
+	}
+	if err := app.adbConnect(ctx, serial); err != nil {
+		return err
+	}
+	return app.runner.Interactive(ctx, nil, "adb", append([]string{"-s", serial}, options.adbArgs...)...)
 }
 
 func (app *App) status(ctx context.Context) error {
@@ -743,30 +983,56 @@ func (app *App) status(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	state := "disconnected"
-	localPort := "-"
-	if app.controlCheck(ctx, bundle) {
-		state = "connected"
-		if port, err := app.readLocalPort(); err == nil {
-			localPort = strconv.Itoa(port)
-		}
-	}
-	fmt.Fprintf(app.stdout, "Car: %s\nState: %s\nADB: %s\nLocal port: %s\n", bundle.DeviceLabel, state, bundle.EndpointMode, localPort)
-	return nil
-}
-
-func (app *App) disconnect(ctx context.Context) error {
-	bundle, err := app.loadBundle()
+	localPort, err := app.localPort(0)
 	if err != nil {
 		return err
 	}
-	if app.controlCheck(ctx, bundle) {
-		args := app.innerArgs(bundle, app.path("known_hosts"), true)
-		args = append(args[:len(args)-1], "-S", app.path("session.sock"), "-O", "exit", args[len(args)-1])
-		_, _ = app.runner.Run(ctx, nil, "ssh", args...)
+	serial := loopbackAddress(localPort)
+	master := app.masterState(ctx, bundle)
+	state := "disconnected"
+	portNote := ""
+	switch {
+	case master.holds(localPort) && master.Answers:
+		state = "connected"
+	case master.holds(localPort):
+		state = "tunnel running but not answering"
+	default:
+		if master.Answers || master.Running {
+			state = "connected on another port; run: cag connect"
+		}
+		if !localPortFree(localPort) {
+			portNote = fmt.Sprintf("Port: %s is in use by another program\n", serial)
+		}
 	}
-	os.Remove(app.path("session.sock"))
-	os.Remove(app.path("local-port"))
+	if master.PID > 0 {
+		state += fmt.Sprintf(" (pid %d)", master.PID)
+	}
+	serialLine := "Serial: " + serial
+	switch {
+	case bundle.EndpointMode == "smart":
+		serialLine = "ADB server: tcp:" + serial
+	case master.Answers && master.holds(localPort):
+		if adbState, missing := app.adbSerialState(ctx, serial); missing {
+			serialLine += " (adb not on PATH)"
+		} else if adbState == "" {
+			serialLine += " (not attached in adb)"
+		} else {
+			serialLine += " (" + adbState + ")"
+		}
+	}
+	fmt.Fprintf(app.stdout, "Car: %s\nState: %s\nADB: %s\n%s\n%s", bundle.DeviceLabel, state, bundle.EndpointMode, serialLine, portNote)
+	return nil
+}
+
+// disconnect closes this config's tunnel, even one whose socket is gone. It
+// never touches the adb server or anything else.
+func (app *App) disconnect(ctx context.Context) error {
+	if _, err := app.loadBundle(); err != nil {
+		return err
+	}
+	if _, err := app.closeAnyMaster(ctx); err != nil {
+		return err
+	}
 	fmt.Fprintln(app.stdout, "Disconnected.")
 	return nil
 }

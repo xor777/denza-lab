@@ -43,6 +43,7 @@ public final class LocalAdbClient {
     private static final int A_CLSE = command("CLSE");
     private static final int A_WRTE = command("WRTE");
     private static final int A_AUTH = command("AUTH");
+    private static final int A_STLS = command("STLS");
 
     private static final int ADB_AUTH_TOKEN = 1;
     private static final int ADB_AUTH_SIGNATURE = 2;
@@ -172,6 +173,98 @@ public final class LocalAdbClient {
             throw lastIoFailure;
         }
         throw new NoHostsException();
+    }
+
+    /** What adbd answered this client's CNXN with, once the proxy handshake has completed. */
+    public static final class AdbProxyResult {
+        /** adbd's negotiated ADB protocol version (CNXN arg0). */
+        public final int version;
+        /** adbd's maximum payload (CNXN arg1). */
+        public final int maxData;
+        /** adbd's system-identity banner (CNXN payload), already relayed to the client verbatim. */
+        public final byte[] systemIdentity;
+
+        AdbProxyResult(int version, int maxData, byte[] systemIdentity) {
+            this.version = version;
+            this.maxData = maxData;
+            this.systemIdentity = systemIdentity;
+        }
+    }
+
+    /** adbd asked for STLS; the app-key proxy path has nothing to offer and must close. */
+    public static final class AdbProxyTlsException extends IOException {
+        AdbProxyTlsException() {
+            super("adbd requested STLS; the app-key proxy cannot continue");
+        }
+    }
+
+    /** adbd refused the app key's signature; the public key is never offered from this path. */
+    public static final class AdbProxySignatureRejectedException extends IOException {
+        AdbProxySignatureRejectedException() {
+            super("adbd rejected the app ADB key signature");
+        }
+    }
+
+    /**
+     * Terminates an ADB connect handshake for a tunnelled client, authenticating with this
+     * client's own key, and never submitting the public key.
+     *
+     * <p>Uses the identity this {@code LocalAdbClient} was built with. See the static overload for
+     * the wire behaviour.
+     */
+    public AdbProxyResult proxyAdbConnect(
+            InputStream clientIn,
+            OutputStream clientOut,
+            InputStream adbdIn,
+            OutputStream adbdOut) throws IOException, GeneralSecurityException {
+        return proxyAdbConnect(keyStore.keyPair(), clientIn, clientOut, adbdIn, adbdOut);
+    }
+
+    /**
+     * Drives the ADB connect handshake between a tunnelled client and adbd, signing with
+     * {@code adbKey} and keeping the public key out of this path entirely.
+     *
+     * <p>The flow mirrors a real {@code adb}: read the client's {@code CNXN}; send adbd a
+     * {@code CNXN} carrying the client's version, max-payload and banner unchanged; answer adbd's
+     * {@code AUTH TOKEN} by signing it with {@code adbKey}; forward adbd's {@code CNXN} to the
+     * client verbatim and return its fields. The public key ({@code RSAPUBLICKEY}) is never sent:
+     * a second {@code AUTH TOKEN} means adbd refused the signature, which raises
+     * {@link AdbProxySignatureRejectedException}. {@code STLS} raises {@link AdbProxyTlsException}.
+     * The streams belong to the caller, which closes them; this method keeps PASSIVE semantics and
+     * never adds a request to the head unit's prompt queue.
+     */
+    public static AdbProxyResult proxyAdbConnect(
+            java.security.KeyPair adbKey,
+            InputStream clientIn,
+            OutputStream clientOut,
+            InputStream adbdIn,
+            OutputStream adbdOut) throws IOException, GeneralSecurityException {
+        Message clientConnect = readMessage(clientIn, false);
+        if (clientConnect.command != A_CNXN) {
+            throw new IOException("Expected ADB CNXN from client, got " + clientConnect.commandName());
+        }
+        writeMessage(adbdOut, A_CNXN, clientConnect.arg0, clientConnect.arg1, clientConnect.payload);
+        boolean signed = false;
+        while (true) {
+            Message reply = readMessage(adbdIn, false);
+            if (reply.command == A_CNXN) {
+                writeMessage(clientOut, A_CNXN, reply.arg0, reply.arg1, reply.payload);
+                return new AdbProxyResult(reply.arg0, reply.arg1, reply.payload);
+            }
+            if (reply.command == A_STLS) {
+                throw new AdbProxyTlsException();
+            }
+            if (reply.command == A_AUTH && reply.arg0 == ADB_AUTH_TOKEN) {
+                if (signed) {
+                    throw new AdbProxySignatureRejectedException();
+                }
+                writeMessage(adbdOut, A_AUTH, ADB_AUTH_SIGNATURE, 0,
+                        AdbKeyStore.signToken(adbKey, reply.payload));
+                signed = true;
+                continue;
+            }
+            throw new IOException("Unexpected ADB handshake message " + reply.commandName());
+        }
     }
 
     /**
@@ -1339,6 +1432,16 @@ public final class LocalAdbClient {
     }
 
     private static Message readMessage(InputStream input) throws IOException {
+        return readMessage(input, true);
+    }
+
+    /**
+     * Reads one message. A peer at protocol version {@code 0x01000001} or later sends a zero
+     * data checksum and ignores ours, so the proxy, which forwards a modern client's version to
+     * adbd, must not verify it.
+     */
+    private static Message readMessage(InputStream input, boolean verifyChecksum)
+            throws IOException {
         byte[] header = readExactly(input, 24);
         ByteBuffer buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
         int command = buffer.getInt();
@@ -1358,7 +1461,7 @@ public final class LocalAdbClient {
         for (byte b : payload) {
             actualChecksum += b & 0xff;
         }
-        if (actualChecksum != checksum) {
+        if (verifyChecksum && actualChecksum != checksum) {
             throw new IOException("Bad ADB checksum for " + commandToString(command));
         }
         return new Message(command, arg0, arg1, payload);

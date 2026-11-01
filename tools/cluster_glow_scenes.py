@@ -63,6 +63,7 @@ def main():
         'W': cluster['W'], 'H': cluster['H'],
         'axis': cluster['grid']['axis'], 'stockBottom': cluster['stock']['bottom'],
         'glow': cluster['band']['glow'],
+        'outKw': cluster['band']['outKw'], 'inKw': cluster['band']['inKw'],
         'ink': colors['ink'][0], 'blue': colors['blue'][0],
     }
     with open(os.path.join(ASSETS, 'scenes.json'), 'w', encoding='utf-8') as f:

@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	if os.Getenv("CAG_ASKPASS_MODE") == "1" {
-		fmt.Println(os.Getenv("CAG_ASKPASS_SECRET"))
+	if secret, ok := cag.AskpassSecret(os.Args[1:], os.Getenv); ok {
+		fmt.Println(secret)
 		return
 	}
 	if err := cag.New().Run(context.Background(), os.Args[1:]); err != nil {

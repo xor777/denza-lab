@@ -21,9 +21,8 @@ case "${1:-}" in
     ;;
   remove)
     [ "$#" -eq 2 ] || exit 2
-    /opt/cag/cag-state remove-device "$2"
-    pkill -u cag-device 2>/dev/null || true
-    pkill -u cag-client 2>/dev/null || true
+    # Ends only this vehicle's tunnel and its computer's sessions.
+    exec /opt/cag/cag-state remove-device --disconnect "$2"
     ;;
   rename)
     [ "$#" -eq 3 ] || exit 2
@@ -39,16 +38,8 @@ case "${1:-}" in
     ;;
   gc)
     [ "$#" -eq 1 ] || exit 2
-    set +e
-    /opt/cag/cag-state gc --signal-exit
-    result=$?
-    set -e
-    if [ "$result" -eq 10 ]; then
-      pkill -u cag-device 2>/dev/null || true
-      pkill -u cag-client 2>/dev/null || true
-      exit 0
-    fi
-    exit "$result"
+    # Ends only the sessions of the vehicles whose lease expired.
+    exec /opt/cag/cag-state gc --disconnect
     ;;
   *)
     echo "usage: cag-admin invite [--label LABEL] [--ttl SECONDS] | list | status DEVICE_ID | rename DEVICE_ID LABEL | remove DEVICE_ID | doctor | migrate | gc" >&2

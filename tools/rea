@@ -1,0 +1,9 @@
+#!/bin/sh
+# Local native-analysis toolchain; see docs/firmware-corpus.md.
+set -eu
+rea_root="${DENZA_RE_TOOLS_DIR:-$HOME/.local/share/denza-re-tools}"
+if [ ! -x "$rea_root/bin/rea" ]; then
+    echo "REA is not installed at $rea_root; see docs/firmware-corpus.md (Native analysis with REA)." >&2
+    exit 127
+fi
+exec "$rea_root/bin/rea" "$@"

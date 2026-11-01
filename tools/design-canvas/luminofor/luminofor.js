@@ -192,8 +192,9 @@
     const P = f.power, absP = Math.abs(P), into = P <= -3, out = P >= 3;
     const heroCol = into ? BLUE : INK;
     const y = CG.axis, base = CG.baseline;
-    // the zero's own glow: it stays at zero; brightness and colour say how hard
-    const ga = CB.glow.max * Math.sqrt(Math.min(1, absP / CB.glow.fullKw));
+    // the zero's own glow: it stays at zero; brightness and colour say how hard - the power's share
+    // of the band's own span, to a power above one, so it stays dark until the band nears its end
+    const ga = CB.glow.max * Math.pow(Math.min(1, absP / (P < 0 ? CB.inKw : CB.outKw)), CB.glow.exponent);
     const fresh = f.powerFresh !== false;
     if (fresh && ga > 0.005) {
       const r = CB.glow.radius;

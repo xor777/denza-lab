@@ -1,0 +1,267 @@
+{
+  "schema": "denza-lab.rea-native-pilot.v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/rea-pilot-20261021",
+  "baselineCommit": "8158ecc89df53d76d19821397d27bc04bd7cb0c4",
+  "scope": {
+    "vehicleOperations": 0,
+    "firmwareExecutions": 0,
+    "agentSetupRun": false,
+    "globalInstall": false,
+    "externalNetwork": "Official tool downloads/npm dependencies only; no vehicle or OEM services."
+  },
+  "versions": {
+    "rea": "6.7.0",
+    "ghidra": "12.1.4",
+    "node": "24.22.1",
+    "java": "Homebrew OpenJDK 21.0.12.1",
+    "host": "macOS arm64"
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+      "bytes": 34864,
+      "sha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "bytes": 318376,
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0"
+    }
+  ],
+  "observations": {
+    "libvhdsSelectedFunctions": 7,
+    "libvhdsSuccessfulFunctions": 7,
+    "applicationTransactions": 5,
+    "callbackPayload": "int32",
+    "libvhdsReadbackQualified": false,
+    "vhdsSelectedFunctions": 4,
+    "sourceWorkerHandoffResolved": true,
+    "runtimeThreadActivationObserved": false,
+    "runtimeTaskObserved": false,
+    "newDtcDefinitions": 0,
+    "newWarningToDtcMappings": 0,
+    "independentInstructionRanges": 6,
+    "independentBytes": 680,
+    "analysisBaseBothFiles": "0x100000"
+  },
+  "handoff": {
+    "producerCorpusVa": "0x26e20",
+    "producerTypeStore": "0x27438: object+0x65e = u16(0x0402)",
+    "producerFlagsStore": "0x27458: object+0x639 = u16(0x0101)",
+    "condition": "object+0x2f8",
+    "mutex": "object+0x328",
+    "workerFlag": "object+0x63a",
+    "workerCorpusVa": "0x251a0",
+    "adjustedThisWorkerCorpusVa": "0x25660",
+    "workerCall": "0x251c4 -> 0x25200",
+    "adjustedWorkerCall": "0x25684 -> 0x25200",
+    "consumerTypeByte": "object+0x65f",
+    "scope": "Static producer/consumer synchronization contract; runtime startup, current task applicability and scheduling guarantees unproved."
+  },
+  "timingsSeconds": {
+    "nativeDecompilerBuild": 53.972,
+    "libColdInitialQueryWithWrongCoordinates": 8.014,
+    "libWarmSevenFunctionBatch": 0.08,
+    "vhdsColdMapping": 14.18,
+    "vhdsWarmFourFunctionBatch": 0.302
+  },
+  "limitations": [
+    "Initial lib batch used corpus VAs. Seven pseudocode results succeeded through file-offset fallback, but all seven procedure identities remained unknown with address errors. Mapped addresses resolved identities; fallback text matched mapped text.",
+    "Ghidra rebased both ELF images. Text mapping hashes were independently checked; loader-adjusted data can differ.",
+    "REA independent load-image attestation reports unsupported for ELF, with observations still available.",
+    "Bounded value graph reached 250 nodes/296 edges, marked truncated, and left parameter bindings unknown; not used as complete dataflow proof.",
+    "No measured baseline against the existing workflow; small-symbolized-target timings are not general performance claims.",
+    "REA open_binary raw architectures exclude V850/RH850. Existing MCU decoder remains necessary."
+  ],
+  "cleanup": {
+    "schema": "denza-rea-pilot-cleanup-v1",
+    "temporaryRoot": "/private/tmp/denza-rea-pilot-2qash_2c",
+    "temporaryRootRemoved": true,
+    "removedRegularFileBytes": 1963622710,
+    "ownedProcessesBeforeRemoval": [],
+    "mcpServerExitCode": 0,
+    "originalSources": [
+      {
+        "path": "/Users/dmitry/Dev/denza-gateway/captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+        "sha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21",
+        "unchanged": true
+      },
+      {
+        "path": "/Users/dmitry/Dev/denza-gateway/captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+        "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0",
+        "unchanged": true
+      }
+    ],
+    "retainedEvidenceBytes": 342141,
+    "installedGlobally": false,
+    "agentSetupRun": false,
+    "vehicleOperations": 0,
+    "notes": [
+      "Temporary Node24, npm installation/cache, downloaded archives, Ghidra build/projects and private homes removed.",
+      "Pre-existing Homebrew JDK21 retained. No agent setup or configuration mutation command was used."
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "captures/rea-pilot-20261021/0x1251a0.c",
+      "bytes": 514,
+      "sha256": "3f7661c0278901954e7458547f2ab73b445074bc156c0ea9dc16f65b5c114116"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/0x125200.c",
+      "bytes": 5710,
+      "sha256": "fcadfe7c57cdb3cbbffe0996bfe9643272dfe2ff5e5355bbdd79854d19a9bd27"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/0x125660.c",
+      "bytes": 528,
+      "sha256": "4c463091072914d1431a4512ef53cf36f4c42af0976c93e572a961a512cec3d6"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/0x126e20.c",
+      "bytes": 17785,
+      "sha256": "29cf075a1c1e0b7907f1d5e704e522ea66dbbde493d9b970309cd54ffe603499"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/baseline.json",
+      "bytes": 998,
+      "sha256": "b8cf6683af0fa28cb88d843c43bfcf970d34a12601b39ad2fbde7cc3a13bbc69"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/calls.json",
+      "bytes": 2995,
+      "sha256": "64a19df16f709ace6c6829b91bb0903e654cd7bf8e1904cef14fc066a01b6b80"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/cleanup.json",
+      "bytes": 1099,
+      "sha256": "3ade2d03ea788bebde24c7e97cc56895411e2209961d99cdd9044b4d7954dccb"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/downloads.json",
+      "bytes": 569,
+      "sha256": "9593d55f5eb3663439c59e96736733371cd3c595450c151055f0dc411c7cd99e"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/evidence-bundle.json.gz",
+      "bytes": 94485,
+      "sha256": "ff4a68c1483e1a21dae6d0a7cba5221081546e2aae60a7e9b32cdd0089f92a7d"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/evidence-export.json",
+      "bytes": 521,
+      "sha256": "adefd2ed325fbdd573de17f17b1e93aa1f90238c1d3903998125718ce976ed6a"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/final-close.json",
+      "bytes": 331,
+      "sha256": "2966c03238fcab6a1d2e22e61cd3a26fadb0464f6c45582025b02f90e82dfb25"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/ghidra-build.log",
+      "bytes": 12245,
+      "sha256": "8b2c3a2f0c986e8fdeb42e04c35a3a6c6927c8c81fd3e140b4d08fd50a21c4a1"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/initialize.json",
+      "bytes": 1301,
+      "sha256": "a5f4cdc4070e2408a8ec6713e54d3a606105fa1f6b039b97bf2f6f063ae17264"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-batch-mapped.json.gz",
+      "bytes": 5754,
+      "sha256": "4d695bae27ba2c40199933cc1f4603194bcf3e0960770382bac4773552a92eb4"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-batch.json.gz",
+      "bytes": 13474,
+      "sha256": "4c9663c700cb577b65e53f224ece56d9c0e3d926c1b5db1f5083b5bfc550c6be"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-close.json",
+      "bytes": 330,
+      "sha256": "89e646b13759820f624fd728ade2076810155278dceda3d990b6798e738771c3"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-coordinate-check.json",
+      "bytes": 523,
+      "sha256": "d00e04ca1d68037dcf7a2079207ed31790cddf709986149722e25254ffbe75c2"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-load-image.json.gz",
+      "bytes": 32771,
+      "sha256": "c1ab5414b384a8d2973208e726c6a9b8d35be962e095291a6ba9d3a311ed8946"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/lib-open.json",
+      "bytes": 893,
+      "sha256": "1f3d8299be9a749b909c230da900f31be30ee022335f7f4f4c9bed19d07592de"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/mcp-stderr.log",
+      "bytes": 3233,
+      "sha256": "89fc3667144bac074eeacc0829f7c46c90b4fde381803acc0c19a02c38009d70"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/npm-install.log",
+      "bytes": 26,
+      "sha256": "a0fe1b0be06c59c99f0015c1732d87a58771c8cd47c4473527d3f35afddf2cdd"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/rea-doctor.log",
+      "bytes": 16158,
+      "sha256": "4bfbcb589a624598e5f2713a92a323de0023f3381b73e656bef298e25a007b84"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/selected-tools.json",
+      "bytes": 9871,
+      "sha256": "f5623089c2baae259549cbe1662baaaf4266e47203181010203c97abea55e806"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/server-exit.json",
+      "bytes": 38,
+      "sha256": "5479106b96c2bf3c24900727e3ae8038c3a7225999b534d9f8b8898fb13368fe"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/setup-steps.json",
+      "bytes": 923,
+      "sha256": "5e6bdc71f432da7dc2c4dc92e045a627f1784a666911c879907f616114b6e13e"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-coordinate-check.json",
+      "bytes": 417,
+      "sha256": "3dd749a304272d98321365fc72372f6e213f325f85c73dff550a40e77636b108"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-handoff-batch.json.gz",
+      "bytes": 13032,
+      "sha256": "58f83ab373c1dead68b971846db9ddd11b42b83f1fe920f929e0fbd0698f025a"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-handoff-byte-check.json",
+      "bytes": 23306,
+      "sha256": "5652f10f9db6018b74ffa4fcc658bf932b5d31be36f581103b084aea01e58330"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-load-image.json.gz",
+      "bytes": 46976,
+      "sha256": "7acb0fc2db903d0c634cf7b3bafb7c2792f6c2dd1810e8c7536ee439942a6733"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-notify-callers.json.gz",
+      "bytes": 9229,
+      "sha256": "e97b4bf35dd4d37941dc1eb8196a5fa5c1c54c55096b5bd86f039c2b4705935d"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-open.json",
+      "bytes": 877,
+      "sha256": "d4cfa67e10c4a9a9339ec56a35600adf8edfc2afea611b9c44eac1e1090a3239"
+    },
+    {
+      "path": "captures/rea-pilot-20261021/vhds-thread-values.json.gz",
+      "bytes": 26328,
+      "sha256": "88c0ab26bdaaeda730db0b79be4df1639615befab6e7768ce2077b2056d9a008"
+    }
+  ]
+}

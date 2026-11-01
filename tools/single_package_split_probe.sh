@@ -2,7 +2,7 @@
 set -euo pipefail
 
 action="${1:-status}"
-serial="${2:-${ANDROID_SERIAL:-127.0.0.1:15555}}"
+serial="${2:-${ANDROID_SERIAL:-127.0.0.1:5555}}"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 apk="$repo_root/experiments/single-package-split-probe/build/outputs/apk/debug/single-package-split-probe.apk"
 package="dev.denza.singlepackage.probe"

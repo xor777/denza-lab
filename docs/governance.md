@@ -64,6 +64,27 @@ Every durable note should include:
 - result: working, blocked, flaky, or unknown;
 - next action or reason to stop.
 
+## Local Data Before Commit
+
+Session exports belong outside this checkout. `.gitignore` excludes Kimi's local
+directories (`.kimi*/`), `session-exports/`, `chat-exports/`, local agent worktrees
+and per-machine Claude settings. These local-artifact rules apply at any depth;
+research directories moved to the private repository are excluded separately.
+The same local-artifact rules are mirrored in this checkout's shared
+`.git/info/exclude`, covering older branches and linked worktrees immediately.
+That file is local to this repository; new clones use the versioned `.gitignore`.
+
+Enable the shared pre-commit hook for this checkout and its worktrees:
+
+```bash
+git config --local core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
+```
+
+The hook checks staged additions and changes against Git's ignore rules,
+including files added with `git add -f`. Deletions remain allowed. It checks
+paths, not file contents; a renamed copy outside ignored paths is not detected.
+Git does not enable hooks automatically in a fresh clone.
+
 ## Findings Documents
 
 Added 2026-10-03, after an audit of two weeks of agent sessions. The findings
