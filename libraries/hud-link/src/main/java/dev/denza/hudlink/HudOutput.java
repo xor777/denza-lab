@@ -72,6 +72,12 @@ public final class HudOutput implements HudSink {
         changed();
     }
 
+    /** Red mixed into the map window, 0 to 1 ({@link HudCompositor#setTint}). */
+    public void setTint(float amount) {
+        compositor.setTint(amount);
+        changed();
+    }
+
     /** Who sees the map window's picture change, on {@code handler}'s thread. */
     public void setFrameListener(HudCompositor.FrameListener listener) {
         compositor.setFrameListener(listener);

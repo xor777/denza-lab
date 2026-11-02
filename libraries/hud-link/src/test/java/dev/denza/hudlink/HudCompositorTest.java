@@ -23,6 +23,7 @@ public final class HudCompositorTest {
     private final HudSessionTest.TestClock clock = new HudSessionTest.TestClock();
     private final List<String> calls = new ArrayList<>();
     private final List<List<HudLayer>> rendered = new ArrayList<>();
+    private final List<Float> tints = new ArrayList<>();
     private final HudCompositor compositor = new HudCompositor(clock, new Port(), new Quiet(), new Renderer());
     private final List<byte[]> frames = new ArrayList<>();
     private long due = HudSession.IDLE;
@@ -81,6 +82,33 @@ public final class HudCompositorTest {
         assertEquals(2, rendered.get(0).size());
         assertSame(badge, rendered.get(0).get(1).image);
         assertEquals(Arrays.asList("0 map frame-0", "100 map drawn"), maps());
+    }
+
+    @Test
+    public void aTintDrawsTheWholeFrameAgainAndEachNewTintGoesAsANewFrame() {
+        compositor.fields(HudSource.CAPTURE, HudRole.MANEUVER, maneuver(250), LONG);
+        frame(LONG);
+        connect();
+        for (float tint : new float[] {0.5f, 0.25f, 0f}) {
+            runUntil(clock.now + 100);
+            compositor.setTint(tint);
+            changed();
+        }
+
+        assertEquals(Arrays.asList(0.5f, 0.25f), tints);
+        assertEquals(Arrays.asList("0 map frame-0", "100 map drawn", "200 map drawn",
+                "300 map frame-0"), maps());
+    }
+
+    @Test
+    public void aTintOverAnEmptyWindowDrawsNothing() {
+        compositor.fields(HudSource.CAPTURE, HudRole.MANEUVER, maneuver(250), LONG);
+        connect();
+        compositor.setTint(1f);
+        changed();
+
+        assertEquals(0, rendered.size());
+        assertEquals(new ArrayList<String>(), maps());
     }
 
     @Test
@@ -251,8 +279,9 @@ public final class HudCompositorTest {
 
     private final class Renderer implements HudCompositor.Renderer {
         @Override
-        public byte[] render(HudWindow window, List<HudLayer> layers) {
+        public byte[] render(HudWindow window, List<HudLayer> layers, float tint) {
             rendered.add(new ArrayList<>(layers));
+            tints.add(tint);
             return DRAWN;
         }
 

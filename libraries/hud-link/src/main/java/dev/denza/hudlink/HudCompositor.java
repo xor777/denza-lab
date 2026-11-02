@@ -12,8 +12,11 @@ import java.util.List;
 public final class HudCompositor implements HudSink {
     /** Draws a layered window into one PNG; Android's Canvas on the car ({@code HudCanvasRenderer}). */
     public interface Renderer {
-        /** {@code layers} bottom first on black; null when it could not be drawn. */
-        byte[] render(HudWindow window, List<HudLayer> layers);
+        /**
+         * {@code layers} bottom first on black, with {@code tint} of red mixed in
+         * ({@link HudTint}); null when it could not be drawn.
+         */
+        byte[] render(HudWindow window, List<HudLayer> layers, float tint);
 
         /** An all-black PNG of the window's size: black is what the HUD does not draw. */
         byte[] black(HudWindow window);
@@ -41,6 +44,10 @@ public final class HudCompositor implements HudSink {
     private final HudSession session;
     private long frameVersion = -1L;
     private byte[] frame;
+    private float tint;
+    private float frameTint;
+    /** Raised with every new picture of the map window, which the session sends as new. */
+    private long frameSerial;
 
     public HudCompositor(HudClock clock, HudSession.Port port, HudSession.Listener listener,
             Renderer renderer) {
@@ -93,6 +100,14 @@ public final class HudCompositor implements HudSink {
         session.handOver();
     }
 
+    /**
+     * Red mixed into the map window, 0 to 1 ({@link HudTint}): the window is drawn again with it,
+     * whatever its sources publish, and with nothing published it stays empty.
+     */
+    public void setTint(float amount) {
+        tint = Math.max(0f, Math.min(1f, amount));
+    }
+
     /** Who hears {@link HudComposition#roadLimitKmh} change; told the current value at once. */
     public void setLimitListener(LimitListener listener) {
         limitListener = listener;
@@ -126,15 +141,17 @@ public final class HudCompositor implements HudSink {
     public long pump() {
         HudComposition now = scene.compose(clock.now());
         long version = now.version(HudWindow.MAP);
-        if (version != frameVersion) {
+        if (version != frameVersion || tint != frameTint) {
             frameVersion = version;
+            frameTint = tint;
+            frameSerial++;
             picture = picture(now);
             frame = picture == null ? null : HudProtocol.mapPayload(picture);
             if (frameListener != null) {
                 frameListener.onFrame(HudWindow.MAP, picture);
             }
         }
-        session.show(now.road(), now.clear(), frame, version);
+        session.show(now.road(), now.clear(), frame, frameSerial);
         Integer kmh = now.roadLimitKmh();
         if (kmh == null ? limit != null : !kmh.equals(limit)) {
             limit = kmh;
@@ -151,7 +168,7 @@ public final class HudCompositor implements HudSink {
         if (layers.isEmpty()) {
             return null;
         }
-        HudLayer alone = composition.passThrough(HudWindow.MAP);
-        return alone != null ? alone.image.png() : renderer.render(HudWindow.MAP, layers);
+        HudLayer alone = tint > 0f ? null : composition.passThrough(HudWindow.MAP);
+        return alone != null ? alone.image.png() : renderer.render(HudWindow.MAP, layers, tint);
     }
 }

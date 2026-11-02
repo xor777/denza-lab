@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
@@ -13,8 +14,10 @@ import java.util.List;
 
 /**
  * A layered window drawn with Android's Canvas: black, then each layer's PNG scaled into its
- * rectangle at its opacity, encoded as PNG. Only for more than one layer; a single whole opaque
- * one goes to the HUD as it came ({@link HudComposition#passThrough}).
+ * rectangle at its opacity and with the tint's red mixed in, encoded as PNG. Only for more than
+ * one layer or a tint; a single whole opaque one goes to the HUD as it came
+ * ({@link HudComposition#passThrough}). The tint is linear and keeps black, so filtering each
+ * layer as it lands is filtering the window.
  */
 final class HudCanvasRenderer implements HudCompositor.Renderer {
     private final String tag;
@@ -25,12 +28,15 @@ final class HudCanvasRenderer implements HudCompositor.Renderer {
     }
 
     @Override
-    public byte[] render(HudWindow window, List<HudLayer> layers) {
+    public byte[] render(HudWindow window, List<HudLayer> layers, float tint) {
         Bitmap bitmap = Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888);
         try {
             Canvas canvas = new Canvas(bitmap);
             canvas.drawColor(Color.BLACK);
             Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+            if (tint > 0f) {
+                paint.setColorFilter(new ColorMatrixColorFilter(HudTint.matrix(tint)));
+            }
             for (HudLayer layer : layers) {
                 byte[] png = layer.image.png();
                 Bitmap picture = BitmapFactory.decodeByteArray(png, 0, png.length);
