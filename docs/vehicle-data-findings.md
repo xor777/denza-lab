@@ -12,7 +12,7 @@ Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit,
 | Claim | Status | Since | Section |
 |---|---|---|---|
 | A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`); Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [High-level DiCar service](#high-level-dicar-service); [autoservice FID protocol](#autoservice-fid-protocol) |
-| The telemetry batch is read by one resident shell-UID helper (`VehicleReadMain`, transacts `5`/`7` only, same text as `service call`) instead of a `service call` process per value, at the same ~250 ms cycle; a helper that never answers falls back to the shell batch. Replaces "no long-lived `app_process` proxy" | code | 2026-11-02 | [Resident reader](#resident-reader-2026-11-02) |
+| The telemetry batch is read by one resident shell-UID helper (`VehicleReadMain`, transacts `5`/`7` only, same text as `service call`) instead of a `service call` process per value, at the same ~250 ms cycle; a helper that never answers falls back to the shell batch. Replaces "no long-lived `app_process` proxy". Parked A/B: 83 → 33 processes a second, the app's shells 47% → 10% of one core, `autoservice` unchanged | live, parked | 2026-11-02 | [Resident reader](#resident-reader-2026-11-02) |
 | Sentinels: `−10013` wrong transact (retry the other one), `−10011` no data on this generation, `0xbf800000` invalid float; max-range placeholders are dropped by a per-unit range gate | live | 2026-08-22 | [Sentinels — do not display](#sentinels--do-not-display) |
 | Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; native scalar reads use only `5`/`7`, never `6` (`VehicleSignals.kt`, `VehicleTransact`); the separate DTC transport uses the qualified SDK buffer API | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
@@ -626,10 +626,31 @@ read to the chained `service call` batch (`VehicleReaderChoice`); after that she
 reader ends - a sleep, a lost link - the helper is tried again. If the jar cannot be
 staged, the helper starts from the APK (`ShellProxyClasspath`).
 
-Status: code and unit tests (`VehicleReadersTest`), **not yet run on the car**. To
-accept: the helper reads the same values as `service call` on a parked car, then a
-parked comparison with the same foreground apps and APK hash - processes per
-second, the helper's and `autoservice`'s CPU, the sweep rate.
+Status: **run on the parked car 2026-11-02**. The helper, started by hand, answered 20
+batches with the same text as `service call`; its start plus ten batches took 446 ms
+in all, against about 194 ms for one shell batch. Then `tools/perf_ab.py`, two
+10-minute runs, 5 s samples, the Contour on the cluster, the main screen on the
+Denza Apps home, the same Navigator and Music APKs; only the Denza Apps build changed
+(`660a6f7f` at `cf5acb16` → `0e94e0cc` at `fccd88dd`, which also has the
+`LocalAdbClient` framed-scan fix). Runs in `captures/perf-ab/before-20261102-135649`
+and `after-20261102-140913`:
+
+| Median / mean over 120 intervals | Shell batch | Resident reader |
+| --- | --- | --- |
+| CPU busy, median | 57.2% | 50.1% |
+| kernel + IRQ, median | 30.6% | 25.7% |
+| processes started a second, median | 82.9 | 33.0 |
+| the app's shells and their children (`adbd` children), % of one core, mean | 46.9 | 9.8, the helper 0.6 of it |
+| `autoservice`, % of one core | 11.1 | 10.4 |
+| `dev.denza.apps`, % of one core | 27.1 | 23.9 |
+| `soc_max`, median | 82.9 °C | 78.4 °C |
+
+`autoservice` did not move, so the sweep rate held: the cadence rule worked. What
+the shells still spend is the app's other shell work, not the telemetry batch - most
+of it the side cameras' `dumpsys window visible` every 100 ms (`SideCameraMonitorService`),
+about ten processes a second.
+Still to watch on a drive: a helper that dies mid-drive and the fallback to the
+shell batch.
 
 ### Sentinels — do not display
 
