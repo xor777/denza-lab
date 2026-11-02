@@ -26,6 +26,14 @@ Current scripts:
   callbacks emit opaque `BUFFER` lines, not input for the turn-frame analyzer.
   They do not request/register a collection table. N9 GB/YUN availability was
   checked on 2026-10-16; a silent OTA window does not prove permanent absence.
+- `perf_ab.py`: parked, read-only CPU and memory runs for comparing two builds
+  (`run <label>`, `compare <a> <b>`): system and kernel CPU, processes started a
+  second, per-process CPU by `ps` name with adbd's shell children (the app's shells
+  and the resident vehicle reader) summed, MemAvailable, `soc_max`, the app's meminfo
+  at both ends, into `captures/perf-ab/`. `windows` saves pairs of
+  `dumpsys window visible` and `dumpsys window com.byd.avc` while the turn signals
+  are worked by hand. Installs nothing and changes nothing. Offline tests:
+  `test_perf_ab.py`.
 - `washer_capture.py` + `VehicleStateSnapshot.java`: paired, owner-labelled
   reservoir-state snapshots. Reads the installed framework's device/FID catalog
   twice through scalar GET transactions 5/7, captures 180 seconds of the stock
