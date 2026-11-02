@@ -25,6 +25,8 @@ final class NavigatorSource {
         String icon, action, road = "", limitText;
         Object position, followingPosition;
         int stockId, exit, distance = -1, remainingMeters = -1, remainingSeconds = -1, speedLimit;
+        /** The manoeuvre's place: metres from it to the finish, the same for it every frame of a route; -1 unknown. */
+        int at = -1;
         double limitValue = Double.NaN;
         String iconKey() { return icon == null ? null : icon.equals("roundabout") ? icon + exit : icon; }
     }
@@ -169,7 +171,8 @@ final class NavigatorSource {
         List<?> manoeuvres = windshield == null ? Collections.emptyList() : (List<?>) api.call(windshield, "getManoeuvres");
         for (int i = 0; i < manoeuvres.size(); i++) {
             Object manoeuvre = manoeuvres.get(i);
-            double distance = toFinish - (Double) api.call(api.call(manoeuvre, "getPosition"), "distanceToFinish");
+            double place = (Double) api.call(api.call(manoeuvre, "getPosition"), "distanceToFinish");
+            double distance = toFinish - place;
             if (!(distance >= 0)) continue; // passed, or no position to measure from
             Object annotation = api.call(manoeuvre, "getAnnotation");
             Object action = annotation == null ? null : api.call(annotation, "getAction");
@@ -181,6 +184,7 @@ final class NavigatorSource {
             if (i + 1 < manoeuvres.size()) hint.followingPosition = api.call(manoeuvres.get(i + 1), "getPosition");
             hint.stockId = Integer.parseInt(kind[1]);
             hint.distance = (int) Math.round(distance);
+            hint.at = (int) Math.round(place);
             Object toponym = api.call(annotation, "getToponym");
             hint.road = toponym == null ? "" : toponym.toString().trim();
             if (hint.icon.equals("roundabout")) {

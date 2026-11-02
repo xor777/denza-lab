@@ -81,6 +81,7 @@ public final class HudModule {
         StockHudArt stockArt;
         /** The manoeuvre block through a gap in the guidance, so the HUD never fills it in Chinese. */
         final ManeuverHold hold = new ManeuverHold();
+        final ManeuverMeters meters = new ManeuverMeters();
         boolean busy, wasActive;
         String mode = "off", hintKey, outputKey = "", arFailure;
         long frames, lastStats, nextAttempt;
@@ -153,6 +154,7 @@ public final class HudModule {
                 }
                 // Immutable semantic snapshot; stock artwork and PNG work belong to the output worker.
                 final NavigatorSource.Hint hint = hold.apply(frame, now);
+                meters.apply(hint);
                 final HudAr.Frame ar = arSource.read(frame, now, System.currentTimeMillis());
                 final int arBuilds = arSource.geometryBuilds;
                 if (ar != null) emulator.route(frame.route);

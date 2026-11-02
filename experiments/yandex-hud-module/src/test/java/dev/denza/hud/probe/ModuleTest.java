@@ -299,6 +299,7 @@ public final class ModuleTest {
                 &&Arrays.equals(StockHudSymbols.assets("shift:R:0"),new String[]{"landfront_hud_d"}),"cells name the stock pictures they need");
         placement();
         hold();
+        meters();
         check(StockHudSymbols.lanes(java.util.Collections.nCopies(7,sign.get(0))).length==0,"never truncate an oversized sign");
         byte[] png={1,2,3};
         Map<Integer,Object> road=fields(HudWire.road(true,null,null,3,png));
@@ -324,6 +325,29 @@ public final class ModuleTest {
         hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
     }
     /** The manoeuvre block through a gap: a rebuilt route up to 30 s, no manoeuvre ahead up to 3 s, never past the route. */
+    private static void meters() {
+        int[][] rounded={{0,0},{9,9},{10,10},{14,10},{15,20},{50,50},{51,50},{74,50},{75,100},{247,250},
+                {275,300},{299,300},{300,300},{301,300},{349,300},{350,400},{2950,3000},{3000,3000},{3001,3000},
+                {3499,3000},{3500,4000}};
+        for(int[] pair:rounded) check(ManeuverMeters.round(pair[0])==pair[1],"field 9 rounds "+pair[0]+" to "+pair[1]);
+        for(int m=0;m<20000;m++) check(ManeuverMeters.round(m)<=ManeuverMeters.round(m+1),"a shorter distance never shows longer: "+m);
+        ManeuverMeters meters=new ManeuverMeters();
+        int[] jitter={243,247,238,252,224,230,212,176};
+        int[] shown={250,250,250,250,200,200,200,200};
+        for(int i=0;i<jitter.length;i++) check(shownAt(meters,1000,jitter[i])==shown[i],"the fix's jitter never moves field 9 back up: "+jitter[i]);
+        check(shownAt(meters,1003,170)==150,"the same manoeuvre a few metres off is still the same");
+        check(shownAt(meters,400,612)==600,"the next manoeuvre starts from its own distance");
+        check(shownAt(meters,-1,612)==600&&shownAt(meters,-1,660)==700,"a manoeuvre without a place is only rounded");
+        NavigatorSource.Hint none=new NavigatorSource.Hint();none.distance=37;none.at=400;
+        meters.apply(none);
+        check(none.distance==37,"no manoeuvre, nothing rounded");
+    }
+    private static int shownAt(ManeuverMeters meters,int at,int distance) {
+        NavigatorSource.Hint hint=new NavigatorSource.Hint();
+        hint.icon="right";hint.at=at;hint.distance=distance;
+        meters.apply(hint);
+        return hint.distance;
+    }
     private static void hold() {
         ManeuverHold hold=new ManeuverHold();
         NavigatorSource.Frame frame=new NavigatorSource.Frame();frame.mode="guidance";frame.hint=withManoeuvre();

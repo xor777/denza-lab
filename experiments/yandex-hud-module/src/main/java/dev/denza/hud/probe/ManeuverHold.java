@@ -55,6 +55,7 @@ final class ManeuverHold {
         hint.stockId = manoeuvre.stockId;
         hint.exit = manoeuvre.exit;
         hint.distance = manoeuvre.distance;
+        hint.at = manoeuvre.at;
         NavigatorSource.Hint totals = now != null ? now : manoeuvre;
         hint.remainingMeters = totals.remainingMeters;
         hint.remainingSeconds = totals.remainingSeconds;

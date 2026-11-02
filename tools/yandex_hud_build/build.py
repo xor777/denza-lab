@@ -105,7 +105,7 @@ def main():
          camera_tests/'CameraTest.java', camera_tests/'StockCameraTest.java',
          package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
          package/'StockHudSymbols.java',
-         package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java',
+         package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java', package/'ManeuverMeters.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
