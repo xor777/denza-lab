@@ -637,6 +637,34 @@ public final class LocalAdbClientTest {
         assertTrue("waiting for the answer was not measured", spent[1] > 0);
     }
 
+    /**
+     * The answer is looked for only in the bytes each message adds, and must be the same whatever
+     * the pieces are: a marker cut anywhere, a piece of one byte, a body of 40 KB like the side
+     * cameras' window dump, a status marker's lookalike before BEGIN.
+     */
+    @Test
+    public void anAnswerReadsTheSameHoweverItIsCutIntoMessages() throws Exception {
+        StringBuilder body = new StringBuilder();
+        for (int line = 0; body.length() < 40_000; line++) {
+            body.append("  Window #").append(line).append(" mDisplayId=0 package=com.example\\n");
+        }
+        String answer = "echo\u001eMARK_1:9\u001f\u001eMARK_1:BEGIN\u001f" + body
+                + "\u001eMARK_1:0\u001ftrailing";
+        byte[] bytes = answer.getBytes(StandardCharsets.UTF_8);
+        for (int piece : new int[] {1, 2, 3, 7, 13, 64, 4096, bytes.length}) {
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            stream.write(message("OKAY", 41, 1, new byte[0]));
+            for (int from = 0; from < bytes.length; from += piece) {
+                stream.write(message("WRTE", 41, 1,
+                        Arrays.copyOfRange(bytes, from, Math.min(bytes.length, from + piece))));
+            }
+            String output = LocalAdbClient.runInteractiveCommand(
+                    new ByteArrayInputStream(stream.toByteArray()),
+                    new ByteArrayOutputStream(), 1, 41, "echo hi", "MARK_1");
+            assertEquals("pieces of " + piece, body.toString(), output);
+        }
+    }
+
     /** What the command prints on its own, with the streams merged exactly as the frame merges. */
     private static String bare(String command) throws Exception {
         return new String(

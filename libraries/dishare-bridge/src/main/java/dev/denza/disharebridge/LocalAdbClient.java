@@ -588,7 +588,7 @@ public final class LocalAdbClient {
                 .getBytes(StandardCharsets.US_ASCII);
         byte[] statusMarkerPrefix = (RECORD + marker + ":")
                 .getBytes(StandardCharsets.US_ASCII);
-        ByteArrayOutputStream received = new ByteArrayOutputStream();
+        FramedScan received = new FramedScan(outputStartMarker, statusMarkerPrefix);
         boolean writeAcknowledged = false;
         FramedShellResult framedResult = null;
         while (true) {
@@ -599,8 +599,7 @@ public final class LocalAdbClient {
             } else if (message.command == A_WRTE) {
                 received.write(message.payload);
                 writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
-                framedResult = findFramedResult(
-                        received.toByteArray(), outputStartMarker, statusMarkerPrefix);
+                framedResult = received.result();
             } else if (message.command == A_CLSE) {
                 writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
                 throw new EOFException("ADB interactive shell closed during command");
@@ -684,45 +683,88 @@ public final class LocalAdbClient {
         return "'" + value.replace("'", "'\\''") + "'";
     }
 
-    private static FramedShellResult findFramedResult(
-            byte[] received,
-            byte[] outputStartMarker,
-            byte[] statusMarkerPrefix)
-            throws IOException {
-        int outputMarkerStart = indexOf(received, outputStartMarker, 0);
-        if (outputMarkerStart < 0) {
-            return null;
+    /**
+     * One framed answer as it arrives, looked for only in the bytes that are new.
+     *
+     * <p>It used to copy everything received so far and search it from the start at every
+     * message: a {@code dumpsys window visible} of about 40 KB, read up to ten times a second by
+     * the side cameras' monitor, arrives in a dozen pieces, and each piece paid for all the ones
+     * before it. The answer is the same - the first BEGIN, the first status marker after it, the
+     * first unit separator after that - because a marker that ends in the new bytes can start at
+     * most its own length before them, and the search resumes there.
+     */
+    static final class FramedScan extends ByteArrayOutputStream {
+        private final byte[] outputStartMarker;
+        private final byte[] statusMarkerPrefix;
+        private int outputStart = -1;
+        private int statusMarkerStart = -1;
+        /** How much had arrived when each marker was last looked for and not found. */
+        private int startSearched;
+        private int statusSearched;
+        private int endSearched;
+
+        FramedScan(byte[] outputStartMarker, byte[] statusMarkerPrefix) {
+            super(4096);
+            this.outputStartMarker = outputStartMarker;
+            this.statusMarkerPrefix = statusMarkerPrefix;
         }
-        int outputStart = outputMarkerStart + outputStartMarker.length;
-        int statusMarkerStart = indexOf(received, statusMarkerPrefix, outputStart);
-        if (statusMarkerStart < 0) {
-            return null;
+
+        /** The finished answer, or {@code null} while it is still on its way. */
+        FramedShellResult result() throws IOException {
+            if (outputStart < 0) {
+                int found = indexOf(buf, count, outputStartMarker,
+                        Math.max(0, startSearched - outputStartMarker.length + 1));
+                startSearched = count;
+                if (found < 0) {
+                    return null;
+                }
+                outputStart = found + outputStartMarker.length;
+                statusSearched = outputStart;
+            }
+            if (statusMarkerStart < 0) {
+                int found = indexOf(buf, count, statusMarkerPrefix,
+                        Math.max(outputStart, statusSearched - statusMarkerPrefix.length + 1));
+                statusSearched = count;
+                if (found < 0) {
+                    return null;
+                }
+                statusMarkerStart = found;
+                endSearched = found + statusMarkerPrefix.length;
+            }
+            int statusStart = statusMarkerStart + statusMarkerPrefix.length;
+            int markerEnd = indexOf(buf, count, UNIT_SEPARATOR, Math.max(statusStart, endSearched));
+            endSearched = count;
+            if (markerEnd < 0) {
+                return null;
+            }
+            String statusText = new String(
+                    buf,
+                    statusStart,
+                    markerEnd - statusStart,
+                    StandardCharsets.US_ASCII);
+            try {
+                Integer.parseInt(statusText);
+            } catch (NumberFormatException error) {
+                throw new IOException("Bad ADB interactive shell status " + statusText, error);
+            }
+            return new FramedShellResult(
+                    new String(
+                            buf,
+                            outputStart,
+                            statusMarkerStart - outputStart,
+                            StandardCharsets.UTF_8));
         }
-        int statusStart = statusMarkerStart + statusMarkerPrefix.length;
-        int markerEnd = indexOf(received, new byte[] {0x1f}, statusStart);
-        if (markerEnd < 0) {
-            return null;
-        }
-        String statusText = new String(
-                received,
-                statusStart,
-                markerEnd - statusStart,
-                StandardCharsets.US_ASCII);
-        try {
-            Integer.parseInt(statusText);
-        } catch (NumberFormatException error) {
-            throw new IOException("Bad ADB interactive shell status " + statusText, error);
-        }
-        return new FramedShellResult(
-                new String(
-                        received,
-                        outputStart,
-                        statusMarkerStart - outputStart,
-                        StandardCharsets.UTF_8));
     }
 
+    private static final byte[] UNIT_SEPARATOR = {0x1f};
+
     private static int indexOf(byte[] value, byte[] target, int fromIndex) {
-        int lastStart = value.length - target.length;
+        return indexOf(value, value.length, target, fromIndex);
+    }
+
+    /** [target] in the first [length] bytes of [value], from [fromIndex] on. */
+    private static int indexOf(byte[] value, int length, byte[] target, int fromIndex) {
+        int lastStart = length - target.length;
         for (int start = Math.max(0, fromIndex); start <= lastStart; start++) {
             int offset = 0;
             while (offset < target.length && value[start + offset] == target[offset]) {
