@@ -24,17 +24,20 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * Identity, and why this is not in the app process: these values exist on the
  * `android.gui.BYDAutoServer` Binder, which answers a trusted `shell` UID and
- * refuses ours. The app therefore asks the same way a diagnostic session would —
- * `service call` through [DenzaLocalAdb], whose policy is PASSIVE, so a missing
- * key produces an unavailable dashboard and never an authorization prompt. No
- * `BYDAUTO_*` permission is declared, no `app_process` proxy is spawned, and
- * only the read transacts (5 and 7) are ever issued. See
- * docs/vehicle-data-findings.md.
+ * refuses ours. The app therefore asks as the shell user, through [DenzaLocalAdb],
+ * whose policy is PASSIVE, so a missing key produces an unavailable dashboard and
+ * never an authorization prompt. Since 2026-11-02 it asks through one resident
+ * shell-UID helper ([VehicleReadMain], opened by [VehicleReaders]) that holds the
+ * binder, instead of a `service call` process per value; a helper that never
+ * answers hands the next read to the chained `service call` batch it replaced. No
+ * `BYDAUTO_*` permission is declared, and only the read transacts (5 and 7) are
+ * ever issued - the helper refuses any other. See docs/vehicle-data-findings.md.
  *
  * Cadence: the hot set — pack power and voltage, the odometer, the park switch,
  * engine revolutions, engine running and generation, seven signals — is one
- * batched command every 100 ms, which is a cycle of about 250 ms and four
- * readings a second. Temperatures, cell voltages, the charging estimate and the
+ * batch every 100 ms after the shell's 150 ms batch, which is a cycle of about
+ * 250 ms and four readings a second, whichever reader answers
+ * ([VehicleSweepCadence.waitMs]). Temperatures, cell voltages, the charging estimate and the
  * generation state join it every ten seconds. Splitting the hot set finer would
  * buy nothing — a one-call batch costs almost what a five-call batch costs. The
  * loop runs for the life of the process ([VehicleWatcher.LEDGER]); who is watching
@@ -108,6 +111,9 @@ internal class VehicleTelemetryHub(context: Context) {
      * its cache must not make a sleeping car look like one that answered.
      */
     private val warnings = WarningRecorder.of(app)
+
+    /** The resident helper, or the shell batch when the helper does not answer here ([VehicleReaders]). */
+    private val readers = VehicleReaders(app)
 
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
@@ -258,7 +264,7 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     private suspend fun CoroutineScope.pollLoop() {
-        var shell: LocalAdbClient.PersistentShellSession? = null
+        var reader: VehicleReader? = null
         val clock = VehicleSweepClock()
         var coldDueAt = 0L
         // A new loop owes nobody a wait, and a wake left over from before it is spent.
@@ -270,22 +276,22 @@ internal class VehicleTelemetryHub(context: Context) {
         capture.recheck()
         try {
             while (isActive) {
-                val session = shell ?: DenzaLocalAdb.client(app).openPersistentShell().also { shell = it }
                 val includeCold = forceCold || SystemClock.elapsedRealtime() >= coldDueAt
                 val hot = VehicleSignal.HOT
                 val asksSlot = warnings.wantsSlot()
                 val batch = (if (includeCold) hot + VehicleSignal.COLD else hot) +
                     (if (asksSlot) VehicleSignal.EVENT else emptyList())
+                val readStartedAt = SystemClock.elapsedRealtime()
+                var resident = false
                 val output = try {
-                    session.shell(
-                        AutoserviceShell.command(batch),
-                        if (includeCold) COLD_TIMEOUT_MS else HOT_TIMEOUT_MS,
-                    )
+                    val session = reader ?: readers.open().also { reader = it }
+                    resident = session.resident
+                    session.read(batch, if (includeCold) COLD_TIMEOUT_MS else HOT_TIMEOUT_MS)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
-                    shell?.runCatching { close() }
-                    shell = null
+                    reader?.let(readers::ended)
+                    reader = null
                     if (asksSlot) warnings.sample(null)
                     val failure = if (error is LocalAdbClient.AuthorizationRequiredException) {
                         VehicleReadFailure.AUTHORIZATION
@@ -305,6 +311,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 }
 
                 backoff.reset()
+                val readMs = SystemClock.elapsedRealtime() - readStartedAt
                 val parsed = AutoserviceShell.parse(output, batch)
                 val slot = parsed[VehicleSignal.TEXT_WARNING]
                 if (asksSlot) warnings.sample(slot?.toInt())
@@ -349,13 +356,13 @@ internal class VehicleTelemetryHub(context: Context) {
                 // row a second, whatever this cadence is.
                 capture.sample(if (slot == null) merged else merged + (VehicleSignal.TEXT_WARNING to slot))
 
-                delay(sweepMs)
+                delay(VehicleSweepCadence.waitMs(sweepMs, readMs, resident))
             }
         } finally {
             flush()
             ledger.record()?.let(tripJournal::save)
             capture.close()
-            shell?.runCatching { close() }
+            reader?.let(readers::ended)
         }
     }
 
@@ -873,6 +880,24 @@ internal object VehicleSweepCadence {
 
     fun intervalMs(watchers: Set<VehicleWatcher>): Long =
         if (watchers.any { it.onScreen }) HOT_INTERVAL_MS else LEDGER_INTERVAL_MS
+
+    /**
+     * What the shell's hot batch took on the car, and so the part of a cycle the interval never
+     * counted: [HOT_INTERVAL_MS] after a batch of this was the four readings a second the owner
+     * drove with.
+     */
+    const val SHELL_BATCH_MS = 150L
+
+    /**
+     * The wait after a batch that took [readMs]. The shell's batch waits the interval, as it always
+     * did. The resident helper ([VehicleReadMain]) answers in milliseconds, and the same wait would
+     * make it ten readings a second where the panel had four, and `autoservice`, already at a fifth
+     * of a CPU on the car, would answer more than twice as many calls; so it waits out what the
+     * shell's batch would have taken as well. The cycle stays what it was, and the CPU saved is all
+     * of the processes, none of the freshness.
+     */
+    fun waitMs(intervalMs: Long, readMs: Long, resident: Boolean): Long =
+        if (resident) intervalMs + (SHELL_BATCH_MS - readMs).coerceAtLeast(0L) else intervalMs
 
     /**
      * Whether a claim that has just appeared is owed a cold sweep at once: a screen, which has

@@ -7,11 +7,12 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
 | A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`); Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [High-level DiCar service](#high-level-dicar-service); [autoservice FID protocol](#autoservice-fid-protocol) |
+| The telemetry batch is read by one resident shell-UID helper (`VehicleReadMain`, transacts `5`/`7` only, same text as `service call`) instead of a `service call` process per value, at the same ~250 ms cycle; a helper that never answers falls back to the shell batch. Replaces "no long-lived `app_process` proxy" | code | 2026-11-02 | [Resident reader](#resident-reader-2026-11-02) |
 | Sentinels: `−10013` wrong transact (retry the other one), `−10011` no data on this generation, `0xbf800000` invalid float; max-range placeholders are dropped by a per-unit range gate | live | 2026-08-22 | [Sentinels — do not display](#sentinels--do-not-display) |
 | Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; native scalar reads use only `5`/`7`, never `6` (`VehicleSignals.kt`, `VehicleTransact`); the separate DTC transport uses the qualified SDK buffer API | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
@@ -86,7 +87,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [GNSS](#gnss) — the Android GPS provider and what can be derived from it
 - [Exported car-status provider](#exported-car-status-provider) — `com.byd.carStatusProvider`, readable but unqualified
 - [High-level DiCar service](#high-level-dicar-service) — reachable Binder, blocked getters
-- [autoservice FID protocol](#autoservice-fid-protocol) — the shell-UID read recipe, device ids, sentinels and scales
+- [autoservice FID protocol](#autoservice-fid-protocol) — the shell-UID read recipe, the resident reader (2026-11-02), device ids, sentinels and scales
 - [Widget allowlist (2026-08-22)](#widget-allowlist-2026-08-22) — the measured FIDs with dev, transact and decoding
 - [Vehicle telemetry wiring (2026-08-22 to 2026-08-27)](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) — the decisions behind `feature.vehicle`, its consumers and cadence
 - [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
@@ -583,10 +584,52 @@ flt  = struct.unpack(">f", bytes.fromhex("XXXXXXXX"))[0]
 From Denza Apps, the same command goes through the existing local-ADB client
 (`DenzaLocalAdb.client(context).shell(...)`), not through
 `BYDAutoStatisticDevice.get()` in the app process. Do not add `BYDAUTO_*`
-permissions to the product manifest. Do not spawn a long-lived `app_process`
-proxy.
+permissions to the product manifest. ~~Do not spawn a long-lived `app_process`
+proxy.~~ **Overturned 2026-11-02:** the telemetry batch now goes through one
+resident shell-UID reader that dies with its ADB stream - see
+[Resident reader](#resident-reader-2026-11-02). One-shot `service call` stays the
+recipe for host tools and the reader's fallback.
 
 If transact 5 returns −10013, retry 7 (and vice versa).
+
+<a id="resident-reader-2026-11-02"></a>
+### Resident reader (2026-11-02)
+
+**Why.** On the 2026-11-01 drive the shell running the chained `service call`
+batch used, with the processes it waited for, **26.5% of one CPU** (mostly kernel:
+child `cstime` about 2.4× `cutime`), and the car started **67-83 processes a
+second**; `captures/drive-freezes/2026-11-01-home/helper-cpu-1546.txt` and
+`fork-rate-1545.txt`, analysis in
+[instrument-display-findings.md](instrument-display-findings.md), "Passive performance
+observation". The batch is 8 hot calls at about four sweeps a second, each call one
+`fork` + `exec` of `/system/bin/service` that links libbinder anew.
+
+**What.** `VehicleReadMain` (`feature/vehicle`, packed as `vehicle-read.jar`,
+staged as `denza-vehicle-read-<sha256>.jar` like every helper) is started through
+`LocalAdbClient.ResidentSession` and holds the `autoservice` binder for the life of
+the poll loop. Request `r <transact>:<dev>:<fid> ...`; the answer between `BEGIN`
+and `END ok` is the batch's own text - `@@<index>` and `Result: Parcel(<every reply
+word>)` - so `AutoserviceShell.parse`, the sentinels and the range gates are
+unchanged. It sends only transacts `5` and `7` and refuses a line that asks for
+anything else. A dead binder is asked for again at the next line; it ends at end of
+file on stdin.
+
+**Cadence is kept, not raised.** The helper answers in milliseconds, so the old
+"100 ms after the batch" would have meant ten sweeps a second instead of four, and
+`autoservice` (about 21% of one CPU on its own on that drive) more than twice the
+calls. `VehicleSweepCadence.waitMs` makes a resident sweep wait out the shell's
+150 ms batch as well: the cycle stays about 250 ms with a screen up and about
+1.15 s without.
+
+**Fallback.** A helper that ends without answering a single batch hands the next
+read to the chained `service call` batch (`VehicleReaderChoice`); after that shell
+reader ends - a sleep, a lost link - the helper is tried again. If the jar cannot be
+staged, the helper starts from the APK (`ShellProxyClasspath`).
+
+Status: code and unit tests (`VehicleReadersTest`), **not yet run on the car**. To
+accept: the helper reads the same values as `service call` on a parked car, then a
+parked comparison with the same foreground apps and APK hash - processes per
+second, the helper's and `autoservice`'s CPU, the sweep rate.
 
 ### Sentinels — do not display
 

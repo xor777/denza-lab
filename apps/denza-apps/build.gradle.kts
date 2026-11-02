@@ -220,6 +220,11 @@ android {
                 "feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
             )
             packShellProxy(
+                "VehicleRead",
+                "vehicle-read.jar",
+                "feature/vehicle/VehicleReadMain.java",
+            )
+            packShellProxy(
                 "DiagnosticBus",
                 "diagnostic-bus.jar",
                 "feature/diagnostics/bus/DiagnosticBusMain.java",

@@ -21,6 +21,7 @@ internal enum class ShellProxyJar(val asset: String, val fileName: String) {
     VEHICLE_SIGNAL("vehicle-signal-proxy.jar", "denza-vehicle-signal"),
     DIAGNOSTIC_BUS("diagnostic-bus.jar", "denza-diag-bus"),
     NAVIGATION("navigation-proxy.jar", "denza-nav-proxy"),
+    VEHICLE_READ("vehicle-read.jar", "denza-vehicle-read"),
 }
 
 /** The car will not take the jar: the asset is unreadable or empty, or the copy fails its hash. */
