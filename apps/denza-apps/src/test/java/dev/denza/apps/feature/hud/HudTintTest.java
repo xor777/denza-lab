@@ -1,4 +1,4 @@
-package dev.denza.hudlink;
+package dev.denza.apps.feature.hud;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;

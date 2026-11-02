@@ -1,7 +1,7 @@
 package dev.denza.apps.feature.hud;
 
 /**
- * Whether the speed means a fine at HUD Speed's camera ahead, and how red the glass is for it
+ * Whether the speed means a fine at HUD Speed's camera ahead, and how red its warning is for it
  * (docs/hud-output-architecture.md, 7.5). The owner's rule, 2026-11-02: more than the camera's
  * limit plus {@link #OVER} is a certain fine. The car's own speed from its wheels, which reads a
  * little above the true one; the owner took that over a speed the camera would agree with.
@@ -19,7 +19,7 @@ final class HudSpeeding {
     static final long FALL_MS = 800L;
     /** The card's background at full red: this much of HUD Speed's red over black. */
     static final float BACKGROUND = 0.5f;
-    /** Red mixed into the card's and the map's pictures at full red ({@link dev.denza.hudlink.HudTint}). */
+    /** Red mixed into the card's picture at full red ({@link HudTint}); the map stays as it is. */
     static final float TINT = 0.6f;
     /** The level moves in these steps, so a picture is drawn again only when it shows. */
     private static final float STEP = 1f / 32f;

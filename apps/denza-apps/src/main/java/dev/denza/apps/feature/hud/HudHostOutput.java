@@ -35,12 +35,12 @@ import dev.denza.hudlink.HudSource;
  * navigation (stage 5).
  *
  * <p>While HUD Speed warns of a camera with a limit, the car's speed from its wheels is read at a
- * screen's cadence and the glass turns red at a fine's speed ({@link HudSpeeding}): the warning's
- * picture and the map window, together, over a moment.
+ * screen's cadence and the warning turns red at a fine's speed ({@link HudSpeeding}), over a
+ * moment. The map stays as it is (owner, 2026-11-02).
  */
 final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
-    /** How often the red follows the speed: the map window's own rate (HudSession.MAP_MIN_INTERVAL_MS). */
+    /** How often the red follows the speed; the card reaches the HUD at most every HudSession.ROAD_MIN_INTERVAL_MS. */
     private static final long RED_TICK_MS = 83L;
     private static final double KMH_PER_MPH = 1.609344;
     private static HudHostOutput instance;
@@ -53,7 +53,6 @@ final class HudHostOutput {
     private final HudSpeeding speeding = new HudSpeeding();
     private final Runnable redTick = this::followSpeed;
     private HudWheelSpeed wheels;
-    private float red;
     private HudHostEndpoint endpoint;
     private HudNativeSpeedLimitRunner sign;
     private Integer limit;
@@ -165,19 +164,11 @@ final class HudHostOutput {
         wheels.watch(limit > 0);
         Double kmh = wheels.kmh(now);
         Double speed = kmh == null || camera == null || camera.unit != 2 ? kmh : kmh / KMH_PER_MPH;
-        showRed(speeding.update(limit, speed, now), now);
+        radar.setRed(speeding.update(limit, speed, now), now);
         if (limit > 0 || !speeding.settled()) {
             main.postDelayed(redTick, RED_TICK_MS);
         } else {
             wheels.watch(false);
-        }
-    }
-
-    private void showRed(float level, long now) {
-        radar.setRed(level, now);
-        if (level != red) {
-            red = level;
-            output.setTint(level * HudSpeeding.TINT);
         }
     }
 
@@ -186,10 +177,6 @@ final class HudHostOutput {
         main.removeCallbacks(redTick);
         speeding.reset();
         radar.forget();
-        if (red != 0f) {
-            red = 0f;
-            output.setTint(0f);
-        }
         if (wheels != null) {
             wheels.watch(false);
         }

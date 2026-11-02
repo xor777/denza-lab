@@ -11,7 +11,6 @@ import android.graphics.drawable.Drawable;
 
 import dev.denza.hudlink.HudImage;
 import dev.denza.hudlink.HudRadarWarning;
-import dev.denza.hudlink.HudTint;
 
 import java.io.ByteArrayOutputStream;
 
