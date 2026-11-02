@@ -52,7 +52,7 @@ public final class PatchHooks {
         ImmutableDexFile output = ImmutableDexFile.of(rewriter.getDexFileRewriter().rewrite(input));
         if (matches[0] != 1 || calls[0] != 1) throw new IllegalStateException("Unexpected hook shape: " + matches[0] + "/" + calls[0]);
         if (kind.equals("guidance")) {
-            // classes12.dex already has 65,536 method references. Relocate the one
+            // Its dex (classes12.dex in 29.8.1) already has 65,536 method references. Relocate the one
             // patched class rather than overflow the original dex or rewrite unrelated code.
             List<ClassDef> kept = new ArrayList<>(), moved = new ArrayList<>();
             for (ClassDef value : output.getClasses()) (value.getType().equals(owner) ? moved : kept).add(value);

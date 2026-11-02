@@ -7,7 +7,8 @@ import java.util.List;
 /**
  * The reviewed 79.0 model only. Snapshot on the event's thread, before queuing any IPC: whether the
  * radar runs, its GPS bars, and the warning its own overlay would show, with the names of the
- * app's drawables for it.
+ * app's drawables for it. tools/hud_speed_build/Symbols.java checks each name here against the APK:
+ * change both together.
  */
 public final class HudSpeedSource {
     public interface Labels {

@@ -9,7 +9,11 @@ import com.android.tools.smali.dexlib2.writer.pool.DexPool;
 import java.io.File;
 import java.util.*;
 
-/** Five entry hooks in exactly one class. Move it to a new dex to avoid reference overflow. */
+/**
+ * Five entry hooks in exactly one class. Move it to a new dex to avoid reference overflow.
+ * Arguments: dex, patched dex, relocated service dex, then the two obfuscated event types
+ * (onRadarUpdateEvent, onRadarGpsStatusUpdateEvent) as Symbols.java reported them.
+ */
 public final class PatchHooks {
     static final String OWNER = "Lair/StrelkaSD/MainService;";
     public static void main(String[] args) throws Exception {
@@ -17,7 +21,7 @@ public final class PatchHooks {
                 "onTaskRemoved", "stop", "onRadarUpdateEvent", "update", "onRadarGpsStatusUpdateEvent", "update");
         Map<String, List<String>> parameters = Map.of("onCreate", List.of(), "onDestroy", List.of(),
                 "onTaskRemoved", List.of("Landroid/content/Intent;"),
-                "onRadarUpdateEvent", List.of("Lf/j;"), "onRadarGpsStatusUpdateEvent", List.of("Lf/i;"));
+                "onRadarUpdateEvent", List.of(args[3]), "onRadarGpsStatusUpdateEvent", List.of(args[4]));
         Set<String> seen = new HashSet<>();
         DexFile input = DexFileFactory.loadDexFile(new File(args[0]), Opcodes.forApi(23));
         DexRewriter rewriter = new DexRewriter(new RewriterModule() {

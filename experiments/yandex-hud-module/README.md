@@ -208,8 +208,11 @@ python3 tools/yandex_hud_build/build.py --abi arm64-v8a \
 ```
 
 The input must be the owner's single APK 29.8.1 / code 739494300, SHA-256
-`3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3`.
-The script adds our module in a new dex and patches exactly two methods.
+`3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3`; the base
+(path, SHA-256, upstream version) lives in `tools/yandex_hud_build/identity.py`.
+The script adds our module in a new dex and patches exactly two methods, in the
+dex files that define `MapKitFactory` (`classes10.dex` in 29.8.1) and
+`GuidanceBinding` (`classes12.dex`), found in the APK, not assumed.
 Because original `classes12.dex` already has 65,536 method references, its
 patched Guidance class is relocated into a second new dex. No foreign source
 or binary is committed.
@@ -242,6 +245,31 @@ already permits debug applications with a different signer; its check is not
 patched. The release-mode attempt exits with a signature mismatch. The debug
 candidate builds routes without signing in; account login, SSO, purchases and
 signature-dependent integrations are unverified.
+
+## New upstream version
+
+The module calls Navigator only through the public MapKit/NaviKit API, by name
+(`Reflect`), and hooks two public classes, so a new Navigator usually needs no
+code change; the risk is a renamed or removed API and moved dex files.
+
+1. Copy the new APK to `captures/<topic>-<date>/` (never into git).
+2. `python3 tools/yandex_hud_build/symbols.py <apk>` prints its version, the dex
+   holding each hook, and every class (`Reflect.type`/`make`) and method
+   (`Reflect.call`) name the module uses that no public `com.yandex` class
+   declares any more. The names are read from the module source, so nothing
+   is listed by hand. A name that still exists may have changed meaning: the
+   emulator acceptance is the proof, not this check.
+3. In `identity.py` change the base block (`APK`, `PIN`, `BASE_VERSION_NAME`,
+   `BASE_VERSION_CODE`); `build.py` rejects a base that differs from the APK's
+   own manifest. The build number is the owner's call; check that the new
+   version code is above the last released one, the branch builds included.
+4. Build, then the [emulator checks](#emulator-checks): installed over the
+   previous YandexHUD (same UID, private files kept), then acceptance with lanes.
+   The `passport_account_type` resource is found by name, the dex files by class.
+5. One commit, `build(yandex-hud): rebase onto Navigator <version>`; the release
+   tag keeps its prefix, `yandex-hud-<version>-YandexHUD.<n>`
+   ([download page](../../platform/downloads/README.md)). The NOA branches take
+   it when they merge main.
 
 ## Build identification
 

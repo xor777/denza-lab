@@ -13,6 +13,7 @@ Owner-only embedded adapter for the reviewed official HUD Speed **79.0**
 | Nearest **selected** warning, GPS loss, mph, ongoing average section, stale observation, service destruction | Emulator checks | `test-device/`, `src/test/`; capture directory below |
 | Card alongside route; maneuver and road-limit ownership retained, the card in the lane window | Emulator/JVM checks | Host instrumentation and `HudRadarSourceTest` |
 | Projector on this car, genuine moving detections, background entitlement, account/purchase, database refresh, sleep/wake | Not accepted | Requires vehicle/user scenarios |
+| A new upstream version: every obfuscated name checked before patching, with candidates | Built 2026-11-02 | `tools/hud_speed_build/symbols.py`; [New upstream version](#new-upstream-version) |
 | Active route required for HUD camera and GPS output | Owner decision, 2026-10-18; standalone work cancelled | Host prototype reverted; product APKs on car unchanged; probe evidence in architecture section 8 |
 
 ## Data and lifetime
@@ -80,7 +81,8 @@ ANDROID_HOME=/opt/homebrew/share/android-commandlinetools \
 
 Input defaults to `captures/hud-speed-20261018/hudspeed-radarbase-release-79000000.apk`,
 SHA-256 `393220d5d139adf191e616b60126ecf888e102d4310be1d527a8df5aad967e49`.
-No download is performed. Another upstream version fails before modification.
+No download is performed. Another upstream version fails before modification;
+the base (path, SHA-256, upstream version) lives in `tools/hud_speed_build/identity.py`.
 The build requires local JDK17, Android SDK build-tools36, android35 and the
 installed JADX1.5.5 jar (DEX rewriter only).
 
@@ -94,9 +96,35 @@ Output is `HUD-Speed-79.0-mod.1.apk`, label «HUD Speed Mod», version
 `79.0-mod.1`, code79000001: the upstream name with a mod mark, never another
 brand (until 2026-10-18: «HUD Speed Denza», `79.0-DenzaHUD.1`). Independent SDK manifest decoding proves that only app label,
 version and the Denza Apps package query changed. Only original `classes.dex`
-and the manifest change; MainService moves to classes3, adapter to classes4.
+and the manifest change; MainService moves to classes3, adapter to classes4
+(the dex holding MainService and the two numbers after the last original dex,
+found in the APK, not assumed).
 All native libraries, assets, resources and classes2 stay byte-identical.
 `build-report.json` records input/output hashes, signer and module source hashes.
+
+## New upstream version
+
+HUD Speed is obfuscated: a new release almost certainly renames the members the
+adapter reads (`MainService.c`, `g.i.y`, the camera's `v/u/k/l/j/s`…) and the two
+hook event types. `tools/hud_speed_build/Symbols.java` lists every one of them, in
+the order `HudSpeedSource.read` and `HudSpeedModule.update` use them; the two
+change together.
+
+1. Copy the new APK to `captures/hud-speed-<date>/` (never into git).
+2. `python3 tools/hud_speed_build/symbols.py <apk>` prints its version and every
+   member that moved, each with the public members of the same shape on that
+   class as candidates. Confirm each candidate in JADX, then rename it in
+   `HudSpeedSource`/`HudSpeedModule`, `Symbols.java` and the `SourceTest`
+   fixtures. Repeat until nothing is missing. Hook event types need no edit:
+   `build.py` passes the ones the check found to `PatchHooks`.
+3. In `identity.py` change the base block (`APK`, `PIN`, `BASE_VERSION_NAME`,
+   `BASE_VERSION_CODE`); `build.py` rejects a base that differs from the APK's
+   own manifest. The mod number is the owner's call.
+4. Build, run the [emulator checks](#emulator-checks) with the new APK installed
+   over the previous mod, then the car.
+5. One commit, `build(hud-speed): rebase onto HUD Speed <version>`; the release
+   tag keeps its prefix, `hud-speed-<version>-mod.<n>`
+   ([download page](../../platform/downloads/README.md)).
 
 ## Emulator checks
 

@@ -5,16 +5,18 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from identity import BUILD_NUMBER, LABEL, VERSION_CODE, VERSION_NAME
+from identity import (APK, PIN, BASE_VERSION_CODE, BASE_VERSION_NAME, BUILD_NUMBER, LABEL, VERSION_CODE,
+                      VERSION_NAME)
 from manifest import LAUNCH_TARGET, QUERIED_PACKAGES, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
+import symbols
 
 ROOT = Path(__file__).resolve().parents[2]
-PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
 
 
 def run(args, **kwargs):
@@ -39,6 +41,9 @@ def verify_manifest(original, candidate, env):
         return ET.fromstring(subprocess.check_output(['apkanalyzer', 'manifest', 'print', str(path)], env=env))
     before, after = read(original), read(candidate)
     android = '{http://schemas.android.com/apk/res/android}'
+    for name, base in [('versionName', BASE_VERSION_NAME), ('versionCode', str(BASE_VERSION_CODE))]:
+        if before.attrib[android + name] != base:
+            raise RuntimeError('identity.py base does not match the input APK: ' + name)
     for name, expected in [('versionName', VERSION_NAME), ('versionCode', str(VERSION_CODE))]:
         if after.attrib[android + name] != expected:
             raise RuntimeError('YandexHUD build identity mismatch: ' + name)
@@ -69,7 +74,7 @@ def verify_manifest(original, candidate, env):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--apk', type=Path, default=ROOT / 'captures/hud-lanes-20261011/yandex-installed.apk')
+    parser.add_argument('--apk', type=Path, default=ROOT / APK)
     parser.add_argument('--stock-apk', type=Path, default=ROOT / 'captures/hud-firmware-20260923/system/system/app/BydLaunchermap/BydLaunchermap.apk')
     parser.add_argument('--abi', choices=('universal', 'arm64-v8a'), default='universal',
                         help='Keep all architectures, or only ARM64 native libraries')
@@ -80,7 +85,7 @@ def main():
     args = parser.parse_args()
     args.out = args.out.resolve()
     if hashlib.sha256(args.apk.read_bytes()).hexdigest() != PIN:
-        parser.error('Input APK is not the reviewed Navigator 29.8.1')
+        parser.error(f'Input APK is not the reviewed Navigator {BASE_VERSION_NAME}; check a new one with symbols.py')
     artwork, artwork_report = stock_art(args.stock_apk)
     args.out.mkdir(parents=True, exist_ok=False)
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
@@ -90,6 +95,12 @@ def main():
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     run(['python3', ROOT/'tools/yandex_hud_build/stock_camera_defaults.py', '--check'])
+    # The hook classes' dex files and every MapKit name the module reaches, before any build work.
+    names = symbols.check(args.apk, java, args.out, args.jadx_jar)
+    if names['missing']:
+        raise RuntimeError('Navigator names moved: ' + json.dumps(names['missing'], indent=2))
+    hook_dex = {names['hooks']['context']: 'context', names['hooks']['guidance']: 'guidance'}
+    if len(hook_dex) != 2: raise RuntimeError('Both hooks in one dex: PatchHooks patches one hook per dex')
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     # The HUD wire and compositor shared with Denza Apps; the plain-Java part the module's fields
     # pass through (the scene, the placement table, the road packet) runs in the host tests too.
@@ -133,7 +144,7 @@ def main():
     with zipfile.ZipFile(args.apk) as original:
         excluded = excluded_native_entries(original, args.abi)
         removed_native_bytes = sum(original.getinfo(name).compress_size for name in excluded)
-        for name, mode in [('classes10.dex', 'context'), ('classes12.dex', 'guidance')]:
+        for name, mode in hook_dex.items():
             source = args.out/('original-'+name); source.write_bytes(original.read(name))
             target = args.out/name
             run([java/'bin/java', '-Xmx1g', '-cp', str(patcher)+os.pathsep+str(args.jadx_jar), 'PatchHooks', source, target, mode, args.out/'guidance-hook.dex'])
@@ -172,7 +183,9 @@ def main():
     def resource_dump(apk):
         return subprocess.check_output([str(build_tools/'aapt2'), 'dump', 'resources', str(apk)], text=True)
     before_resources, after_resources = resource_dump(args.apk), resource_dump(result)
-    old_value = 'resource 0x7f1515b5 string/passport_account_type\n      () "' + ORIGINAL_ACCOUNT_TYPE + '"'
+    old_value = re.search(r'resource 0x[0-9a-f]{8} string/passport_account_type\n      \(\) "'
+                          + re.escape(ORIGINAL_ACCOUNT_TYPE) + '"', before_resources)
+    old_value = old_value.group(0) if old_value else 'string/passport_account_type missing'
     new_value = old_value.replace(ORIGINAL_ACCOUNT_TYPE, ACCOUNT_TYPE)
     if before_resources.count(old_value) != 1 or after_resources != before_resources.replace(old_value, new_value):
         raise RuntimeError('Unexpected resource change beyond passport_account_type')
@@ -183,6 +196,7 @@ def main():
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
+    report['hook_dex'] = hook_dex
     report['abi'] = args.abi
     report['renderer_profile'] = args.renderer_profile
     report['apk_bytes'] = result.stat().st_size
@@ -192,7 +206,7 @@ def main():
     report['resource_semantic_check'] = 'passed: only passport_account_type changed'
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
-        allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml','resources.arsc'}
+        allowed = {*hook_dex, 'AndroidManifest.xml', 'resources.arsc'}
         missing = {name for name in set(before.namelist()) - set(after.namelist())
                    if not name.startswith('META-INF/')}
         if missing != excluded: raise RuntimeError('Unexpected removed APK entries: ' + str(missing ^ excluded))

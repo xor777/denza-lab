@@ -40,6 +40,7 @@ public final class HudSpeedModule {
             long now = SystemClock.elapsedRealtime();
             HudRadarWarning observation;
             try {
+                // g.i and its members are checked against the APK by tools/hud_speed_build/Symbols.java.
                 Class<?> helpers = Class.forName("g.i", false, service.getClassLoader());
                 observation = HudSpeedSource.read(service, new HudSpeedSource.Labels() {
                     public String title(int type) throws Exception {

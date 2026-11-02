@@ -8,8 +8,10 @@ from pathlib import Path
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from identity import PIN, LABEL, VERSION_CODE, VERSION_NAME, PACKAGE
+from identity import (APK, PIN, BASE_VERSION_NAME, BASE_VERSION_CODE, LABEL, VERSION_CODE, VERSION_NAME,
+                      PACKAGE)
 from manifest import edit
+import symbols
 
 ROOT = Path(__file__).resolve().parents[2]
 CERTIFICATE = '4e2b390deba4ee0b336f85d916a372ca0dfe3fd70a7379cb22fe778773f92202'
@@ -24,6 +26,9 @@ def verify_manifest(original, candidate, analyzer, env):
         return ET.fromstring(subprocess.check_output([str(analyzer), 'manifest', 'print', str(path)], env=env))
     before, after = read(original), read(candidate)
     android = '{http://schemas.android.com/apk/res/android}'
+    for name, base in [('versionName', BASE_VERSION_NAME), ('versionCode', str(BASE_VERSION_CODE))]:
+        if before.attrib[android + name] != base:
+            raise RuntimeError('identity.py base does not match the input APK: ' + name)
     for name, expected in [('versionName', VERSION_NAME), ('versionCode', str(VERSION_CODE))]:
         if after.attrib[android + name] != expected:
             raise RuntimeError('Build identity mismatch: ' + name)
@@ -41,11 +46,11 @@ def verify_manifest(original, candidate, analyzer, env):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--apk', type=Path, default=ROOT/'captures/hud-speed-20261018/hudspeed-radarbase-release-79000000.apk')
+    parser.add_argument('--apk', type=Path, default=ROOT/APK)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     if hashlib.sha256(args.apk.read_bytes()).hexdigest() != PIN:
-        parser.error('Input must be the reviewed HUD Speed 79.0 APK')
+        parser.error(f'Input must be the reviewed HUD Speed {BASE_VERSION_NAME} APK; check a new one with symbols.py')
     args.out = args.out.resolve()
     args.out.mkdir(parents=True, exist_ok=False)
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
@@ -53,7 +58,13 @@ def main():
     env = dict(os.environ, JAVA_HOME=str(java))
     bt = sdk/'build-tools/36.0.0'
     android = sdk/'platforms/android-35/android.jar'
-    jadx = Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar')
+    jadx = symbols.JADX
+    # Every obfuscated name the adapter reaches, before anything is compiled or patched.
+    names = symbols.check(args.apk, java, args.out)
+    if names['missing']:
+        raise RuntimeError('Obfuscated names moved: '+json.dumps(names['missing'], indent=2))
+    service_dex = names['service_dex']
+    events = [names['events'][name] for name in ('onRadarUpdateEvent', 'onRadarGpsStatusUpdateEvent')]
     link = ROOT/'libraries/hud-link/src/main/java/dev/denza/hudlink'
     # Deliberately exclude HudLink/HudOutput/HudSomeIp: this APK cannot become a second writer.
     shared = ['HudHostClient', 'HudHostProtocol', 'HudRadarWarning', 'HudSink', 'HudSource',
@@ -73,15 +84,17 @@ def main():
     patcher = args.out/'patcher'; patcher.mkdir()
     run([java/'bin/javac', '-cp', jadx, '-d', patcher, ROOT/'tools/hud_speed_build/PatchHooks.java'])
     with zipfile.ZipFile(args.apk) as original:
-        if {x for x in original.namelist() if x.startswith('classes') and x.endswith('.dex')} != {'classes.dex', 'classes2.dex'}:
-            raise RuntimeError('Unexpected input dex layout')
-        source = args.out/'original.dex'; source.write_bytes(original.read('classes.dex'))
+        # The relocated service and the adapter go after the last original dex.
+        last = max(1 if x == 'classes.dex' else int(x[7:-4]) for x in original.namelist()
+                   if x.startswith('classes') and x.endswith('.dex') and '/' not in x)
+        service_name, adapter_name = f'classes{last+1}.dex', f'classes{last+2}.dex'
+        source = args.out/'original.dex'; source.write_bytes(original.read(service_dex))
         run([java/'bin/java', '-Xmx1g', '-cp', str(patcher)+os.pathsep+str(jadx), 'PatchHooks', source,
-             args.out/'patched.dex', args.out/'service.dex'])
-        changes = {'classes.dex': (args.out/'patched.dex').read_bytes(),
+             args.out/'patched.dex', args.out/'service.dex', *events])
+        changes = {service_dex: (args.out/'patched.dex').read_bytes(),
                    'AndroidManifest.xml': edit(original.read('AndroidManifest.xml')),
-                   'classes3.dex': (args.out/'service.dex').read_bytes(),
-                   'classes4.dex': (dex/'classes.dex').read_bytes()}
+                   service_name: (args.out/'service.dex').read_bytes(),
+                   adapter_name: (dex/'classes.dex').read_bytes()}
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w') as output:
             for info in original.infolist():
                 if info.filename.startswith('META-INF/') and (info.filename.endswith(('.SF','.RSA','.DSA','.EC')) or info.filename == 'META-INF/MANIFEST.MF'):
@@ -103,10 +116,10 @@ def main():
     verify_manifest(args.apk, result, sdk/'cmdline-tools/latest/bin/apkanalyzer', env)
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
         changed = [name for name in before.namelist() if not name.startswith('META-INF/') and before.read(name) != after.read(name)]
-        if set(changed) != {'AndroidManifest.xml', 'classes.dex'}:
+        if set(changed) != {'AndroidManifest.xml', service_dex}:
             raise RuntimeError('Unexpected changed entries: '+str(changed))
         added = set(after.namelist()) - set(before.namelist())
-        if {name for name in added if not name.startswith('META-INF/')} != {'classes3.dex', 'classes4.dex'}:
+        if {name for name in added if not name.startswith('META-INF/')} != {service_name, adapter_name}:
             raise RuntimeError('Unexpected added entries')
     report = dict(input_sha256=PIN, package=PACKAGE, version=VERSION_NAME, version_code=VERSION_CODE,
                   apk=str(result), sha256=hashlib.sha256(result.read_bytes()).hexdigest(), certificate_sha256=CERTIFICATE,
