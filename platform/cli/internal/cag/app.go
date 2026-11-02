@@ -646,6 +646,11 @@ func (app *App) relayPairArgs(code, payload string) []string {
 
 // relayHostArgs are the outer connection to the relay. identityName is empty
 // for the password-only pairing account.
+// sshConnectTimeout bounds the TCP connect and the banner exchange. Without it
+// a path that accepts TCP but never delivers the banner (a VPN that cannot
+// reach the relay) leaves ssh waiting forever, and the watch with it.
+const sshConnectTimeout = "ConnectTimeout=20"
+
 func (app *App) relayHostArgs(identityName string) []string {
 	args := []string{
 		"-F", "none",
@@ -654,6 +659,7 @@ func (app *App) relayHostArgs(identityName string) []string {
 		"-o", sshPathOption("UserKnownHostsFile", app.path("known_hosts")),
 		"-o", "GlobalKnownHostsFile=/dev/null",
 		"-o", "LogLevel=ERROR",
+		"-o", sshConnectTimeout,
 	}
 	if identityName != "" {
 		args = append(args,
@@ -780,6 +786,7 @@ func (app *App) innerArgsWithIdentity(bundle DeviceBundle, knownHosts, identityN
 		"-o", "GlobalKnownHostsFile=/dev/null",
 		"-o", "ProxyCommand=" + app.proxyCommand(bundle.RelayDevicePort, identityName),
 		"-o", "LogLevel=ERROR",
+		"-o", sshConnectTimeout,
 	}
 	if batch {
 		args = append(args, "-o", "BatchMode=yes")

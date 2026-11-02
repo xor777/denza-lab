@@ -187,6 +187,9 @@ func TestProxyUsesTheRequestedIdentityAndDropsAskpass(t *testing.T) {
 		argAfter(args, "-W") != "127.0.0.1:20000" || args[len(args)-1] != "cag-client@adbgw.ru" {
 		t.Fatalf("unexpected proxy ssh: %q", args)
 	}
+	if !containsArg(args, sshConnectTimeout) {
+		t.Fatalf("the proxy ssh can wait for the relay banner forever: %q", args)
+	}
 	if err := app.Run(context.Background(), []string{"__proxy", "20000"}); err != nil {
 		t.Fatal(err)
 	}
@@ -197,6 +200,9 @@ func TestProxyUsesTheRequestedIdentityAndDropsAskpass(t *testing.T) {
 		t.Fatal("an arbitrary proxy identity was accepted")
 	}
 	inner := app.innerArgsWithIdentity(testBundle("smart", "127.0.0.1"), app.path("known_hosts"), "identity.next", false, "pair-complete")
+	if !containsArg(inner, sshConnectTimeout) {
+		t.Fatalf("the inner ssh can wait for the car's banner forever: %q", inner)
+	}
 	if !containsArg(inner, "ProxyCommand='/usr/local/bin/cag' __proxy 20000 identity.next") {
 		t.Fatalf("inner ssh does not hand its identity to the proxy: %q", inner)
 	}
