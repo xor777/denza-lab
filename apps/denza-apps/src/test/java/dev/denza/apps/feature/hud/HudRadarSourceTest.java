@@ -11,6 +11,7 @@ import static org.junit.Assert.*;
  */
 public class HudRadarSourceTest {
     private final HudScene scene = new HudScene();
+    private final java.util.List<Float> reds = new java.util.ArrayList<>();
     private long now;
     private final HudSink sink = new HudSink() {
         public void layer(HudSource s,String id,HudRole r,HudRect rect,HudImage image,float a,long ttl) { scene.layer(s,id,r,rect,image,a,ttl,now); }
@@ -25,7 +26,7 @@ public class HudRadarSourceTest {
         return HudImage.png(png);
     }
     private final HudRadarSource radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
-        public HudImage lanes(HudRadarWarning w) { return png(HudRadarPainter.LANE_WIDTH, HudRadarPainter.LANE_HEIGHT); }
+        public HudImage lanes(HudRadarWarning w, float red) { reds.add(red); return png(HudRadarPainter.LANE_WIDTH, HudRadarPainter.LANE_HEIGHT); }
         public HudImage gps(int level) { return level > 0 ? png(HudRadarPainter.GPS, HudRadarPainter.GPS) : null; }
     });
     private HudRadarWarning warning(long at) {
@@ -99,5 +100,26 @@ public class HudRadarSourceTest {
         now=1000; radar.publish(warning(now),now);
         assertEquals(HudMode.OFF,scene.compose(now).mode);
         assertTrue(scene.compose(now).layers(HudWindow.MAP).isEmpty());
+    }
+    @Test public void aNewRedDrawsTheWarningAgainOnlyUntilItsObservationDies() {
+        now=1000; route();
+        radar.publish(warning(now),now);
+        radar.setRed(0.5f,now=1500);
+        radar.setRed(0.5f,now=1600);
+        assertEquals(java.util.Arrays.asList(0f,0.5f),reds);
+        assertSame(radar.current(1600),radar.current(3999));
+        radar.setRed(1f,now=4000);
+        assertNull(radar.current(4000));
+        assertEquals(2,reds.size());
+        // The next observation comes as red as the speed is.
+        radar.publish(warning(now),now);
+        assertEquals(1f,reds.get(2),0f);
+    }
+    @Test public void forgottenCamerasStartPlain() {
+        now=1000; radar.publish(warning(now),now); radar.setRed(1f,now);
+        radar.forget();
+        assertNull(radar.current(now));
+        radar.publish(warning(now),now);
+        assertEquals(0f,reds.get(reds.size()-1),0f);
     }
 }

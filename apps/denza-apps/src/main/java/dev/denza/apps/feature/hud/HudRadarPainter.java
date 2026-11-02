@@ -3,6 +3,7 @@ package dev.denza.apps.feature.hud;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
@@ -10,6 +11,7 @@ import android.graphics.drawable.Drawable;
 
 import dev.denza.hudlink.HudImage;
 import dev.denza.hudlink.HudRadarWarning;
+import dev.denza.hudlink.HudTint;
 
 import java.io.ByteArrayOutputStream;
 
@@ -18,7 +20,8 @@ import java.io.ByteArrayOutputStream;
  * 7.4): its tile for the type, its frame with the limit in it, and the metres - or a section's
  * average - in large white digits; and, on the map, its GPS bars. The artwork comes from the
  * installed app ({@link HudRadarArt}); without it a plain white tile in a red frame stands in, so
- * the numbers still show.
+ * the numbers still show. At a fine's speed ({@link HudSpeeding}) the picture turns red: its
+ * background HUD Speed's red at half strength, the warning itself with red mixed in.
  */
 final class HudRadarPainter {
     /** The tile size HUD Speed's frame and limit digits were measured at; they scale from it. */
@@ -45,6 +48,8 @@ final class HudRadarPainter {
     private static final float LANE_UNIT_GAP = 2f;
 
     private static final int RED = 0xFFFF2A2A;
+    /** The red background's corners at a fine. */
+    private static final float CORNER = 8f;
     private static final Typeface DIGITS = Typeface.create("sans-serif-condensed", Typeface.BOLD);
     private static final Typeface UNIT = Typeface.create("sans-serif-condensed", Typeface.NORMAL);
 
@@ -55,13 +60,14 @@ final class HudRadarPainter {
      * The warning as the lane window's picture (docs/hud-output-architecture.md, 7.4), as the owner
      * chose it on the glass on 2026-10-18: HUD Speed's tiles the window's full height, the distance
      * as large as the width allows, its unit small, light and close to the digits; black around,
-     * as the stock lane picture is.
+     * as the stock lane picture is. {@code red}, 0 to 1: how far it has turned red for a fine
+     * (owner, 2026-11-02).
      */
-    static HudImage lanes(HudRadarWarning warning, HudRadarArt art) {
+    static HudImage lanes(HudRadarWarning warning, HudRadarArt art, float red) {
+        Bitmap content = Bitmap.createBitmap(LANE_WIDTH, LANE_HEIGHT, Bitmap.Config.ARGB_8888);
         Bitmap bitmap = Bitmap.createBitmap(LANE_WIDTH, LANE_HEIGHT, Bitmap.Config.ARGB_8888);
         try {
-            Canvas canvas = new Canvas(bitmap);
-            canvas.drawColor(Color.BLACK);
+            Canvas canvas = new Canvas(content);
             String amount = HudRadarBadge.amount(warning);
             String unit = HudRadarBadge.unit(warning);
             int tile = LANE_TILE;
@@ -89,10 +95,27 @@ final class HudRadarPainter {
                 outlined(canvas, light, unit, x + 2 + digits.measureText(amount) + LANE_UNIT_GAP,
                         baseline, color, 3f);
             }
+            Canvas window = new Canvas(bitmap);
+            window.drawColor(Color.BLACK);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+            if (red > 0f) {
+                paint.setColor(background(red));
+                window.drawRoundRect(new RectF(0f, 0f, LANE_WIDTH, LANE_HEIGHT), CORNER, CORNER, paint);
+                paint.setColorFilter(new ColorMatrixColorFilter(HudTint.matrix(red * HudSpeeding.TINT)));
+            }
+            window.drawBitmap(content, 0f, 0f, paint);
             return encode(bitmap);
         } finally {
+            content.recycle();
             bitmap.recycle();
         }
+    }
+
+    /** HUD Speed's red at {@link HudSpeeding#BACKGROUND} of {@code red} over black: the HUD adds light, it does not blend. */
+    static int background(float red) {
+        float strength = HudSpeeding.BACKGROUND * Math.max(0f, Math.min(1f, red));
+        return Color.rgb(Math.round(Color.red(RED) * strength), Math.round(Color.green(RED) * strength),
+                Math.round(Color.blue(RED) * strength));
     }
 
     /** The width of the distance and its unit as {@link #lanes} draws them, with the edge. */

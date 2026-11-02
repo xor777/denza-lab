@@ -33,15 +33,27 @@ import dev.denza.hudlink.HudSource;
  * <p>The car's own sign, which only this app can write, is the composition's second output: it
  * follows the road limit's winner ({@link HudComposition#roadLimitKmh}) with or without
  * navigation (stage 5).
+ *
+ * <p>While HUD Speed warns of a camera with a limit, the car's speed from its wheels is read at a
+ * screen's cadence and the glass turns red at a fine's speed ({@link HudSpeeding}): the warning's
+ * picture and the map window, together, over a moment.
  */
 final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
+    /** How often the red follows the speed: the map window's own rate (HudSession.MAP_MIN_INTERVAL_MS). */
+    private static final long RED_TICK_MS = 83L;
+    private static final double KMH_PER_MPH = 1.609344;
     private static HudHostOutput instance;
 
     private final Context context;
     private final HudOutput output;
     private final Sink sink = new Sink();
     private final HudRadarSource radar;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final HudSpeeding speeding = new HudSpeeding();
+    private final Runnable redTick = this::followSpeed;
+    private HudWheelSpeed wheels;
+    private float red;
     private HudHostEndpoint endpoint;
     private HudNativeSpeedLimitRunner sign;
     private Integer limit;
@@ -65,8 +77,8 @@ final class HudHostOutput {
         HudRadarArt art = new HudRadarArt(context);
         radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
             @Override
-            public HudImage lanes(HudRadarWarning warning) {
-                return HudRadarPainter.lanes(warning, art);
+            public HudImage lanes(HudRadarWarning warning, float red) {
+                return HudRadarPainter.lanes(warning, art, red);
             }
 
             @Override
@@ -101,6 +113,7 @@ final class HudHostOutput {
                         public void onRadar(HudRadarWarning warning) {
                             if (camerasShown()) {
                                 radar.publish(warning, SystemClock.elapsedRealtime());
+                                followSpeed();
                             }
                         }
                     },
@@ -128,8 +141,58 @@ final class HudHostOutput {
         }
         if (!camerasShown()) {
             output.withdraw(HudSource.RADAR);
+            stopRed();
         }
         followSign();
+    }
+
+    /**
+     * The red after the speed: while a camera with a limit is ahead, and after it until the red
+     * has gone. Main thread.
+     */
+    private void followSpeed() {
+        main.removeCallbacks(redTick);
+        long now = SystemClock.elapsedRealtime();
+        HudRadarWarning camera = radar.current(now);
+        int limit = camera == null ? 0 : camera.limit;
+        if (limit <= 0 && speeding.settled()) {
+            stopRed();
+            return;
+        }
+        if (wheels == null) {
+            wheels = new HudWheelSpeed(context);
+        }
+        wheels.watch(limit > 0);
+        Double kmh = wheels.kmh(now);
+        Double speed = kmh == null || camera == null || camera.unit != 2 ? kmh : kmh / KMH_PER_MPH;
+        showRed(speeding.update(limit, speed, now), now);
+        if (limit > 0 || !speeding.settled()) {
+            main.postDelayed(redTick, RED_TICK_MS);
+        } else {
+            wheels.watch(false);
+        }
+    }
+
+    private void showRed(float level, long now) {
+        radar.setRed(level, now);
+        if (level != red) {
+            red = level;
+            output.setTint(level * HudSpeeding.TINT);
+        }
+    }
+
+    /** No red, and no fast reading of the speed for it. */
+    private void stopRed() {
+        main.removeCallbacks(redTick);
+        speeding.reset();
+        radar.forget();
+        if (red != 0f) {
+            red = 0f;
+            output.setTint(0f);
+        }
+        if (wheels != null) {
+            wheels.watch(false);
+        }
     }
 
     /** What the panel lets through from {@code source} for {@code role}. */

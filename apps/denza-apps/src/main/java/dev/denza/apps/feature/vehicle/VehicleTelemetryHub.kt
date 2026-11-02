@@ -799,6 +799,13 @@ internal enum class VehicleWatcher(
     TRIP(onScreen = false),
 
     /**
+     * The HUD, while HUD Speed's warning about a camera with a limit is on it: the glass turns red
+     * at a fine's speed (`dev.denza.apps.feature.hud.HudSpeeding`), and a speed a second old is a
+     * second of fine. The driver is looking, so a screen's cadence.
+     */
+    HUD_CAMERA(onScreen = true),
+
+    /**
      * The road, recorded whether or not anyone looks.
      *
      * `docs/energy-display-contract.md` §2.7. The hub polled only while a screen watched it, so

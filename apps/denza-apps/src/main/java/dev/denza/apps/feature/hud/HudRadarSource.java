@@ -16,12 +16,15 @@ import dev.denza.hudlink.HudWindow;
  * Over the map the warning was small, faded at the window's edges and in the road's way, and the
  * owner took it off the map on the glass on 2026-10-18. Never instead of the navigator's
  * manoeuvre, limit or AR, never opening navigation by itself. Everything lives as long as the
- * observation it came in.
+ * observation it came in. The warning is drawn as red as {@link HudSpeeding} says the speed is.
  */
 final class HudRadarSource {
     interface Renderer {
-        /** The warning as the lane window's picture, {@link HudRadarPainter#LANE_WIDTH} wide. */
-        HudImage lanes(HudRadarWarning warning);
+        /**
+         * The warning as the lane window's picture, {@link HudRadarPainter#LANE_WIDTH} wide, as red
+         * as {@code red} (0 to 1).
+         */
+        HudImage lanes(HudRadarWarning warning, float red);
 
         /** The GPS bars, or null for none. */
         HudImage gps(int level);
@@ -34,6 +37,8 @@ final class HudRadarSource {
 
     private final HudSink sink;
     private final Renderer renderer;
+    private HudRadarWarning last;
+    private float red;
 
     HudRadarSource(HudSink sink, Renderer renderer) {
         this.sink = sink;
@@ -41,6 +46,7 @@ final class HudRadarSource {
     }
 
     void publish(HudRadarWarning observation, long now) {
+        last = observation;
         long ttl = observation.remainingMs(now);
         if (!observation.running || ttl == 0) {
             sink.withdraw(HudSource.RADAR);
@@ -49,7 +55,7 @@ final class HudRadarSource {
         if (observation.active) {
             sink.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
                     .number(Road.LANE_COUNT, HudRadarPainter.LANE_CELLS)
-                    .bytes(Road.LANES_PNG, renderer.lanes(observation).png())
+                    .bytes(Road.LANES_PNG, renderer.lanes(observation, red).png())
                     .build(), ttl);
         } else {
             sink.withdraw(HudSource.RADAR, HudRole.LANES);
@@ -60,6 +66,31 @@ final class HudRadarSource {
         } else {
             sink.removeLayer(HudSource.RADAR, GPS);
         }
+    }
+
+    /** The warning shown now: active and not yet dead; null when there is none. */
+    HudRadarWarning current(long now) {
+        HudRadarWarning warning = last;
+        return warning != null && warning.running && warning.active && warning.remainingMs(now) > 0
+                ? warning : null;
+    }
+
+    /** The warning's red changed: it is drawn again for what is left of its observation. */
+    void setRed(float red, long now) {
+        if (red == this.red) {
+            return;
+        }
+        this.red = red;
+        HudRadarWarning warning = current(now);
+        if (warning != null) {
+            publish(warning, now);
+        }
+    }
+
+    /** The cameras went off: what was published is gone, and the next warning starts plain. */
+    void forget() {
+        last = null;
+        red = 0f;
     }
 
     static HudRect gpsRect() {
