@@ -36,6 +36,7 @@ Updated 2026-10-31. Local parser acceptance is separate from vehicle acceptance.
 | Claim | Status | Section |
 | --- | --- | --- |
 | The speed limit we send does not change how long NOA holds at speed. Over four build-15 drives on 2026-10-29, at 15 km/h or more, nothing held over 3.2 s, whether we sent Yandex's limit, 0 or a fixed 20 (287/287 sends on the wire). The day's one long hold, 25.8 s, was at 3.7 km/h. The stock held CNOA 16–25 s at 16–19 km/h with limit 0. NOA's 40 maximum and the 20/40 sign persist with any limit; no car setting sets them, and their source is open. With the stock's coordinate frame build 15 got no NOA offers at all (0 of 327 moving positions), so offers need WGS-84 from us. On the eastbound exit stretch at 14–19 km/h, ours held 0.6–1.3 s where the stock held 16–25 s: place, direction and speed are matched, so the cause is in the feed On 2026-10-31 a position projected from the raw fix (5.4 m ahead of Yandex's), sent together with a changed NaviInfo cadence, left DNP offered 1.6 % of moving time and no engagement over 0.6 s; ICC held up to 23.7 s | car packets + wire proof + positions + settings screens + owner's eyes | [Build-15 drive](#build-15-drive-review-2026-10-24), «The fixed-20 drive», «The stock-frame drive» |
+| With no bridge on the car (2026-11-01), lever attempts still produced driver prompts and the owner heard the downgrade-to-ICC announcement, until it stopped by itself. NOA was not offered at any point: `ADAS_DNP_STATE` was never 3 or 6. Two 1-s resets of the ICC and DNP states came at 15:29 and 15:31; at 15:52 ICC engaged once, for 37 s. The cause is unknown. Anything the controller kept only in memory from our sessions did not survive, since the controller restarts with the car | stock cluster logcat + owner's eyes | [Build-16 position observer](#build-16-position-observer), «A drive with no bridge» |
 | Default Region now reuses the successful stock/OSM drive's `990001/1/990001/990001` (region/country/province/city), without an arm override. Weather remains 0. Route-link adminCode remains independent | local source change; vehicle transmission and NOA effect unverified | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
 | URID 372 binds the stock SDK's map package and feeds its local ODD calculations; it is not a Region field in the active ADAS-type-1 wire. The production Java calculator matches the original Amap on 1,332/1,332 Beijing samples, including protobuf bytes. One Yandex route now has conservative route-specific annotation: 14/26 links (3,273/4,772 m) mapped to 372; 12 divergent links remain unknown, so its full feed retains MAX. Java and Python agree on 144/144 replay samples, including a controlled finite boundary on a fully mapped excerpt | local source + original-APK emulator differential + offline geometric annotation; generic Yandex annotation, receiver eligibility and Russia-wide coverage remain unresolved | [Region default](#region-default-from-the-successful-stock-drive-2026-10-25) |
 | Build 17 (`dd8dbce9…`, versionCode 739494317) A1 OFF retained nine NOA-active runs of 489–607 ms, each ending in ICC. Pure availability occupies 0.80% of observed moving time; service 10 is actually OFF. Five paths received SELECTED 200; 743 retained positions have no send errors. Reroute gaps are 1.745/1.828/2.418/5.504 s. Both recorders cover movement and another 151 s. Session closed after the owner's manual reboot, stock remains disabled | current-arm raw evidence; no sustained NOA; subscription-only explanation weakened, cause unresolved | [A1 drive](#build-17-a1-off-drive-review-2026-10-25) |
@@ -2817,6 +2818,40 @@ AdasAgentService, a persistent app, starts `AgentPositionService` itself on ever
 boot. Each start sends `ADAS_LOCATE_AUTOORIZATION_STATUS_SET` 0x4CA00066 from its
 own preferences (1 NOA, 3 HNOA only, 2 neither). It has no readable status FID,
 so the value sent after the 31.10 boot is unknown.
+
+**A drive with no bridge (2026-11-01, 15:20–16:24 MSK).** Before an errand drive,
+YandexHUD without the bridge was installed: build `34690516…`, `adas_bridge_present:
+false` (`captures/yandex-hud-main-install-20261101/`). The stock map stayed disabled
+(`enabled=3`). Every bridge session since 25.10 found it that way, so each restore
+put it back to 3. The owner reported that engaging ICC brought the downgrade-to-ICC
+announcement, as if NOA had been requested, and that after a while this stopped.
+
+Another session recorded logcat for that drive, for UI freezes
+(`captures/drive-freezes/2026-11-01-home/logcat.txt` and `…-assistants-off/`). In
+it, the stock cluster HMI (`com.byd.sr`) logs every change of the controller's
+state:
+
+| Time (MSK) | Change |
+| --- | --- |
+| 15:27:14–15:27:58 | six driver prompts (`0x99000365`, byte arrays the HMI fails to parse); ICC and ACC states unchanged, so nothing engaged |
+| 15:29:22 and 15:31:47 | for about 1 s, ICC 0 and `ADAS_DNP_STATE` 1, then ICC 2 and `ADAS_DNP_STATE` 2 |
+| 15:52:20–15:52:57 | ICC and ACC active (1/1), `ADAS_ACC_MODE_ARHUD` 3, `ADAS_DNP_STATE` 4; prompts at the start and the end |
+| 16:18 (new HMI process) | ICC 2, `ADAS_DNP_STATE` 2 |
+
+What follows from the table:
+- `ADAS_DNP_STATE` was never 3 or 6, the values that accompanied SOME/IP DNP
+  available and active ([ADAS status observer](#adas-status-observer)), so NOA was
+  not offered at any point.
+- Its value before 15:29:22 is not in the log, because the listener prints only
+  changes. Neither is the prompts' content, so which prompt was the announcement is
+  not established.
+- One untested reading: the 15:29 and 15:31 resets are when the behaviour stopped.
+
+The controller restarts with the car. In the 31.10 IDC log, the 29.10 tail ends at
+uptime 425 s, and the next records start again at sequence 5 and uptime 11 s.
+Anything it kept only in memory from the sessions of 31.10 therefore did not reach
+this drive. The head unit does not reboot when the car sleeps, so state kept there
+could have.
 
 Notice 54 has no branch in the stock map's dispatcher (`k.h.e0.c.j.f0.j`, read with
 `--single-class --show-bad-code`). All 38 occurrences fall in 15:02:31–15:02:35,
