@@ -8,7 +8,7 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-10-15. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-11-02. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
@@ -35,6 +35,8 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Stationary runs of the contract with choice `1`: hazard (`6`) and a comfort tap close ours 3 ms after the lamps; right/left inside the tail and left-right-left are AVC steals on the kept window; in R we detach and skip `freeDisplay` once AVC's own view binds (before `001940ae` our free left the reverse picture black); AVC PID `4746` throughout | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | `com.byd.avc` crash history: a direct left-to-right while we held the renderer crashed AVC (tombstone 2026-09-04); since the opposite-onset teardown AVC has kept its PID through every recorded run. A crash is an escalation: `adb logcat -b crash -d -v time`, tell the owner once | live | 2026-09-04 | [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps), [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) |
 | Camera start, stock-window observation to first `TextureView` update: median 272 ms (243-391, n=10); `initDisplay` 150-232 ms; the two diagnostic reads 0-1 ms | live | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
+| Passive drive: CPU busy median 91.9%, all 28 captured camera requests reached a first texture update (151-637 ms, median 355); sampled camera presentation gaps reached 283 ms, including 233 ms after the first 0.5 s. Native heap PSS grew from about 34 to 499 MiB, then plateaued. These are measured delays and load contributors, not an isolated root cause or a controlled comparison | live, partial diagnosis | 2026-11-01 | [Passive performance observation](#passive-performance-observation-2026-11-01) |
+| Second drive with Denza Apps stopped: CPU median 45.0% (44.7% in approximately 10 s windows), versus 91.9% previously. Navigator and Music were also absent; this is a whole-configuration comparison. Optimisation candidates are the broad WindowManager dump, per-value telemetry processes, camera initialisation on the UI thread, and HUD raster work on Navigator's UI thread. None has been implemented or measured as a fix | live comparison / code analysis | 2026-11-02 | [Comparison and optimisation candidates](#comparison-and-optimisation-candidates-2026-11-02) |
 | Show gated on the BYDAutoLight listener (two 2026-09-04 contracts) made the camera appear "randomly" and was removed that evening; the window-only Show and five-poll quarantine that followed were replaced by the firmware-model contract | refuted | 2026-09-23 | [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) |
 | "Five polls of a surviving same-side window mean the lever came back": the survivor is AVC's two-second timer (tails 2.18-3.06 s, not 100-300 ms), and the rule was the cancellation flicker | refuted | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
 | Projection: the app owns the `VirtualDisplay` and its Surface; a short-lived shell-UID `ClusterProxyMain` only finds, moves, resizes, focuses or backgrounds one task; a split child is reparented alone into an organizer-created empty root. Since 2026-10-09 (code, not run on the car) the proxy loads from its own `navigation-proxy.jar`, staged by SHA-256 (`ShellProxyStager.kt`), not from the APK | live | 2026-08-14 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
@@ -70,7 +72,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, the firmware's AR scene machine (2026-10-14), field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
 - [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
 - [Third-party projection app: research boundary](#third-party-projection-app-research-boundary) — what an inspected third-party projection app taught and what was not copied.
-- [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
+- [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — the [2026-11-01 passive performance observation](#passive-performance-observation-2026-11-01), [comparison and optimisation candidates](#comparison-and-optimisation-candidates-2026-11-02), 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
 - [Failed or research-only paths](#failed-or-research-only-paths) — the dead ends in one list.
 - [Front-camera source evaluation (2026-07-25)](#front-camera-source-evaluation-2026-07-25) — the AVC surround source, the retired DVR renderer, the ADAS cameras.
 
@@ -3380,6 +3382,228 @@ Denza Mirrors remains the hardware-tested reference for camera geometry and
 central placement. The third-party app is supporting research evidence.
 
 ## Recorded car runs and escalation alerts
+
+### Passive performance observation (2026-11-01)
+
+The owner drove while a host recorder read the existing CAG raw-ADB connection.
+System samples cover **15:20:16-16:01:49 MSK**. The owner reported a trip pause
+at 16:00:18 and requested observation stop at 16:01:50. Only owned recorders were
+stopped; CAG remained connected. The observer did not install an APK, toggle an
+application feature or camera choice, change vehicle settings or tracing
+properties, or clear a log buffer.
+
+Installed identities were checked twice, before and during the observation:
+
+- Denza Apps `0.7.1`, code `79`, SHA-256
+  `2c8692e72d2c0207289f54e20597301c4eb5a7c42bb35fb006c3e74c79dcdbfe`.
+- Navigator `29.8.1-YandexHUD.4`, SHA-256
+  `346905161f1add98a00c85b4459471475ba1511c7fa02d3fb826aa49e5fb67a2`.
+- Denza Apps PID `28907` and AVC PID `4926` survived the observation. The saved
+  crash buffers and captured events contain no crash or ANR.
+
+**Measured, with different clocks and boundaries kept separate:**
+
+| Reading | Result | Boundary |
+|---|---|---|
+| Whole-system CPU busy, `/proc/stat` deltas | 227 intervals; median 91.9%, range 72.5-98.1% | Eight CPUs together, not a process's one-core percentage |
+| I/O wait / available RAM | Median 0.1% / about 3.8 GiB; RAM range 3.5-4.3 GiB | No evidence of global RAM exhaustion; not proof that allocations are harmless |
+| `soc_max` thermal sensor | Median 94.0 C, maximum 97.5 C | Hot readings; the cause and extent of thermal throttling were not isolated |
+| Camera request to first texture update | All 28 captured requests reached it; median 355 ms, 151-637 ms | Neither lever onset nor proof of correct pixels on the display |
+| Vendor `initDisplay` | Median 201 ms, 82-366 ms | A substantial part of startup; not a new isolated regression against the September stationary baseline |
+| Window reads logged when detection changed | Median 101 ms, 22-759 ms, n=45 | A selected sample of `dumpsys window visible`, not all polls |
+| Sampled camera presentation intervals after first texture update | Up to 283 ms early in startup; a 233 ms interval began about 579 ms after first texture update | Short SurfaceFlinger histories from 16 activations, not continuous video or an owner pixel verdict |
+
+The 233 ms presentation gap also had about a 233 ms gap between buffer-ready
+times. In that sample, the long interval was already present before the final
+composition/presentation step. This narrows the path but does not distinguish
+AVC production, the app's UI/render work, GPU work and scheduling contention.
+The columns are interpreted using AOSP's
+[FrameTracker output](https://android.googlesource.com/platform/frameworks/native/+/ee4bf4c9660809e7fb967cccfd6bdcfc67b3b113/services/surfaceflinger/FrameTracker.cpp):
+desired presentation, actual presentation, buffer ready. Invalid fence values
+and presentation frames before the first texture update are excluded.
+
+Two additional costs were measured rather than inferred from `top` alone:
+
+- Across three five-second intervals the system created 67.2-83.2 processes/s.
+  The persistent shell observed issuing telemetry `service call autoservice`
+  commands used, with its waited-for children, a mean **26.5% of one CPU** over
+  eight intervals; the shell issuing `dumpsys window visible` used **7.7%**.
+  `CLK_TCK=100` was read from the car. This is about 4.3% of total eight-core
+  capacity together, in addition to the app process and shared server work;
+  it is not all of the system's load. The source paths are `AutoserviceShell`
+  / `VehicleTelemetryHub` and `SideCameraMonitorService`.
+- Navigator's HUD instrumentation reported one main-thread elapsed span of
+  **738.684 ms**, first visible between its 15:22:49 and 15:22:59 reports.
+  That maximum did not increase through 16:01:44; the final cumulative mean
+  was 16.850 ms over 12,213 map frames. This is elapsed time, not CPU time,
+  and no causal link from this isolated span to a camera freeze was proved.
+
+Native heap PSS in Denza Apps rose from about **34 MiB** at 15:21 to **499 MiB**
+at 15:49. At 15:57 and during the reported pause it was about 497 and 495 MiB.
+Total app PSS peaked in the saved snapshots at about 714 MiB and was about
+664 MiB during the pause; Java heap PSS stayed small. Growth and a subsequent
+plateau are confirmed. An unbounded leak, its allocation owner, and its role in
+the freezes are not confirmed: no heap profile, forced GC, restart or feature
+toggle was performed.
+
+The capture is **partial**, not an uninterrupted acceptance trace. Two logcat
+readers ended with `Unexpected EOF`; top's host receive timestamps have gaps
+of 107, 64 and 25 seconds. These are collection/delivery gaps, not evidence of
+car freezes. Repeated driver warnings were filtered at 15:39 without changing
+device logging. A small camera-only stream and later a read-only shell capture
+triggered by the car's own camera logs reduced the host round-trip problem for
+short activations. The startup analyzer's surviving-window/reopen heuristics
+are not proof of cancelled driver intent under the current firmware model.
+
+Local evidence: `captures/drive-freezes/2026-11-01-home/`. Raw `logcat.txt`,
+`critical-logcat.txt`, `camera-device.txt`, `top.txt`, `system.txt`, memory
+snapshots, identities and the recorder/owner markers are retained there.
+`report.py` regenerates `report.json` and the merged, semantically deduplicated
+event file; the original streams remain intact. Source checkout was
+`cf5acb16624cd19b6a59344f53eb8ff0bbfa3ad5`; it is not an assertion that every
+current source file is the installed APK.
+
+The next isolation needs a parked, controlled comparison at stable temperature:
+separate the HUD map, instrument rendering and shell polling costs, and profile
+native allocations if the growth repeats. Preserve the requested telemetry
+freshness; reducing its frequency has not been accepted as a fix. No product
+change or root-cause claim follows from this passive drive alone.
+
+### Comparison and optimisation candidates (2026-11-02)
+
+Offline analysis of the two **2026-11-01** drives. No new car connection,
+feature change, installation or product-code edit was performed. The first
+capture's 116-file SHA-256 manifest still verifies without a mismatch.
+
+The second recorder ran from **16:17:48 to 16:24:30 MSK** (6 min 42 s); the
+owner's arrival stopped it at 16:24:31. Denza Apps had no PID in all **80**
+five-second process checks. The initial and seven periodic state snapshots,
+and the final check, show `stopped=true` and no active `ServiceRecord` for it.
+Old accessibility connection records remain in the dump; they do not prove a
+running service. Navigator was also `stopped=true`, and neither Navigator nor
+Yandex Music appeared in the process snapshots. One foreground snapshot names
+stock `com.byd.mycar` on the head unit and `com.byd.sr` on the cluster.
+
+The Denza Apps, Navigator and CAG APK hashes match between drives. Application
+selection, thermal state, route and trip duration were not held constant.
+
+| Metric | First drive, helpers on | Second drive, helpers off |
+|---|---:|---:|
+| Recorded duration | 41 min 33 s | 6 min 42 s |
+| CPU busy median, original sampling | 91.9% | 45.0% |
+| CPU busy median, combined approximately 10 s windows | 91.9% | 44.7% |
+| CPU busy maximum, original sampling | 98.1% | 75.6% |
+| Kernel + IRQ CPU median | 40.8% | 24.5% |
+| `soc_max` median | 94.0 C | 82.2 C |
+| Available RAM median | 3.83 GiB | 5.76 GiB |
+
+The second drive's roughly 47 percentage-point reduction is **not Denza Apps'
+isolated cost**. The observed mean of its main process was 34.6% of one CPU,
+about **4.3% of the car's total eight-core capacity**. The two persistent-shell
+readers measured in the earlier short calibration add about another **4.3%
+of total capacity**, with shared server/GPU costs still unassigned. Navigator's
+main process averaged 69.5% of one CPU and Music's 60.2%, together about 16.2%
+of total capacity. These measurements do not form a complete additive account
+of the difference: shared services, kernel work, different workloads and the
+top-40 process limit remain.
+
+There are also independent stock costs. Four of the second drive's sampled
+top frames show `com.byd.bydlogtool` at 110-126% of one CPU; overlapping CPU
+intervals reach 75.6%. Outside those overlapping intervals, CPU median is
+44.1%. This is coincidence in time, not proof that the logger alone caused the
+peaks. AVC logged seven slow dispatches with Denza Apps stopped, including
+**516 ms at 16:23:32** (`ActivityThread$H`, message 159) and **246 ms at
+16:24:02** (Choreographer). Those are event-processing durations, not measured
+video-frame freezes, and the 516 ms event is not the logger's peak episode.
+
+**Implementation candidates, ranked by the evidence and the intended benefit:**
+
+1. **Narrow the Mirrors window query before introducing a new event source.**
+   `SideCameraMonitorService.poll` asks for every visible window through
+   `dumpsys window visible`, then `SideCameraWindowDetector` keeps only AVC
+   blocks. The exact car's `WindowManagerService.dumpWindows` enumerates and
+   formats the selected windows under `mGlobalLock`; the observed read's
+   median 101 ms and maximum 759 ms include transport and scheduling, so they
+   are **not measurements of lock hold time**. A concrete candidate is the
+   existing named-window query `dumpsys window com.byd.avc`, with an explicit
+   `isVisible=true` filter before detection. Firmware `PIP2HostAlert.getParams`
+   sets title `com.byd.avc.pipwindow`; the meter activity has its qualified
+   component title. Named queries include hidden windows, so simply changing
+   the command would be wrong: the current detector relies on the server's
+   visibility filter. First compare both query results across idle, left,
+   right, tail, cancellation, hazard and R. Preserve the stock-mode check and
+   the current ownership rules. A faster window reader must not silently
+   increase the frequency of synchronous stock-AVC mode requests.
+2. **Replace telemetry's per-value executables with a resident read-only
+   Binder helper.** `AutoserviceShell.command` emits one `service call` per
+   value; current source has 8 HOT, 12 COLD and one conditional EVENT signal.
+   `PersistentShellSession` retains the transport, but each command still
+   executes in a subshell and launches those value readers. Its measured
+   26.5% of one CPU is a **budget to reduce**, not a promised saving: Binder
+   and server work will remain. `LocalAdbClient.ResidentSession` and the
+   SHA-pinned shell-jar stager already provide a lifecycle pattern; the new
+   helper would read only the existing telemetry allowlist and return the
+   same raw words. Reuse the transport pattern without starting diagnostic
+   traffic or expanding the read allowlist. Preserve sentinels, INT/FLOAT transactions, timestamps, demand,
+   backoff and cancellation. Measure and preserve the actual sweep cadence:
+   retaining only the existing 100 ms post-batch delay after making the batch
+   faster would increase polling rate. Keep latency-sensitive Mirrors work
+   independent of telemetry's potentially long cold batch.
+3. **Move camera initialisation's synchronous Binder work off the UI thread.**
+   `AvcCameraRenderer.initializeIfReady` is reached from the service connection
+   and TextureView callbacks and waits on `initDisplay` on the main thread.
+   The measured call takes 82-366 ms, median 201 ms. This offers a direct UI
+   responsiveness improvement; moving it does not by itself remove AVC's
+   preparation time or promise an earlier first video frame. Use a serial
+   command lane with generation/cancellation fencing and owned Surface
+   lifetime. Keep the proven local-detach-before-free order, reverse handover
+   and stale-owner release. `SceneLayer.scheduleVendorRelease` already moves
+   teardown to its own thread: that existing work is not a new optimisation.
+4. **Separate MapKit operations from pure HUD raster work.** Navigator's
+   `HudModule.tick` performs state extraction, `HudMap.capture`, screenshot
+   handling and `HudPainter.compose` on `MAIN`; PNG encoding is already on a
+   worker. The timed main-thread span averaged 16.850 ms and peaked once at
+   738.684 ms. Instrument its stages first, then transfer the owned bitmap and
+   immutable drawing inputs so pure Canvas work can join encoding on the
+   worker. Keep MapKit calls on their required thread and preserve route
+   cancellation, freshness, epoch checks and one frame in flight. Do not count
+   existing static-PNG caching, cached reflection, compositor version checks
+   and single-layer pass-through as newly available savings.
+5. **Profile the renderer's native allocations before changing its visual
+   work.** The measured growth to roughly 0.5 GiB is real and later plateaus;
+   it is not an established leak or the sole freeze cause. The 16:00 pause
+   still has a small Java heap. A saved graphics dump at 15:56 reports about
+   60 MiB of GPU caches, including 1,111 scratch render targets, which does not
+   explain the whole native heap. `ClusterDashboardView` redraws the panel
+   during its animation and `LightPen.shadow` draws blurred paths. Candidates
+   after allocation profiling are retained static layers and reusable masks
+   for fixed shapes, with visual equivalence through the Luminofor board
+   comparison. Keep the follower animation and energy freshness. The installed
+   APK predates the smaller, dimmer glow already on main since 2026-10-26;
+   benchmark one pinned build rather than mixing those designs.
+
+Suggested first changes are (1) to reduce interference with window operations,
+then (2) for measurable CPU/process savings; (3) targets camera-onset UI stalls.
+Each requires a separate comparison with the same foreground applications,
+route scenario and APK hash. Unit/replay tests alone do not prove performance:
+record process creations, helper + app + server CPU, window-query counts,
+UI-thread stalls and camera startup/presentation tails. The camera transition
+matrix and `EnergyReadoutsTest` / `VehicleLogReplayTest` keep the behaviour;
+the Luminofor screenshot comparison keeps the picture. No optimisation above
+has been implemented or accepted on the car.
+
+Source evidence beyond the tracked code is in the existing corpus:
+`captures/split-firmware-20260923/jadx/services/sources/com/android/server/wm/`
+(`WindowManagerService`, `WindowState`, `RootWindowContainer`) and
+`captures/hud-firmware-20260923/jadx/AutoVideo-avc/` (`PIP2HostAlert`). The
+WindowManager change-listener API found there is server-local, not an exposed
+Binder subscription; an event-only replacement is not established by this
+analysis. Comparison artifacts are in
+`captures/drive-freezes/2026-11-02-comparison/`: `compare.py`, `comparison.json`
+and both CPU CSVs. The raw second run remains in
+`captures/drive-freezes/2026-11-01-assistants-off/`.
+
+### Earlier acceptance runs and outstanding checks
 
 Local unit tests and `:denza-apps:assembleDebug` pass. The following hashes and
 runtime IDs identify individual acceptance runs; they are historical evidence,
