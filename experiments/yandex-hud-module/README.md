@@ -263,6 +263,7 @@ code change; the risk is a renamed or removed API and moved dex files.
    aware tool, for example APKEditor: `java -jar APKEditor.jar m -i <split-dir>
    -o <merged.apk> -validate-modules`. Never combine the ZIP entries while keeping
    only the base `resources.arsc`: that silently drops every density value.
+   The merge may deflate the dex; `build.py` stores them again.
 2. Prove the merged resource union before pinning it:
    `python3 tools/yandex_hud_build/check_merge.py <base.apk> <config-split.apk>…
    --merged <merged.apk> --out <resource-merge-report.json>`.
@@ -364,15 +365,25 @@ cover the design and the theme contract, not native transport.
 ## Current candidate (2026-11-02)
 
 **YandexHUD build 31, ARM64 debug:**
-`captures/yandex-hud-31.1.4-20261102/build-31-arm64/YandexHUD-31-arm64-debug.apk`,
-175,956,087 bytes, SHA-256
-`f654d1693d3332b7cf21ccb568d30ccc36e162b094d1d98d813549228b1fef62`.
+`captures/yandex-hud-31.1.4-20261102/build-31-arm64-stored/YandexHUD-31-arm64-debug.apk`,
+265,293,943 bytes, SHA-256
+`2b91e17797d97477d550b2cd8d6674e093ddfe5c0118998f8f21a4c85ac11a19`.
 Version `31.1.4-YandexHUD.31`, code `739735831`. The merged ARM64 upstream APK is
 `captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk`,
 SHA-256 `29229369e3d7fe6b643112e3f8d80ef1dcae6fc1379bd479a60f126b48435188`.
 The package contains only the 22 `arm64-v8a` native libraries, no other ABI and
 no Play split metadata. The local experimental certificate is unchanged, SHA-256
 `df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6`.
+
+Its dex are stored, as Navigator ships them. APKEditor deflates them, and the
+first build 31 (`build-31-arm64/`, 175,956,087 bytes, SHA-256
+`f654d1693d3332b7cf21ccb568d30ccc36e162b094d1d98d813549228b1fef62`) kept that.
+ART then runs it from the APK with the dex extracted into anonymous memory
+in every process. On the `denza_hu` emulator (two installs of each): PSS 470–488
+against 341–356 MB, private dirty 389–407 against 216–232 MB. The two builds
+differ in nothing else: every entry is identical, only dex storage changed.
+The acceptance below ran on the deflated build and carries over; the builder
+now writes every `classes*.dex` stored and fails on a compressed one.
 
 **Build 30 is rejected**, despite its earlier route acceptance: its manually
 combined base retained only the base `resources.arsc`, so every value supplied

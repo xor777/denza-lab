@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build an owner-only experimental Navigator APK from the SHA-pinned original."""
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -21,6 +22,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def run(args, **kwargs):
     subprocess.run([str(x) for x in args], check=True, **kwargs)
+
+
+def is_dex(name):
+    return re.fullmatch(r'classes\d*\.dex', name) is not None
 
 
 def excluded_native_entries(archive, abi):
@@ -102,6 +107,22 @@ def main():
     build_tools = sdk / 'build-tools/36.0.0'
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
+    def resource_dump(apk):
+        return subprocess.check_output([str(build_tools/'aapt2'), 'dump', 'resources', str(apk)], text=True)
+    before_resources = resource_dump(args.apk)
+    # A base-only ZIP concatenation drops every value from config.xxhdpi. These
+    # sentinels cover widgets, payment dimensions and the density URL template;
+    # check_merge.py independently proves the complete source-split union.
+    density_sentinels = (
+        'dimen/ybsdk_card_details_text_hint_layout_height',
+        'drawable/abc_btn_check_to_on_mtrl_000',
+        'drawable/abc_btn_switch_to_on_mtrl_00001',
+        'string/url_template_size',
+    )
+    for name in density_sentinels:
+        if not re.search(r'^    resource 0x[0-9a-f]{8} ' + re.escape(name)
+                         + r'\n      \(xxhdpi\) ', before_resources, re.MULTILINE):
+            raise RuntimeError('Merged APK is missing xxhdpi resource values: ' + name)
     run(['python3', ROOT/'tools/yandex_hud_build/stock_camera_defaults.py', '--check'])
     # The hook classes' dex files and every MapKit name the module reaches, before any build work.
     names = symbols.check(args.apk, java, args.out, args.jadx_jar)
@@ -170,8 +191,12 @@ def main():
                     continue
                 if info.filename.startswith('META-INF/') and (info.filename.endswith(('.SF','.RSA','.DSA','.EC')) or info.filename == 'META-INF/MANIFEST.MF'):
                     continue
+                # Navigator ships its dex stored, so ART maps them from the APK; the
+                # split merge deflates them, which costs an extraction and a slow first start.
+                if is_dex(info.filename): info = copy.copy(info); info.compress_type = zipfile.ZIP_STORED
                 output.writestr(info, changes.pop(info.filename, original.read(info.filename)))
-            for name, content in changes.items(): output.writestr(name, content, compress_type=zipfile.ZIP_DEFLATED)
+            for name, content in changes.items():
+                output.writestr(name, content, compress_type=zipfile.ZIP_STORED if is_dex(name) else zipfile.ZIP_DEFLATED)
     run([build_tools/'zipalign', '-P', '16', '-f', '4', args.out/'unsigned.apk', args.out/'aligned.apk'])
     # Dedicated local experimental identity, never committed. No original certificate spoofing.
     identity = ROOT/'captures/yandex-hud-signing'; identity.mkdir(exist_ok=True)
@@ -188,22 +213,7 @@ def main():
     run([build_tools/'zipalign', '-c', '-P', '16', '4', result])
     verify_manifest(args.apk, result, env)
     # Independent Android SDK decoder: exactly one resource value may differ.
-    def resource_dump(apk):
-        return subprocess.check_output([str(build_tools/'aapt2'), 'dump', 'resources', str(apk)], text=True)
-    before_resources, after_resources = resource_dump(args.apk), resource_dump(result)
-    # A base-only ZIP concatenation drops every value from config.xxhdpi. These
-    # sentinels cover widgets, payment dimensions and the density URL template;
-    # check_merge.py independently proves the complete source-split union.
-    density_sentinels = (
-        'dimen/ybsdk_card_details_text_hint_layout_height',
-        'drawable/abc_btn_check_to_on_mtrl_000',
-        'drawable/abc_btn_switch_to_on_mtrl_00001',
-        'string/url_template_size',
-    )
-    for name in density_sentinels:
-        if not re.search(r'^    resource 0x[0-9a-f]{8} ' + re.escape(name)
-                         + r'\n      \(xxhdpi\) ', before_resources, re.MULTILINE):
-            raise RuntimeError('Merged APK is missing xxhdpi resource values: ' + name)
+    after_resources = resource_dump(result)
     old_value = re.search(r'resource 0x[0-9a-f]{8} string/passport_account_type\n      \(\) "'
                           + re.escape(ORIGINAL_ACCOUNT_TYPE) + '"', before_resources)
     old_value = old_value.group(0) if old_value else 'string/passport_account_type missing'
@@ -242,6 +252,8 @@ def main():
             if before.read(name) != after.read(name): changed.append(name)
         if set(changed) != allowed: raise RuntimeError('Unexpected changed APK entries: '+str(changed))
         report['changed_original_entries'] = changed
+        deflated = [info.filename for info in after.infolist() if is_dex(info.filename) and info.compress_type != zipfile.ZIP_STORED]
+        if deflated: raise RuntimeError('Compressed dex in candidate: ' + str(deflated))
         for name, content in artwork.items():
             if after.read(name) != content: raise RuntimeError('Stock asset changed: ' + name)
     (args.out/'build-report.json').write_text(json.dumps(report, indent=2)+'\n')
