@@ -28,6 +28,7 @@
 | «HUD не заявляет функцию карты (`0x38B00030 = 65535`), значит окно карты не появится» — окно появилось 2026-09-23 17:39; `65535` значит лишь, что в штатных настройках нет переключателя карты | refuted | 2026-09-23 | [Moving-frames test](#hud-moving-frames) |
 | «Большой кадр карты режется от левого верхнего угла» — сетка этого не установила; в BydHud (здесь неактивен) crop центрирующий, снизу при превышении обеих осей; алгоритм отдельного контроллера не установлен | refuted | 2026-09-24 | [Third run](#hud-map-grid) |
 | Дополнительные области: PNG field 8 обновляется на глаз до 10 fps и работает на ходу; PNG field 7 (123×60, lanes 3, RoadClass 7) показал три полосы в P 2026-10-11 без field 29, движение не проверено. Строки 10/26/27 показаны в прогоне 2026-07-19; title/artist как музыкальный режим ещё не испытывались | live | 2026-10-11 | [Moving-frames test](#hud-moving-frames), [Полосы](#hud-native-lanes), [Текстовые области](#hud-extra-content) |
+| YandexHUD.31 пересобран на Navigator 31.1.4 (`versionCode=739735831`): только ARM64, 22 native-библиотеки, split-метаданных нет. Build 30 отклонён: ручная склейка потеряла все значения ресурсов `config.xxhdpi`; build 31 использует APKEditor и независимую сверку 197 741 значения. Настройки/переключатели, хостовые проверки и чистая эмуляторная приёмка с реальными полосами, AR, фоном, переподключением и очисткой прошли; на машину не устанавливался | code / emulator | 2026-11-02 | [Navigator 31.1.4 / YandexHUD.31](#hud-yandex-31-1-4) |
 | Сборка называется YandexHUD; номер 1 записан в `versionName=29.8.1-YandexHUD.1`, `versionCode=739494301`, имени APK, отчёте и стартовом логе. Установлена обновлением на машине, версия/хеш проверены. Единый номер — `tools/yandex_hud_build/identity.py`; поведение AR/карты прежнее, различия только в manifest и диагностическом логе | code | 2026-10-15 | [Идентификация YandexHUD](#hud-yandex-build-identity) |
 | Яндекс HUD ARM64 debug передаёт штатному AR настоящую геометрию MapKit: `HudArSource` / `HudAr`, поля 19–22 и 30–33 в существующем road-пакете, без ADB и второго GPS. Эмулятор подтвердил передний план, фон, совпадение с маршрутом, очистку и переподключение. APK установлен обновлением на машине 15.10, хеш проверен; показ AR на стекле ещё не проверен | code | 2026-10-15 | [AR из маршрута Яндекса](#hud-yandex-native-ar) |
 | ARM64-вариант Яндекс HUD уменьшен с 369 062 907 до 219 758 519 байт (−40,45%): удалены только 64 библиотеки ARM32/x86/x86_64, все остальные несигнатурные ZIP-файлы совпадают с универсальным кандидатом; debug-режим, подпись и аккаунт Denza сохранены. ARM64-эмулятор подтвердил обновление с сохранением данных и ведение/HUD в фоне | code | 2026-10-15 | [ARM64-сборка](#hud-arm64-build) |
@@ -1145,6 +1146,93 @@ manifest и `classes17.dex` (чтение версии для стартовог
 установленного `base.apk`, сохранены UID и время первой установки; журнал
 падений не изменился (`car-install-01/report.json`). Маршрут не запускался,
 визуальная проверка AR/фонового ведения на стекле по-прежнему впереди.
+
+<a id="hud-yandex-31-1-4"></a>
+### Navigator 31.1.4 / YandexHUD.31 (2026-11-02)
+
+Обновление выполнено по методике `experiments/yandex-hud-module/README.md`,
+«New upstream version». **Build 30 отклонён**: при ручном объединении ZIP был
+оставлен только base `resources.arsc`, поэтому все значения из `config.xxhdpi`
+потерялись; его маршрутная приёмка не затрагивала экраны, которые это выявляют.
+`build-30-arm64-runtime1/YandexHUD-30-arm64-debug.apk` распространять нельзя.
+
+Для build 31 подлинные split-файлы с зеркал APKGold/APKPure сохранены в
+`captures/yandex-hud-31.1.4-20261102/upstream-arm64/`:
+
+- `ru.yandex.yandexnavi-31.1.4.apk`, SHA-256
+  `cbaab1aefbe8008a091b62377087c4afc429e06288e009978bd7b4498cf6b440`;
+- `config.arm64_v8a.apk`, SHA-256
+  `6dd2ea5a5b1a449675ebb05280f92c3005c3b18d4b84fff73798f78f3924da71`;
+- `config.xxhdpi.apk`, SHA-256
+  `8a9f953e413c9cbd6debc2f88a6637f8f73424136838f64b4145de6b234a7c52`.
+
+Объединение выполнено APKEditor 1.4.9 / ARSCLib 1.3.9; сохранённый
+`APKEditor-1.4.9.jar` имеет SHA-256
+`a9cd40df818845456be6d696de6110c89edf4b0a0580cb83438ed6b25a366e67`.
+Команды воспроизведения:
+
+```sh
+"$JAVA_HOME/bin/java" -jar captures/yandex-hud-31.1.4-20261102/APKEditor-1.4.9.jar \
+  m -i captures/yandex-hud-31.1.4-20261102/upstream-arm64 \
+  -o captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk \
+  -validate-modules
+
+python3 tools/yandex_hud_build/check_merge.py \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/ru.yandex.yandexnavi-31.1.4.apk \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/config.arm64_v8a.apk \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/config.xxhdpi.apk \
+  --merged captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk \
+  --out captures/yandex-hud-31.1.4-20261102/resource-merge-report.json
+```
+
+Независимая сверка прошла: 197 741 исходное значение сравнено с 45 154 ресурсами
+объединённой таблицы, пропавших и изменённых значений нет; разрешено только
+удаление Play-служебного `xml/splits0`. Дополнительные `xxhdpi`-sentinel в
+сборщике не дают повторно принять base-only склейку. Объединённый ARM64 APK
+имеет upstream code `739735800` и SHA-256
+`29229369e3d7fe6b643112e3f8d80ef1dcae6fc1379bd479a60f126b48435188`.
+`symbols.py` не нашёл отсутствующих символов; hook MapKitFactory находится в
+`classes11.dex`, GuidanceBinding — в `classes12.dex`.
+
+В 31.1.4 `isGuidanceResumed` удалён: активная guidance-сессия определяется по
+`frame.route != null`. Эмуляторный harness переведён на новый
+`LocationSimulator`; `HudMap` передаёт `WeakReference` в изменённые сигнатуры
+`addConditionsListener` / `removeConditionsListener`. При объединении APKS
+удаляются только split-флаги и Play split metadata; сверка сборки учитывает эти
+элементы и удаляемый подписью `stamp-cert-sha256`.
+
+Текущий кандидат:
+`captures/yandex-hud-31.1.4-20261102/build-31-arm64/YandexHUD-31-arm64-debug.apk`,
+175 956 087 байт, SHA-256
+`f654d1693d3332b7cf21ccb568d30ccc36e162b094d1d98d813549228b1fef62`.
+Версия `31.1.4-YandexHUD.31`, код `739735831`. В APK только 22 библиотеки
+`arm64-v8a`, других ABI и split-метаданных нет. Экспериментальная подпись
+сохранена, сертификат SHA-256
+`df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6`.
+Прошли 20 263 module, 152 AR, 2 126 CameraTest и 63 StockCameraTest assertions.
+`build-report.json` подтверждает manifest/resource checks и сохранность исходных
+entries; кроме подписных данных изменены только manifest, два dex с hook и
+`resources.arsc`. Обновление поверх прежнего YandexHUD и затем build 30 → 31
+сохранило `firstInstallTime` и приватный маркер.
+
+Быстрые и полные настройки, Navigation settings открываются; переключатель
+**Avoid toll roads** включён, UI сообщает `checked=true`, его графика видна.
+Журналы падений этих экранов пусты. Финальная чистая приёмка —
+`captures/yandex-hud-31.1.4-20261102/acceptance-31-runtime2/report.json`,
+`passed: true`: 81 кадр на переднем плане и 120 в фоне, 60/57 уникальных PNG;
+22 пакета реальных полос в фоне (`laneCount=3`); 32 AR-пакета на переднем плане
+и 48 в фоне; максимальное отклонение AR от native route 0,0060 м. Переподключение,
+повторное использование AR-геометрии, запрет фона, три кадра очистки и выживание
+процесса успешны, `wire_errors=0`. Контрольные `foreground.png`, `background.png`
+и чистый кадр маршрута просмотрены; журнал падений приёмки пуст.
+
+Отдельно зафиксирован прежний `anr-runtime7.log`: один ANR build 30 в 18:20:58,
+после force-stop/restart во время подготовки маршрута, `Input dispatching timed
+out (Application does not have a focused window)`. В трассировке главный поток
+ожидает `SurfaceControl.nativeCreate`; это место ожидания, но не доказанная
+первопричина. В текущих проверках build 31 ANR и падений нет, однако устранение
+причины того единичного случая не утверждается. Машина была недоступна, кандидат
+на неё не устанавливался; показ на физическом HUD остаётся натурной проверкой.
 
 <a id="hud-yandex-stock-prototype"></a>
 ### Прототип оформления Яндекса по штатному HUD (2026-10-22)

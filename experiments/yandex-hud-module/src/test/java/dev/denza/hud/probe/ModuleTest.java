@@ -70,10 +70,9 @@ public final class ModuleTest {
     public static class Guidance {
         public boolean isValid() { return true; }
         public Object route() { return route; }
-        public boolean isGuidanceResumed() { return resumed; }
         public Config bgConfigurator() { return config; }
         public Navigation navigation() {
-            if (!resumed || route == null) throw new AssertionError("Native guidance accessed before an active route");
+            if (route == null) throw new AssertionError("Native guidance accessed before an active route");
             return navigation;
         }
         public Object getLocation() { return location; }
@@ -82,7 +81,7 @@ public final class ModuleTest {
         public Double getNextLaneSignDistance() { return laneDistance; }
         Double laneDistance;
         Classified location;
-        Object route = new Object(); boolean resumed = true;
+        Object route = new Object();
         final Config config = new Config(); final Navigation navigation = new Navigation();
     }
     public static class LaneSign {
@@ -107,9 +106,9 @@ public final class ModuleTest {
         guidance.config.enabled=false;
         check(!source.read(guidance,false,3).active(),"hidden without background must clear");
         check(source.read(guidance,true,4).active(),"background preference cannot suppress visible navigation");
-        guidance.resumed=false;
-        check(!source.read(guidance,true,5).active(),"preview/suspended route must stay off");
-        guidance.resumed=true;guidance.navigation.automotive.status="ROUTE_FINISHED";
+        guidance.route=null;
+        check(!source.read(guidance,true,5).active(),"preview without an active route must stay off");
+        guidance.route=new Object();guidance.navigation.automotive.status="ROUTE_FINISHED";
         check(!source.read(guidance,true,6).active(),"finished route must stay off");
         guidance.navigation.automotive.status="ROUTE_LOST";
         check(source.read(guidance,true,7).mode.equals("waiting"),"no fix yet draws nothing, even while rebuilding");

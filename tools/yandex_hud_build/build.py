@@ -48,6 +48,10 @@ def verify_manifest(original, candidate, env):
         if after.attrib[android + name] != expected:
             raise RuntimeError('YandexHUD build identity mismatch: ' + name)
         after.attrib[android + name] = before.attrib[android + name]
+    for name in ('requiredSplitTypes', 'splitTypes'):
+        if android + name in after.attrib:
+            raise RuntimeError('Merged APK still requires Play splits: ' + name)
+        before.attrib.pop(android + name, None)
     if after.find('application').attrib.pop(android + 'debuggable') != 'true':
         raise RuntimeError('Candidate must be a debug build')
     if after.find('application').attrib[android + 'label'] != LABEL:
@@ -67,6 +71,10 @@ def verify_manifest(original, candidate, env):
     shared = [node for node in before.findall('permission') if node.attrib.get(android + 'name') == SHARED_PERMISSION]
     if len(shared) != 1: raise RuntimeError('Expected one original shared signature permission')
     before.remove(shared[0])
+    application = before.find('application')
+    for node in list(application.findall('meta-data')):
+        if node.attrib.get(android + 'name') in ('com.android.vending.splits.required', 'com.android.vending.splits'):
+            application.remove(node)
     def tree(node):
         return node.tag, dict(node.attrib), (node.text or '').strip(), [tree(child) for child in node]
     if tree(before) != tree(after): raise RuntimeError('Unexpected manifest change')
@@ -183,6 +191,19 @@ def main():
     def resource_dump(apk):
         return subprocess.check_output([str(build_tools/'aapt2'), 'dump', 'resources', str(apk)], text=True)
     before_resources, after_resources = resource_dump(args.apk), resource_dump(result)
+    # A base-only ZIP concatenation drops every value from config.xxhdpi. These
+    # sentinels cover widgets, payment dimensions and the density URL template;
+    # check_merge.py independently proves the complete source-split union.
+    density_sentinels = (
+        'dimen/ybsdk_card_details_text_hint_layout_height',
+        'drawable/abc_btn_check_to_on_mtrl_000',
+        'drawable/abc_btn_switch_to_on_mtrl_00001',
+        'string/url_template_size',
+    )
+    for name in density_sentinels:
+        if not re.search(r'^    resource 0x[0-9a-f]{8} ' + re.escape(name)
+                         + r'\n      \(xxhdpi\) ', before_resources, re.MULTILINE):
+            raise RuntimeError('Merged APK is missing xxhdpi resource values: ' + name)
     old_value = re.search(r'resource 0x[0-9a-f]{8} string/passport_account_type\n      \(\) "'
                           + re.escape(ORIGINAL_ACCOUNT_TYPE) + '"', before_resources)
     old_value = old_value.group(0) if old_value else 'string/passport_account_type missing'
@@ -204,11 +225,12 @@ def main():
     report['removed_native_compressed_bytes'] = removed_native_bytes
     report['stock_artwork'] = artwork_report
     report['resource_semantic_check'] = 'passed: only passport_account_type changed'
-    # Prove untouched ZIP contents, not just a successful signature.
+    # Prove untouched ZIP contents, not just a successful signature. apksigner also
+    # removes the upstream source-stamp file when replacing the original signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
         allowed = {*hook_dex, 'AndroidManifest.xml', 'resources.arsc'}
         missing = {name for name in set(before.namelist()) - set(after.namelist())
-                   if not name.startswith('META-INF/')}
+                   if not name.startswith('META-INF/') and name != 'stamp-cert-sha256'}
         if missing != excluded: raise RuntimeError('Unexpected removed APK entries: ' + str(missing ^ excluded))
         report['native_abis'] = sorted({name.split('/')[1] for name in after.namelist()
                                        if name.startswith('lib/') and not name.endswith('/')})
@@ -216,7 +238,7 @@ def main():
             raise RuntimeError('Unexpected native ABIs in candidate')
         changed = []
         for name in before.namelist():
-            if name.startswith('META-INF/') or name in excluded: continue
+            if name.startswith('META-INF/') or name == 'stamp-cert-sha256' or name in excluded: continue
             if before.read(name) != after.read(name): changed.append(name)
         if set(changed) != allowed: raise RuntimeError('Unexpected changed APK entries: '+str(changed))
         report['changed_original_entries'] = changed

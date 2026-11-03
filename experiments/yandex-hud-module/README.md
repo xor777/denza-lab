@@ -1,6 +1,6 @@
 # YandexHUD — embedded Navigator HUD experiment
 
-Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
+Owner-only **debug** build of Navigator 31.1.4 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into
 main and the branch deleted on 2026-10-18.
 This module is embedded into the pinned owner APK by a host build tool; it is
@@ -207,11 +207,16 @@ python3 tools/yandex_hud_build/build.py --abi arm64-v8a \
   --out captures/yandex-hud-arm64-20261015/new-build
 ```
 
-The input must be the owner's single APK 29.8.1 / code 739494300, SHA-256
-`3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3`; the base
-(path, SHA-256, upstream version) lives in `tools/yandex_hud_build/identity.py`.
-The script adds our module in a new dex and patches exactly two methods, in the
-dex files that define `MapKitFactory` (`classes10.dex` in 29.8.1) and
+The input must be the resource-complete merged single APK 31.1.4 / code 739735800,
+SHA-256 `29229369e3d7fe6b643112e3f8d80ef1dcae6fc1379bd479a60f126b48435188`;
+the base (path, SHA-256, upstream version) lives in
+`tools/yandex_hud_build/identity.py`. Its split sources, hashes and merge command
+are recorded under [Current candidate](#current-candidate-2026-11-02).
+`check_merge.py` independently compares every resource value from the source
+splits with the merged table; the builder additionally rejects a base-only merge
+by requiring `xxhdpi` values for widget, payment-dimension and URL-template
+sentinels. The script adds our module in a new dex and patches exactly two methods,
+in the dex files that define `MapKitFactory` (`classes11.dex` in 31.1.4) and
 `GuidanceBinding` (`classes12.dex`), found in the APK, not assumed.
 Because original `classes12.dex` already has 65,536 method references, its
 patched Guidance class is relocated into a second new dex. No foreign source
@@ -234,7 +239,7 @@ patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
 references and retained native libraries stay unchanged. `build-report.json` records
-APK/module hashes and the resource check. The builder first runs 117 module and
+APK/module hashes and the resource check. The builder first runs 20,263 module and
 152 AR host assertions, including real winding geometry, fractional junctions,
 route identity, cache reuse, freshness, invalid positions, fixed64 wire fields and
 the roles each frame publishes or withdraws.
@@ -252,21 +257,34 @@ The module calls Navigator only through the public MapKit/NaviKit API, by name
 (`Reflect`), and hooks two public classes, so a new Navigator usually needs no
 code change; the risk is a renamed or removed API and moved dex files.
 
-1. Copy the new APK to `captures/<topic>-<date>/` (never into git).
-2. `python3 tools/yandex_hud_build/symbols.py <apk>` prints its version, the dex
-   holding each hook, and every class (`Reflect.type`/`make`) and method
+1. Copy the authentic base and its matching ABI/density config splits to
+   `captures/<topic>-<date>/` (never into git). Record their source URLs or mirror
+   names and SHA-256 hashes. If upstream is split, merge it with a resource-table-
+   aware tool, for example APKEditor: `java -jar APKEditor.jar m -i <split-dir>
+   -o <merged.apk> -validate-modules`. Never combine the ZIP entries while keeping
+   only the base `resources.arsc`: that silently drops every density value.
+2. Prove the merged resource union before pinning it:
+   `python3 tools/yandex_hud_build/check_merge.py <base.apk> <config-split.apk>…
+   --merged <merged.apk> --out <resource-merge-report.json>`.
+   It compares resource ids and all values, normalizing resolved references;
+   only Play's generated `xml/splits0` may disappear. Record the merge tool's
+   version and SHA-256 together with the report.
+3. `python3 tools/yandex_hud_build/symbols.py <merged.apk>` prints its version, the
+   dex holding each hook, and every class (`Reflect.type`/`make`) and method
    (`Reflect.call`) name the module uses that no public `com.yandex` class
    declares any more. The names are read from the module source, so nothing
    is listed by hand. A name that still exists may have changed meaning: the
    emulator acceptance is the proof, not this check.
-3. In `identity.py` change the base block (`APK`, `PIN`, `BASE_VERSION_NAME`,
+4. In `identity.py` change the base block (`APK`, `PIN`, `BASE_VERSION_NAME`,
    `BASE_VERSION_CODE`); `build.py` rejects a base that differs from the APK's
    own manifest. The build number is the owner's call; check that the new
    version code is above the last released one, the branch builds included.
-4. Build, then the [emulator checks](#emulator-checks): installed over the
-   previous YandexHUD (same UID, private files kept), then acceptance with lanes.
-   The `passport_account_type` resource is found by name, the dex files by class.
-5. One commit, `build(yandex-hud): rebase onto Navigator <version>`; the release
+5. Build, then the [emulator checks](#emulator-checks): installed over the
+   previous YandexHUD (same UID, private files kept), then acceptance with lanes
+   and AR. Also open quick/full/navigation settings and exercise a switch:
+   route-only acceptance cannot expose missing density resources. The
+   `passport_account_type` resource is found by name, the dex files by class.
+6. One commit, `build(yandex-hud): rebase onto Navigator <version>`; the release
    tag keeps its prefix, `yandex-hud-<version>-YandexHUD.<n>`
    ([download page](../../platform/downloads/README.md)). The NOA branches take
    it when they merge main.
@@ -343,7 +361,89 @@ polyline in forward order, within 0.1 m. Neither export runs on a car.
 The renderer's Node tests (`node --test research/yandex-hud-renderer/*.test.cjs`)
 cover the design and the theme contract, not native transport.
 
-## Current candidate (2026-10-15)
+## Current candidate (2026-11-02)
+
+**YandexHUD build 31, ARM64 debug:**
+`captures/yandex-hud-31.1.4-20261102/build-31-arm64/YandexHUD-31-arm64-debug.apk`,
+175,956,087 bytes, SHA-256
+`f654d1693d3332b7cf21ccb568d30ccc36e162b094d1d98d813549228b1fef62`.
+Version `31.1.4-YandexHUD.31`, code `739735831`. The merged ARM64 upstream APK is
+`captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk`,
+SHA-256 `29229369e3d7fe6b643112e3f8d80ef1dcae6fc1379bd479a60f126b48435188`.
+The package contains only the 22 `arm64-v8a` native libraries, no other ABI and
+no Play split metadata. The local experimental certificate is unchanged, SHA-256
+`df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6`.
+
+**Build 30 is rejected**, despite its earlier route acceptance: its manually
+combined base retained only the base `resources.arsc`, so every value supplied
+by `config.xxhdpi` was absent. Do not distribute
+`build-30-arm64-runtime1/YandexHUD-30-arm64-debug.apk`.
+
+The authentic split inputs were downloaded from the APKGold/APKPure mirrors and
+are retained under `captures/yandex-hud-31.1.4-20261102/upstream-arm64/`:
+
+- `ru.yandex.yandexnavi-31.1.4.apk`, SHA-256
+  `cbaab1aefbe8008a091b62377087c4afc429e06288e009978bd7b4498cf6b440`;
+- `config.arm64_v8a.apk`, SHA-256
+  `6dd2ea5a5b1a449675ebb05280f92c3005c3b18d4b84fff73798f78f3924da71`;
+- `config.xxhdpi.apk`, SHA-256
+  `8a9f953e413c9cbd6debc2f88a6637f8f73424136838f64b4145de6b234a7c52`.
+
+They were merged with APKEditor 1.4.9 / ARSCLib 1.3.9. The tool is retained as
+`APKEditor-1.4.9.jar`, SHA-256
+`a9cd40df818845456be6d696de6110c89edf4b0a0580cb83438ed6b25a366e67`.
+Reproduction and the independent resource-union check:
+
+```sh
+"$JAVA_HOME/bin/java" -jar captures/yandex-hud-31.1.4-20261102/APKEditor-1.4.9.jar \
+  m -i captures/yandex-hud-31.1.4-20261102/upstream-arm64 \
+  -o captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk \
+  -validate-modules
+
+python3 tools/yandex_hud_build/check_merge.py \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/ru.yandex.yandexnavi-31.1.4.apk \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/config.arm64_v8a.apk \
+  captures/yandex-hud-31.1.4-20261102/upstream-arm64/config.xxhdpi.apk \
+  --merged captures/yandex-hud-31.1.4-20261102/yandex-navigator-31.1.4-arm64-merged.apk \
+  --out captures/yandex-hud-31.1.4-20261102/resource-merge-report.json
+```
+
+The report passed: 197,741 source values checked against 45,154 merged resource
+entries, with no missing or changed values; only Play's generated `xml/splits0`
+is allowed to disappear. The builder's `xxhdpi` sentinels provide an additional
+guard against repeating the base-only merge.
+
+The 31.1.4 rebase uses the current `LocationSimulator`, the active guidance
+session from `frame.route`, and weak condition-listener references required by
+the new MapKit signatures. `symbols.py` reports no missing symbols; the hooks
+are in `classes11.dex` and `classes12.dex`. Host checks passed: 20,263 module,
+152 AR, 2,126 CameraTest and 63 StockCameraTest assertions. The build report
+verifies the manifest/resources and retained original entries; outside signing
+metadata only `AndroidManifest.xml`, those two dex files and `resources.arsc`
+changed. Updating build 30 over the previous YandexHUD and then installing build
+31 preserved first-install time and the private upgrade marker.
+
+Quick settings, full settings and Navigation settings open; **Avoid toll roads**
+was switched on and reported `checked=true`, with the switch artwork rendered.
+Their crash logs are empty. Final emulator evidence is
+`acceptance-31-runtime2/report.json`: **passed** on the selected 5 km route with
+81 foreground and 120 background frames, 60/57 unique saved PNGs, 22 real
+background lane packets (three lanes), 32 foreground and 48 background AR
+packets, one cached route-geometry build, receiver reconnect, background disable,
+triple clear and process survival. Wire errors: zero. Maximum AR deviation from
+the native route was 0.0060 m. Foreground/background and clean-route screenshots
+were inspected; the crash log is empty.
+
+The earlier `anr-runtime7.log` does contain one build 30 ANR at 18:20:58, after
+a force-stop/restart during route preparation: input timed out because no window
+had focus. Its trace shows the main thread waiting in
+`SurfaceControl.nativeCreate`; that locates the wait but does not establish its
+root cause. No ANR or crash appears in the current build 31 checks, but this
+single incident is not claimed to be root-caused or proven fixed. The car was
+unavailable; neither build 30 nor build 31 was installed on it, and physical HUD
+acceptance remains pending.
+
+## Earlier numbered candidates (2026-10-15)
 
 **YandexHUD build 1, ARM64 debug:**
 `captures/yandexhud-1-20261015/YandexHUD-1-arm64-debug.apk`, 219,762,615 bytes,

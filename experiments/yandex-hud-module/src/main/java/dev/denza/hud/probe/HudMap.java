@@ -374,7 +374,7 @@ final class HudMap implements AutoCloseable {
             trafficDirty = true;
             return null;
         });
-        api.call(route, "addConditionsListener", conditionsListener);
+        api.call(route, "addConditionsListener", new java.lang.ref.WeakReference<>(conditionsListener));
         routeId = id;
         geometryBuilds++;
     }
@@ -549,7 +549,7 @@ final class HudMap implements AutoCloseable {
     private static float[] inside(float[] p) { return p != null && p[0] >= 0 && p[0] <= 300 && p[1] >= 0 && p[1] <= 180 ? p : null; }
 
     void clearRoute() {
-        try { if (route != null && conditionsListener != null) api.call(route, "removeConditionsListener", conditionsListener); }
+        try { if (route != null && conditionsListener != null) api.call(route, "removeConditionsListener", new java.lang.ref.WeakReference<>(conditionsListener)); }
         finally {
             route = null; conditionsListener = null; routeId = null; colors = null; trafficDirty = true; routeDimmed = false;
             for (Object placemark : placemarks.values()) {

@@ -70,7 +70,9 @@ final class NavigatorSource {
         Frame frame = new Frame();
         if (!Boolean.TRUE.equals(api.call(guidance, "isValid"))) return frame;
         frame.route = api.call(guidance, "route");
-        frame.resumed = (Boolean) api.call(guidance, "isGuidanceResumed");
+        // Navigator 31 removed Guidance.resume/suspend and isGuidanceResumed: a route exists
+        // only for an active guidance session; routeBuilder owns the preview before it starts.
+        frame.resumed = frame.route != null;
         frame.backgroundEnabled = (Boolean) api.call(api.call(guidance, "bgConfigurator"), "isBackgroundOnRouteEnabled");
         // Respect Navigator's real route/resume state and the owner's background preference.
         // getRouteStatus() is undefined before guidance has a route; on debug ART

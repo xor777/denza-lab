@@ -17,6 +17,7 @@ final class HudEmulatorControl {
     private String lastCommand = "";
     private String recordedRoute;
     private boolean iconSheet;
+    private Object simulator;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
     void poll(Object guidance, long now) {
@@ -35,19 +36,28 @@ final class HudEmulatorControl {
             JSONObject value = new JSONObject(raw);
             if (!command.delete()) throw new IOException("Cannot consume emulator command");
             String action = value.getString("action");
+            Object kit = api.call(api.type("com.yandex.mapkit.MapKitFactory"), "getInstance");
             if (action.equals("simulate")) {
-                if (api.call(guidance, "route") == null
-                        || !Boolean.TRUE.equals(api.call(guidance, "isGuidanceResumed"))
-                        || !api.call(guidance, "getSimulationStatus").toString().equals("IDLE"))
-                    throw new IllegalStateException("Select and start a route; simulation must be idle");
-                api.call(guidance, "startSimulationWithExistingRoute");
+                Object route = api.call(guidance, "route");
+                if (route == null) throw new IllegalStateException("Select and start a route");
+                if (simulator == null) simulator = api.call(kit, "createLocationSimulator");
+                if (Boolean.TRUE.equals(api.call(simulator, "isActive")))
+                    throw new IllegalStateException("Simulation must be idle");
+                api.call(kit, "setLocationManager", simulator);
+                Object settings = api.call(api.type("com.yandex.mapkit.location.LocationSettingsFactory"), "fineSettings");
+                api.call(settings, "setSpeed", api.call(simulator, "getSpeed"));
+                Object geometry = api.call(route, "getGeometry");
+                Object simulation = api.make("com.yandex.mapkit.location.SimulationSettings", geometry, settings);
+                api.call(simulator, "startSimulation", java.util.Collections.singletonList(simulation));
             } else if (action.equals("stop")) {
                 // stopSimulation() asserts natively when already idle. Cleanup must be idempotent.
-                if (!api.call(guidance, "getSimulationStatus").toString().equals("IDLE"))
-                    api.call(guidance, "stopSimulation");
+                if (simulator != null && Boolean.TRUE.equals(api.call(simulator, "isActive")))
+                    api.call(simulator, "stopSimulation");
+                api.call(kit, "resetLocationManagerToDefault");
                 if (api.call(guidance, "route") != null) api.call(guidance, "stop");
             } else if (action.equals("speed")) {
-                api.call(guidance, "setSimulatedSpeed", value.getDouble("metresPerSecond"));
+                if (simulator == null) throw new IllegalStateException("Start simulation first");
+                api.call(simulator, "setSpeed", value.getDouble("metresPerSecond"));
             } else if (action.equals("record")) {
                 // Design evidence along a whole simulated route: every Nth published frame, bounded.
                 recordEvery = Math.max(1, value.getInt("every"));

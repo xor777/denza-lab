@@ -144,6 +144,12 @@ def edit(data):
             skipped_depth = 1
             removed += 1
             continue
+        # A merged base + ABI/density splits is a standalone APK, not a Play split set.
+        if (kind == 0x102 and strings[U32(chunk, 20)] == 'meta-data'
+                and attribute_text(chunk, strings, ns, 'name') in
+                ('com.android.vending.splits.required', 'com.android.vending.splits')):
+            skipped_depth = 1
+            continue
         if kind == 1:
             output.extend(new_pool); continue
         if kind == 0x180:
@@ -168,6 +174,7 @@ def edit(data):
             labelled += relabel(chunk, strings, ns, label)
         if kind == 0x102 and strings[U32(chunk, 20)] == 'manifest':
             attr_start, attr_size, attr_count = struct.unpack_from('<HHH', chunk, 24)
+            if attr_size != 20: raise ValueError('Unexpected attribute size')
             for i in range(attr_count):
                 offset = 16 + attr_start + i * attr_size
                 if strings[U32(chunk, offset + 4)] == 'versionName':
@@ -178,6 +185,15 @@ def edit(data):
                     struct.pack_into('<I', chunk, offset + 8, 0xffffffff)
                     struct.pack_into('<HBBI', chunk, offset + 12, 8, 0, 0x10, VERSION_CODE)
                     numbered += 1
+            split_attributes = [i for i in range(attr_count)
+                                if strings[U32(chunk, 16 + attr_start + i * attr_size + 4)] in
+                                ('requiredSplitTypes', 'splitTypes')]
+            for i in reversed(split_attributes):
+                offset = 16 + attr_start + i * attr_size
+                del chunk[offset:offset + attr_size]
+            if split_attributes:
+                struct.pack_into('<I', chunk, 4, len(chunk))
+                struct.pack_into('<H', chunk, 28, attr_count - len(split_attributes))
         if kind == 0x103 and strings[U32(chunk, 20)] == 'queries':
             output.extend(queries); inserted += 1
         output.extend(chunk)
