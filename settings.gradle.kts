@@ -30,7 +30,7 @@ include(":hud-link")
 project(":hud-link").projectDir = file("libraries/hud-link")
 
 // The disposable on-device probes under experiments/ and the frozen legacy app are configured
-// only on request, so that an ordinary product build does not pay for nine modules it never
+// only on request, so that an ordinary product build does not pay for the modules it never
 // touches. Ask for them with the `experiments` property:
 //
 //     ./gradlew -Pexperiments :night-vision-probe:assembleDebug

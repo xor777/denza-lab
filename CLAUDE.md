@@ -132,6 +132,8 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 | `:alice-wheel-probe` | `experiments/alice-wheel-probe/` | `dev.denza.alicewheel.probe` (disposable foreground-only Navigator Alice voice-key interception) |
 | `:cluster-glow-probe` | `experiments/cluster-glow-probe/` | `dev.denza.clusterglow.probe` (disposable: the Contour's glow on the driver's display at a strength, shape and size picked on the head unit) |
+| `:oversea-map-probe` | `experiments/oversea-map-probe/` | `dev.denza.overseamap.probe` (disposable: one saved stock-map frame without and with the `oversea=true` masks) |
+| `:dipilot-adb-rescue` | `experiments/dipilot-adb-rescue/` | `dev.denza.dipilotkey.probe` (Dipilot's own ADB identity and one recovery button, for a car whose prompt never renders) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
 included in the root Gradle build.
