@@ -287,8 +287,7 @@ code change; the risk is a renamed or removed API and moved dex files.
    `passport_account_type` resource is found by name, the dex files by class.
 6. One commit, `build(yandex-hud): rebase onto Navigator <version>`; the release
    tag keeps its prefix, `yandex-hud-<version>-YandexHUD.<n>`
-   ([download page](../../platform/downloads/README.md)). The NOA branches take
-   it when they merge main.
+   ([download page](../../platform/downloads/README.md)).
 
 ## Build identification
 
