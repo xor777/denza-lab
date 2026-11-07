@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
+import dev.denza.apps.R
 import dev.denza.apps.adb.OverlayGrant
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -417,7 +419,7 @@ object NavigationCoordinator {
         update(
             session.copy(
                 phase = NavigationPhase.OPENING,
-                message = "Открываю на центральном экране",
+                message = AppText.s(R.string.navigation_opening_central),
                 resolution = null,
             ),
         )
@@ -575,7 +577,7 @@ object NavigationCoordinator {
         update(
             session.copy(
                 phase = NavigationPhase.PROJECTING,
-                message = "Переношу на приборку",
+                message = AppText.s(R.string.navigation_moving_to_dashboard),
                 resolution = null,
             ),
         )
@@ -693,7 +695,7 @@ object NavigationCoordinator {
         update(
             session.copy(
                 phase = NavigationPhase.RETURNING,
-                message = "Возвращаю на главный экран",
+                message = AppText.s(R.string.navigation_returning_main),
                 resolution = null,
             ),
         )

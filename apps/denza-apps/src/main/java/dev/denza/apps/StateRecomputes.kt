@@ -1,6 +1,7 @@
 package dev.denza.apps
 
 import android.os.SystemClock
+import dev.denza.apps.core.AppDecimal
 
 /**
  * The last recomputes of the dashboard's state: what asked for each, how long it took and on
@@ -99,14 +100,12 @@ internal class RecomputeLog(private val capacity: Int = CAPACITY) {
         const val SHOWN = 10
         const val MAIN_THREAD = "main"
 
-        /** «0,4 мс», «12 мс», «1,2 с» - a decimal where it says something, a comma for it. */
+        /** «0,4 мс», «12 мс», «1,2 с» - a decimal where it says something, and only there. */
         fun duration(us: Long): String = when {
-            us < 10_000L -> "${tenths(us / 100L)} мс"
+            us < 10_000L -> "${AppDecimal.tenths(us / 100L)} мс"
             us < 1_000_000L -> "${us / 1_000L} мс"
-            else -> "${tenths(us / 100_000L)} с"
+            else -> "${AppDecimal.tenths(us / 100_000L)} с"
         }
-
-        private fun tenths(value: Long): String = "${value / 10L},${value % 10L}"
 
         private fun ago(nowMs: Long, atMs: Long): String =
             "${((nowMs - atMs).coerceAtLeast(0L) / 1_000L)} с назад"

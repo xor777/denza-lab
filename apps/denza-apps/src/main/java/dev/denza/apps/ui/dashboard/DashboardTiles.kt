@@ -1,5 +1,7 @@
 package dev.denza.apps.ui.dashboard
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
@@ -196,10 +198,10 @@ object DashboardTiles {
     private fun settled(snapshot: FeatureSnapshot): Boolean = unsettled(snapshot) == null
 
     /** A feature this car does not have, when it gave no reason. */
-    internal const val ABSENT = FeatureWords.ABSENT
+    internal val ABSENT: String get() = FeatureWords.ABSENT
 
     /** A switch the car did not take, when it gave no reason. */
-    internal const val REFUSED = FeatureWords.REFUSED
+    internal val REFUSED: String get() = FeatureWords.REFUSED
 
     /**
      * What the press does, given where the feature has got to.
@@ -229,7 +231,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.CLUSTER,
             icon = TileIcon.CLUSTER,
-            name = "Экран водителя",
+            name = AppText.s(R.string.tile_cluster_name),
             // The label alone, projected or not. "· на экране" made this the longest caption on
             // the screen and the only one that changed length when the feature was used, which is
             // the jump this whole pass exists to remove. Whether it is on the cluster is already
@@ -255,12 +257,16 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.SIMULCAST,
             icon = TileIcon.SIMULCAST,
-            name = "Трансляция",
+            name = AppText.s(R.string.tile_simulcast_name),
             state = caption(
                 snapshot,
                 // "6 приложений" made this tile read like a second application selector beside
                 // Shortcuts, one row along; "выбрано" names the projection's own fact.
-                if (state.selectedAppCount == 0) "Не выбрано" else "Выбрано ${state.selectedAppCount}",
+                if (state.selectedAppCount == 0) {
+                    FeatureWords.NOT_CHOSEN
+                } else {
+                    AppText.s(R.string.tile_simulcast_selected, state.selectedAppCount)
+                },
             ),
             tone = toneOf(snapshot),
             // A count of chosen applications is as true stopped as running.
@@ -276,8 +282,8 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.MIRRORS,
             icon = TileIcon.MIRRORS,
-            name = "Зеркала",
-            state = caption(snapshot, if (watching) "Включены" else "Выключены"),
+            name = AppText.s(R.string.tile_mirrors_name),
+            state = caption(snapshot, if (watching) AppText.s(R.string.tile_mirrors_on) else AppText.s(R.string.tile_mirrors_off)),
             tone = toneOf(snapshot),
             caption = if (watching && settled(snapshot)) {
                 DenzaTileCaption.READING
@@ -305,10 +311,10 @@ object DashboardTiles {
             icon = TileIcon.SPLIT,
             // "Разделение экрана" wrapped onto two lines over a two-line caption, which was the
             // untidiest tile on the board. The icon says which screen, and the panel says the rest.
-            name = "Разделение",
+            name = AppText.s(R.string.tile_split_name),
             // A failed switch keeps the wish it was given; [caption] is what stops that wish from
             // being read back as "Включено" in coral. This tile is where the rule was found.
-            state = caption(snapshot, if (snapshot.desiredEnabled) "Включено" else "Выключено"),
+            state = caption(snapshot, if (snapshot.desiredEnabled) AppText.s(R.string.tile_split_on) else AppText.s(R.string.tile_split_off)),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.SPLIT_LAUNCH),
@@ -322,8 +328,8 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.HUD,
             icon = TileIcon.HUD,
-            name = "HUD Подсказки",
-            state = caption(snapshot, if (showing) "Включены" else "Выключены"),
+            name = AppText.s(R.string.tile_hud_name),
+            state = caption(snapshot, if (showing) AppText.s(R.string.tile_hud_on) else AppText.s(R.string.tile_hud_off)),
             tone = toneOf(snapshot),
             caption = if (showing && settled(snapshot)) {
                 DenzaTileCaption.READING
@@ -351,14 +357,14 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.WEATHER,
             icon = TileIcon.WEATHER,
-            name = "Погода",
+            name = AppText.s(R.string.tile_weather_name),
             state = when {
-                !state.weatherEnabled -> "Выключена"
+                !state.weatherEnabled -> AppText.s(R.string.tile_weather_off)
                 // The age went with the jump: "+14° · 12 минут назад" is two lines, and it changed
                 // length every minute. The temperature alone is still the one caption on this
                 // screen that can be checked against the widget a few centimetres away.
                 fresh -> degrees(reading)
-                else -> "Данных ещё нет"
+                else -> AppText.s(R.string.tile_weather_no_data)
             },
             // The switch is not the reading. A tile lit in the accent over "Данных ещё нет" is the
             // tone promising something the caption is denying, and on a car that had never once
@@ -396,26 +402,14 @@ object DashboardTiles {
     fun ago(elapsedMillis: Long): String {
         val minutes = elapsedMillis / 60_000L
         return when {
-            elapsedMillis < 0L -> "только что"
-            minutes < 1L -> "только что"
-            minutes < 60L -> "${minutes.toInt()} ${plural(minutes.toInt(), "минуту", "минуты", "минут")} назад"
+            elapsedMillis < 0L -> AppText.s(R.string.time_just_now)
+            minutes < 1L -> AppText.s(R.string.time_just_now)
+            minutes < 60L -> AppText.p(R.plurals.time_minutes_ago, minutes.toInt(), minutes.toInt())
             minutes < 24L * 60L -> {
                 val hours = (minutes / 60L).toInt()
-                "$hours ${plural(hours, "час", "часа", "часов")} назад"
+                AppText.p(R.plurals.time_hours_ago, hours, hours)
             }
-            else -> "больше суток назад"
-        }
-    }
-
-    /** The last digit decides, and the teens are the exception. */
-    private fun plural(count: Int, one: String, few: String, many: String): String {
-        val tail = count % 100
-        val last = count % 10
-        return when {
-            tail in 11..14 -> many
-            last == 1 -> one
-            last in 2..4 -> few
-            else -> many
+            else -> AppText.s(R.string.time_over_a_day_ago)
         }
     }
 
@@ -425,8 +419,8 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.SPEAKERS,
             icon = TileIcon.SPEAKER,
-            name = "Динамики",
-            state = caption(snapshot, if (snapshot.desiredEnabled) "Включена" else "Выключена"),
+            name = AppText.s(R.string.tile_speakers_name),
+            state = caption(snapshot, if (snapshot.desiredEnabled) AppText.s(R.string.tile_speakers_on) else AppText.s(R.string.tile_speakers_off)),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
@@ -446,7 +440,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.LOCALE,
             icon = TileIcon.LOCALE,
-            name = "Язык системы",
+            name = AppText.s(R.string.tile_locale_name),
             // The language in its own word for itself, which is the word the list the press opens
             // writes on the row that is selected.
             state = state.systemLanguage.name,
@@ -471,10 +465,10 @@ object DashboardTiles {
             // Named for the screen, like the driver's own, and from where the reader is sitting.
             // "Пассажирский экран" is 194 dp of Roboto at 19/500 in a tile that gives a name 147,
             // which is why it wrapped; "Экран пассажира" is 162 and wraps too. This is 125.
-            name = "Экран справа",
+            name = AppText.s(R.string.tile_passenger_name),
             // The application that went over there, in the same words the driver's tile uses for
             // its own. "Установить приложение" described the machinery instead of the result.
-            state = caption(snapshot, snapshot.message.ifBlank { "Не выбрано" }),
+            state = caption(snapshot, snapshot.message.ifBlank { FeatureWords.NOT_CHOSEN }),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.PASSENGER_INSTALL),
@@ -490,13 +484,13 @@ object DashboardTiles {
             icon = TileIcon.DEFAULT_APPS,
             name = "Shortcuts",
             state = when {
-                defaults.hasError -> "Не проверено"
-                defaults.reading -> "Проверяем…"
+                defaults.hasError -> AppText.s(R.string.tile_default_apps_unchecked)
+                defaults.reading -> AppText.s(R.string.tile_default_apps_checking)
                 // Off is not "nothing configured", it is a car running its own applications, and
                 // that is a state worth naming: the panel behind the tile still holds the choices
                 // the switch would put back.
                 defaults.substituting -> configuredApps(configured)
-                else -> "Штатные"
+                else -> AppText.s(R.string.tile_default_apps_stock)
             },
             tone = when {
                 defaults.hasError -> DenzaTileTone.BROKEN
@@ -534,7 +528,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.CLOUD,
             icon = TileIcon.CLOUD,
-            name = "Облако",
+            name = AppText.s(R.string.tile_cloud_name),
             state = caption(snapshot, CloudLinkStatus.words(snapshot)),
             tone = toneOf(snapshot),
             caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
@@ -570,11 +564,11 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.SERVICE,
             icon = TileIcon.SERVICE,
-            name = "Сервис",
+            name = AppText.s(R.string.tile_service_name),
             state = if (needing > 0) {
-                "${featureCount(needing)} ${verb(needing, "ждёт", "ждут")}"
+                AppText.p(R.plurals.tile_service_waiting, needing, needing)
             } else {
-                "Всё в норме"
+                AppText.s(R.string.tile_service_all_fine)
             },
             tone = if (needing > 0) DenzaTileTone.ATTENTION else DenzaTileTone.IDLE,
             // A reading of the car, not a setting - so on a healthy car it stays grey, and when it
@@ -584,54 +578,16 @@ object DashboardTiles {
         )
     }
 
-    /** "1 функция", "2 функции", "5 функций" - the same teens exception as [applications]. */
-    fun featureCount(count: Int): String {
-        val tail = count % 100
-        val last = count % 10
-        val word = when {
-            tail in 11..14 -> "функций"
-            last == 1 -> "функция"
-            last in 2..4 -> "функции"
-            else -> "функций"
-        }
-        return "$count $word"
-    }
-
-    /** The verb agrees with the noun the count produced, not with the digit. */
-    private fun verb(count: Int, singular: String, plural: String): String {
-        val tail = count % 100
-        return if (tail !in 11..14 && count % 10 == 1) singular else plural
-    }
-
-    /**
-     * "1 приложение", "3 приложения", "6 приложений".
-     *
-     * Russian agrees the noun with the last digit and then makes an exception of the teens, so
-     * eleven takes the same form as five and twenty-one the same as one. Getting this wrong is the
-     * kind of thing nobody reports and everybody notices.
-     */
-    fun applications(count: Int): String {
-        val tail = count % 100
-        val last = count % 10
-        val word = when {
-            tail in 11..14 -> "приложений"
-            last == 1 -> "приложение"
-            last in 2..4 -> "приложения"
-            else -> "приложений"
-        }
-        return "$count $word"
-    }
-
     /**
      * The deliberately short line under the default-applications tile.
      *
      * Never asked for none: a car with nothing substituted is running its own applications, and
      * "Штатные" says that where "Не настроены" said the panel had not been filled in.
+     *
+     * Russian's `one` also takes 21 and 31, which the hand-written form wrote «настроены». There are
+     * three roles to configure, so no car reaches either.
      */
-    fun configuredApps(count: Int): String = when (count) {
-        1 -> "1 настроено"
-        else -> "$count настроены"
-    }
+    fun configuredApps(count: Int): String = AppText.p(R.plurals.tile_default_apps_configured, count, count)
 
     /** The resolution a waiting feature is waiting on, for the screen to open the right chooser. */
     fun resolutionOf(snapshot: FeatureSnapshot): FeatureResolution? =

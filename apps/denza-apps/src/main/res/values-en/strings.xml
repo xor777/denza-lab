@@ -1,0 +1,569 @@
+<resources>
+    <string name="app_name">Denza Apps</string>
+    <string name="split_screen_launcher_name">Split Screen</string>
+    <string name="a11y_service_desc">Controls Simulcast of apps to other screens and sends Yandex Navigator hints to the HUD.</string>
+    <string name="split_picker_a11y_service_desc">Controls the choice of apps and a safe exit from split screen.</string>
+    <string name="navigation_transfer_overlay_text">Moving…</string>
+    <string name="split_launch_overlay_text">Starting split screen…</string>
+    <string name="speaker_examples">Yandex Music, Spotify, YouTube, Kinopoisk, stock player</string>
+    <string name="speaker_channel_name">Speakers</string>
+    <string name="speaker_channel_description">Speakers rise when music is playing</string>
+    <string name="speaker_notification_automatic">Automatic speaker control on</string>
+    <string name="speaker_notification_raising">Raising speakers</string>
+
+    <!-- Shared tile states. All of these can reach a tile's second line: 17 characters at most. -->
+    <string name="feature_no_access">No access</string>
+    <string name="feature_not_chosen">Not chosen</string>
+    <string name="feature_absent">Unavailable</string>
+    <string name="feature_refused">Didn\'t switch</string>
+    <string name="feature_refused_on">Didn\'t turn on</string>
+    <string name="feature_refused_off">Didn\'t turn off</string>
+
+    <!-- Mobile internet -->
+    <string name="network_running_command">Running command…</string>
+    <string name="network_checking_state">Checking state…</string>
+    <string name="network_monitor_on">Monitor on</string>
+    <string name="network_monitor_off">Monitor off</string>
+    <string name="network_monitor_absent">Not available on this firmware</string>
+    <string name="network_check_failed">Could not check</string>
+    <string name="network_already_off">Monitor already off</string>
+    <string name="network_not_found_not_run">Monitor not found. Command not run.</string>
+    <string name="network_check_failed_not_run">Could not check state. Command not run.</string>
+    <string name="network_state_unconfirmed">Could not confirm monitor state</string>
+    <string name="network_disable_failed">Could not turn off monitor</string>
+    <string name="network_answer_unconfirmed">State changed, but the command\'s answer is not confirmed</string>
+    <string name="network_disable_confirmed">Turn-off confirmed</string>
+    <string name="network_title">Mobile internet</string>
+    <string name="network_monitor">Stock traffic monitor</string>
+    <string name="network_disable">Turn off</string>
+    <string name="network_check">Check state</string>
+
+    <!-- Passenger screen install. The failures and steps reach the tile: 17 characters at most. -->
+    <string name="fse_failure_not_found">Not found</string>
+    <string name="fse_failure_not_transferable">Can\'t be moved</string>
+    <string name="fse_failure_unreadable">Couldn\'t read</string>
+    <string name="fse_failure_no_answer">No screen answer</string>
+    <string name="fse_failure_declined">Screen refused</string>
+    <string name="fse_failure_not_copied">Didn\'t copy</string>
+    <string name="fse_failure_no_screen">Screen not found</string>
+    <string name="fse_failure_not_installed">Didn\'t install</string>
+    <string name="fse_step_checking">Checking screen</string>
+    <string name="fse_step_preparing">Preparing</string>
+    <string name="fse_step_installing">Installing</string>
+    <string name="fse_step_copying">Copying: %1$s%%</string>
+    <string name="fse_unavailable_split">Split APK not supported yet</string>
+    <string name="fse_unavailable_apk_not_found">APK not found</string>
+    <string name="fse_unavailable_apk_unreadable">APK unavailable</string>
+
+    <!-- Mirrors -->
+    <string name="mirrors_screen_not_found">Screen not found</string>
+    <string name="mirrors_channel_name">Mirrors</string>
+    <string name="mirrors_notification_on">Mirrors on</string>
+
+    <!-- Driver's screen. The steps and screen words reach the tile: 17 characters at most. -->
+    <string name="navigation_step_open">Didn\'t open</string>
+    <string name="navigation_step_project">Didn\'t move</string>
+    <string name="navigation_step_return">Didn\'t return</string>
+    <string name="navigation_screen_not_chosen">No screen chosen</string>
+    <string name="navigation_screen_not_found">Screen not found</string>
+    <string name="navigation_dashboard_label">Instruments</string>
+    <string name="navigation_remove">Remove</string>
+    <string name="navigation_to_dashboard">To cluster</string>
+    <string name="navigation_return">Return</string>
+    <string name="navigation_checking">Checking</string>
+    <string name="navigation_opening_central">Opening on central screen</string>
+    <string name="navigation_moving_to_dashboard">Moving to cluster</string>
+    <string name="navigation_returning_main">Returning to main screen</string>
+
+    <!-- Instrument screen choice -->
+    <string name="cluster_display_automatic">Detected automatically</string>
+    <string name="cluster_display_detected">Auto-detected: %1$s</string>
+    <string name="cluster_display_needs_choice">Choose a screen</string>
+    <string name="cluster_display_missing">Not found</string>
+
+    <!-- Cloud -->
+    <string name="cloud_channel_name">Cloud</string>
+    <string name="cloud_channel_description">The car\'s link to the cloud over the internet</string>
+    <string name="cloud_notification_disabling">Finishing turning off the cloud</string>
+    <string name="cloud_notification_kept">Cloud link kept up</string>
+    <string name="cloud_stale">No fresh data</string>
+    <string name="cloud_no_link">No link</string>
+    <string name="cloud_off">Off</string>
+    <string name="cloud_active">Connected</string>
+    <string name="cloud_no_internet">No internet</string>
+    <string name="cloud_connecting">Connecting</string>
+
+    <!-- Simulcast -->
+    <string name="simulcast_recovering">Restoring Simulcast</string>
+    <string name="simulcast_recovering_access">Restoring access</string>
+
+    <!-- Split screen -->
+    <string name="split_closing">Closing split screen</string>
+    <string name="split_opening">Opening split screen</string>
+    <string name="split_picker_title">Choose an app</string>
+    <string name="split_picker_loading">Loading apps…</string>
+    <string name="split_picker_empty">No apps found</string>
+
+    <!-- HUD -->
+    <string name="hud_no_navigator">No navigator</string>
+    <string name="hud_connecting_hints">Connecting hints</string>
+    <string name="hud_map_channel_name">Map on the HUD</string>
+    <string name="hud_map_notification_text">Map on the HUD</string>
+    <string name="hud_map_channel_description">Screen copy for the map on the HUD</string>
+
+    <!-- Recovery -->
+    <string name="recovery_channel_name">Recovery</string>
+    <string name="recovery_channel_description">Short restart of the features that are on</string>
+    <string name="recovery_notification_text">Recovering background features</string>
+
+    <!-- Weather. The stock widget draws the words below; docs/system-language.md has the open question. -->
+    <string name="weather_channel_name">Weather</string>
+    <string name="weather_channel_description">Sends the forecast to the stock weather widget</string>
+    <string name="weather_notification_text">Updating stock weather</string>
+    <string name="weather_forecast_source">MET Norway forecast</string>
+    <string name="weather_attribution">Source: MET Norway</string>
+    <string name="weather_condition_thunderstorm">Thunderstorm</string>
+    <string name="weather_condition_sleet">Sleet</string>
+    <string name="weather_condition_snow_showers">Snowfall</string>
+    <string name="weather_condition_heavy_snow">Heavy snow</string>
+    <string name="weather_condition_light_snow">Light snow</string>
+    <string name="weather_condition_snow">Snow</string>
+    <string name="weather_condition_rain_showers">Downpour</string>
+    <string name="weather_condition_heavy_rain">Heavy rain</string>
+    <string name="weather_condition_light_rain">Light rain</string>
+    <string name="weather_condition_rain">Rain</string>
+    <string name="weather_condition_clear">Clear</string>
+    <string name="weather_condition_partly_cloudy">Partly cloudy</string>
+    <string name="weather_condition_fog">Fog</string>
+    <string name="weather_condition_cloudy">Cloudy</string>
+
+    <!-- Default applications -->
+    <string name="defaultapps_not_chosen">Not chosen</string>
+    <string name="defaultapps_reading">Reading setting…</string>
+    <string name="defaultapps_auto_selected">Chosen automatically</string>
+    <string name="defaultapps_unread">Couldn\'t read</string>
+    <string name="defaultapps_unsaved">Not saved</string>
+    <string name="defaultapps_gone">Not installed</string>
+    <string name="defaultapps_stock_navigation">Stock navigation</string>
+    <string name="defaultapps_stock_music">Stock music</string>
+    <string name="defaultapps_stock_video">Stock video</string>
+    <string name="defaultapps_app_yandex_navigator">Yandex Navigator</string>
+    <string name="defaultapps_app_yandex_maps">Yandex Maps</string>
+    <string name="defaultapps_app_2gis">2GIS</string>
+    <string name="defaultapps_app_yandex_music">Yandex Music</string>
+    <string name="defaultapps_app_vk_music">VK Music</string>
+    <string name="defaultapps_app_vk_video">VK Video</string>
+    <string name="defaultapps_app_kinopoisk">Kinopoisk</string>
+    <string name="defaultapps_app_ivi">Ivi</string>
+    <string name="defaultapps_app_smotrim">Smotrim</string>
+
+    <!-- Words several screens share -->
+    <string name="common_done">Done</string>
+    <string name="common_close">Close</string>
+    <string name="time_just_now">just now</string>
+    <string name="time_over_a_day_ago">over a day ago</string>
+    <plurals name="time_minutes_ago">
+        <item quantity="one">%1$d minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="one">%1$d hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+
+    <!-- Dashboard tiles. A name holds 14 characters and 147 dp of Roboto 19/500, a state 17 characters. -->
+    <string name="tile_cluster_name">Driver screen</string>
+    <string name="tile_simulcast_name">Simulcast</string>
+    <string name="tile_simulcast_selected">%1$d chosen</string>
+    <string name="tile_mirrors_name">Mirrors</string>
+    <string name="tile_mirrors_on">On</string>
+    <string name="tile_mirrors_off">Off</string>
+    <string name="tile_split_name">Split</string>
+    <string name="tile_split_on">On</string>
+    <string name="tile_split_off">Off</string>
+    <string name="tile_hud_name">HUD hints</string>
+    <string name="tile_hud_on">On</string>
+    <string name="tile_hud_off">Off</string>
+    <string name="tile_weather_name">Weather</string>
+    <string name="tile_weather_off">Off</string>
+    <string name="tile_weather_no_data">No data yet</string>
+    <string name="tile_speakers_name">Speakers</string>
+    <string name="tile_speakers_on">On</string>
+    <string name="tile_speakers_off">Off</string>
+    <string name="tile_locale_name">Car language</string>
+    <string name="tile_passenger_name">Right screen</string>
+    <string name="tile_default_apps_unchecked">Not checked</string>
+    <string name="tile_default_apps_checking">Checking…</string>
+    <string name="tile_default_apps_stock">Stock</string>
+    <string name="tile_cloud_name">Cloud</string>
+    <string name="tile_service_name">Service</string>
+    <string name="tile_service_all_fine">All fine</string>
+    <plurals name="tile_service_waiting">
+        <item quantity="one">%1$d feature waits</item>
+        <item quantity="other">%1$d features wait</item>
+    </plurals>
+    <plurals name="tile_default_apps_configured">
+        <item quantity="one">%1$d set up</item>
+        <item quantity="other">%1$d set up</item>
+    </plurals>
+
+    <!-- Feature panels -->
+    <string name="sheet_tile_press_note">A short press on the tile does the same</string>
+    <string name="sheet_launch">Launch</string>
+    <string name="sheet_split_now">Split the screen</string>
+    <string name="sheet_choose_app">Choose an app</string>
+    <string name="sheet_choose_language">Choose a language</string>
+    <string name="sheet_open_service">Open Service</string>
+    <string name="sheet_turn_off">Turn off</string>
+    <string name="sheet_turn_on">Turn on</string>
+    <string name="sheet_continue">Continue</string>
+    <string name="sheet_cluster_help">The cluster behind the wheel shows one thing at a time: the instruments or any app on the car. A short press on the tile puts it there and takes it back.</string>
+    <string name="sheet_cluster_placement">Placement</string>
+    <string name="sheet_cluster_wheel_button">★ button on the wheel</string>
+    <string name="sheet_cluster_map_card_title">Map in the right window</string>
+    <string name="sheet_cluster_map_card_summary">The HUD\'s map replaces the stock one when the cluster\'s right window shows a map</string>
+    <string name="sheet_placement_full">Full</string>
+    <string name="sheet_placement_left">Left</string>
+    <string name="sheet_placement_center">Centre</string>
+    <string name="sheet_placement_right">Right</string>
+    <string name="sheet_simulcast_help">The chosen apps show on the passenger screen and the rear screen. Launch opens them there at once.</string>
+    <string name="sheet_simulcast_support">Simulcast support</string>
+    <string name="sheet_mirrors_help">When a turn signal is on, the camera on that side appears on the screen and goes away with the signal. “In the centre” shows both cameras, one above the other.</string>
+    <string name="sheet_mirrors_check">Check cameras</string>
+    <string name="sheet_mirrors_switch">Mirrors</string>
+    <string name="sheet_mirrors_where">Where to show</string>
+    <string name="sheet_mirrors_sides">At the sides</string>
+    <string name="sheet_mirrors_center">In the centre</string>
+    <string name="sheet_mirrors_enhance">Image enhancement</string>
+    <string name="sheet_split_help">When on, a split screen icon appears on the home screen. It opens a choice of two apps to place side by side.</string>
+    <string name="sheet_split_icon">Icon on the home screen</string>
+    <string name="sheet_weather_help">The app fetches the forecast and hands it to the stock weather widget. It draws no weather of its own, and the widget stays stock.</string>
+    <string name="sheet_weather_widget_data">Data for the widget</string>
+    <string name="sheet_weather_given">Sent to the widget %1$s</string>
+    <string name="sheet_speakers_help">The speakers rise when music is playing or a player is open, including apps the car does not count as its own (%1$s). The car lowers them itself. “Raise” brings them up again if the car lowered them while idle.</string>
+    <string name="sheet_speakers_auto">Automatic speaker control</string>
+    <string name="sheet_speakers_raise">Raise</string>
+    <string name="sheet_cloud_help">The car reaches the cloud over Wi-Fi or mobile internet, and the Denza app on your phone works with it as usual: it shows the car\'s status and controls the car. The link comes back if the modem sees a Chinese ICCID, from the original eSIM or from an rSIM. “Keep Wi-Fi on” stops the car turning Wi-Fi off when it goes to sleep, so the link stays while parked.</string>
+    <string name="sheet_cloud_keep_link">Keep the cloud link up</string>
+    <string name="sheet_cloud_keep_wifi">Keep Wi-Fi on</string>
+    <string name="sheet_cloud_keep_wifi_cost">The battery may drain faster while parked</string>
+    <string name="sheet_locale_help">The language changes for the whole car, not for the app: the car itself opens the list, which has forty languages, and the chosen one applies at once, with no restart.</string>
+    <string name="sheet_service_help">Car readings, the app\'s access to the car, and the stock settings it can reach.</string>
+
+    <!-- HUD panel -->
+    <string name="hud_panel_subtitle">How the HUD looks during a route</string>
+    <string name="hud_panel_from_yandex">From Yandex Navigator</string>
+    <string name="hud_panel_from_yandexhud">From YandexHUD</string>
+    <string name="hud_panel_sign_from_yandex">In the stock spot, from Yandex Navigator</string>
+    <string name="hud_panel_sign_from_yandexhud">In the stock spot, from YandexHUD</string>
+    <string name="hud_panel_self">YandexHUD draws it itself</string>
+    <string name="hud_panel_turns_title">Turns</string>
+    <string name="hud_panel_turns_soon">Will appear with Yandex Navigator or YandexHUD</string>
+    <string name="hud_panel_map">Map</string>
+    <string name="hud_panel_map_soon">Will appear with Yandex Navigator or YandexHUD</string>
+    <string name="hud_panel_sign_title">Speed limit</string>
+    <string name="hud_panel_sign_soon">Will appear with a navigator</string>
+    <string name="hud_panel_cameras_title">Cameras and hazards</string>
+    <string name="hud_panel_cameras_install">Will appear if you install HUD Speed with the adapter</string>
+    <string name="hud_panel_cameras_official">This HUD Speed shows them only on its own screen. A build with the adapter is needed</string>
+    <string name="hud_panel_cameras_old_build">This YandexHUD build leaves no room for them. The new build has them</string>
+    <string name="hud_panel_cameras_during_route">From HUD Speed, during a route in the navigator</string>
+    <string name="hud_panel_cameras_from">From HUD Speed</string>
+
+    <!-- Default applications panel -->
+    <string name="defaultapps_sheet_title">Default apps</string>
+    <string name="defaultapps_sheet_switch">Replace apps</string>
+    <string name="defaultapps_sheet_searching">Looking for installed apps…</string>
+    <string name="defaultapps_role_navigation">Navigation</string>
+    <string name="defaultapps_role_music">Music</string>
+    <string name="defaultapps_role_video">Video</string>
+    <string name="defaultapps_section_navigation">Navigation app</string>
+    <string name="defaultapps_section_music">Music app</string>
+    <string name="defaultapps_section_video">Video app</string>
+    <string name="defaultapps_sheet_loading">Loading apps…</string>
+    <string name="defaultapps_sheet_saving">Saving choice…</string>
+    <string name="defaultapps_sheet_unconfirmed">Not confirmed</string>
+    <string name="defaultapps_sheet_reading">Reading setting…</string>
+    <string name="defaultapps_sheet_substituting">Commands open the chosen apps</string>
+    <string name="defaultapps_sheet_stock">Commands open the stock apps</string>
+    <string name="defaultapps_sheet_nothing">Nothing to replace with: no suitable apps installed</string>
+    <!-- Quotes the firmware's own Shortcuts actions, as the English UI names them in
+         docs/shortcuts-automation-findings.md: Navi → Access map, Video → Open video, Music → Continue
+         playing, Music → Open music. The Russian «Открыть навигацию» is the action English calls Access map. -->
+    <string name="defaultapps_sheet_help">Stock Shortcuts open apps on command: “Access map” and “Open video” start the ones chosen here. On this firmware music is started by “Continue playing” when nothing is playing; “Open music” always opens the stock player.</string>
+
+    <!-- Application choosers -->
+    <string name="chooser_nothing_found">Nothing found</string>
+    <string name="pickers_simulcast_title">What to simulcast</string>
+    <string name="pickers_simulcast_subtitle">Choose up to %1$d · %2$d chosen</string>
+    <string name="pickers_nothing_chosen">Nothing chosen</string>
+    <string name="pickers_navigation_title">What to show</string>
+    <string name="pickers_navigation_section_instruments">Instrument functions</string>
+    <string name="pickers_navigation_section_apps">Apps</string>
+    <string name="pickers_loading">Looking for apps…</string>
+    <string name="pickers_fse_empty">No apps found</string>
+    <string name="pickers_fse_help">Only apps that can go on the right screen are shown. Incompatible ones are not listed.</string>
+    <plurals name="pickers_fse_subtitle">
+        <item quantity="one">%1$d app from the head unit</item>
+        <item quantity="other">%1$d apps from the head unit</item>
+    </plurals>
+
+    <!-- Service, and the access and instrument-screen words it shares with the main screen -->
+    <string name="service_no_access">No access to the car; most features do not work without it</string>
+    <string name="service_version">Denza Apps %1$s · build %2$d</string>
+    <string name="service_technical">Technical details</string>
+    <string name="service_technical_value">Version, firmware, feature status</string>
+    <string name="service_journal">Work log</string>
+    <string name="service_journal_value">Last three operations, step by step</string>
+    <string name="service_all_working">All features working</string>
+    <string name="service_access">Car access</string>
+    <string name="service_diagnostics">Diagnostics</string>
+    <string name="service_diagnostics_value">Auto-scan of modules, fault codes, live data</string>
+    <string name="service_cluster_automatic_now">Now: %1$s</string>
+    <string name="service_cluster_note">The app finds the screen behind the wheel by itself. Choose another if the instruments went to the wrong one.</string>
+    <string name="cluster_display_title">Instrument screen</string>
+    <string name="cluster_display_detect_automatically">Detect automatically</string>
+    <string name="cluster_display_picker_subtitle">A short check appears on the screen after you choose</string>
+    <string name="cluster_display_searching">Looking for screens behind the wheel</string>
+    <string name="adb_recover">Recover ADB</string>
+    <string name="adb_recovery_title">ADB recovery</string>
+    <string name="adb_check_access">Check access</string>
+    <string name="adb_request_once">Send one request</string>
+    <string name="adb_allow_new_attempt">Allow a new attempt</string>
+    <string name="adb_explainer_title">What ADB is</string>
+    <string name="adb_explainer_what_title">What it is</string>
+    <string name="adb_explainer_what">An Android service channel the app uses to give the car commands: split the screen, turn on Mirrors, send a picture to the cluster. Without it the app sees the car but cannot tell it anything.</string>
+    <string name="adb_explainer_how_title">How to open it</string>
+    <string name="adb_explainer_how">The channel opens at the level of the car itself; the app cannot do this. It takes a service centre with a diagnostic computer.</string>
+    <string name="adb_gate_service_instruction">ADB access can only be unlocked at a service centre using the official diagnostic computer. Please contact a service centre to unlock ADB access.</string>
+    <string name="adb_gate_wifi_title">Waiting for Wi-Fi</string>
+    <string name="adb_gate_wifi_message">Wi-Fi is needed to restore access</string>
+    <!-- "Wireless debugging" is Android's own name for it (docs/adb-authorization-recovery.md). -->
+    <string name="adb_gate_wifi_details">Android restores wireless debugging when it connects to Wi-Fi</string>
+    <string name="adb_gate_dialog_title">Network connection</string>
+    <!-- Quotes the firmware's own dialog, SystemUI's WifiDebuggingActivity: the box "Always allow on this
+         network" and the Allow button (docs/adb-authorization-recovery.md, "Reopening 5555 through
+         wireless debugging"). ALLOW keeps the capitals the Russian string quotes. -->
+    <string name="adb_gate_dialog_message">Denza Apps confirms the network dialog automatically. If it stays on the screen, tick “Always allow on this network” and press ALLOW.</string>
+    <string name="adb_gate_failed_title">Restoring access</string>
+    <string name="adb_gate_failed_message">Waiting for the next Wi-Fi connection or for the screen to wake</string>
+    <string name="adb_gate_unavailable_title">ADB unavailable</string>
+    <string name="adb_gate_confirm_title">Confirm ADB access</string>
+    <string name="adb_gate_authorize_message">To use Denza Apps, allow the ADB system request on the car\'s screen</string>
+    <string name="adb_gate_request">Request access</string>
+    <string name="adb_gate_requesting_title">Sending ADB request</string>
+    <string name="adb_gate_requesting_message">There will be no repeat requests in the background</string>
+    <string name="adb_gate_awaiting_message">Allow the system request on the car\'s screen</string>
+    <string name="adb_gate_confirmed_check">I confirmed it, check</string>
+    <string name="adb_access_not_confirmed">Access not confirmed</string>
+    <string name="adb_gate_error_message">The car did not answer the check</string>
+    <string name="adb_gate_check_again">Check again</string>
+    <string name="adb_not_checked">Access not checked yet</string>
+    <string name="adb_switch_off">ADB debugging is off in the car\'s system</string>
+    <string name="adb_switch_on">ADB debugging is on in the car\'s system</string>
+    <string name="adb_switch_unreadable">Could not read the state of ADB debugging</string>
+    <string name="adb_no_link">No link with the car</string>
+    <string name="adb_previous_request_pending">The previous request is awaiting a check</string>
+    <string name="adb_previous_request_details">Check access first; a new request will not be sent automatically</string>
+    <string name="adb_checking">Checking access…</string>
+    <string name="adb_trusted">ADB access confirmed</string>
+    <string name="adb_trusted_details">Denza Apps is using a key that is already trusted</string>
+    <string name="adb_request_sent_not_granted">Request sent, but access not granted yet</string>
+    <string name="adb_request_sent_not_granted_details">Allow the request on the car\'s screen, then press “Check access”</string>
+    <string name="adb_permission_needed">Denza Apps needs ADB permission</string>
+    <string name="adb_permission_needed_details">You can send exactly one request by hand</string>
+    <string name="adb_requesting">Sending one request…</string>
+    <string name="adb_requesting_details">No repeats in the background</string>
+    <string name="adb_already_trusted">ADB access already granted</string>
+    <string name="adb_already_trusted_details">No new request was needed</string>
+    <string name="adb_request_sent">One request sent</string>
+    <string name="adb_request_sent_details">Allow it on the car\'s screen, then check access</string>
+    <string name="adb_request_unconfirmed">Sending the request is not confirmed</string>
+    <string name="adb_new_attempt_allowed">New attempt allowed by hand</string>
+    <string name="adb_check_first">Check access first</string>
+    <string name="adb_request_not_sent">Request not sent</string>
+    <string name="adb_new_attempt_refused">New attempt not allowed</string>
+    <string name="adb_restore_title">ADB recovery</string>
+    <string name="adb_restore_switch">Recover automatically</string>
+    <string name="adb_restore_switch_summary">If the car closes access after a reboot, the app brings it back over Wi-Fi</string>
+    <string name="adb_restore_boot_section">Last reboot</string>
+    <string name="adb_restore_status_unsupported">Recovery works from Android 11</string>
+    <string name="adb_restore_status_restored">Access is available: the app brought it back after the reboot</string>
+    <string name="adb_restore_status_not_needed">Access is available, no recovery needed</string>
+    <string name="adb_restore_status_connecting">No access, bringing it back over Wi-Fi</string>
+    <string name="adb_restore_status_waiting_wifi">No access. It comes back once the car is on Wi-Fi</string>
+    <string name="adb_restore_status_system_refuses">No access: the system does not turn on wireless debugging</string>
+    <string name="adb_restore_status_waiting_system">No access. Waiting for the system to turn on wireless debugging</string>
+    <string name="adb_restore_status_untrusted">No access. It cannot be brought back over Wi-Fi: the car does not trust the app</string>
+    <string name="adb_restore_status_failed">Could not bring access back. The app will try again</string>
+    <string name="adb_boot_restore_not_needed">not needed</string>
+    <string name="adb_boot_restore_none">none yet</string>
+    <string name="adb_boot_restore_running">running</string>
+    <string name="adb_boot_restore_waiting_wifi">waiting for Wi-Fi</string>
+    <string name="adb_boot_restore_waiting_system">waiting for the system\'s permission</string>
+    <string name="adb_boot_restore_impossible">impossible</string>
+    <string name="adb_boot_restore_failed_at">failed %1$s</string>
+    <string name="adb_boot_restore_restored_took">succeeded %1$s, in %2$s</string>
+    <string name="adb_boot_restore_restored_at">succeeded %1$s</string>
+    <string name="adb_boot_restore_returned_at">access appeared %1$s</string>
+    <string name="adb_boot_when">When</string>
+    <string name="adb_boot_access">Access after it</string>
+    <string name="adb_boot_look_open">available at once</string>
+    <string name="adb_boot_look_closed">closed</string>
+    <string name="adb_boot_look_refused">key not accepted</string>
+    <string name="adb_boot_look_unknown">not checked yet</string>
+    <string name="adb_boot_restore">Recovery</string>
+    <string name="adb_restore_summary_off">Off</string>
+    <string name="adb_restore_summary_unsupported">Not available on this Android version</string>
+    <string name="adb_restore_summary_waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="adb_restore_summary_system_refuses">The system does not turn on wireless debugging</string>
+    <string name="adb_restore_summary_waiting_system">Waiting for the system\'s permission</string>
+    <string name="adb_restore_summary_cannot">Cannot bring access back</string>
+    <string name="adb_restore_summary_failed">Did not bring access back</string>
+    <string name="adb_restore_summary_connecting">Bringing access back…</string>
+    <string name="adb_restore_summary_restored_at">Brought access back %1$s</string>
+    <string name="adb_restore_summary_returned_at">Access appeared %1$s</string>
+    <string name="adb_restore_summary_not_needed">Not needed after the reboot</string>
+    <string name="adb_restore_summary_on">On</string>
+    <string name="adb_span_seconds">%1$d s</string>
+    <string name="adb_span_minutes">%1$d min</string>
+    <string name="adb_span_hours">%1$d h %2$d min</string>
+    <string name="adb_time_today">today, %1$s</string>
+    <string name="adb_time_yesterday">yesterday, %1$s</string>
+    <string name="adb_at_time">at %1$s</string>
+    <string name="adb_at_yesterday">yesterday at %1$s</string>
+    <string name="adb_at_date">%1$s at %2$s</string>
+    <string name="adb_at_today">today at %1$s</string>
+    <string name="warning_title">Car warnings</string>
+    <string name="warning_switch">Record warnings</string>
+    <string name="warning_switch_summary">Cluster messages and the link with the car, while the app is running</string>
+    <string name="warning_codes">Codes</string>
+    <string name="warning_events">Events</string>
+    <string name="warning_export">Export</string>
+    <string name="warning_clear">Clear</string>
+    <string name="warning_clear_again">Press again to clear</string>
+    <string name="warning_none">No warnings so far</string>
+    <string name="warning_recording_off">Recording off</string>
+    <string name="warning_row_last">Last: %1$s · %2$s</string>
+    <string name="warning_lost_since">Car not answering since %1$s</string>
+    <string name="warning_recording_since">Recording since %1$s</string>
+    <string name="warning_recording">Recording</string>
+    <string name="warning_event_start">App started</string>
+    <string name="warning_event_link_clean">Car answering, no warnings</string>
+    <string name="warning_event_link_code">Car answering · %1$s</string>
+    <string name="warning_event_cleared_code">Warning cleared</string>
+    <string name="warning_event_lost">Car not answering</string>
+    <string name="warning_event_on">Recording on</string>
+    <string name="warning_event_cleared">Log cleared</string>
+    <string name="warning_day_today">today, %1$s</string>
+    <string name="warning_day_yesterday">yesterday, %1$s</string>
+    <!-- FIRMWARE: «Загрузки» is the stock folder's name on the Russian car. Best guess: "Download",
+         the directory WarningRecorder writes to (Environment.DIRECTORY_DOWNLOADS). What the stock file
+         manager calls it in English is not recorded in docs/. -->
+    <string name="warning_export_saved">Saved: Download/Denza Apps/%1$s</string>
+    <string name="warning_export_failed">Not saved: %1$s</string>
+    <plurals name="warning_times">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+
+    <!-- The Contour on the driver's display, drawn in Jura in fixed places. The budgets are the ones in
+         values/strings.xml; "English" is the width of this text, from the same fonts and sizes. -->
+    <!-- Budget 167 to the first temperature glyph; English 115. -->
+    <string name="contour_title_pack">BATTERY · V</string>
+    <!-- Both headings: budget 276 to the engine box; English 121 and 201. The trip caption shares the line. -->
+    <string name="contour_title_engine_rpm">ENGINE · rpm</string>
+    <string name="contour_title_engine_minutes">ENGINE · min this trip</string>
+    <!-- Budget 440 beside its figure; English 104. -->
+    <string name="contour_caption_spread">CELL SPREAD</string>
+    <!-- Flush right on the engine heading's line: heading and caption share 506; English 374 at 999 km. -->
+    <string name="contour_trip_km">%1$s km · THIS TRIP</string>
+    <string name="contour_trip_alone">THIS TRIP</string>
+    <!-- This and contour_caption_engine_gave share the park line: 506 with figures and units; English 359. -->
+    <string name="contour_caption_regen">REGEN</string>
+    <string name="contour_caption_engine_gave">ENGINE GAVE</string>
+    <string name="contour_engine_gives_alone">ENGINE GIVES</string>
+    <!-- This and contour_engine_window sit in the box. Budget 230; English 189 and 81. -->
+    <string name="contour_engine_gives">ENGINE GIVES %1$s kW</string>
+    <string name="contour_engine_window">LAST %1$s</string>
+    <!-- Beside the hero at size 34: 79 of room; English 46. -->
+    <string name="contour_unit_kw">kW</string>
+    <string name="contour_unit_kwh">kWh</string>
+    <string name="contour_unit_millivolt">mV</string>
+    <!-- THE TIGHTEST WORD ON THE CLUSTER. Budget 199 behind the widest figure, at distance 0.0; English 182.
+         "over %1$s km" would read better and measures 203, which is past the budget. -->
+    <string name="contour_per_100km">kWh/100 km · last %1$s km</string>
+    <!-- Budget 198 behind 99:59; English 49. -->
+    <string name="contour_charge_left">to full</string>
+
+    <string name="energy_sentence_neutral">Battery</string>
+    <string name="energy_sentence_from_pack">From battery</string>
+    <string name="energy_sentence_to_pack">To battery</string>
+    <string name="energy_sentence_from_engine">To battery from engine</string>
+    <!-- The longest. Full screen: half of it, with the blue mark, in 155 either side of the centre; English 90 in Roboto 17. One third: 163 of 392. -->
+    <string name="energy_sentence_from_charger">To battery from charger</string>
+    <string name="energy_engine_rpm_caption">Engine</string>
+    <string name="energy_engine_rpm_unit">rpm</string>
+    <!-- Full screen: the engine and trip cells are 66 apart at their widest in Russian, and these two are 44 narrower together. -->
+    <string name="energy_engine_minutes_caption">Engine this trip</string>
+    <string name="energy_engine_minutes_unit">min</string>
+    <string name="energy_trip_km">%1$s km · this trip</string>
+    <string name="energy_trip_alone">This trip</string>
+
+    <!-- The strip's sound page. One third: each caption stands left of a value column at 118 dp, in Roboto 14; English 47 to 79. -->
+    <string name="strip_on_the_road">On the road</string>
+    <string name="strip_remaining">Remaining</string>
+    <string name="strip_altitude">Altitude</string>
+    <string name="strip_sunset">Sunset</string>
+    <string name="strip_sunrise">Sunrise</string>
+    <string name="strip_unit_metres">m</string>
+    <string name="strip_unit_kilometres">km</string>
+    <string name="strip_road_metres">%1$s m</string>
+    <string name="strip_road_kilometres">%1$s km</string>
+
+    <!-- One third: alone on its row, 130 of 392 in Roboto 14. -->
+    <string name="strip_location_hint">No location access</string>
+    <string name="trip_panel_description">Trip panel</string>
+
+    <!-- The driver's display. -->
+    <string name="cluster_display_choice">Screen %1$d · %2$d×%3$d</string>
+    <string name="cluster_scene_channel_name">Driver screen</string>
+    <string name="cluster_scene_notification">Driver screen</string>
+    <string name="cluster_dashboard_description">Instruments on the driver screen</string>
+
+    <!-- The strip's car page. "Voltage" is 47 dp narrower than the Russian, whose gap to the temperatures is 25. -->
+    <string name="car_page_volts">Voltage</string>
+    <string name="car_page_unit_volt">V</string>
+    <!-- «Расход». "Consumption" is 98 dp at this size against the Russian 55, so the shorter word. -->
+    <string name="car_page_spend">Usage</string>
+    <string name="car_page_closed">Power from the car</string>
+
+    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; English 347. The car page wraps them. -->
+    <string name="vehicle_closed_authorization">ADB key not confirmed · open Denza Apps</string>
+    <string name="vehicle_closed_no_channel">No link with the car</string>
+    <string name="vehicle_closed_no_answer">Car not answering</string>
+
+    <!-- The HUD panel's picture of the glass, in Roboto 13/500 at 432 dp wide and at 384 in a pane.
+         Half widths of hud_glass_turn and hud_glass_sign must sum to under 81, and 72 in a pane; English 28.
+         hud_glass_cameras is centred at 52, 46 in a pane, so it has 104 and 92 inside the picture. English 90.
+         "Cameras and hazards" is 127 and would run past the left edge, as the Russian row's 128 would. -->
+    <string name="hud_glass_unit_speed">km/h</string>
+    <string name="hud_glass_distance">350 m</string>
+    <string name="hud_glass_unit_metres">m</string>
+    <string name="hud_glass_sign">Limit</string>
+    <string name="hud_glass_turn">Turn</string>
+    <string name="hud_glass_map">Map</string>
+    <string name="hud_glass_cameras">Speed cameras</string>
+
+    <!-- HUD Speed's warning, drawn into the picture the HUD's lane window shows, at half the digits' size. -->
+    <string name="hud_radar_unit_metres">m</string>
+    <string name="hud_radar_unit_kilometres">km</string>
+    <string name="hud_summary_metres">m</string>
+    <string name="hud_summary_kilometres">km</string>
+    <string name="hud_summary_minutes">min</string>
+    <string name="hud_summary_hours">h</string>
+
+    <string name="simulcast_checking_screens">Checking screens…</string>
+    <string name="service_split_section">Split screen</string>
+    <string name="service_language_note">The app restarts to change the language.</string>
+</resources>

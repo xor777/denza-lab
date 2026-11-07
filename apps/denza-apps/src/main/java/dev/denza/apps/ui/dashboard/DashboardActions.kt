@@ -1,6 +1,7 @@
 package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.core.AppLanguage
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
@@ -126,6 +127,9 @@ interface DenzaActions {
     val onServiceOpened: () -> Unit
     val onSetAdbRestoreEnabled: (Boolean) -> Unit
 
+    /** The language row of «Сервис». A language other than the running one restarts the app. */
+    val onSelectLanguage: (AppLanguage) -> Unit
+
     /** Look at the car's ADB access, for the gate and «Сервис»; the gate follows the answer. */
     val onCheckAdbAccess: () -> Unit
 
@@ -184,6 +188,7 @@ open class IdleActions : DenzaActions {
     override val onServiceReportVisible: (Boolean) -> Unit = {}
     override val onServiceOpened: () -> Unit = {}
     override val onSetAdbRestoreEnabled: (Boolean) -> Unit = {}
+    override val onSelectLanguage: (AppLanguage) -> Unit = {}
     override val onCheckAdbAccess: () -> Unit = {}
     override val onCheckAdbAccessThen: (() -> Unit) -> Unit = { onTrusted -> onTrusted() }
     override val onRequestAdbAuthorizationOnce: () -> Unit = {}

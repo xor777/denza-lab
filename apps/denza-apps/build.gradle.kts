@@ -292,8 +292,10 @@ dependencies {
  * `ContourFixturesContractTest`, `SplitCrewBoardContractTest`, `FeatureMapContractTest`, ...).
  *
  * So are the files the unit tests read as text: the manifest (six manifest contracts), the
- * strings the split crew's caption is held to, the Jura font the cluster's widths are measured
+ * strings the split crew's caption is held to, the English strings `StringParityTest` compares
+ * with them, the Jura font the cluster's widths are measured
  * in, the sources the wiring contracts cut sections out of - a comment moves their anchors too -
+ * the libraries' sources `CyrillicLiteralGuardTest` lexes with this module's,
  * the host recorder whose columns `VehicleCaptureTest` matches, the recorded drives
  * `VehicleLogReplayTest` replays, YandexHUD's build identity `HudNavigatorBuildTest` recognises,
  * and this script, whose helper jar names
@@ -310,8 +312,11 @@ tasks.withType<Test>().configureEach {
         file("build.gradle.kts"),
         file("src/main/AndroidManifest.xml"),
         file("src/main/res/values/strings.xml"),
+        file("src/main/res/values-en/strings.xml"),
         file("src/main/res/font/jura_medium.ttf"),
         fileTree("src/main/java"),
+        rootProject.fileTree("libraries/hud-link/src/main/java"),
+        rootProject.fileTree("libraries/dishare-bridge/src/main/java"),
         rootProject.file("tools/vehicle_log.py"),
         rootProject.file("tools/yandex_hud_build/identity.py"),
         rootProject.fileTree("captures/vehicle-log") { include("*.csv") },

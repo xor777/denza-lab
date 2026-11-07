@@ -13,10 +13,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.R
+import dev.denza.apps.core.AppLanguage
+import dev.denza.apps.core.AppText
 import dev.denza.apps.BuildConfig
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.SupportDiagnostics
 import dev.denza.apps.TechnicalReadings
+import dev.denza.apps.TechnicalSection
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
@@ -34,6 +38,7 @@ import dev.denza.apps.ui.components.DenzaPairRow
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSection
+import dev.denza.apps.ui.components.DenzaSegmentedRow
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaSheetHeader
@@ -114,7 +119,7 @@ internal data class ServiceModel(
             )
         }
 
-        const val NO_ACCESS = "Нет доступа к машине, без него большинство функций не работает"
+        val NO_ACCESS: String get() = AppText.s(R.string.service_no_access)
     }
 }
 
@@ -144,12 +149,13 @@ internal fun ServicePanel(
     onDismiss: () -> Unit,
     firstPage: ServicePage = ServicePage.MAIN,
     firstPageAtEnd: Boolean = false,
-    version: String = "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE}",
+    version: String = AppText.s(R.string.service_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
     onSetAdbRestoreEnabled: (Boolean) -> Unit = {},
     onOpenService: () -> Unit = {},
     nowMs: () -> Long = System::currentTimeMillis,
     trafficMonitorFixture: TrafficMonitorSnapshot? = null,
     warningsFixture: WarningsView? = null,
+    onSelectLanguage: (AppLanguage) -> Unit = {},
 ) {
     LaunchedEffect(Unit) { onOpenService() }
     val warnings = warningsFixture ?: rememberWarnings()
@@ -173,7 +179,7 @@ internal fun ServicePanel(
         when (page) {
             ServicePage.DIAGNOSTICS -> Unit
             ServicePage.MAIN -> {
-                DenzaSheetHeader(title = "Сервис", subtitle = "", onDismiss = onDismiss, glyph = DenzaIcons.ServiceGlyph)
+                DenzaSheetHeader(title = AppText.s(R.string.tile_service_name), subtitle = "", onDismiss = onDismiss, glyph = DenzaIcons.ServiceGlyph)
                 ServiceMain(
                     state = state,
                     onOpenFeature = onOpenFeature,
@@ -183,21 +189,23 @@ internal fun ServicePanel(
                     onPage = { page = it },
                     nowMs = nowMs,
                     warnings = warnings,
+                    onSelectLanguage = onSelectLanguage,
                 )
             }
             ServicePage.SCREEN -> {
-                DenzaSheetHeader(title = "Приборный экран", subtitle = "", onDismiss = onDismiss, onBack = back)
+                DenzaSheetHeader(title = AppText.s(R.string.cluster_display_title), subtitle = "", onDismiss = onDismiss, onBack = back)
                 ServiceScreenPage(state) { id ->
                     onSelectClusterDisplay(id)
                     back()
                 }
             }
             ServicePage.TECHNICAL -> {
-                DenzaSheetHeader(title = "Технические сведения", subtitle = version, onDismiss = onDismiss, onBack = back)
+                DenzaSheetHeader(title = AppText.s(R.string.service_technical), subtitle = version, onDismiss = onDismiss, onBack = back)
                 ServiceTechnicalPage(state.technicalDetails) { page = ServicePage.JOURNAL }
             }
             ServicePage.JOURNAL -> {
-                DenzaSheetHeader(title = "Журнал работы", subtitle = JOURNAL_OF, onDismiss = onDismiss, onBack = back)
+                // Whose journal the page is: the photo of it has to say so without the page before it.
+                DenzaSheetHeader(title = AppText.s(R.string.service_journal), subtitle = AppText.s(R.string.service_split_section), onDismiss = onDismiss, onBack = back)
                 ReadingsPage(state.splitJournal)
             }
             ServicePage.RESTORE -> {
@@ -226,6 +234,7 @@ private fun ServiceMain(
     onPage: (ServicePage) -> Unit,
     nowMs: () -> Long,
     warnings: WarningsView,
+    onSelectLanguage: (AppLanguage) -> Unit,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
     val adb = state.adbRescue
@@ -240,8 +249,8 @@ private fun ServiceMain(
                 onClick = { onOpenFeature(row.id) },
                 tone = row.tone,
             )
-            ALL_WORKING -> DenzaInfoRow(title = "Все функции работают")
-            else -> DenzaInfoRow(title = "Доступ к машине", summary = adb.message, tone = model.accessTone)
+            ALL_WORKING -> DenzaInfoRow(title = AppText.s(R.string.service_all_working))
+            else -> DenzaInfoRow(title = AppText.s(R.string.service_access), summary = adb.message, tone = model.accessTone)
         }
     }
     if (model.accessActions) {
@@ -249,21 +258,21 @@ private fun ServiceMain(
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BUTTON_GAP.dp)) {
             if (adb.canRequest) {
                 DenzaPrimaryButton(
-                    text = "Отправить один запрос",
+                    text = AppText.s(R.string.adb_request_once),
                     onClick = onRequestAdbAuthorizationOnce,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !model.accessBusy,
                 )
             }
             DenzaSecondaryButton(
-                text = "Проверить доступ",
+                text = AppText.s(R.string.adb_check_access),
                 onClick = onCheckAdbAccess,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !model.accessBusy,
             )
             if (adb.canResetAttempt) {
                 DenzaSecondaryButton(
-                    text = "Разрешить новую попытку",
+                    text = AppText.s(R.string.adb_allow_new_attempt),
                     onClick = onAllowNewAdbAuthorizationAttempt,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !model.accessBusy,
@@ -271,6 +280,7 @@ private fun ServiceMain(
             }
         }
     }
+    LanguageRow(onSelectLanguage)
     // The diagnostic section is parked outside a `-Pdiagnostics` build (build.gradle.kts) until the
     // owner accepts it on the car (docs/vehicle-diagnostics-architecture.md, 1).
     val pages = listOfNotNull(
@@ -281,8 +291,8 @@ private fun ServiceMain(
     DenzaChoiceGroup(pages) { target ->
         when (target) {
             ServicePage.DIAGNOSTICS -> DenzaChoiceRow(
-                title = "Диагностика",
-                value = "Автоскан блоков, коды неисправностей, потоковые данные",
+                title = AppText.s(R.string.service_diagnostics),
+                value = AppText.s(R.string.service_diagnostics_value),
                 onClick = { onPage(target) },
             )
             ServicePage.RESTORE -> {
@@ -300,7 +310,7 @@ private fun ServiceMain(
                 onClick = { onPage(target) },
             )
             ServicePage.SCREEN -> DenzaChoiceRow(
-                title = "Приборный экран",
+                title = AppText.s(R.string.cluster_display_title),
                 value = state.clusterDisplayLabel,
                 onClick = { onPage(target) },
             )
@@ -310,11 +320,31 @@ private fun ServiceMain(
                 onClick = { onPage(target) },
             )
             else -> DenzaChoiceRow(
-                title = "Технические сведения",
-                value = "Версия, прошивка, состояние функций",
+                title = AppText.s(R.string.service_technical),
+                value = AppText.s(R.string.service_technical_value),
                 onClick = { onPage(target) },
             )
         }
+    }
+}
+
+/**
+ * The app's language, not the car's. A switch could not say which language «on» means, so this is the
+ * tab row: both names are always there, and the title and the names read the same in either language
+ * for someone who cannot read the rest of the panel. It selects what the process speaks and nothing
+ * else, so a write that failed leaves it as it was; a language that took restarts the app. It stands
+ * above the pages, where it is on the first screen without scrolling.
+ */
+@Composable
+private fun LanguageRow(onSelect: (AppLanguage) -> Unit) {
+    DenzaSection(AppText.s(R.string.service_language_title)) {
+        DenzaSegmentedRow(
+            labels = listOf(AppText.s(R.string.service_language_russian), AppText.s(R.string.service_language_english)),
+            selectedIndex = if (AppText.language == AppLanguage.RUSSIAN) 0 else 1,
+            onSelect = { index -> onSelect(if (index == 0) AppLanguage.RUSSIAN else AppLanguage.ENGLISH) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DenzaNote(AppText.s(R.string.service_language_note))
     }
 }
 
@@ -358,9 +388,9 @@ private fun ServiceScreenPage(state: DenzaUiState, onSelect: (Int?) -> Unit) {
     DenzaChoiceGroup(listOf<Int?>(null) + choices.indices) { index ->
         if (index == null) {
             DenzaChosenRow(
-                title = "Определять автоматически",
+                title = AppText.s(R.string.cluster_display_detect_automatically),
                 chosen = automatic,
-                summary = state.clusterDisplayAutomatic?.takeIf { automatic }?.let { "Сейчас: $it" },
+                summary = state.clusterDisplayAutomatic?.takeIf { automatic }?.let { AppText.s(R.string.service_cluster_automatic_now, it) },
                 onClick = { onSelect(null) },
             )
         } else {
@@ -372,7 +402,7 @@ private fun ServiceScreenPage(state: DenzaUiState, onSelect: (Int?) -> Unit) {
             )
         }
     }
-    DenzaNote("Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.")
+    DenzaNote(AppText.s(R.string.service_cluster_note))
 }
 
 /**
@@ -381,12 +411,12 @@ private fun ServiceScreenPage(state: DenzaUiState, onSelect: (Int?) -> Unit) {
  */
 @Composable
 private fun ServiceTechnicalPage(report: String, onJournal: () -> Unit) {
-    ReadingsPage(report) { title ->
-        if (title == SupportDiagnostics.SPLIT_SECTION) {
+    ReadingsPage(report) { section ->
+        if (section.id == SupportDiagnostics.SPLIT_SECTION) {
             // A plate of its own under the readings, a label's gap away, as the main page keeps its
             // two pages' rows apart from what it reports: this one is pressed, those are read.
             DenzaChoiceGroup(listOf(JOURNAL_ROW)) {
-                DenzaChoiceRow(title = "Журнал работы", value = "Три последние операции, по шагам", onClick = onJournal)
+                DenzaChoiceRow(title = AppText.s(R.string.service_journal), value = AppText.s(R.string.service_journal_value), onClick = onJournal)
             }
         }
     }
@@ -398,7 +428,7 @@ private fun ServiceTechnicalPage(report: String, onJournal: () -> Unit) {
  * so the journal speaks in no new visual language. [under] adds what belongs beneath a section.
  */
 @Composable
-private fun ReadingsPage(report: String, under: @Composable (title: String) -> Unit = {}) {
+private fun ReadingsPage(report: String, under: @Composable (TechnicalSection) -> Unit = {}) {
     val sections = remember(report) { TechnicalReadings.parse(report) }
     sections.forEach { section ->
         val plate: @Composable () -> Unit = {
@@ -410,7 +440,7 @@ private fun ReadingsPage(report: String, under: @Composable (title: String) -> U
         } else {
             DenzaSection(title) {
                 plate()
-                under(title)
+                under(section)
             }
         }
     }
@@ -419,9 +449,6 @@ private fun ReadingsPage(report: String, under: @Composable (title: String) -> U
 private const val ALL_WORKING = "all-working"
 private const val ACCESS = "access"
 private const val JOURNAL_ROW = "journal"
-
-/** Whose journal the page is: the photo of it has to say so without the page before it. */
-private const val JOURNAL_OF = "Разделение экрана"
 
 /** Between the access buttons, as the board's stack draws them. */
 private const val BUTTON_GAP = 12f

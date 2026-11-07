@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.core.StringsXml
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -56,7 +57,12 @@ class EnergySourceGuardTest {
         assertEquals(setOf("VOLTS", "UNIT_V", "SPEND", "CLOSED"), words)
         // The engine's cell, the direction of the pack's flow, the consumption and its window all
         // left that file for `EnergyReadouts`; the words file cannot quietly regrow them.
-        val vocabulary = File(STRIP.parentFile, "VehiclePageWords.kt").readText()
+        val wordsFile = File(STRIP.parentFile, "VehiclePageWords.kt").readText()
+        // The words themselves are in `strings.xml`, under the ids the file names.
+        val strings = StringsXml.parse(STRINGS.readText()).strings
+        val texts = Regex("""R\.string\.(\w+)""").findAll(wordsFile).map { strings.getValue(it.groupValues[1]) }.toList()
+        assertEquals("all four words", 4, texts.size)
+        val vocabulary = wordsFile + texts.joinToString("\n")
         listOf("engineCell", "fun volts", "БАТАРЕ", "атаре", "РАСХОД 0", "за поездку", "кВт").forEach {
             assertTrue("«$it» is back in VehiclePageWords", !vocabulary.contains(it))
         }
@@ -69,6 +75,8 @@ class EnergySourceGuardTest {
             .map { File(it, "apps/denza-apps/src/main/java/dev/denza/apps") }
             .firstOrNull { it.isDirectory }
             ?: error("the app's sources are not above ${System.getProperty("user.dir")}")
+
+        val STRINGS = File(MAIN.parentFile.parentFile.parentFile.parentFile, "res/values/strings.xml")
 
         val CLUSTER = File(MAIN, "feature/cluster/dashboard/ClusterDashboardRenderer.kt")
 

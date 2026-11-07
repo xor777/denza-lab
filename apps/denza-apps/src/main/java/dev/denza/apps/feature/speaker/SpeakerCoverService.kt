@@ -17,6 +17,7 @@ import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
@@ -204,10 +205,10 @@ class SpeakerCoverService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Динамики",
+                AppText.s(R.string.speaker_channel_name),
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Динамики выезжают, когда играет музыка"
+                description = AppText.s(R.string.speaker_channel_description)
                 setShowBadge(false)
             },
         )
@@ -225,9 +226,9 @@ class SpeakerCoverService : Service() {
             .setContentTitle("Denza Apps")
             .setContentText(
                 if (SpeakerCoverSettings.isEnabled(this)) {
-                    "Автоуправление динамиками включено"
+                    AppText.s(R.string.speaker_notification_automatic)
                 } else {
-                    "Поднимаю динамики"
+                    AppText.s(R.string.speaker_notification_raising)
                 },
             )
             .setContentIntent(openApp)

@@ -124,5 +124,5 @@ private const val ICON_PX = 128
 /** The icon's top, the name's baseline and how far the name stays off the plate's sides. */
 private const val ICON_TOP = 14f
 private const val NAME_BASELINE = 82f
-private const val NAME_INSET = 6f
+internal const val NAME_INSET = 6f
 private const val CHECK_STROKE = 2f

@@ -4,8 +4,10 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.telephony.TelephonyManager
+import dev.denza.apps.R
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
@@ -202,21 +204,21 @@ data class CloudNetworkReading(
  */
 object CloudLinkStatus {
     /** Nothing the app knows about the car is fresh. */
-    const val STALE = "Нет свежих данных"
+    val STALE: String get() = AppText.s(R.string.cloud_stale)
 
     /** On, on internet, and the link is not up - stalled, refused, or the profile taken away. */
-    const val NO_LINK = "Нет связи"
+    val NO_LINK: String get() = AppText.s(R.string.cloud_no_link)
 
     /**
      * The tile's words for a snapshot - here rather than on the tile so the service report says the
      * link's state in the same words the tile does, from the one place they are written.
      */
     fun words(snapshot: FeatureSnapshot): String = when (snapshot.status) {
-        FeatureStatus.OFF -> "Выключено"
-        FeatureStatus.ACTIVE -> "На связи"
-        FeatureStatus.READY -> snapshot.message.ifBlank { "Нет интернета" }
+        FeatureStatus.OFF -> AppText.s(R.string.cloud_off)
+        FeatureStatus.ACTIVE -> AppText.s(R.string.cloud_active)
+        FeatureStatus.READY -> snapshot.message.ifBlank { AppText.s(R.string.cloud_no_internet) }
         FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { FeatureWords.REFUSED }
-        else -> "Подключается"
+        else -> AppText.s(R.string.cloud_connecting)
     }
 
     fun snapshot(

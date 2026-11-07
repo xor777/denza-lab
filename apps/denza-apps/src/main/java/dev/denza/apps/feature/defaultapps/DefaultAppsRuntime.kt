@@ -3,6 +3,8 @@ package dev.denza.apps.feature.defaultapps
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.Decision
 import dev.denza.apps.core.StateCell
 import java.util.concurrent.Executors
@@ -76,7 +78,7 @@ class DefaultAppsRuntime(
                             )
                         } ?: roleState.copy(
                             status = DefaultAppRoleStatus.LOADING,
-                            message = "Читаю настройку…",
+                            message = AppText.s(R.string.defaultapps_reading),
                         )
                     },
                 )
@@ -93,7 +95,7 @@ class DefaultAppsRuntime(
                         roleState.status == DefaultAppRoleStatus.LOADING ||
                             roleState.selectedPackageName == null -> roleState.copy(
                                 status = DefaultAppRoleStatus.LOADING,
-                                message = "Читаю настройку…",
+                                message = AppText.s(R.string.defaultapps_reading),
                             )
                         else -> roleState
                     }
@@ -151,7 +153,7 @@ class DefaultAppsRuntime(
             event = event,
             packageName = packageName,
             replacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false),
-            held = DefaultAppsSettings.confirmedSelection(context, role)?.selectedPackageName,
+            held = DefaultAppsSettings.confirmedPackage(context, role),
         ) ?: return
         executor.execute {
             runCatching {
@@ -329,7 +331,7 @@ class DefaultAppsRuntime(
                 packageName = persistedPackage,
                 launchable = launchable,
                 installed = installed,
-                message = if (shouldAutoSelect) "Выбрано автоматически" else "",
+                message = if (shouldAutoSelect) AppText.s(R.string.defaultapps_auto_selected) else "",
             )
         } catch (error: Throwable) {
             val recoveredPackage = if (writeAttempted) {
@@ -515,18 +517,13 @@ class DefaultAppsRuntime(
         DefaultAppsSettings.rememberPick(context, role, packageName)
         val selectedLabel = installed?.let {
             DefaultAppsCatalog.label(role, packageName, it)
-        } ?: DefaultAppsCatalog.labelNow(context, role, packageName)
+        } ?: DefaultAppsCatalog.labelNow(context, role, packageName, launchable)
         val choices = installed?.let {
             DefaultAppsCatalog.choices(role, packageName, it)
         } ?: state.value.stateFor(role).choices.map { choice ->
             choice.copy(selected = choice.packageName == packageName)
         }
-        DefaultAppsSettings.rememberConfirmedSelection(
-            context,
-            role,
-            packageName,
-            selectedLabel,
-        )
+        DefaultAppsSettings.rememberConfirmedSelection(context, role, packageName)
         return DefaultAppRoleUiState(
             role = role,
             selectedPackageName = packageName,
@@ -548,9 +545,9 @@ class DefaultAppsRuntime(
         message: String,
     ): DefaultAppRoleUiState {
         val selectedLabel = when {
-            selectedPackageName == null -> "Не выбрано"
+            selectedPackageName == null -> AppText.s(R.string.defaultapps_not_chosen)
             installed != null -> DefaultAppsCatalog.label(role, selectedPackageName, installed)
-            else -> DefaultAppsCatalog.labelNow(context, role, selectedPackageName)
+            else -> DefaultAppsCatalog.labelNow(context, role, selectedPackageName, launchable)
         }
         val choices = installed?.let {
             DefaultAppsCatalog.choices(role, selectedPackageName, it)

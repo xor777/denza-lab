@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.vehicle
 
+import androidx.annotation.StringRes
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.dashboard.ContourFigures
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourMotion
@@ -34,6 +37,7 @@ import kotlin.math.abs
  * rather than two rules.
  *
  * Pure Kotlin: no Android imports, so a test states the case it means instead of assembling a car.
+ * The words come through [AppText], which in a test reads `strings.xml` itself.
  */
 internal class EnergyReadouts {
 
@@ -48,24 +52,20 @@ internal class EnergyReadouts {
     var flow: ContourFlow = ContourFlow.NEUTRAL
         private set
 
-    /** The direction, in words. Never a sign. */
-    var word: String = WORD_NEUTRAL
+    /** Which way the energy is going, or that nobody can say. What the words below are the words of. */
+    var direction: Direction = Direction.NEUTRAL
         private set
 
     /**
-     * The same words in the car page's sentence case: «Из батареи», «В батарею от ДВС».
+     * The direction in the car page's sentence case: «Из батареи», «В батарею от ДВС». Never a sign.
      *
-     * The Luminofor strip writes its captions the way the head unit writes everything else - a
-     * capital, then lower case - where the cluster keeps its tracked capitals. It is one decision
-     * printed in two cases, and the case is derived here from the capitals ([sentence]) rather than
-     * typed a second time, so the two screens cannot drift into two sentences.
+     * The Luminofor strip writes its captions the way the head unit writes everything else, a capital
+     * and then lower case. The cluster prints no direction word.
      */
-    var wordSentence: String = WORD_NEUTRAL_SENTENCE
-        private set
+    val wordSentence: String get() = direction.sentence
 
     /** Whether the blue mark leads the word, which it does only where the sentence names a source. */
-    var mark: Boolean = false
-        private set
+    val mark: Boolean get() = direction.namesSource
 
     /** `|P|` in whole kilowatts, or null while the pack has not answered. */
     var powerFigure: String? = null
@@ -88,7 +88,7 @@ internal class EnergyReadouts {
         private set
 
     /** «ДВС ДАЁТ» - what the engine gives, not where it goes. */
-    val enginePrefix: String = ContourReadout.LEGEND_PREFIX
+    val enginePrefix: String get() = ContourReadout.LEGEND_PREFIX
 
     /** What it is giving now, in whole kilowatts, or null when it is not giving. */
     var engineFigure: String? = null
@@ -113,7 +113,7 @@ internal class EnergyReadouts {
     /**
      * And the car page's own case of that heading, split where the strip splits a reading: the
      * caption over the figure, the unit small beside it - «ДВС» over «1650 об/мин», «ДВС за
-     * поездку» over «6 мин». Empty where there is no cell. See [ENGINE_RPM_CAPTION].
+     * поездку» over «6 мин». Empty where there is no cell.
      */
     var engineCellCaption: String = ""
         private set
@@ -165,24 +165,14 @@ internal class EnergyReadouts {
         // Unavailable is not zero: no figure, and the words stay.
         powerFigure = load?.let { figures.whole(ContourFigures.Slot.POWER, abs(it)) }
 
-        word = when {
-            telemetry.charging -> WORD_FROM_CHARGER
-            load == null || band == ContourFlow.NEUTRAL -> WORD_NEUTRAL
-            band == ContourFlow.OUT -> WORD_FROM_PACK
-            telemetry.generating -> WORD_FROM_ENGINE
-            else -> WORD_TO_PACK
+        direction = when {
+            telemetry.charging -> Direction.FROM_CHARGER
+            load == null || band == ContourFlow.NEUTRAL -> Direction.NEUTRAL
+            band == ContourFlow.OUT -> Direction.FROM_PACK
+            telemetry.generating -> Direction.FROM_ENGINE
+            else -> Direction.TO_PACK
         }
-        wordSentence = when (word) {
-            WORD_FROM_CHARGER -> WORD_FROM_CHARGER_SENTENCE
-            WORD_FROM_PACK -> WORD_FROM_PACK_SENTENCE
-            WORD_FROM_ENGINE -> WORD_FROM_ENGINE_SENTENCE
-            WORD_TO_PACK -> WORD_TO_PACK_SENTENCE
-            else -> WORD_NEUTRAL_SENTENCE
-        }
-        // The mark leads the two sentences that name where the energy is coming from, and nothing
-        // else: it means «into the pack», and «В БАТАРЕЮ» already says that in words.
-        mark = word == WORD_FROM_ENGINE || word == WORD_FROM_CHARGER
-        // And a sentence that names a source is blue whatever the magnitude is. «В БАТАРЕЮ ОТ
+        // A sentence that names a source is blue whatever the magnitude is. «В БАТАРЕЮ ОТ
         // ЗАРЯДКИ» in grey over a 2 kW wall charge was a word and a colour saying different
         // things, which is the defect this class exists for - the neutral zone is about a
         // *direction* nobody can name, and these two sentences have named it.
@@ -247,7 +237,7 @@ internal class EnergyReadouts {
         // identity check is what keeps the phrase from being rebuilt thirty times a second.
         if (figure !== tripKm) {
             tripKm = figure
-            tripCaption = figure + TRIP_KM_SENTENCE
+            tripCaption = AppText.s(R.string.energy_trip_km, figure)
         }
     }
 
@@ -298,11 +288,20 @@ internal class EnergyReadouts {
     /** What the engine's own cell is saying, and «nothing» is one of the answers. */
     enum class EngineCell { NONE, RPM, MINUTES }
 
-    companion object {
+    /**
+     * Where the pack's energy is going, in the cluster's capitals and the car page's sentence case.
+     *
+     * @param namesSource the blue mark leads the two sentences that name where the energy is coming
+     * from, and nothing else: it means «into the pack», and «В БАТАРЕЮ» already says that in words.
+     */
+    enum class Direction(
+        @StringRes private val sentenceId: Int,
+        val namesSource: Boolean,
+    ) {
         /** Inside the neutral zone there is no direction to name, so the noun stands alone. */
-        const val WORD_NEUTRAL = "БАТАРЕЯ"
-        const val WORD_FROM_PACK = "ИЗ БАТАРЕИ"
-        const val WORD_TO_PACK = "В БАТАРЕЮ"
+        NEUTRAL(R.string.energy_sentence_neutral, false),
+        FROM_PACK(R.string.energy_sentence_from_pack, false),
+        TO_PACK(R.string.energy_sentence_to_pack, false),
 
         /**
          * And the two that name where it is coming from, which is what earns the blue mark.
@@ -311,30 +310,14 @@ internal class EnergyReadouts {
          * obvious: a driver can see the road giving energy back, cannot see the engine deciding
          * to, and cannot see the charger at all.
          */
-        const val WORD_FROM_ENGINE = "В БАТАРЕЮ ОТ ДВС"
-        const val WORD_FROM_CHARGER = "В БАТАРЕЮ ОТ ЗАРЯДКИ"
+        FROM_ENGINE(R.string.energy_sentence_from_engine, true),
+        FROM_CHARGER(R.string.energy_sentence_from_charger, true),
+        ;
 
-        /** The abbreviation that stays capital in every case: an engine is a «ДВС», never a «двс». */
-        const val ENGINE_ABBREVIATION = "ДВС"
+        val sentence: String get() = AppText.s(sentenceId)
+    }
 
-        /**
-         * Capitals into the car page's sentence case: a capital, lower case after it, and «ДВС»
-         * left as it is written.
-         *
-         * A derivation rather than five more literals: one word in two cases is one record, and a
-         * second record is a second place for it to change.
-         */
-        fun sentence(caps: String): String =
-            caps.lowercase()
-                .replaceFirstChar { it.uppercaseChar() }
-                .replace(ENGINE_ABBREVIATION.lowercase(), ENGINE_ABBREVIATION)
-
-        val WORD_NEUTRAL_SENTENCE: String = sentence(WORD_NEUTRAL)
-        val WORD_FROM_PACK_SENTENCE: String = sentence(WORD_FROM_PACK)
-        val WORD_TO_PACK_SENTENCE: String = sentence(WORD_TO_PACK)
-        val WORD_FROM_ENGINE_SENTENCE: String = sentence(WORD_FROM_ENGINE)
-        val WORD_FROM_CHARGER_SENTENCE: String = sentence(WORD_FROM_CHARGER)
-
+    companion object {
         /**
          * The engine's two headings as the car page lays a reading out: the words over the figure
          * and the unit beside it.
@@ -342,28 +325,15 @@ internal class EnergyReadouts {
          * The cluster writes one line, «ДВС · об/мин» and «ДВС · мин за поездку», because it has a
          * caption and a figure and no unit slot; the strip has the slot, so the unit moves into it
          * and the rest of the heading stays up - «ДВС» over «1650 об/мин», «ДВС за поездку» over
-         * «6 мин». Split off the cluster's own titles by one rule (the unit is the first word after
-         * the dot), so neither screen can rename the engine without the other.
+         * «6 мин». `StripBoardContractTest` holds these to the board.
          */
-        val ENGINE_RPM_CAPTION: String = engineCaption(ContourReadout.TITLE_ENGINE_RPM)
-        val ENGINE_RPM_UNIT: String = engineUnit(ContourReadout.TITLE_ENGINE_RPM)
-        val ENGINE_MINUTES_CAPTION: String = engineCaption(ContourReadout.TITLE_ENGINE_MINUTES)
-        val ENGINE_MINUTES_UNIT: String = engineUnit(ContourReadout.TITLE_ENGINE_MINUTES)
+        val ENGINE_RPM_CAPTION: String get() = AppText.s(R.string.energy_engine_rpm_caption)
+        val ENGINE_RPM_UNIT: String get() = AppText.s(R.string.energy_engine_rpm_unit)
+        val ENGINE_MINUTES_CAPTION: String get() = AppText.s(R.string.energy_engine_minutes_caption)
+        val ENGINE_MINUTES_UNIT: String get() = AppText.s(R.string.energy_engine_minutes_unit)
 
-        private fun engineTail(title: String): String = title.substringAfter(ContourReadout.SEPARATOR)
-
-        private fun engineUnit(title: String): String = engineTail(title).substringBefore(' ')
-
-        private fun engineCaption(title: String): String {
-            val head = title.substringBefore(ContourReadout.SEPARATOR)
-            val rest = engineTail(title).substringAfter(' ', "")
-            return if (rest.isEmpty()) head else "$head $rest"
-        }
-
-        /** The trip's phrase after its kilometres, «· за поездку», and the phrase alone. */
-        val TRIP_KM_SENTENCE: String =
-            " " + ContourReadout.UNIT_KM + " " + ContourReadout.CAPTION_TRIP.lowercase()
-        val TRIP_ALONE_SENTENCE: String = sentence(ContourReadout.CAPTION_TRIP_ALONE)
+        /** The phrase alone, while the odometer has nothing to say. */
+        val TRIP_ALONE_SENTENCE: String get() = AppText.s(R.string.energy_trip_alone)
 
         /** The cluster's first seat, which is the trip's net: the slot the figure is memoised in. */
         private const val TRIP_SEAT = 0

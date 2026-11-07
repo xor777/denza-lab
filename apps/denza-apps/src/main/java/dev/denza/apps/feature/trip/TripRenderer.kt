@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 /**
  * The strip's clocks, and the hint it prints where the altitude would be.
  *
@@ -13,9 +16,10 @@ object BaseTripRenderer {
     /**
      * What the strip says where the altitude would be when it has no location access at all.
      *
-     * In sentence case, like every caption on the Luminofor strip.
+     * In sentence case, like every caption on the Luminofor strip. `StripReadings` asks for it on
+     * every drawn frame of the car page, which [AppText.s] answers with an array read.
      */
-    const val LOCATION_HINT = "Нет доступа к геолокации"
+    val LOCATION_HINT: String get() = AppText.s(R.string.strip_location_hint)
 
     fun pad2(n: Int): String = if (n < 10) "0$n" else n.toString()
 

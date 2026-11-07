@@ -1,5 +1,7 @@
 package dev.denza.apps.core
 
+import dev.denza.apps.R
+
 /**
  * The words a feature that did not settle says on its tile, shared so that one state reads one
  * way on every tile.
@@ -14,17 +16,17 @@ object FeatureWords {
      * The car does not let the app in: a key it does not trust, a channel that does not answer, or
      * the app's own access to the system - overlay, accessibility, notifications - not set up.
      */
-    const val NO_ACCESS = "Нет доступа"
+    val NO_ACCESS: String get() = AppText.s(R.string.feature_no_access)
 
     /** Nothing chosen yet; the press opens the choice. */
-    const val NOT_CHOSEN = "Не выбрано"
+    val NOT_CHOSEN: String get() = AppText.s(R.string.feature_not_chosen)
 
     /** A feature this car does not have. */
-    const val ABSENT = "Недоступно"
+    val ABSENT: String get() = AppText.s(R.string.feature_absent)
 
     /** A switch the car did not take, when the feature cannot say which way it was going. */
-    const val REFUSED = "Не переключилось"
+    val REFUSED: String get() = AppText.s(R.string.feature_refused)
 
     /** A switch the car did not take, by the way it was going. */
-    fun refused(enabled: Boolean): String = if (enabled) "Не включилось" else "Не выключилось"
+    fun refused(enabled: Boolean): String = if (enabled) AppText.s(R.string.feature_refused_on) else AppText.s(R.string.feature_refused_off)
 }

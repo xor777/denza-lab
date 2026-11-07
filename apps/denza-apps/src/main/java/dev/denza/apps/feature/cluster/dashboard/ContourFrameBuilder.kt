@@ -262,7 +262,7 @@ internal class ContourFrameBuilder {
     private fun tripCaption(odometer: String): String {
         if (odometer !== odometerFor) {
             odometerFor = odometer
-            tripCaption = odometer + " " + ContourReadout.UNIT_KM + " " + ContourReadout.CAPTION_TRIP
+            tripCaption = ContourReadout.tripKm(odometer)
         }
         return tripCaption
     }
@@ -272,7 +272,7 @@ internal class ContourFrameBuilder {
         if (figure == null) return readouts.enginePrefix
         if (figure !== generationFor) {
             generationFor = figure
-            engineCaption = readouts.enginePrefix + " " + figure + " " + ContourReadout.UNIT_KW
+            engineCaption = ContourReadout.engineGives(figure)
         }
         return engineCaption
     }

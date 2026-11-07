@@ -26,6 +26,8 @@ import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
+import dev.denza.apps.R;
+import dev.denza.apps.core.AppText;
 import dev.denza.disharebridge.DiShareScreens;
 
 import java.util.ArrayList;
@@ -1076,7 +1078,7 @@ public final class SimulcastDialogOverlay implements DialogOverlay {
             if (geometry == null || geometry.central == null) {
                 return;
             }
-            canvas.drawText("Проверяю экраны…", geometry.central.centerX(),
+            canvas.drawText(AppText.s(R.string.simulcast_checking_screens), geometry.central.centerX(),
                     geometry.central.bottom + dp(28), screenText);
         }
     }

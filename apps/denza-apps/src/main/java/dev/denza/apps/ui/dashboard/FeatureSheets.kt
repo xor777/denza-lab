@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
@@ -107,7 +109,7 @@ fun FeatureSheet(
             if (choosing) {
                 if (id == TileId.SIMULCAST) {
                     DenzaPrimaryButton(
-                        text = "Готово",
+                        text = AppText.s(R.string.common_done),
                         onClick = { choosing = false },
                         modifier = Modifier.fillMaxWidth()
                             .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
@@ -123,7 +125,7 @@ fun FeatureSheet(
                         enabled = !busy && action.enabled,
                     )
                     if (action.isTheTilePress) {
-                        DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
+                        DenzaSheetFootnote(AppText.s(R.string.sheet_tile_press_note))
                     }
                 }
             }
@@ -228,38 +230,18 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  * has no paragraph.
  */
 internal fun helpOf(id: TileId): String = when (id) {
-    TileId.CLUSTER ->
-        "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
-            "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
-    TileId.SIMULCAST ->
-        "Выбранные приложения показываются на пассажирском экране и на экране сзади. " +
-            "Запуск открывает их там сразу."
-    TileId.MIRRORS ->
-        "Когда включён поворотник, на экране появляется камера с этой стороны и пропадает " +
-            "вместе с ним. «По центру» показывает обе камеры одну над другой."
-    TileId.SPLIT ->
-        "При включении на рабочем столе появляется значок разделения экрана. " +
-            "Он открывает выбор двух приложений, которые встанут рядом."
+    TileId.CLUSTER -> AppText.s(R.string.sheet_cluster_help)
+    TileId.SIMULCAST -> AppText.s(R.string.sheet_simulcast_help)
+    TileId.MIRRORS -> AppText.s(R.string.sheet_mirrors_help)
+    TileId.SPLIT -> AppText.s(R.string.sheet_split_help)
     TileId.HUD -> ""
-    TileId.WEATHER ->
-        "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
-            "Своей погоды оно не рисует — виджет остаётся штатным."
-    TileId.SPEAKERS ->
-        "Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, " +
-            "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
-            "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
+    TileId.WEATHER -> AppText.s(R.string.sheet_weather_help)
+    TileId.SPEAKERS -> AppText.s(R.string.sheet_speakers_help, SpeakerCoverApps.EXAMPLES)
     // The one condition the car does not show: the cloud recognises it by the ICCID the modem
     // presents, so without a Chinese one the tile says «Нет связи» on working internet, and this
     // is the only place that says why.
-    TileId.CLOUD ->
-        "Машина выходит в облако через Wi-Fi или мобильный интернет, и приложение Denza " +
-            "на телефоне работает с ней как обычно: показывает состояние и управляет машиной. " +
-            "Связь восстанавливается, если модем видит китайский ICCID — от родной eSIM " +
-            "или от rSIM. «Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — " +
-            "связь остаётся и на стоянке."
-    TileId.LOCALE ->
-        "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
-            "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
+    TileId.CLOUD -> AppText.s(R.string.sheet_cloud_help)
+    TileId.LOCALE -> AppText.s(R.string.sheet_locale_help)
     // The tile no longer opens a panel - both of its gestures open the chooser, and the sentence
     // is drawn at the chooser's foot. It stays in this table so the table stays exhaustive and so
     // the one sentence has one owner.
@@ -267,8 +249,7 @@ internal fun helpOf(id: TileId): String = when (id) {
     TileId.DEFAULT_APPS -> DEFAULT_APPS_SHORTCUTS_HELP
     // Neither gesture opens a panel for the service any more - both open the service itself - so
     // like the passenger screen it stays in the table only to keep the table exhaustive.
-    TileId.SERVICE ->
-        "Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается."
+    TileId.SERVICE -> AppText.s(R.string.sheet_service_help)
 }
 
 /**
@@ -307,7 +288,7 @@ private fun panelAction(
         // Watching or not is the switch's job now, so the foot is free for the only verb this
         // feature has.
         TileId.MIRRORS -> PanelAction(
-            label = "Проверить камеры",
+            label = AppText.s(R.string.sheet_mirrors_check),
             onClick = { actions.onPreviewMirrors(); onDismiss() },
             enabled = state.mirrors.desiredEnabled,
             isTheTilePress = false,
@@ -315,7 +296,7 @@ private fun panelAction(
         // The tile presses this into a toggle while projection is off; the panel does not, because
         // the switch above is already that decision.
         TileId.SIMULCAST -> PanelAction(
-            label = "Запустить",
+            label = AppText.s(R.string.sheet_launch),
             onClick = { actions.onLaunchSimulcast(); onDismiss() },
             enabled = state.simulcast.desiredEnabled,
             isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
@@ -338,13 +319,13 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
     val on = DashboardPress.snapshotOf(tile.id, state)?.desiredEnabled == true
     return when (tile.action) {
         TileAction.CLUSTER_PROJECT -> state.navigationButtonLabel
-        TileAction.SIMULCAST_LAUNCH -> "Запустить"
-        TileAction.SPLIT_LAUNCH -> "Разделить экран"
-        TileAction.PASSENGER_INSTALL -> "Выбрать приложение"
-        TileAction.LANGUAGE_PICK -> "Выбрать язык"
-        TileAction.SERVICE_OPEN -> "Открыть сервис"
-        TileAction.TOGGLE -> if (on) "Выключить" else "Включить"
-        TileAction.RESOLVE -> "Продолжить"
+        TileAction.SIMULCAST_LAUNCH -> AppText.s(R.string.sheet_launch)
+        TileAction.SPLIT_LAUNCH -> AppText.s(R.string.sheet_split_now)
+        TileAction.PASSENGER_INSTALL -> AppText.s(R.string.sheet_choose_app)
+        TileAction.LANGUAGE_PICK -> AppText.s(R.string.sheet_choose_language)
+        TileAction.SERVICE_OPEN -> AppText.s(R.string.sheet_open_service)
+        TileAction.TOGGLE -> if (on) AppText.s(R.string.sheet_turn_off) else AppText.s(R.string.sheet_turn_on)
+        TileAction.RESOLVE -> AppText.s(R.string.sheet_continue)
         TileAction.SETTINGS -> ""
     }
 }
@@ -377,7 +358,7 @@ private fun clusterSheet(
     // Our own instruments are drawn for the whole panel and have one placement, so the row is
     // absent rather than shown with one live cell and three dead ones.
     if (state.navigationPlacements.size > 1) {
-        DenzaSection("Размещение") {
+        DenzaSection(AppText.s(R.string.sheet_cluster_placement)) {
             DenzaSegmentedRow(
                 labels = state.navigationPlacements.map(::placementLabel),
                 selectedIndex = state.navigationPlacements.indexOf(state.navigationPlacement)
@@ -389,7 +370,7 @@ private fun clusterSheet(
         }
     }
     DenzaSwitchRow(
-        title = "Кнопка ★ на руле",
+        title = AppText.s(R.string.sheet_cluster_wheel_button),
         checked = state.navigationSteeringWheelButton,
         onCheckedChange = actions.onNavigationSteeringWheelButton,
     )
@@ -403,8 +384,8 @@ private fun clusterSheet(
     )
 }
 
-internal const val CLUSTER_MAP_CARD_TITLE = "Карта в правом окне"
-internal const val CLUSTER_MAP_CARD_SUMMARY = "Карта с HUD вместо штатной, когда правое окно приборки показывает карту"
+internal val CLUSTER_MAP_CARD_TITLE: String get() = AppText.s(R.string.sheet_cluster_map_card_title)
+internal val CLUSTER_MAP_CARD_SUMMARY: String get() = AppText.s(R.string.sheet_cluster_map_card_summary)
 
 /**
  * Which applications go to the screens - said as an answer, not asked as a grid.
@@ -423,14 +404,14 @@ private fun simulcastSheet(
     onChoose: () -> Unit,
 ) {
     DenzaSwitchRow(
-        title = "Поддержка трансляции",
+        title = AppText.s(R.string.sheet_simulcast_support),
         checked = state.simulcast.desiredEnabled,
         onCheckedChange = actions.onToggleSimulcast,
         enabled = !busy,
     )
     DenzaChoiceGroup(listOf(Unit)) {
         DenzaChoiceRow(
-            title = "Что транслировать",
+            title = AppText.s(R.string.pickers_simulcast_title),
             value = simulcastChoiceValue(state.selectedApps),
             icons = state.selectedApps.map { app ->
                 DenzaChoiceIcon(packageName = app.packageName, label = app.label)
@@ -451,14 +432,14 @@ private fun simulcastSheet(
 @Composable
 private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Зеркала",
+        title = AppText.s(R.string.sheet_mirrors_switch),
         checked = state.mirrors.desiredEnabled,
         onCheckedChange = actions.onToggleMirrors,
         enabled = !busy,
     )
-    DenzaSection("Где показывать") {
+    DenzaSection(AppText.s(R.string.sheet_mirrors_where)) {
         DenzaSegmentedRow(
-            labels = listOf("По сторонам", "По центру"),
+            labels = listOf(AppText.s(R.string.sheet_mirrors_sides), AppText.s(R.string.sheet_mirrors_center)),
             selectedIndex = when (state.mirrorsPosition) {
                 MirrorsPosition.SIDES -> 0
                 MirrorsPosition.CENTER -> 1
@@ -473,7 +454,7 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
         )
     }
     DenzaSwitchRow(
-        title = "Улучшение изображения",
+        title = AppText.s(R.string.sheet_mirrors_enhance),
         checked = state.mirrorsProcessing,
         onCheckedChange = actions.onMirrorsProcessing,
         enabled = state.mirrors.desiredEnabled,
@@ -484,7 +465,7 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
 @Composable
 private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Значок на рабочем столе",
+        title = AppText.s(R.string.sheet_split_icon),
         checked = state.splitScreen.desiredEnabled,
         onCheckedChange = actions.onToggleSplitScreen,
         enabled = !busy,
@@ -546,7 +527,7 @@ internal fun hudPanelOf(state: DenzaUiState, busy: Boolean): HudPanel = HudPanel
 @Composable
 private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
     DenzaSwitchRow(
-        title = "Данные для виджета",
+        title = AppText.s(R.string.sheet_weather_widget_data),
         checked = state.weatherEnabled,
         onCheckedChange = actions.onSetWeatherEnabled,
     )
@@ -560,8 +541,7 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
     }
     if (state.weatherEnabled && state.weatherUpdatedMillis > 0L) {
         DenzaStatusLine(
-            text = "Отдано виджету " +
-                DashboardTiles.ago(now - state.weatherUpdatedMillis),
+            text = AppText.s(R.string.sheet_weather_given, DashboardTiles.ago(now - state.weatherUpdatedMillis)),
             tone = DenzaTileTone.IDLE,
         )
     }
@@ -584,7 +564,7 @@ private const val WEATHER_AGE_TICK_MS = 30_000L
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     val reporting = busy || state.speakerCoversReporting
     DenzaSwitchRow(
-        title = "Автоуправление динамиками",
+        title = AppText.s(R.string.sheet_speakers_auto),
         checked = state.speakerCovers.desiredEnabled,
         onCheckedChange = actions.onToggleSpeakerCovers,
         enabled = !busy,
@@ -598,7 +578,7 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
     ) {
         DenzaSecondaryButton(
-            text = "Поднять",
+            text = AppText.s(R.string.sheet_speakers_raise),
             onClick = actions.onRaiseSpeakerCovers,
             modifier = Modifier.weight(1f),
             enabled = !reporting,
@@ -623,17 +603,17 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
 @Composable
 private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
     DenzaSwitchRow(
-        title = "Поддерживать связь с облаком",
+        title = AppText.s(R.string.sheet_cloud_keep_link),
         checked = state.cloudLink.desiredEnabled,
         onCheckedChange = actions.onToggleCloudLink,
         enabled = !state.cloudLinkBusy,
     )
     DenzaSwitchRow(
-        title = "Держать Wi-Fi включенным",
+        title = AppText.s(R.string.sheet_cloud_keep_wifi),
         // The price, where the switch is: the car stops turning its radio off when it parks, so the
         // battery drains faster - how much faster overnight has not been measured, which is why it
         // says «быстрее» and not «разрядится». Two lines in both widths: 224 and 155 dp at 15/400.
-        subtitle = "На стоянке аккумулятор может разряжаться быстрее",
+        subtitle = AppText.s(R.string.sheet_cloud_keep_wifi_cost),
         checked = state.cloudWifiRetained == true,
         onCheckedChange = actions.onSetCloudWifiRetained,
         enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
@@ -646,8 +626,8 @@ private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
 // one chooser now and it answers both doors the same way.
 
 private fun placementLabel(placement: ClusterMapPlacement): String = when (placement) {
-    ClusterMapPlacement.FULL -> "Полный"
-    ClusterMapPlacement.LEFT -> "Слева"
-    ClusterMapPlacement.CENTER -> "Центр"
-    ClusterMapPlacement.RIGHT -> "Справа"
+    ClusterMapPlacement.FULL -> AppText.s(R.string.sheet_placement_full)
+    ClusterMapPlacement.LEFT -> AppText.s(R.string.sheet_placement_left)
+    ClusterMapPlacement.CENTER -> AppText.s(R.string.sheet_placement_center)
+    ClusterMapPlacement.RIGHT -> AppText.s(R.string.sheet_placement_right)
 }

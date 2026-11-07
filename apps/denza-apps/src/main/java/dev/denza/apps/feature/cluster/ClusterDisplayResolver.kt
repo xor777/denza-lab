@@ -5,6 +5,8 @@ import android.content.Context
 import android.hardware.display.DisplayManager
 import android.util.DisplayMetrics
 import android.view.Display
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import java.util.Locale
 
 object ClusterDisplayResolver {
@@ -104,7 +106,7 @@ object ClusterDisplayResolver {
 
     /** One display, in the words every surface uses for it. */
     fun choiceName(index: Int, display: ClusterDisplayDescriptor): String =
-        "Экран ${index + 1} · ${display.width}×${display.height}"
+        AppText.s(R.string.cluster_display_choice, index + 1, display.width, display.height)
 
     // Keep the explicit edit/apply boundary visible for the manual display override.
     @SuppressLint("UseKtx")

@@ -2,8 +2,10 @@ package dev.denza.apps.feature.simulcast
 
 import android.content.Context
 import android.content.pm.PackageManager
+import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.OverlayGrant
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -98,7 +100,7 @@ object SimulcastCoordinator {
         if (!environment.accessibility.connected) {
             return FeatureReducer.recovering(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
-                "Восстанавливаю трансляцию",
+                AppText.s(R.string.simulcast_recovering),
             )
         }
         return FeatureReducer.ready(FeatureId.SIMULCAST, active = environment.active)

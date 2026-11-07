@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
@@ -15,6 +16,7 @@ import dev.denza.apps.feature.vehicle.EngineTrace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -32,7 +34,7 @@ import org.junit.Test
  * the TTF the app ships - the kerned or unkerned run, whichever is wider. The margins asserted
  * are the board's own, with nothing added: a string that fits by a unit fits.
  */
-class ContourGeometryTest {
+open class ContourGeometryTest {
 
     private val g = ContourGeometry
 
@@ -291,4 +293,10 @@ class ContourGeometryTest {
             ),
         )
     }
+}
+
+/** The widest print of every group, its words in `values-en/`, against the same margins. */
+class ContourGeometryEnglishTest : ContourGeometryTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

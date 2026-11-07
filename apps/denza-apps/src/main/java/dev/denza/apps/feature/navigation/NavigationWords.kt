@@ -1,6 +1,9 @@
 package dev.denza.apps.feature.navigation
 
+import androidx.annotation.StringRes
+import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -12,15 +15,18 @@ internal data class NavigationProblem(
 )
 
 /** The step a press was on when it stopped, in the tile's words for it. */
-internal enum class NavigationStep(val words: String) {
+internal enum class NavigationStep(@StringRes private val wordsId: Int) {
     /** Opening the application on the central screen, or our own instruments on the cluster. */
-    OPEN("Не открылось"),
+    OPEN(R.string.navigation_step_open),
 
     /** Moving the application onto the cluster, or finding the task that would move. */
-    PROJECT("Не перенеслось"),
+    PROJECT(R.string.navigation_step_project),
 
     /** Bringing the application back to the central screen. */
-    RETURN("Не вернулось"),
+    RETURN(R.string.navigation_step_return),
+    ;
+
+    val words: String get() = AppText.s(wordsId)
 }
 
 /**
@@ -35,13 +41,13 @@ internal enum class NavigationStep(val words: String) {
 internal object NavigationWords {
 
     /** The chosen application is gone or cannot be launched; the press opens the choice. */
-    val notChosen = NavigationProblem(FeatureWords.NOT_CHOSEN, FeatureResolution.SELECT_NAVIGATION_APP)
+    val notChosen: NavigationProblem get() = NavigationProblem(FeatureWords.NOT_CHOSEN, FeatureResolution.SELECT_NAVIGATION_APP)
 
     /** A cluster screen that is unverified opens the screens' choice; one that is missing is looked for again. */
     fun display(selection: ClusterDisplaySelection): NavigationProblem = when (selection) {
         is ClusterDisplaySelection.NeedsVerification ->
-            NavigationProblem("Экран не выбран", FeatureResolution.SELECT_CLUSTER_DISPLAY)
-        else -> NavigationProblem("Экран не найден", FeatureResolution.RETRY)
+            NavigationProblem(AppText.s(R.string.navigation_screen_not_chosen), FeatureResolution.SELECT_CLUSTER_DISPLAY)
+        else -> NavigationProblem(AppText.s(R.string.navigation_screen_not_found), FeatureResolution.RETRY)
     }
 
     /**

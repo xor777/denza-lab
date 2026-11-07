@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.hud
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -17,7 +19,7 @@ import dev.denza.apps.core.FeatureWords
 object HudGuidanceStatus {
 
     /** The hints come from Яндекс Навигатор alone; the panel's paragraph names it. */
-    const val NO_NAVIGATOR = "Нет навигатора"
+    val NO_NAVIGATOR: String get() = AppText.s(R.string.hud_no_navigator)
 
     fun snapshot(
         enabled: Boolean,
@@ -42,7 +44,7 @@ object HudGuidanceStatus {
         )
         !accessibilityConnected -> FeatureReducer.recovering(
             FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-            "Подключаю подсказки",
+            AppText.s(R.string.hud_connecting_hints),
         )
         else -> FeatureReducer.ready(FeatureId.HUD_GUIDANCE, active = active).copy(details = details())
     }

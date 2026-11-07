@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.speaker
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 /**
  * Applications whose foreground transition is a useful pre-roll hint.
  *
@@ -45,7 +48,7 @@ object SpeakerCoverApps {
      * recognised; the sentence around them says "known applications", which the rest of
      * [eagerPackages] also are.
      */
-    const val EXAMPLES = "Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер"
+    val EXAMPLES: String get() = AppText.s(R.string.speaker_examples)
 
     fun opensEagerly(packageName: String?): Boolean = packageName in eagerPackages
 }

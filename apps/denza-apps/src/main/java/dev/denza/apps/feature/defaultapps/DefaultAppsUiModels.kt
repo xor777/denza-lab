@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.defaultapps
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 /** One application a role can hold. Its picture is drawn by package from [dev.denza.apps.AppIcons]. */
 data class DefaultAppChoice(
     val packageName: String,
@@ -26,19 +29,19 @@ enum class DefaultAppRoleStatus {
  */
 object DefaultAppsWords {
     /** The role, or the applications to choose from, could not be read. */
-    const val UNREAD = "Не прочиталось"
+    val UNREAD: String get() = AppText.s(R.string.defaultapps_unread)
 
     /** A choice was not written back. */
-    const val UNSAVED = "Не сохранилось"
+    val UNSAVED: String get() = AppText.s(R.string.defaultapps_unsaved)
 
     /** The chosen application is not installed, or does not launch. */
-    const val GONE = "Не установлено"
+    val GONE: String get() = AppText.s(R.string.defaultapps_gone)
 }
 
 data class DefaultAppRoleUiState(
     val role: DefaultAppRole,
     val selectedPackageName: String? = null,
-    val selectedLabel: String = "Не выбрано",
+    val selectedLabel: String = AppText.s(R.string.defaultapps_not_chosen),
     val choices: List<DefaultAppChoice> = emptyList(),
     val status: DefaultAppRoleStatus = DefaultAppRoleStatus.LOADING,
     val message: String = "",

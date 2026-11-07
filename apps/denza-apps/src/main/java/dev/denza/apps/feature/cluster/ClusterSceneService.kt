@@ -15,6 +15,7 @@ import android.util.Log
 import android.view.Surface
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.mirrors.MirrorCameraConfig
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -136,7 +137,11 @@ class ClusterSceneService : Service() {
 
     private fun createChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Экран водителя", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(
+                CHANNEL_ID,
+                AppText.s(R.string.cluster_scene_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ),
         )
     }
 
@@ -158,7 +163,7 @@ class ClusterSceneService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText("Экран водителя")
+            .setContentText(AppText.s(R.string.cluster_scene_notification))
             .setContentIntent(open)
             .setOngoing(true)
             .build()

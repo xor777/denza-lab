@@ -1,15 +1,23 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.core.figure
+import dev.denza.apps.core.say
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourFrame
 import dev.denza.apps.feature.cluster.dashboard.ContourPanel
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
+import dev.denza.apps.feature.cluster.dashboard.CAPTION_TRIP
+import dev.denza.apps.feature.cluster.dashboard.UNIT_KM
+import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM
+import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_PREFIX
 import dev.denza.apps.feature.trip.StripModel
 import dev.denza.apps.feature.trip.StripReadings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -26,7 +34,7 @@ import org.junit.Test
  * already said it compared what the renderers consume. Of its seventeen assertions only the two that
  * read the car page's model could fail, and the cluster's frame builder was not in it at all.
  */
-class EnergyReadoutsTest {
+open class EnergyReadoutsTest {
 
     private fun snapshot(
         powerKw: Double? = null,
@@ -175,12 +183,12 @@ class EnergyReadoutsTest {
             assertEquals("$name: the volts", frame.volts, model.volts.figure)
 
             // The engine's cell: one heading laid out two ways - «ДВС · об/мин» on the cluster, «ДВС»
-            // over «… об/мин» on the car page - and one reading.
+            // over «… об/мин» on the car page - and one reading. ENGINE on the one is Engine on the other.
             assertEquals("$name: whether the engine has a cell", frame.iceCaption != null, model.engine.present)
             frame.iceCaption?.let { heading ->
                 assertEquals(
                     "$name: the engine's heading",
-                    words(heading).sorted(),
+                    words(heading).map(EnergyReadouts::headingWord).sorted(),
                     (words(model.engine.caption) + words(model.engine.unit.orEmpty())).sorted(),
                 )
                 assertEquals("$name: its reading", frame.iceFigure, model.engine.figure)
@@ -301,23 +309,23 @@ class EnergyReadoutsTest {
      */
     @Test
     fun theCarPageSaysTheSameWordsInSentenceCase() {
-        assertEquals("Батарея", EnergyReadouts.WORD_NEUTRAL_SENTENCE)
-        assertEquals("Из батареи", EnergyReadouts.WORD_FROM_PACK_SENTENCE)
-        assertEquals("В батарею", EnergyReadouts.WORD_TO_PACK_SENTENCE)
+        assertEquals(say("Батарея", "Battery"), EnergyReadouts.WORD_NEUTRAL_SENTENCE)
+        assertEquals(say("Из батареи", "From battery"), EnergyReadouts.WORD_FROM_PACK_SENTENCE)
+        assertEquals(say("В батарею", "To battery"), EnergyReadouts.WORD_TO_PACK_SENTENCE)
         // «ДВС» is an abbreviation and stays one in every case.
-        assertEquals("В батарею от ДВС", EnergyReadouts.WORD_FROM_ENGINE_SENTENCE)
-        assertEquals("В батарею от зарядки", EnergyReadouts.WORD_FROM_CHARGER_SENTENCE)
+        assertEquals(say("В батарею от ДВС", "To battery from engine"), EnergyReadouts.WORD_FROM_ENGINE_SENTENCE)
+        assertEquals(say("В батарею от зарядки", "To battery from charger"), EnergyReadouts.WORD_FROM_CHARGER_SENTENCE)
 
         val readouts = EnergyReadouts()
         fun sentence(telemetry: VehicleTelemetry): Pair<String, String> {
             readouts.read(telemetry, parked = false)
             return readouts.word to readouts.wordSentence
         }
-        assertEquals("ИЗ БАТАРЕИ" to "Из батареи", sentence(snapshot(powerKw = 34.0)))
-        assertEquals("В БАТАРЕЮ" to "В батарею", sentence(snapshot(powerKw = -42.0)))
-        assertEquals("БАТАРЕЯ" to "Батарея", sentence(snapshot(powerKw = null)))
+        assertEquals(say("ИЗ БАТАРЕИ", "FROM BATTERY") to say("Из батареи", "From battery"), sentence(snapshot(powerKw = 34.0)))
+        assertEquals(say("В БАТАРЕЮ", "TO BATTERY") to say("В батарею", "To battery"), sentence(snapshot(powerKw = -42.0)))
+        assertEquals(say("БАТАРЕЯ", "BATTERY") to say("Батарея", "Battery"), sentence(snapshot(powerKw = null)))
         assertEquals(
-            "В БАТАРЕЮ ОТ ДВС" to "В батарею от ДВС",
+            say("В БАТАРЕЮ ОТ ДВС", "TO BATTERY FROM ENGINE") to say("В батарею от ДВС", "To battery from engine"),
             sentence(
                 snapshot(
                     powerKw = -8.0,
@@ -326,7 +334,7 @@ class EnergyReadoutsTest {
             ),
         )
         assertEquals(
-            "В БАТАРЕЮ ОТ ЗАРЯДКИ" to "В батарею от зарядки",
+            say("В БАТАРЕЮ ОТ ЗАРЯДКИ", "TO BATTERY FROM CHARGER") to say("В батарею от зарядки", "To battery from charger"),
             sentence(
                 snapshot(
                     powerKw = -2.4,
@@ -340,9 +348,9 @@ class EnergyReadoutsTest {
             snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1650.0)),
             parked = false,
         )
-        assertEquals("ДВС · об/мин", readouts.engineCellTitle)
-        assertEquals("ДВС", readouts.engineCellCaption)
-        assertEquals("об/мин", readouts.engineCellUnit)
+        assertEquals(say("ДВС · об/мин", "ENGINE · rpm"), readouts.engineCellTitle)
+        assertEquals(say("ДВС", "Engine"), readouts.engineCellCaption)
+        assertEquals(say("об/мин", "rpm"), readouts.engineCellUnit)
         assertEquals("1650", readouts.engineCellFigure)
         readouts.read(
             snapshot(
@@ -352,9 +360,9 @@ class EnergyReadoutsTest {
             ),
             parked = false,
         )
-        assertEquals("ДВС · мин за поездку", readouts.engineCellTitle)
-        assertEquals("ДВС за поездку", readouts.engineCellCaption)
-        assertEquals("мин", readouts.engineCellUnit)
+        assertEquals(say("ДВС · мин за поездку", "ENGINE · min this trip"), readouts.engineCellTitle)
+        assertEquals(say("ДВС за поездку", "Engine this trip"), readouts.engineCellCaption)
+        assertEquals(say("мин", "min"), readouts.engineCellUnit)
         readouts.read(snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
         assertEquals("no cell, no words", "" to "", readouts.engineCellCaption to readouts.engineCellUnit)
     }
@@ -369,8 +377,8 @@ class EnergyReadoutsTest {
         val readouts = EnergyReadouts()
         readouts.read(snapshot(trip = TripEnergy(netKwh = 9.27, kilometres = 42.3)), parked = false)
         assertEquals(ContourReadout.tenth(9.27), readouts.tripFigure)
-        assertEquals("9,3", readouts.tripFigure)
-        assertEquals("42 км · за поездку", readouts.tripCaption)
+        assertEquals(figure("9,3"), readouts.tripFigure)
+        assertEquals(say("42 км · за поездку", "42 km · this trip"), readouts.tripCaption)
         assertEquals(
             "the cluster's phrase, one case down",
             ("42 " + ContourReadout.UNIT_KM + " " + ContourReadout.CAPTION_TRIP).lowercase(),
@@ -379,8 +387,8 @@ class EnergyReadoutsTest {
 
         // The odometer has said nothing yet: the phrase stands alone, the way the cluster's does.
         readouts.read(snapshot(trip = TripEnergy(netKwh = 0.4)), parked = false)
-        assertEquals("0,4", readouts.tripFigure)
-        assertEquals("За поездку", readouts.tripCaption)
+        assertEquals(figure("0,4"), readouts.tripFigure)
+        assertEquals(say("За поездку", "This trip"), readouts.tripCaption)
         assertEquals(EnergyReadouts.sentence(ContourReadout.CAPTION_TRIP_ALONE), readouts.tripCaption)
 
         // A car that has not answered has no trip to print, rather than a trip of nothing.
@@ -479,7 +487,7 @@ class EnergyReadoutsTest {
         readouts.read(snapshot(powerKw = 34.0, buckets = buckets), parked = false)
         assertEquals("20", readouts.consumptionFigure)
         readouts.read(snapshot(powerKw = 1.4, buckets = buckets), parked = true)
-        assertEquals("19,8", readouts.consumptionFigure)
+        assertEquals(figure("19,8"), readouts.consumptionFigure)
     }
 
     @Test
@@ -498,7 +506,7 @@ class EnergyReadoutsTest {
         assertEquals("0", readouts.consumptionFigure)
         assertFalse("the minus is not there, so neither is the blue", readouts.consumptionNegative)
         readouts.read(snapshot(powerKw = -1.0, buckets = road(100, kwh = -0.00004)), parked = true)
-        assertEquals("0,0", readouts.consumptionFigure)
+        assertEquals(figure("0,0"), readouts.consumptionFigure)
         assertFalse(readouts.consumptionNegative)
     }
 
@@ -506,7 +514,7 @@ class EnergyReadoutsTest {
     fun theWindowNamesTheKnownRoadAndNeverRoundsAFillingOne() {
         val readouts = EnergyReadouts()
         readouts.read(snapshot(powerKw = 22.0, buckets = road(37)), parked = false)
-        assertEquals(ContourReadout.UNIT_PER_100KM_PREFIX + "3,7 км", readouts.window)
+        assertEquals(ContourReadout.UNIT_PER_100KM_PREFIX + say("3,7 км", "3.7 km"), readouts.window)
 
         readouts.read(snapshot(powerKw = 22.0, buckets = road(100)), parked = false)
         assertEquals(ContourReadout.UNIT_PER_100KM, readouts.window)
@@ -526,9 +534,9 @@ class EnergyReadoutsTest {
             ),
             parked = false,
         )
-        assertEquals("ДВС ДАЁТ", readouts.enginePrefix)
+        assertEquals(say("ДВС ДАЁТ", "ENGINE GIVES"), readouts.enginePrefix)
         assertEquals("14", readouts.engineFigure)
-        assertEquals("ПОСЛЕДНИЕ 1:22", readouts.engineWindow)
+        assertEquals(say("ПОСЛЕДНИЕ 1:22", "LAST 1:22"), readouts.engineWindow)
 
         // Nothing about the engine while it is not turning - not even a generation reading that
         // is still on the wire. The flag is what says the engine is there to give anything.
@@ -682,7 +690,7 @@ class EnergyReadoutsTest {
         }
         readouts.read(snapshot(powerKw = 22.0, buckets = seam), parked = false)
         assertEquals("forty readings", 40, readouts.chart.span)
-        assertEquals("and the window says four kilometres, not five", "4,0", distance(readouts.window))
+        assertEquals("and the window says four kilometres, not five", figure("4,0"), distance(readouts.window))
     }
 
     /** A heading's words without its separator: what the two layouts of it must both say. */
@@ -694,11 +702,11 @@ class EnergyReadoutsTest {
      * the code: a point is a hundred metres, and a full window is a whole «10».
      */
     private fun kilometres(points: Int): String =
-        if (points >= ConsumptionChart.POINTS) "10" else "${points / 10},${points % 10}"
+        if (points >= ConsumptionChart.POINTS) "10" else figure("${points / 10},${points % 10}")
 
     /** The distance a window names: the last number in it, since «кВт·ч/100 км» carries one too. */
     private fun distance(window: String): String =
-        Regex("""\d+(,\d+)?""").findAll(window).lastOrNull()?.value ?: window
+        Regex("""\d+([,.]\d+)?""").findAll(window).lastOrNull()?.value ?: window
 
     private fun assertArrayEquals(what: String, expected: FloatArray, actual: FloatArray) {
         assertEquals("$what: length", expected.size, actual.size)
@@ -717,4 +725,10 @@ class EnergyReadoutsTest {
          */
         const val SETTLED = 3f
     }
+}
+
+/** The same snapshots on the same two screens, in `values-en/`. */
+class EnergyReadoutsEnglishTest : EnergyReadoutsTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

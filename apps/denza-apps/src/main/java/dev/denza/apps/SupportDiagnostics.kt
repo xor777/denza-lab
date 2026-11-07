@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
@@ -77,8 +78,8 @@ data class SupportDiagnosticsHeader(
  * send a screenshot of this page, and the first screen of the page is the screenshot.
  */
 object SupportDiagnostics {
-    /** The split's section: the technical page opens its journal from under it. */
-    const val SPLIT_SECTION = "Разделение экрана"
+    /** The split's section, by its id: the technical page opens its journal from under it. */
+    const val SPLIT_SECTION = "split"
 
     fun build(context: Context, fseInstaller: FeatureSnapshot): String {
         val header = SupportDiagnosticsHeader(
@@ -105,7 +106,7 @@ object SupportDiagnostics {
                 section("Трансляция", simulcastRows(context, header)),
                 section("Зеркала", mirrorsRows(context, header)),
                 section("Экран водителя", driverScreenRows(context)),
-                section(SPLIT_SECTION, splitRows(context)),
+                TechnicalSection(AppText.s(R.string.service_split_section), splitRows(context), SPLIT_SECTION),
                 section("HUD", hudRows(context)),
                 // A refused wheel press goes back to stock routing, whose Play fallback opens the
                 // stock local player - exactly what the N9 owner reports. The only other trace was

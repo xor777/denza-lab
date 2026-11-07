@@ -3,7 +3,11 @@ package dev.denza.apps.ui
 import androidx.compose.runtime.Composable
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.NavigationAppChoice
+import dev.denza.apps.R
 import dev.denza.apps.SimulcastAppChoice
+import dev.denza.apps.SupportDiagnostics
+import dev.denza.apps.TechnicalReadings
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -158,7 +162,11 @@ internal object SheetFixtures {
                 val d = displays.getJSONArray(it)
                 ClusterDisplayDescriptor(d.getInt(0), "ClusterDisplay", d.getInt(1), d.getInt(2), 160, 0, 0)
             },
-            technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) },
+            // The board tells its sections apart by their titles (`SVC_JOURNAL_ROW`), the app by an id.
+            technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) }.replace(
+                TechnicalReadings.header(AppText.s(R.string.service_split_section)),
+                TechnicalReadings.header(AppText.s(R.string.service_split_section), SupportDiagnostics.SPLIT_SECTION),
+            ),
             splitJournal = (0 until journal.length()).joinToString("\n") { journal.getString(it) },
         )
         if (s.optBoolean("trouble", false)) {

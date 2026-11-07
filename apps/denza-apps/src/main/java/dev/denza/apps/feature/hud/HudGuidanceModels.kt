@@ -49,6 +49,7 @@ data class HudGuidance(
     val speedLimitKmh: Int? = null,
 )
 
+// DO NOT TRANSLATE: the parsers match Yandex's Russian text, whatever this app speaks (CyrillicLiteralGuardTest).
 /** Pure conversion from Yandex's accessible labels into the stock HUD model. */
 object YandexGuidanceParser {
     @JvmStatic

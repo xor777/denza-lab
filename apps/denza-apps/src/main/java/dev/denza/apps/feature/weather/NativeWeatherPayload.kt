@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.weather
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -81,7 +83,7 @@ internal object NativeWeatherPayload {
             .put("ts", nowMillis)
             .put("citycode", "GPS")
             .put("city", city(latitude, longitude, zoneId, locationLabel))
-            .put("weatherDesc", "Прогноз MET Norway")
+            .put("weatherDesc", AppText.s(R.string.weather_forecast_source))
             .put("mobilelink", "")
             .put("updatetime", releasedAtMillis)
             .put(
@@ -115,7 +117,7 @@ internal object NativeWeatherPayload {
                     .put("zmweatherid", currentCondition.id)
                     .put("windspeed", (windSpeed * 3.6).roundToInt())
                     .put("weathertext", currentCondition.label)
-                    .put("desc", "Источник: MET Norway")
+                    .put("desc", AppText.s(R.string.weather_attribution))
                     .put("mobilelink", "")
                     .put("expiretime", nowMillis + 60L * 60L * 1_000L)
                     .put("compareFlag", "")

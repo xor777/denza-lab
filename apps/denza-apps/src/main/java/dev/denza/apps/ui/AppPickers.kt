@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SIMULCAST_MAX_SELECTED
 import dev.denza.apps.SimulcastAppChoice
@@ -17,7 +19,6 @@ import dev.denza.apps.ui.components.DenzaAppTile
 import dev.denza.apps.ui.components.DenzaChoiceIcon
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
-import dev.denza.apps.ui.dashboard.DashboardTiles
 
 /**
  * The three lists of applications this app asks the driver to choose from.
@@ -57,7 +58,7 @@ internal fun AppPickerDialog(
         // there, the tap that chooses is the tap that closes.
         footer = {
             DenzaPrimaryButton(
-                text = "Готово",
+                text = AppText.s(R.string.common_done),
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth()
                     .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
@@ -117,7 +118,7 @@ private fun SimulcastAppTile(app: SimulcastAppChoice, onToggle: (String) -> Unit
  * looking at the tiles is how much of the allowance is left.
  */
 internal fun simulcastChooserSubtitle(selectedCount: Int): String =
-    "Можно выбрать до $SIMULCAST_MAX_SELECTED · выбрано $selectedCount"
+    AppText.s(R.string.pickers_simulcast_subtitle, SIMULCAST_MAX_SELECTED, selectedCount)
 
 /**
  * What the panel's row says beside the icons.
@@ -127,7 +128,7 @@ internal fun simulcastChooserSubtitle(selectedCount: Int): String =
  * to say, and it says it as a state rather than as a complaint.
  */
 internal fun simulcastChoiceValue(selected: List<SimulcastAppChoice>): String =
-    if (selected.isEmpty()) "Ничего не выбрано" else ""
+    if (selected.isEmpty()) AppText.s(R.string.pickers_nothing_chosen) else ""
 
 /**
  * What goes on the driver's screen, opened straight from the tile. One at a time, so choosing
@@ -144,7 +145,7 @@ internal fun NavigationPickerDialog(
     onDismiss: () -> Unit,
 ) {
     DenzaAppChooserSheet(
-        title = "Экран водителя",
+        title = AppText.s(R.string.tile_cluster_name),
         subtitle = NAVIGATION_CHOICE_TITLE,
         items = apps,
         key = NavigationAppChoice::packageName,
@@ -215,17 +216,17 @@ internal fun navigationChoiceIcon(choice: NavigationAppChoice): DenzaChoiceIcon 
 )
 
 /** One question, two doors: the panel's row and the page it opens must not name it differently. */
-internal const val NAVIGATION_CHOICE_TITLE = "Что показывать"
+internal val NAVIGATION_CHOICE_TITLE: String get() = AppText.s(R.string.pickers_navigation_title)
 
-internal const val NAVIGATION_INSTRUMENTS_SECTION = "Функции приборов"
-internal const val NAVIGATION_APPLICATIONS_SECTION = "Приложения"
+internal val NAVIGATION_INSTRUMENTS_SECTION: String get() = AppText.s(R.string.pickers_navigation_section_instruments)
+internal val NAVIGATION_APPLICATIONS_SECTION: String get() = AppText.s(R.string.pickers_navigation_section_apps)
 
 /**
  * What a chooser of the car's applications says before the car's catalog is read: it is read off
  * the main thread when the page opens, so the page is empty only for that moment - a wait, not a
  * verdict. «Что показывать» always has the instruments, so it shows this only on its first open.
  */
-private const val APP_CHOICES_LOADING = "Ищем приложения…"
+private val APP_CHOICES_LOADING: String get() = AppText.s(R.string.pickers_loading)
 
 /**
  * Which application to put across on the passenger's screen.
@@ -247,7 +248,7 @@ internal fun FseInstallerPickerDialog(
 ) {
     val installable = fseChooserApps(apps.orEmpty())
     DenzaAppChooserSheet(
-        title = "Экран справа",
+        title = AppText.s(R.string.tile_passenger_name),
         subtitle = if (apps == null) "" else subtitleFor(installable.size),
         items = installable,
         key = FseInstallApp::packageName,
@@ -280,11 +281,10 @@ internal fun fseChooserApps(apps: List<FseInstallApp>): List<FseInstallApp> =
 
 /** What an empty «Экран справа» says: looking, until its list is read, and then the answer. */
 internal fun fseChooserEmptyText(apps: List<FseInstallApp>?): String =
-    if (apps == null) APP_CHOICES_LOADING else "Приложения не найдены"
+    if (apps == null) APP_CHOICES_LOADING else AppText.s(R.string.pickers_fse_empty)
 
 /** "12 приложений с головного устройства" - agreed the way Russian agrees it. */
-private fun subtitleFor(count: Int): String =
-    "${DashboardTiles.applications(count)} с головного устройства"
+private fun subtitleFor(count: Int): String = AppText.p(R.plurals.pickers_fse_subtitle, count, count)
 
 /**
  * The one thing about this list a driver cannot see by looking at it: that it is not everything.
@@ -298,9 +298,7 @@ private fun subtitleFor(count: Int): String =
  * Owned here rather than by the panels' help table because the chooser is the only surface left
  * that says it; the table still reads it for the tile, so the two can never drift.
  */
-internal const val FSE_INSTALL_HELP =
-    "Показаны только приложения, которые можно поставить на экран справа. " +
-        "Несовместимые в список не входят."
+internal val FSE_INSTALL_HELP: String get() = AppText.s(R.string.pickers_fse_help)
 
 /** One question, two doors: the panel's row and the tile's press must not name it differently. */
-private const val SIMULCAST_CHOICE_TITLE = "Что транслировать"
+private val SIMULCAST_CHOICE_TITLE: String get() = AppText.s(R.string.pickers_simulcast_title)

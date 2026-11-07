@@ -5,4 +5,584 @@
     <string name="split_picker_a11y_service_desc">Управляет выбором приложений и безопасным выходом из разделения экрана.</string>
     <string name="navigation_transfer_overlay_text">Переносим…</string>
     <string name="split_launch_overlay_text">Запускаем разделение экрана…</string>
+    <string name="speaker_examples">Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер</string>
+    <string name="speaker_channel_name">Динамики</string>
+    <string name="speaker_channel_description">Динамики выезжают, когда играет музыка</string>
+    <string name="speaker_notification_automatic">Автоуправление динамиками включено</string>
+    <string name="speaker_notification_raising">Поднимаю динамики</string>
+
+    <!-- Shared tile states -->
+    <string name="feature_no_access">Нет доступа</string>
+    <string name="feature_not_chosen">Не выбрано</string>
+    <string name="feature_absent">Недоступно</string>
+    <string name="feature_refused">Не переключилось</string>
+    <string name="feature_refused_on">Не включилось</string>
+    <string name="feature_refused_off">Не выключилось</string>
+
+    <!-- Mobile internet -->
+    <string name="network_running_command">Выполняем команду…</string>
+    <string name="network_checking_state">Проверяем состояние…</string>
+    <string name="network_monitor_on">Монитор включён</string>
+    <string name="network_monitor_off">Монитор отключён</string>
+    <string name="network_monitor_absent">Недоступен на этой прошивке</string>
+    <string name="network_check_failed">Не удалось проверить</string>
+    <string name="network_already_off">Монитор уже отключён</string>
+    <string name="network_not_found_not_run">Монитор не найден. Команда не выполнена.</string>
+    <string name="network_check_failed_not_run">Не удалось проверить состояние. Команда не выполнена.</string>
+    <string name="network_state_unconfirmed">Не удалось подтвердить состояние монитора</string>
+    <string name="network_disable_failed">Не удалось отключить монитор</string>
+    <string name="network_answer_unconfirmed">Состояние изменено, но ответ команды не подтверждён</string>
+    <string name="network_disable_confirmed">Отключение подтверждено</string>
+    <string name="network_title">Мобильный интернет</string>
+    <string name="network_monitor">Штатный контроль трафика</string>
+    <string name="network_disable">Отключить</string>
+    <string name="network_check">Проверить состояние</string>
+
+    <!-- Passenger screen install -->
+    <string name="fse_failure_not_found">Не найдено</string>
+    <string name="fse_failure_not_transferable">Не переносится</string>
+    <string name="fse_failure_unreadable">Не прочиталось</string>
+    <string name="fse_failure_no_answer">Экран не ответил</string>
+    <string name="fse_failure_declined">Экран отклонил</string>
+    <string name="fse_failure_not_copied">Не скопировалось</string>
+    <string name="fse_failure_no_screen">Экран не найден</string>
+    <string name="fse_failure_not_installed">Не установилось</string>
+    <string name="fse_step_checking">Проверка экрана</string>
+    <string name="fse_step_preparing">Подготовка</string>
+    <string name="fse_step_installing">Установка</string>
+    <string name="fse_step_copying">Копирование: %1$s%%</string>
+    <string name="fse_unavailable_split">Split APK пока не поддерживается</string>
+    <string name="fse_unavailable_apk_not_found">APK не найден</string>
+    <string name="fse_unavailable_apk_unreadable">APK недоступен</string>
+
+    <!-- Mirrors -->
+    <string name="mirrors_screen_not_found">Экран не найден</string>
+    <string name="mirrors_channel_name">Зеркала</string>
+    <string name="mirrors_notification_on">Зеркала включены</string>
+
+    <!-- Driver's screen -->
+    <string name="navigation_step_open">Не открылось</string>
+    <string name="navigation_step_project">Не перенеслось</string>
+    <string name="navigation_step_return">Не вернулось</string>
+    <string name="navigation_screen_not_chosen">Экран не выбран</string>
+    <string name="navigation_screen_not_found">Экран не найден</string>
+    <string name="navigation_dashboard_label">Приборы</string>
+    <string name="navigation_remove">Убрать</string>
+    <string name="navigation_to_dashboard">На приборку</string>
+    <string name="navigation_return">Вернуть</string>
+    <string name="navigation_checking">Проверяю</string>
+    <string name="navigation_opening_central">Открываю на центральном экране</string>
+    <string name="navigation_moving_to_dashboard">Переношу на приборку</string>
+    <string name="navigation_returning_main">Возвращаю на главный экран</string>
+
+    <!-- Instrument screen choice -->
+    <string name="cluster_display_automatic">Определяется автоматически</string>
+    <string name="cluster_display_detected">Определён сам: %1$s</string>
+    <string name="cluster_display_needs_choice">Нужно выбрать экран</string>
+    <string name="cluster_display_missing">Не найден</string>
+
+    <!-- Cloud -->
+    <string name="cloud_channel_name">Облако</string>
+    <string name="cloud_channel_description">Связь машины с облаком через интернет</string>
+    <string name="cloud_notification_disabling">Завершается отключение облака</string>
+    <string name="cloud_notification_kept">Связь с облаком поддерживается</string>
+    <string name="cloud_stale">Нет свежих данных</string>
+    <string name="cloud_no_link">Нет связи</string>
+    <string name="cloud_off">Выключено</string>
+    <string name="cloud_active">На связи</string>
+    <string name="cloud_no_internet">Нет интернета</string>
+    <string name="cloud_connecting">Подключается</string>
+
+    <!-- Simulcast -->
+    <string name="simulcast_recovering">Восстанавливаю трансляцию</string>
+    <string name="simulcast_recovering_access">Восстанавливаю доступ</string>
+
+    <!-- Split screen -->
+    <string name="split_closing">Закрываю разделение экрана</string>
+    <string name="split_opening">Открываю разделение экрана</string>
+    <string name="split_picker_title">Выберите приложение</string>
+    <string name="split_picker_loading">Загружаю приложения…</string>
+    <string name="split_picker_empty">Приложения не найдены</string>
+
+    <!-- HUD -->
+    <string name="hud_no_navigator">Нет навигатора</string>
+    <string name="hud_connecting_hints">Подключаю подсказки</string>
+    <string name="hud_map_channel_name">Карта на проекции</string>
+    <string name="hud_map_notification_text">Карта на проекции</string>
+    <string name="hud_map_channel_description">Копия экрана для карты на проекции</string>
+
+    <!-- Recovery -->
+    <string name="recovery_channel_name">Восстановление</string>
+    <string name="recovery_channel_description">Короткий перезапуск включённых функций</string>
+    <string name="recovery_notification_text">Восстановление фоновых функций</string>
+
+    <!-- Weather -->
+    <string name="weather_channel_name">Погода</string>
+    <string name="weather_channel_description">Передаёт прогноз штатному виджету погоды</string>
+    <string name="weather_notification_text">Обновление штатной погоды</string>
+    <string name="weather_forecast_source">Прогноз MET Norway</string>
+    <string name="weather_attribution">Источник: MET Norway</string>
+    <string name="weather_condition_thunderstorm">Гроза</string>
+    <string name="weather_condition_sleet">Дождь со снегом</string>
+    <string name="weather_condition_snow_showers">Снегопад</string>
+    <string name="weather_condition_heavy_snow">Сильный снег</string>
+    <string name="weather_condition_light_snow">Небольшой снег</string>
+    <string name="weather_condition_snow">Снег</string>
+    <string name="weather_condition_rain_showers">Ливень</string>
+    <string name="weather_condition_heavy_rain">Сильный дождь</string>
+    <string name="weather_condition_light_rain">Небольшой дождь</string>
+    <string name="weather_condition_rain">Дождь</string>
+    <string name="weather_condition_clear">Ясно</string>
+    <string name="weather_condition_partly_cloudy">Переменная облачность</string>
+    <string name="weather_condition_fog">Туман</string>
+    <string name="weather_condition_cloudy">Облачно</string>
+
+    <!-- Default applications -->
+    <string name="defaultapps_not_chosen">Не выбрано</string>
+    <string name="defaultapps_reading">Читаю настройку…</string>
+    <string name="defaultapps_auto_selected">Выбрано автоматически</string>
+    <string name="defaultapps_unread">Не прочиталось</string>
+    <string name="defaultapps_unsaved">Не сохранилось</string>
+    <string name="defaultapps_gone">Не установлено</string>
+    <string name="defaultapps_stock_navigation">Штатная навигация</string>
+    <string name="defaultapps_stock_music">Штатная музыка</string>
+    <string name="defaultapps_stock_video">Штатное видео</string>
+    <string name="defaultapps_app_yandex_navigator">Яндекс Навигатор</string>
+    <string name="defaultapps_app_yandex_maps">Яндекс Карты</string>
+    <string name="defaultapps_app_2gis">2ГИС</string>
+    <string name="defaultapps_app_yandex_music">Яндекс Музыка</string>
+    <string name="defaultapps_app_vk_music">VK Музыка</string>
+    <string name="defaultapps_app_vk_video">VK Видео</string>
+    <string name="defaultapps_app_kinopoisk">Кинопоиск</string>
+    <string name="defaultapps_app_ivi">Иви</string>
+    <string name="defaultapps_app_smotrim">Смотрим</string>
+
+    <!-- Words several screens share -->
+    <string name="common_done">Готово</string>
+    <string name="common_close">Закрыть</string>
+    <string name="time_just_now">только что</string>
+    <string name="time_over_a_day_ago">больше суток назад</string>
+    <plurals name="time_minutes_ago">
+        <item quantity="one">%1$d минуту назад</item>
+        <item quantity="few">%1$d минуты назад</item>
+        <item quantity="many">%1$d минут назад</item>
+        <item quantity="other">%1$d минуты назад</item>
+    </plurals>
+    <plurals name="time_hours_ago">
+        <item quantity="one">%1$d час назад</item>
+        <item quantity="few">%1$d часа назад</item>
+        <item quantity="many">%1$d часов назад</item>
+        <item quantity="other">%1$d часа назад</item>
+    </plurals>
+
+    <!-- Dashboard tiles -->
+    <string name="tile_cluster_name">Экран водителя</string>
+    <string name="tile_simulcast_name">Трансляция</string>
+    <string name="tile_simulcast_selected">Выбрано %1$d</string>
+    <string name="tile_mirrors_name">Зеркала</string>
+    <string name="tile_mirrors_on">Включены</string>
+    <string name="tile_mirrors_off">Выключены</string>
+    <string name="tile_split_name">Разделение</string>
+    <string name="tile_split_on">Включено</string>
+    <string name="tile_split_off">Выключено</string>
+    <string name="tile_hud_name">HUD Подсказки</string>
+    <string name="tile_hud_on">Включены</string>
+    <string name="tile_hud_off">Выключены</string>
+    <string name="tile_weather_name">Погода</string>
+    <string name="tile_weather_off">Выключена</string>
+    <string name="tile_weather_no_data">Данных ещё нет</string>
+    <string name="tile_speakers_name">Динамики</string>
+    <string name="tile_speakers_on">Включена</string>
+    <string name="tile_speakers_off">Выключена</string>
+    <string name="tile_locale_name">Язык системы</string>
+    <string name="tile_passenger_name">Экран справа</string>
+    <string name="tile_default_apps_unchecked">Не проверено</string>
+    <string name="tile_default_apps_checking">Проверяем…</string>
+    <string name="tile_default_apps_stock">Штатные</string>
+    <string name="tile_cloud_name">Облако</string>
+    <string name="tile_service_name">Сервис</string>
+    <string name="tile_service_all_fine">Всё в норме</string>
+    <plurals name="tile_service_waiting">
+        <item quantity="one">%1$d функция ждёт</item>
+        <item quantity="few">%1$d функции ждут</item>
+        <item quantity="many">%1$d функций ждут</item>
+        <item quantity="other">%1$d функции ждут</item>
+    </plurals>
+    <plurals name="tile_default_apps_configured">
+        <item quantity="one">%1$d настроено</item>
+        <item quantity="few">%1$d настроены</item>
+        <item quantity="many">%1$d настроены</item>
+        <item quantity="other">%1$d настроены</item>
+    </plurals>
+
+    <!-- Feature panels -->
+    <string name="sheet_tile_press_note">Короткое нажатие на плитку делает то же самое</string>
+    <string name="sheet_launch">Запустить</string>
+    <string name="sheet_split_now">Разделить экран</string>
+    <string name="sheet_choose_app">Выбрать приложение</string>
+    <string name="sheet_choose_language">Выбрать язык</string>
+    <string name="sheet_open_service">Открыть сервис</string>
+    <string name="sheet_turn_off">Выключить</string>
+    <string name="sheet_turn_on">Включить</string>
+    <string name="sheet_continue">Продолжить</string>
+    <string name="sheet_cluster_help">На приборную панель за рулём встаёт что-то одно: приборы или любое приложение с машины. Короткое нажатие на плитку ставит его туда и убирает обратно.</string>
+    <string name="sheet_cluster_placement">Размещение</string>
+    <string name="sheet_cluster_wheel_button">Кнопка ★ на руле</string>
+    <string name="sheet_cluster_map_card_title">Карта в правом окне</string>
+    <string name="sheet_cluster_map_card_summary">Карта с HUD вместо штатной, когда правое окно приборки показывает карту</string>
+    <string name="sheet_placement_full">Полный</string>
+    <string name="sheet_placement_left">Слева</string>
+    <string name="sheet_placement_center">Центр</string>
+    <string name="sheet_placement_right">Справа</string>
+    <string name="sheet_simulcast_help">Выбранные приложения показываются на пассажирском экране и на экране сзади. Запуск открывает их там сразу.</string>
+    <string name="sheet_simulcast_support">Поддержка трансляции</string>
+    <string name="sheet_mirrors_help">Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.</string>
+    <string name="sheet_mirrors_check">Проверить камеры</string>
+    <string name="sheet_mirrors_switch">Зеркала</string>
+    <string name="sheet_mirrors_where">Где показывать</string>
+    <string name="sheet_mirrors_sides">По сторонам</string>
+    <string name="sheet_mirrors_center">По центру</string>
+    <string name="sheet_mirrors_enhance">Улучшение изображения</string>
+    <string name="sheet_split_help">При включении на рабочем столе появляется значок разделения экрана. Он открывает выбор двух приложений, которые встанут рядом.</string>
+    <string name="sheet_split_icon">Значок на рабочем столе</string>
+    <string name="sheet_weather_help">Приложение забирает прогноз и отдаёт его штатному виджету погоды. Своей погоды оно не рисует — виджет остаётся штатным.</string>
+    <string name="sheet_weather_widget_data">Данные для виджета</string>
+    <string name="sheet_weather_given">Отдано виджету %1$s</string>
+    <string name="sheet_speakers_help">Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, которые машина своими не считает (%1$s). Убирает их машина сама. «Поднять» выдвигает их снова, если машина убрала их в простое.</string>
+    <string name="sheet_speakers_auto">Автоуправление динамиками</string>
+    <string name="sheet_speakers_raise">Поднять</string>
+    <string name="sheet_cloud_help">Машина выходит в облако через Wi-Fi или мобильный интернет, и приложение Denza на телефоне работает с ней как обычно: показывает состояние и управляет машиной. Связь восстанавливается, если модем видит китайский ICCID — от родной eSIM или от rSIM. «Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке.</string>
+    <string name="sheet_cloud_keep_link">Поддерживать связь с облаком</string>
+    <string name="sheet_cloud_keep_wifi">Держать Wi-Fi включенным</string>
+    <string name="sheet_cloud_keep_wifi_cost">На стоянке аккумулятор может разряжаться быстрее</string>
+    <string name="sheet_locale_help">Язык меняется у всей машины, а не у приложения: список открывает сама машина, в нём сорок языков, и выбранный применяется сразу, без перезагрузки.</string>
+    <string name="sheet_service_help">Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается.</string>
+
+    <!-- HUD panel -->
+    <string name="hud_panel_subtitle">Так выглядит проекция во время маршрута</string>
+    <string name="hud_panel_from_yandex">Из Яндекс Навигатора</string>
+    <string name="hud_panel_from_yandexhud">Из YandexHUD</string>
+    <string name="hud_panel_sign_from_yandex">На штатном месте, из Яндекс Навигатора</string>
+    <string name="hud_panel_sign_from_yandexhud">На штатном месте, из YandexHUD</string>
+    <string name="hud_panel_self">YandexHUD выводит сам</string>
+    <string name="hud_panel_turns_title">Манёвры</string>
+    <string name="hud_panel_turns_soon">Появятся с Яндекс Навигатором или YandexHUD</string>
+    <string name="hud_panel_map">Карта</string>
+    <string name="hud_panel_map_soon">Появится с Яндекс Навигатором или YandexHUD</string>
+    <string name="hud_panel_sign_title">Ограничение скорости</string>
+    <string name="hud_panel_sign_soon">Появится с навигатором</string>
+    <string name="hud_panel_cameras_title">Камеры и опасности</string>
+    <string name="hud_panel_cameras_install">Появятся, если поставить HUD Speed с адаптером</string>
+    <string name="hud_panel_cameras_official">Этот HUD Speed показывает их только у себя на экране. Нужна сборка с адаптером</string>
+    <string name="hud_panel_cameras_old_build">Эта сборка YandexHUD не оставляет им места. В новой сборке они есть</string>
+    <string name="hud_panel_cameras_during_route">Из HUD Speed, во время маршрута в навигаторе</string>
+    <string name="hud_panel_cameras_from">Из HUD Speed</string>
+
+    <!-- Default applications panel -->
+    <string name="defaultapps_sheet_title">Приложения по умолчанию</string>
+    <string name="defaultapps_sheet_switch">Заменять приложения</string>
+    <string name="defaultapps_sheet_searching">Ищем установленные приложения…</string>
+    <string name="defaultapps_role_navigation">Навигация</string>
+    <string name="defaultapps_role_music">Музыка</string>
+    <string name="defaultapps_role_video">Видео</string>
+    <string name="defaultapps_section_navigation">Приложение для навигации</string>
+    <string name="defaultapps_section_music">Приложение для музыки</string>
+    <string name="defaultapps_section_video">Приложение для видео</string>
+    <string name="defaultapps_sheet_loading">Загружаем приложения…</string>
+    <string name="defaultapps_sheet_saving">Сохраняем выбор…</string>
+    <string name="defaultapps_sheet_unconfirmed">Не подтверждено</string>
+    <string name="defaultapps_sheet_reading">Читаем настройку…</string>
+    <string name="defaultapps_sheet_substituting">Команды открывают выбранные приложения</string>
+    <string name="defaultapps_sheet_stock">Команды открывают штатные приложения</string>
+    <string name="defaultapps_sheet_nothing">Нечем заменять: подходящие приложения не установлены</string>
+    <!-- Quotes the firmware's own Shortcuts actions: «Открыть навигацию», «Открыть видео», «Продолжить
+         воспроизведение», «Открыть музыку». In another language take those four labels from the
+         firmware's own resources for that language; do not translate them freely. -->
+    <string name="defaultapps_sheet_help">Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</string>
+
+    <!-- Application choosers -->
+    <string name="chooser_nothing_found">Ничего не найдено</string>
+    <string name="pickers_simulcast_title">Что транслировать</string>
+    <string name="pickers_simulcast_subtitle">Можно выбрать до %1$d · выбрано %2$d</string>
+    <string name="pickers_nothing_chosen">Ничего не выбрано</string>
+    <string name="pickers_navigation_title">Что показывать</string>
+    <string name="pickers_navigation_section_instruments">Функции приборов</string>
+    <string name="pickers_navigation_section_apps">Приложения</string>
+    <string name="pickers_loading">Ищем приложения…</string>
+    <string name="pickers_fse_empty">Приложения не найдены</string>
+    <string name="pickers_fse_help">Показаны только приложения, которые можно поставить на экран справа. Несовместимые в список не входят.</string>
+    <plurals name="pickers_fse_subtitle">
+        <item quantity="one">%1$d приложение с головного устройства</item>
+        <item quantity="few">%1$d приложения с головного устройства</item>
+        <item quantity="many">%1$d приложений с головного устройства</item>
+        <item quantity="other">%1$d приложения с головного устройства</item>
+    </plurals>
+
+    <!-- Service, and the access and instrument-screen words it shares with the main screen -->
+    <string name="service_no_access">Нет доступа к машине, без него большинство функций не работает</string>
+    <string name="service_version">Denza Apps %1$s · сборка %2$d</string>
+    <string name="service_technical">Технические сведения</string>
+    <string name="service_technical_value">Версия, прошивка, состояние функций</string>
+    <string name="service_journal">Журнал работы</string>
+    <string name="service_journal_value">Три последние операции, по шагам</string>
+    <string name="service_all_working">Все функции работают</string>
+    <string name="service_access">Доступ к машине</string>
+    <string name="service_diagnostics">Диагностика</string>
+    <string name="service_diagnostics_value">Автоскан блоков, коды неисправностей, потоковые данные</string>
+    <string name="service_cluster_automatic_now">Сейчас: %1$s</string>
+    <string name="service_cluster_note">Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.</string>
+    <string name="cluster_display_title">Приборный экран</string>
+    <string name="cluster_display_detect_automatically">Определять автоматически</string>
+    <string name="cluster_display_picker_subtitle">После выбора на экране появится короткая проверка</string>
+    <string name="cluster_display_searching">Ищем экраны за рулём</string>
+    <string name="adb_recover">Восстановить ADB</string>
+    <string name="adb_recovery_title">Восстановление ADB</string>
+    <string name="adb_check_access">Проверить доступ</string>
+    <string name="adb_request_once">Отправить один запрос</string>
+    <string name="adb_allow_new_attempt">Разрешить новую попытку</string>
+    <string name="adb_explainer_title">Что такое ADB</string>
+    <string name="adb_explainer_what_title">Что это</string>
+    <string name="adb_explainer_what">Служебный канал Android, через который приложение отдаёт команды машине: разделить экран, включить зеркала, отправить изображение на приборку. Без него приложение видит машину, но не может ей ничего сказать.</string>
+    <string name="adb_explainer_how_title">Как открыть</string>
+    <string name="adb_explainer_how">Канал открывается на уровне самой машины — из приложения это сделать нельзя. Нужен сервис с диагностическим компьютером.</string>
+    <string name="adb_gate_service_instruction">Разблокировать доступ к ADB можно только в условиях сервиса при помощи официального диагностического компьютера. Пожалуйста, обратитесь в сервис для разблокировки доступа к ADB.</string>
+    <string name="adb_gate_wifi_title">Ожидание Wi-Fi</string>
+    <string name="adb_gate_wifi_message">Нужен Wi-Fi для восстановления доступа</string>
+    <string name="adb_gate_wifi_details">Android восстанавливает беспроводную отладку при подключении к Wi-Fi</string>
+    <string name="adb_gate_dialog_title">Подключение к сети</string>
+    <!-- Quotes the firmware's own dialog, SystemUI's WifiDebuggingActivity: «Always allow on this network» and ALLOW. -->
+    <string name="adb_gate_dialog_message">Denza Apps подтверждает сетевой диалог автоматически. Если он остаётся на экране, отметьте «Always allow on this network» и нажмите ALLOW.</string>
+    <string name="adb_gate_failed_title">Восстановление доступа</string>
+    <string name="adb_gate_failed_message">Ожидаем следующего подключения к Wi-Fi или пробуждения экрана</string>
+    <string name="adb_gate_unavailable_title">ADB недоступен</string>
+    <string name="adb_gate_confirm_title">Подтвердите доступ к ADB</string>
+    <string name="adb_gate_authorize_message">Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля</string>
+    <string name="adb_gate_request">Запросить доступ</string>
+    <string name="adb_gate_requesting_title">Отправляем запрос ADB</string>
+    <string name="adb_gate_requesting_message">Повторных запросов в фоне не будет</string>
+    <string name="adb_gate_awaiting_message">Разрешите системный запрос на экране автомобиля</string>
+    <string name="adb_gate_confirmed_check">Я подтвердил — проверить</string>
+    <string name="adb_access_not_confirmed">Доступ не подтверждён</string>
+    <string name="adb_gate_error_message">Машина не ответила на проверку</string>
+    <string name="adb_gate_check_again">Проверить снова</string>
+    <string name="adb_not_checked">Доступ ещё не проверен</string>
+    <string name="adb_switch_off">Отладка по ADB выключена в системе автомобиля</string>
+    <string name="adb_switch_on">Отладка по ADB включена в системе автомобиля</string>
+    <string name="adb_switch_unreadable">Состояние отладки по ADB прочитать не удалось</string>
+    <string name="adb_no_link">Нет связи с машиной</string>
+    <string name="adb_previous_request_pending">Предыдущий запрос ожидает проверки</string>
+    <string name="adb_previous_request_details">Сначала проверьте доступ; новый запрос автоматически не отправится</string>
+    <string name="adb_checking">Проверяю доступ…</string>
+    <string name="adb_trusted">ADB-доступ подтверждён</string>
+    <string name="adb_trusted_details">Denza Apps использует уже доверенный ключ</string>
+    <string name="adb_request_sent_not_granted">Запрос отправлен, но доступ ещё не выдан</string>
+    <string name="adb_request_sent_not_granted_details">Разрешите запрос на экране машины, затем нажмите «Проверить доступ»</string>
+    <string name="adb_permission_needed">Нужно разрешение ADB для Denza Apps</string>
+    <string name="adb_permission_needed_details">Можно вручную отправить ровно один запрос</string>
+    <string name="adb_requesting">Отправляю один запрос…</string>
+    <string name="adb_requesting_details">Повторов в фоне не будет</string>
+    <string name="adb_already_trusted">ADB-доступ уже выдан</string>
+    <string name="adb_already_trusted_details">Новый запрос не потребовался</string>
+    <string name="adb_request_sent">Один запрос отправлен</string>
+    <string name="adb_request_sent_details">Разрешите его на экране машины, затем проверьте доступ</string>
+    <string name="adb_request_unconfirmed">Отправка запроса не подтверждена</string>
+    <string name="adb_new_attempt_allowed">Новая попытка разрешена вручную</string>
+    <string name="adb_check_first">Сначала проверьте доступ</string>
+    <string name="adb_request_not_sent">Запрос не отправлен</string>
+    <string name="adb_new_attempt_refused">Новая попытка не разрешена</string>
+    <string name="adb_restore_title">Восстановление ADB</string>
+    <string name="adb_restore_switch">Восстанавливать автоматически</string>
+    <string name="adb_restore_switch_summary">Если после перезагрузки машина закроет доступ, приложение вернёт его через Wi-Fi</string>
+    <string name="adb_restore_boot_section">Последняя перезагрузка</string>
+    <string name="adb_restore_status_unsupported">Восстановление работает с Android 11</string>
+    <string name="adb_restore_status_restored">Доступ есть: после перезагрузки его вернуло приложение</string>
+    <string name="adb_restore_status_not_needed">Доступ есть, восстанавливать не нужно</string>
+    <string name="adb_restore_status_connecting">Доступа нет, возвращаю его через Wi-Fi</string>
+    <string name="adb_restore_status_waiting_wifi">Доступа нет. Вернётся, как только машина подключится к Wi-Fi</string>
+    <string name="adb_restore_status_system_refuses">Доступа нет: система не включает отладку по Wi-Fi</string>
+    <string name="adb_restore_status_waiting_system">Доступа нет. Жду, пока система включит отладку по Wi-Fi</string>
+    <string name="adb_restore_status_untrusted">Доступа нет. Через Wi-Fi его не вернуть: машина не доверяет приложению</string>
+    <string name="adb_restore_status_failed">Доступ вернуть не удалось. Приложение попробует ещё раз</string>
+    <string name="adb_boot_restore_not_needed">не понадобилось</string>
+    <string name="adb_boot_restore_none">ещё не было</string>
+    <string name="adb_boot_restore_running">идёт</string>
+    <string name="adb_boot_restore_waiting_wifi">ждёт Wi-Fi</string>
+    <string name="adb_boot_restore_waiting_system">ждёт разрешения системы</string>
+    <string name="adb_boot_restore_impossible">невозможно</string>
+    <string name="adb_boot_restore_failed_at">не вышло %1$s</string>
+    <string name="adb_boot_restore_restored_took">удалось %1$s, за %2$s</string>
+    <string name="adb_boot_restore_restored_at">удалось %1$s</string>
+    <string name="adb_boot_restore_returned_at">доступ появился %1$s</string>
+    <string name="adb_boot_when">Когда</string>
+    <string name="adb_boot_access">Доступ после неё</string>
+    <string name="adb_boot_look_open">был сразу</string>
+    <string name="adb_boot_look_closed">был закрыт</string>
+    <string name="adb_boot_look_refused">ключ не принят</string>
+    <string name="adb_boot_look_unknown">ещё не проверен</string>
+    <string name="adb_boot_restore">Восстановление</string>
+    <string name="adb_restore_summary_off">Выключено</string>
+    <string name="adb_restore_summary_unsupported">Недоступно на этой версии Android</string>
+    <string name="adb_restore_summary_waiting_wifi">Ждёт Wi-Fi</string>
+    <string name="adb_restore_summary_system_refuses">Система не включает отладку по Wi-Fi</string>
+    <string name="adb_restore_summary_waiting_system">Ждёт разрешения системы</string>
+    <string name="adb_restore_summary_cannot">Не может вернуть доступ</string>
+    <string name="adb_restore_summary_failed">Не вернуло доступ</string>
+    <string name="adb_restore_summary_connecting">Возвращает доступ…</string>
+    <string name="adb_restore_summary_restored_at">Вернуло доступ %1$s</string>
+    <string name="adb_restore_summary_returned_at">Доступ появился %1$s</string>
+    <string name="adb_restore_summary_not_needed">После перезагрузки не понадобилось</string>
+    <string name="adb_restore_summary_on">Включено</string>
+    <string name="adb_span_seconds">%1$d с</string>
+    <string name="adb_span_minutes">%1$d мин</string>
+    <string name="adb_span_hours">%1$d ч %2$d мин</string>
+    <string name="adb_time_today">сегодня, %1$s</string>
+    <string name="adb_time_yesterday">вчера, %1$s</string>
+    <string name="adb_at_time">в %1$s</string>
+    <string name="adb_at_yesterday">вчера в %1$s</string>
+    <string name="adb_at_date">%1$s в %2$s</string>
+    <string name="adb_at_today">сегодня в %1$s</string>
+    <string name="warning_title">Предупреждения машины</string>
+    <string name="warning_switch">Записывать предупреждения</string>
+    <string name="warning_switch_summary">Сообщения приборной панели и связь с машиной, пока работает приложение</string>
+    <string name="warning_codes">Коды</string>
+    <string name="warning_events">События</string>
+    <string name="warning_export">Экспортировать</string>
+    <string name="warning_clear">Очистить</string>
+    <string name="warning_clear_again">Нажмите ещё раз, чтобы очистить</string>
+    <string name="warning_none">Предупреждений не было</string>
+    <string name="warning_recording_off">Запись выключена</string>
+    <string name="warning_row_last">Последнее: %1$s · %2$s</string>
+    <string name="warning_lost_since">Машина не отвечает с %1$s</string>
+    <string name="warning_recording_since">Запись идёт с %1$s</string>
+    <string name="warning_recording">Запись идёт</string>
+    <string name="warning_event_start">Приложение запущено</string>
+    <string name="warning_event_link_clean">Машина отвечает, предупреждений нет</string>
+    <string name="warning_event_link_code">Машина отвечает · %1$s</string>
+    <string name="warning_event_cleared_code">Предупреждение снято</string>
+    <string name="warning_event_lost">Машина не отвечает</string>
+    <string name="warning_event_on">Запись включена</string>
+    <string name="warning_event_cleared">Журнал очищен</string>
+    <string name="warning_day_today">сегодня, %1$s</string>
+    <string name="warning_day_yesterday">вчера, %1$s</string>
+    <!-- Quotes the firmware's own name for the folder Android calls Download. -->
+    <string name="warning_export_saved">Сохранено: Загрузки/Denza Apps/%1$s</string>
+    <string name="warning_export_failed">Не сохранено: %1$s</string>
+    <plurals name="warning_times">
+        <item quantity="one">%1$d раз</item>
+        <item quantity="few">%1$d раза</item>
+        <item quantity="many">%1$d раз</item>
+        <item quantity="other">%1$d раза</item>
+    </plurals>
+    <!-- The Contour on the driver's display. Drawn in Jura in fixed places, and a budget below is in the
+         board's units against the width today, from ContourGeometryTest's JuraMeasure at the widest
+         figures that line can print. -->
+    <!-- Budget 167 to the first temperature glyph; 112 today. -->
+    <string name="contour_title_pack">БАТАРЕЯ · В</string>
+    <!-- Both headings: budget 276 to the engine box; 117 and 202 today. The trip caption shares the line. -->
+    <string name="contour_title_engine_rpm">ДВС · об/мин</string>
+    <string name="contour_title_engine_minutes">ДВС · мин за поездку</string>
+    <!-- Budget 440 beside its figure; 121 today. -->
+    <string name="contour_caption_spread">РАЗБРОС ЯЧЕЕК</string>
+    <!-- Flush right on the engine heading's line: 304 from the longer heading to the margin; 190 today at 999 km. -->
+    <string name="contour_trip_km">%1$s км · ЗА ПОЕЗДКУ</string>
+    <string name="contour_trip_alone">ЗА ПОЕЗДКУ</string>
+    <!-- This and contour_caption_engine_gave share the park line: 506 with figures and units; 389 today. -->
+    <string name="contour_caption_regen">РЕКУПЕРАЦИЯ</string>
+    <string name="contour_caption_engine_gave">ДАЛ ДВС</string>
+    <string name="contour_engine_gives_alone">ДВС ДАЁТ</string>
+    <!-- This and contour_engine_window sit in the box. Budget 230; 151 and 134 today. -->
+    <string name="contour_engine_gives">ДВС ДАЁТ %1$s кВт</string>
+    <string name="contour_engine_window">ПОСЛЕДНИЕ %1$s</string>
+    <!-- Beside the hero, the pair centred on the axis: 79 of room on the right at size 34; 56 today. -->
+    <string name="contour_unit_kw">кВт</string>
+    <string name="contour_unit_kwh">кВт·ч</string>
+    <string name="contour_unit_millivolt">мВ</string>
+    <!-- THE TIGHTEST WORD ON THE CLUSTER. It ends at the petal's cut-out behind the widest figure, 123,4: budget 199 at distance 0,0; 190 today. Nothing clips it. -->
+    <string name="contour_per_100km">кВт·ч/100 км · за %1$s км</string>
+    <!-- Budget 198 behind 99:59; 87 today. -->
+    <string name="contour_charge_left">до полной</string>
+
+    <!-- The pack's flow, one decision on both screens: the caption over the car page's hero. The
+         cluster prints no direction word. Below, budgets are dp on the strip, from RobotoEstimate,
+         which errs 8 % wide. -->
+    <string name="energy_sentence_neutral">Батарея</string>
+    <string name="energy_sentence_from_pack">Из батареи</string>
+    <string name="energy_sentence_to_pack">В батарею</string>
+    <string name="energy_sentence_from_engine">В батарею от ДВС</string>
+    <!-- The longest. Full screen: half of it, with the blue mark, in 155 either side of the centre; 97 today. One third: 159 of 392. -->
+    <string name="energy_sentence_from_charger">В батарею от зарядки</string>
+    <string name="energy_engine_rpm_caption">ДВС</string>
+    <string name="energy_engine_rpm_unit">об/мин</string>
+    <!-- Full screen: the engine and trip cells are 66 apart at their widest. Two thirds: the row ends 124 short of the edge. -->
+    <string name="energy_engine_minutes_caption">ДВС за поездку</string>
+    <string name="energy_engine_minutes_unit">мин</string>
+    <!-- The same two limits as energy_engine_minutes_caption. -->
+    <string name="energy_trip_km">%1$s км · за поездку</string>
+    <string name="energy_trip_alone">За поездку</string>
+
+    <!-- The strip's sound page. On the one-third pane each caption stands left of a value column at
+         118 dp, in Roboto 14: 42 to 68 today, the longest being strip_remaining. -->
+    <string name="strip_on_the_road">В пути</string>
+    <string name="strip_remaining">Осталось</string>
+    <string name="strip_altitude">Высота</string>
+    <string name="strip_sunset">Закат</string>
+    <string name="strip_sunrise">Рассвет</string>
+    <string name="strip_unit_metres">м</string>
+    <string name="strip_unit_kilometres">км</string>
+    <string name="strip_road_metres">%1$s м</string>
+    <string name="strip_road_kilometres">%1$s км</string>
+
+    <!-- Stands where the altitude would be, with no location access. One third: alone on its row, 189 of 392 in Roboto 14. StripGeometryTest holds it on every layout. -->
+    <string name="strip_location_hint">Нет доступа к геолокации</string>
+    <string name="trip_panel_description">Панель поездки</string>
+
+    <!-- The driver's display. -->
+    <string name="cluster_display_choice">Экран %1$d · %2$d×%3$d</string>
+    <string name="cluster_scene_channel_name">Экран водителя</string>
+    <string name="cluster_scene_notification">Экран водителя</string>
+    <string name="cluster_dashboard_description">Приборы на экране водителя</string>
+
+    <!-- The strip's car page, what only it says. -->
+    <!-- Full screen: 25 dp clear of the temperatures at its widest, the tightest gap on the car page. -->
+    <string name="car_page_volts">Напряжение</string>
+    <string name="car_page_unit_volt">В</string>
+    <string name="car_page_spend">Расход</string>
+    <string name="car_page_closed">Питание от машины</string>
+
+    <!-- Why the car is closed to the panels, drawn on the cluster and on the car page. -->
+    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; 421 today. The car page wraps them. -->
+    <string name="vehicle_closed_authorization">ADB-ключ не подтверждён · откройте Denza Apps</string>
+    <string name="vehicle_closed_no_channel">Нет связи с машиной</string>
+    <string name="vehicle_closed_no_answer">Машина не отвечает</string>
+
+    <!-- The HUD panel's picture of the glass, at 432 dp wide and in Roboto 13/500, measured in the font
+         file and not yet on a screen. The names are centred on their parts: hud_glass_turn at 62 and
+         hud_glass_sign at 143 leave 17 dp between them today, on half widths that must sum to under 81.
+         hud_glass_cameras is centred at 52, 46 in a pane, so it has 104 and 92 inside the picture; it takes 50.
+         hud_panel_cameras_title, at 128, would run past the left edge, so the picture's label is shorter. -->
+    <string name="hud_glass_unit_speed">км/ч</string>
+    <string name="hud_glass_distance">350 м</string>
+    <string name="hud_glass_unit_metres">м</string>
+    <string name="hud_glass_sign">Ограничение</string>
+    <string name="hud_glass_turn">Манёвр</string>
+    <string name="hud_glass_map">Карта</string>
+    <string name="hud_glass_cameras">Камеры</string>
+
+    <!-- HUD Speed's warning, drawn into the picture the HUD's lane window shows. Half the digits' size,
+         in a window that shrinks the digits to fit from 46 down to 30, then lets them run out. -->
+    <string name="hud_radar_unit_metres">м</string>
+    <string name="hud_radar_unit_kilometres">км</string>
+    <string name="hud_summary_metres">м</string>
+    <string name="hud_summary_kilometres">км</string>
+    <string name="hud_summary_minutes">мин</string>
+    <string name="hud_summary_hours">ч</string>
+
+    <string name="simulcast_checking_screens">Проверяю экраны…</string>
+    <string name="service_split_section">Разделение экрана</string>
+    <!-- The language row of «Сервис». Its title and both names read the same in either language, for
+         someone who cannot read the panel around them, so values-en leaves them out. -->
+    <string name="service_language_title" translatable="false">Язык / Language</string>
+    <string name="service_language_russian" translatable="false">Русский</string>
+    <string name="service_language_english" translatable="false">English</string>
+    <string name="service_language_note">Приложение перезапустится, чтобы сменить язык.</string>
 </resources>

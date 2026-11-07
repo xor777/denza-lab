@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.hud;
 
+import dev.denza.apps.R;
+import dev.denza.apps.core.AppDecimal;
+import dev.denza.apps.core.AppText;
 import dev.denza.hudlink.HudRadarWarning;
 
 import java.util.Locale;
@@ -24,7 +27,7 @@ final class HudRadarBadge {
         if (meters < 995) {
             return Integer.toString(Math.round(meters / 10f) * 10);
         }
-        return String.format(Locale.ROOT, "%.1f", meters / 1000f).replace('.', ',');
+        return AppDecimal.written(String.format(Locale.ROOT, "%.1f", meters / 1000f));
     }
 
     /** The number's unit, drawn small beside it: «м», «км», or nothing for a section's average. */
@@ -32,7 +35,7 @@ final class HudRadarBadge {
         if (warning.section && warning.averageSpeed >= 0) {
             return "";
         }
-        return warning.meters < 995 ? "м" : "км";
+        return AppText.s(warning.meters < 995 ? R.string.hud_radar_unit_metres : R.string.hud_radar_unit_kilometres);
     }
 
     /** A section's average above its limit: the line turns red. */

@@ -16400,6 +16400,24 @@
       ]
      },
      {
+      "t": "section",
+      "label": "Язык / Language",
+      "body": [
+       {
+        "t": "segmented",
+        "labels": [
+         "Русский",
+         "English"
+        ],
+        "selected": 0
+       },
+       {
+        "t": "note",
+        "text": "Приложение перезапустится, чтобы сменить язык."
+       }
+      ]
+     },
+     {
       "t": "group",
       "rows": [
        {
@@ -17148,6 +17166,24 @@
        {
         "title": "Доступ к машине",
         "summary": "ADB-доступ подтверждён"
+       }
+      ]
+     },
+     {
+      "t": "section",
+      "label": "Язык / Language",
+      "body": [
+       {
+        "t": "segmented",
+        "labels": [
+         "Русский",
+         "English"
+        ],
+        "selected": 0
+       },
+       {
+        "t": "note",
+        "text": "Приложение перезапустится, чтобы сменить язык."
        }
       ]
      },
@@ -17909,6 +17945,24 @@
         "t": "button",
         "kind": "secondary",
         "text": "Проверить доступ"
+       }
+      ]
+     },
+     {
+      "t": "section",
+      "label": "Язык / Language",
+      "body": [
+       {
+        "t": "segmented",
+        "labels": [
+         "Русский",
+         "English"
+        ],
+        "selected": 0
+       },
+       {
+        "t": "note",
+        "text": "Приложение перезапустится, чтобы сменить язык."
        }
       ]
      },
@@ -32850,6 +32904,24 @@
        {
         "title": "Доступ к машине",
         "summary": "ADB-доступ подтверждён"
+       }
+      ]
+     },
+     {
+      "t": "section",
+      "label": "Язык / Language",
+      "body": [
+       {
+        "t": "segmented",
+        "labels": [
+         "Русский",
+         "English"
+        ],
+        "selected": 0
+       },
+       {
+        "t": "note",
+        "text": "Приложение перезапустится, чтобы сменить язык."
        }
       ]
      },

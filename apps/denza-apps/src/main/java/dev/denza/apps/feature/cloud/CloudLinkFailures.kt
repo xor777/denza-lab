@@ -78,18 +78,26 @@ internal data class CloudLinkFailures(
  */
 data class CloudFailure(val kind: Kind, val detail: String) {
 
-    enum class Kind(val words: String) {
+    enum class Kind {
         /** A press to switch the link on that the car did not take. */
-        ON_REFUSED(FeatureWords.refused(true)),
+        ON_REFUSED,
 
         /** A press to switch it off, or the off it owes since one. */
-        OFF_REFUSED(FeatureWords.refused(false)),
+        OFF_REFUSED,
 
         /** The adapter could not read the car: nothing it knows is fresh. */
-        NOT_READ(CloudLinkStatus.STALE),
+        NOT_READ,
 
         /** The adapter read the car and could not carry out what it planned. */
-        NOT_DONE(CloudLinkStatus.NO_LINK),
+        NOT_DONE,
+        ;
+
+        val words: String get() = when (this) {
+            ON_REFUSED -> FeatureWords.refused(true)
+            OFF_REFUSED -> FeatureWords.refused(false)
+            NOT_READ -> CloudLinkStatus.STALE
+            NOT_DONE -> CloudLinkStatus.NO_LINK
+        }
     }
 
     val words: String get() = kind.words

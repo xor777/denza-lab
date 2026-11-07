@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.StringRes
+import dev.denza.apps.core.AppText
 
 /** Exact visual tokens from this vehicle's SystemUI text toast. */
 internal object VehicleProgressOverlayStyle {
@@ -209,7 +210,7 @@ internal class VehicleProgressOverlay(
             // The owner draws the whole wait: its view is the screen, and the node a screen reader
             // finds in the card's place. The shield around it still takes every touch.
             addView(
-                scene(context, context.getText(textRes)),
+                scene(context, AppText.s(textRes)),
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT,
@@ -232,7 +233,7 @@ internal class VehicleProgressOverlay(
                 setColor(VehicleProgressOverlayStyle.backgroundColor)
             }
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-            contentDescription = context.getString(textRes)
+            contentDescription = AppText.s(textRes)
 
             addView(
                 ProgressBar(context, null, android.R.attr.progressBarStyleSmall).apply {
@@ -248,7 +249,7 @@ internal class VehicleProgressOverlay(
             )
             addView(
                 TextView(context).apply {
-                    setText(textRes)
+                    text = AppText.s(textRes)
                     setTextColor(VehicleProgressOverlayStyle.foregroundColor)
                     textSize = VehicleProgressOverlayStyle.textSizeSp
                     typeface = Typeface.create("sans-serif", Typeface.NORMAL)

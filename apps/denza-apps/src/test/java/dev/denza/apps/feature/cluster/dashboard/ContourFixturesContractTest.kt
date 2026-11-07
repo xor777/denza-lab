@@ -1,10 +1,12 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -20,7 +22,7 @@ import org.junit.Test
  * `ContourFrameBuilderTest` is the other half: the car of a scene, run through the scene, the
  * followers and the builder, prints that scene's board.
  */
-class ContourFixturesContractTest {
+open class ContourFixturesContractTest {
 
     /**
      * Every cluster scene `fixtures.js` draws, read off the file rather than listed here: the list
@@ -114,4 +116,10 @@ class ContourFixturesContractTest {
     }
 
     private fun fixture(id: String): Map<String, Any?> = SpecJson.fixture(id)
+}
+
+/** `fixtures.en.json` against the app's own English words, scene by scene. */
+class ContourFixturesContractEnglishTest : ContourFixturesContractTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

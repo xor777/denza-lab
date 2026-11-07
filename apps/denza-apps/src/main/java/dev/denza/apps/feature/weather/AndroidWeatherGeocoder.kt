@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.util.Log
+import dev.denza.apps.core.AppText
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -61,7 +62,7 @@ internal class AndroidWeatherGeocoder(context: Context) {
         val error = AtomicReference<String?>(null)
         val latch = CountDownLatch(1)
         return try {
-            Geocoder(appContext, Locale.forLanguageTag("ru-RU")).getFromLocation(
+            Geocoder(appContext, AppText.locale).getFromLocation(
                 latitude,
                 longitude,
                 MAX_RESULTS,

@@ -8,6 +8,8 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
 import dev.denza.apps.BuildConfig
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
@@ -91,7 +93,7 @@ internal class WarningRecorder private constructor(private val app: Context) {
         val name = "denza-warnings-${FILE_STAMP.format(now.atZone(zone))}.txt"
         val body = WarningExport.text(
             header = listOf(
-                "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE} · ${WarningText.TITLE}",
+                "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE} · ${WarningExport.TITLE}",
                 "Выгружено: ${now.atZone(zone)}",
                 "Прошивка: ${Build.FINGERPRINT}",
                 "Источник: autoservice getInt 1007 / 0x26100008, в каждом проходе опроса машины",
@@ -114,10 +116,10 @@ internal class WarningRecorder private constructor(private val app: Context) {
                 ),
             )
             checkNotNull(resolver.openOutputStream(uri, "wt")).use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            "Сохранено: Загрузки/Denza Apps/$name"
+            AppText.s(R.string.warning_export_saved, name)
         }.getOrElse { error ->
             Log.w(TAG, "warning export failed", error)
-            "Не сохранено: ${error.javaClass.simpleName}"
+            AppText.s(R.string.warning_export_failed, error.javaClass.simpleName)
         }
     }
 

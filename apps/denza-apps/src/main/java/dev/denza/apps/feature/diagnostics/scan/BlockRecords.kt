@@ -131,6 +131,7 @@ internal object Meanings {
         return name to request
     }
 
+    // DO NOT TRANSLATE: matches Russian DTC titles in the research JSON (CyrillicLiteralGuardTest).
     private val LINK = Regex("""связ\p{L}* с (?:блоком )?([A-Z][A-Z0-9_/-]+)""")
     private val ALIASES = mapOf("ABS" to 0x782, "ESP" to 0x782, "ESC" to 0x782, "IPB" to 0x782)
 }

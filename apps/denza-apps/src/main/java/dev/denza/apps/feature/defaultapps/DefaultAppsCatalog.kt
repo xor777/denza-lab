@@ -6,6 +6,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import dev.denza.apps.AppIconSource
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.iconOf
 
 /**
@@ -121,16 +123,30 @@ internal object DefaultAppsCatalog {
     ): String = packageName?.let { selected ->
         installed.firstOrNull { it.packageName == selected }?.label
             ?: fallbackLabel(role, selected)
-    } ?: "Не выбрано"
+    } ?: AppText.s(R.string.defaultapps_not_chosen)
 
+    /**
+     * The word [label] will give once [discover] has run, for a provider read that finishes first.
+     *
+     * Only a package in [launchable] will be in that catalog, so only that one is named by its own
+     * label; an installed package outside it, such as a disabled stock map, gets [fallbackLabel] now
+     * as it will then. It asks PackageManager, so it runs on the default-apps thread.
+     */
     @Suppress("DEPRECATION")
-    fun labelNow(context: Context, role: DefaultAppRole, packageName: String): String =
-        runCatching {
+    fun labelNow(
+        context: Context,
+        role: DefaultAppRole,
+        packageName: String,
+        launchable: Set<String>,
+    ): String {
+        if (packageName !in launchable) return fallbackLabel(role, packageName)
+        return runCatching {
             val packageManager = context.packageManager
             packageManager.getApplicationLabel(
                 packageManager.getApplicationInfo(packageName, 0),
-            ).toString()
-        }.getOrNull().orEmpty().ifBlank { fallbackLabel(role, packageName) }
+            ).toString().ifBlank { packageName }
+        }.getOrElse { fallbackLabel(role, packageName) }
+    }
 
     /**
      * The admission rule of [discover], asked about one package and answered against the car now.
@@ -160,7 +176,8 @@ internal object DefaultAppsCatalog {
         return installed && !suspended && application.enabled && activity.enabled
     }
 
-    private fun fallbackLabel(
+    /** A known app's catalog name, the stock word or the package name. Asks nothing of the car. */
+    fun fallbackLabel(
         role: DefaultAppRole,
         packageName: String,
     ): String = role.knownThirdPartyApps
@@ -168,9 +185,9 @@ internal object DefaultAppsCatalog {
         ?.fallbackLabel
         ?: if (packageName == role.stockPackageName) {
             when (role) {
-                DefaultAppRole.NAVIGATION -> "Штатная навигация"
-                DefaultAppRole.MUSIC -> "Штатная музыка"
-                DefaultAppRole.VIDEO -> "Штатное видео"
+                DefaultAppRole.NAVIGATION -> AppText.s(R.string.defaultapps_stock_navigation)
+                DefaultAppRole.MUSIC -> AppText.s(R.string.defaultapps_stock_music)
+                DefaultAppRole.VIDEO -> AppText.s(R.string.defaultapps_stock_video)
             }
         } else {
             packageName

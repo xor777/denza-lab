@@ -3,6 +3,8 @@ package dev.denza.apps.feature.trip
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import dev.denza.apps.core.AppLanguage
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.luminofor.LuminoforSpec
 import org.json.JSONArray
 import org.json.JSONObject
@@ -30,10 +32,22 @@ import kotlin.math.roundToInt
 object StripFixtures {
 
     private const val ASSET = "luminofor/fixtures.json"
+    private const val ASSET_ENGLISH = "luminofor/fixtures.en.json"
 
-    /** `fixtures.json`, as the board exported it. */
-    fun load(context: Context): JSONObject =
-        JSONObject(context.assets.open(ASSET).bufferedReader().use { it.readText() })
+    /**
+     * `fixtures.json`, as the board exported it, or in English `fixtures.en.json`, so that a screen
+     * in English can be laid over its English board. The scanner's boards stay in Russian in both.
+     */
+    fun load(context: Context): JSONObject {
+        val russian = read(context, ASSET)
+        if (AppText.language != AppLanguage.ENGLISH) return russian
+        val english = read(context, ASSET_ENGLISH)
+        russian.keys().forEach { id -> if (!english.has(id)) english.put(id, russian.get(id)) }
+        return english
+    }
+
+    private fun read(context: Context, asset: String) =
+        JSONObject(context.assets.open(asset).bufferedReader().use { it.readText() })
 
     /** The board's descriptor for [id]: `{ kind, mode, page }`. */
     fun board(all: JSONObject, id: String): JSONObject = all.getJSONArray(id).getJSONObject(0)

@@ -91,23 +91,58 @@ public final class HudProtocol {
         return new HudMessage(text.length + 8).bytes(1, text).toByteArray();
     }
 
-    /** The route summary's distance: metres below 1 km, one decimal below 10 km, «12 км» above. */
+    /** The route summary's distance in {@link SummaryWords#RUSSIAN}, which the module sends. */
     public static String routeDistance(int meters) {
+        return routeDistance(meters, SummaryWords.RUSSIAN);
+    }
+
+    /** The route summary's distance: metres below 1 km, one decimal below 10 km, «12 км» above. */
+    public static String routeDistance(int meters, SummaryWords words) {
         if (meters < 1000) {
-            return meters + " м";
+            return meters + " " + words.metres;
         }
         if (meters < 10_000) {
-            return String.format(Locale.ROOT, "%.1f км", meters / 1000.0).replace('.', ',');
+            return String.format(Locale.ROOT, "%.1f", meters / 1000.0).replace('.', words.decimalMark)
+                    + " " + words.kilometres;
         }
-        return Math.round(meters / 1000.0) + " км";
+        return Math.round(meters / 1000.0) + " " + words.kilometres;
+    }
+
+    /** Remaining time in {@link SummaryWords#RUSSIAN}, which the module sends. */
+    public static String duration(int seconds) {
+        return duration(seconds, SummaryWords.RUSSIAN);
     }
 
     /** Remaining time as Yandex prints it: «17 мин», «1 ч», «1 ч 5 мин». */
-    public static String duration(int seconds) {
+    public static String duration(int seconds, SummaryWords words) {
         int minutes = Math.max(1, Math.round(seconds / 60f));
         if (minutes < 60) {
-            return minutes + " мин";
+            return minutes + " " + words.minutes;
         }
-        return minutes % 60 == 0 ? minutes / 60 + " ч" : minutes / 60 + " ч " + minutes % 60 + " мин";
+        String hours = minutes / 60 + " " + words.hours;
+        return minutes % 60 == 0 ? hours : hours + " " + minutes % 60 + " " + words.minutes;
+    }
+
+    /**
+     * The words of the route summary. This library is compiled into Navigator's dex, where there are
+     * no resources, so the app passes its own and the module keeps {@link #RUSSIAN}.
+     */
+    public static final class SummaryWords {
+        /** The YandexHUD module speaks Russian by the owner's decision, so these stay in the code. */
+        public static final SummaryWords RUSSIAN = new SummaryWords("м", "км", "мин", "ч", ',');
+
+        final String metres;
+        final String kilometres;
+        final String minutes;
+        final String hours;
+        final char decimalMark;
+
+        public SummaryWords(String metres, String kilometres, String minutes, String hours, char decimalMark) {
+            this.metres = metres;
+            this.kilometres = kilometres;
+            this.minutes = minutes;
+            this.hours = hours;
+            this.decimalMark = decimalMark;
+        }
     }
 }

@@ -1,8 +1,12 @@
 package dev.denza.apps.feature.warning
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+import dev.denza.apps.core.inEnglish
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WarningTextTest {
@@ -105,6 +109,37 @@ class WarningTextTest {
         assertEquals("заголовок", lines[0])
         assertEquals("1DD\t1\t2026-10-21 18:40:00 +03:00\t2026-10-21 18:40:00 +03:00\tДолейте омывающую жидкость", lines[lines.indexOf("[Коды]") + 2])
         assertEquals("2026-10-21 18:40:00 +03:00\tcode\t1DD\t1DD · Долейте омывающую жидкость", lines[lines.indexOf("[События]") + 3])
+    }
+
+    @Test
+    fun theExportsHeadersStayRussianInEnglish() {
+        val state = WarningLogState(sinceMs = AT_1840, sightings = listOf(WarningSighting(0x1DD, AT_1840, AT_1840, 1)))
+        val events = listOf(WarningEvent(AT_1840, WarningEventKind.START))
+        val lines = inEnglish { WarningExport.text(emptyList(), state, events, names, zone) }.lines()
+        val codes = lines.indexOf("[Коды]")
+        val log = lines.indexOf("[События]")
+        assertTrue("no section line for the codes in $lines", codes >= 0)
+        assertTrue("no section line for the events in $lines", log >= 0)
+        assertEquals("код\tраз\tвпервые\tпоследний раз\tназвание", lines[codes + 1])
+        assertEquals("время\tсобытие\tкод\tописание", lines[log + 1])
+        // the description column alone follows the language
+        assertEquals("2026-10-21 18:40:00 +03:00\tstart\t\tApp started", lines[log + 2])
+    }
+
+    @Test
+    fun theExportsHeadersAreTheRussianResources() {
+        assertEquals(AppText.s(R.string.warning_title), WarningExport.TITLE)
+        assertEquals(AppText.s(R.string.warning_codes), WarningExport.CODES)
+        assertEquals(AppText.s(R.string.warning_events), WarningExport.EVENTS)
+    }
+
+    @Test
+    fun thePageKeepsFollowingTheLanguage() {
+        inEnglish {
+            assertEquals("Car warnings", WarningText.TITLE)
+            assertEquals("Codes", WarningText.CODES)
+            assertEquals("Events", WarningText.EVENTS)
+        }
     }
 
     private companion object {

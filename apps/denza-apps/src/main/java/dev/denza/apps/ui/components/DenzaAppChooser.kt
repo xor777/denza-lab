@@ -3,6 +3,8 @@ package dev.denza.apps.ui.components
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.DenzaMetrics
 
 /**
@@ -35,7 +37,7 @@ fun <T> ColumnScope.DenzaAppChooser(
     compact: Boolean,
     onDismiss: () -> Unit,
     onBack: (() -> Unit)? = null,
-    emptyText: String = "Ничего не найдено",
+    emptyText: String = AppText.s(R.string.chooser_nothing_found),
     section: ((T) -> String)? = null,
     item: @Composable (T) -> Unit,
 ) {
@@ -77,7 +79,7 @@ fun <T> DenzaAppChooserSheet(
     compact: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    emptyText: String = "Ничего не найдено",
+    emptyText: String = AppText.s(R.string.chooser_nothing_found),
     footer: @Composable () -> Unit = {},
     section: ((T) -> String)? = null,
     item: @Composable (T) -> Unit,

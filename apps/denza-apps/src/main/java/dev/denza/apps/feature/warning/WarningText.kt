@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.warning
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -16,29 +18,30 @@ internal enum class WarningTone { QUIET, ATTENTION }
  * slot holds one warning at a time, so its silence says nothing about a reservoir.
  */
 internal object WarningText {
-    const val TITLE = "Предупреждения машины"
-    const val SWITCH = "Записывать предупреждения"
-    const val SWITCH_SUMMARY = "Сообщения приборной панели и связь с машиной, пока работает приложение"
-    const val CODES = "Коды"
-    const val EVENTS = "События"
-    const val EXPORT = "Экспортировать"
-    const val CLEAR = "Очистить"
-    const val CLEAR_AGAIN = "Нажмите ещё раз, чтобы очистить"
-    const val NONE = "Предупреждений не было"
+    val TITLE: String get() = AppText.s(R.string.warning_title)
+    val SWITCH: String get() = AppText.s(R.string.warning_switch)
+    val SWITCH_SUMMARY: String get() = AppText.s(R.string.warning_switch_summary)
+    val CODES: String get() = AppText.s(R.string.warning_codes)
+    val EVENTS: String get() = AppText.s(R.string.warning_events)
+    val EXPORT: String get() = AppText.s(R.string.warning_export)
+    val CLEAR: String get() = AppText.s(R.string.warning_clear)
+    val CLEAR_AGAIN: String get() = AppText.s(R.string.warning_clear_again)
+    val NONE: String get() = AppText.s(R.string.warning_none)
 
     /** The row on «Сервис»: the switch's state, or the latest code and when. */
     fun row(state: WarningLogState, nowMs: Long, zone: ZoneId): String {
-        if (!state.enabled) return "Запись выключена"
+        if (!state.enabled) return AppText.s(R.string.warning_recording_off)
         val last = state.sightings.firstOrNull() ?: return NONE
-        return "Последнее: ${WarningJournal.hex(last.code)} · ${day(last.lastMs, nowMs, zone)}"
+        return AppText.s(R.string.warning_row_last, WarningJournal.hex(last.code), day(last.lastMs, nowMs, zone))
     }
 
     fun status(state: WarningLogState, nowMs: Long, zone: ZoneId): Pair<String, WarningTone> = when {
-        !state.enabled -> "Запись выключена" to WarningTone.QUIET
+        !state.enabled -> AppText.s(R.string.warning_recording_off) to WarningTone.QUIET
         state.linked == false && state.lostAtMs != null ->
-            "Машина не отвечает с ${since(state.lostAtMs, nowMs, zone)}" to WarningTone.ATTENTION
-        state.sinceMs != null -> "Запись идёт с ${since(state.sinceMs, nowMs, zone)}" to WarningTone.QUIET
-        else -> "Запись идёт" to WarningTone.QUIET
+            AppText.s(R.string.warning_lost_since, since(state.lostAtMs, nowMs, zone)) to WarningTone.ATTENTION
+        state.sinceMs != null ->
+            AppText.s(R.string.warning_recording_since, since(state.sinceMs, nowMs, zone)) to WarningTone.QUIET
+        else -> AppText.s(R.string.warning_recording) to WarningTone.QUIET
     }
 
     /** A code and the car's name for it, as an event says it: «1DD · Долейте омывающую жидкость». */
@@ -64,32 +67,23 @@ internal object WarningText {
     fun eventTime(ms: Long, zone: ZoneId): String = STAMP.format(Instant.ofEpochMilli(ms).atZone(zone))
 
     fun eventText(event: WarningEvent, names: WarningNames): String = when (event.kind) {
-        WarningEventKind.START -> "Приложение запущено"
+        WarningEventKind.START -> AppText.s(R.string.warning_event_start)
         WarningEventKind.LINK -> when (val code = event.code ?: 0) {
-            0 -> "Машина отвечает, предупреждений нет"
-            else -> "Машина отвечает · ${named(code, names)}"
+            0 -> AppText.s(R.string.warning_event_link_clean)
+            else -> AppText.s(R.string.warning_event_link_code, named(code, names))
         }
         WarningEventKind.CODE -> when (val code = event.code ?: 0) {
-            0 -> "Предупреждение снято"
+            0 -> AppText.s(R.string.warning_event_cleared_code)
             else -> named(code, names)
         }
-        WarningEventKind.LOST -> "Машина не отвечает"
-        WarningEventKind.ON -> "Запись включена"
-        WarningEventKind.OFF -> "Запись выключена"
-        WarningEventKind.CLEARED -> "Журнал очищен"
+        WarningEventKind.LOST -> AppText.s(R.string.warning_event_lost)
+        WarningEventKind.ON -> AppText.s(R.string.warning_event_on)
+        WarningEventKind.OFF -> AppText.s(R.string.warning_recording_off)
+        WarningEventKind.CLEARED -> AppText.s(R.string.warning_event_cleared)
     }
 
     /** «1 раз», «3 раза», «12 раз», «22 раза». */
-    fun times(count: Int): String {
-        val tens = count % 100
-        val word = when {
-            tens in 11..14 -> "раз"
-            count % 10 == 1 -> "раз"
-            count % 10 in 2..4 -> "раза"
-            else -> "раз"
-        }
-        return "$count $word"
-    }
+    fun times(count: Int): String = AppText.p(R.plurals.warning_times, count, count)
 
     /** «сегодня, 08:10», «вчера, 23:40», «16.10, 08:10». */
     fun day(ms: Long, nowMs: Long, zone: ZoneId): String {
@@ -97,8 +91,8 @@ internal object WarningText {
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
         val time = HOURS.format(at)
         return when (at.toLocalDate()) {
-            today -> "сегодня, $time"
-            today.minusDays(1) -> "вчера, $time"
+            today -> AppText.s(R.string.warning_day_today, time)
+            today.minusDays(1) -> AppText.s(R.string.warning_day_yesterday, time)
             else -> "${DATE.format(at)}, $time"
         }
     }
@@ -119,8 +113,17 @@ internal object WarningText {
  * The whole record as one text file for the owner's own reading: the codes with their counts, then
  * every event both ring files still hold, oldest first, each with the code's name as the page shows
  * it and the raw word the journal keeps.
+ *
+ * The file's headers are Russian in every language, because reports stay Russian. The three words it
+ * shares with the page are spelled here as `warning_title`, `warning_codes` and `warning_events` spell
+ * them in `res/values/`, and `WarningTextTest` holds them equal. The description column follows the
+ * app's language through [WarningText.eventText].
  */
 internal object WarningExport {
+    const val TITLE = "Предупреждения машины"
+    const val CODES = "Коды"
+    const val EVENTS = "События"
+
     fun text(
         header: List<String>,
         state: WarningLogState,
@@ -132,7 +135,7 @@ internal object WarningExport {
         appendLine("Запись с: ${state.sinceMs?.let { full(it, zone) } ?: "—"}")
         appendLine("Запись: ${if (state.enabled) "включена" else "выключена"}")
         appendLine()
-        appendLine("[${WarningText.CODES}]")
+        appendLine("[$CODES]")
         appendLine("код\tраз\tвпервые\tпоследний раз\tназвание")
         state.sightings.forEach { s ->
             appendLine(
@@ -141,7 +144,7 @@ internal object WarningExport {
             )
         }
         appendLine()
-        appendLine("[${WarningText.EVENTS}]")
+        appendLine("[$EVENTS]")
         appendLine("время\tсобытие\tкод\tописание")
         events.forEach { e ->
             appendLine(

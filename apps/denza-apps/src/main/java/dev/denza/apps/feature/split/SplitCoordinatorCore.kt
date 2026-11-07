@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
+import dev.denza.apps.core.AppText
 import dev.denza.apps.platform.tasks.TaskMoveOwner
 import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.concurrent.atomic.AtomicReference
@@ -401,7 +403,7 @@ internal class SplitCoordinatorCore(
                 return
             }
             signals.disarm()
-            markBusy(DISABLE_LABEL, enabled = false, message = "Закрываю разделение экрана")
+            markBusy(DISABLE_LABEL, enabled = false, message = AppText.s(R.string.split_closing))
             submit { work -> DisableOperation(work) }
         }
     }
@@ -423,7 +425,7 @@ internal class SplitCoordinatorCore(
             return
         }
         val overlay = overlayOwner.begin()
-        markBusy(OPEN_LABEL, enabled = true, message = "Открываю разделение экрана")
+        markBusy(OPEN_LABEL, enabled = true, message = AppText.s(R.string.split_opening))
         val ticket = submit { work -> OpenOperation(work) }
         synchronized(stateLock) { openTicket = ticket }
         ticket.onComplete { outcome ->

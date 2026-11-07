@@ -13,6 +13,7 @@ app is held to what these files draw.
 | `scanner.json`, `scanner.js` | «Сервис → Диагностика», the scanner: its numbers (colours, text styles with their line heights, each screen's columns and rows) and its drawing code |
 | `shot.py` | renders every board to `../_shots/luminofor/<id>.png` at the displays' own pixels; `--fixtures` exports the scenes to the app's debug assets |
 | `compare.py` | lays a screenshot of the app over its board and reports what moved |
+| `english.js` | `shot.py --lang en`: puts the app's English in place of the Russian on every board. It holds no words; the table comes from the two `strings.xml` |
 
 ## What the design says
 
@@ -45,7 +46,27 @@ python3 shot.py                  # every board
 python3 shot.py main-sound       # one
 python3 shot.py --fixtures       # after editing fixtures.js
 python3 compare.py main-sound app.png
+python3 shot.py --lang en              # every board in English, to ../_shots/luminofor/en/<id>.png
+python3 shot.py --lang en main-sound   # one
+python3 shot.py --lang en --fixtures   # after correcting the English: fixtures.en.json for the debug build
+python3 shot.py --lang en --stays      # what stayed Russian on the boards, and so has no key
+python3 compare.py main-sound app.png --lang en
 ```
+
+The English boards are for looking at. Nothing is normative about them yet: the Russian boards and the code
+are what the app is held to, and the English text is a draft. Every word comes from
+`apps/denza-apps/src/main/res/values-en/strings.xml`, joined to the Russian by key, so a correction there
+reaches the boards with the next render. A Russian render does not load `english.js` and comes out byte for
+byte as it did.
+
+What stays as it is in an English render:
+
+- sample data: track and artist names, addresses, screen sizes;
+- the scanner's boards, whose words have no keys while `feature/diagnostics` is parked, and `digits`, which has no words;
+- the board's own furniture, the hatching's «ШТАТНЫЕ ПРИБОРЫ» and «ШТАТНАЯ ПОЛОСА»;
+- the technical pages' literal report lines (`sheet-service-technical`, `-split`, `-journal`) and the car's own
+  warning names (`sheet-service-warnings*`), which the code does not take from a resource;
+- «Русский», «Русский язык» and «Язык / Language», which each language writes in its own words.
 
 Boards are shot by headless Chrome with Jura, Roboto and Roboto Mono from `fonts/` (OFL, their
 licences beside them), inlined into the page so a render never waits on the network or falls back
@@ -72,7 +93,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-hud-no-navigator` | no Yandex: only the speed on the glass, every line saying what it waits for |
 | `sheet-hud-yandexhud-alone` | a YandexHUD built before the host: it draws turns and map itself, the sign is the one switch |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
-| `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
+| `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car; each has the language row above its pages |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
 | `sheet-service-mobile`, `-off`, `-unknown`, `-absent`, `-failed`, `-busy`, `one-sheet-service-mobile`, `-off` | «Мобильный интернет»: the actual stock traffic-monitor package state, one disable button and a verified result or error; unknown/absent has no mutation action, already disabled/busy makes the button inactive |
 | `sheet-service-warnings`, `-off`, `one-sheet-service-warnings` | «Предупреждения машины»: the cluster's warning slot as the app records it - since when, the switch, every code with its last sighting and how often under the car's name, «Экспортировать» and «Очистить», the newest events to the second; recording, switched off, and the car not answering in the one-third pane (orange). `WarningBoardContractTest` holds every word to `WarningText` |
@@ -194,7 +215,9 @@ Luminofor's grounds (`spec.json` → `sheet`, `drawSheet()` and `drawModal()`):
   screen is a page of rows with the stock badge on the chosen one (`kind: 'chosen'`), the report is
   a page of dense key-value rows (`sheet.pair`) one section a feature - `[Раздел]` then `key=value`
   lines, the rule `techBlocks()` and the app's `TechnicalReadings` share - and the version stands at
-  the panel's foot;
+  the panel's foot. Between what is wrong and the pages stands the app's language: a section, the stock
+  tab row with both languages' names, and a line saying the app will restart. `LanguageRowBoardTest` holds
+  its words to the app;
 - the split's section of the report ends in a plate of its own, a label's gap under its readings:
   one choice row, «Журнал работы», opening a page of the same pair rows in the same format - the
   split's last three operations from its journal, the newest step by step (`+N мс` after its first

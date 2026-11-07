@@ -1,5 +1,7 @@
 package dev.denza.apps.design.luminofor
 
+import dev.denza.apps.core.AppLanguage
+import dev.denza.apps.core.AppText
 import java.io.File
 
 /**
@@ -16,10 +18,20 @@ object SpecJson {
 
     /**
      * The boards' scenes by board id, as the debug build carries them: `luminofor/fixtures.json`,
-     * which `shot.py --fixtures` exports from `fixtures.js`. Each is a `[board, fixture]` pair.
+     * which `shot.py --fixtures` exports from `fixtures.js`. Each is a `[board, fixture]` pair. A test
+     * running in English reads `fixtures.en.json`; a stale one fails the English contract tests until
+     * `shot.py --lang en --fixtures` has run.
      */
-    val fixtures: Map<String, Any?> by lazy {
+    val fixtures: Map<String, Any?>
+        get() = if (AppText.language == AppLanguage.ENGLISH) englishFixtures else russianFixtures
+
+    private val russianFixtures: Map<String, Any?> by lazy {
         parse(find("apps/denza-apps/src/debug/assets/luminofor/fixtures.json").readText()) as Map<String, Any?>
+    }
+
+    /** `shot.py --lang en --fixtures`: the same scenes in `values-en/`, the scanner's boards left out. */
+    private val englishFixtures: Map<String, Any?> by lazy {
+        parse(find("apps/denza-apps/src/debug/assets/luminofor/fixtures.en.json").readText()) as Map<String, Any?>
     }
 
     /** The fixture of board [id]: the second element of its `[board, fixture]` pair. */

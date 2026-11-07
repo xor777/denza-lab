@@ -11,6 +11,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeRecoveryServicePolicy
 import dev.denza.apps.core.RuntimeStartCause
@@ -72,10 +74,10 @@ class RuntimeRecoveryService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Восстановление",
+                AppText.s(R.string.recovery_channel_name),
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Короткий перезапуск включённых функций"
+                description = AppText.s(R.string.recovery_channel_description)
                 setShowBadge(false)
             },
         )
@@ -84,7 +86,7 @@ class RuntimeRecoveryService : Service() {
     private fun notification(): Notification = Notification.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_denza_apps)
         .setContentTitle("Denza Apps")
-        .setContentText("Восстановление фоновых функций")
+        .setContentText(AppText.s(R.string.recovery_notification_text))
         .setOngoing(true)
         .setShowWhen(false)
         .build()

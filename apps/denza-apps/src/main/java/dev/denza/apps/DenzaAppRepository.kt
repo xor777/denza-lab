@@ -8,6 +8,10 @@ import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import dev.denza.apps.R
+import dev.denza.apps.core.AppLanguage
+import dev.denza.apps.core.AppLanguageRestart
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
@@ -182,7 +186,7 @@ data class DenzaUiState(
         desiredEnabled = false,
         status = FeatureStatus.READY,
     ),
-    val navigationButtonLabel: String = "На приборку",
+    val navigationButtonLabel: String = AppText.s(R.string.navigation_to_dashboard),
     val navigationSteeringWheelButton: Boolean = false,
     val navigationSteeringWheelButtonReady: Boolean = false,
     val navigationSteeringWheelButtonRepairing: Boolean = false,
@@ -225,7 +229,7 @@ data class DenzaUiState(
     val splitJournal: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     /** Which screen the instruments are going to, said the way the service panel says it. */
-    val clusterDisplayLabel: String = "Определяется автоматически",
+    val clusterDisplayLabel: String = AppText.s(R.string.cluster_display_automatic),
     /** The screen chosen by hand on the service's «Приборный экран» page, or null when the app picks. */
     val clusterDisplayOverride: Int? = null,
     /** The screen the app would pick by itself, named as the page names it; null when it cannot. */
@@ -357,6 +361,12 @@ object DenzaAppRepository {
 
     fun initialize(context: Context) {
         initializeAdbGate(context.applicationContext)
+    }
+
+    /** The language row of «Сервис»: a language other than the running one restarts the app. */
+    fun selectLanguage(language: AppLanguage) {
+        val context = appContext ?: return
+        AppLanguageRestart.choose(context, language)
     }
 
     fun recoverEnabledFeatures(context: Context) {
@@ -958,10 +968,10 @@ object DenzaAppRepository {
         when (val selection = ClusterDisplayResolver.resolve(context)) {
             is ClusterDisplaySelection.Selected -> {
                 val name = clusterDisplayName(selection, candidates).orEmpty()
-                if (ClusterDisplayResolver.hasOverride(context)) name else "Определён сам: $name"
+                if (ClusterDisplayResolver.hasOverride(context)) name else AppText.s(R.string.cluster_display_detected, name)
             }
-            is ClusterDisplaySelection.NeedsVerification -> "Нужно выбрать экран"
-            ClusterDisplaySelection.Missing -> "Не найден"
+            is ClusterDisplaySelection.NeedsVerification -> AppText.s(R.string.cluster_display_needs_choice)
+            ClusterDisplaySelection.Missing -> AppText.s(R.string.cluster_display_missing)
         }
 
     /**
@@ -1283,7 +1293,7 @@ object DenzaAppRepository {
                 SimulcastReconcileEvent.Repairing -> {
                     val simulcast = FeatureReducer.recovering(
                         FeatureReducer.starting(FeatureId.SIMULCAST),
-                        "Восстанавливаю доступ",
+                        AppText.s(R.string.simulcast_recovering_access),
                     )
                     publisher.publish("simulcast") { current ->
                         current.copy(

@@ -18,6 +18,7 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 
 /**
  * Keeps the cloud link's adapter alive while the switch is on, and tells it when internet comes and
@@ -119,8 +120,8 @@ class CloudLinkService : Service() {
 
     private fun createNotificationChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Облако", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Связь машины с облаком через интернет"
+            NotificationChannel(CHANNEL_ID, AppText.s(R.string.cloud_channel_name), NotificationManager.IMPORTANCE_MIN).apply {
+                description = AppText.s(R.string.cloud_channel_description)
                 setShowBadge(false)
             },
         )
@@ -136,7 +137,7 @@ class CloudLinkService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText(if (CloudLinkSettings.pendingDisable(this)) "Завершается отключение облака" else "Связь с облаком поддерживается")
+            .setContentText(if (CloudLinkSettings.pendingDisable(this)) AppText.s(R.string.cloud_notification_disabling) else AppText.s(R.string.cloud_notification_kept))
             .setContentIntent(openApp)
             .setOngoing(true)
             .setShowWhen(false)

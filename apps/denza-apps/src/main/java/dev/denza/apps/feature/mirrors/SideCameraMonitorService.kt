@@ -15,6 +15,7 @@ import dev.denza.apps.R
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
@@ -587,7 +588,7 @@ class SideCameraMonitorService : Service() {
 
     private fun ensureChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Зеркала", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL_ID, AppText.s(R.string.mirrors_channel_name), NotificationManager.IMPORTANCE_LOW),
         )
     }
 
@@ -602,7 +603,7 @@ class SideCameraMonitorService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText("Зеркала включены")
+            .setContentText(AppText.s(R.string.mirrors_notification_on))
             .setContentIntent(open)
             .setOngoing(true)
             .build()

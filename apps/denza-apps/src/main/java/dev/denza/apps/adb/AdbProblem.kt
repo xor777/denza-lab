@@ -37,7 +37,7 @@ enum class AdbProblem(
 
     companion object {
         /** The one caption a feature tile shows for either kind. */
-        const val WORDS = FeatureWords.NO_ACCESS
+        val WORDS: String get() = FeatureWords.NO_ACCESS
 
         /**
          * The problem [error] is, looking down its chain of causes; null when it is not the

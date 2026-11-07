@@ -260,6 +260,12 @@
   // that opens its panel; the car's access grows its buttons only when there is no access. The
   // instruments' screen and the technical readings are pages, and the version is the foot.
   const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
+  // the app's own language: both names stay whichever is on, and it stands above the pages, on the
+  // first screen, so that nobody has to read the panel or scroll it to find the way out of Russian
+  const SVC_LANGUAGE = { t: 'section', label: 'Язык / Language', body: [
+    { t: 'segmented', labels: ['Русский', 'English'], selected: 0 },
+    { t: 'note', text: 'Приложение перезапустится, чтобы сменить язык.' }
+  ] };
   // the restore's row says what it did after the last boot, in its colour when it needs somebody.
   // «Диагностика» is parked: its row exists only in a `-Pdiagnostics` build, not here.
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
@@ -440,7 +446,7 @@
       { state: 'WaitingWifi', look: 'CLOSED', outcome: 'WAITING_WIFI', closed: '08:10:40', outcomeAt: '08:10:41', wifi: false }),
     ok: sheetOf(11, {
       title: 'Сервис',
-      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
+      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_LANGUAGE, SVC_MORE],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main' })),
     trouble: sheetOf(11, {
@@ -452,6 +458,7 @@
           { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
           SVC_ACCESS
         ] },
+        SVC_LANGUAGE,
         SVC_MORE
       ],
       footer: [SVC_VERSION]
@@ -466,6 +473,7 @@
           { t: 'button', text: 'Отправить один запрос' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
+        SVC_LANGUAGE,
         // a key the car refuses is one the restore cannot use either
         svcMore('Не может вернуть доступ', 'broken')
       ],

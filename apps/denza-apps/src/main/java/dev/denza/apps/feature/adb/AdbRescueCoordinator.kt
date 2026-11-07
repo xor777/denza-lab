@@ -2,8 +2,10 @@ package dev.denza.apps.feature.adb
 
 import android.annotation.SuppressLint
 import android.content.Context
+import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.core.AppText
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,7 +23,7 @@ enum class AdbRescuePhase {
 
 data class AdbRescueSnapshot(
     val phase: AdbRescuePhase = AdbRescuePhase.UNKNOWN,
-    val message: String = "Доступ ещё не проверен",
+    val message: String = AppText.s(R.string.adb_not_checked),
     val details: String? = null,
     val requestPending: Boolean = false,
     val attemptCount: Int = 0,
@@ -72,14 +74,11 @@ internal object AdbRescuePolicy {
      * обвиняет. Хвост «системный запрос не появится» убран — на экране «ADB недоступен» кнопки
      * запроса нет вообще, и фраза говорила про орган, которого там не видно.
      */
-    const val SYSTEM_SWITCH_OFF_DETAIL =
-        "Отладка по ADB выключена в системе автомобиля"
+    val SYSTEM_SWITCH_OFF_DETAIL: String get() = AppText.s(R.string.adb_switch_off)
 
-    const val SYSTEM_SWITCH_ON_DETAIL =
-        "Отладка по ADB включена в системе автомобиля"
+    val SYSTEM_SWITCH_ON_DETAIL: String get() = AppText.s(R.string.adb_switch_on)
 
-    const val SYSTEM_SWITCH_UNREADABLE_DETAIL =
-        "Состояние отладки по ADB прочитать не удалось"
+    val SYSTEM_SWITCH_UNREADABLE_DETAIL: String get() = AppText.s(R.string.adb_switch_unreadable)
 
     /** The reading of the switch, as the gate and the access row both say it. */
     fun switchReading(systemSwitch: AdbSystemSwitch): String = when (systemSwitch) {
@@ -89,7 +88,7 @@ internal object AdbRescuePolicy {
     }
 
     /** The access row's words for a car whose adbd does not answer, or whose switch is off. */
-    const val NO_LINK = "Нет связи с машиной"
+    val NO_LINK: String get() = AppText.s(R.string.adb_no_link)
 
     /**
      * Whether the single attempt may be spent, given a switch read at the moment of the press.
@@ -120,8 +119,8 @@ internal object AdbRescuePolicy {
     ): AdbRescueSnapshot = if (requestPending) {
         AdbRescueSnapshot(
             phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-            message = "Предыдущий запрос ожидает проверки",
-            details = "Сначала проверьте доступ; новый запрос автоматически не отправится",
+            message = AppText.s(R.string.adb_previous_request_pending),
+            details = AppText.s(R.string.adb_previous_request_details),
             requestPending = true,
             attemptCount = attemptCount,
             lastAttemptAtMillis = lastAttemptAtMillis,
@@ -135,7 +134,7 @@ internal object AdbRescuePolicy {
 
     fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.CHECKING,
-        message = "Проверяю доступ…",
+        message = AppText.s(R.string.adb_checking),
         details = null,
     )
 
@@ -151,8 +150,8 @@ internal object AdbRescuePolicy {
             // trusted and the transport works.
             AdbCheckOutcome.TRUSTED -> base.copy(
                 phase = AdbRescuePhase.TRUSTED,
-                message = "ADB-доступ подтверждён",
-                details = "Denza Apps использует уже доверенный ключ",
+                message = AppText.s(R.string.adb_trusted),
+                details = AppText.s(R.string.adb_trusted_details),
                 requestPending = false,
             )
             // A refused key means one of two different things, and only the switch separates them.
@@ -165,14 +164,14 @@ internal object AdbRescuePolicy {
                 -> if (base.requestPending) {
                     base.copy(
                         phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-                        message = "Запрос отправлен, но доступ ещё не выдан",
-                        details = "Разрешите запрос на экране машины, затем нажмите «Проверить доступ»",
+                        message = AppText.s(R.string.adb_request_sent_not_granted),
+                        details = AppText.s(R.string.adb_request_sent_not_granted_details),
                     )
                 } else {
                     base.copy(
                         phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
-                        message = "Нужно разрешение ADB для Denza Apps",
-                        details = "Можно вручную отправить ровно один запрос",
+                        message = AppText.s(R.string.adb_permission_needed),
+                        details = AppText.s(R.string.adb_permission_needed_details),
                     )
                 }
             }
@@ -186,7 +185,7 @@ internal object AdbRescuePolicy {
             )
             AdbCheckOutcome.ERROR -> base.copy(
                 phase = AdbRescuePhase.ERROR,
-                message = "Доступ не подтверждён",
+                message = AppText.s(R.string.adb_access_not_confirmed),
                 details = switchReading(systemSwitch),
                 lastFailure = failure,
             )
@@ -199,8 +198,8 @@ internal object AdbRescuePolicy {
         systemSwitch: AdbSystemSwitch,
     ): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.REQUESTING,
-        message = "Отправляю один запрос…",
-        details = "Повторов в фоне не будет",
+        message = AppText.s(R.string.adb_requesting),
+        details = AppText.s(R.string.adb_requesting_details),
         requestPending = true,
         attemptCount = previous.attemptCount + 1,
         lastAttemptAtMillis = attemptAtMillis,
@@ -215,24 +214,24 @@ internal object AdbRescuePolicy {
     ): AdbRescueSnapshot = when (outcome) {
         AdbRequestOutcome.ALREADY_TRUSTED -> previous.copy(
             phase = AdbRescuePhase.TRUSTED,
-            message = "ADB-доступ уже выдан",
-            details = "Новый запрос не потребовался",
+            message = AppText.s(R.string.adb_already_trusted),
+            details = AppText.s(R.string.adb_already_trusted_details),
             requestPending = false,
         )
         AdbRequestOutcome.REQUEST_SENT -> previous.copy(
             phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-            message = "Один запрос отправлен",
-            details = "Разрешите его на экране машины, затем проверьте доступ",
+            message = AppText.s(R.string.adb_request_sent),
+            details = AppText.s(R.string.adb_request_sent_details),
         )
         AdbRequestOutcome.UNAVAILABLE -> previous.copy(
             phase = AdbRescuePhase.UNAVAILABLE,
-            message = "Отправка запроса не подтверждена",
+            message = AppText.s(R.string.adb_request_unconfirmed),
             details = switchReading(previous.systemSwitch),
             lastFailure = failure,
         )
         AdbRequestOutcome.ERROR -> previous.copy(
             phase = AdbRescuePhase.ERROR,
-            message = "Отправка запроса не подтверждена",
+            message = AppText.s(R.string.adb_request_unconfirmed),
             details = switchReading(previous.systemSwitch),
             lastFailure = failure,
         )
@@ -240,8 +239,8 @@ internal object AdbRescuePolicy {
 
     fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNKNOWN,
-        message = "Новая попытка разрешена вручную",
-        details = "Сначала проверьте доступ",
+        message = AppText.s(R.string.adb_new_attempt_allowed),
+        details = AppText.s(R.string.adb_check_first),
         requestPending = false,
     )
 }
@@ -341,7 +340,7 @@ object AdbRescueCoordinator {
             running.set(false)
             current = before.copy(
                 phase = AdbRescuePhase.ERROR,
-                message = "Запрос не отправлен",
+                message = AppText.s(R.string.adb_request_not_sent),
                 details = null,
                 lastFailure = "запрос не записан в настройки",
             )
@@ -386,7 +385,7 @@ object AdbRescueCoordinator {
             // The phase stays where it was: nothing was checked, and ERROR would put up the gate's
             // «check failed» screen over a car whose access did not change.
             current = current.copy(
-                message = "Новая попытка не разрешена",
+                message = AppText.s(R.string.adb_new_attempt_refused),
                 lastFailure = "попытка не записана в настройки",
             )
         } else {
