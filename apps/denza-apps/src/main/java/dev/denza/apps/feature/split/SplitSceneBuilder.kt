@@ -7,19 +7,22 @@ import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_FULL_IVI
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_HOME
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_PRIMARY_FULL
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_SECONDARY_FULL
+import dev.denza.apps.feature.split.SplitWorld.Companion.COLD_POLL_INTERVAL_MS
 import dev.denza.apps.feature.split.SplitWorld.Companion.EXIT_SETTLE_MS
 import dev.denza.apps.feature.split.SplitWorld.Companion.MAIN_DISPLAY_ID
 import dev.denza.apps.feature.split.SplitWorld.Companion.MAX_TASKS_PER_PANE
 import dev.denza.apps.feature.split.SplitWorld.Companion.ROOT_SETTLE_MS
+import dev.denza.apps.feature.split.SplitWorld.Companion.TASK_DISCOVERY_INTERVAL_MS
 
 /**
  * The scene of an open: a covered scene of ours raised as it stands ([revealOwnedSession]), or the
  * whole scene assembled in one recipe - the two permanent picker bases in their roots, the
  * remembered applications above them, and one postcondition over both panes ([buildScene]).
  *
- * A pane whose application does not come back keeps its working picker (1.3.2); only what this
- * build provably created may be removed, and a user's task found in a pane root leaves it alive
- * (invariant 3).
+ * A pane whose application does not come back keeps its working picker (1.3.2). The build removes
+ * only the product's own components, by exact identity; every other task it finds in a pane root -
+ * the user's, and since 2026-11-11 also an application this very build started - leaves it alive,
+ * evicted into the full root (invariant 3; contract, note after 1.5; 1.3.11).
  */
 internal class SplitSceneBuilder(
     private val world: SplitWorld,
@@ -96,13 +99,16 @@ internal class SplitSceneBuilder(
          */
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
         /**
-         * The ids already living on the main display before this operation's first mutation. It
-         * is the operation's own journal knowledge: a failed pane's candidate may be removed only
-         * when this build provably created it; a pre-existing task is returned to the background
-         * instead. `null` means the past could not be read, and then nothing is ever removed as
-         * "created".
+         * How many milliseconds this build may still spend, all of it: the operation answers it
+         * from its own deadline, less what its read-back needs after the build
+         * ([OPEN_READ_BACK_RESERVE_MS]), and it is asked again at every look, so it is the time
+         * left, not a duration. A cold application - one whose package had no living task when the
+         * build looked (1.3.11, «К 1.14») - is waited for out of it, and every wait stops while
+         * what has to follow it still fits ([COLD_DISCOVERY_RESERVE_MS],
+         * [COLD_DEGRADE_RESERVE_MS]). `null` - the default - is a build with no clock: the short,
+         * counted budgets alone, a cold application included.
          */
-        preexistingTaskIds: Set<Int>? = null,
+        timeLeftMs: (() -> Long)? = null,
         /**
          * The phases of the build for the diagnostic ring ("roots-started" ...
          * "placement-confirmed"), so that the seconds of a slow build are attributed by the
@@ -137,6 +143,21 @@ internal class SplitSceneBuilder(
         // gets control. Explicit PRIMARY/SECONDARY categories create and target the same native
         // roots without consulting that remembered OEM pair.
         val before = world.snapshot()
+        // A cold application is one whose package has no living task anywhere when the build
+        // looks: its launch is a process start, which takes seconds after sleep, and the short
+        // budget of a warm restore would give it up while it is still starting (1.3.11).
+        val cold = wanted.filterValues { target ->
+            before.roots.none { root ->
+                root.tasks.any { task ->
+                    task.packageName == target.packageName &&
+                        !task.isOwnSplitComponent() &&
+                        !task.isEmptyRootMarker()
+                }
+            }
+        }.keys
+        if (cold.isNotEmpty()) {
+            onPhase("cold: " + cold.joinToString(", ") { pane -> wanted.getValue(pane).packageName })
+        }
 
         // Phase 2 - the roots. A picker already in its pane is adopted, never rebuilt.
         val existingPickerTasks = SplitPane.entries.associateWith { pane ->
@@ -379,16 +400,11 @@ internal class SplitSceneBuilder(
                 }
         }
         // Membership of a panel root is no verdict (invariant 3; contract, note under 1.5). Only
-        // what is provably ours is removed - our own components by exact identity, and tasks this
-        // operation created by its own journal read. Any other task of a root is the user's,
-        // however it got there (pulled in natively, an earlier selection), and is evicted alive
-        // into the full root, with that root's geometry because it does not go to the background
-        // there. An unread past (`preexistingTaskIds == null`) counts as not ours: no proven
-        // creation, no removal.
-        val (executable, foreign) = stale.partition { task ->
-            task.isOwnSplitComponent() ||
-                (preexistingTaskIds != null && task.id !in preexistingTaskIds)
-        }
+        // our own components are removed, by exact identity. Any other task of a root is the
+        // user's, however it got there (pulled in natively, an earlier selection, an application
+        // an earlier restore started), and is evicted alive into the full root, with that root's
+        // geometry because it does not go to the background there.
+        val (executable, foreign) = stale.partition(SplitTask::isOwnSplitComponent)
         commands.removeTasksSafely(executable.distinctBy(SplitTask::id))
         commands.evictToFullRoot(foreign)
         if (launching.isNotEmpty()) {
@@ -400,6 +416,9 @@ internal class SplitSceneBuilder(
                 paneApps = SplitPane.entries.associateWith { pane -> wanted[pane]?.packageName },
                 appTaskIds = appTaskIds,
                 failed = failed,
+                cold = cold,
+                coldWaitMs = { (timeLeftMs?.invoke() ?: 0L) - COLD_DISCOVERY_RESERVE_MS },
+                before = settled,
                 onTask = onTask,
             )
         }
@@ -432,7 +451,7 @@ internal class SplitSceneBuilder(
         // After the launches a pane is still "base and application", and the build makes it so,
         // not the postcondition: whatever the firmware brought into a root beyond the pair is no
         // reason to fail a finished scene. The cleanup above saw the world before the launches.
-        sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds, preexistingTaskIds)
+        sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds)
         // A pane's window is whichever task of its application is actually on top - the same
         // answer the selection takes from the world: the firmware may bring both tasks of a
         // package into the pane and put the other one on top.
@@ -440,25 +459,23 @@ internal class SplitSceneBuilder(
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
         normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
-        // 1.3.2: a pane whose app did not come back keeps its picker - and only what this build
-        // itself created may die with the attempt.
-        failed.forEach { pane ->
-            val packageName = targets[pane]?.packageName ?: return@forEach
-            runCatching {
-                discardFailedRestoration(
-                    pane = pane,
-                    packageName = packageName,
-                    pickerTaskId = hostTaskIds.getValue(pane),
-                    preexistingTaskIds = preexistingTaskIds,
-                )
-            }
-        }
-        onPhase("scene-normalized")
+        // 1.3.2, 1.3.11: a pane whose app did not come back keeps its picker, and the app is not
+        // killed for it - not even one this build started itself. All such panes leave in one
+        // eviction.
+        discardFailedRestorations(failed, targets, hostTaskIds)
+        onPhase(SPLIT_PHASE_SCENE_NORMALIZED)
         val panes = awaitScenePlacement(
             pickerComponents = pickerComponents,
             rootIds = rootIds,
             hostTaskIds = hostTaskIds,
             appTaskIds = appTaskIds,
+            failed = failed,
+            cold = cold,
+            timeLeftMs = timeLeftMs,
+            degrade = { panes ->
+                onPhase("cold-not-placed: " + panes.joinToString(", ") { pane -> pane.name })
+                discardFailedRestorations(panes, targets, hostTaskIds)
+            },
         )
         onPhase("placement-confirmed")
         return SplitSceneBuild(panes = panes, failed = failed)
@@ -477,8 +494,17 @@ internal class SplitSceneBuilder(
         paneApps: Map<SplitPane, String?>,
         appTaskIds: MutableMap<SplitPane, Int>,
         failed: MutableSet<SplitPane>,
+        cold: Set<SplitPane>,
+        coldWaitMs: () -> Long,
+        before: SplitTaskSnapshot,
         onTask: (SplitBuiltTask) -> Unit,
     ) {
+        // Where every task stood before the launches, on every display: a launch without a new
+        // task brings the package's own task over from wherever it was - another display
+        // included - and that place, not the pane it landed in, is the inverse of the borrow.
+        val rootBefore = before.roots.asSequence()
+            .flatMap { root -> root.tasks.asSequence().map { task -> task.id to root.id } }
+            .toMap()
         val separable = launching.values.distinctBy(SplitLaunchTarget::packageName).size ==
             launching.size
         val groups = if (separable) {
@@ -500,11 +526,17 @@ internal class SplitSceneBuilder(
             if (started.isEmpty()) return@forEach
             // One poll answers the whole group from the same reads, with no settle before it: a
             // restore's task already exists, so the very first read finds it. A pane keeps its
-            // first match, and a pane the short budget leaves unmatched fails alone, degrading to
-            // the working picker of 1.3.2 rather than burning reads on a task the firmware will
-            // not hold.
+            // first match, and a warm pane the short budget leaves unmatched fails alone,
+            // degrading to the working picker of 1.3.2 rather than burning reads on a task the
+            // firmware will not hold. A cold one is waited for while the build's time still
+            // leaves room for everything after this wait (1.3.11, [COLD_DISCOVERY_RESERVE_MS]):
+            // its process is still starting.
             val found = linkedMapOf<SplitPane, SplitTask>()
-            world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
+            world.awaitSnapshotMatching(
+                attempts = RESTORE_DISCOVERY_ATTEMPTS,
+                remainingMs = coldWaitMs,
+                longer = { started.keys.any { pane -> pane in cold && pane !in found } },
+            ) { state ->
                 val tasks = state.roots.asSequence()
                     .filter { it.displayId == MAIN_DISPLAY_ID }
                     .flatMap { it.tasks.asSequence() }
@@ -540,7 +572,7 @@ internal class SplitSceneBuilder(
                     SplitBuiltTask(
                         taskId = task.id,
                         component = target.componentName,
-                        fromRootId = task.rootId,
+                        fromRootId = rootBefore[task.id] ?: task.rootId,
                         toRootId = rootIds.getValue(pane),
                     ),
                 )
@@ -552,8 +584,23 @@ internal class SplitSceneBuilder(
         // The promotes are waited out by condition as well: every promoted task listed in its
         // pane root, on a read the following normalize pass then shares. The budget is the
         // restore path's short one: a reparent lands on the very next read, and a task the
-        // firmware keeps out of the pane is answered by the pane's honest degradation.
-        world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
+        // firmware keeps out of the pane is answered by the pane's honest degradation. A cold
+        // task that is in neither pane root yet keeps the wait going while there is time (1.3.11);
+        // one the firmware already put into the other pane is an answer, not a delay (1.5.3).
+        val paneRootIds = rootIds.values.toSet()
+        var landing: SplitTaskSnapshot? = null
+        world.awaitSnapshotMatching(
+            attempts = RESTORE_DISCOVERY_ATTEMPTS,
+            remainingMs = coldWaitMs,
+            longer = {
+                requested.any { (pane, taskId) ->
+                    pane in cold && landing?.roots.orEmpty().none { root ->
+                        root.id in paneRootIds && root.tasks.any { it.id == taskId }
+                    }
+                }
+            },
+        ) { state ->
+            landing = state
             requested.all { (pane, taskId) ->
                 state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
             }
@@ -724,7 +771,6 @@ internal class SplitSceneBuilder(
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
         appTaskIds: Map<SplitPane, Int>,
-        preexistingTaskIds: Set<Int>?,
     ) {
         // Both bases of the scene are untouchable in whichever root they ended: a base outside its
         // pane is a matter for the postcondition, not a reason to kill a live base of our scene.
@@ -743,7 +789,9 @@ internal class SplitSceneBuilder(
             keepByRoot = SplitPane.entries.associate { pane ->
                 rootIds.getValue(pane) to (bases + setOfNotNull(appTaskIds[pane]))
             },
-            preexistingTaskIds = preexistingTaskIds,
+            // No past is passed, so nothing but our own components counts as removable: an
+            // application a restore started is evicted alive like the user's (1.3.11).
+            preexistingTaskIds = null,
             residentByRoot = residentByRoot,
         )
     }
@@ -824,33 +872,38 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Clears a failed restoration candidate off the exact picker pane (1.3.2).
+     * Clears the failed restoration candidates off the exact picker panes (1.3.2), alive, in one
+     * eviction for all of them.
      *
-     * Only a task this operation CREATED may be removed. A living candidate that existed before
-     * is the user's (invariant 3, U2): the pane's degradation neither revives it nor kills it -
-     * it goes back alive into the full root by the same reparent that pulled it in. A past the
-     * operation did not read (`preexistingTaskIds == null`) counts as not ours: no proven
-     * creation, no removal.
+     * A living candidate that existed before is the user's (invariant 3, U2), and since 2026-11-11
+     * so is one this build started: the application the user left in the pane was asked for, its
+     * process may be seconds from ready, and killing it would make the next tap start it cold
+     * again (1.3.11). Every one of them goes into the full root in the background, by the reparent
+     * that evicts every task a pane does not hold, and the scene is raised over them once. The
+     * panes keep their pickers, and the slots their choice - that is the operation's to keep.
      *
-     * @return whether the pane actually had to be cleared.
+     * Nothing about it is worth failing the build for: a pane that could not be cleared is judged
+     * by the placement postcondition like any other.
      */
-    private fun discardFailedRestoration(
-        pane: SplitPane,
-        packageName: String,
-        pickerTaskId: Int,
-        preexistingTaskIds: Set<Int>?,
-    ): Boolean {
-        val rootId = world.nativeRootIds().getValue(pane)
-        val candidates = world.snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
-            task.id != pickerTaskId &&
-                task.packageName == packageName &&
-                !task.isDenzaPickerBase()
+    private fun discardFailedRestorations(
+        panes: Set<SplitPane>,
+        targets: Map<SplitPane, SplitLaunchTarget>,
+        hostTaskIds: Map<SplitPane, Int>,
+    ) {
+        if (panes.none { pane -> targets[pane] != null }) return
+        runCatching {
+            val rootIds = world.nativeRootIds()
+            val state = world.snapshot()
+            val candidates = panes.flatMap { pane ->
+                val packageName = targets[pane]?.packageName ?: return@flatMap emptyList()
+                state.root(rootIds.getValue(pane))?.tasks.orEmpty().filter { task ->
+                    task.id != hostTaskIds.getValue(pane) &&
+                        task.packageName == packageName &&
+                        !task.isOwnSplitComponent()
+                }
+            }
+            commands.evictToFullRoot(candidates.distinctBy(SplitTask::id))
         }
-        val (created, borrowed) = candidates.partition { task ->
-            preexistingTaskIds != null && task.id !in preexistingTaskIds
-        }
-        val removed = commands.removeTasksSafely(created)
-        return commands.evictToFullRoot(borrowed) || removed
     }
 
     /**
@@ -864,30 +917,80 @@ internal class SplitSceneBuilder(
      * The second, independent observation is the operation's own read-back (contract 7.7,
      * `OpenOperation.readBack`), which re-reads the settled scene from the car after the shared
      * topology is dropped - the guard against a picker left over an application.
+     *
+     * Ред. 2026-11-11 (1.3.11): a cold application may cost only its own pane, and the open still
+     * ends inside its deadline. So, while a cold pane still has its application assigned:
+     * - no sample fails the build, whatever it refused - a beat of the area, a picker covered for a
+     *   moment, a third task of the starting package in its root - for as long as the wait still
+     *   leaves [COLD_DEGRADE_RESERVE_MS] of [timeLeftMs];
+     * - when it does not, every cold pane still unconfirmed goes back to its picker together, in
+     *   one eviction, and only then is the rest of the scene judged by the warm rules: a scene that
+     *   fails without the cold applications fails the build, a cold application never does.
+     * Every wait is bounded by [timeLeftMs] as well as by its count, so a confirmation after a
+     * degrade cannot run past the time the operation has left.
      */
     private fun awaitScenePlacement(
         pickerComponents: Map<SplitPane, String>,
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
-        appTaskIds: Map<SplitPane, Int>,
+        appTaskIds: MutableMap<SplitPane, Int>,
+        failed: MutableSet<SplitPane>,
+        cold: Set<SplitPane>,
+        timeLeftMs: (() -> Long)?,
+        degrade: (Set<SplitPane>) -> Unit,
     ): Map<SplitPane, SplitPickerLivePane> {
-        var lastError: Throwable? = null
-        repeat(APP_PLACEMENT_CONFIRM_ATTEMPTS) { attempt ->
+        var attempts = 0
+        // A clock that does not move (a test's) still ends the cold wait: the pauses are summed
+        // against what the clock reported when the wait began, as [SplitWorld.awaitSnapshotMatching]
+        // does.
+        var coldCeilingMs: Long? = null
+        var coldWaitedMs = 0L
+        while (true) {
             val sample = runCatching {
                 scenePlacement(pickerComponents, rootIds, hostTaskIds, appTaskIds)
             }
             sample.getOrNull()?.let { placement -> return placement }
-            sample.exceptionOrNull()?.let { error ->
-                lastError = error
+            val error = sample.exceptionOrNull()
+                ?: IllegalStateException("Сцена не достигла устойчивого состояния")
+            attempts += 1
+            val waiting = cold.filterTo(linkedSetOf()) { pane -> pane in appTaskIds }
+            if (waiting.isEmpty()) {
                 // The recipe has finished changing what the panes hold, and no wait changes it
                 // (1.13): polling a hopeless build out would only push the open past its ceiling.
                 if (error is SettledPlacementError) throw error
-            }
-            if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
+                val more = attempts < APP_PLACEMENT_CONFIRM_ATTEMPTS &&
+                    (timeLeftMs == null ||
+                        timeLeftMs() > APP_PLACEMENT_CONFIRM_INTERVAL_MS + SCENE_SAMPLE_BOUND_MS)
+                if (!more) throw error
                 world.pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
+                continue
             }
+            val interval = if (attempts < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
+                APP_PLACEMENT_CONFIRM_INTERVAL_MS
+            } else {
+                COLD_POLL_INTERVAL_MS
+            }
+            val more = if (timeLeftMs == null) {
+                attempts < APP_PLACEMENT_CONFIRM_ATTEMPTS
+            } else {
+                val leftMs = timeLeftMs() - COLD_DEGRADE_RESERVE_MS
+                val ceilingMs = coldCeilingMs ?: leftMs.also { coldCeilingMs = it }
+                leftMs > 0L && coldWaitedMs < ceilingMs
+            }
+            if (more) {
+                world.pause(interval)
+                coldWaitedMs += interval
+                continue
+            }
+            // 1.3.11: the cold applications did not take their panes in the operation's time.
+            // Their panes go back to their pickers and the applications into the background,
+            // alive, all in one eviction; the rest of the scene is confirmed afresh, by the warm
+            // rules and within the time that is left.
+            appTaskIds -= waiting
+            failed += waiting
+            degrade(waiting)
+            attempts = 0
         }
-        throw lastError ?: IllegalStateException("Сцена не достигла устойчивого состояния")
     }
 
     /** One sample: one area read and one `am stack list` for both panes together. */
@@ -945,11 +1048,11 @@ internal class SplitSceneBuilder(
                 ) { "Пикер ${pane.name} перекрыт посторонней задачей" }
                 SplitPickerLivePane(pane, hostTaskId, null, null)
             } else {
-                check(top.id == appTaskId) {
-                    "Приложение не стало верхним в ${pane.name}"
+                if (top.id != appTaskId) {
+                    throw AppPlacementPending(pane, "Приложение не стало верхним в ${pane.name}")
                 }
-                check(top.bounds == root.bounds) {
-                    "Приложение не приняло размер ${pane.name}"
+                if (top.bounds != root.bounds) {
+                    throw AppPlacementPending(pane, "Приложение не приняло размер ${pane.name}")
                 }
                 SplitPickerLivePane(pane, hostTaskId, top.id, top.packageName)
             }
@@ -962,16 +1065,74 @@ internal class SplitSceneBuilder(
      */
     private class SettledPlacementError(message: String) : IllegalStateException(message)
 
-    private companion object {
+    /**
+     * A refusal of the postcondition that names one pane's application, and only it: not yet the
+     * top of its pane, or not yet at the pane's size. For a cold application that is a process
+     * still starting. Since 2026-11-11 the cold wait outlasts every refusal, not only this one
+     * ([awaitScenePlacement]), and a warm scene polls it like any other beat of the firmware; the
+     * type is kept so the refusal says which pane it is about.
+     */
+    private class AppPlacementPending(val pane: SplitPane, message: String) :
+        IllegalStateException(message)
+
+    internal companion object {
         /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
-        val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
+        private val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
         /**
          * The restore path's waits answer on the first read - a launched task is in
-         * `am stack list` at once, and each read on this car costs 250-300 ms by itself. Two
-         * passes cover the honest case; no match degrades the pane to its picker at once (1.3.2).
+         * `am stack list` at once. Two passes cover the honest case of a warm package; no match
+         * degrades the pane to its picker at once (1.3.2). A cold package waits longer, out of
+         * the build's time (1.3.11).
          */
         const val RESTORE_DISCOVERY_ATTEMPTS = 2
         const val NATIVE_PICKER_SETTLE_MS = 450L
+
+        /**
+         * One shell round trip, from above. Measured on the car over the product's own shell
+         * (findings, "What a command costs", live v33): 46-50 ms warm, 87-103 ms while the shell-UID
+         * helper is born. The area and root reads (tx30, tx118) are answered in this process in
+         * about a millisecond (findings, "The three calls, live from an app UID") and are not
+         * counted.
+         */
+        const val SHELL_TRIP_BOUND_MS = 100L
+
+        /** One look at a placement: one in-process area read and one `am stack list`. */
+        const val SCENE_SAMPLE_BOUND_MS = SHELL_TRIP_BOUND_MS
+
+        /**
+         * [SplitTaskCommands.evictToFullRoot] of the two panes' applications, from above: two moves,
+         * the settle, the read of where they landed, each task resized to its root (a read, the
+         * resize, the settle, a read), and the scene raised over them (a read, the focus, and
+         * the area awaited for at most [EXIT_SETTLE_MS]).
+         */
+        const val EVICTION_BOUND_MS =
+            2 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS + SHELL_TRIP_BOUND_MS +
+                2 * (3 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS) +
+                2 * SHELL_TRIP_BOUND_MS + EXIT_SETTLE_MS
+
+        /**
+         * What the placement's cold wait leaves of the build's time: the last look, which may
+         * start just before the line ([COLD_POLL_INTERVAL_MS] and a sample), the degrade's own read,
+         * the one eviction of every late pane, and the first look of the confirmation after it.
+         */
+        const val COLD_DEGRADE_RESERVE_MS =
+            COLD_POLL_INTERVAL_MS + SCENE_SAMPLE_BOUND_MS + SHELL_TRIP_BOUND_MS +
+                EVICTION_BOUND_MS + SCENE_SAMPLE_BOUND_MS
+
+        /**
+         * What the launch's cold wait leaves: its own last look, the steps between the launch and
+         * the placement (the promotes and their read, the side each app landed on, the sweep, the
+         * windows, the batched resize of four tasks with its settle and two reads), the eviction of
+         * a pane that failed on the way, and then everything the placement itself keeps back.
+         */
+        const val COLD_DISCOVERY_RESERVE_MS =
+            COLD_POLL_INTERVAL_MS + SCENE_SAMPLE_BOUND_MS +
+                2 * SHELL_TRIP_BOUND_MS +
+                2 * SCENE_SAMPLE_BOUND_MS + TASK_DISCOVERY_INTERVAL_MS +
+                3 * SHELL_TRIP_BOUND_MS +
+                6 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS +
+                SHELL_TRIP_BOUND_MS + EVICTION_BOUND_MS +
+                COLD_DEGRADE_RESERVE_MS
     }
 }
 
@@ -983,6 +1144,12 @@ internal class SplitSceneBuilder(
  * refused open leaves them there instead of taking the screen away from the user (1.3.5, U5).
  */
 internal const val SPLIT_PHASE_ROOTS_PLACED = "roots-placed"
+
+/**
+ * The phase of a build just before its placement reads begin: the cover count taken here dates the
+ * witness of the scene the build ends on (invariant 14). A cover heard after it ends that witness.
+ */
+internal const val SPLIT_PHASE_SCENE_NORMALIZED = "scene-normalized"
 
 /**
  * A task a build took charge of, and where it was when the build found it.
@@ -1002,7 +1169,8 @@ internal data class SplitBuiltTask(
  * What one [SplitSceneBuilder.buildScene] settled.
  *
  * [failed] names the panes whose remembered app did not come back; each of them is on its own
- * working picker, and their names are lines of the diagnostic ring (1.3.2, U5).
+ * working picker, its application - if it started - alive in the background, and their names are
+ * lines of the diagnostic ring (1.3.2, 1.3.11, U5). The slot of such a pane keeps its application.
  */
 internal class SplitSceneBuild(
     val panes: Map<SplitPane, SplitPickerLivePane>,

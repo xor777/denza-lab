@@ -375,6 +375,79 @@ class SplitOperationRunnerTest {
     }
 
     @Test
+    fun anAppTaskStartedByARestoreIsEvictedByTheRollbackNotRemoved() {
+        // 1.3.11 (ред. 2026-11-11): задачу приложения, которую подняло восстановление, откат не убивает
+        val journal = journalOf(
+            SplitJournalEntry.GateOpened(prevOpen = false),
+            SplitJournalEntry.PointOfNoReturn("roots placed"),
+            SplitJournalEntry.AppStarted(70, MUSIC),
+        )
+
+        val report = SplitRollback.run(journal, rollback)
+
+        assertEquals(listOf("evictTask(70, $MUSIC)"), rollback.calls)
+        assertEquals(listOf(SplitJournalEntry.AppStarted(70, MUSIC)), report.undone)
+        assertTrue(report.isClean)
+    }
+
+    @Test
+    fun theRollbackExecutorEvictsAnAppTaskAliveIntoTheFullRoot() {
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+        }
+
+        executor(fake, FakeGateLease()).evictTask(70, MUSIC)
+
+        assertTrue("задача жива", fake.hasTask(70))
+        assertEquals("и выселена из панели", FULL_ROOT, fake.taskRoot(70))
+        assertFalse(fake.commands.any { it.contains(" remove-task ") })
+    }
+
+    @Test
+    fun theRollbackExecutorDoesNotRaiseTheSceneOverACover() {
+        // 1.3.8, 1.3.9: Home (0) or the user's own fullscreen window (4) stays in front; the
+        // started application stays in its pane, under the cover with the scene.
+        listOf(0, 4).forEach { coveredArea ->
+            val fake = FakeShell().apply {
+                area = coveredArea
+                addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+                addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+                addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+                addTask(FULL_ROOT, 80, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            }
+
+            executor(fake, FakeGateLease()).evictTask(70, MUSIC)
+
+            assertEquals("area $coveredArea: the app stays in its pane", PRIMARY_ROOT, fake.taskRoot(70))
+            assertFalse(
+                "area $coveredArea: nothing moved, nothing focused: ${fake.commands}",
+                fake.commands.any { it.contains("move-task") || it.startsWith("am task focus") },
+            )
+            assertEquals(coveredArea, fake.area)
+        }
+    }
+
+    @Test
+    fun theRollbackExecutorLeavesAGoneOrForeignTaskAlone() {
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+        }
+        val rollback = executor(fake, FakeGateLease())
+
+        rollback.evictTask(71, MUSIC)
+        assertThrows(IllegalStateException::class.java) { rollback.evictTask(70, NAVIGATOR) }
+
+        assertEquals("ни одна задача не сдвинута", PRIMARY_ROOT, fake.taskRoot(70))
+        assertFalse(fake.commands.any { it.contains("move-task") || it.contains("remove-task") })
+    }
+
+    @Test
     fun theRollbackExecutorLeavesAGateItDoesNotOwn() {
         // инвариант 1 и обязательство к 1.12: чужой gate не закрывается даже в откате
         val fake = FakeShell(initialGate = true)
@@ -563,6 +636,8 @@ class SplitOperationRunnerTest {
         override fun removeTask(taskId: Int, component: String) = call("removeTask($taskId, $component)")
 
         override fun moveTask(taskId: Int, toRootId: Int) = call("moveTask($taskId -> $toRootId)")
+
+        override fun evictTask(taskId: Int, packageName: String) = call("evictTask($taskId, $packageName)")
 
         private fun call(name: String) {
             calls += name

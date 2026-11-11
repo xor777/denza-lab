@@ -29,6 +29,14 @@ internal sealed interface SplitJournalEntry {
 
     data class TaskMoved(val taskId: Int, val fromRootId: Int, val toRootId: Int) : SplitJournalEntry
 
+    /**
+     * An application a restore started (ред. 2026-11-11). It is created by the operation, but it is
+     * the application the user left in the pane, not a component of ours: its inverse takes it out
+     * of the pane alive, into the full root in the background, and never removes it (1.3.11; the
+     * contract's note after 1.5). The next tap then finds it warm.
+     */
+    data class AppStarted(val taskId: Int, val packageName: String) : SplitJournalEntry
+
     /** Irreversible by nature: a removed task cannot be recreated, only reported. */
     data class TaskRemoved(val taskId: Int, val component: String) : SplitJournalEntry
 
@@ -107,6 +115,9 @@ internal interface RollbackExecutor {
     fun removeTask(taskId: Int, component: String)
 
     fun moveTask(taskId: Int, toRootId: Int)
+
+    /** Undo of [SplitJournalEntry.AppStarted]: out of the pane roots, alive, in the background. */
+    fun evictTask(taskId: Int, packageName: String)
 }
 
 internal data class SplitRollbackFailure(
@@ -170,6 +181,7 @@ internal object SplitRollback {
             is SplitJournalEntry.LeaseEnabled -> executor.restoreLease(entry.kind, entry.prevValue)
             is SplitJournalEntry.TaskCreated -> executor.removeTask(entry.taskId, entry.component)
             is SplitJournalEntry.TaskMoved -> executor.moveTask(entry.taskId, entry.fromRootId)
+            is SplitJournalEntry.AppStarted -> executor.evictTask(entry.taskId, entry.packageName)
             // Filtered out before the call; listed so the compiler keeps this exhaustive.
             is SplitJournalEntry.TaskRemoved -> Unit
             is SplitJournalEntry.PointOfNoReturn -> Unit

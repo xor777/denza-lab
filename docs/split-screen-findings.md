@@ -16,7 +16,7 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 |---|---|---|---|
 | «Разделить экран» (`SplitScreenLauncherAlias` → `SplitLauncherEntryActivity`) puts one `SplitPickerActivity` task in each pane with `am start -c byd.intent.category.START_IVI_PRIMARY` / `START_IVI_SECOND -f 0x18010000`; it never calls tx115 and never goes through Home (`SplitTaskCommands.kt`, `SplitSceneBuilder.kt`) | code | 2026-08-18 | [Product direction](#product-direction-explicit-two-picker-session) |
 | A pane app is launched with `0x10200000`, which hands back the package's existing task; `0x18200000` (`MULTIPLE_TASK`) only for a second copy of a package the other pane holds; a `singleTask`/`singleInstance` second copy is refused with «Это приложение не поддерживает два окна» (`SplitTaskCommands.kt`, `SplitSelect.kt`) | code | 2026-08-23 | [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
-| Durable state is one `split_state_v2` snapshot: the enabled flag plus `Closed`/`Picker`/`App(package)` per pane; a task or root id has no encoding (`SplitStore.kt`) | code | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session) |
+| Durable state is one `split_state_v3` snapshot: the enabled flag, `Closed`/`Picker`/`App(package)` per pane, and the pair memory of contract 1.14 (the last pair, up to five recent pairs, the pins in order); a task or root id has no encoding. A stored `split_state_v2` reads as the same slots with an empty memory and is not rewritten until the next commit, which writes v3 and drops v2; a corrupt value reads as the safe default (`SplitStore.kt`) | code | 2026-11-11 | [Product direction](#product-direction-explicit-two-picker-session) |
 | A session leases the gate (the lease is always taken and the gate's prior value is not read; closing it at the end of a session or on disable leaves it closed until the car reboots — accepted by the owner 2026-10-09, contract К 1.12; the earlier "closed only if we opened it" no longer holds), `force_resizable_activities` (`SplitResizeabilityController.kt`) and the four SmartMulti keys `byd_smart_multi_primary_activity` / `_second_activity` / `_primary_position` / `_split_window_mode` (100 both panes, 101 narrow only, 102 wide only), compare-and-restored when the scene ends (`SplitSmartMultiController.kt`); the keys record a split, they do not command one | code | 2026-08-23 | [What a session now borrows and gives back](#what-a-session-now-borrows-and-gives-back-2026-08-23-code), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Settings: state, not controls](#settings-state-not-controls) |
 | Edge drag: the split accessibility service draws no window; it replaces Launcher3 `SplitScreenListActivity` with a Denza picker only after balanced area 3 with no active pointer on 10 consecutive 100 ms samples (5 released non-balanced samples cancel) (`SplitNativePickerAccessibilityService.kt`, `SplitEdge.kt`) | live | 2026-08-22 | [Live acceptance status](#live-acceptance-status) |
 | One toggle: the launcher alias is its persisted position, and `SplitCoordinatorCore.setEnabled` moves the runtime and the firmware signals with it (arms on, disarms off before the teardown). A press on the «Разделение» tile while it is off turns it on by that path and then opens (`SplitScreenToggleController.launch`); the open itself never enables, and a launcher entry that finds the runtime off repairs it from the alias first. An off always commits: a failed teardown or lease restore is a ring line, not a rollback (`DisableOperation`), and `ENABLE` has its own priority that preempts nothing (`SplitActor.kt`) | code | 2026-10-08 | [Where focus actually is](#where-focus-actually-is-and-a-defect-that-no-longer-reproduces-live-v38-2026-08-27), contract 1.2.8 |
@@ -39,7 +39,7 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 | A caption drag down by a third of the display closes the dragged pane app alive. The pane collapses only if its root is left empty; normally our picker under the app is uncovered. Any force-stop of the package over a visible split (an install, Settings, the Recents card) removes both picker bases and leaves the apps, so until the next open the swipe closes the whole pane | live | 2026-10-11 | [A caption swipe closes the whole pane](#a-caption-swipe-closes-the-whole-pane-once-our-picker-is-gone-live-2026-10-11) |
 | Two Denza tasks side by side (hub + picker, picker + picker): a stock divider resize becomes a side swap (`changePrimaryAppAndPosition` returns early); left as the firmware does it, by the owner's decision | live | 2026-09-23 | [A resize between two panes of one package](#a-resize-between-two-panes-of-one-package-moves-them-instead-live-2026-09-23) |
 | Measured: warm open 0.9–1.5 s, cold 3.5 s, first after an install 7.1 s, select 1.1–1.2 s, disable 2.2 s. Budgets: 10 s for toggle/open/select/home, 25 s edge, 30 s reconcile (`SplitOperations.kt`); the waiting shield stays at least 300 ms and at most 15 s (`SplitLaunchOverlay.kt`); a picker's wait for its selection ends by itself at 15 s even with no answer (`SplitPickerWait.kt`, 2026-10-08) | code | 2026-08-27 | [What the operations actually cost](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27), [Explicit restore progress window](#explicit-restore-progress-window-and-bounded-close-2026-08-22) |
-| The remembered pair is erased by the product's own proofs: a pane a restore could not fill within two reads is settled as `Picker` and the task the open created is removed; an application dead under cover, a scene with both applications gone and a collapsed pane lose their package the same way (`SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11) |
+| A pane's choice is lost only to a departure, a collapse, another choice or a package the package manager proves absent (invariant 14, ред. 2026-11-11). A departure is two reads of the pane on the screen with no cover heard between them (`SplitCoreOperation.departureProven`, the one rule for every producer); a failed or late restore, a package that cannot be launched, a death under cover, a sleep, a process restart and «Clear all» keep the choice. A cold package is waited for inside the open's own deadline, the reserves derived from the measured trip cost (`SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS`, `COLD_DEGRADE_RESERVE_MS`); late cold panes go back to their pickers together, and a task the restore started is evicted, never removed. The automaton alone writes the pair memory, in the same commit as the slots; pins are reduced but nothing sends them yet (`SplitAutomaton.kt`, `SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11), [The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
 | "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
 | "The wide picker dies (`recent-task-trimmed`) at every fullscreen launch from Home." Not so: only the first task new to recents after a Home or a collapse arms the trim; fullscreen dock launches of running apps armed none | refuted | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it) |
@@ -47,6 +47,7 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 | "The Home→dock race cannot be won with hints; catch the dock's Home click through accessibility." Not so: the dock's Home makes no click event, while `homekey` (broadcast +3 ms, our receiver +9 ms) and the area push (+0.1 s) win the race; the accessibility Home hint was removed | refuted | 2026-09-23 | [Home, read end to end](#home-read-end-to-end), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 
 **Open questions**
+- Cold starts, none of it measured: whether a task that survives in `am stack list` with its process dead counts as cold (the open calls a package cold only when it has no task at all); in which phase a cold start stalls - the task appearing, the promote landing, or the first frame on top; whether finishing the last activity of a pane pushes area 0 or 4 for a beat, which would end the witness of a plain Back; whether a cold application evicted to the full root shows over the scene; what a trampoline task (a launcher activity that hands off to the real one) does in a pane root ([The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11)).
 - Which branch erases the pair on the road: the two-read restore wait, a death under cover or the end of the scene. The car's `split-journal.log` after a lost pair would settle it ([Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11)).
 - Other BYD firmwares: owners report that split stopped working in 0.7.0-alpha on cars nobody here can reach. A photo of the service's «Технические сведения» split rows («Сплит прошивки», «Сигналы прошивки») would settle which lever is refused ([The split on the service page](#the-split-on-the-service-page-for-a-photo-2026-09-24)).
 - Simulcast has never had its own cross-feature acceptance pass over a live scene; a run with no split task mutations would settle it ([Product direction](#product-direction-explicit-two-picker-session)).
@@ -82,7 +83,8 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 - [The firmware read whole: reconstruction from the OTA image (2026-09-23)](#the-firmware-read-whole-reconstruction-from-the-ota-image-2026-09-23) — the whole OTA corpus (area push, unguarded transactions, detent map, placement, Home, the trim, sleep and wake, self-start) and what the product does with each; the journal and service page (09-24); a cold open against the accessibility repair.
 - [The task proxy's jar, staged by its hash (code, 2026-10-09)](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) — `denza-split-proxy-<sha256>.jar`, verified by hash, every other copy deleted; the same stager as the turn-signal listener's.
 - [The session cut into recipe units (code, 2026-10-09)](#the-session-cut-into-recipe-units-code-2026-10-09) — `SplitPickerShellSession` as the facade of ten units, the proof that no command changed, and the history the recipes' comments used to carry, rule by rule.
-- [Where the remembered pair is lost (code, 2026-11-11)](#where-the-remembered-pair-is-lost-code-2026-11-11) — the five places a slot loses its package, and the two-read restore wait that takes a cold application down.
+- [Where the remembered pair is lost (code, 2026-11-11)](#where-the-remembered-pair-is-lost-code-2026-11-11) — the five places a slot lost its package before the 2026-11-11 code, and what each does now.
+  - [The one rule for a departure, and the cold wait's time (code, 2026-11-11)](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) — the witness and its four producers; the reserves of the open, counted from the measured trip cost.
 
 ## Product direction: explicit two-picker session
 
@@ -3064,6 +3066,11 @@ with the evidence the comments cited.
 
 ## Where the remembered pair is lost (code, 2026-11-11)
 
+> **Superseded 2026-11-11:** the code no longer erases the choice in any of the five places
+> below; each row says what it does now (contract, ред. 2026-11-11: 1.3.11, 1.14, invariant 14,
+> «К 1.14»). What follows describes the build that was on the car that day, and its journal lines
+> still answer the open question about the road.
+
 Read from the code, not yet from a car: the car was asleep, so `files/split-journal.log` was
 not read. The lines `failed to restore <package>`, `unfinished restore` and `мертво под
 накрытием` in that journal say which of the branches below fires on the road.
@@ -3072,13 +3079,63 @@ The durable slot (`SplitStore.kt`) is one value doing two jobs: what the pane ho
 what the user chose. Every proof that a pane holds no application therefore also erases the
 choice, whoever emptied the pane:
 
-| Where | What erases the package |
-|---|---|
-| `OpenOperation.build` (`SplitOperations.kt`, after `scene-built`) | A pane the build could not restore is settled as `Picker`: `unfinishedRestore` is cleared and `BuildSceneSucceeded` carries the live slots. One slow restore forgets the application for good |
-| `SplitSceneBuilder.launchApps` | The restore path waits `RESTORE_DISCOVERY_ATTEMPTS = 2` reads, on the assumption that the task already exists. A pane that is not matched, or whose promote has not landed by then, is `failed`; `discardFailedRestoration` then removes the task this open created, so a cold application is taken down while it is still starting |
-| `ReconcileOperation.settleDeadAppPanes` | An application proven dead under cover (Home, another fullscreen app) settles `AppClosedSettled`: the firmware or the system killing it in the background reads the same as the user closing it |
-| `ReconcileOperation.endScene` | Both recorded applications gone settles `SceneEndedSettled`, both slots to `Picker` (contract 1.7.5, written for «Clear all») |
-| `PaneCollapsedSettled` | The collapsed pane goes to `Closed` (contract 1.3.4); the partner of the pair is not kept anywhere |
+| Where | What erases the package | Now (code, 2026-11-11) |
+|---|---|---|
+| `OpenOperation.build` (`SplitOperations.kt`, after `scene-built`) | A pane the build could not restore is settled as `Picker`: `unfinishedRestore` is cleared and `BuildSceneSucceeded` carries the live slots. One slow restore forgets the application for good | Superseded: the pane stays `App(package)` with its picker on screen and the next tap finishes it; `BuildSceneSucceeded` carries `SplitCoordinatorCore.provenSlots`, which keeps a durable application over a live pane without one unless a departure was seen on a visible scene. The journal says `not restored <package>: the pane keeps its choice`. `unfinishedRestore` is deleted: "durable `App` over a live pane with no application" is derived, not stored. A package the catalogue cannot resolve keeps its slot and its pairs unless the package manager proves it absent; only then is it settled `PackageRemoved`, and every pair holding it goes with it |
+| `SplitSceneBuilder.launchApps` | The restore path waits `RESTORE_DISCOVERY_ATTEMPTS = 2` reads, on the assumption that the task already exists. A pane that is not matched, or whose promote has not landed by then, is `failed`; `discardFailedRestoration` then removes the task this open created, so a cold application is taken down while it is still starting | Superseded: a package with no task before the open is cold and is waited for, by condition, inside the operation's deadline less what must still follow each wait (see [the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11)); a warm one keeps the two reads, and the 10 s ceiling is unchanged. Cold panes that still have not taken their place go back to their pickers together, in one eviction (`cold-not-placed`), and the neighbour's scene stands. `discardFailedRestorations` evicts the tasks alive into the full root, and a rollback undoes a task the restore started (`SplitJournalEntry.AppStarted`) by the same eviction, never by `remove-task`, and not at all under a cover |
+| `ReconcileOperation.settleDeadAppPanes` | An application proven dead under cover (Home, another fullscreen app) settles `AppClosedSettled`: the firmware or the system killing it in the background reads the same as the user closing it | Superseded: the dead pane is recorded on its picker in the live scene and nothing is settled; the slot keeps the application and the next tap brings it back. A pane loses its application only to a departure proven by `SplitCoreOperation.departureProven`: in a reconcile's or a selection's read-back as `Picker` in `BuildSceneSucceeded`, and as `AppClosedSettled` from a revealed picker or a collapse |
+| `ReconcileOperation.endScene` | Both recorded applications gone settles `SceneEndedSettled`, both slots to `Picker` (contract 1.7.5, written for «Clear all») | Superseded: `SceneEndedSettled` ends the scene and keeps both slots, so the next open restores the pair (scenarios 35, 36) |
+| `PaneCollapsedSettled` | The collapsed pane goes to `Closed` (contract 1.3.4); the partner of the pair is not kept anywhere | Still `Closed` (1.3.4 is unchanged), but the pair is kept: it became the memory's last pair when it stood in both panes, and a collapse does not touch the memory (`SplitMemory`, contract 1.14) |
 
 A refused open is the one case that keeps the choice: `unfinishedRestore` holds
 `App(package)` over a standing picker until the next tap.
+
+> **Superseded 2026-11-11:** every failed or late restore keeps the choice now, and
+> `unfinishedRestore` is gone; see the last column of the table.
+
+### The one rule for a departure, and the cold wait's time (code, 2026-11-11)
+
+Read from the code after a review of the change above; nothing here has run on a car.
+
+**A departure.** A pane loses its application only when two reads of that pane, both on the
+screen, saw it there and then not, with no cover heard between them. The witness is the set of
+panes the last on-screen read showed with an application, stamped with the cover count the
+coordinator keeps (`SplitWitness`). Home, a covered area push (0 or 4, heard even while an
+operation runs) and a cover an operation settles end it; the first read after a reveal starts it
+again and proves nothing by itself. A read under a cover records an application gone in the live
+scene and keeps the slot. An area read that fails throws, the operation fails, and the witness it
+was handed is not consumed. Every producer goes through `SplitCoreOperation.departureProven`:
+
+| Producer | Its evidence that the read is on the screen |
+|---|---|
+| Reconcile read (`reconcileScene`) | The area of the read itself: 3 is on the screen, 0 and 4 are not; the divider repair answers only at 3 |
+| Selection read-back | The read's own area (3, or the survivor's 1 or 2); the chosen application taken from the other pane is the user's own departure (1.5.3) |
+| Revealed picker (`closeRevealedApp`) | The picker reported visible, read in the same `am stack list` as the reconcile just before it. Because the two share one snapshot, they cannot disagree, and this branch is unreachable in practice |
+| Collapse (`adoptCollapse`) | The collapse read is at area 1 or 2, the survivor on the screen; a collapse proven by existence or by the roots' bounds is not, and leaves no witness |
+
+The bias is chosen: every doubt keeps the user's choice. An application that left under a cover,
+or between a cover nobody read and the reveal, keeps its pane, and the next tap brings it back.
+A cover the process never heard, with no read under it, is invisible to this rule.
+
+**The cold wait's time.** Each wait of an open now ends at the time left minus the bound of the
+work that must still follow it, and the bounds are counted from the measured trip cost:
+46–50 ms warm and 87–103 ms cold per shell trip ([What a command costs](#what-a-command-costs-and-what-the-budget-line-measures-live-v33-2026-08-26)),
+so 100 ms from above (`SplitSceneBuilder.SHELL_TRIP_BOUND_MS`). The area and root reads are
+answered in-process in about a millisecond and are not counted. The earlier comments that
+priced a read at 250–300 ms were wrong.
+
+| Reserve | What it covers | Value |
+|---|---|---|
+| `OPEN_READ_BACK_RESERVE_MS` | The open's read-back after the build: four trips | 400 ms |
+| `EVICTION_BOUND_MS` | One eviction of the late panes: moves, settle, the read of where they landed, a resize per task, raising the scene with its 650 ms area wait | 2110 ms |
+| `COLD_DEGRADE_RESERVE_MS` | After the placement's cold wait: its last look, the eviction, the first look of the confirmation | 2660 ms |
+| `COLD_DISCOVERY_RESERVE_MS` | After the launch's cold wait: the promotes, the sweep, the batched resize, an eviction of a pane that failed on the way, and the placement's reserve | 6740 ms |
+
+In the fixture that charges 100 ms per trip, two late cold panes degrade at about 7.1 s and the
+open commits at about 7.7 s. The bounds hold only while the area is read in-process; if the
+binder calls fall back to the shell, every area read costs a trip, and they do not.
+
+While a cold pane is still unconfirmed, no sample of the placement fails the build. When the
+time runs out, every unconfirmed cold pane goes back to its picker in one eviction and the rest
+of the scene is confirmed once more, within the time left. A cold application is never the
+reason the neighbour loses its scene.

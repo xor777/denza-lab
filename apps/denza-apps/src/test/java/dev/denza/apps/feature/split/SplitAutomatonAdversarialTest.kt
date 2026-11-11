@@ -25,11 +25,19 @@ class SplitAutomatonAdversarialTest {
             val random = Random(seed)
             var state = SplitState()
             repeat(200) { step ->
-                val fact = randomFact(random)
+                val fact = randomFact(random, state)
                 val where = "seed=$seed step=$step fact=$fact"
                 val result = SplitAutomaton.reduce(state, fact)
 
                 assertValid(where, result.state)
+                if (fact is SplitFact.PackageRemoved && state.enabled && fact.packageName.isNotBlank()) {
+                    val memory = result.state.memory
+                    assertTrue(
+                        "$where: a removed package stayed in the memory: $memory",
+                        (listOfNotNull(memory.last) + memory.recent + memory.pinned)
+                            .none { pair -> fact.packageName in pair },
+                    )
+                }
                 if (result.state == state) {
                     assertSame("$where: an unchanged state must be the same instance", state, result.state)
                 }
@@ -38,6 +46,7 @@ class SplitAutomatonAdversarialTest {
                 assertValid("$where (replay)", replay.state)
 
                 seen += landmarks(result.state)
+                seen += transitions(state, fact, result.state)
                 state = result.state
             }
         }
@@ -77,6 +86,14 @@ class SplitAutomatonAdversarialTest {
 
     private fun assertValid(where: String, state: SplitState) {
         assertEquals("$where: slots must cover both panes", SplitPane.entries.toSet(), state.slots.keys)
+        // 1.14: память держит свои правила на любом достижимом состоянии, и пара двух приложений на
+        // сцене из двух панелей - всегда последняя.
+        assertTrue("$where: the memory broke its rules: ${state.memory}", state.memory.isWellFormed)
+        if (state.scene == SplitScene.Split) {
+            SplitPair.of(state.slots)?.let { pair ->
+                assertEquals("$where: the pair on screen is not the last one", pair, state.memory.last)
+            }
+        }
         state.slots.forEach { (pane, slot) ->
             if (slot is SplitSlot.App) {
                 assertTrue("$where: $pane holds a blank package", slot.packageName.isNotBlank())
@@ -125,12 +142,43 @@ class SplitAutomatonAdversarialTest {
         if (state.projectedPane != null) add("projected")
         if (state.vacancyApp.isNotEmpty()) add("vacancy")
         if (state.slots.values.count { it is SplitSlot.App } == SplitPane.entries.size) add("pair")
+        if (state.memory.recent.size >= 2) add("recent")
+        if (state.memory.recent.size == SplitMemory.RECENT_LIMIT) add("recent-full")
+        if (state.memory.pinned.size >= 2) add("pins")
+        if (state.memory.pinned.isNotEmpty()) add("pinned")
     }
 
-    private fun randomFact(random: Random): SplitFact {
+    /**
+     * What one step did that no single state shows: the sixth recent pair falling off the end of a
+     * full list (1.14.4), and a reorder that really changed the order of the pins (1.15.7).
+     */
+    private fun transitions(before: SplitState, fact: SplitFact, after: SplitState): Set<String> = buildSet {
+        val was = before.memory.recent
+        val now = after.memory.recent
+        if (
+            was.size == SplitMemory.RECENT_LIMIT &&
+            now.size == SplitMemory.RECENT_LIMIT &&
+            was.last() !in now &&
+            was.last() != after.memory.last &&
+            was.last() !in after.memory.pinned
+        ) {
+            add("recent-overflow")
+        }
+        if (
+            fact is SplitFact.PinsReordered &&
+            after.memory.pinned != before.memory.pinned &&
+            after.memory.pinned.toSet() == before.memory.pinned.toSet()
+        ) {
+            add("pins-reordered")
+        }
+    }
+
+    private fun randomFact(random: Random, state: SplitState = SplitState()): SplitFact {
         val pane = SplitPane.entries.random(random)
         val packageName = PACKAGES.random(random)
-        return when (random.nextInt(13)) {
+        val pair = SplitPair(PAIR_PACKAGES.random(random), PAIR_PACKAGES.random(random))
+        val pinned = state.memory.pinned
+        return when (random.nextInt(20)) {
             0 -> SplitFact.ToggleChanged(enabled = random.nextInt(4) > 0)
             1 -> SplitFact.AppLaunchConfirmed(pane, packageName)
             2 -> SplitFact.AppClosedSettled(pane)
@@ -148,7 +196,21 @@ class SplitAutomatonAdversarialTest {
             9 -> SplitFact.ProjectionStarted(pane)
             10 -> SplitFact.ProjectionReturned
             11 -> SplitFact.PackageRemoved(packageName)
-            else -> SplitFact.BuildSceneSucceeded(BUILDS.random(random))
+            12 -> SplitFact.PairPinned(pair)
+            13 -> SplitFact.PairUnpinned(pair)
+            // The order the pill sends is the pins it shows, rearranged; now and then a malformed one.
+            14 -> if (pinned.size >= 2 && random.nextInt(4) > 0) {
+                SplitFact.PinsReordered(pinned.shuffled(random))
+            } else {
+                SplitFact.PinsReordered(listOf(pair, pair.copy(primary = pair.secondary, secondary = pair.primary)))
+            }
+            15 -> SplitFact.BuildSceneSucceeded(BUILDS.random(random))
+            // A build of any two applications, a quarter of the stream, so that between removals
+            // the memory sees enough different pairs to fill its recent list and push the oldest
+            // one out (1.14.4).
+            else -> SplitFact.BuildSceneSucceeded(
+                mapOf(SplitPane.PRIMARY to SplitSlot.App(pair.primary), SplitPane.SECONDARY to SplitSlot.App(pair.secondary)),
+            )
         }
     }
 
@@ -158,6 +220,9 @@ class SplitAutomatonAdversarialTest {
         const val TEMP = "com.example.temp"
 
         val PACKAGES = listOf(MUSIC, NAVIGATOR, TEMP, "", "   ")
+
+        /** Pairs need more than two packages, or the recent list could never fill (1.14.4). */
+        val PAIR_PACKAGES = listOf(MUSIC, NAVIGATOR, TEMP, "com.example.radio", "")
 
         val BUILDS: List<Map<SplitPane, SplitSlot>> = listOf(
             mapOf(
@@ -188,6 +253,9 @@ class SplitAutomatonAdversarialTest {
             ),
         )
 
-        val LANDMARKS = setOf("split", "full", "covered", "projected", "vacancy", "pair")
+        val LANDMARKS = setOf(
+            "split", "full", "covered", "projected", "vacancy", "pair", "recent", "pinned",
+            "recent-full", "recent-overflow", "pins", "pins-reordered",
+        )
     }
 }

@@ -250,19 +250,20 @@ class SplitAutomatonTest {
         assertEquals(SceneVisibility.VISIBLE, result.state.visibility)
     }
 
+    /**
+     * Ред. 2026-11-11 (1.7.5, инвариант 14, сц. 36): до неё этот тест требовал двух свежих
+     * пикеров - очистка стирала выбор, и так же его стирала любая выгрузка приложений прошивкой.
+     */
     @Test
-    fun clearAllReturnsEveryLiveAppToItsPicker() {
+    fun clearAllEndsTheSceneAndKeepsThePair() {
         // контракт 1.7.5
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
 
         val cleared = SplitAutomaton.reduce(live, SplitFact.SceneEndedSettled).state
 
         assertNull(cleared.scene)
-        assertEquals(
-            "the next open shows fresh pickers, not what the user cleared",
-            mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.Picker),
-            cleared.slots,
-        )
+        assertEquals(SceneVisibility.VISIBLE, cleared.visibility)
+        assertEquals("the next tap brings the same pair back", live.slots, cleared.slots)
     }
 
     @Test
@@ -284,7 +285,9 @@ class SplitAutomatonTest {
         )
         assertEquals(SplitPane.PRIMARY, cleared.projectedPane)
         assertEquals(mapOf(SplitPane.PRIMARY to TEMP), cleared.vacancyApp)
-        assertEquals("everything on the IVI screen was cleared", SplitSlot.Picker, cleared.slot(SplitPane.SECONDARY))
+        // Ред. 2026-11-11 (сц. 30): очистка шла не на видимой сцене, и остальные слоты тоже
+        // остаются `APP` (инвариант 14). До неё здесь стоял `PICKER`.
+        assertEquals("the cleared neighbour keeps its pane", SplitSlot.App(MUSIC), cleared.slot(SplitPane.SECONDARY))
         assertEquals("the navigator still has a pane to come back to", SplitSlot.App(NAVIGATOR), returned.slot(SplitPane.PRIMARY))
         assertNull(returned.projectedPane)
     }
@@ -556,7 +559,12 @@ class SplitAutomatonTest {
         val sceneless = state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.App(NAVIGATOR))
 
         val impossible = listOf(
-            live to SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, NAVIGATOR),
+            // Ред. 2026-11-11: запуск поверх `APP(other)` - законная замена (инвариант 14); прежний
+            // ряд (MUSIC → NAVIGATOR) стал законным. Невозможны повтор того же пакета и закрытая
+            // панель.
+            live to SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
+            fullscreen to SplitFact.AppLaunchConfirmed(SplitPane.SECONDARY, NAVIGATOR),
+            sceneless to SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, TEMP),
             live to SplitFact.AppLaunchConfirmed(SplitPane.SECONDARY, " "),
             live to SplitFact.EdgeCommitConfirmed(SplitPane.SECONDARY),
             live to SplitFact.ProjectionStarted(SplitPane.SECONDARY),

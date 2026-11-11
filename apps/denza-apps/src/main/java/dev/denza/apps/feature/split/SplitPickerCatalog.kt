@@ -197,6 +197,20 @@ internal object SplitPickerCatalog {
         load(context).firstOrNull { it.packageName == packageName }
 
     /**
+     * One package manager lookup, no launcher scan ([SplitLaunchCatalog.presence]). The app holds
+     * `QUERY_ALL_PACKAGES`, so "not found" is not a visibility filter: it is the uninstall.
+     */
+    fun presence(context: Context, packageName: String): SplitPackagePresence =
+        try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            SplitPackagePresence.INSTALLED
+        } catch (_: PackageManager.NameNotFoundException) {
+            SplitPackagePresence.ABSENT
+        } catch (_: Exception) {
+            SplitPackagePresence.UNKNOWN
+        }
+
+    /**
      * Pays for the catalog before the user asks for anything (U6, 1.13.1).
      *
      * The scan is the single slowest read of the open path and it does not depend on the tap, so it

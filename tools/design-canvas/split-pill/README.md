@@ -204,9 +204,11 @@ and the home screen are the stand's.
 
 ## Not yet true
 
-- No app code draws the pill. `feature/split` has no handle, no pill and no pair memory yet.
-- `docs/split-screen-product-contract.md` is not amended for the pill or for pair memory; until it
-  is, that contract still describes the split as it ships.
+- No app code draws the pill. `feature/split` has no handle and no pill; nothing sends the pin
+  facts yet.
+- `docs/split-screen-product-contract.md` was amended on 2026-11-11 for pair memory (1.14) and the
+  pill (1.15). The memory half is in code (`SplitMemory` in `split_state_v3`: the last pair, five
+  recent, the pins; invariant 14) and has not been run on the car; the pill (1.15) is not written.
 - Two things only the car can answer. Whether a window from an accessibility overlay can sit above
   the firmware's divider and leave its drag alone, which decides where the handle can live. And
   whether window blur is available there; the default is the opaque glass for that reason, and

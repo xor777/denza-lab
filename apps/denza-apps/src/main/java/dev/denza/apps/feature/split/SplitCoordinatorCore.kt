@@ -5,6 +5,7 @@ import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.core.AppText
 import dev.denza.apps.platform.tasks.TaskMoveOwner
 import dev.denza.apps.platform.tasks.TaskMoveOwnership
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -181,6 +182,28 @@ internal enum class SplitActionResult {
  */
 internal interface SplitLaunchCatalog {
     fun resolve(packageName: String): SplitLaunchTarget?
+
+    /**
+     * Whether [packageName] is on the car, asked of the package manager and not of the launcher
+     * catalogue above: [resolve] is a filtered scan (visibility policy, the app list's own
+     * exclusions, a launcher component that is disabled for now, a reinstall half done), and a
+     * package it does not list may well be installed. Only a definite "not found" is
+     * [SplitPackagePresence.ABSENT]; any other answer, and any failure to answer, is
+     * [SplitPackagePresence.UNKNOWN], which every caller treats as present (invariant 14: an
+     * observation does not erase a choice).
+     */
+    fun presence(packageName: String): SplitPackagePresence = SplitPackagePresence.UNKNOWN
+}
+
+/** What the package manager says about one package (section 6, 1.14.4). */
+internal enum class SplitPackagePresence {
+    INSTALLED,
+
+    /** The package manager answered "no such package": the one proof of an uninstall. */
+    ABSENT,
+
+    /** No answer worth acting on; treated as installed. */
+    UNKNOWN,
 }
 
 /**
@@ -251,6 +274,18 @@ internal fun SplitDiagnosticLog.log(message: String) = log(message, background =
 internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>
 
 /**
+ * What the live scene can testify to (invariant 14, ред. 2026-11-11): the [panes] whose recorded
+ * application this process saw on a scene that was on the screen, as of the [epoch]-th cover it
+ * had heard of. Every cover the process hears of afterwards - Home, a covered area pushed by the
+ * firmware - moves the count on, and a witness of an older count testifies to nothing. Like the
+ * live scene it is not durable: a process that restarts has seen nothing.
+ */
+internal data class SplitWitness(
+    val panes: Set<SplitPane> = emptySet(),
+    val epoch: Long = 0L,
+)
+
+/**
  * What a navigation return throws when the split side of it did not happen (1.10.7).
  *
  * It is an [IllegalStateException] on purpose: navigation already treats a thrown return as "stay
@@ -314,18 +349,11 @@ internal class SplitCoordinatorCore(
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
-    private var residentRelease: SplitCancellable? = null
+    private var witness = SplitWitness()
 
-    /**
-     * Panes whose remembered application a refused open left standing on a bare picker (1.3.5).
-     *
-     * Contract 1.3.5 calls that screen an unfinished restore rather than an open scene, and this is
-     * the only thing that tells it apart from a pane the user emptied themselves: the world looks
-     * identical either way, and the difference is that this very process knows it just failed to
-     * stand the app up. It is ephemeral by construction (invariant 4) - a process death loses it,
-     * and then the panes are simply what the car says they are.
-     */
-    private var unfinished: Map<SplitPane, String> = emptyMap()
+    /** Every cover this process has heard of, counted ([SplitWitness]). */
+    private val covers = AtomicLong()
+    private var residentRelease: SplitCancellable? = null
     private var busy: Busy? = null
     private var openTicket: SplitTicket? = null
     private var loaded = false
@@ -376,7 +404,7 @@ internal class SplitCoordinatorCore(
             if (loaded) return
             loaded = true
             val durable = store.load()
-            state = SplitState(enabled = durable.enabled, slots = durable.slots)
+            state = SplitState(enabled = durable.enabled, slots = durable.slots, memory = durable.memory)
             session = sessionOf()
             durable.enabled
         }
@@ -564,6 +592,7 @@ internal class SplitCoordinatorCore(
      */
     fun homeKeyPressed() {
         ready()
+        coverHeard()
         if (!currentState().enabled) return
         val owners = actor.pendingPriorities().filter { it in GATE_KEEPERS }
         if (owners.isEmpty()) {
@@ -589,6 +618,10 @@ internal class SplitCoordinatorCore(
      */
     fun areaChanged(area: Int) {
         ready()
+        // Invariant 14: whoever handles it, a covered area ends what the live scene can testify
+        // to - even one an operation of ours walked through, which costs only a witness that the
+        // operation's own read on the screen sets up again.
+        if (area.isCoveredArea()) coverHeard()
         if (!currentState().enabled) return
         val pending = actor.pendingPriorities()
         if (pending.isNotEmpty()) {
@@ -716,14 +749,14 @@ internal class SplitCoordinatorCore(
 
     internal fun currentLive(): SplitLiveScene = synchronized(stateLock) { live }
 
-    internal fun currentUnfinished(): Map<SplitPane, String> =
-        synchronized(stateLock) { unfinished }
+    /** The witness as of now: one from before the last cover heard of testifies to nothing. */
+    internal fun currentWitness(): SplitWitness = synchronized(stateLock) {
+        val epoch = covers.get()
+        if (witness.epoch == epoch) witness else SplitWitness(epoch = epoch)
+    }
 
-    /** Recorded by an open that refused with its bases already standing (invariant 9, 1.3.5). */
-    private fun markUnfinished(panes: Map<SplitPane, String>) {
-        if (panes.isEmpty()) return
-        synchronized(stateLock) { unfinished = unfinished + panes }
-        log.log("unfinished restore left standing: ${panes.values.joinToString(", ")}")
+    private fun coverHeard() {
+        covers.incrementAndGet()
     }
 
     private fun submitEnable(): SplitTicket = submit { work -> EnableOperation(work) }
@@ -796,12 +829,13 @@ internal class SplitCoordinatorCore(
             diagnostics = { line, background -> log.log(line, background || backgroundLane[0]) },
             readState = ::currentState,
             readLive = ::currentLive,
-            readUnfinished = ::currentUnfinished,
-            markUnfinished = ::markUnfinished,
             externalMoveInFlight = ::externalTaskMutationInFlight,
             ownership = ownership,
             userInputWaiting = actor::userInputWaiting,
             publisher = ::publishSettled,
+            readWitness = ::currentWitness,
+            coverEpoch = covers::get,
+            witnessPublisher = ::publishWitness,
         )
         val operation = factory(workspace)
         backgroundLane[0] = operation.label in BACKGROUND_LABELS
@@ -824,15 +858,16 @@ internal class SplitCoordinatorCore(
         synchronized(stateLock) {
             state = next
             live = if (next.scene == null) emptyMap() else nextLive
-            // A restore stops being unfinished the moment a settled scene says so: the pane got
-            // its application, the user chose something else there, the package went away, or the
-            // pane is gone. Without a live scene nothing has been proven about these panes at all,
-            // so the note simply waits (1.3.5).
-            if (next.scene != null) {
-                unfinished = unfinished.filter { (pane, packageName) ->
-                    next.slot(pane) == SplitSlot.App(packageName) &&
-                        nextLive[pane]?.appPackageName == null
-                }
+        }
+    }
+
+    /** Published right after [publishSettled], by the same committed operation. */
+    private fun publishWitness(next: SplitWitness) {
+        synchronized(stateLock) {
+            witness = if (state.scene == null || state.visibility == SceneVisibility.COVERED) {
+                next.copy(panes = emptySet())
+            } else {
+                next
             }
         }
     }
@@ -1078,6 +1113,37 @@ internal class SplitCoordinatorCore(
                 val observed = live[pane] ?: return@associateWith SplitSlot.Closed
                 observed.appPackageName?.let(SplitSlot::App) ?: SplitSlot.Picker
             }
+
+        /**
+         * The slots a live read proves, read against the slots it proves them for - invariant 14
+         * in one place (ред. 2026-11-11).
+         *
+         * A pane the read does not show is closed, and a pane that shows an application holds it.
+         * A pane on its picker is where the two can disagree, and there the slot decides:
+         *
+         * - a projected pane keeps `APP(navigator)`: the navigator is on the cluster and this is
+         *   where it comes back to (1.10.1);
+         * - a pane whose slot names an application keeps it - the restore is owed, not undone
+         *   (1.3.5, 1.3.11) - unless it is in [departed]: the operation proved that the
+         *   application left it in front of the user (`SplitCoreOperation.departureProven`,
+         *   1.14.6), or that the user's own choice of it in the other pane took it there (1.5.3);
+         *   then the pane is a picker again;
+         * - anything else is a picker.
+         *
+         * "Durable `APP`, live pane without an application" is thereby one notion - an unfinished
+         * restore - derived here from the slot and the read, with nothing remembered beside them.
+         */
+        internal fun provenSlots(
+            state: SplitState,
+            read: SplitLiveScene,
+            departed: Set<SplitPane>,
+        ): Map<SplitPane, SplitSlot> = SplitPane.entries.associateWith { pane ->
+            if (pane == state.projectedPane) return@associateWith state.slot(pane)
+            val observed = read[pane] ?: return@associateWith SplitSlot.Closed
+            observed.appPackageName?.let { packageName -> return@associateWith SplitSlot.App(packageName) }
+            val chosen = state.slot(pane) as? SplitSlot.App ?: return@associateWith SplitSlot.Picker
+            if (pane in departed) SplitSlot.Picker else chosen
+        }
 
         /**
          * Whether a failure that reached the core only as text means the control channel itself is

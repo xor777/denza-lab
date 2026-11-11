@@ -78,15 +78,17 @@ internal class SplitOperationWorkspace(
     private val diagnostics: SplitDiagnosticLog,
     private val readState: () -> SplitState,
     private val readLive: () -> SplitLiveScene,
-    /** Panes a refused open left standing on a bare picker (1.3.5); ephemeral, read-only here. */
-    private val readUnfinished: () -> Map<SplitPane, String> = { emptyMap() },
-    private val markUnfinished: (Map<SplitPane, String>) -> Unit = {},
     val externalMoveInFlight: () -> Boolean,
     /** Общее на процесс право двигать задачи; операции берут его через свой [SplitTaskMoveOwnership]. */
     val ownership: TaskMoveOwnership,
     /** Правка W5, §4: явный запрос пользователя ждёт в очереди прямо сейчас. Read-only. */
     val userInputWaiting: () -> Boolean = { false },
     private val publisher: (SplitState, SplitLiveScene) -> Unit,
+    /** What the live scene saw on the screen, as the process holds it ([SplitWitness]). */
+    private val readWitness: () -> SplitWitness = { SplitWitness() },
+    /** How many covers the process has heard of so far ([SplitWitness.epoch]). */
+    val coverEpoch: () -> Long = { 0L },
+    private val witnessPublisher: (SplitWitness) -> Unit = {},
 ) : AutoCloseable {
 
     private val handleLock = Any()
@@ -112,6 +114,7 @@ internal class SplitOperationWorkspace(
         apkPath = apkPath,
         clock = clock,
         proxyClasspath = proxyClasspath,
+        sleeper = sleeper,
     )
 
     /**
@@ -272,9 +275,7 @@ internal class SplitOperationWorkspace(
 
     fun live(): SplitLiveScene = readLive()
 
-    fun unfinishedRestore(): Map<SplitPane, String> = readUnfinished()
-
-    fun markUnfinishedRestore(panes: Map<SplitPane, String>) = markUnfinished(panes)
+    fun witness(): SplitWitness = readWitness()
 
     /** Whether the product currently holds the firmware-global gate lease (contract, to 1.12). */
     fun gateOwned(): Boolean = gateLeaseStore.isOwned()
@@ -300,8 +301,9 @@ internal class SplitOperationWorkspace(
         ).also { built -> session = built }
     }
 
-    fun publish(state: SplitState, live: SplitLiveScene) {
+    fun publish(state: SplitState, live: SplitLiveScene, witness: SplitWitness = SplitWitness()) {
         publisher(state, live)
+        witnessPublisher(witness)
     }
 
     /**
@@ -354,6 +356,8 @@ internal class SplitShellRollbackExecutor(
     private val clock: SplitClock,
     private val budgetMs: Long = ROLLBACK_BUDGET_MS,
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
+    /** The settle of an eviction; raw, like every command here, because the token is dead. */
+    private val sleeper: (Long) -> Unit = {},
 ) : RollbackExecutor {
 
     private var deadlineAtMs: Long? = null
@@ -403,6 +407,30 @@ internal class SplitShellRollbackExecutor(
         budgeted("am stack move-task $taskId $toRootId true")
     }
 
+    /**
+     * Undo of a [SplitJournalEntry.AppStarted]: the exact task, if it is still that package's and
+     * still in a pane root, goes into the full root in the background by the same eviction the
+     * recipes use for a user's task ([SplitTaskCommands.evictToFullRoot]). A task that is gone or
+     * already outside the panes is left where it is - the inverse never removes anything.
+     *
+     * Nor does it take the screen: that eviction ends by raising the scene over the evicted window,
+     * and over Home or the user's own fullscreen application (area 0 or 4) that would put the split
+     * back in front of them (1.3.8, 1.3.9). Under a cover the application stays in its pane, under
+     * the cover with the rest of the scene, where its slot already names it.
+     */
+    override fun evictTask(taskId: Int, packageName: String) {
+        val world = SplitWorld(::budgeted, sleeper, SplitTopologyCache()) {}
+        val paneRootIds = world.nativeRootIds().values.toSet()
+        val task = world.mainDisplayTasks().firstOrNull { candidate -> candidate.id == taskId }
+            ?: return
+        check(task.packageName == packageName) {
+            "task $taskId is ${task.packageName}, not $packageName"
+        }
+        if (task.rootId !in paneRootIds) return
+        if (world.sceneCovered()) return
+        SplitTaskCommands(world, apkPath, proxyClasspath).evictToFullRoot(listOf(task))
+    }
+
     private fun budgeted(command: String): String {
         val deadline = deadlineAtMs ?: (clock.nowMs() + budgetMs).also { deadlineAtMs = it }
         check(clock.nowMs() <= deadline) { "rollback budget spent before: $command" }
@@ -443,6 +471,13 @@ internal abstract class SplitCoreOperation<P>(
 
     protected var liveScene: SplitLiveScene = emptyMap()
 
+    /**
+     * Which panes' recorded applications this process saw on the screen with no cover since
+     * ([SplitWitness], invariant 14). Read with the state, published with it.
+     */
+    protected var witness: SplitWitness = SplitWitness()
+        private set
+
     private var taskMoveLease: TaskMoveLease? = null
 
     /**
@@ -453,12 +488,6 @@ internal abstract class SplitCoreOperation<P>(
      * ровно те, что перестраивают сцену по явному действию пользователя.
      */
     protected open val taskMoves: SplitTaskMoveOwnership = SplitTaskMoveOwnership.NONE
-
-    /**
-     * Panes standing on a bare picker only because a refused open did not finish standing their
-     * application up (1.3.5). Read once, at planning time, like every other ephemeral hint.
-     */
-    protected var unfinishedRestore: Map<SplitPane, String> = emptyMap()
 
     final override fun plan(op: SplitOperationContext, shell: (String) -> String): P? {
         // Первым делом и до единой команды: отказ ценой одной проверки в памяти - это ноль
@@ -473,7 +502,7 @@ internal abstract class SplitCoreOperation<P>(
         if (label in SplitCoordinatorCore.USER_LABELS) mark(op, "dequeued")
         working = work.state()
         liveScene = work.live()
-        unfinishedRestore = work.unfinishedRestore()
+        witness = work.witness()
         return prepare(op, shell)
     }
 
@@ -529,8 +558,8 @@ internal abstract class SplitCoreOperation<P>(
 
     /** Step 8: one snapshot, one commit, and only when the durable projection really moved. */
     override fun durable(plan: P, current: SplitDurable): SplitDurable? {
-        if (working.enabled == current.enabled && working.slots == current.slots) return null
-        return current.copy(enabled = working.enabled, slots = working.slots)
+        val next = SplitDurable(enabled = working.enabled, slots = working.slots, memory = working.memory)
+        return next.takeUnless { it == current }
     }
 
     /**
@@ -552,7 +581,54 @@ internal abstract class SplitCoreOperation<P>(
     protected fun settle(fact: SplitFact): Boolean {
         val reduction = SplitAutomaton.reduce(working, fact)
         working = reduction.state
+        // A cover ends what the live scene can testify to (invariant 14): the first read after
+        // the reveal starts the witness again and proves no departure by itself.
+        if (working.scene == null || working.visibility == SceneVisibility.COVERED) unwitness()
         return reduction.teardownRequired
+    }
+
+    /**
+     * Invariant 14 (ред. 2026-11-11), the one rule for "the user saw it leave", which every
+     * producer of [SplitFact.AppClosedSettled] - a reconcile's read, a revealed picker, a collapse,
+     * a selection's read-back - goes through.
+     *
+     * A departure is two reads of the same pane with no cover between them: an earlier one that
+     * showed the application while the scene was on the screen (the witness of [pane]), and the
+     * later one, [readOnScreen] too, that does not. A cover the process heard of in between -
+     * Home, a covered area pushed by the firmware, a cover an operation settled - ends the
+     * witness ([SplitWitness.epoch]).
+     *
+     * The direction of error is chosen: every doubt keeps the user's choice. An application that
+     * left under a cover, or in the second before one, or while the process was not alive to see
+     * it, keeps its pane, and the next tap brings it back. Closing an application the user wanted
+     * would cost them the pair; bringing back one they closed costs one more Back.
+     */
+    protected fun departureProven(pane: SplitPane, readOnScreen: Boolean): Boolean =
+        readOnScreen && pane in witness.panes && work.coverEpoch() == witness.epoch
+
+    /**
+     * A read made on the screen becomes the witness: every pane it shows an application in, as of
+     * [epochBeforeRead], the cover count read before the read itself was made.
+     */
+    protected fun witnessRead(read: SplitLiveScene, epochBeforeRead: Long) {
+        witness = SplitWitness(
+            panes = read.filterValues { observed -> observed.appPackageName != null }.keys,
+            epoch = epochBeforeRead,
+        )
+    }
+
+    /** What the live scene records now was not seen on the screen: nothing testifies to it. */
+    protected fun unwitness() {
+        witness = witness.copy(panes = emptySet())
+    }
+
+    /** One pane read on the screen, as of [epochBeforeRead]; the others keep their witness. */
+    protected fun witnessPane(pane: SplitPane, epochBeforeRead: Long) {
+        witness = if (witness.epoch == epochBeforeRead) {
+            witness.copy(panes = witness.panes + pane)
+        } else {
+            SplitWitness(setOf(pane), epochBeforeRead)
+        }
     }
 
     /**
@@ -588,11 +664,14 @@ internal abstract class SplitCoreOperation<P>(
     /**
      * Records a task this operation is proven to have created, so a later failure can take it back.
      *
-     * [preexisting] is the set of ids the panes already held when the operation started looking.
-     * `null` means the operation could not read it, and then nothing is recorded at all: a recipe
-     * may legitimately hand back a task it adopted rather than launched - `openPickers` reuses a
-     * still-living picker base, `restoreApp` keeps a still-living app (1.3.2, U2) - and removing one
-     * of those on a rollback would destroy exactly what the contract promises to preserve.
+     * [preexisting] is the set of ids the car already held, on every display, when the operation
+     * started looking ([preexistingTaskIds]). `null` means the operation could not read it, and then
+     * nothing is recorded at all: a recipe may legitimately hand back a task it adopted rather than
+     * launched - the build reuses a still-living picker base, a selection's launch without
+     * `MULTIPLE_TASK` gets the package's own task back (1.3.2, U2) - and removing one of those on a
+     * rollback would destroy exactly what the contract promises to preserve. It records our own
+     * components and a selection's task; an application the build started is journalled as
+     * [SplitJournalEntry.AppStarted], which an unwind evicts alive and never removes (1.3.11).
      */
     protected fun recordCreated(
         op: SplitOperationContext,
@@ -616,30 +695,37 @@ internal abstract class SplitCoreOperation<P>(
     /**
      * Everything already running before this operation's first mutation, for [recordCreated].
      *
-     * It is the whole main display rather than the two panes: a restore reuses the task its package
-     * already had, and that task usually lives outside the panes - fullscreen, or in the background.
+     * It is every display rather than the two panes: a restore reuses the task its package already
+     * had, and that task usually lives outside the panes - fullscreen, in the background, or on the
+     * instrument display.
      */
     protected fun preexistingTaskIds(split: SplitPickerShellSession): Set<Int>? =
         runCatching { split.livingTaskIds() }.getOrNull()
 
     /**
-     * The slots a live topology proves - with two exceptions, both of them pickers that are scene
-     * content rather than slot content.
-     *
-     * A projected pane keeps `APP(navigator)` while its picker is on screen, because the navigator
-     * is on the cluster and this pane is where it comes back to (1.10.1). A pane of an unfinished
-     * restore keeps `APP(package)` for the same reason one step removed: nobody closed anything
-     * there, a refused open simply did not get as far as the application, and reading that picker
-     * as the user's choice would throw away the very selection the next tap has to finish
-     * restoring (1.3.5, invariant 9).
+     * The slots a live topology proves, read against the slots it is proving (invariant 14):
+     * [SplitCoordinatorCore.provenSlots]. [departed] names the panes whose application was seen to
+     * leave ([departures]); every other pane without an application keeps what the user chose.
      */
-    protected fun sceneSlots(live: SplitLiveScene): Map<SplitPane, SplitSlot> {
-        val slots = SplitCoordinatorCore.slotsOf(live).toMutableMap()
-        working.projectedPane?.let { projected -> slots[projected] = working.slot(projected) }
-        unfinishedRestore.forEach { (pane, packageName) ->
-            if (slots[pane] == SplitSlot.Picker) slots[pane] = SplitSlot.App(packageName)
-        }
-        return slots
+    protected fun sceneSlots(
+        read: SplitLiveScene,
+        departed: Set<SplitPane> = emptySet(),
+    ): Map<SplitPane, SplitSlot> =
+        SplitCoordinatorCore.provenSlots(working, read, departed)
+
+    /**
+     * The panes of [read] whose application, recorded in [recorded], is no longer there and was
+     * seen to leave ([departureProven]).
+     */
+    protected fun departures(
+        read: SplitLiveScene,
+        recorded: SplitLiveScene,
+        readOnScreen: Boolean,
+    ): Set<SplitPane> = SplitPane.entries.filterTo(mutableSetOf()) { pane ->
+        read[pane] != null &&
+            read[pane]?.appPackageName == null &&
+            recorded[pane]?.appPackageName != null &&
+            departureProven(pane, readOnScreen)
     }
 
     /**
@@ -660,17 +746,13 @@ internal abstract class SplitCoreOperation<P>(
             .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
     }
 
-    /** Moves a pane to `APP(package)` from whatever it held, or back to its picker. */
-    protected fun settleOccupant(pane: SplitPane, packageName: String?) {
-        val current = working.slot(pane)
-        when {
-            packageName == null ->
-                if (current is SplitSlot.App) settle(SplitFact.AppClosedSettled(pane))
-            current != SplitSlot.App(packageName) -> {
-                if (current is SplitSlot.App) settle(SplitFact.AppClosedSettled(pane))
-                settle(SplitFact.AppLaunchConfirmed(pane, packageName))
-            }
-        }
+    /**
+     * Moves a pane to `APP(package)` from whatever it held: a launch the operation proved on the
+     * scene, the one way a slot takes another application (invariant 14). Going back to the picker
+     * is not this step's to decide - only a departure seen on screen is ([SplitFact.AppClosedSettled]).
+     */
+    protected fun settleOccupant(pane: SplitPane, packageName: String) {
+        settle(SplitFact.AppLaunchConfirmed(pane, packageName))
     }
 
     /**
@@ -681,7 +763,7 @@ internal abstract class SplitCoreOperation<P>(
      * line of the diagnostic ring, written by the coordinator's own terminal.
      */
     open fun finished(outcome: SplitOutcome) {
-        if (outcome is SplitOutcome.Committed) work.publish(working, liveScene)
+        if (outcome is SplitOutcome.Committed) work.publish(working, liveScene, witness)
     }
 }
 
@@ -821,8 +903,11 @@ internal class SplitOpenPlan(
 )
 
 /**
- * Contract 1.3. A live scene is adopted and raised; otherwise the remembered pair is rebuilt, with
- * every unknown or uninstalled package degrading to a fresh picker the user can immediately use.
+ * Contract 1.3. A live scene is adopted and raised; otherwise the remembered pair is rebuilt. A
+ * pane whose application cannot come back - not resolvable, not launched, cold past the time the
+ * open has - stands on its working picker and keeps its slot, so the next tap finishes it (1.3.2,
+ * 1.3.11); only a package the package manager proves absent is forgotten (invariant 14,
+ * section 6).
  */
 internal class OpenOperation(
     work: SplitOperationWorkspace,
@@ -839,12 +924,6 @@ internal class OpenOperation(
     // Явная перестройка сцены поверх чужого move - это два рецепта на одном дереве задач.
     override val taskMoves = SplitTaskMoveOwnership.YIELDS
 
-    /** Правка волны 11: the bases of this build are standing, so a refusal may not take them. */
-    private var rootsPlaced = false
-
-    /** What this open owes the panes: the remembered pair it set out to restore (1.3.2). */
-    private var owed: Map<SplitPane, String> = emptyMap()
-
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
         // 1.3.4 is decided here or nowhere: this is the one moment a pane the user closed can be
@@ -852,12 +931,12 @@ internal class OpenOperation(
         settleTheCollapseNobodyRead(op)
         // The durable slots are the selection, and nothing else has to be asked (1.13.1). Scanning
         // the launcher catalogue here cost 815 ms of every open just to filter out a package that
-        // is no longer installed - and the pane that meets one degrades to a fresh picker anyway
-        // (1.3.2), which is the same answer for one tenth of the wait.
+        // is no longer installed; the build resolves only the panes it restores, and asks the
+        // package manager about absence only for what it cannot resolve and what the memory names
+        // ([forgetUninstalled]).
         val restorable = SplitPane.entries.mapNotNull { pane ->
             (working.slot(pane) as? SplitSlot.App)?.let { slot -> pane to slot.packageName }
         }.toMap()
-        owed = restorable
         // Read-only: adoption is decided from a live snapshot before a single mutation (1.3.5).
         //
         // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
@@ -888,7 +967,7 @@ internal class OpenOperation(
      * закрытой панели уберёт сама сборка, которая сейчас переложит обе панели заново.
      *
      * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): это место стоит ДО того, как
-     * `prepare` соберёт `restorable`/`owed` и `expectedApps(liveScene)`, - потому переложенная
+     * `prepare` соберёт `restorable` и `expectedApps(liveScene)`, - потому переложенная
      * здесь запись живой сцены и есть то, что открытие затем восстанавливает. Выживший поднимается
      * в ту панель, в которой его оставила прошивка, а закрытая получает свежий пикер (1.3.4).
      */
@@ -916,11 +995,13 @@ internal class OpenOperation(
     /**
      * Contract 1.3.5: "открыта" is about the scene that answers the saved selection.
      *
-     * Two pickers standing while the slots still name two applications are an unfinished restore -
-     * the shape a refused open leaves behind (invariant 9) - and showing them again as a finished
-     * result would quietly turn the user's pair into "two empty panes". Such a scene is not
-     * adopted; the tap finishes it. A projected pane is the standing exception: its picker is
-     * scene content and its navigator is on the cluster, so it is not missing anything (1.10.1).
+     * A pane on its picker while its slot still names an application is an unfinished restore, and
+     * this is the one notion of it (ред. 2026-11-11): derived from the slot and the live read, and
+     * nothing remembered beside them. A refused or partly failed open leaves it, so does an
+     * application that left under cover (invariant 14), and showing such a scene as a finished
+     * result would quietly turn the user's pair into "two empty panes". It is not adopted; the tap
+     * finishes it. A projected pane is the standing exception: its picker is scene content and its
+     * navigator is on the cluster, so it is not missing anything (1.10.1).
      */
     private fun adoptable(
         read: SplitLiveScene?,
@@ -945,7 +1026,8 @@ internal class OpenOperation(
             // Raising a covered scene reopens the gate Home suspended (contract, to 1.12), so the
             // entry goes in before the recipe, exactly as it does on the build path below.
             op.journal.record(SplitJournalEntry.GateOpened(prevOpen = gateIsOpenByUs()))
-            adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET))
+            val epoch = work.coverEpoch()
+            adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET), epoch)
             mark(op, "revealed")
             return
         }
@@ -968,11 +1050,18 @@ internal class OpenOperation(
     private fun gateIsOpenByUs(): Boolean =
         work.gateOwned() && working.visibility != SceneVisibility.COVERED
 
-    private fun adopt(revealed: SplitLiveScene) {
-        liveScene = revealed
+    private fun adopt(revealed: SplitLiveScene, epochBeforeReveal: Long) {
+        // An adopted scene answers the selection pane for pane ([adoptable]); the first read after
+        // a reveal proves no departure (invariant 14), and the scene it raised is on the screen
+        // (`revealOwnedSession` ends on area 3), so it is the witness from here on.
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(revealed)))
+        liveScene = revealed
         settle(SplitFact.SceneRevealed)
+        witnessRead(revealed, epochBeforeReveal)
     }
+
+    /** The cover count read before the build's placement reads began ([witnessRead]). */
+    private var epochBeforePlacement: Long? = null
 
     private fun build(
         op: SplitOperationContext,
@@ -982,18 +1071,10 @@ internal class OpenOperation(
         // One read before the first mutation: whatever the recipe hands back that is not in here
         // is a task this operation created, and therefore a task this operation owes an undo for.
         val preexisting = preexistingTaskIds(split)
-        // A package the catalogue cannot resolve was uninstalled while the slot remembered it: its
-        // pane degrades to a fresh picker, and its name is one line of the ring (1.3.2, U5).
-        val unresolved = mutableListOf<String>()
         val targets = restorable.mapNotNull { (pane, packageName) ->
-            val target = work.catalog.resolve(packageName)
-            if (target == null) {
-                unresolved += packageName
-                null
-            } else {
-                pane to target
-            }
+            work.catalog.resolve(packageName)?.let { target -> pane to target }
         }.toMap()
+        forgetUninstalled(restorable.filterKeys { pane -> pane !in targets }.values.toSet())
         pointOfNoReturn(op, "building the scene clears what its panes still hold")
         // `buildScene` opens the firmware gate on its way in and takes the lease for it. The entry
         // is recorded before the recipe, not after, so a failure inside the recipe can still close
@@ -1007,38 +1088,84 @@ internal class OpenOperation(
             // survivor back by reparenting instead of launching; a process that remembers
             // nothing passes nothing, and the build launches honestly (invariant 4).
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
-            // Правка W6: the same read that decides what this operation owes an undo for also
-            // decides what a failed pane may execute - only what the build itself created.
-            preexistingTaskIds = preexisting,
+            // 1.3.11: the build has the rest of this operation, less what the read-back after it
+            // needs, and a cold application is waited for out of that; the 10 s ceiling of 1.13
+            // stays the operation's own.
+            timeLeftMs = {
+                op.token.deadlineAtMs - OPEN_READ_BACK_RESERVE_MS - op.clock.nowMs()
+            },
             // Правка W10: the build's own phases, stamped with the user's waiting time - the next
             // red branch reads which step the seconds went into straight off the log. Правка
             // волны 11: one of those phases is also a decision - see [keepStandingBases].
             onPhase = { phase ->
                 mark(op, phase)
                 if (phase == SPLIT_PHASE_ROOTS_PLACED) keepStandingBases(op)
+                if (phase == SPLIT_PHASE_SCENE_NORMALIZED) epochBeforePlacement = work.coverEpoch()
             },
         ) { task ->
-            // A task that was already running is one this build only borrowed: its inverse is the
-            // root it came from, never a removal (U2). Everything else this build made itself.
-            if (preexisting != null && task.taskId in preexisting) {
-                if (task.fromRootId != task.toRootId) {
-                    op.journal.record(
-                        SplitJournalEntry.TaskMoved(task.taskId, task.fromRootId, task.toRootId),
-                    )
+            when {
+                // A task that was already running is one this build only borrowed: its inverse is
+                // the root it came from, never a removal (U2).
+                preexisting != null && task.taskId in preexisting -> {
+                    if (task.fromRootId != task.toRootId) {
+                        op.journal.record(
+                            SplitJournalEntry.TaskMoved(task.taskId, task.fromRootId, task.toRootId),
+                        )
+                    }
                 }
-            } else {
-                recordCreated(op, preexisting, task.taskId, task.component)
+                // A picker base this build stood up: ours by exact component, removed by an unwind
+                // that reaches it.
+                task.component in SPLIT_PICKER_COMPONENT_SET ->
+                    recordCreated(op, preexisting, task.taskId, task.component)
+                // An application this build started for the user. An unwind takes it out of the
+                // pane alive; nothing removes it (1.3.11). An unread past records nothing, as
+                // before: no proven start, nothing to undo.
+                preexisting != null -> op.journal.record(
+                    SplitJournalEntry.AppStarted(task.taskId, task.component.substringBefore('/')),
+                )
             }
         }
         mark(op, "scene-built")
-        // The build finished and every pane is now what the recipe proved it to be, including a
-        // pane it honestly could not restore: that one is a picker of the user's, not an unfinished
-        // restore of ours, and 1.3.2 wants it recorded as the picker it is.
-        unfinishedRestore = emptyMap()
-        val failures = unresolved + built.failed.mapNotNull { pane -> restorable[pane] }
-        failures.forEach { packageName -> work.log("failed to restore $packageName") }
-        liveScene = built.panes
+        // A pane the build could not restore stays the user's choice: its slot keeps the
+        // application while its picker is on screen, and the next tap finishes it (1.3.2, 1.3.5,
+        // 1.3.11, «К 1.14»).
+        built.failed.mapNotNull { pane -> restorable[pane] }.forEach { packageName ->
+            work.log("not restored $packageName: the pane keeps its choice")
+        }
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
+        liveScene = built.panes
+        // The placement the build ended on is a read at area 3 (invariant 14).
+        witnessRead(built.panes, epochBeforePlacement ?: work.coverEpoch())
+    }
+
+    /**
+     * The lazy half of section 6 (1.14.4, scenario 45): an uninstall nobody heard - the toggle was
+     * off, the process was dead - is found here, at the one moment the remembered packages begin
+     * to matter again.
+     *
+     * Only the package manager's "not found" is an uninstall ([SplitLaunchCatalog.presence]). A
+     * slot the launcher catalogue could not resolve ([unlaunchable]) for any other reason - a
+     * package it filters out, a launcher component disabled for now, a reinstall under way - keeps
+     * its application: the pane gets its picker, the slot and every pair stay, and the next tap
+     * tries again (invariant 14). The memory is checked by the same proof, one lookup per distinct
+     * package and no launcher scan, so pairs of an application that is gone do not outlive it.
+     */
+    private fun forgetUninstalled(unlaunchable: Set<String>) {
+        val memory = working.memory
+        val remembered = (listOfNotNull(memory.last) + memory.recent + memory.pinned)
+            .flatMap { pair -> listOf(pair.primary, pair.secondary) }
+        (unlaunchable + remembered).distinct().forEach { packageName ->
+            val presence = runCatching { work.catalog.presence(packageName) }
+                .getOrDefault(SplitPackagePresence.UNKNOWN)
+            when {
+                presence == SplitPackagePresence.ABSENT -> {
+                    work.log("not restored $packageName: not installed, its pairs are forgotten")
+                    settle(SplitFact.PackageRemoved(packageName))
+                }
+                packageName in unlaunchable ->
+                    work.log("not restored $packageName: cannot be launched now, the pane keeps its choice")
+            }
+        }
     }
 
     /**
@@ -1052,24 +1179,16 @@ internal class OpenOperation(
      * The bases are the part of a scene the recipe has actually proven by this point: both of them
      * are in their panel roots and the firmware is holding the split. A pane on its own picker is a
      * usable state (U5) - the catalogue is there and the tap works - so past this line the open may
-     * only go forward. What it launched *above* the bases is still unproven and is still taken back
-     * by the unwind, which is what leaves the panes on those pickers.
+     * only go forward. What it placed *above* the bases is still unproven and is still taken back
+     * by the unwind - a borrowed task to the root it came from, an application this open started
+     * into the full root alive (1.3.11) - which is what leaves the panes on those pickers.
+     *
+     * The selection is not touched by a refusal (invariant 9), and nothing else needs remembering:
+     * pickers over a selection that names applications are the unfinished restore of 1.3.5 by
+     * their very shape, and the next tap finishes it ([adoptable]).
      */
     private fun keepStandingBases(op: SplitOperationContext) {
-        rootsPlaced = true
         pointOfNoReturn(op, "the panel bases are standing; a refusal leaves the user their pickers")
-    }
-
-    /**
-     * Contract 1.3.5, second half: the pair the refused open did not manage to restore.
-     *
-     * Nobody closed those panes - this open simply did not get as far as their applications - so
-     * the selection is not touched (invariant 9) and the panes are remembered as an unfinished
-     * restore, which is what makes the next tap finish it instead of adopting two empty pickers.
-     */
-    override fun finished(outcome: SplitOutcome) {
-        if (outcome !is SplitOutcome.Committed && rootsPlaced) work.markUnfinishedRestore(owed)
-        super.finished(outcome)
     }
 
     /**
@@ -1190,11 +1309,26 @@ internal class SelectOperation(
         // read-back начинался - иначе откат по ошибке связи неотличим от операции, которая до
         // чтения не дошла.
         mark(op, "read-back начат")
+        val epoch = work.coverEpoch()
         val read = work.split(op).readOwnedSelection(SPLIT_PICKER_COMPONENT_SET)
         mark(op, "read-back: ${read.reason}")
         val settled = read.scene ?: return false
+        // A neighbour that lost its application is judged by the one rule of invariant 14: the
+        // read is on the screen (area 3, or the survivor's 1/2), but a tap seconds ago proves
+        // nothing about a neighbour killed under a cover in between ([departureProven]). The one
+        // departure the selection proves by itself is the user's own: the chosen application
+        // taken from the other pane into this one (1.5.3).
+        val taken = SplitPane.entries.filterTo(mutableSetOf()) { pane ->
+            pane != chosen.pane &&
+                settled[pane] != null &&
+                settled[pane]?.appPackageName == null &&
+                settled[chosen.pane]?.appPackageName == chosen.packageName &&
+                working.slot(pane) == SplitSlot.App(chosen.packageName)
+        }
+        val departed = departures(settled, liveScene, read.onScreen) + taken
+        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled, departed)))
         liveScene = settled
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
+        if (read.onScreen) witnessRead(settled, epoch) else unwitness()
         settleOccupant(chosen.pane, chosen.packageName)
         return true
     }
@@ -1231,10 +1365,16 @@ internal class PackageRemovedOperation(
         settle(SplitFact.PackageRemoved(packageName))
     }
 
-    /** Anywhere the product still claims this package: a durable slot or a projected vacancy. */
-    private fun recorded(): Boolean =
-        working.slots.values.any { slot -> slot is SplitSlot.App && slot.packageName == packageName } ||
-            working.vacancyApp.containsValue(packageName)
+    /**
+     * Anywhere the product still claims this package: a durable slot, a projected vacancy or a
+     * remembered pair (1.14.4).
+     */
+    private fun recorded(): Boolean {
+        val memory = working.memory
+        return working.slots.values.any { slot -> slot is SplitSlot.App && slot.packageName == packageName } ||
+            working.vacancyApp.containsValue(packageName) ||
+            listOfNotNull(memory.last).plus(memory.recent).plus(memory.pinned).any { pair -> packageName in pair }
+    }
 }
 
 // endregion
@@ -1508,6 +1648,7 @@ internal class NavCompleteOperation(
                 }
             }
         }
+        val epoch = work.coverEpoch()
         val placement = split.verifyNavigationReturned(
             plan = returnPlan,
             taskId = taskId,
@@ -1527,6 +1668,9 @@ internal class NavCompleteOperation(
         // matters when the firmware handed the navigator the other pane, and then it is the one
         // durable change this operation commits.
         settleOccupant(placement.pane, placement.packageName)
+        // The return is proven on the visible top of its pane, so the navigator is seen there
+        // (invariant 14).
+        witnessPane(placement.pane, epoch)
     }
 }
 
@@ -1871,11 +2015,15 @@ internal class ReconcileOperation(
      * (invariant 2). Adoption observes and accepts; it never launches or moves a task.
      */
     private fun adoptOwnedScene(split: SplitPickerShellSession): Boolean {
-        val settled = runCatching { split.existingOwnedSession(SPLIT_PICKER_COMPONENT_SET) }
-            .getOrNull()
-            ?: return false
-        liveScene = settled
+        val epoch = work.coverEpoch()
+        val read = runCatching { split.readOwnedSession(SPLIT_PICKER_COMPONENT_SET) }.getOrNull()
+        val settled = read?.scene ?: return false
+        // A process that remembers no scene has seen nothing leave it (invariant 14): what the read
+        // shows on a pane's picker is a restore still owed, not a choice. What it shows on the
+        // screen is the first witness of this process.
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
+        liveScene = settled
+        if (read.onScreen) witnessRead(settled, epoch) else unwitness()
         return working.scene != null
     }
 
@@ -1954,6 +2102,15 @@ internal class ReconcileOperation(
         val appTaskId = observed.appTaskId ?: return
         val packageName = observed.appPackageName ?: return
         if (appTaskId !in observation.observedTaskIds) return
+        // The picker reported visible on top of its pane is a read on the screen: a covered world
+        // marks every child of a pane hidden. That is the later read. The earlier one is the
+        // witness: the reconcile just before it, which showed the application on top of this very
+        // pane, or one before that - with no cover heard since (invariant 14). Without it nothing is
+        // removed and nothing is settled.
+        if (!departureProven(pane, readOnScreen = true)) {
+            work.log("scene: $pane is on its picker, its app was not seen to leave - the choice is kept")
+            return
+        }
         pointOfNoReturn(op, "the app of $pane left its pane")
         if (split.removeRecordedTask(appTaskId, packageName)) {
             recordRemoved(op, appTaskId, packageName)
@@ -2043,7 +2200,8 @@ internal class ReconcileOperation(
      * после него чисто. Конец наступает только когда мертвы ВСЕ записанные приложения (1.7.5,
      * «Очистить всё»), и эта ветка сохранена буква в букву. Частичная смерть под накрытием -
      * [SplitExistenceOutcome.PANE_FREED]: слот панели `APP → PICKER`, сосед и обе базы не
-     * тронуты, сцена продолжается накрытой.
+     * тронуты, сцена продолжается накрытой. *Ред. 2026-11-11:* слот больше не трогается - панель
+     * встаёт на пикер только в живой сцене, выбор остаётся (инвариант 14, [settleDeadAppPanes]).
      *
      * Панельные корни в воротах конца больше не участвуют. Машинная правда волны 7: контейнеры
      * прошивки - вечные объекты, tx118 никогда не отвечает ≤0, а узкий пикер-сирота нативно
@@ -2051,10 +2209,11 @@ internal class ReconcileOperation(
      * задачи ещё в панельных корнях» ждали состояния, которого на этой прошивке не бывает, и
      * уборка не наступала никогда.
      *
-     * The automaton then keeps the projected navigator's slot and turns every other `APP` into
-     * `PICKER`, which is what makes the next open show fresh pickers instead of resurrecting what
-     * the user cleared (1.3.4, invariant 6). Forgetting is not enough, though: the tasks this
-     * scene recorded as its own pickers are removed here, by exact id and component, wherever
+     * Ред. 2026-11-11 (invariant 14, 1.7.5, 1.14.3): the automaton then ends the scene and keeps
+     * every slot, so the next tap brings the pair back; what is proven under cover changes the
+     * live scene, never the user's choice. Until then every `APP` but a projected navigator's
+     * became `PICKER` here, and the next open showed two fresh pickers. The tasks this scene
+     * recorded as its own pickers are still removed here, by exact id and component, wherever
      * they ended up - including a panel root they never left (1.6, 1.6.4).
      */
     private fun settleByExistence(
@@ -2137,6 +2296,11 @@ internal class ReconcileOperation(
      * Contract 1.7.3 under cover: the pane whose application died shows its own picker again, and
      * the neighbour lives on (правка 2026-09-18, живая сессия, диагноз «два пикера»).
      *
+     * Ред. 2026-11-11 (invariant 14, 1.7.3, 1.14.6): the death is recorded in the live scene only.
+     * The user did not see the application go, so its pane keeps it as the user's choice, and the
+     * next tap «Разделить экран» starts it again there (1.3.11, scenario 34). Until then this was
+     * an `APP → PICKER` of the slot.
+     *
      * Видимый мир этот исход умеет и без сюда: при area 3 краш ловит хинт `pickerVisible` →
      * `closeRevealedApp`, при area 1/2 мёртвое приложение с живым пикером в панельном корне
      * остаётся недоказанным (и это верно - там раньше говорит collapse). Не умел его ровно один
@@ -2176,11 +2340,12 @@ internal class ReconcileOperation(
         confirmation.deadPanes.forEach { pane ->
             val observed = liveScene[pane] ?: return@forEach
             liveScene = liveScene + (pane to observed.copy(appTaskId = null, appPackageName = null))
-            settle(SplitFact.AppClosedSettled(pane))
         }
+        // Read under a cover (invariant 14): the live scene records the death, nothing testifies.
+        unwitness()
         work.log(
             "scene: панель ${confirmation.deadPanes.joinToString(", ")} встала на свой пикер, " +
-                "сосед и базы не тронуты (1.7.3)",
+                "выбор панели сохранён, сосед и базы не тронуты (1.7.3, инвариант 14)",
         )
         return SplitExistenceOutcome.PANE_FREED
     }
@@ -2232,6 +2397,10 @@ internal class ReconcileOperation(
         settleResize: Boolean,
     ): Boolean {
         val previous = liveScene
+        val epoch = work.coverEpoch()
+        // The resize repair answers only over a scene on the screen: it refuses at area 0 and 4,
+        // and its read ends at area 3.
+        var onScreen = settleResize
         val settled = if (settleResize) {
             split.reconcileDividerResize(
                 pickerComponents = SPLIT_PICKER_COMPONENT_SET,
@@ -2240,11 +2409,16 @@ internal class ReconcileOperation(
         } else {
             val read = split.readOwnedSession(SPLIT_PICKER_COMPONENT_SET)
             if (read.scene == null) unproven += "сцена: ${read.reason}"
+            onScreen = read.onScreen
             read.scene
         }
         if (settled != null) {
+            // Invariant 14: a read under a cover records an application gone and keeps the slot;
+            // a read on the screen proves a departure only where the pane's witness stands.
+            val departed = departures(settled, previous, onScreen)
+            settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled, departed)))
             liveScene = settled
-            settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
+            if (onScreen) witnessRead(settled, epoch) else unwitness()
             return true
         }
         val expected = SplitCoordinatorCore.collapseExpectation(previous)
@@ -2252,13 +2426,14 @@ internal class ReconcileOperation(
             unproven += "collapse: сцена не записана"
             return false
         }
+        val collapseEpoch = work.coverEpoch()
         val physical = split.readCollapsedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedPanes = expected,
         )
         val collapsed = physical.pane
         if (collapsed != null) {
-            adoptCollapse(op, split, collapsed, previous)
+            adoptCollapse(op, split, collapsed, previous, collapseEpoch)
             return true
         }
         return settleCollapseByExistence(op, split, previous, expected, physical.reason)
@@ -2328,6 +2503,9 @@ internal class ReconcileOperation(
             ?.let { survivor -> mapOf(survivorPane to survivor.copy(pane = survivorPane)) }
             ?: (liveScene - collapsed)
         settle(SplitFact.PaneCollapsedSettled(collapsed = collapsed, survivorPane = survivorPane))
+        // Proven by existence or by the roots' bounds, which a cover does not hide: nothing here
+        // was necessarily seen on the screen, and the survivor waits for a read that is.
+        unwitness()
         return true
     }
 
@@ -2336,14 +2514,19 @@ internal class ReconcileOperation(
      * выжившего, а владельца его постоянной базы (логическую панель) называет запись сцены.
      *
      * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): факт несёт обе панели, и слот
-     * выжившего переезжает за ним сам. [settleOccupant] после него остаётся ровно для одного
-     * случая - приложение выжившей панели не пережило жеста, и её слот обязан стать пикером.
+     * выжившего переезжает за ним сам. После него остаётся одно решение - о приложении выжившей
+     * панели. Есть в прочитанной панели приложение - слот следует за ним ([settleOccupant]). Нет -
+     * слот становится пикером только по общему правилу ухода ([departureProven], инвариант 14):
+     * чтение схлопывания сделано при area 1/2, на экране, а прежнее чтение логической панели
+     * выжившего должно было видеть приложение без накрытия между ними (1.14.6). Иначе выбор
+     * остаётся.
      */
     private fun adoptCollapse(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
         collapsed: SplitPickerLivePane,
         previous: SplitLiveScene,
+        epochBeforeRead: Long,
     ) {
         val survivor = collapsed.pane
         // Which logical pane owned the surviving permanent base decides what the collapse closed.
@@ -2365,7 +2548,17 @@ internal class ReconcileOperation(
                 survivorPane = survivor,
             ),
         )
-        settleOccupant(survivor, collapsed.appPackageName)
+        val occupant = collapsed.appPackageName
+        // The collapse is read at area 1/2, the survivor on the screen. Its application, if it is
+        // gone, left under the one rule of invariant 14: witnessed in its logical pane before.
+        val left = occupant == null &&
+            previous[previousOwner]?.appPackageName != null &&
+            departureProven(previousOwner, readOnScreen = true)
+        when {
+            occupant != null -> settleOccupant(survivor, occupant)
+            left -> settle(SplitFact.AppClosedSettled(survivor))
+        }
+        witnessRead(liveScene, epochBeforeRead)
     }
 
     internal companion object {
@@ -2414,6 +2607,16 @@ internal const val TOGGLE_BUDGET_MS = 10_000L
 internal const val OPEN_BUDGET_MS = 10_000L
 internal const val SELECT_BUDGET_MS = 10_000L
 internal const val HOME_BUDGET_MS = 10_000L
+
+/**
+ * What an open keeps back from its own deadline for the read-back of 7.7 after its build: the
+ * area and root reads (in-process, about a millisecond each) and one `am stack list`, counted as
+ * four shell trips at their measured upper bound ([SplitSceneBuilder.SHELL_TRIP_BOUND_MS]). The
+ * build's own waits keep back what follows each of them inside the build
+ * ([SplitSceneBuilder.COLD_DEGRADE_RESERVE_MS], [SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS]);
+ * the 10 s ceiling above is untouched.
+ */
+internal const val OPEN_READ_BACK_RESERVE_MS = 4 * SplitSceneBuilder.SHELL_TRIP_BOUND_MS
 
 /**
  * Ждёт палец пользователя на дивайдере, а не машину.

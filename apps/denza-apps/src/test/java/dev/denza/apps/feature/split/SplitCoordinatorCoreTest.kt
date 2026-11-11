@@ -332,9 +332,16 @@ class SplitCoordinatorCoreTest {
 
     @Test
     fun aDividerHintWithARememberedPairReAdoptsWithoutMovingATask() {
-        // сценарий 19: оба приложения продолжают работать, ничего не двигается
+        // сценарий 19: оба приложения продолжают работать, ничего не двигается. Память пар уже
+        // знает эту пару последней (1.14.2) - её записал коммит, который эту пару собрал.
         val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
-        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = APP_PAIR,
+                memory = SplitMemory(last = SplitPair.of(APP_PAIR)),
+            ),
+        )
         core.initialize {}
         assertEquals(emptyList<String>(), car.commands())
 

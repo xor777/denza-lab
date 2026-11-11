@@ -400,5 +400,8 @@ object SplitScreenCoordinator {
     private class AndroidSplitLaunchCatalog(private val app: Context) : SplitLaunchCatalog {
         override fun resolve(packageName: String): SplitLaunchTarget? =
             SplitPickerCatalog.resolve(app, packageName)
+
+        override fun presence(packageName: String): SplitPackagePresence =
+            SplitPickerCatalog.presence(app, packageName)
     }
 }

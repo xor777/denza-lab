@@ -28,6 +28,9 @@ internal object SplitAutomaton {
             is SplitFact.ProjectionStarted -> projectionStarted(state, fact.pane)
             SplitFact.ProjectionReturned -> projectionReturned(state)
             is SplitFact.PackageRemoved -> packageRemoved(state, fact.packageName)
+            is SplitFact.PairPinned -> pairPinned(state, fact.pair)
+            is SplitFact.PairUnpinned -> pairUnpinned(state, fact.pair)
+            is SplitFact.PinsReordered -> pinsReordered(state, fact.order)
         }
     }
 
@@ -79,9 +82,16 @@ internal object SplitAutomaton {
     }
 
     /**
-     * Contract 1.5. The slot follows the confirmed launch. The pane must be showing a picker, the
-     * one exception being the vacancy left by a projected navigator (1.10.2), where the picker is
-     * scene content rather than slot content.
+     * Contract 1.5. The slot follows the confirmed launch. The vacancy left by a projected navigator
+     * is the exception (1.10.2): its picker is scene content rather than slot content.
+     *
+     * A pane that still holds `APP(other)` takes the launch too (ред. 2026-11-11). That is the third
+     * of the four reasons invariant 14 lets a slot lose its package - another application chosen
+     * there - and the pane it happens in is the one an open could not finish restoring: its picker
+     * is on screen while the slot still names the application the user left there (1.3.11). The
+     * proof of the launch is the operation's, made on the scene; the automaton only refuses what
+     * cannot be one: no scene, a closed pane, a blank package, or the package the pane already
+     * holds (a repeated or late confirmation, identity).
      */
     private fun launchConfirmed(
         state: SplitState,
@@ -96,14 +106,19 @@ internal object SplitAutomaton {
                 state.copy(vacancyApp = state.vacancyApp + (fact.pane to fact.packageName)),
             )
         }
-        if (state.slot(fact.pane) != SplitSlot.Picker) return unchanged(state)
+        val current = state.slot(fact.pane)
+        if (current == SplitSlot.Closed || current == SplitSlot.App(fact.packageName)) {
+            return unchanged(state)
+        }
         return settled(state, state.withSlot(fact.pane, SplitSlot.App(fact.packageName)))
     }
 
     /**
-     * Contract 1.6.2, 1.7.1-1.7.3. Closing an app - by Back, by gesture or by crashing - returns
-     * that pane to its picker and never touches the neighbour. In a projected pane only the
-     * ephemeral vacancy record disappears; the navigator keeps its slot.
+     * Contract 1.6.2, 1.7.1-1.7.3, 1.14.6. Closing an app on a scene the user is looking at - by
+     * Back, by gesture or by crashing - returns that pane to its picker and never touches the
+     * neighbour. In a projected pane only the ephemeral vacancy record disappears; the navigator
+     * keeps its slot. Its producers send it only for a visible scene (invariant 14); the pair it
+     * breaks stays in the memory as the last one (1.14.6).
      */
     private fun appClosed(state: SplitState, pane: SplitPane): SplitReduction {
         if (state.scene == null) return unchanged(state)
@@ -174,24 +189,20 @@ internal object SplitAutomaton {
     }
 
     /**
-     * Contract 1.7.5: "Clear all" leaves nothing running, so every live app gives its pane back to
-     * the picker. The next open shows fresh pickers instead of reviving what the user cleared.
+     * Contract 1.7.5 (ред. 2026-11-11): the scene is gone, the choice is not. "Clear all", a
+     * firmware unload and a sleep all end the scene without the user leaving any pane on a scene
+     * they were looking at, and the product cannot tell one from another - so every slot stays as
+     * it was, and the next tap brings the same pair back (1.3.11, invariant 14, scenario 36).
      *
-     * A projected navigator is the one exception (scenario 30): its task lives on the instrument
-     * cluster, which Recents does not reach, so it was never closed. Its pane keeps `APP(nav)` and
-     * the projection survives - otherwise the return would have nowhere to come back to.
+     * A projected navigator keeps its projection as before (scenario 30): its task lives on the
+     * instrument cluster, which Recents does not reach, and its return needs a pane to come to.
+     *
+     * Until 2026-11-11 every live application gave its pane back to the picker here, and the next
+     * open showed two fresh pickers.
      */
     private fun sceneEnded(state: SplitState): SplitReduction {
         state.scene ?: return unchanged(state)
-        val projected = state.projectedPane
-        return settled(
-            state,
-            state
-                .withSlots { pane, slot ->
-                    if (slot is SplitSlot.App && pane != projected) SplitSlot.Picker else slot
-                }
-                .copy(scene = null, visibility = SceneVisibility.VISIBLE),
-        )
+        return settled(state, state.copy(scene = null, visibility = SceneVisibility.VISIBLE))
     }
 
     /**
@@ -248,16 +259,68 @@ internal object SplitAutomaton {
         return settled(state, state.copy(projectedPane = null, vacancyApp = emptyMap()))
     }
 
-    /** Contract 1.5.6 and section 6: an uninstalled package cannot stay in any pane. */
+    /**
+     * Contract 1.5.6, 1.14.4 and section 6: an uninstalled package cannot stay in any pane, and no
+     * pair that names it stays in the memory - not as the last pair, not among the recent ones and
+     * not among the pins.
+     */
     private fun packageRemoved(state: SplitState, packageName: String): SplitReduction {
         if (packageName.isBlank()) return unchanged(state)
         val next = state.withSlots { _, slot ->
             if (slot is SplitSlot.App && slot.packageName == packageName) SplitSlot.Picker else slot
         }
+        val memory = state.memory
         return settled(
             state,
-            next.copy(vacancyApp = next.vacancyApp.filterValues { it != packageName }),
+            next.copy(
+                vacancyApp = next.vacancyApp.filterValues { it != packageName },
+                memory = SplitMemory(
+                    last = memory.last?.takeUnless { packageName in it },
+                    recent = memory.recent.filterNot { packageName in it },
+                    pinned = memory.pinned.filterNot { packageName in it },
+                ),
+            ),
         )
+    }
+
+    /**
+     * Contract 1.15.7: the last pair or a recent one joins the pins, at the end. A pair that is
+     * neither, or is pinned already, is nothing the pill could have offered a star for.
+     */
+    private fun pairPinned(state: SplitState, pair: SplitPair): SplitReduction {
+        val memory = state.memory
+        if (!pair.isWellFormed || pair in memory.pinned) return unchanged(state)
+        if (pair != memory.last && pair !in memory.recent) return unchanged(state)
+        return settled(
+            state,
+            state.copy(memory = memory.copy(recent = memory.recent - pair, pinned = memory.pinned + pair)),
+        )
+    }
+
+    /**
+     * Contract 1.14.4, 1.15.8: an unpinned pair becomes the first recent one - unless it is the
+     * last pair, which never stands among the recent ones.
+     */
+    private fun pairUnpinned(state: SplitState, pair: SplitPair): SplitReduction {
+        val memory = state.memory
+        if (pair !in memory.pinned) return unchanged(state)
+        val recent = if (pair == memory.last) memory.recent else listOf(pair) + memory.recent
+        return settled(
+            state,
+            state.copy(
+                memory = memory.copy(
+                    recent = recent.take(SplitMemory.RECENT_LIMIT),
+                    pinned = memory.pinned - pair,
+                ),
+            ),
+        )
+    }
+
+    /** Contract 1.15.8: the same pins in another order; anything else is not a reorder. */
+    private fun pinsReordered(state: SplitState, order: List<SplitPair>): SplitReduction {
+        val pinned = state.memory.pinned
+        if (order.size != pinned.size || order.toSet() != pinned.toSet()) return unchanged(state)
+        return settled(state, state.copy(memory = state.memory.copy(pinned = order)))
     }
 
     private fun SplitState.scenePanes(): List<SplitPane> = when (val scene = scene) {
@@ -304,10 +367,41 @@ internal object SplitAutomaton {
     /**
      * Guarantees the no-op identity rule: when a fact leaves the state semantically untouched the
      * caller gets the original instance back, never an equal copy.
+     *
+     * Every changing reduction ends here, and so does the one rule of the memory that follows the
+     * panes rather than a fact of its own ([remembered]): the memory moves in the same reduction,
+     * and so in the same commit, as the slots that moved it.
      */
     private fun settled(
         previous: SplitState,
         next: SplitState,
         teardownRequired: Boolean = false,
-    ) = SplitReduction(if (next == previous) previous else next, teardownRequired)
+    ): SplitReduction {
+        val remembered = remembered(next)
+        return SplitReduction(if (remembered == previous) previous else remembered, teardownRequired)
+    }
+
+    /**
+     * Contract 1.14.2, 1.14.4: the last pair is the one that stood in both panes most recently.
+     *
+     * It changes when a reduction leaves a two-pane scene with an application in both durable
+     * slots, and those two are not the last pair already - whatever the fact was: an open that
+     * rebuilt the pair, a choice in a picker, a projected navigator's pane (its slot is still the
+     * navigator's; the vacancy's occupant is not a choice, section 5 «К 1.10»). The pair it replaces
+     * becomes the first recent one unless it is pinned; the recent list keeps no duplicate, never the
+     * last pair nor a pin, and the sixth falls off. A scene that is not two applications - a picker
+     * in a pane, a collapse - leaves the memory alone: the pair it broke stays the last one (1.14.6).
+     */
+    private fun remembered(state: SplitState): SplitState {
+        if (state.scene != SplitScene.Split) return state
+        val pair = SplitPair.of(state.slots) ?: return state
+        val memory = state.memory
+        if (pair == memory.last) return state
+        val previous = listOfNotNull(memory.last)
+        val recent = (previous + memory.recent)
+            .filter { candidate -> candidate != pair && candidate !in memory.pinned }
+            .distinct()
+            .take(SplitMemory.RECENT_LIMIT)
+        return state.copy(memory = memory.copy(last = pair, recent = recent))
+    }
 }

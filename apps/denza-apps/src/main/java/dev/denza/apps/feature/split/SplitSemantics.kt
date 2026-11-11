@@ -37,6 +37,63 @@ internal sealed interface SplitScene {
     data class Full(val pane: SplitPane) : SplitScene
 }
 
+/**
+ * Two applications and the pane of each (contract 1.14.1, 2.5): one package per [SplitPane], in the
+ * slots' own coordinates. The same two applications the other way round are another pair. A pair
+ * names packages only - never a task, a root or a physical side (invariant 4).
+ */
+internal data class SplitPair(val primary: String, val secondary: String) {
+    fun packageOf(pane: SplitPane): String = when (pane) {
+        SplitPane.PRIMARY -> primary
+        SplitPane.SECONDARY -> secondary
+    }
+
+    operator fun contains(packageName: String): Boolean =
+        primary == packageName || secondary == packageName
+
+    val isWellFormed: Boolean get() = primary.isNotBlank() && secondary.isNotBlank()
+
+    companion object {
+        /** The pair two slots make, when both of them hold an application. */
+        fun of(slots: Map<SplitPane, SplitSlot>): SplitPair? {
+            val primary = slots[SplitPane.PRIMARY] as? SplitSlot.App ?: return null
+            val secondary = slots[SplitPane.SECONDARY] as? SplitSlot.App ?: return null
+            return SplitPair(primary.packageName, secondary.packageName)
+        }
+    }
+}
+
+/**
+ * What the user put in the panes, as opposed to what they hold now (contract 1.14, 2.5).
+ *
+ * [last] is the pair that stood in both panes most recently; [recent] the pairs before it, most
+ * recent first, at most [RECENT_LIMIT]; [pinned] the pairs the user pinned, in the user's order.
+ * Three rules hold between them, and the automaton keeps them on every reduction: [recent] holds no
+ * duplicate, never [last] and never a pinned pair. [last] and a pin may be the same pair.
+ *
+ * It describes no screen and drives nothing (1.14.5): it is the list a tap takes its target from.
+ */
+internal data class SplitMemory(
+    val last: SplitPair? = null,
+    val recent: List<SplitPair> = emptyList(),
+    val pinned: List<SplitPair> = emptyList(),
+) {
+    /** The three rules above, plus the cap; what the store accepts as a memory it wrote. */
+    val isWellFormed: Boolean
+        get() = (last?.isWellFormed ?: true) &&
+            recent.all(SplitPair::isWellFormed) &&
+            pinned.all(SplitPair::isWellFormed) &&
+            recent.size <= RECENT_LIMIT &&
+            recent.distinct().size == recent.size &&
+            pinned.distinct().size == pinned.size &&
+            recent.none { pair -> pair == last || pair in pinned }
+
+    companion object {
+        /** Contract 1.14.1: five other recent pairs; the sixth pushes the oldest out (1.14.4). */
+        const val RECENT_LIMIT = 5
+    }
+}
+
 /** Whether the world is on screen or hidden behind Home, Recents or a foreign window. */
 internal enum class SceneVisibility {
     VISIBLE,
@@ -55,6 +112,7 @@ internal enum class SceneVisibility {
  * правка 2026-09-18), and `SceneRevealed` is what puts it back once a scene is proven ours again.
  * @param projectedPane pane whose navigator is temporarily on the instrument cluster (1.10).
  * @param vacancyApp ephemeral app occupying a projected pane's vacancy; lost on any restart.
+ * @param memory the pairs the user put in the panes (1.14); durable, beside the slots.
  */
 internal data class SplitState(
     val enabled: Boolean = false,
@@ -63,6 +121,7 @@ internal data class SplitState(
     val visibility: SceneVisibility = SceneVisibility.VISIBLE,
     val projectedPane: SplitPane? = null,
     val vacancyApp: Map<SplitPane, String> = emptyMap(),
+    val memory: SplitMemory = SplitMemory(),
 ) {
     fun slot(pane: SplitPane): SplitSlot = slots[pane] ?: SplitSlot.Closed
 }
@@ -73,9 +132,18 @@ internal data class SplitState(
  * A fact is an established observation ("the task left the panel roots"), never a raw event
  * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
  *
- * Every one of them has a producer: `ReconcileOperation` settles the topology facts including
- * [SceneEndedSettled] (1.7.5, scenario 30 - "clear all") and `PackageRemovedOperation` settles
- * [PackageRemoved] from what a live picker saw (1.5.6).
+ * Every one of them but the three pin facts has a producer: `ReconcileOperation` settles the
+ * topology facts including [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"),
+ * `PackageRemovedOperation` settles [PackageRemoved] from what a live picker saw (1.5.6) and an
+ * open settles it for a remembered package the catalogue no longer resolves (section 6). [PairPinned],
+ * [PairUnpinned] and [PinsReordered] are the pill's (1.15.7, 1.15.8), which is not written yet: they
+ * are reduced now so that the memory of 1.14 is whole, and nothing sends them.
+ *
+ * Invariant 14 (ред. 2026-11-11) is what the producers owe: a slot loses its package only because
+ * the application left the pane on a visible scene ([AppClosedSettled]), the pane was collapsed
+ * ([PaneCollapsedSettled]), another application was chosen there ([AppLaunchConfirmed]) or the
+ * package left the car ([PackageRemoved]). An observation under cover, after a sleep or a process
+ * restart, and any failed or late operation leave it as it is.
  *
  * There is deliberately no "the launch failed" fact. A launch that did not happen leaves the pane
  * exactly as the user left it - on its own picker, with the catalogue on screen and the tap live -
@@ -91,7 +159,11 @@ internal sealed interface SplitFact {
      */
     data class AppLaunchConfirmed(val pane: SplitPane, val packageName: String) : SplitFact
 
-    /** Back, close gesture, swipe from Recents or a crash: all of them are one closure (1.7.3). */
+    /**
+     * The application of [pane] left it on a scene the user was looking at: the last Back, a crash
+     * in front of them, a caption swipe (1.6.2, 1.7.3, 1.14.6). A death proven under cover is not
+     * this fact (invariant 14): the user did not see it, and the pane keeps the application.
+     */
     data class AppClosedSettled(val pane: SplitPane) : SplitFact
 
     /**
@@ -141,6 +213,15 @@ internal sealed interface SplitFact {
     data class PackageRemoved(val packageName: String) : SplitFact
 
     data class BuildSceneSucceeded(val slots: Map<SplitPane, SplitSlot>) : SplitFact
+
+    /** The star on the pill: [pair], the last pair or a recent one, joins the pins at the end (1.15.7). */
+    data class PairPinned(val pair: SplitPair) : SplitFact
+
+    /** The remove mark in the pill's edit: the pin becomes the first recent pair (1.14.4, 1.15.8). */
+    data class PairUnpinned(val pair: SplitPair) : SplitFact
+
+    /** The pins dragged into a new order in the pill's edit (1.15.8): the same pins, rearranged. */
+    data class PinsReordered(val order: List<SplitPair>) : SplitFact
 }
 
 /**

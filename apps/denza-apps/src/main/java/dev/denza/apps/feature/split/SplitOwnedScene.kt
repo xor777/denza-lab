@@ -3,6 +3,8 @@ package dev.denza.apps.feature.split
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_BALANCED_SPLIT
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_FULL_IVI
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_HOME
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_PRIMARY_FULL
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_SECONDARY_FULL
 
 /**
  * The reads that decide whether the scene on the car is the product's own, and what is left of it.
@@ -44,7 +46,7 @@ internal class SplitOwnedScene(
         if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI && area != AREA_HOME) {
             return SplitSceneRead(null, "area=$area")
         }
-        return readOwnedScene(area, pickerComponents, expectedApps)
+        return readOwnedScene(area, pickerComponents, expectedApps).at(area)
     }
 
     /**
@@ -71,7 +73,7 @@ internal class SplitOwnedScene(
     fun readOwnedSelection(pickerComponents: Set<String>): SplitSceneRead {
         val area = world.callInt("service call activity_task 30")
         if (area == AREA_BALANCED_SPLIT) {
-            return readOwnedScene(area, pickerComponents, emptyMap())
+            return readOwnedScene(area, pickerComponents, emptyMap()).at(area)
         }
         val survivor = SplitPane.entries.firstOrNull { pane -> pane.fullArea == area }
             ?: return SplitSceneRead(null, "area=$area")
@@ -93,8 +95,10 @@ internal class SplitOwnedScene(
             sceneOnScreen = true,
             pickerComponents = pickerComponents,
             expected = null,
-        )
+        ).at(area)
     }
+
+    private fun SplitSceneRead.at(area: Int): SplitSceneRead = SplitSceneRead(scene, reason, area)
 
     /**
      * Both panes of a whole scene: the body of [readOwnedSession] with the area already read.
@@ -411,4 +415,14 @@ internal data class SplitDeadAppsConfirmation(
 internal class SplitSceneRead(
     val scene: Map<SplitPane, SplitPickerLivePane>?,
     val reason: String,
-)
+    /**
+     * The area this read was made at, read before its snapshot: 3, 1 or 2 is a scene on the
+     * screen, 0 and 4 a covered one (invariant 14 asks which). `null` where the read never got so
+     * far.
+     */
+    val area: Int? = null,
+) {
+    /** Whether what this read shows was on the screen when it was read. */
+    val onScreen: Boolean
+        get() = area == AREA_BALANCED_SPLIT || area == AREA_PRIMARY_FULL || area == AREA_SECONDARY_FULL
+}

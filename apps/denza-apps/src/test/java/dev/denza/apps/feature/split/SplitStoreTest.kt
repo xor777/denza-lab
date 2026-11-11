@@ -17,7 +17,7 @@ class SplitStoreTest {
 
     @Test
     fun everyShapeOfASnapshotSurvivesTheRoundTrip() {
-        // §6: durable - это тумблер и два слота, и ничего сверх того
+        // §6: durable - это тумблер, два слота и память пар (ред. 2026-11-11), и ничего сверх того
         val snapshots = listOf(
             SplitDurable(),
             SplitDurable(enabled = true, slots = slots(SplitSlot.Picker, SplitSlot.Picker)),
@@ -28,6 +28,29 @@ class SplitStoreTest {
             SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)),
             SplitDurable(slots = slots(SplitSlot.Picker, SplitSlot.App(MAPS))),
             SplitDurable(enabled = true, slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MAPS))),
+            SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MAPS)),
+                memory = SplitMemory(last = SplitPair(MUSIC, MAPS)),
+            ),
+            SplitDurable(memory = SplitMemory(recent = listOf(SplitPair(MAPS, MUSIC)))),
+            SplitDurable(memory = SplitMemory(pinned = listOf(SplitPair(MUSIC, MUSIC)))),
+            SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.Picker, SplitSlot.App(MAPS)),
+                memory = SplitMemory(
+                    last = SplitPair(MUSIC, MAPS),
+                    recent = listOf(
+                        SplitPair(MAPS, MUSIC),
+                        SplitPair(NAVI, MUSIC),
+                        SplitPair(MUSIC, NAVI),
+                        SplitPair(NAVI, MAPS),
+                        SplitPair(MAPS, NAVI),
+                    ),
+                    // Последняя пара может быть и закреплённой: правила между ними только у недавних.
+                    pinned = listOf(SplitPair(NAVI, NAVI), SplitPair(MUSIC, MAPS)),
+                ),
+            ),
         )
 
         snapshots.forEach { snapshot ->
@@ -75,6 +98,19 @@ class SplitStoreTest {
             )
             assertEquals("round trip of <$packageName>", snapshot, roundTrip(snapshot))
         }
+        // И в памяти пар: каждое имя - поле пары, и поле разбирается так же тотально, как слот.
+        hostile.filter(String::isNotBlank).forEach { packageName ->
+            val snapshot = SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.App(packageName), SplitSlot.App(MUSIC)),
+                memory = SplitMemory(
+                    last = SplitPair(packageName, MUSIC),
+                    recent = listOf(SplitPair(MUSIC, packageName)),
+                    pinned = listOf(SplitPair(packageName, packageName)),
+                ),
+            )
+            assertEquals("round trip of the pair <$packageName>", snapshot, roundTrip(snapshot))
+        }
     }
 
     @Test
@@ -89,41 +125,143 @@ class SplitStoreTest {
                 slots = slots(SplitSlot.App("ru.yandex.music"), SplitSlot.Picker),
             ),
         )
-        assertEquals("2|1|0|A:ru.yandex.music|P", preferences.snapshot()[STATE])
+        assertEquals("3|1|A:ru.yandex.music|P|0|0|0", preferences.snapshot()[STATE])
 
         store.commit(SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Picker)))
-        assertEquals("2|0|0|C|P", preferences.snapshot()[STATE])
+        assertEquals("3|0|C|P|0|0|0", preferences.snapshot()[STATE])
 
         store.commit(SplitDurable(slots = slots(SplitSlot.App("a|b\\c"), SplitSlot.Closed)))
-        assertEquals("2|0|0|A:a\\pb\\\\c|C", preferences.snapshot()[STATE])
+        assertEquals("3|0|A:a\\pb\\\\c|C|0|0|0", preferences.snapshot()[STATE])
+
+        store.commit(
+            SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MAPS)),
+                memory = SplitMemory(
+                    last = SplitPair(MUSIC, MAPS),
+                    recent = listOf(SplitPair(MAPS, MUSIC)),
+                    pinned = listOf(SplitPair("a|b", MUSIC)),
+                ),
+            ),
+        )
+        assertEquals(
+            "3|1|A:$MUSIC|A:$MAPS|1|1|1|$MUSIC|$MAPS|$MAPS|$MUSIC|a\\pb|$MUSIC",
+            preferences.snapshot()[STATE],
+        )
+        assertEquals("один ключ", setOf(STATE), preferences.snapshot().keys)
     }
 
     @Test
-    fun aSnapshotThatStillCountsItsRevisionReadsTheSame() {
-        // до 2026-10-09 третье поле считало операции; такой снимок читается как прежде
-        val preferences = InMemorySharedPreferences(mapOf(STATE to "2|1|7|A:ru.yandex.music|P"))
+    fun aV2SnapshotReadsAsTheToggleTheSlotsAndAnEmptyMemory() {
+        // раздел 6, ред. 2026-11-11: снимок v2 читается без отдельной миграции и ничего не пишет;
+        // третье поле до 2026-10-09 считало операции, и такой снимок читается как прежде
+        val stored = mapOf<String, Any>(STATE_V2 to "2|1|7|A:ru.yandex.music|P")
+        val preferences = InMemorySharedPreferences(stored)
+        val store = PreferencesSplitStateStore(preferences)
 
         assertEquals(
-            SplitDurable(enabled = true, slots = slots(SplitSlot.App("ru.yandex.music"), SplitSlot.Picker)),
+            SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.App("ru.yandex.music"), SplitSlot.Picker),
+                memory = SplitMemory(),
+            ),
+            store.load(),
+        )
+        assertEquals("чтение ничего не переписало", stored, preferences.snapshot())
+        assertEquals(0, preferences.commits)
+
+        // Следующая обычная запись пишет v3 и убирает v2 - одним коммитом, и ключ остаётся один.
+        assertTrue(store.commit(store.load().copy(enabled = false)))
+        assertEquals(1, preferences.commits)
+        assertEquals(mapOf(STATE to "3|0|A:ru.yandex.music|P|0|0|0"), preferences.snapshot())
+    }
+
+    @Test
+    fun aV2KeyBesideV3MeansAnOlderBuildWroteLater() {
+        // Ред. 2026-11-11: commit пишет v3 и убирает v2 одним коммитом, так что v2 рядом с v3
+        // оставила сборка старше - и написала позже. Тумблер и слоты - её, память - из v3, которой
+        // она не знала. Чтение ничего не переписывает.
+        val stored = mapOf<String, Any>(
+            STATE to "3|0|P|P|1|0|0|$MUSIC|$MAPS",
+            STATE_V2 to "2|1|0|A:$MAPS|A:$MUSIC",
+        )
+        val preferences = InMemorySharedPreferences(stored)
+        val store = PreferencesSplitStateStore(preferences)
+
+        assertEquals(
+            SplitDurable(
+                enabled = true,
+                slots = slots(SplitSlot.App(MAPS), SplitSlot.App(MUSIC)),
+                memory = SplitMemory(last = SplitPair(MUSIC, MAPS)),
+            ),
+            store.load(),
+        )
+        assertEquals(stored, preferences.snapshot())
+        assertEquals(0, preferences.commits)
+
+        // Следующая запись снова оставляет один ключ.
+        assertTrue(store.commit(store.load()))
+        assertEquals(setOf(STATE), preferences.snapshot().keys)
+    }
+
+    @Test
+    fun anUnreadableV2BesideAGoodV3IsIgnored() {
+        val preferences = InMemorySharedPreferences(
+            mapOf(STATE to "3|1|A:$MUSIC|P|0|0|0", STATE_V2 to "2|1|x|A:$MUSIC"),
+        )
+
+        assertEquals(
+            SplitDurable(enabled = true, slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)),
             PreferencesSplitStateStore(preferences).load(),
         )
     }
 
     @Test
+    fun aCorruptV3SnapshotDoesNotFallBackToTheV2One() {
+        // порча v3 - это порча, а не повод воскресить снимок, который v3 уже заменил; и так же,
+        // когда v2 рядом с ней оставила сборка старше
+        val stored = mapOf<String, Any>(STATE to "3|1|P", STATE_V2 to "2|1|0|A:$MUSIC|A:$MAPS")
+        val preferences = InMemorySharedPreferences(stored)
+
+        assertEquals(safeDefault(), PreferencesSplitStateStore(preferences).load())
+        assertEquals(stored, preferences.snapshot())
+        assertEquals(0, preferences.commits)
+    }
+
+    @Test
     fun anUnreadableSnapshotResolvesToTheSafeDefault() {
         // U4: нечитаемое хранилище отказывает в сторону "выключено и ничего не помним"
+        val pair = "$MUSIC|$MAPS"
         val corrupt = listOf(
             "",
-            "2",
-            "2|1|0|P",
-            "2|1|0|P|P|P",
-            "3|1|0|P|P",
-            "1|1|0|P|P",
-            "2|yes|0|P|P",
-            "2|1|seven|P|P",
-            "2|1|0|X|P",
-            "2|1|0|P|A:escape\\qhere",
-            "2|1|0|P|A:dangling\\",
+            "3",
+            "3|1|P|P",
+            "3|1|P|P|0|0",
+            "3|1|P|P|0|0|0|",
+            "3|1|P|P|0|0|0|$MUSIC",
+            "2|1|0|P|P",
+            "4|1|P|P|0|0|0",
+            "3|yes|P|P|0|0|0",
+            "3|1|X|P|0|0|0",
+            "3|1|P|A:escape\\qhere|0|0|0",
+            "3|1|P|A:dangling\\|0|0|0",
+            // Счётчики: не число, знак, ведущий ноль, больше одной последней, больше пяти недавних,
+            // число полей не сходится со счётчиками.
+            "3|1|P|P|x|0|0",
+            "3|1|P|P|-1|0|0",
+            "3|1|P|P|01|0|0|$pair",
+            "3|1|P|P|2|0|0|$pair|$MAPS|$MUSIC",
+            "3|1|P|P|0|6|0" + "|$pair".repeat(6),
+            "3|1|P|P|1|0|0",
+            "3|1|P|P|0|1|0|$pair|$pair",
+            // Память, нарушающая собственные правила: пустое имя, повтор среди недавних, недавняя
+            // равна последней или закреплённой, повтор среди закреплённых.
+            "3|1|P|P|1|0|0||$MAPS",
+            "3|1|P|P|0|2|0|$pair|$pair",
+            "3|1|P|P|1|1|0|$pair|$pair",
+            "3|1|P|P|0|1|1|$pair|$pair",
+            "3|1|P|P|0|0|2|$pair|$pair",
+            "3|1|P|P|1|0|0|$MUSIC\\q|$MAPS",
             "{\"enabled\":true,\"primary\":\"ru.yandex.music\"}",
         )
 
@@ -135,6 +273,34 @@ class SplitStoreTest {
 
             assertEquals("payload <$payload>", safeDefault(), loaded)
             assertEquals("payload <$payload> is not repaired or migrated", stored, preferences.snapshot())
+            assertEquals(0, preferences.commits)
+        }
+    }
+
+    @Test
+    fun anUnreadableV2SnapshotResolvesToTheSafeDefault() {
+        // правила v2 - прежние, слово в слово: всё, что не снимок v2, - порча
+        val corrupt = listOf(
+            "",
+            "2",
+            "2|1|0|P",
+            "2|1|0|P|P|P",
+            "3|1|0|P|P",
+            "3|1|P|P|0|0|0",
+            "1|1|0|P|P",
+            "2|yes|0|P|P",
+            "2|1|seven|P|P",
+            "2|1|0|X|P",
+            "2|1|0|P|A:escape\\qhere",
+            "2|1|0|P|A:dangling\\",
+        )
+
+        corrupt.forEach { payload ->
+            val stored = mapOf<String, Any>(STATE_V2 to payload)
+            val preferences = InMemorySharedPreferences(stored)
+
+            assertEquals("v2 payload <$payload>", safeDefault(), PreferencesSplitStateStore(preferences).load())
+            assertEquals(stored, preferences.snapshot())
             assertEquals(0, preferences.commits)
         }
     }
@@ -343,8 +509,10 @@ class SplitStoreTest {
     private companion object {
         const val MUSIC = "ru.yandex.music"
         const val MAPS = "ru.yandex.yandexmaps"
+        const val NAVI = "ru.yandex.yandexnavi"
 
-        const val STATE = "split_state_v2"
+        const val STATE = "split_state_v3"
+        const val STATE_V2 = "split_state_v2"
 
         const val LAST_PRIMARY = "picker_last_primary_package_v1"
     }

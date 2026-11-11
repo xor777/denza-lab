@@ -227,6 +227,20 @@ internal class FakeShell(
     val refusePaneBoundsFor = mutableSetOf<String>()
 
     /**
+     * Packages whose task the firmware brings into its pane but not above the picker, the
+     * [pickerStaysAboveApps] of one package: a cold process that has not drawn its first window
+     * yet (1.3.11). Removing a package and moving its task again lets it arrive.
+     */
+    val lateToTop = mutableSetOf<String>()
+
+    /**
+     * Packages whose task on the other display a launch without `MULTIPLE_TASK` brings over to the
+     * main one, as Android resolves an existing task wherever it is. By default this fake starts a
+     * new task instead; nothing measured on the car says which of the two it does.
+     */
+    val reuseExternalTaskOf = mutableSetOf<String>()
+
+    /**
      * Пакеты, чьи задачи прошивка НЕ приводит к границам корня, унося их в полноэкранный корень.
      *
      * Пер-пакетный аналог глобального [preserveBoundsOnShellMove], и причина у него названа по
@@ -542,7 +556,7 @@ internal class FakeShell(
 
     /** The firmware never commits the app above the picker window (правка A4, defect v17). */
     private fun keepPickerOnTopIfConfigured(promoted: Task) {
-        if (!pickerStaysAboveApps) return
+        if (!pickerStaysAboveApps && promoted.packageName !in lateToTop) return
         if (promoted.activityName == SPLIT_PICKER_ACTIVITY) return
         if (promoted.rootId != PRIMARY_ROOT && promoted.rootId != SECONDARY_ROOT) return
         val picker = tasks.firstOrNull { task ->
@@ -692,7 +706,7 @@ internal class FakeShell(
                 } else {
                     tasks.lastOrNull { task ->
                         task.packageName == packageName &&
-                            task.rootId != EXTERNAL_ROOT &&
+                            (task.rootId != EXTERNAL_ROOT || packageName in reuseExternalTaskOf) &&
                             // Реальная прошивка резолвит существующую задачу по компоненту и его
                             // taskAffinity: задача нашего пикера (affinity ...split.picker)
                             // никогда не отдаётся запуску MainActivity (affinity ...control) -
@@ -1172,6 +1186,11 @@ internal class SplitCarFixture(
         /** Home and the area as this process hears them; by default nobody listens. */
         signals: SplitSignalPort = SplitSignalPort.NONE,
         /**
+         * Every settle pause of every operation. By default none takes any time; a scenario that
+         * measures a wait against the operation's own deadline passes one that moves [clock].
+         */
+        sleeper: (Long) -> Unit = {},
+        /**
          * Runs on the worker as each diagnostic line is recorded.
          *
          * It is the seam for "and right here the car changed underneath you": the step marks of an
@@ -1191,7 +1210,7 @@ internal class SplitCarFixture(
             leases = leases,
             apkPath = SPLIT_APK_PATH,
             resident = resident,
-            sleeper = {},
+            sleeper = sleeper,
             log = { line, background ->
                 diagnostics += line
                 if (background) backgroundDiagnostics += line
@@ -1203,6 +1222,33 @@ internal class SplitCarFixture(
             inProcessCalls = inProcessCalls,
             signals = signals,
         ).also { core -> built = core }
+    }
+
+    /**
+     * Time as the car charges it (findings, "What a command costs"): every shell trip moves
+     * [clock] by [perTripMs] - 46-50 ms warm and 87-103 ms while the helper is born, so 100 is
+     * from above - and [then] runs after the charge, where a scenario changes the car mid-wait.
+     * Settle pauses cost what they say only when the core's sleeper moves the clock too; the
+     * binder reads answered in this process cost [IN_PROCESS_CALL_MS] ([inProcessFromFake]).
+     */
+    fun chargeTrips(perTripMs: Long = SHELL_TRIP_MS, then: (String) -> Unit = {}) {
+        shells.beforeTrip = { command ->
+            clock.advance(perTripMs)
+            then(command)
+        }
+    }
+
+    /**
+     * The binder calls the product answers in its own process on the car (tx30, tx112, tx118,
+     * tx125, tx126), answered by this fake firmware at about a millisecond each.
+     */
+    val inProcessFromFake: SplitInProcessCalls = SplitInProcessCalls { command ->
+        if (SplitBinderCall.of(command) == null) {
+            null
+        } else {
+            clock.advance(IN_PROCESS_CALL_MS)
+            synchronized(fake) { fake.shell(command) }
+        }
     }
 
     fun commands(): List<String> = synchronized(fake) { fake.commands.toList() }
@@ -1245,8 +1291,14 @@ internal class SplitCarFixture(
         assertEquals("commands this car does not model", emptyList<String>(), fake.refused.toList())
     }
 
-    private companion object {
-        fun isMutation(command: String): Boolean =
+    companion object {
+        /** One shell trip, from above (findings, "What a command costs"). */
+        const val SHELL_TRIP_MS = 100L
+
+        /** One binder call answered in the app's process (findings, "The three calls"). */
+        const val IN_PROCESS_CALL_MS = 1L
+
+        private fun isMutation(command: String): Boolean =
             command.startsWith("am start ") ||
                 command.startsWith("am stack move-task ") ||
                 command.startsWith("am task focus ") ||
@@ -1276,6 +1328,10 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
 
     @Volatile
     private var blockAt: String? = null
+
+    /** Runs before every shell trip, on the worker: what a trip costs, and the car changing. */
+    @Volatile
+    var beforeTrip: ((String) -> Unit)? = null
 
     @Volatile
     private var failAt: String? = null
@@ -1327,6 +1383,7 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
         synchronized(recorded) { recorded += session }
         return object : SplitShellHandle {
             override fun shell(command: String): String {
+                beforeTrip?.invoke(command)
                 if (command == blockAt) {
                     blockAt = null
                     reached.countDown()
@@ -1574,6 +1631,10 @@ internal object FakeCatalog : SplitLaunchCatalog {
         } else {
             null
         }
+
+    /** What this car's package manager says: every package the catalogue does not know is gone. */
+    override fun presence(packageName: String): SplitPackagePresence =
+        if (packageName in installed) SplitPackagePresence.INSTALLED else SplitPackagePresence.ABSENT
 }
 
 /**
@@ -1588,6 +1649,13 @@ internal class OverridingCatalog(
 ) : SplitLaunchCatalog {
     override fun resolve(packageName: String): SplitLaunchTarget? =
         overrides[packageName] ?: FakeCatalog.resolve(packageName)
+
+    override fun presence(packageName: String): SplitPackagePresence =
+        if (overrides.containsKey(packageName)) {
+            SplitPackagePresence.INSTALLED
+        } else {
+            FakeCatalog.presence(packageName)
+        }
 }
 
 /**

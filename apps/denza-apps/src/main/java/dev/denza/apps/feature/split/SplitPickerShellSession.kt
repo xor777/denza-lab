@@ -142,14 +142,14 @@ internal class SplitPickerShellSession(
         pickerComponents: Map<SplitPane, String>,
         targets: Map<SplitPane, SplitLaunchTarget>,
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
-        preexistingTaskIds: Set<Int>? = null,
+        timeLeftMs: (() -> Long)? = null,
         onPhase: (String) -> Unit = {},
         onTask: (SplitBuiltTask) -> Unit = {},
     ): SplitSceneBuild = builder.buildScene(
         pickerComponents = pickerComponents,
         targets = targets,
         expectedApps = expectedApps,
-        preexistingTaskIds = preexistingTaskIds,
+        timeLeftMs = timeLeftMs,
         onPhase = onPhase,
         onTask = onTask,
     )

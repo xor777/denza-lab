@@ -1025,6 +1025,39 @@ class SplitScenarioTest {
     }
 
     /**
+     * A task of the wanted package on the other display is the user's, not this open's: the
+     * borrowed-or-started decision reads every display, and an unwind puts a task brought over
+     * from there back where it was instead of leaving it in the background of the main display.
+     */
+    @Test
+    fun aTaskBroughtFromTheOtherDisplayIsReturnedThereByTheUnwind() {
+        val fake = FakeShell().apply {
+            addTask(EXTERNAL_ROOT, EXTERNAL_TASK, WAZE, "$WAZE.MainActivity")
+            reuseExternalTaskOf += WAZE
+        }
+        val car = car(fake)
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.App(WAZE)),
+            ),
+        ) { line ->
+            // Between the recipe's postcondition and the read-back the other pane loses its base,
+            // so the open is refused and unwinds what it placed above the bases.
+            if (line.contains(SCENE_BUILT)) fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        }
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue("the open took the task over: ${car.commands()}", car.commands().any { it.startsWith("am start ") && it.contains(WAZE) })
+        assertTrue("the task lives", fake.hasTask(EXTERNAL_TASK))
+        assertEquals("and is back on its display", EXTERNAL_ROOT, fake.taskRoot(EXTERNAL_TASK))
+        assertEquals(SplitSlot.App(WAZE), car.store.load().slot(SplitPane.SECONDARY))
+    }
+
+    /**
      * Contract 1.9.4 and scenario §11.2, the whole point of правка E.
      *
      * Home covers a scene; it does not end one (invariant 5). Acceptance v17 refused every adoption
@@ -1716,6 +1749,11 @@ class SplitScenarioTest {
         core.pickerVisible(PRIMARY_PICKER_TASK)
         living.barrier()
         assertEquals(SplitSlot.Picker, living.store.load().slot(SplitPane.PRIMARY))
+        assertEquals(
+            "закрытая на глазах пара остаётся в памяти последней (1.14.6)",
+            SplitPair(NAVIGATOR, MUSIC),
+            living.store.load().memory.last,
+        )
 
         // Сцена ушла вместе с процессом; следующий тап строит её заново из хранилища.
         val next = SplitCarFixture(fake = FakeShell(), store = living.store).also(cars::add)
@@ -1739,6 +1777,8 @@ class SplitScenarioTest {
             ),
             next.store.load().slots,
         )
+        // Сценарий 38, половина памяти (1.14.6): панель на пикере, а пара - в памяти, последней.
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), next.store.load().memory.last)
     }
 
     @Test
@@ -2299,21 +2339,30 @@ class SplitScenarioTest {
             SplitSlot.App(NAVIGATOR),
             car.store.load().slot(SplitPane.PRIMARY),
         )
+        // Ред. 2026-11-11 (сц. 30): очистка не на видимой сцене - соседний слот тоже за приложением.
+        assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.SECONDARY))
 
         val plan = core.prepareNavigationReturn(PRIMARY_ROOT)
         assertNotNull("возврат навигатора по-прежнему находит свой план", plan)
         assertTrue("и это возврат на весь экран, а не в исчезнувшую панель", plan.fullscreen)
     }
 
+    /**
+     * Сценарий 36 (ред. 2026-11-11, 1.7.5, инвариант 14): «Очистить всё» кончает сцену и не
+     * стирает выбор - следующий тап возвращает ту же пару, запуская приложения заново.
+     *
+     * До редакции этот тест требовал обратного (`...TheNextOpenShowsFreshPickers`): после
+     * очистки слоты становились `PICKER|PICKER`, и следующий тап строил два пустых пикера.
+     */
     @Test
-    fun clearAllInRecentsEndsTheSceneAndTheNextOpenShowsFreshPickers() {
-        // 1.7.5, §11.30 вторая половина: очищенное не воскресает, следующий тап - два свежих пикера
+    fun clearAllInRecentsEndsTheSceneAndTheNextOpenBringsThePairBack() {
         val car = car(FakeShell().apply { liveProductScene(withApps = true) })
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
         core.openPickerSession()
         car.barrier()
         assertEquals(APP_PAIR, car.store.load().slots)
+        val commits = car.store.commits
 
         // «Очистить всё» уносит с главного дисплея всё, до чего дотягивается Recents.
         listOf(PRIMARY_ROOT, SECONDARY_ROOT).forEach(car.fake::dismissPane)
@@ -2322,11 +2371,8 @@ class SplitScenarioTest {
         core.dividerResized()
         car.barrier()
 
-        assertEquals(
-            "ни одна панель не оставляет себе закрытое приложение",
-            PICKER_PAIR,
-            car.store.load().slots,
-        )
+        assertEquals("пара не стёрта", APP_PAIR, car.store.load().slots)
+        assertEquals("и писать было нечего", commits, car.store.commits)
         assertEquals("и это только наблюдение: ни одной мутации", emptyList<String>(), car.mutations())
 
         car.clearCommands()
@@ -2334,15 +2380,657 @@ class SplitScenarioTest {
         car.barrier()
 
         val launches = car.commands().filter { it.startsWith("am start ") }
+        assertTrue("навигатор запущен заново", launches.any { it.contains("'$NAVIGATOR/") })
+        assertTrue("музыка запущена заново", launches.any { it.contains("'$MUSIC/") })
+        assertEquals(NAVIGATOR, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(PRIMARY_ROOT))))
+        assertEquals(MUSIC, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(SECONDARY_ROOT))))
+        assertEquals("та же пара", APP_PAIR, car.store.load().slots)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Сценарий 35 (ред. 2026-11-11, 1.3.11): сон машины снял задачи обеих панелей и убил процесс.
+     * Новый процесс знает только хранилище, а тап «Разделить экран» запускает оба приложения в их
+     * панелях - холодными, в пределах потолка 1.13.
+     */
+    @Test
+    fun afterASleepThatTookBothAppsTheNextTapStartsThePairAgain() {
+        val asleep = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val living = asleep.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        living.initialize {}
+        living.openPickerSession()
+        asleep.barrier()
+        assertEquals(APP_PAIR, asleep.store.load().slots)
+
+        // Сон: процессы приложений убиты, их задач нет; наш процесс тоже не пережил.
+        asleep.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        asleep.fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
+        asleep.fake.area = 0
+        val woken = SplitCarFixture(fake = asleep.fake, store = asleep.store).also(cars::add)
+        val core = woken.core(woken.store.load(), sleeper = { ms -> woken.clock.advance(ms) })
+        core.initialize {}
+        woken.barrier()
+        assertEquals("ничего не запускается само (U1, 1.14.5)", emptyList<String>(), woken.mutations())
+
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+        val startedAt = woken.clock.nowMs()
+        core.openPickerSession(results::add)
+        woken.barrier()
+
+        val launches = woken.commands().filter { it.startsWith("am start ") }
+        assertTrue(launches.any { it.contains("'$NAVIGATOR/") })
+        assertTrue(launches.any { it.contains("'$MUSIC/") })
+        assertEquals(NAVIGATOR, woken.fake.taskPackage(checkNotNull(woken.fake.topTaskId(PRIMARY_ROOT))))
+        assertEquals(MUSIC, woken.fake.taskPackage(checkNotNull(woken.fake.topTaskId(SECONDARY_ROOT))))
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals(APP_PAIR, woken.store.load().slots)
+        assertTrue(
+            "в пределах потолка 1.13: ${woken.clock.nowMs() - startedAt} мс",
+            woken.clock.nowMs() - startedAt < USER_VISIBLE_CEILING_MS,
+        )
+    }
+
+    /**
+     * 1.3.11, «К 1.14»: холодному приложению отдано время операции, а не два чтения.
+     *
+     * Запуск пакета, у которого до него не было ни одной живой задачи, прошивка «проглотила» -
+     * процесс ещё стартует. Открытие ждёт его до дедлайна за вычетом запаса на read-back, а не
+     * отказывается после двух чтений, и не отказывается целиком: сосед восстановлен, панель
+     * холодного приложения на рабочем пикере, выбор за ним сохранён, и ринг это называет.
+     */
+    @Test
+    fun aColdAppIsWaitedForUntilTheOperationsTimeAndItsPaneAloneDegrades() {
+        val car = car(FakeShell().apply { swallowLaunchOf += WAZE })
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(MUSIC),
+                    SplitPane.SECONDARY to SplitSlot.App(WAZE),
+                ),
+            ),
+            sleeper = { ms -> car.clock.advance(ms) },
+        )
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        val startedAt = car.clock.nowMs()
+        core.openPickerSession(results::add)
+        car.barrier()
+        val spent = car.clock.nowMs() - startedAt
+
+        assertTrue(
+            "ждали дольше короткого бюджета - до дедлайна без запасов на работу после: $spent мс",
+            spent >= OPEN_BUDGET_MS - OPEN_READ_BACK_RESERVE_MS -
+                SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS - 500L,
+        )
+        assertTrue("и уложились в бюджет операции: $spent мс", spent < OPEN_BUDGET_MS)
+        assertEquals("открытие удалось", listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals(MUSIC, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(PRIMARY_ROOT))))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
         assertEquals(
-            "следующий тап строит ровно два пикера",
-            2,
-            launches.count { it.contains(SPLIT_PICKER_ACTIVITY) },
+            "выбор холодной панели сохранён",
+            SplitSlot.App(WAZE),
+            car.store.load().slot(SplitPane.SECONDARY),
         )
+        assertTrue("${car.diagnostics}", car.diagnostics.any { it.contains("cold: ") && it.contains(WAZE) })
+        assertTrue(
+            "${car.diagnostics}",
+            car.diagnostics.any { it.contains("not restored $WAZE: the pane keeps its choice") },
+        )
+    }
+
+    /**
+     * Ред. 2026-11-11 (1.3.11) on the car's clock: two cold applications that never take their
+     * panes cost only their panes. Every shell trip costs what the car charges, and still the open
+     * commits inside its deadline, both panes on their pickers, both choices kept, and the two
+     * late applications go to the background together, in one eviction, alive.
+     */
+    @Test
+    fun twoLateColdPanesCommitInsideTheDeadlineOnTwoPickers() {
+        val car = car(FakeShell().apply { lateToTop += setOf(MUSIC, WAZE) })
+        val pair = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(WAZE))
+
+        val opened = openOnTheCarsClock(car, pair)
+
+        assertEquals("${car.diagnostics}", listOf(SplitActionResult.SETTLED), opened.results)
+        assertTrue("inside the deadline: ${opened.spentMs} ms", opened.spentMs < OPEN_BUDGET_MS)
+        assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+        assertEquals("both choices kept", pair, car.store.load().slots)
+        assertEquals(
+            "one eviction for both late panes: ${car.diagnostics}",
+            1,
+            car.diagnostics.count { it.contains("cold-not-placed: PRIMARY, SECONDARY") },
+        )
+        listOf(MUSIC, WAZE).forEach { packageName ->
+            assertTrue(
+                "$packageName alive in the background",
+                car.fake.allTaskIds().any { id -> car.fake.taskPackage(id) == packageName },
+            )
+        }
+        assertFalse("nothing removed", car.commands().any { it.contains("remove-task") })
+    }
+
+    /**
+     * A late cold application next to a warm one: the neighbour keeps its application on the
+     * screen, and the open commits inside its deadline (1.3.11, "a cold app is never the reason
+     * the neighbour loses its scene").
+     */
+    @Test
+    fun aLateColdPaneLeavesTheWarmNeighbourIntactInsideTheDeadline() {
+        val car = car(
+            FakeShell().apply {
+                lateToTop += WAZE
+                addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            },
+        )
+        val pair = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(WAZE))
+
+        val opened = openOnTheCarsClock(car, pair)
+
+        assertEquals("${car.diagnostics}", listOf(SplitActionResult.SETTLED), opened.results)
+        assertTrue("inside the deadline: ${opened.spentMs} ms", opened.spentMs < OPEN_BUDGET_MS)
+        assertEquals("the warm neighbour is intact", 70, car.fake.topTaskId(PRIMARY_ROOT))
+        assertEquals(car.fake.rootBounds(PRIMARY_ROOT), car.fake.taskBounds(70))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+        assertEquals(pair, car.store.load().slots)
+    }
+
+    /**
+     * Rule 1 of the cold wait: while a cold pane is still unconfirmed, a sample that fails for
+     * another reason - here one beat of the area off the balanced split - does not fail the build,
+     * and the late application that arrives afterwards takes its pane.
+     */
+    @Test
+    fun aTransientAreaBeatDuringTheColdWaitDoesNotFailTheBuild() {
+        val fake = FakeShell().apply {
+            lateToTop += WAZE
+            addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+        }
+        val car = car(fake)
+        val pair = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(WAZE))
+
+        val opened = openOnTheCarsClock(car, pair) { stackReads ->
+            when (stackReads) {
+                3 -> fake.areaReadAnswers.addLast(SplitWorld.AREA_FULL_IVI)
+                8 -> arrive(fake, WAZE)
+            }
+        }
+
+        assertEquals("${car.diagnostics}", listOf(SplitActionResult.SETTLED), opened.results)
+        assertTrue("the beat was read", fake.areaReadAnswers.isEmpty())
+        assertTrue("inside the deadline: ${opened.spentMs} ms", opened.spentMs < OPEN_BUDGET_MS)
+        assertEquals(WAZE, fake.taskPackage(checkNotNull(fake.topTaskId(SECONDARY_ROOT))))
+        assertEquals(70, fake.topTaskId(PRIMARY_ROOT))
+        assertTrue(car.diagnostics.none { it.contains("cold-not-placed") })
+    }
+
+    /**
+     * A root that briefly holds a second task of the starting package (its trampoline) does not
+     * fail the build: a pane counts the tasks of its own application's package as that
+     * application's windows (1.5.2), and while the task is on top the application is only "not yet
+     * on top", which the cold wait waits out.
+     */
+    @Test
+    fun aSecondTaskOfTheColdPackageInItsRootDoesNotFailTheBuild() {
+        val fake = FakeShell().apply {
+            lateToTop += WAZE
+            addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+        }
+        val car = car(fake)
+        val pair = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(WAZE))
+        var appTaskId: Int? = null
+
+        val opened = openOnTheCarsClock(car, pair) { stackReads ->
+            when (stackReads) {
+                2 -> {
+                    appTaskId = fake.taskIds(SECONDARY_ROOT).single { id -> fake.taskPackage(id) == WAZE }
+                    fake.addTask(SECONDARY_ROOT, TRAMPOLINE_TASK, WAZE, "$WAZE.Trampoline")
+                }
+                5 -> fake.trimTask(TRAMPOLINE_TASK)
+                8 -> arrive(fake, WAZE)
+            }
+        }
+
+        assertEquals("${car.diagnostics}", listOf(SplitActionResult.SETTLED), opened.results)
+        assertTrue("inside the deadline: ${opened.spentMs} ms", opened.spentMs < OPEN_BUDGET_MS)
+        assertEquals(appTaskId, fake.topTaskId(SECONDARY_ROOT))
+        assertTrue(car.diagnostics.none { it.contains("cold-not-placed") })
+    }
+
+    /**
+     * "The catalogue cannot resolve it" is not "uninstalled" (invariant 14, section 6): a
+     * package the package manager still has, or cannot answer about, gets its pane's picker for
+     * this open, and its slot and every pair it is in stay as they were, with one line of the ring.
+     */
+    @Test
+    fun anInstalledButUnlaunchablePackageKeepsItsSlotAndItsPairs() {
+        listOf(SplitPackagePresence.INSTALLED, SplitPackagePresence.UNKNOWN).forEach { presence ->
+            val car = car(FakeShell())
+            val pair = SplitPair(MUSIC, WAZE)
+            val catalog = object : SplitLaunchCatalog {
+                override fun resolve(packageName: String): SplitLaunchTarget? =
+                    if (packageName == WAZE) null else FakeCatalog.resolve(packageName)
+
+                override fun presence(packageName: String): SplitPackagePresence =
+                    if (packageName == WAZE) presence else FakeCatalog.presence(packageName)
+            }
+            val core = car.core(
+                SplitDurable(
+                    enabled = true,
+                    slots = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(WAZE)),
+                    memory = SplitMemory(last = pair, pinned = listOf(pair)),
+                ),
+                catalog = catalog,
+            )
+            core.initialize {}
+            val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+            core.openPickerSession(results::add)
+            car.barrier()
+
+            assertEquals("$presence", listOf(SplitActionResult.SETTLED), results.toList())
+            assertEquals(MUSIC, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(PRIMARY_ROOT))))
+            assertEquals("$presence: its pane on the picker", SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+            val durable = car.store.load()
+            assertEquals("$presence: the slot kept", SplitSlot.App(WAZE), durable.slot(SplitPane.SECONDARY))
+            assertEquals("$presence: the pair kept", SplitMemory(last = pair, pinned = listOf(pair)), durable.memory)
+            assertEquals(
+                "$presence: one line: ${car.diagnostics}",
+                1,
+                car.diagnostics.count { it.startsWith("not restored $WAZE") },
+            )
+            assertTrue(car.diagnostics.any { it == "not restored $WAZE: cannot be launched now, the pane keeps its choice" })
+        }
+    }
+
+    /**
+     * At the same point, every package the memory names is asked the same question, and only a
+     * definite "not found" forgets it: its slot goes to the picker and every pair it is in leaves
+     * the memory, while the pairs of installed packages stay.
+     */
+    @Test
+    fun anOpenForgetsThePairsOfAProvenlyAbsentPackage() {
+        val car = car(FakeShell())
+        val gone = "com.example.gone"
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.App(gone)),
+                memory = SplitMemory(
+                    last = SplitPair(MUSIC, gone),
+                    recent = listOf(SplitPair(MUSIC, WAZE), SplitPair(RADIO, gone)),
+                    pinned = listOf(SplitPair(gone, NAVIGATOR), SplitPair(NAVIGATOR, MUSIC)),
+                ),
+            ),
+        )
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
+        val durable = car.store.load()
+        assertEquals(SplitSlot.App(MUSIC), durable.slot(SplitPane.PRIMARY))
+        assertEquals("the absent package's slot", SplitSlot.Picker, durable.slot(SplitPane.SECONDARY))
+        assertEquals(
+            SplitMemory(
+                last = null,
+                recent = listOf(SplitPair(MUSIC, WAZE)),
+                pinned = listOf(SplitPair(NAVIGATOR, MUSIC)),
+            ),
+            durable.memory,
+        )
+        assertEquals(
+            "${car.diagnostics}",
+            1,
+            car.diagnostics.count { it == "not restored $gone: not installed, its pairs are forgotten" },
+        )
+    }
+
+    // region invariant 14: one rule for "the user saw it leave"
+
+    /**
+     * Invariant 14: Back in a pane, then Home before any reconcile has read it. The cover ends the
+     * witness, so the read that later finds the pane on its picker proves no departure: the slot
+     * keeps the application, and the next tap brings it back. Keeping is the chosen direction.
+     */
+    @Test
+    fun backThenHomeBeforeTheReconcileKeepsTheChoice() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        car.fake.area = 0
+        core.homeKeyPressed()
+        car.barrier()
+        car.fake.area = 3
+        core.pickerVisible(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * An area read that fails does not consume the witness: the reconcile it broke settles
+     * nothing, and the next one, reading on the screen, still proves the visible Back.
+     */
+    @Test
+    fun aFailedAreaReadDoesNotConsumeTheWitness() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        car.shells.failOn(SPLIT_AREA_QUERY)
+        core.pickerVisible(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals("nothing settled on a failed read", APP_PAIR, car.store.load().slots)
+
+        core.pickerVisible(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(SplitSlot.Picker, car.store.load().slot(SplitPane.PRIMARY))
+        assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.SECONDARY))
+    }
+
+    /**
+     * A death under a cover no operation read - the area push came while work of ours was in
+     * flight - and then the reveal. The first read after it re-establishes the witness and proves
+     * nothing: the dead application keeps its pane. From that read on, a visible close is a
+     * departure again.
+     */
+    @Test
+    fun aDeathUnderAnUnobservedCoverIsNotADepartureAfterTheReveal() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        val hold = car.hold()
+        car.fake.area = 4
+        core.areaChanged(4)
+        hold.release()
+        car.barrier()
+        car.fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
+        car.fake.area = 3
+        core.pickerVisible(SECONDARY_PICKER_TASK)
+        car.barrier()
+
+        assertEquals("the dead application keeps its pane", APP_PAIR, car.store.load().slots)
+
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        core.pickerVisible(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertEquals(
+            "the reveal's read is the witness of a later visible close",
+            mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.App(MUSIC)),
+            car.store.load().slots,
+        )
+    }
+
+    /**
+     * The neighbour dies during a selection while a cover is heard: the selection's read-back is
+     * on the screen, but the witness of the neighbour ended with the cover, so its slot stays.
+     */
+    @Test
+    fun theNeighbourDyingDuringASelectUnderCoverKeepsItsSlot() {
+        val fake = FakeShell().apply {
+            liveProductScene(withApps = true)
+            removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        }
+        val car = car(fake)
+        lateinit var core: SplitCoordinatorCore
+        core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.App(MUSIC)),
+            ),
+            onDiagnostic = { line ->
+                if (line.endsWith(" read-back начат") && line.startsWith(SplitCoordinatorCore.SELECT_LABEL)) {
+                    fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
+                    core.areaChanged(4)
+                }
+            },
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
+        car.barrier()
+
+        assertEquals(
+            mapOf(SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR), SplitPane.SECONDARY to SplitSlot.App(MUSIC)),
+            car.store.load().slots,
+        )
+    }
+
+    /**
+     * Scenario 38 through each producer of a departure: an application closed on a scene the
+     * user is looking at returns its pane to the picker - a reconcile's read and a collapse whose
+     * survivor lost its application here; the selection's read-back in
+     * [choosingTheNeighboursApplicationRecordsNoIntermediatePair]. The revealed-picker hint
+     * (`closeRevealedApp`) reads the same shared snapshot as the reconcile just before it, so a
+     * scenario cannot make the two disagree; it goes through the same rule all the same.
+     */
+    @Test
+    fun aPlainVisibleCloseStillGivesThePickerThroughEachProducer() {
+        // A reconcile's read.
+        val read = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val readCore = read.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        readCore.initialize {}
+        readCore.openPickerSession()
+        read.barrier()
+        read.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        readCore.pickerVisible(PRIMARY_PICKER_TASK)
+        read.barrier()
+        assertEquals("read", SplitSlot.Picker, read.store.load().slot(SplitPane.PRIMARY))
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), read.store.load().memory.last)
+
+        // A collapse whose survivor's application had left it.
+        val collapsed = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val collapsedCore = collapsed.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        collapsedCore.initialize {}
+        collapsedCore.openPickerSession()
+        collapsed.barrier()
+        collapsed.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        collapsed.fake.dismissPane(SECONDARY_ROOT)
+        collapsedCore.dividerResized()
+        collapsed.barrier()
+        assertEquals(
+            "collapse: ${collapsed.diagnostics}",
+            mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.Closed),
+            collapsed.store.load().slots,
+        )
+    }
+
+    /**
+     * Ред. 2026-11-11 (1.14, 1.5.3): one selection never records a pair it only passed through.
+     * The pair (A, B) was closed on sight in A's pane; the user chooses B there, and the firmware
+     * hands over B's own task from the other pane. Both panes never held B together, and the
+     * memory never names (B, B).
+     */
+    @Test
+    fun choosingTheNeighboursApplicationRecordsNoIntermediatePair() {
+        val fake = FakeShell().apply { liveProductScene(withApps = true) }
+        val car = car(fake)
+        val core = car.core(
+            SplitDurable(enabled = true, slots = APP_PAIR),
+            onDiagnostic = { line ->
+                if (line.endsWith(" read-back начат") && line.startsWith(SplitCoordinatorCore.SELECT_LABEL)) {
+                    // The firmware keeps one task of the application: the one it started is
+                    // folded into the one the other pane held, and that one comes over.
+                    fake.taskIds(PRIMARY_ROOT).filter { id -> fake.taskPackage(id) == MUSIC }.forEach(fake::trimTask)
+                    fake.moveTask(SECONDARY_APP_TASK, PRIMARY_ROOT)
+                }
+            },
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        core.pickerVisible(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), car.store.load().memory.last)
+
+        core.selectApp(PRIMARY_PICKER_TASK, MUSIC)
+        car.barrier()
+
+        val durable = car.store.load()
+        assertEquals(
+            "${car.diagnostics}",
+            mapOf(SplitPane.PRIMARY to SplitSlot.App(MUSIC), SplitPane.SECONDARY to SplitSlot.Picker),
+            durable.slots,
+        )
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), durable.memory.last)
+        assertTrue(
+            "no (B, B) anywhere: ${durable.memory}",
+            (durable.memory.recent + durable.memory.pinned).none { pair -> pair == SplitPair(MUSIC, MUSIC) },
+        )
+    }
+
+    // endregion
+
+    /** What one open on the car's clock returned, and how long it took. */
+    private class ChargedOpen(val results: List<SplitActionResult>, val spentMs: Long)
+
+    /**
+     * One open from [slots], every shell trip and every settle pause charged to the clock, the
+     * binder reads answered in-process at a millisecond, as on the car. [afterNormalized] hears the
+     * number of `am stack list` reads since the build began confirming its placement, before each.
+     */
+    private fun openOnTheCarsClock(
+        car: SplitCarFixture,
+        slots: Map<SplitPane, SplitSlot>,
+        afterNormalized: (stackReads: Int) -> Unit = {},
+    ): ChargedOpen {
+        val normalized = AtomicReference(false)
+        var stackReads = 0
+        car.chargeTrips { command ->
+            if (normalized.get() && command == "am stack list") {
+                stackReads += 1
+                afterNormalized(stackReads)
+            }
+        }
+        val core = car.core(
+            SplitDurable(enabled = true, slots = slots),
+            inProcessCalls = car.inProcessFromFake,
+            sleeper = { ms -> car.clock.advance(ms) },
+            onDiagnostic = { line -> if (line.endsWith(" $SPLIT_PHASE_SCENE_NORMALIZED")) normalized.set(true) },
+        )
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+        val startedAt = car.clock.nowMs()
+        core.openPickerSession(results::add)
+        car.barrier()
+        return ChargedOpen(results.toList(), car.clock.nowMs() - startedAt)
+    }
+
+    /** The late application finally takes its pane: on top of its root, at the root's size. */
+    private fun arrive(fake: FakeShell, packageName: String) {
+        fake.lateToTop -= packageName
+        val root = listOf(PRIMARY_ROOT, SECONDARY_ROOT).first { root ->
+            fake.taskIds(root).any { id -> fake.taskPackage(id) == packageName }
+        }
+        val taskId = fake.taskIds(root).first { id -> fake.taskPackage(id) == packageName }
+        fake.moveTask(taskId, root)
+    }
+
+    /**
+     * Сценарий 37 (ред. 2026-11-11, 1.3.11, инварианты 9 и 14): холодное приложение не встало в
+     * панель. Панель на рабочем пикере, задача приложения жива и не удалена - выселена фоном,
+     * слот остался `APP`, хранилище не потеряло пакет; повторный тап ставит приложение на место
+     * уже тёплым, той же задачей.
+     */
+    @Test
+    fun aColdAppThatDidNotTakeItsPaneLivesOnAndTheNextTapPlacesIt() {
+        val car = car(FakeShell().apply { refusePaneBoundsFor += WAZE })
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(MUSIC),
+                    SplitPane.SECONDARY to SplitSlot.App(WAZE),
+                ),
+            ),
+        )
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        val waze = car.fake.allTaskIds().single { car.fake.taskPackage(it) == WAZE }
+        assertEquals("приложение живо и выселено фоном", FULL_ROOT, car.fake.taskRoot(waze))
         assertFalse(
-            "и ничего не воскрешает (инвариант 6)",
-            launches.any { it.contains(NAVIGATOR) || it.contains(MUSIC) },
+            "и ни одна команда его не удаляла",
+            car.commands().any { it.contains(" remove-task ") && it.contains(" $waze ") },
         )
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+        assertEquals(MUSIC, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(PRIMARY_ROOT))))
+        assertEquals(SplitSlot.App(WAZE), car.store.load().slot(SplitPane.SECONDARY))
+        assertEquals(
+            "хранилище не потеряло пакет",
+            SplitSlot.App(WAZE),
+            PreferencesSplitStateStore.decode(PreferencesSplitStateStore.encode(car.store.load()))
+                ?.slot(SplitPane.SECONDARY),
+        )
+
+        // Прошивка его приняла бы теперь: тап доводит восстановление (1.3.5) - тёплым.
+        car.fake.refusePaneBoundsFor -= WAZE
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals("та же задача, а не новая", waze, car.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(waze))
+        assertEquals(SplitSlot.App(WAZE), car.store.load().slot(SplitPane.SECONDARY))
+        assertFalse(
+            "Музыка не перезапущена (U2)",
+            car.commands().any { it.startsWith("am start ") && it.contains("'$MUSIC/") },
+        )
+    }
+
+    /**
+     * Сценарий 39 (ред. 2026-11-11, 1.14.3, 1.11.3): Denza Apps переустановлена над живой парой.
+     * Новый процесс ничего о сцене не помнит; Home и тап «Разделить экран» дают ту же пару с теми же
+     * задачами.
+     */
+    @Test
+    fun aReinstallOverALivePairGivesTheSamePairWithTheSameTasks() {
+        val before = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val living = before.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        living.initialize {}
+        living.openPickerSession()
+        before.barrier()
+
+        val after = SplitCarFixture(fake = before.fake, store = before.store).also(cars::add)
+        val reinstalled = after.core(after.store.load())
+        reinstalled.initialize {}
+        after.fake.area = 0
+        reinstalled.homeKeyPressed()
+        after.barrier()
+        after.clearCommands()
+
+        reinstalled.openPickerSession()
+        after.barrier()
+
+        assertFalse(
+            "ни одного запуска приложения",
+            after.commands().any { it.startsWith("am start ") && !it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertEquals(PRIMARY_APP_TASK, after.fake.topTaskId(PRIMARY_ROOT))
+        assertEquals(SECONDARY_APP_TASK, after.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals(APP_PAIR, after.store.load().slots)
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), after.store.load().memory.last)
     }
 
     /**
@@ -2360,8 +3048,14 @@ class SplitScenarioTest {
      * 1.7.3 говорит обратное: панель погибшего приложения показывает свой пикер, сосед живёт
      * непрерывно. Конец - только когда мертвы ВСЕ (1.7.5, «Очистить всё»).
      */
+    /*
+     * Ред. 2026-11-11 (сценарий 34, инвариант 14): гибель под накрытием больше не освобождает
+     * панель в памяти - до редакции этот тест ждал `APP|PICKER` и одну запись, а следующий тап
+     * держал панель Музыки на пикере. Теперь слот за Музыкой, и тап запускает её заново в её
+     * панели, не трогая живой Навигатор.
+     */
     @Test
-    fun oneAppKilledUnderHomeFreesOnlyItsPaneAndTheSceneContinues() {
+    fun oneAppKilledUnderHomeComesBackOnTheNextTapAndTheNeighbourIsUntouched() {
         val car = car(FakeShell().apply { liveProductScene(withApps = true) })
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
@@ -2386,14 +3080,15 @@ class SplitScenarioTest {
         car.barrier()
 
         assertEquals(
-            "освобождена только панель погибшего; сосед остался при своём приложении (1.7.3)",
-            mapOf(
-                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
-                SplitPane.SECONDARY to SplitSlot.Picker,
-            ),
+            "выбор обеих панелей сохранён: пользователь ухода не видел (инвариант 14)",
+            APP_PAIR,
             car.store.load().slots,
         )
-        assertEquals("и это одна запись", commits + 1, car.store.commits)
+        assertEquals("и писать нечего", commits, car.store.commits)
+        assertTrue(
+            "но смерть доказана и названа",
+            car.diagnostics.any { it.contains("выбор панели сохранён") },
+        )
         assertTrue("живой сосед не забыт и не тронут", car.fake.hasTask(PRIMARY_APP_TASK))
         assertTrue(
             "обе базы панелей на месте: пикер - дно панели (1.4.1)",
@@ -2411,30 +3106,34 @@ class SplitScenarioTest {
             car.commands().any { it.startsWith("am start ") },
         )
 
-        // И возврат кнопкой показывает ту же живую пару, а не два пустых пикера (1.9.4, 1.3.2).
+        // Тап «Разделить экран»: Музыка запущена заново в своей панели (1.3.11), а выживший не
+        // перезапускается - его показывают, а не запускают заново (U2, 1.14.3).
         car.clearCommands()
         core.openPickerSession()
         car.barrier()
 
         val launches = car.commands().filter { it.startsWith("am start ") }
-        assertFalse("закрытое не воскресает (1.3.4)", launches.any { it.contains(MUSIC) })
+        assertTrue("Музыка запущена заново (1.3.11)", launches.any { it.contains("'$MUSIC/") })
         assertFalse(
-            "а выживший не перезапускается: его показывают, а не запускают заново (U2)",
-            launches.any { it.contains(NAVIGATOR) },
+            "а выживший не перезапускается (U2)",
+            launches.any { it.contains("'$NAVIGATOR/") },
         )
         assertEquals(
-            "он на своём месте, сверху своей панели",
+            "он на своём месте, та же задача, сверху своей панели",
             PRIMARY_APP_TASK,
             car.fake.topTaskId(PRIMARY_ROOT),
         )
+        assertEquals(MUSIC, car.fake.taskPackage(checkNotNull(car.fake.topTaskId(SECONDARY_ROOT))))
+        assertEquals(APP_PAIR, car.store.load().slots)
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
     /**
-     * Зеркало предыдущего: умерло приложение другой панели - и освобождается ровно она (1.7.3).
+     * Зеркало предыдущего: умерло приложение другой панели. Ред. 2026-11-11 (инвариант 14): до
+     * неё слот этой панели становился `PICKER`; теперь выбор остаётся, и машину не трогают.
      */
     @Test
-    fun theSameDeathInTheOppositePaneFreesTheOppositePaneAlone() {
+    fun theSameDeathInTheOppositePaneKeepsTheChoiceAndTouchesNothing() {
         val car = car(FakeShell().apply { liveProductScene(withApps = true) })
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
@@ -2450,13 +3149,11 @@ class SplitScenarioTest {
         core.dividerResized()
         car.barrier()
 
-        assertEquals(
-            mapOf(
-                SplitPane.PRIMARY to SplitSlot.Picker,
-                SplitPane.SECONDARY to SplitSlot.App(MUSIC),
-            ),
-            car.store.load().slots,
+        assertTrue(
+            "смерть увидена - иначе тест ничего не сторожит",
+            car.diagnostics.any { it.contains("мертво под накрытием") },
         )
+        assertEquals(APP_PAIR, car.store.load().slots)
         assertTrue("живой сосед не тронут", car.fake.hasTask(SECONDARY_APP_TASK))
         assertEquals(
             "и ни одной мутации: приложение уже мертво, удалять нечего",
@@ -2620,9 +3317,11 @@ class SplitScenarioTest {
         storm.release()
         car.barrier()
 
+        // Ред. 2026-11-11 (инвариант 14): the panes keep the user's choice. Until then they gave
+        // themselves back to their pickers here, with one commit for it.
         assertEquals(
-            "the panes give themselves back to their pickers and nothing is revived",
-            PICKER_PAIR,
+            "the scene ended, the choice is kept and nothing is revived",
+            APP_PAIR,
             car.store.load().slots,
         )
         // Cleanup is the removal of our own stumps and nothing more. Anything else that changes the
@@ -2634,7 +3333,7 @@ class SplitScenarioTest {
             emptyList<String>(),
             car.mutations().filterNot { it.contains(" remove-task ") },
         )
-        assertEquals("one settled fact, one commit", commits + 1, car.store.commits)
+        assertEquals("one settled fact, and nothing durable to write", commits, car.store.commits)
 
         car.clearCommands()
         val laterStorm = car.hold()
@@ -2648,7 +3347,7 @@ class SplitScenarioTest {
             emptyList<String>(),
             car.mutations(),
         )
-        assertEquals("nor anything left to persist", commits + 1, car.store.commits)
+        assertEquals("nor anything left to persist", commits, car.store.commits)
     }
 
     /**
@@ -5176,17 +5875,16 @@ class SplitScenarioTest {
 
         assertEquals("пользователю не показано ничего", "", core.snapshot().message)
         assertTrue(
-            "но диагностика названа в ринге",
-            car.diagnostics.any { it.contains("failed to restore $MUSIC") },
+            "но диагностика называет пакет и то, что выбор за ним сохранён",
+            car.diagnostics.any { it.contains("not restored $MUSIC: the pane keeps its choice") },
         )
         assertEquals("тап удался - это не ошибка операции", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals("и карточка не краснеет", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        // Ред. 2026-11-11 (1.3.2, 1.3.11, «К 1.14»): панель на рабочем пикере, но слот остаётся за
+        // Музыкой - до редакции он становился `PICKER`, и выбор терялся.
         assertEquals(
-            "названная панель ждёт ручного выбора, а сосед восстановлен",
-            mapOf(
-                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
-                SplitPane.SECONDARY to SplitSlot.Picker,
-            ),
+            "названная панель на пикере, а выбор за ней сохранён; сосед восстановлен",
+            APP_PAIR,
             car.store.load().slots,
         )
         assertEquals(
@@ -5235,11 +5933,14 @@ class SplitScenarioTest {
             FULL_ROOT,
             car.fake.taskRoot(HUB_TASK),
         )
+        // Ред. 2026-11-11: панель на пикере, а слот остаётся за кандидатом (1.3.11, «К 1.14»);
+        // до редакции здесь ждали `PICKER`.
         assertEquals(
-            "панель кандидата деградировала в свой пикер (1.3.2)",
-            SplitSlot.Picker,
+            "панель кандидата деградировала в свой пикер (1.3.2), выбор сохранён",
+            SplitSlot.App(SPLIT_HOST_PACKAGE),
             car.store.load().slot(SplitPane.SECONDARY),
         )
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
         assertEquals(
             "сосед восстановлен",
             SplitSlot.App(MUSIC),
@@ -5429,10 +6130,20 @@ class SplitScenarioTest {
             }
         }
 
-    /** Правка W5: запуск, чья задача так и не появилась, отвечает коротким бюджетом (1.3.2). */
+    /**
+     * Правка W5: запуск, чья задача так и не появилась, отвечает коротким бюджетом (1.3.2) - у
+     * тёплого пакета (ред. 2026-11-11, 1.3.11). Пакет тёплый: у него есть живая задача, пусть и
+     * не на главном дисплее, так что запуск - не холодный старт процесса. До редакции у пакета
+     * задачи не было вовсе и слот ждали `PICKER`; холодный случай - следующий тест.
+     */
     @Test
     fun aRestoreWhoseTaskNeverAppearsFailsWithinTheShortBudget() {
-        val car = car(FakeShell().apply { swallowLaunchOf += WAZE })
+        val car = car(
+            FakeShell().apply {
+                swallowLaunchOf += WAZE
+                addTask(EXTERNAL_ROOT, WARM_WAZE_TASK, WAZE, "$WAZE.MainActivity")
+            },
+        )
         val core = car.core(
             SplitDurable(
                 enabled = true,
@@ -5448,10 +6159,11 @@ class SplitScenarioTest {
         car.barrier()
 
         assertEquals(
-            "панель проглоченного запуска ждёт ручного выбора",
-            SplitSlot.Picker,
+            "панель проглоченного запуска на пикере, выбор за ней сохранён",
+            SplitSlot.App(WAZE),
             car.store.load().slot(SplitPane.SECONDARY),
         )
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
         assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.PRIMARY))
         assertEquals(
             "рабочий пикер вместо сообщения об ошибке (правка W5 волны 10)",
@@ -5572,6 +6284,12 @@ class SplitScenarioTest {
         const val ACCESS_KEY = "picker_access_enabled"
         const val STOCK_TASK = 55
 
+        /** A task on the other display, the instrument one. */
+        const val EXTERNAL_TASK = 95
+
+        /** A second task of a starting package, the one its launcher activity hands off from. */
+        const val TRAMPOLINE_TASK = 400
+
         /** Сколько оконных эхо апп-центра приходит вслед за одним тапом по кнопке. */
         const val ECHOES = 5
 
@@ -5589,6 +6307,9 @@ class SplitScenarioTest {
 
         /** Пре-существующий полноэкранный таск хаба из живого красного v20 P1.2. */
         const val HUB_TASK = 99
+
+        /** A task of the package on another display: the package is warm, the main display not. */
+        const val WARM_WAZE_TASK = 98
 
         /** `service call activity_task 30` о сбалансированном сплите. */
         const val BALANCED_SPLIT_AREA = 3

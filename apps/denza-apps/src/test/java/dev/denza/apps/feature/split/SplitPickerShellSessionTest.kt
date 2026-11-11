@@ -4,6 +4,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -793,7 +794,6 @@ class SplitPickerShellSessionTest {
         val built = split.buildScene(
             PICKERS,
             mapOf(SplitPane.PRIMARY to launchTargetOf(MUSIC)),
-            preexistingTaskIds = setOf(hosts.getValue(SplitPane.PRIMARY), hosts.getValue(SplitPane.SECONDARY), 316, 532),
         )
 
         assertEquals(emptySet<SplitPane>(), built.failed)
@@ -3172,7 +3172,11 @@ class SplitPickerShellSessionTest {
      */
     @Test
     fun aBuildRefusesASceneWhosePickerStaysDrawnOverTheApp() {
-        val fake = FakeShell(pickerStaysAboveApps = true)
+        val fake = FakeShell(pickerStaysAboveApps = true).apply {
+            // Warm: the package already had its task before the open (ред. 2026-11-11). A cold
+            // package is waited for and then degrades its own pane; see the test below.
+            addTask(FULL_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        }
 
         val refusal = runCatching {
             session(fake).buildScene(
@@ -3185,6 +3189,61 @@ class SplitPickerShellSessionTest {
         assertTrue(
             "и отказ называет ровно этот предикат: ${refusal?.message}",
             refusal?.message.orEmpty().contains("не стало верхним"),
+        )
+    }
+
+    /**
+     * The same world, but the package had no task before the open (1.3.11, ред. 2026-11-11): it is
+     * cold, so its pane alone goes back to its picker. The task this build started is not killed:
+     * it leaves the pane alive, into the full root, so the next tap does not start it cold again.
+     */
+    @Test
+    fun aColdAppThatNeverBecomesTopDegradesItsPaneAndLivesOn() {
+        val fake = FakeShell(pickerStaysAboveApps = true)
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.PRIMARY to launchTargetOf(NAVIGATOR)),
+        )
+
+        assertEquals(setOf(SplitPane.PRIMARY), built.failed)
+        assertNull(built.panes.getValue(SplitPane.PRIMARY).appPackageName)
+        assertFalse("в панели его больше нет", fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
+        val started = fake.taskIds(FULL_ROOT).single { fake.taskPackage(it) == NAVIGATOR }
+        assertFalse(
+            "созданную восстановлением задачу никто не удаляет",
+            fake.commands.any { it.contains("remove-task $started") },
+        )
+    }
+
+    /**
+     * One cold application that will not take its pane's size costs only its own pane (1.3.11):
+     * the warm neighbour is placed and stays, the cold task is evicted alive, nothing is removed.
+     */
+    @Test
+    fun oneColdPaneFailingLeavesTheNeighboursScene() {
+        val fake = FakeShell().apply {
+            refusePaneBoundsFor += WAZE
+            addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(
+                SplitPane.PRIMARY to launchTargetOf(MUSIC),
+                SplitPane.SECONDARY to launchTargetOf(WAZE),
+            ),
+        )
+
+        assertEquals(setOf(SplitPane.SECONDARY), built.failed)
+        assertEquals("тёплый сосед на месте", 70, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(70))
+        assertNull(built.panes.getValue(SplitPane.SECONDARY).appPackageName)
+        assertFalse(fake.hasPackage(SECONDARY_ROOT, WAZE))
+        val started = fake.taskIds(FULL_ROOT).single { fake.taskPackage(it) == WAZE }
+        assertFalse(
+            "холодное приложение выселено живым, не удалено",
+            fake.commands.any { it.contains("remove-task $started") },
         )
     }
 
@@ -3205,7 +3264,6 @@ class SplitPickerShellSessionTest {
         val built = session(fake).buildScene(
             pickerComponents = PICKERS,
             targets = mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
-            preexistingTaskIds = setOf(90),
             // Ровно между запусками и чисткой сборки прошивка втягивает чужую задачу в панель.
             onPhase = { phase -> if (phase == "apps-launched") fake.moveTask(90, SECONDARY_ROOT) },
         )
@@ -3229,6 +3287,9 @@ class SplitPickerShellSessionTest {
     fun aPaneTheFirmwareOverfillsAfterTheSweepIsRefusedWithoutPolling() {
         val fake = FakeShell().apply {
             addTask(FULL_ROOT, 90, WAZE, "$WAZE.MainActivity")
+            // The application is warm: a cold one is waited for by its own rule (1.3.11), and
+            // this refusal is about a pane the firmware overfills, not about a late start.
+            addTask(FULL_ROOT, 91, MUSIC, "$MUSIC.MainActivity")
         }
         var commandsAtRefusal = 0
 
@@ -3236,9 +3297,8 @@ class SplitPickerShellSessionTest {
             session(fake).buildScene(
                 pickerComponents = PICKERS,
                 targets = mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
-                preexistingTaskIds = setOf(90),
                 onPhase = { phase ->
-                    if (phase == "scene-normalized") {
+                    if (phase == SPLIT_PHASE_SCENE_NORMALIZED) {
                         fake.moveTask(90, SECONDARY_ROOT)
                         commandsAtRefusal = fake.commands.size
                     }
@@ -3355,7 +3415,6 @@ class SplitPickerShellSessionTest {
         val built = session(fake).buildScene(
             PICKERS,
             mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
-            preexistingTaskIds = setOf(70, 71),
         )
 
         assertEquals(emptySet<SplitPane>(), built.failed)
@@ -3391,7 +3450,6 @@ class SplitPickerShellSessionTest {
             PICKERS,
             mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
             expectedApps = mapOf(SplitPane.SECONDARY to SplitPickerExpectedApp(70, MUSIC)),
-            preexistingTaskIds = setOf(70, 71),
         )
 
         assertEquals(emptySet<SplitPane>(), built.failed)
@@ -3423,7 +3481,6 @@ class SplitPickerShellSessionTest {
         val built = session(fake).buildScene(
             PICKERS,
             mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
-            preexistingTaskIds = setOf(70, 71),
         )
 
         assertEquals(emptySet<SplitPane>(), built.failed)

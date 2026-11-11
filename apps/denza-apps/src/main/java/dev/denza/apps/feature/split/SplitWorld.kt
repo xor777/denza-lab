@@ -120,14 +120,16 @@ internal class SplitWorld(
         .toList()
 
     /**
-     * Every task the main display holds right now.
+     * Every task the car holds right now, on every display.
      *
      * A mutating operation reads it before its first command, because a launch without
-     * `MULTIPLE_TASK` hands back the task the package already had - wherever on the screen that
-     * was. Journalling one of those as "created" would let an unwind close an application the user
-     * was already running (invariant 3, U2).
+     * `MULTIPLE_TASK` hands back the task the package already had - wherever that was, the
+     * instrument display included. Journalling one of those as "started" would let an unwind treat
+     * an application the user was already running as this operation's own (invariant 3, U2).
      */
-    fun livingTaskIds(): Set<Int> = mainDisplayTasks().mapTo(mutableSetOf(), SplitTask::id)
+    fun livingTaskIds(): Set<Int> = snapshot().roots.asSequence()
+        .flatMap { root -> root.tasks.asSequence() }
+        .mapTo(mutableSetOf(), SplitTask::id)
 
     /**
      * Whether the firmware currently covers the scene: Home (area 0) and a foreign fullscreen
@@ -187,6 +189,34 @@ internal class SplitWorld(
         return false
     }
 
+    /**
+     * [awaitSnapshotMatching] over the short budget, and then - while [longer] still says the
+     * wait is for a cold application - more looks, one per [COLD_POLL_INTERVAL_MS], for as long as
+     * [remainingMs] leaves of the operation (1.3.11, «К 1.14»).
+     *
+     * The wait is by condition, never a blind sleep: the first agreeing read ends it. It is bounded
+     * twice - by the time [remainingMs] reports as each look begins, and by the sum of the pauses
+     * against what it reported at the start - so a clock that does not move (a test's) still ends
+     * the wait. Like the short form, a timeout is not an error: the recipe's own postcondition
+     * judges what the car settled.
+     */
+    fun awaitSnapshotMatching(
+        attempts: Int,
+        remainingMs: () -> Long,
+        longer: () -> Boolean,
+        matches: (SplitTaskSnapshot) -> Boolean,
+    ): Boolean {
+        if (awaitSnapshotMatching(attempts, matches)) return true
+        val ceilingMs = remainingMs()
+        var waitedMs = 0L
+        while (longer() && waitedMs < ceilingMs && remainingMs() > 0L) {
+            pause(COLD_POLL_INTERVAL_MS)
+            waitedMs += COLD_POLL_INTERVAL_MS
+            if (matches(snapshot())) return true
+        }
+        return false
+    }
+
     companion object {
         const val MAIN_DISPLAY_ID = 0
         const val AREA_HOME = 0
@@ -197,6 +227,14 @@ internal class SplitWorld(
         const val MAX_TASKS_PER_PANE = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
+
+        /**
+         * One look at a cold application per this many milliseconds. An `am stack list` costs
+         * 46-50 ms over the product's shell (findings, "What a command costs"), so a look every
+         * quarter second keeps the link at a fifth of its load while an application that takes
+         * seconds to start is waited for.
+         */
+        const val COLD_POLL_INTERVAL_MS = 250L
 
         const val APP_PLACEMENT_CONFIRM_ATTEMPTS = 20
         const val APP_PLACEMENT_CONFIRM_INTERVAL_MS = 100L
