@@ -59,6 +59,8 @@ import org.json.JSONObject
  * The applications have no icons, so the app draws the initial the board draws in their place.
  */
 internal object SheetFixtures {
+    /** The split's section title as `fixtures.js` writes it in `SVC_TECHNICAL`. */
+    private const val BOARD_SPLIT_SECTION = "Разделение экрана"
 
     @Composable
     fun Sheet(fixture: JSONObject, compact: Boolean) {
@@ -163,8 +165,10 @@ internal object SheetFixtures {
                 ClusterDisplayDescriptor(d.getInt(0), "ClusterDisplay", d.getInt(1), d.getInt(2), 160, 0, 0)
             },
             // The board tells its sections apart by their titles (`SVC_JOURNAL_ROW`), the app by an id.
+            // The board's report is Russian in both languages, since `english.js` leaves a bracketed
+            // header as it is, so the header found is the board's and the one put back the app's.
             technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) }.replace(
-                TechnicalReadings.header(AppText.s(R.string.service_split_section)),
+                TechnicalReadings.header(BOARD_SPLIT_SECTION),
                 TechnicalReadings.header(AppText.s(R.string.service_split_section), SupportDiagnostics.SPLIT_SECTION),
             ),
             splitJournal = (0 until journal.length()).joinToString("\n") { journal.getString(it) },
