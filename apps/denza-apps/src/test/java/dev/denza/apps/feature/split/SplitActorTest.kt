@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -526,9 +527,18 @@ class SplitActorTest {
         val release = blockedInFlight("blocker", SplitInputPriority.NAV)
         val queuedTicket = actor.submit(spec("open", SplitInputPriority.OPEN))
 
+        // The shutdown comes while the blocker still holds the worker, so the queued operation is
+        // owed for certain; the shutdown joins the worker, so it runs beside the test until the
+        // blocker is released.
+        val stopping = Thread { actor.shutdown() }.apply { start() }
+        assertEquals(
+            SplitOutcome.Cancelled(SplitCancelReason.SHUTDOWN),
+            queuedTicket.await(AWAIT_MS),
+        )
         release.countDown()
-        actor.shutdown()
+        stopping.join(AWAIT_MS)
 
+        assertFalse("the shutdown returned", stopping.isAlive)
         assertEquals(SplitOutcome.Cancelled(SplitCancelReason.SHUTDOWN), queuedTicket.outcome)
         assertEquals(
             SplitOutcome.Cancelled(SplitCancelReason.SHUTDOWN),
