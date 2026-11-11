@@ -1,0 +1,2230 @@
+<title>Пилюля сплита</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #05070a;
+    --frame: #1c2433;
+    --ink-2: #8793a4;
+    --ink-3: #566174;
+    --rule-2: #263246;
+    --crown-ink: #c8e4ff;
+    --stage: #000000;
+
+    /* The pill's colours (--glass, --blue, --white and the rest) and every pill length and time
+       below are custom properties the script sets from SPEC; this sheet has no pill number. */
+
+    /* The car's own chrome. */
+    --clock: rgba(255, 255, 255, 0.82);
+    --grip: #5f646d;
+    --dock-blob: rgba(255, 255, 255, 0.07);
+    --dock-ink: rgba(255, 255, 255, 0.5);
+    --split-off: rgba(255, 255, 255, 0.7);
+    --home-tile: rgba(255, 255, 255, 0.06);
+    --home-tile-2: rgba(255, 255, 255, 0.085);
+
+    /* Apps. */
+    --app-nav: #22998a;
+    --app-music: #d0566b;
+    --app-msg: #58a04f;
+    --app-web: #5a68d6;
+    --app-video: #d79a35;
+    --app-pod: #9b5ec6;
+    --bg-nav: #0a0f17;
+    --bg-nav-day: #f1efea;
+    --bg-music: #131217;
+    --bg-msg: #0e1116;
+    --bg-web: #f6f7f9;
+    --bg-video: #050608;
+    --bg-pod: #101115;
+    --bg-pick: #0b0d11;
+
+    --t-hi: rgba(255, 255, 255, 0.92);
+    --t-mid: rgba(255, 255, 255, 0.6);
+    --t-lo: rgba(255, 255, 255, 0.36);
+    --t-line: rgba(255, 255, 255, 0.07);
+    --t-fill: rgba(255, 255, 255, 0.14);
+    --d-hi: #15181d;
+    --d-mid: #4b5260;
+    --d-lo: #8a919e;
+    --d-line: #e2e5ea;
+    --d-fill: #eceef2;
+    --paper: #ffffff;
+    --x-dark: rgba(0, 0, 0, 0.34);
+    --x-light: rgba(20, 24, 32, 0.08);
+    --x-ink-light: #3c4350;
+
+    --art-1: radial-gradient(circle at 28% 30%, #ffb08a 0, transparent 38%), radial-gradient(circle at 72% 74%, #6a3cc9 0, transparent 52%), linear-gradient(135deg, #d0566b, #3b2a6b);
+    --art-2: radial-gradient(circle at 70% 30%, #9be3d4 0, transparent 40%), linear-gradient(160deg, #22998a, #12324a);
+    --art-3: radial-gradient(circle at 30% 70%, #ffd38a 0, transparent 45%), linear-gradient(200deg, #d79a35, #5a2c1c);
+    --art-4: radial-gradient(circle at 60% 40%, #b9c3ff 0, transparent 42%), linear-gradient(140deg, #5a68d6, #1b1f4a);
+    --art-5: radial-gradient(circle at 40% 35%, #f0b8ff 0, transparent 40%), linear-gradient(120deg, #9b5ec6, #2b1840);
+    --mu-glow: rgba(208, 86, 107, 0.22);
+
+    --av-1: #b65f73; --av-2: #4f86c6; --av-3: #6a9b55; --av-4: #c08a3e; --av-5: #8a63b8; --av-6: #4aa39a;
+    --bub-in: #1d222a;
+    --bub-out: #2c5732;
+    --msg-sel: rgba(255, 255, 255, 0.05);
+    --online: #6cc47a;
+
+    --v-sky: linear-gradient(180deg, #f2a66a 0%, #c0567a 42%, #3a2a5a 100%);
+    --v-m1: #3b2c4f; --v-m2: #1c1828; --v-sun: #ffd39a; --v-road: #2a2536;
+
+    /* Map, night. */
+    --mn-bg: #0a0f17; --mn-bld: #111a27; --mn-bld2: #0e1621; --mn-park: #0d1f1b; --mn-water: #0b1b2d;
+    --mn-rdc: #070b10; --mn-rd: #1b2535; --mn-majc: #070b10; --mn-maj: #26344a; --mn-hwc: #0a0e14; --mn-hw: #3a4560;
+    --mn-rt: #3d8bff; --mn-rtc: #0c2a57; --mn-rtd: #2b3546; --mn-lbl: #66738a; --mn-halo: #0a0f17;
+    --mn-acc: rgba(67, 159, 252, 0.16); --mn-arrow: #3d8bff; --mn-arrow-edge: #ffffff;
+    --mn-card: #141b26; --mn-card-ink: #e9eef5; --mn-card-sub: #8c97a8;
+    /* Map, day. */
+    --md-bg: #f1efea; --md-bld: #e3e0d9; --md-bld2: #d9d5cd; --md-park: #cfe6c3; --md-water: #a9d1ee;
+    --md-rdc: #d6d1c7; --md-rd: #ffffff; --md-majc: #cbc4b7; --md-maj: #ffffff; --md-hwc: #dcae55; --md-hw: #f8d47f;
+    --md-rt: #2e7bf0; --md-rtc: #1a59c2; --md-rtd: #a8b4c6; --md-lbl: #7a7f88; --md-halo: #f1efea;
+    --md-acc: rgba(46, 123, 240, 0.14); --md-arrow: #2e7bf0; --md-arrow-edge: #ffffff;
+    --md-card: #ffffff; --md-card-ink: #15181d; --md-card-sub: #6d7480;
+    --nv-turn: #1b7e72; --nv-turn-ink: #ffffff; --nv-sign: #ffffff; --nv-sign-ring: #e0443e; --nv-sign-ink: #15181d;
+    --nv-shadow: rgba(0, 0, 0, 0.28);
+
+    --sans: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  html, body { margin: 0; background: var(--ground); }
+  body { font-family: var(--sans); color: var(--crown-ink); }
+
+  .sp-page {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: max(16px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-bottom, 0px));
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    overflow-x: clip;
+  }
+  .sp-wrap {
+    position: relative;
+    width: min(100%, max(360px, calc((100svh - 132px) * 1.6)));
+    aspect-ratio: 16 / 10;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--stage);
+    box-shadow: 0 0 0 1px var(--frame);
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sp-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--stage-w);
+    height: var(--stage-h);
+    transform-origin: 0 0;
+    background: var(--stage);
+    overflow: hidden;
+    font-family: var(--sans);
+    color: var(--t-hi);
+  }
+  .sp-stage button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sp-stage button:focus { outline: none; }
+
+  /* Status bar and dock. */
+  .sb {
+    position: absolute; left: 0; top: 0; width: var(--stage-w); height: var(--pane-top);
+    display: grid; place-items: center;
+    font-size: 15px; font-weight: 500; letter-spacing: 0.02em;
+    color: var(--clock);
+    font-variant-numeric: tabular-nums;
+  }
+  .dock {
+    position: absolute; left: 0; top: 736px; width: 1280px; height: 64px;
+    display: flex; justify-content: center; align-items: center; gap: 36px;
+  }
+  .dk {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--dock-blob);
+    display: grid; place-items: center;
+  }
+  .dk svg { width: 22px; height: 22px; fill: none; stroke: var(--dock-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .dk-split { position: relative; }
+  .dk-split::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; }
+  .dk-split svg { stroke: var(--split-off); transition: stroke .24s ease, filter .24s ease; }
+  .dk-split.on svg { stroke: var(--blue); filter: drop-shadow(0 0 3px var(--blue-haze)); }
+
+  /* Home screen. */
+  .home { position: absolute; left: 0; top: 56px; width: 1280px; height: 680px; }
+  .home i {
+    position: absolute; width: 132px; height: 132px; border-radius: 30px; background: var(--home-tile);
+  }
+  .home i.w { width: 296px; background: var(--home-tile-2); }
+
+  /* Panes. */
+  .panes { position: absolute; inset: 0; }
+  .pane {
+    position: absolute; left: 0; top: var(--pane-top); width: var(--stage-w); height: var(--pane-h);
+    overflow: hidden;
+  }
+  .pane-bg { position: absolute; inset: 0; }
+  .pc {
+    position: absolute; left: 0; top: 0; height: var(--pane-h); overflow: hidden;
+    transform-origin: 50% 50%;
+  }
+  .pc > div { position: absolute; inset: 0; }
+  .grip { position: absolute; left: 0; top: 0; width: var(--grip-w); height: var(--grip-h); border-radius: var(--grip-r); background: var(--grip); }
+
+  .pc-x {
+    position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%;
+    background: var(--x-dark); display: grid; place-items: center; z-index: 4;
+  }
+  .pc-x::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+  .pc-x svg { width: 18px; height: 18px; fill: none; stroke: var(--t-hi); stroke-width: 1.75; stroke-linecap: round; }
+  .pc-x.lt { background: var(--x-light); }
+  .pc-x.lt svg { stroke: var(--x-ink-light); }
+
+  .gl { fill: none; stroke: var(--white); stroke-width: 1.62; stroke-linecap: round; stroke-linejoin: round; }
+  .ic { display: block; overflow: visible; }
+
+  /* Picker in an empty pane. */
+  .pick { background: var(--bg-pick); }
+  .pk {
+    position: absolute; height: 112px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    touch-action: none;
+  }
+  .pk-ic { display: block; width: 64px; height: 64px; }
+  .pk-n { font-size: 14px; color: var(--t-mid); }
+
+  /* Navigator. */
+  .nav { background: var(--bg-nav); }
+  .nav.day { background: var(--bg-nav-day); }
+  .map { position: absolute; left: 0; top: 0; display: block;
+    --m-bg: var(--mn-bg); --m-bld: var(--mn-bld); --m-bld2: var(--mn-bld2); --m-park: var(--mn-park); --m-water: var(--mn-water);
+    --m-rdc: var(--mn-rdc); --m-rd: var(--mn-rd); --m-majc: var(--mn-majc); --m-maj: var(--mn-maj); --m-hwc: var(--mn-hwc); --m-hw: var(--mn-hw);
+    --m-rt: var(--mn-rt); --m-rtc: var(--mn-rtc); --m-rtd: var(--mn-rtd); --m-lbl: var(--mn-lbl); --m-halo: var(--mn-halo);
+    --m-acc: var(--mn-acc); --m-arrow: var(--mn-arrow); --m-arrow-edge: var(--mn-arrow-edge);
+  }
+  .nav.day .map {
+    --m-bg: var(--md-bg); --m-bld: var(--md-bld); --m-bld2: var(--md-bld2); --m-park: var(--md-park); --m-water: var(--md-water);
+    --m-rdc: var(--md-rdc); --m-rd: var(--md-rd); --m-majc: var(--md-majc); --m-maj: var(--md-maj); --m-hwc: var(--md-hwc); --m-hw: var(--md-hw);
+    --m-rt: var(--md-rt); --m-rtc: var(--md-rtc); --m-rtd: var(--md-rtd); --m-lbl: var(--md-lbl); --m-halo: var(--md-halo);
+    --m-acc: var(--md-acc); --m-arrow: var(--md-arrow); --m-arrow-edge: var(--md-arrow-edge);
+  }
+  .m-bg { fill: var(--m-bg); }
+  .m-bld { fill: var(--m-bld); }
+  .m-bld2 { fill: var(--m-bld2); }
+  .m-park { fill: var(--m-park); }
+  .m-water { fill: none; stroke: var(--m-water); stroke-width: 58; stroke-linecap: round; }
+  .m-rdc { fill: none; stroke: var(--m-rdc); stroke-width: 13; }
+  .m-rd { fill: none; stroke: var(--m-rd); stroke-width: 10; }
+  .m-majc { fill: none; stroke: var(--m-majc); stroke-width: 20; }
+  .m-maj { fill: none; stroke: var(--m-maj); stroke-width: 17; }
+  .m-hwc { fill: none; stroke: var(--m-hwc); stroke-width: 26; stroke-linecap: round; }
+  .m-hw { fill: none; stroke: var(--m-hw); stroke-width: 21; stroke-linecap: round; }
+  .m-rtd { fill: none; stroke: var(--m-rtd); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+  .m-rtc { fill: none; stroke: var(--m-rtc); stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; }
+  .m-rt { fill: none; stroke: var(--m-rt); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+  .m-lbl { font: 400 13px var(--sans); fill: var(--m-lbl); stroke: var(--m-halo); stroke-width: 3; paint-order: stroke; letter-spacing: 0.02em; }
+  .m-acc { fill: var(--m-acc); }
+  .m-arrow { fill: var(--m-arrow); stroke: var(--m-arrow-edge); stroke-width: 3; stroke-linejoin: round; }
+
+  .nv-turn {
+    position: absolute; left: 16px; top: 16px; width: 248px; height: 88px; border-radius: 14px;
+    background: var(--nv-turn); color: var(--nv-turn-ink);
+    display: flex; align-items: center; gap: 14px; padding: 0 18px; box-sizing: border-box;
+    box-shadow: 0 6px 18px var(--nv-shadow);
+  }
+  .nv-turn svg { width: 44px; height: 44px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .nv-dist { font-size: 30px; font-weight: 500; line-height: 1; }
+  .nv-street { font-size: 15px; opacity: 0.85; margin-top: 6px; white-space: nowrap; }
+  .nv-sign {
+    position: absolute; left: 16px; width: 52px; height: 52px; border-radius: 50%;
+    background: var(--nv-sign); box-shadow: inset 0 0 0 5px var(--nv-sign-ring), 0 4px 12px var(--nv-shadow);
+    display: grid; place-items: center; font-size: 20px; font-weight: 500; color: var(--nv-sign-ink);
+  }
+  .nv-zoom {
+    position: absolute; right: 16px; top: 250px; width: 48px; height: 104px; border-radius: 24px;
+    background: var(--mn-card); box-shadow: 0 4px 14px var(--nv-shadow);
+    display: grid; grid-template-rows: 1fr 1fr; place-items: center;
+  }
+  .nv-zoom svg { width: 20px; height: 20px; fill: none; stroke: var(--mn-card-ink); stroke-width: 1.8; stroke-linecap: round; }
+  .nav.day .nv-zoom { background: var(--md-card); }
+  .nav.day .nv-zoom svg { stroke: var(--md-card-ink); }
+  .nv-eta {
+    position: absolute; left: 16px; bottom: 16px; height: 64px; border-radius: 16px;
+    background: var(--mn-card); box-shadow: 0 6px 18px var(--nv-shadow);
+    display: flex; align-items: center; gap: 16px; padding: 0 20px; box-sizing: border-box;
+  }
+  .nv-eta b { font-size: 24px; font-weight: 500; color: var(--online); }
+  .nv-eta span { font-size: 16px; color: var(--mn-card-sub); white-space: nowrap; }
+  .nav.day .nv-eta { background: var(--md-card); }
+  .nav.day .nv-eta span { color: var(--md-card-sub); }
+
+  /* Music. */
+  .mu { background: radial-gradient(130% 62% at 50% 0%, var(--mu-glow) 0%, transparent 70%), var(--bg-music); }
+  .mu > * { position: absolute; }
+  .mu-lbl { font-size: 13px; letter-spacing: 0.04em; color: var(--t-lo); }
+  .mu-art { border-radius: 14px; background: var(--art-1); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); }
+  .mu-art::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: repeating-radial-gradient(circle at 50% 50%, transparent 0 9px, rgba(255, 255, 255, 0.07) 9px 10px); }
+  .mu-t { font-size: 22px; font-weight: 500; color: var(--t-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mu-a { font-size: 15px; color: var(--t-mid); white-space: nowrap; }
+  .mu-bar { height: 4px; border-radius: 2px; background: var(--t-fill); }
+  .mu-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--t-hi); }
+  .mu-bar b { position: absolute; top: -4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--white); }
+  .mu-tm { font-size: 12px; color: var(--t-lo); font-variant-numeric: tabular-nums; }
+  .mu-ic { width: 30px; height: 30px; fill: none; stroke: var(--t-hi); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .mu-play { border-radius: 50%; background: var(--white); display: grid; place-items: center; }
+  .mu-play svg { width: 26px; height: 26px; fill: none; stroke: var(--bg-music); stroke-width: 2.6; stroke-linecap: round; }
+  .mu-q { display: flex; gap: 14px; align-items: center; }
+  .mu-q i { position: relative; width: 48px; height: 48px; border-radius: 8px; flex: none; }
+  .mu-q b { display: block; font-weight: 400; font-size: 15px; color: var(--t-hi); white-space: nowrap; }
+  .mu-q span { font-size: 13px; color: var(--t-lo); white-space: nowrap; }
+  .mu-card i { display: block; width: 132px; height: 132px; border-radius: 10px; margin-bottom: 10px; }
+  .mu-card b { display: block; font-weight: 400; font-size: 14px; color: var(--t-hi); white-space: nowrap; }
+  .mu-card span { font-size: 12px; color: var(--t-lo); }
+
+  /* Messenger. */
+  .ms { background: var(--bg-msg); }
+  .ms > * { position: absolute; }
+  .ms-av { display: grid; place-items: center; border-radius: 50%; font-style: normal; font-weight: 500; color: var(--white); flex: none; }
+  .ms-head { left: 0; top: 0; height: 72px; display: flex; align-items: center; gap: 12px; padding: 0 20px; box-sizing: border-box; border-bottom: 1px solid var(--t-line); }
+  .ms-head b { display: block; font-weight: 500; font-size: 17px; color: var(--t-hi); }
+  .ms-head span { font-size: 13px; color: var(--online); }
+  .ms-thread { display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; overflow: hidden; }
+  .bub { max-width: 76%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.35; color: var(--t-hi); background: var(--bub-in); align-self: flex-start; border-bottom-left-radius: 6px; }
+  .bub.o { align-self: flex-end; background: var(--bub-out); border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; }
+  .bub small { display: block; text-align: right; font-size: 11px; color: var(--t-lo); margin-top: 2px; }
+  .ms-input { height: 52px; border-radius: 26px; background: var(--bub-in); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; box-sizing: border-box; font-size: 15px; color: var(--t-lo); }
+  .ms-input svg { width: 22px; height: 22px; fill: none; stroke: var(--t-mid); stroke-width: 1.7; stroke-linecap: round; }
+  .ms-list { left: 0; top: 0; bottom: 0; width: 300px; border-right: 1px solid var(--t-line); }
+  .ms-list h4 { margin: 0; padding: 24px 20px 12px; font-size: 22px; font-weight: 500; color: var(--t-hi); }
+  .ms-row { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px 0 20px; }
+  .ms-row.sel { background: var(--msg-sel); }
+  .ms-row div { flex: 1; min-width: 0; }
+  .ms-row b { display: block; font-weight: 500; font-size: 15px; color: var(--t-hi); }
+  .ms-row span { display: block; font-size: 13px; color: var(--t-lo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ms-row em { font-style: normal; font-size: 12px; color: var(--t-lo); align-self: flex-start; margin-top: 18px; }
+
+  /* Browser. */
+  .wb { background: var(--bg-web); color: var(--d-hi); }
+  .wb > * { position: absolute; }
+  .wb-bar { left: 0; top: 0; height: 64px; background: var(--paper); border-bottom: 1px solid var(--d-line); display: flex; align-items: center; gap: 14px; padding: 0 16px; box-sizing: border-box; }
+  .wb-bar > svg { width: 22px; height: 22px; fill: none; stroke: var(--d-mid); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .wb-url { flex: 1; height: 40px; border-radius: 20px; background: var(--d-fill); display: flex; align-items: center; gap: 8px; padding: 0 14px; font-size: 14px; color: var(--d-mid); white-space: nowrap; overflow: hidden; margin-right: 52px; }
+  .wb-url svg { width: 14px; height: 14px; fill: none; stroke: var(--d-lo); stroke-width: 2; flex: none; }
+  .wb-k { font-size: 12px; letter-spacing: 0.08em; color: var(--d-lo); margin-bottom: 10px; }
+  .wb-h { font-size: 26px; line-height: 1.22; font-weight: 500; margin: 0 0 18px; color: var(--d-hi); }
+  .wb-img { border-radius: 10px; margin-bottom: 18px; background: linear-gradient(180deg, #bcd7ef 0%, #e9eef3 58%, #9aa6b4 58.5%, #7b8796 100%); position: relative; overflow: hidden; }
+  .wb-img::before { content: ""; position: absolute; left: 8%; right: 8%; top: 42%; height: 9%; border-top: 3px solid #56606e; border-bottom: 2px solid #56606e; }
+  .wb-img::after { content: ""; position: absolute; left: 0; right: 0; top: 46%; height: 14%; background: repeating-linear-gradient(90deg, transparent 0 9%, #56606e 9% 10%); opacity: 0.8; }
+  .wb-p { font-size: 15px; line-height: 1.6; color: var(--d-mid); margin: 0 0 14px; }
+  .wb-side h5 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.06em; font-weight: 500; color: var(--d-lo); }
+  .wb-card { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid var(--d-line); }
+  .wb-card i { width: 64px; height: 48px; border-radius: 6px; flex: none; }
+  .wb-card span { font-size: 14px; line-height: 1.4; color: var(--d-hi); }
+
+  /* Video. */
+  .vd { background: var(--bg-video); }
+  .vd > * { position: absolute; }
+  .vd-frame { border-radius: 12px; overflow: hidden; background: var(--v-sky); }
+  .vd-frame svg.land { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .v-m1 { fill: var(--v-m1); } .v-m2 { fill: var(--v-m2); } .v-sun { fill: var(--v-sun); } .v-road { fill: var(--v-road); }
+  .vd-play { position: absolute; left: 50%; top: 50%; width: 72px; height: 72px; margin: -36px 0 0 -36px; border-radius: 50%; background: rgba(0, 0, 0, 0.42); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.6); display: grid; place-items: center; }
+  .vd-play svg { width: 30px; height: 30px; fill: var(--white); margin-left: 4px; }
+  .vd-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, 0.25); }
+  .vd-prog i { position: absolute; left: 0; top: 0; bottom: 0; width: 33%; background: var(--white); }
+  .vd-t { font-size: 19px; font-weight: 500; color: var(--t-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vd-m { font-size: 13px; color: var(--t-lo); }
+  .vd-row { display: flex; gap: 14px; align-items: center; }
+  .vd-row i { position: relative; width: 132px; height: 74px; border-radius: 8px; flex: none; }
+  .vd-row i em { position: absolute; right: 6px; bottom: 5px; font-style: normal; font-size: 11px; color: var(--white); background: rgba(0, 0, 0, 0.6); border-radius: 3px; padding: 1px 4px; }
+  .vd-row b { display: block; font-weight: 400; font-size: 15px; color: var(--t-hi); }
+  .vd-row span { font-size: 13px; color: var(--t-lo); }
+
+  /* Podcasts. */
+  .pd { background: var(--bg-pod); }
+  .pd > * { position: absolute; }
+  .pd-h { font-size: 26px; font-weight: 500; color: var(--t-hi); }
+  .pd-tabs { display: flex; gap: 8px; }
+  .pd-tabs span { height: 34px; padding: 0 16px; border-radius: 17px; background: var(--t-line); color: var(--t-mid); font-size: 14px; display: grid; place-items: center; }
+  .pd-tabs span:first-child { background: var(--t-fill); color: var(--t-hi); }
+  .pd-row { display: flex; gap: 14px; align-items: center; height: 76px; }
+  .pd-row i { width: 60px; height: 60px; border-radius: 10px; flex: none; display: grid; place-items: center; font-style: normal; font-size: 22px; font-weight: 500; color: rgba(255, 255, 255, 0.85); }
+  .pd-row div { flex: 1; min-width: 0; }
+  .pd-row b { display: block; font-weight: 400; font-size: 15px; color: var(--t-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pd-row span { display: block; font-size: 13px; color: var(--t-lo); margin-top: 3px; white-space: nowrap; }
+  .pd-row u { display: block; height: 3px; border-radius: 2px; background: var(--t-fill); margin-top: 8px; width: 60%; position: relative; text-decoration: none; }
+  .pd-row u::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 30%); border-radius: 2px; background: var(--app-pod); }
+
+  /* The pill. Every length, time and colour in this block is a custom property set from SPEC. */
+  .pill {
+    position: absolute; left: 0; top: 0; width: var(--handle-w); height: var(--handle-h); border-radius: var(--handle-r);
+    pointer-events: none;
+    z-index: 20;
+  }
+  .pill.is-open { pointer-events: auto; touch-action: none; }
+  .pill-shadow { position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--pill-lift); opacity: 0; }
+  .pill-glass {
+    position: absolute; inset: 0; border-radius: inherit; opacity: 0;
+    background: linear-gradient(180deg, var(--glass-sheen), transparent var(--sheen-stop)), var(--glass);
+  }
+  .pill-glass::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: var(--rim-w);
+    background: linear-gradient(180deg, var(--rim-top) var(--rim-stop-top), var(--rim-mid) var(--rim-stop-mid), var(--rim-bot) var(--rim-stop-bot));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+  .blur .pill-glass {
+    background: linear-gradient(180deg, var(--glass-sheen), transparent var(--sheen-stop)), var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
+  }
+  .pill-handle { position: absolute; inset: 0; border-radius: inherit; background: var(--handle); opacity: var(--handle-a); }
+  .pill-clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+  .row { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+  .hit {
+    position: absolute; left: 50%; top: 50%; width: var(--hit-w); height: var(--hit-h); margin: var(--hit-m);
+    pointer-events: auto; touch-action: none; cursor: pointer;
+  }
+  .pill.is-open .hit, .pill.is-home .hit { pointer-events: none; }
+
+  .it { position: absolute; left: 0; top: 0; touch-action: none; cursor: pointer; }
+  .it-in { position: absolute; inset: 0; }
+  .it-face { position: absolute; }
+  .it-chip::after { content: ""; position: absolute; inset: var(--chip-hit); }
+  .it-chip .it-face { left: 0; top: var(--chip-top); width: var(--chip-w); height: var(--chip-h); transform-origin: var(--chip-origin); }
+  .it-single::after { content: ""; position: absolute; inset: var(--single-hit); }
+  .it-single .it-face { left: 0; top: var(--single-top); width: var(--icon); height: var(--icon); }
+  .it-btn .it-face { inset: 0; border-radius: 50%; background: var(--btn); display: grid; place-items: center; color: var(--white); }
+  .it-btn svg { width: var(--btn-glyph); height: var(--btn-glyph); fill: none; stroke: currentColor; stroke-width: var(--btn-stroke); stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  .it-btn.solid .star path { fill: currentColor; }
+  .it-sep { cursor: default; }
+  .it-sep .it-in { background: var(--sep); }
+  .pair { display: block; overflow: visible; }
+  .mark {
+    position: absolute; left: 0; top: var(--mark-top); width: var(--mark-w); height: var(--mark-h); border-radius: var(--mark-r);
+    background: var(--blue); box-shadow: var(--mark-glow);
+    opacity: 0; transition: opacity var(--mark-fade);
+  }
+  .live .mark { opacity: 1; }
+  .lp-ring { position: absolute; left: var(--ring-x); top: var(--ring-x); width: var(--ring-w); height: var(--ring-h); overflow: visible; pointer-events: none; opacity: 0; filter: var(--ring-glow); }
+  .lp-ring rect { fill: none; stroke: var(--blue); stroke-width: var(--ring-stroke); stroke-dasharray: var(--ring-dash); stroke-dashoffset: var(--ring-dash); }
+  .it.drag { z-index: 5; }
+  .it.drag .it-face { filter: var(--drag-shadow); }
+
+  .ghost { animation: sp-breathe var(--breathe) infinite; }
+  .gh-rim { fill: none; stroke: var(--blue); stroke-width: var(--rim-stroke); stroke-dasharray: var(--rim-dash); stroke-linecap: round; }
+  .gh-gl { stroke: var(--blue); }
+  @keyframes sp-breathe { 0%, 100% { opacity: var(--breathe-lo); } 50% { opacity: var(--breathe-hi); } }
+
+  .badge {
+    position: absolute; left: var(--badge-x); top: var(--badge-y); width: var(--badge); height: var(--badge); border-radius: 50%;
+    display: grid; place-items: center; z-index: 3; touch-action: none;
+  }
+  .badge::after { content: ""; position: absolute; inset: var(--badge-hit); border-radius: 50%; }
+  .badge-rm { background: var(--red); box-shadow: var(--badge-drop-shadow); }
+  .badge-rm i { width: var(--minus-w); height: var(--minus-h); border-radius: var(--minus-r); background: var(--white); }
+  .badge-pin { background: var(--badge-dark); box-shadow: var(--badge-ring-shadow), var(--badge-drop-shadow); }
+  .badge-pin svg { width: var(--badge-star); height: var(--badge-star); fill: none; stroke: var(--white); stroke-width: var(--badge-star-stroke); stroke-linejoin: round; }
+
+  .fx { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+  .fly { position: absolute; left: 0; top: 0; width: var(--fly); height: var(--fly); transform-origin: var(--fly-origin); }
+  .fly .ic { border-radius: var(--fly-r); box-shadow: var(--fly-shadow); }
+  .fly::after {
+    content: ""; position: absolute; inset: var(--fly-ring-inset); border-radius: var(--fly-ring-r);
+    border: var(--fly-ring-border) solid var(--blue);
+    box-shadow: var(--fly-ring-glow);
+    opacity: 0; transition: opacity var(--fly-ring-fade);
+  }
+  .fly.rest::after { animation: sp-ring var(--pulse) infinite alternate; }
+  @keyframes sp-ring { from { opacity: var(--pulse-lo); transform: scale(var(--pulse-s0)); } to { opacity: var(--pulse-hi); transform: scale(var(--pulse-s1)); } }
+  .bloom {
+    position: absolute; left: 0; top: 0; width: var(--bloom); height: var(--bloom); border-radius: 50%;
+    background: radial-gradient(circle, var(--bloom-core) var(--bloom-stop-core), var(--bloom-mid) var(--bloom-stop-mid), var(--blue-clear) var(--bloom-stop-edge));
+    mix-blend-mode: plus-lighter;
+  }
+
+  .sp-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  /* The stand. */
+  .sp-cap { margin: 4px 0 0; font-size: 12px; color: var(--ink-3); letter-spacing: 0.02em; text-align: center; }
+  .sp-ctl { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 100%; }
+  .sp-ctl button {
+    font: inherit; font-size: 13px; color: var(--ink-2); background: transparent;
+    border: 1px solid var(--rule-2); border-radius: 8px; padding: 6px 12px; cursor: pointer;
+  }
+  .sp-ctl button:hover { color: var(--crown-ink); border-color: var(--ink-3); }
+  .sp-ctl button[aria-pressed="true"] { color: var(--crown-ink); border-color: var(--blue); }
+  .sp-ctl button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ghost, .fly.rest::after { animation: none; }
+    .ghost { opacity: var(--breathe-still); }
+    .fly.rest::after { opacity: var(--pulse-hi); }
+    .mark, .dk-split svg { transition: none; }
+  }
+</style>
+
+<div class="sp-page">
+  <div class="sp-wrap" id="sp-wrap">
+    <div class="sp-stage" id="sp-stage">
+      <div class="sb">19:44</div>
+      <div class="home" id="sp-home" hidden></div>
+      <div class="panes" id="sp-panes">
+        <div class="pane" data-side="left"><div class="pane-bg"></div></div>
+        <div class="pane" data-side="right"><div class="pane-bg"></div></div>
+        <div class="grip" id="sp-grip"></div>
+      </div>
+      <div class="dock" id="sp-dock"></div>
+      <div class="pill" id="sp-pill">
+        <div class="pill-shadow"></div>
+        <div class="pill-glass"></div>
+        <div class="pill-handle"></div>
+        <div class="pill-clip"><div class="row" id="sp-row"></div></div>
+        <div class="hit" id="sp-hit"></div>
+      </div>
+      <div class="fx" id="sp-fx"></div>
+    </div>
+  </div>
+  <p class="sp-cap">Стенд — этого на машине нет</p>
+  <div class="sp-ctl" id="sp-ctl">
+    <button type="button" data-act="evict">Выбить приложение</button>
+    <button type="button" data-act="home">Домой</button>
+    <button type="button" data-act="detent">Перегородка ⅓ ↔ ⅔</button>
+    <button type="button" data-act="day" aria-pressed="false">Карта: день / ночь</button>
+    <button type="button" data-act="blur" aria-pressed="false">Размытие</button>
+    <button type="button" data-act="reset">Сначала</button>
+  </div>
+</div>
+<svg class="sp-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <mask id="sp-cut" maskUnits="userSpaceOnUse">
+      <rect fill="#fff"/>
+      <rect fill="#000"/>
+    </mask>
+    <filter id="sp-glow">
+      <feGaussianBlur in="SourceGraphic" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------- SPEC
+  // Every number the pill is drawn and moved with: lengths in dp (CSS px on the 1280 x 800 stage),
+  // times in ms, colours as CSS. The stylesheet and the code below read these and nothing else;
+  // `shot.py --spec` writes this object, as it stands here, to spec.json beside the page. The
+  // stand's own things - what the panes show, the sample icons' colours and glyphs, the dock, the
+  // home screen, the stand's buttons - are not in it.
+  const SPEC = {
+    about: 'The split pill, approved 2026-11-11. Lengths in dp (CSS px on the 1280 x 800 stage), times in ms, colours as CSS. Written from split-pill.html by shot.py --spec; the page is the source.',
+    stage: {
+      w: 1280, h: 800,
+      paneTop: 56, paneH: 680,
+      edge: 12, gap: 12, paneRadius: 10,
+      detents: [434, 846],
+      grip: { w: 4, h: 56, r: 2 },
+      retire: 10,
+      motion: {
+        detent: { ms: 420, ease: 'std' },
+        fold: { ms: 340, ease: 'std' },
+        panesOut: { ms: 300, ease: 'outQ' },
+        homeIn: { ms: 320, ease: 'out', delay: 80 },
+        unfold: { ms: 420, ease: 'std' },
+        panesIn: { ms: 160, ease: 'out' },
+        homeOut: { ms: 200, ease: 'outQ' },
+        relay: { ms: 280, ease: 'ease-out' },
+        empty: { ms: 260, ease: 'fall', scale: 0.965 },
+      },
+    },
+    color: {
+      glass: 'rgba(12, 13, 17, 0.9)',
+      'glass-blur': 'rgba(14, 15, 20, 0.58)',
+      'glass-sheen': 'rgba(255, 255, 255, 0.04)',
+      'rim-top': 'rgba(255, 255, 255, 0.34)',
+      'rim-mid': 'rgba(255, 255, 255, 0.12)',
+      'rim-bot': 'rgba(255, 255, 255, 0.07)',
+      lift: 'rgba(0, 0, 0, 0.55)',
+      'lift-tight': 'rgba(0, 0, 0, 0.6)',
+      handle: '#ffffff',
+      sep: 'rgba(255, 255, 255, 0.12)',
+      btn: 'rgba(255, 255, 255, 0.075)',
+      white: '#ffffff',
+      blue: '#439ffc',
+      'blue-glow': 'rgba(67, 159, 252, 0.9)',
+      'blue-haze': 'rgba(67, 159, 252, 0.45)',
+      'blue-clear': 'rgba(67, 159, 252, 0)',
+      crown: '#c8e4ff',
+      red: '#ff4046',
+      'badge-dark': '#1c1e24',
+      'badge-ring': 'rgba(255, 255, 255, 0.8)',
+      'badge-drop': 'rgba(0, 0, 0, 0.5)',
+      'drag-drop': 'rgba(0, 0, 0, 0.6)',
+      'fly-drop': 'rgba(0, 0, 0, 0.5)',
+      'bloom-core': 'rgba(200, 228, 255, 0.55)',
+      'bloom-mid': 'rgba(67, 159, 252, 0.26)',
+    },
+    handle: { w: 44, h: 5, bottom: 727, alpha: 0.35, dim: 0.2, fadeBy: 26, hit: { w: 96, h: 48 } },
+    pill: {
+      open: { h: 88, bottom: 720 },
+      edit: { h: 108 },
+      margin: 24,
+      min: { w: 4, h: 3 },
+      lift: [[0, 14, 44, 'lift'], [0, 1, 0, 'lift-tight']],
+      sheen: 46,
+      rim: { w: 1, stops: [0, 42, 100] },
+      blur: { px: 22, saturate: 1.3 },
+    },
+    row: {
+      pad: 18, editPad: 24,
+      gap: { chip: 22, btn: 10, sep: 18, other: 18 },
+      h: { chip: 72, single: 72, sep: 40, btn: 56 },
+      maxChips: 3, maxSingles: 3, recents: 5,
+    },
+    icon: { size: 52, radius: 14 },
+    chip: {
+      stacked: 86, open: 116, h: 56, inset: 2, gap: 8, cut: 2, overshoot: 1.08, hit: 5,
+      back: { x: 36.6, y: 4.6, scale: 0.9 },
+      maskBox: [-4, -8, 132, 72],
+    },
+    single: { hit: 9 },
+    btn: { size: 56, glyph: 24, stroke: 1.75 },
+    sep: { w: 1 },
+    mark: { top: 69, w: 14, h: 3, r: 2, glow: [3, 9] },
+    ring: { out: 5, inset: 1, r: 21, stroke: 1.5, dash: 280, glow: 3 },
+    ghost: {
+      rimInset: 1, stroke: 2, dash: [6, 4.4], tail: 20,
+      glow: 2.6, glowBox: [-40, -40, 180, 180],
+      breathe: { lo: 0.5, hi: 1, still: 0.85 },
+      solidFade: 1.6, rimFrom: 0.15, glyphFrom: 0.35,
+    },
+    badge: {
+      size: 24, x: -8, y: 0, hit: 8,
+      minus: { w: 12, h: 2, r: 1 }, star: 13, starStroke: 1.7, ring: 1, drop: [0, 1, 3],
+    },
+    drag: { start: 6, overshoot: 14, scale: 1.06, shadow: [0, 10, 12] },
+    fly: {
+      size: 96, radius: 26, drop: [0, 14, 34], arc: 80, samples: 24, dim: 0.3, grow: 1.15,
+      ring: { inset: 11, r: 36, border: 1.5, glow: 10, innerGlow: 8, lo: 0.35, s0: 0.98, hi: 1, s1: 1.03 },
+    },
+    bloom: { size: 90, stops: [0, 38, 70], scale: [0.55, 1, 1.22], peakAt: 0.14 },
+    press: {
+      scale: 0.93, lift: 1.08, nudge: 1.06, plusNudge: 1.08, star: 1.14, badge: 0.86,
+      tapGrow: 1.015, tapGrowAt: 0.55, slop: 14, move: 10,
+    },
+    enter: { dy: 8, pop: 0.6, exit: 0.8, badgePeak: 1.22, badgePeakAt: 0.62, badgeOrigin: [4, 12] },
+    star: { hold: 0.18, glow: [5, 12] },
+    ease: {
+      out: '1 - (1 - t)^3',
+      outQ: '1 - (1 - t)^2',
+      inOut: 'cubic in-out: 4t^3, then 1 - (2 - 2t)^3 / 2',
+      std: 'cubic-bezier(.4,0,.2,1)',
+      settle: 'cubic-bezier(.2,.8,.2,1)',
+      pop: 'cubic-bezier(.34,1.56,.64,1)',
+      expo: 'cubic-bezier(.16,1,.3,1)',
+      sink: 'cubic-bezier(.5,0,.75,0)',
+      fall: 'cubic-bezier(.4,0,1,1)',
+    },
+    rate: 240,
+    spring: {
+      release: [240, 0.55], open: [340, 0.74], openH: [300, 1], close: [200, 1],
+      resize: [280, 0.9], edit: [260, 0.78], slide: [230, 1], lift: [220, 0.7], form: [260, 0.82],
+    },
+    motion: {
+      glassIn: { ms: 150, ease: 'out' },
+      rowIn: { ms: 140, ease: 'out' },
+      rowOut: { ms: 90, ease: 'outQ' },
+      shrink: { delay: 70 },
+      glassOut: { ms: 160, ease: 'inOut', delay: 60 },
+      dim: { ms: 700, ease: 'inOut' },
+      wake: { ms: 160, ease: 'out' },
+      hide: { ms: 160, ease: 'outQ' },
+      show: { ms: 120, ease: 'out' },
+      enter: { ms: 280, ease: 'settle', delay: 60, stagger: 28 },
+      pop: { ms: 240, ease: 'pop' },
+      exit: { ms: 140, ease: 'ease-in' },
+      unpin: { ms: 220, ease: 'sink' },
+      unpinBadge: { ms: 240, ease: 'ease-in', delay: 60 },
+      badgeIn: { ms: 180, ease: 'ease-out', stagger: 30 },
+      badgeOut: { ms: 120, ease: 'ease-in' },
+      badgePress: { ms: 70, ease: 'ease-out' },
+      badgeRelease: { ms: 160, ease: 'pop' },
+      press: { ms: 70, ease: 'outQ' },
+      lift: { ms: 330, ease: 'inOut' },
+      nudge: { ms: 90, ease: 'out' },
+      tapPress: { ms: 70, ease: 'ease-out' },
+      tapRelease: { ms: 220, ease: 'ease-out' },
+      ring: { ms: 370, ease: 'linear', delay: 80 },
+      ringOut: { ms: 200, ease: 'ease-out' },
+      ghostIn: { ms: 300, ease: 'inOut' },
+      ghostOut: { ms: 180, ease: 'out' },
+      markFade: { ms: 220, ease: 'ease' },
+      breathe: { ms: 2400, ease: 'ease-in-out' },
+      flight: { ms: 380, ease: 'expo' },
+      oldDim: { ms: 260, ease: 'ease-out', at: 0.4 },
+      ringFade: { ms: 200, ease: 'ease' },
+      pulse: { ms: 1300, ease: 'ease-in-out' },
+      appIn: { ms: 240, ease: 'ease-out' },
+      dissolve: { ms: 240, ease: 'ease-out' },
+      flyOut: { ms: 140, ease: 'linear' },
+      bloom: { ms: 300, ease: 'ease-out' },
+      starFlash: { ms: 680, ease: 'ease-out' },
+    },
+    timer: {
+      auto: 5000, edit: 10000, dim: 3000, selfOpen: 400, ghostOpen: 220,
+      liftAt: 120, longPress: 450, tap: 200, launchHold: 650, clear: 420,
+      unpinEnter: 160, chipNudge: 120, homeReset: 170, splitOpen: 240,
+    },
+  };
+  const G = SPEC.stage, GM = SPEC.stage.motion, HD = SPEC.handle, PL = SPEC.pill, RW = SPEC.row, CH = SPEC.chip;
+  const M = SPEC.motion, TM = SPEC.timer;
+
+  // #spec prints SPEC and nothing else, for shot.py --spec.
+  if (location.hash === '#spec') {
+    document.body.textContent = '';
+    const pre = document.createElement('pre');
+    pre.id = 'spec';
+    pre.textContent = JSON.stringify(SPEC, null, 2);
+    document.body.appendChild(pre);
+    return;
+  }
+  // #bare-<board> and #bare-<motion>-t<ms>: the stage alone, from the virtual clock (see "frozen
+  // frames" at the end).
+  const BARE = /^#bare-(.+?)(?:-t(\d+))?$/.exec(location.hash);
+
+  // ---------------------------------------------------------------- helpers
+  const $ = (s, r = document) => r.querySelector(s);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const clamp01 = v => clamp(v, 0, 1);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reduced = mq.matches && !BARE;
+  if (mq.addEventListener && !BARE) mq.addEventListener('change', e => { reduced = e.matches; });
+  const D = ms => (reduced ? 1 : ms);
+
+  function cubicBezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const sx = t => ((ax * t + bx) * t + cx) * t;
+    const sy = t => ((ay * t + by) * t + cy) * t;
+    return x => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let lo = 0, hi = 1, t = x;
+      for (let i = 0; i < 24; i++) { if (sx(t) < x) lo = t; else hi = t; t = (lo + hi) / 2; }
+      return sy(t);
+    };
+  }
+  const bezier = s => cubicBezier(...s.slice(s.indexOf('(') + 1, -1).split(',').map(Number));
+  // The script's own curves, by the names SPEC.ease gives them. The cubic-bezier ones are read from
+  // SPEC; the three polynomials are the formulas SPEC.ease states.
+  const EASE = {
+    out: t => 1 - Math.pow(1 - t, 3),
+    outQ: t => 1 - (1 - t) * (1 - t),
+    inOut: t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    std: bezier(SPEC.ease.std),
+  };
+  // A WAAPI easing: a SPEC.ease name, or a CSS keyword as it stands.
+  const css = name => (name in SPEC.ease ? SPEC.ease[name] : name);
+  const cssT = m => `${m.ms}ms ${css(m.ease)}`;
+
+  // ---------------------------------------------------------------- the clock
+  // Real time on the page. A bare frame swaps in a virtual clock (see the end) before anything
+  // starts, so the same code runs on time that only moves when it is stepped.
+  let clock = {
+    now: () => performance.now(),
+    after: (fn, t) => setTimeout(fn, t),
+    cancel: id => clearTimeout(id),
+    frame: fn => requestAnimationFrame(fn),
+  };
+  if (BARE) {
+    clock = virtualClock();
+    const s = document.createElement('style');
+    s.textContent = 'html, body { margin: 0; background: #000; overflow: hidden; } .sp-page { display: block; padding: 0; } ' +
+      `.sp-wrap { width: ${G.w}px; height: ${G.h}px; aspect-ratio: auto; border-radius: 0; box-shadow: none; } .sp-cap, .sp-ctl { display: none; }`;
+    document.head.appendChild(s);
+  }
+
+  // A bare frame's time. It moves only when stepped, in steps of 1/SPEC.rate s - the springs'
+  // own integration step - from 0 to the frame's moment: each step fires the timers whose time has
+  // come (on the first step at or after it), steps every spring and tween, and holds every WAAPI
+  // animation paused at its own elapsed time, calling its onfinish when it ends. No requestAnimation
+  // Frame, no real time: a frame is a pure function of its moment. CSS animations and transitions
+  // are paused where they are first seen and set at the end - from when they were first seen
+  // (`watch`), or to a phase a board states.
+  function virtualClock() {
+    const q = [], anims = [], seen = new Map(), STEP = 1 / SPEC.rate;
+    let now = 0, k = 0, seq = 0;
+    const nat = Element.prototype.animate;
+    Element.prototype.animate = function (kf, opt) {
+      const a = nat.call(this, kf, opt);
+      a.pause();
+      a.currentTime = 0;
+      anims.push({ a, t0: now, done: false });
+      return a;
+    };
+    const isCss = a => a instanceof CSSAnimation || a instanceof CSSTransition;
+    function tick(t, dt) {
+      now = t;
+      for (;;) {
+        let b = null;
+        for (const e of q) if (e.at <= now && (!b || e.at < b.at || (e.at === b.at && e.id < b.id))) b = e;
+        if (!b) break;
+        q.splice(q.indexOf(b), 1);
+        b.fn();
+      }
+      live.forEach(v => v.step(dt, now));
+      if (dirty) { dirty = false; render(); }
+      for (const r of anims) {
+        if (r.done) continue;
+        if (r.a.playState === 'idle') { r.done = true; continue; }
+        const el = now - r.t0, end = r.a.effect.getComputedTiming().endTime;
+        r.a.currentTime = Math.min(el, end);
+        if (el >= end) { r.done = true; const f = r.a.onfinish; r.a.onfinish = null; if (f) f.call(r.a); }
+      }
+      if (vc.watch) for (const a of document.getAnimations()) if (isCss(a) && !seen.has(a)) { a.pause(); seen.set(a, now); }
+    }
+    const vc = {
+      virtual: true,
+      watch: false,
+      now: () => now,
+      after(fn, t) { const id = ++seq; q.push({ id, at: now + t, fn }); return id; },
+      cancel(id) { const i = q.findIndex(e => e.id === id); if (i >= 0) q.splice(i, 1); },
+      frame: () => 0,
+      /** Step on to `t` ms. */
+      to(t) {
+        const end = Math.floor(t * SPEC.rate / 1000 + 1e-9);
+        while (k < end) { k++; tick(k * 1000 / SPEC.rate, STEP); }
+        if (now < t) tick(t, (t - now) / 1000);
+      },
+      /** Draw the moment and hold every CSS animation still: at `phase(a)` if given, else at its
+       *  time since first seen. */
+      freeze(phase) {
+        if (dirty) { dirty = false; render(); }
+        for (const a of document.getAnimations()) {
+          if (!isCss(a)) continue;
+          a.pause();
+          a.currentTime = phase ? phase(a) : now - (seen.has(a) ? seen.get(a) : now);
+        }
+      },
+    };
+    return vc;
+  }
+
+  // ---------------------------------------------------------------- spring / tween values
+  // Every moving number on the stage is a V: it can be sent somewhere by a spring or a tween at any
+  // moment, and it leaves from wherever it is, with the speed it has. Nothing ever jumps.
+  const live = new Set();
+  let raf = 0, lastT = 0, dirty = false;
+  function kick() { if (!raf) { lastT = clock.now(); raf = clock.frame(loop); } }
+  function markDirty() { dirty = true; kick(); }
+  function loop(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000));
+    lastT = now;
+    live.forEach(v => v.step(dt, now));
+    if (dirty) { dirty = false; render(); }
+    raf = live.size || dirty ? clock.frame(loop) : 0;
+  }
+  // A spring that settles in about `ms` at damping ratio `z`.
+  const sp = (ms, z = 1) => { const w = (z < 1 ? 4.6 / z : 6.6) / (ms / 1000); return { k: w * w, c: 2 * z * w }; };
+  const SP = {};
+  for (const [k, v] of Object.entries(SPEC.spring)) SP[k] = sp(v[0], v[1]);
+  class V {
+    constructor(v, apply, eps = 0.01) { this.v = v; this.vel = 0; this.m = 0; this.apply = apply; this.eps = eps; this.at = 0; }
+    out() { if (this.apply) this.apply(this.v); else markDirty(); }
+    set(v) { this.v = v; this.vel = 0; this.m = 0; live.delete(this); this.out(); return this; }
+    spring(t, s, delay = 0) {
+      if (reduced) return this.set(t);
+      this.m = 1; this.t = t; this.k = s.k; this.c = s.c; this.at = clock.now() + delay;
+      live.add(this); kick(); return this;
+    }
+    tween(t, ms, ease = EASE.out, delay = 0) {
+      if (reduced) return this.set(t);
+      this.m = 2; this.t = t; this.ms = Math.max(1, ms); this.e = ease; this.at = clock.now() + delay; this.st = null;
+      live.add(this); kick(); return this;
+    }
+    get target() { return this.m ? this.t : this.v; }
+    step(dt, now) {
+      if (now < this.at) return;
+      if (this.m === 1) {
+        const n = Math.max(1, Math.ceil(dt * SPEC.rate)), h = dt / n;
+        for (let i = 0; i < n; i++) {
+          const a = -this.k * (this.v - this.t) - this.c * this.vel;
+          this.vel += a * h; this.v += this.vel * h;
+        }
+        if (Math.abs(this.v - this.t) < this.eps && Math.abs(this.vel) < this.eps * 8) {
+          this.v = this.t; this.vel = 0; this.m = 0; live.delete(this);
+        }
+      } else if (this.m === 2) {
+        if (this.st === null) { this.st = now; this.f = this.v; }
+        const p = Math.min(1, (now - this.st) / this.ms);
+        const nv = this.f + (this.t - this.f) * this.e(p);
+        this.vel = dt > 0 ? (nv - this.v) / dt : 0;
+        this.v = nv;
+        if (p >= 1) { this.vel = 0; this.m = 0; live.delete(this); }
+      } else { live.delete(this); return; }
+      this.out();
+    }
+  }
+  /** A tween as SPEC.motion (or SPEC.stage.motion) states it. */
+  const tw = (v, to, m) => v.tween(to, D(m.ms), EASE[m.ease], D(m.delay || 0));
+  const memo = new WeakMap();
+  function st(el, prop, val) {
+    let m = memo.get(el);
+    if (!m) { m = {}; memo.set(el, m); }
+    if (m[prop] !== val) { m[prop] = val; el.style[prop] = val; }
+  }
+
+  // ---------------------------------------------------------------- SPEC into the stylesheet
+  (function applySpec() {
+    const px = v => v + 'px', pc = v => v + '%';
+    const shadow = (a, c) => `${a.map(px).join(' ')} var(--${c})`;
+    const C = SPEC.ghost, B = SPEC.badge, F = SPEC.fly, R = SPEC.ring, K = SPEC.mark;
+    const vars = {
+      '--stage-w': px(G.w), '--stage-h': px(G.h), '--pane-top': px(G.paneTop), '--pane-h': px(G.paneH),
+      '--grip-w': px(G.grip.w), '--grip-h': px(G.grip.h), '--grip-r': px(G.grip.r),
+      '--handle-w': px(HD.w), '--handle-h': px(HD.h), '--handle-r': px(HD.h / 2), '--handle-a': String(HD.alpha),
+      '--hit-w': px(HD.hit.w), '--hit-h': px(HD.hit.h), '--hit-m': `${px(-HD.hit.h / 2)} 0px 0px ${px(-HD.hit.w / 2)}`,
+      '--pill-lift': PL.lift.map(l => shadow(l.slice(0, 3), l[3])).join(', '),
+      '--sheen-stop': pc(PL.sheen), '--rim-w': px(PL.rim.w),
+      '--rim-stop-top': pc(PL.rim.stops[0]), '--rim-stop-mid': pc(PL.rim.stops[1]), '--rim-stop-bot': pc(PL.rim.stops[2]),
+      '--glass-filter': `blur(${px(PL.blur.px)}) saturate(${PL.blur.saturate})`,
+      '--chip-hit': `0px ${px(-CH.hit)}`, '--chip-top': px((RW.h.chip - CH.h) / 2),
+      '--chip-w': px(CH.open), '--chip-h': px(CH.h), '--chip-origin': `${px(CH.stacked / 2)} ${px(CH.h / 2)}`,
+      '--single-hit': `0px ${px(-SPEC.single.hit)}`, '--single-top': px((RW.h.single - SPEC.icon.size) / 2),
+      '--icon': px(SPEC.icon.size),
+      '--btn-glyph': px(SPEC.btn.glyph), '--btn-stroke': String(SPEC.btn.stroke),
+      '--mark-top': px(K.top), '--mark-w': px(K.w), '--mark-h': px(K.h), '--mark-r': px(K.r),
+      '--mark-glow': `0px 0px ${px(K.glow[0])} var(--blue-glow), 0px 0px ${px(K.glow[1])} var(--blue-haze)`,
+      '--mark-fade': cssT(M.markFade),
+      '--ring-x': px(-R.out), '--ring-w': px(CH.stacked + 2 * R.out), '--ring-h': px(CH.h + 2 * R.out),
+      '--ring-glow': `drop-shadow(0px 0px ${px(R.glow)} var(--blue-glow))`,
+      '--ring-stroke': String(R.stroke), '--ring-dash': String(R.dash),
+      '--drag-shadow': `drop-shadow(${shadow(SPEC.drag.shadow, 'drag-drop')})`,
+      '--breathe': cssT(M.breathe), '--breathe-lo': String(C.breathe.lo), '--breathe-hi': String(C.breathe.hi),
+      '--breathe-still': String(C.breathe.still),
+      '--rim-stroke': String(C.stroke), '--rim-dash': C.dash.join(' '),
+      '--badge': px(B.size), '--badge-x': px(B.x), '--badge-y': px(B.y), '--badge-hit': px(-B.hit),
+      '--badge-drop-shadow': shadow(B.drop, 'badge-drop'),
+      '--badge-ring-shadow': `inset 0px 0px 0px ${px(B.ring)} var(--badge-ring)`,
+      '--minus-w': px(B.minus.w), '--minus-h': px(B.minus.h), '--minus-r': px(B.minus.r),
+      '--badge-star': px(B.star), '--badge-star-stroke': String(B.starStroke),
+      '--fly': px(F.size), '--fly-origin': `${px(F.size / 2)} ${px(F.size / 2)}`, '--fly-r': px(F.radius),
+      '--fly-shadow': shadow(F.drop, 'fly-drop'),
+      '--fly-ring-inset': px(-F.ring.inset), '--fly-ring-r': px(F.ring.r), '--fly-ring-border': px(F.ring.border),
+      '--fly-ring-glow': `0px 0px ${px(F.ring.glow)} var(--blue-haze), inset 0px 0px ${px(F.ring.innerGlow)} var(--blue-haze)`,
+      '--fly-ring-fade': cssT(M.ringFade),
+      '--pulse': cssT(M.pulse), '--pulse-lo': String(F.ring.lo), '--pulse-s0': String(F.ring.s0),
+      '--pulse-hi': String(F.ring.hi), '--pulse-s1': String(F.ring.s1),
+      '--bloom': px(SPEC.bloom.size), '--bloom-stop-core': pc(SPEC.bloom.stops[0]),
+      '--bloom-stop-mid': pc(SPEC.bloom.stops[1]), '--bloom-stop-edge': pc(SPEC.bloom.stops[2]),
+    };
+    const root = document.documentElement.style;
+    for (const [k, v] of Object.entries(SPEC.color)) root.setProperty('--' + k, v);
+    for (const [k, v] of Object.entries(vars)) root.setProperty(k, v);
+    // The cut-out between a stacked pair's icons, and the contour's glow.
+    const box = CH.maskBox, cut = $('#sp-cut'), [all, hole] = cut.querySelectorAll('rect');
+    const at = (el, a) => Object.entries(a).forEach(([k, v]) => el.setAttribute(k, String(v)));
+    at(cut, { x: box[0], y: box[1], width: box[2], height: box[3] });
+    at(all, { x: box[0], y: box[1], width: box[2], height: box[3] });
+    const hs = SPEC.icon.size + 2 * CH.cut;
+    at(hole, { x: CH.inset - CH.cut, y: CH.inset - CH.cut, width: hs, height: hs, rx: SPEC.icon.radius + CH.cut });
+    const gb = SPEC.ghost.glowBox, glow = $('#sp-glow');
+    at(glow, { x: pc(gb[0]), y: pc(gb[1]), width: pc(gb[2]), height: pc(gb[3]) });
+    at($('feGaussianBlur', glow), { stdDeviation: SPEC.ghost.glow });
+  })();
+
+  // ---------------------------------------------------------------- apps
+  const GLYPH = {
+    nav: '<path d="M12 3.6 18.6 19.6 12 15.9 5.4 19.6Z"/>',
+    music: '<path d="M9.2 17.6V6.4l9.6-2.2v11.2"/><circle cx="6.9" cy="17.6" r="2.3"/><circle cx="16.5" cy="15.4" r="2.3"/>',
+    msg: '<path d="M5 6.6A2.6 2.6 0 0 1 7.6 4h8.8A2.6 2.6 0 0 1 19 6.6v6.6a2.6 2.6 0 0 1-2.6 2.6h-5.2l-4.4 3.6v-3.6A2.2 2.2 0 0 1 5 13.6Z"/>',
+    web: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.3 2.2 3.5 4.9 3.5 8s-1.2 5.8-3.5 8c-2.3-2.2-3.5-4.9-3.5-8S9.7 6.2 12 4Z"/>',
+    video: '<rect x="3.5" y="5.5" width="17" height="13" rx="3"/><path d="M10.3 9.4v5.2l4.3-2.6Z"/>',
+    pod: '<rect x="9" y="3.5" width="6" height="10.5" rx="3"/><path d="M6 11.6a6 6 0 0 0 12 0M12 17.6v2.9M9.2 20.5h5.6"/>',
+  };
+  const APPS = {
+    nav: { name: 'Навигатор', c: '--app-nav' },
+    music: { name: 'Музыка', c: '--app-music', bg: '--bg-music' },
+    msg: { name: 'Мессенджер', c: '--app-msg', bg: '--bg-msg' },
+    web: { name: 'Браузер', c: '--app-web', bg: '--bg-web' },
+    video: { name: 'Видео', c: '--app-video', bg: '--bg-video' },
+    pod: { name: 'Подкасты', c: '--app-pod', bg: '--bg-pod' },
+  };
+  const ORDER = ['nav', 'music', 'msg', 'web', 'video', 'pod'];
+  const IC = SPEC.icon.size;
+  const iconInner = app => `<rect width="${IC}" height="${IC}" rx="${SPEC.icon.radius}" style="fill:var(${APPS[app].c})"/><g class="gl" transform="translate(13 13) scale(1.0833)">${GLYPH[app]}</g>`;
+  const iconSVG = (app, size) => `<svg class="ic" viewBox="0 0 ${IC} ${IC}" width="${size}" height="${size}" aria-hidden="true">${iconInner(app)}</svg>`;
+  const STAR = 'M12 3.4l2.62 5.31 5.86.85-4.24 4.13 1 5.84L12 16.77l-5.24 2.76 1-5.84-4.24-4.13 5.86-.85Z';
+
+  // ---------------------------------------------------------------- stage
+  const wrap = $('#sp-wrap'), stage = $('#sp-stage');
+  const pill = $('#sp-pill'), row = $('#sp-row'), hit = $('#sp-hit'), fx = $('#sp-fx');
+  const pillShadow = $('.pill-shadow', pill), pillGlass = $('.pill-glass', pill), pillHandle = $('.pill-handle', pill), pillClip = $('.pill-clip', pill);
+  const panesEl = $('#sp-panes'), grip = $('#sp-grip'), homeEl = $('#sp-home'), dock = $('#sp-dock');
+  let scale = 1;
+  function fit() {
+    scale = wrap.clientWidth / G.w || 1;
+    stage.style.transform = `scale(${scale})`;
+  }
+  fit();
+  new ResizeObserver(fit).observe(wrap);
+  function toStage(e) {
+    const r = wrap.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+  }
+  function stageRect(el) {
+    const r = el.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    return { x: (r.left - w.left + r.width / 2) / scale, y: (r.top - w.top + r.height / 2) / scale, size: r.width / scale };
+  }
+
+  // Home screen tiles and the dock.
+  (function buildChrome() {
+    let h = '';
+    const x0 = (1280 - (6 * 132 + 5 * 32)) / 2;
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) {
+      if (r === 0 && c < 2) continue;
+      h += `<i style="left:${x0 + c * 164}px;top:${150 + r * 196}px"></i>`;
+    }
+    h += `<i class="w" style="left:${x0}px;top:150px"></i>`;
+    homeEl.innerHTML = h;
+    const G = {
+      home: '<path d="M4.5 11.2 12 5l7.5 6.2V19a1 1 0 0 1-1 1H15v-5H9v5H5.5a1 1 0 0 1-1-1Z"/>',
+      phone: '<path d="M6.6 4h2.9l1.4 3.8-1.9 1.2a10 10 0 0 0 6 6l1.2-1.9 3.8 1.4v2.9a2 2 0 0 1-2.2 2A15.6 15.6 0 0 1 4.6 6.2 2 2 0 0 1 6.6 4Z"/>',
+      fan: '<circle cx="12" cy="12" r="1.8"/><path d="M12 10.2c0-3 1.2-5.7 3.8-5.7 2 0 2.3 2.9-.2 4.4M13.8 12c3 0 5.7 1.2 5.7 3.8 0 2-2.9 2.3-4.4-.2M12 13.8c0 3-1.2 5.7-3.8 5.7-2 0-2.3-2.9.2-4.4M10.2 12c-3 0-5.7-1.2-5.7-3.8 0-2 2.9-2.3 4.4.2"/>',
+      split: '<rect x="3.5" y="5" width="7.4" height="14" rx="1.6"/><rect x="13.1" y="5" width="7.4" height="14" rx="1.6"/>',
+      car: '<path d="M5 16v-3.4L7 7.2h10l2 5.4V16M4.5 16h15M6 16v2.5M18 16v2.5M8 12.8h.01M16 12.8h.01"/>',
+      note: GLYPH.music,
+      grid: '<rect x="5" y="5" width="5.5" height="5.5" rx="1.4"/><rect x="13.5" y="5" width="5.5" height="5.5" rx="1.4"/><rect x="5" y="13.5" width="5.5" height="5.5" rx="1.4"/><rect x="13.5" y="13.5" width="5.5" height="5.5" rx="1.4"/>',
+    };
+    dock.innerHTML = ['home', 'phone', 'fan', 'split', 'car', 'note', 'grid'].map(k =>
+      `<div class="dk${k === 'split' ? ' dk-split' : ''}"${k === 'split' ? ' id="sp-split"' : ''}><svg viewBox="0 0 24 24">${G[k]}</svg></div>`).join('');
+  })();
+  const splitIcon = $('#sp-split');
+
+  // ---------------------------------------------------------------- state
+  const pk = p => p[0] + '|' + p[1];
+  const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+  const SIDES = ['left', 'right'];
+  function seed() {
+    return {
+      left: 'music', right: 'nav',
+      pinned: [['music', 'nav'], ['msg', 'nav']],
+      recents: [['music', 'web'], ['pod', 'nav']],
+      last: { left: 'music', right: 'nav' },
+      hist: { left: ['music', 'msg', 'pod'], right: ['nav', 'web', 'video'] },
+      detent: 0, home: false, mode: 'handle', content: 'pairs',
+      day: false, blur: false, touched: null,
+    };
+  }
+  let S = seed();
+  const T = {};
+  let epoch = 0;
+  function later(fn, ms) { const e = epoch; return clock.after(() => { if (e === epoch) fn(); }, ms); }
+
+  const isPinned = p => S.pinned.some(q => same(p, q));
+  const anyEmpty = () => !S.left || !S.right;
+  const wideSide = () => (S.detent ? 'left' : 'right');
+  const currentPair = () => (S.left && S.right ? [S.left, S.right] : [S.last.left, S.last.right]);
+  const isLive = p => !S.home && S.left === p[0] && S.right === p[1];
+  function moveFront(list, x) { const i = list.indexOf(x); if (i >= 0) list.splice(i, 1); list.unshift(x); }
+  function makeCurrent() {
+    if (!S.left || !S.right) return;
+    S.last = { left: S.left, right: S.right };
+    moveFront(S.hist.left, S.left);
+    moveFront(S.hist.right, S.right);
+    const p = [S.left, S.right];
+    S.recents = S.recents.filter(q => !same(q, p));
+    if (!isPinned(p)) S.recents.unshift(p);
+    S.recents = S.recents.slice(0, SPEC.row.recents);
+  }
+  function emptyTarget() {
+    if (S.touched && !S[S.touched]) return S.touched;
+    if (!S[wideSide()]) return wideSide();
+    return S.left ? 'right' : 'left';
+  }
+
+  // ---------------------------------------------------------------- the scene's moving numbers
+  const divX = new V(G.detents[0], null, 0.05);       // the divider's centre
+  const paneOpen = new V(1, null, 0.002);    // 0 = panes folded into the divider (home)
+  const paneA = new V(1, v => st(panesEl, 'opacity', String(v)), 0.002);
+  const homeA = new V(0, v => { homeEl.style.opacity = v; homeEl.hidden = v <= 0.002; }, 0.002);
+  const P = {
+    w: new V(HD.w, null, 0.05),
+    h: new V(HD.h, null, 0.05),
+    o: new V(0, null, 0.002),
+    hA: new V(HD.alpha, null, 0.002),
+    rowA: new V(0, v => st(pillClip, 'opacity', String(v)), 0.002),
+    vis: new V(1, v => st(pill, 'opacity', String(v)), 0.002),
+  };
+  // The panes stand `edge` in from the stage's sides with `gap` between them, centred on the divider.
+  const HALF = G.gap / 2, RIGHT = G.w - G.edge;
+  const DIV = () => G.detents[S.detent];
+  const paneW = side => (side === 'left' ? DIV() - (G.edge + HALF) : (RIGHT - HALF) - DIV());
+  const paneCX = (side, d) => (side === 'left' ? (d + (G.edge - HALF)) / 2 : (d + (RIGHT + HALF)) / 2);
+  const paneCY = G.paneTop + G.paneH / 2;
+
+  function render() {
+    const d = divX.v, po = paneOpen.v;
+    for (const side of SIDES) {
+      const p = PANES[side];
+      const x0 = side === 'left' ? lerp(d - HALF, G.edge, po) : d + HALF;
+      const x1 = side === 'left' ? d - HALF : lerp(d + HALF, RIGHT, po);
+      st(p.el, 'clipPath', `inset(0px ${(G.w - x1).toFixed(2)}px 0px ${x0.toFixed(2)}px round ${G.paneRadius}px)`);
+      const c = paneCX(side, d);
+      for (const rec of p.contents) st(rec.el, 'translate', `${(c - rec.w / 2).toFixed(2)}px 0px`);
+    }
+    st(grip, 'translate', `${(d - G.grip.w / 2).toFixed(2)}px ${paneCY - G.grip.h / 2}px`);
+
+    const w = Math.max(PL.min.w, P.w.v), h = Math.max(PL.min.h, P.h.v), o = clamp01(P.o.v);
+    // The bottom edge rises from the handle's to the open pill's as the height grows.
+    const k = clamp01((h - HD.h) / (PL.open.h - HD.h));
+    const yb = HD.bottom - (HD.bottom - PL.open.bottom) * k;
+    const cx = clamp(d, PL.margin + w / 2, (G.w - PL.margin) - w / 2);
+    st(pill, 'width', w.toFixed(2) + 'px');
+    st(pill, 'height', h.toFixed(2) + 'px');
+    st(pill, 'borderRadius', (h / 2).toFixed(2) + 'px');
+    st(pill, 'translate', `${(cx - w / 2).toFixed(2)}px ${(yb - h).toFixed(2)}px`);
+    st(pillGlass, 'opacity', o.toFixed(3));
+    st(pillShadow, 'opacity', o.toFixed(3));
+    // The handle's white only lives while the shape is still handle-sized, so the morph never
+    // flashes a large pale capsule on its way open or shut.
+    st(pillHandle, 'opacity', (P.hA.v * (1 - o) * clamp01(1 - (h - HD.h) / HD.fadeBy)).toFixed(3));
+  }
+
+  // ---------------------------------------------------------------- pane content
+  let MAP = null;
+  function rng(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function mapWorld() {
+    if (MAP) return MAP;
+    const R = rng(1944);
+    const us = [], vs = [];
+    for (let a = -980; a < 980; a += 86 + R() * 66) us.push(Math.round(a));
+    for (let a = -980; a < 980; a += 76 + R() * 58) vs.push(Math.round(a));
+    const near = (arr, x) => arr.reduce((b, v, i) => (Math.abs(v - x) < Math.abs(arr[b] - x) ? i : b), 0);
+    const iu = near(us, 0);
+    const majU = i => ((i - iu) % 3 + 3) % 3 === 0;
+    const majV = j => j % 4 === 1;
+    const half = m => (m ? 10 : 6.5);
+    let bld = '', bld2 = '', park = '';
+    for (let i = 0; i < us.length - 1; i++) for (let j = 0; j < vs.length - 1; j++) {
+      const x0 = us[i] + half(majU(i)) + 3, x1 = us[i + 1] - half(majU(i + 1)) - 3;
+      const y0 = vs[j] + half(majV(j)) + 3, y1 = vs[j + 1] - half(majV(j + 1)) - 3;
+      const r = R();
+      if (r < 0.07) { park += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="6"/>`; continue; }
+      if (r < 0.1) continue;
+      const along = x1 - x0 > y1 - y0, n = 1 + Math.floor(R() * 3), gap = 5;
+      for (let q = 0; q < n; q++) {
+        const f0 = q / n, f1 = (q + 1) / n;
+        let bx0, by0, bx1, by1;
+        if (along) { bx0 = lerp(x0, x1, f0) + (q ? gap / 2 : 0); bx1 = lerp(x0, x1, f1) - (q < n - 1 ? gap / 2 : 0); by0 = y0; by1 = y1; }
+        else { by0 = lerp(y0, y1, f0) + (q ? gap / 2 : 0); by1 = lerp(y0, y1, f1) - (q < n - 1 ? gap / 2 : 0); bx0 = x0; bx1 = x1; }
+        const s = `<rect x="${bx0.toFixed(1)}" y="${by0.toFixed(1)}" width="${(bx1 - bx0).toFixed(1)}" height="${(by1 - by0).toFixed(1)}" rx="2"/>`;
+        if (R() < 0.35) bld2 += s; else bld += s;
+      }
+    }
+    let minor = '', major = '';
+    us.forEach((u, i) => { const s = `M${u} -1100V1100`; if (majU(i)) major += s; else minor += s; });
+    vs.forEach((v, j) => { const s = `M-1100 ${v}H1100`; if (majV(j)) major += s; else minor += s; });
+    const jA = near(vs, 90), j1 = near(vs, -230), j2 = Math.max(0, j1 - 3);
+    const iu2 = Math.min(us.length - 1, iu + 3), iu3 = Math.min(us.length - 1, iu2 + 2);
+    const route = `M${us[iu]} ${vs[jA]}V${vs[j1]}H${us[iu2]}V${vs[j2]}H${us[iu3]}V-1100`;
+    const done = `M${us[iu]} 1100V${vs[jA]}`;
+    const lblRows = vs.map((v, j) => [v, j]).filter(([, j]) => majV(j));
+    let labels = '';
+    const names = ['Садовая ул.', 'пр. Мира', 'Набережная', 'ул. Ленина'];
+    lblRows.forEach(([v], n) => { labels += `<text class="m-lbl" x="${us[iu] + 28}" y="${v + 4.5}">${names[n % names.length]}</text>`; });
+    us.forEach((u, i) => { if (majU(i) && i !== iu) labels += `<text class="m-lbl" transform="translate(${u + 4.5} ${vs[jA] + 40}) rotate(-90)">ул. Гагарина</text>`; });
+    const ang = -17, ra = ang * Math.PI / 180;
+    const ax = us[iu] * Math.cos(ra) - vs[jA] * Math.sin(ra), ay = us[iu] * Math.sin(ra) + vs[jA] * Math.cos(ra);
+    const inner =
+      `<rect class="m-bg" x="-2400" y="-2400" width="4800" height="4800"/>` +
+      `<g transform="rotate(${ang})">` +
+      `<g class="m-bld">${bld}</g><g class="m-bld2">${bld2}</g><g class="m-park">${park}</g>` +
+      `<path class="m-water" d="M-1100 -470C-420 -620 90 -280 1100 -520"/>` +
+      `<path class="m-rdc" d="${minor}"/><path class="m-majc" d="${major}"/>` +
+      `<path class="m-rd" d="${minor}"/><path class="m-maj" d="${major}"/>` +
+      `<path class="m-hwc" d="M-1100 420C-380 300 260 560 1100 330"/><path class="m-hw" d="M-1100 420C-380 300 260 560 1100 330"/>` +
+      `<path class="m-rtd" d="${done}"/><path class="m-rtc" d="${route}"/><path class="m-rt" d="${route}"/>` +
+      labels + `</g>` +
+      `<g transform="translate(${ax.toFixed(1)} ${ay.toFixed(1)}) rotate(${ang})"><circle class="m-acc" r="34"/><path class="m-arrow" d="M0 -17 12.5 13 0 6.4 -12.5 13Z"/></g>`;
+    MAP = { inner, ax, ay };
+    return MAP;
+  }
+  function navHTML(w) {
+    const m = mapWorld();
+    const vb = `${(m.ax - w / 2).toFixed(1)} ${(m.ay - 450).toFixed(1)} ${w} ${G.paneH}`;
+    const etaW = Math.min(w - 32, 384);
+    return `<div class="nav${S.day ? ' day' : ''}">` +
+      `<svg class="map" width="${w}" height="${G.paneH}" viewBox="${vb}" aria-hidden="true">${m.inner}</svg>` +
+      `<div class="nv-turn"><svg viewBox="0 0 24 24"><path d="M7 20v-6.5a4 4 0 0 1 4-4h7.5M15 5.5l4 4-4 4"/></svg><div><div class="nv-dist">350 м</div><div class="nv-street">Садовая улица</div></div></div>` +
+      `<div class="nv-zoom"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></div>` +
+      `<div class="nv-sign" style="bottom:96px">60</div>` +
+      `<div class="nv-eta" style="width:${etaW}px"><b>12 мин</b><span>4,2 км · 19:56</span></div>` +
+      `</div>`;
+  }
+  const ICO = {
+    prev: '<path d="M6.5 5.5v13M18 6.5 9.5 12l8.5 5.5Z"/>',
+    next: '<path d="M17.5 5.5v13M6 6.5l8.5 5.5L6 17.5Z"/>',
+    pause: '<path d="M9 6.5v11M15 6.5v11"/>',
+  };
+  function muCtl(cx, cy, gap) {
+    return `<svg class="mu-ic" viewBox="0 0 24 24" style="left:${cx - gap - 15}px;top:${cy - 15}px">${ICO.prev}</svg>` +
+      `<div class="mu-play" style="left:${cx - 32}px;top:${cy - 32}px;width:64px;height:64px"><svg viewBox="0 0 24 24">${ICO.pause}</svg></div>` +
+      `<svg class="mu-ic" viewBox="0 0 24 24" style="left:${cx + gap - 15}px;top:${cy - 15}px">${ICO.next}</svg>`;
+  }
+  function muBar(x, w, y) {
+    return `<div class="mu-bar" style="left:${x}px;top:${y}px;width:${w}px"><i style="width:42%"></i><b style="left:42%"></b></div>` +
+      `<div class="mu-tm" style="left:${x}px;top:${y + 14}px">1:42</div>` +
+      `<div class="mu-tm" style="left:${x}px;top:${y + 14}px;width:${w}px;text-align:right">4:05</div>`;
+  }
+  const QUEUE = [['Тёплый ветер', 'Полоса', '--art-2'], ['Огни на трассе', 'Ночной маршрут', '--art-3'], ['Медленная вода', 'Северный берег', '--art-4'], ['Дом у моря', 'Тихая гавань', '--art-5'], ['Пыль и свет', 'Полоса', '--art-2']];
+  function musicHTML(w) {
+    if (w < 600) {
+      const cx = w / 2;
+      return `<div class="mu">` +
+        `<div class="mu-lbl" style="left:0;right:0;top:22px;text-align:center">Сейчас играет</div>` +
+        `<div class="mu-art" style="left:${cx - 108}px;top:60px;width:216px;height:216px"></div>` +
+        `<div class="mu-t" style="left:24px;right:24px;top:298px;text-align:center">Северное сияние</div>` +
+        `<div class="mu-a" style="left:24px;right:24px;top:332px;text-align:center">Тихая гавань</div>` +
+        muBar(40, w - 80, 378) + muCtl(cx, 452, 92) +
+        `<div class="mu-lbl" style="left:28px;top:512px">Далее</div>` +
+        QUEUE.slice(0, 2).map((q, i) => `<div class="mu-q" style="left:28px;right:28px;top:${540 + i * 64}px"><i style="background:var(${q[2]})"></i><div><b>${q[0]}</b><span>${q[1]}</span></div></div>`).join('') +
+        `</div>`;
+    }
+    const x = 432, cw = w - x - 56;
+    return `<div class="mu">` +
+      `<div class="mu-art" style="left:64px;top:64px;width:320px;height:320px"></div>` +
+      `<div class="mu-lbl" style="left:${x}px;top:92px">Сейчас играет</div>` +
+      `<div class="mu-t" style="left:${x}px;width:${cw}px;top:118px;font-size:30px">Северное сияние</div>` +
+      `<div class="mu-a" style="left:${x}px;top:162px;font-size:17px">Тихая гавань · Полярная ночь</div>` +
+      muBar(x, cw, 238) + muCtl(x + cw / 2, 322, 100) +
+      `<div class="mu-lbl" style="left:64px;top:428px">Далее</div>` +
+      QUEUE.map((q, i) => `<div class="mu-card" style="left:${64 + i * 156}px;top:456px"><i style="background:var(${q[2]})"></i><b>${q[0]}</b><span>${q[1]}</span></div>`).join('') +
+      `</div>`;
+  }
+  const CHAT = [
+    [0, 'Ты уже выехал?', '19:31'], [1, 'Да, минут через двадцать буду', '19:32'],
+    [0, 'Захвати, пожалуйста, хлеб по дороге', '19:36'], [1, 'Хорошо, заеду в пекарню на углу', '19:37'],
+    [0, 'Спасибо! На мосту, говорят, пробка', '19:41'], [1, 'Вижу. Навигатор ведёт через Садовую', '19:42'],
+    [0, 'Отлично, ждём', '19:44'],
+  ];
+  const CHATS = [['Ольга', 'Отлично, ждём', '19:44', '--av-1'], ['Андрей', 'Завтра в девять?', '18:12', '--av-2'], ['Работа', 'Отчёт загрузил в папку', '17:50', '--av-3'], ['Мама', 'Позвони, как доедешь', '16:03', '--av-4'], ['Кирилл', 'Фото с выходных', 'Вчера', '--av-5'], ['Соседи', 'Завтра отключат воду', 'Вчера', '--av-6'], ['Сервис', 'Запись подтверждена', 'Пн', '--av-2']];
+  function msgHTML(w) {
+    const wide = w > 600, x = wide ? 301 : 0, tw = w - x;
+    const thread =
+      `<div class="ms-head" style="left:${x}px;width:${tw}px"><i class="ms-av" style="width:40px;height:40px;background:var(--av-1)">О</i><div><b>Ольга</b><span>в сети</span></div></div>` +
+      `<div class="ms-thread" style="left:${x + 16}px;width:${tw - 32}px;top:88px;bottom:84px">` +
+      CHAT.map(c => `<div class="bub${c[0] ? ' o' : ''}">${c[1]}<small>${c[2]}</small></div>`).join('') + `</div>` +
+      `<div class="ms-input" style="left:${x + 16}px;width:${tw - 32}px;bottom:16px">Сообщение<svg viewBox="0 0 24 24"><rect x="9" y="3.5" width="6" height="10.5" rx="3"/><path d="M6 11.6a6 6 0 0 0 12 0M12 17.6v2.9"/></svg></div>`;
+    const list = wide ? `<div class="ms-list"><h4>Чаты</h4>` + CHATS.map((c, i) =>
+      `<div class="ms-row${i ? '' : ' sel'}"><i class="ms-av" style="width:44px;height:44px;background:var(${c[3]})">${c[0][0]}</i><div><b>${c[0]}</b><span>${c[1]}</span></div><em>${c[2]}</em></div>`).join('') + `</div>` : '';
+    return `<div class="ms">${list}${thread}</div>`;
+  }
+  const PARAS = [
+    'Строители завершили монтаж последнего пролёта. Движение по мосту планируют открыть в декабре: сначала по одной полосе в каждую сторону, весной — полностью.',
+    'На время работ на набережной сохранится ограничение скорости до 40 км/ч. Объезд проходит по Садовой улице и проспекту Мира.',
+    'Новый мост разгрузит центр: по расчётам, утром поток через старую переправу сократится почти на треть.',
+  ];
+  function webHTML(w) {
+    const wide = w > 600, cw = wide ? 500 : w - 48;
+    const side = wide ? `<div class="wb-side" style="left:${24 + cw + 36}px;top:96px;width:${w - cw - 24 - 36 - 28}px"><h5>ЧИТАЮТ СЕЙЧАС</h5>` +
+      [['Где посмотреть звездопад за городом', '--art-4'], ['Расписание электричек изменится с понедельника', '--art-2'], ['Рынок на набережной открылся после ремонта', '--art-3'], ['Пять маршрутов для прогулки на выходных', '--art-5']]
+        .map(c => `<div class="wb-card"><i style="background:var(${c[1]})"></i><span>${c[0]}</span></div>`).join('') + `</div>` : '';
+    return `<div class="wb">` +
+      `<div class="wb-bar" style="width:${w}px"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><div class="wb-url"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>gorod.example/novosti</div></div>` +
+      `<div style="left:24px;top:92px;width:${cw}px"><div class="wb-k">ГОРОД · 12 МИНУТ НАЗАД</div><h3 class="wb-h">Новый мост через реку откроют к зиме</h3>` +
+      `<div class="wb-img" style="height:${Math.round(cw * 0.42)}px"></div>` + PARAS.map(p => `<p class="wb-p">${p}</p>`).join('') + `</div>` +
+      side + `</div>`;
+  }
+  const LAND = '<svg class="land" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><circle class="v-sun" cx="116" cy="34" r="9"/><path class="v-m1" d="M0 60 22 40 38 51 60 30 84 55 104 38 128 57 160 37V90H0Z"/><path class="v-m2" d="M0 72 30 58 54 68 80 55 112 70 140 60 160 66V90H0Z"/><path class="v-road" d="M71 90 79.3 66h1.4L89 90Z"/></svg>';
+  const VIDS = [['Утренний город за минуту', '1:04', '--art-2'], ['Северная дорога вдоль моря', '18:40', '--art-4'], ['Как снимать ночью', '9:05', '--art-3'], ['Тихий лес в дождь', '42:10', '--art-5']];
+  function videoHTML(w) {
+    const wide = w > 600;
+    const fx = wide ? 24 : 16, fw = w - 2 * fx, fh = Math.round(fw * 9 / 16), fy = wide ? 48 : 64;
+    let h = `<div class="vd"><div class="vd-frame" style="left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px">${LAND}` +
+      `<div class="vd-play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15L19.5 12Z"/></svg></div><div class="vd-prog"><i></i></div></div>` +
+      `<div class="vd-t" style="left:${fx}px;width:${fw}px;top:${fy + fh + 18}px">Горная дорога на закате</div>` +
+      `<div class="vd-m" style="left:${fx}px;top:${fy + fh + 48}px">1,2 млн просмотров · 3 дня назад</div>`;
+    if (wide) h += VIDS.map((v, i) => `<div class="vd-row" style="left:${fx + i * 196}px;top:${fy + fh + 86}px;flex-direction:column;align-items:flex-start;gap:8px"><i style="width:180px;height:100px;background:var(${v[2]})"><em>${v[1]}</em></i><b style="width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v[0]}</b></div>`).join('');
+    else h += VIDS.slice(0, 3).map((v, i) => `<div class="vd-row" style="left:${fx}px;right:${fx}px;top:${fy + fh + 86 + i * 90}px"><i style="background:var(${v[2]})"><em>${v[1]}</em></i><div><b>${v[0]}</b><span>Дорожное кино</span></div></div>`).join('');
+    return h + `</div>`;
+  }
+  const PODS = [['Выпуск 142. Как устроены мосты', 'Город и люди · 48 мин', '--art-2', 'Г', 72], ['Почему небо синее', 'Наука по пути · 31 мин', '--art-4', 'Н', 15], ['Байкал за три дня', 'Дальняя дорога · 56 мин', '--art-3', 'Д', 0], ['Хлеб на закваске', 'Кухня без спешки · 24 мин', '--art-1', 'К', 40], ['Медленное чтение: Чехов', 'Тихий час · 62 мин', '--art-5', 'Т', 0], ['Как открыть мастерскую', 'Своё дело · 39 мин', '--art-2', 'С', 88], ['Батареи зимой', 'Под капотом · 44 мин', '--art-4', 'П', 0], ['Истории попутчиков', 'Голоса · 27 мин', '--art-3', 'Г', 0]];
+  function podHTML(w) {
+    const wide = w > 600, cols = wide ? 2 : 1, colW = (w - 48 - (cols - 1) * 32) / cols;
+    return `<div class="pd"><div class="pd-h" style="left:24px;top:26px">Подкасты</div>` +
+      `<div class="pd-tabs" style="left:24px;top:78px"><span>Новые</span><span>Сохранённые</span><span>Загрузки</span></div>` +
+      PODS.map((p, i) => {
+        const c = i % cols, r = Math.floor(i / cols);
+        return `<div class="pd-row" style="left:${24 + c * (colW + 32)}px;width:${colW}px;top:${132 + r * 84}px"><i style="background:var(${p[2]})">${p[3]}</i><div><b>${p[0]}</b><span>${p[1]}</span>${p[4] ? `<u style="--p:${p[4]}%"></u>` : ''}</div></div>`;
+      }).join('') + `</div>`;
+  }
+  function pickerHTML(w) {
+    const cw = w > 600 ? 156 : 124, gx = (w - 3 * cw) / 2;
+    return `<div class="pick">` + ORDER.map((a, i) =>
+      `<button type="button" class="pk" data-app="${a}" style="left:${gx + (i % 3) * cw}px;top:${186 + Math.floor(i / 3) * 132}px;width:${cw}px"><span class="pk-ic">${iconSVG(a, 64)}</span><span class="pk-n">${APPS[a].name}</span></button>`).join('') + `</div>`;
+  }
+  const RENDER = { nav: navHTML, music: musicHTML, msg: msgHTML, web: webHTML, video: videoHTML, pod: podHTML };
+  const isLight = app => app === 'web' || (app === 'nav' && S.day);
+  const bgOf = app => (!app ? '--bg-pick' : app === 'nav' ? (S.day ? '--bg-nav-day' : '--bg-nav') : APPS[app].bg);
+  const X_BTN = '<svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg>';
+
+  // ---------------------------------------------------------------- panes
+  const PANES = {};
+  for (const side of SIDES) {
+    const el = $(`.pane[data-side="${side}"]`);
+    PANES[side] = { side, el, bg: $('.pane-bg', el), contents: [], cur: null, tok: 0, fly: null, launching: false };
+    el.addEventListener('pointerdown', () => { S.touched = side; }, true);
+  }
+  function mount(side, app, below) {
+    const p = PANES[side], w = paneW(side);
+    const el = document.createElement('div');
+    el.className = 'pc';
+    el.style.width = w + 'px';
+    el.innerHTML = (app ? RENDER[app](w) : pickerHTML(w)) +
+      (app ? `<button type="button" class="pc-x${isLight(app) ? ' lt' : ''}" aria-label="Закрыть">${X_BTN}</button>` : '');
+    const rec = { el, w, app, day: S.day };
+    if (below && p.contents.length) p.el.insertBefore(el, p.contents[0].el); else p.el.appendChild(el);
+    p.contents.push(rec);
+    p.cur = rec;
+    p.bg.style.background = `var(${bgOf(app)})`;
+    el.querySelectorAll('.pk').forEach(b => tapper(b, b.querySelector('.pk-ic'), () => pickApp(side, b)));
+    const x = el.querySelector('.pc-x');
+    if (x) tapper(x, x, () => { if (p.cur === rec) emptyPane(side, 'user'); });
+    markDirty();
+    return rec;
+  }
+  function drop(p, rec) {
+    const i = p.contents.indexOf(rec);
+    if (i >= 0) p.contents.splice(i, 1);
+    rec.el.remove();
+  }
+  function retireOthers(p, keep, ms) {
+    p.contents.filter(r => r !== keep).forEach(r => later(() => drop(p, r), ms));
+  }
+  function dropFly(p) {
+    if (!p.fly) return;
+    const f = p.fly;
+    p.fly = null;
+    f.classList.remove('rest');
+    f.animate([{ opacity: 0 }], { duration: D(M.flyOut.ms), easing: css(M.flyOut.ease), fill: 'forwards' }).onfinish = () => f.remove();
+  }
+  function syncPane(side) {
+    const p = PANES[side];
+    p.tok++; dropFly(p); p.launching = false;
+    if (!p.cur || p.cur.app !== S[side] || p.cur.w !== paneW(side) || (p.cur.app === 'nav' && p.cur.day !== S.day) || p.contents.length > 1) {
+      p.contents.slice().forEach(r => drop(p, r));
+      mount(side, S[side]);
+    } else {
+      p.cur.el.getAnimations().forEach(a => a.cancel());
+    }
+  }
+  /** Re-lay a pane's content (new width or the map's day/night) as a crossfade. */
+  function relayPane(side) {
+    const p = PANES[side];
+    if (p.launching || !p.cur) return;
+    const rec = mount(side, p.cur.app);
+    rec.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D(GM.relay.ms), easing: css(GM.relay.ease) });
+    retireOthers(p, rec, D(GM.relay.ms + G.retire));
+  }
+
+  /** An app icon flies from `from` (stage centre and size) to the pane, rests there while the app
+   *  "launches", and dissolves into the app's screen. */
+  function launch(side, app, from) {
+    const p = PANES[side];
+    const t = ++p.tok;
+    dropFly(p);
+    p.launching = true;
+    const F = SPEC.fly, half = F.size / 2;
+    const tx = paneCX(side, DIV()), ty = paneCY;
+    const old = p.cur;
+    const tf = D(M.flight.ms);
+    let fly = null;
+    const rest = `translate(${tx - half}px, ${ty - half}px) scale(1)`;
+    if (from) {
+      fly = document.createElement('div');
+      fly.className = 'fly';
+      fly.innerHTML = iconSVG(app, F.size);
+      fx.appendChild(fly);
+      p.fly = fly;
+      const s0 = from.size / F.size;
+      const c = { x: (from.x + tx) / 2, y: Math.min(from.y, ty) - F.arc };
+      const kf = [];
+      for (let i = 0; i <= F.samples; i++) {
+        const u = i / F.samples, a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, cc = u * u;
+        const x = a * from.x + b * c.x + cc * tx, y = a * from.y + b * c.y + cc * ty;
+        kf.push({ transform: `translate(${(x - half).toFixed(2)}px, ${(y - half).toFixed(2)}px) scale(${(s0 + (1 - s0) * u).toFixed(4)})` });
+      }
+      fly.animate(kf, { duration: tf, easing: css(M.flight.ease), fill: 'forwards' });
+    }
+    if (old) old.el.animate([{ opacity: F.dim }], { duration: D(M.oldDim.ms), delay: tf * M.oldDim.at, easing: css(M.oldDim.ease), fill: 'forwards' });
+    later(() => { if (p.tok === t && fly) fly.classList.add('rest'); }, tf);
+    later(() => {
+      if (p.tok !== t) return;
+      p.launching = false;
+      const rec = mount(side, app);
+      rec.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D(M.appIn.ms), easing: css(M.appIn.ease) });
+      retireOthers(p, rec, D(M.appIn.ms + G.retire));
+      if (fly) {
+        fly.classList.remove('rest');
+        if (p.fly === fly) p.fly = null;
+        fly.animate([{ transform: rest, opacity: 1 }, { transform: `${rest} scale(${F.grow})`, opacity: 0 }], { duration: D(M.dissolve.ms), easing: css(M.dissolve.ease), fill: 'forwards' })
+          .onfinish = () => fly.remove();
+      }
+    }, tf + D(TM.launchHold));
+  }
+
+  function emptyPane(side, reason) {
+    if (!S[side] || S.home) return;
+    S[side] = null;
+    const p = PANES[side];
+    p.tok++; dropFly(p); p.launching = false;
+    const olds = p.contents.slice();
+    mount(side, null, true);
+    olds.forEach(r => {
+      r.el.animate([{ opacity: 0, transform: `scale(${GM.empty.scale})` }], { duration: D(GM.empty.ms), easing: css(GM.empty.ease), fill: 'forwards' });
+      later(() => drop(p, r), D(GM.empty.ms + G.retire));
+    });
+    dockUpdate();
+    clock.cancel(T.repair);
+    if (reason === 'plus') { showRepair(); return; }
+    T.repair = later(() => { if (anyEmpty() && !S.home) showRepair(); }, D(TM.selfOpen));
+  }
+  function fillPane(side, app, from) {
+    if (S[side]) return;
+    S[side] = app;
+    S.last[side] = app;
+    if (S.left && S.right) makeCurrent(); else moveFront(S.hist[side], app);
+    launch(side, app, from);
+    dockUpdate();
+    if (!anyEmpty()) {
+      const g = items.get('ghost');
+      if (g && S.mode !== 'handle') chipClose(g);
+      closePill();
+    }
+    else if (S.mode !== 'handle') reconcile(repairSpec());
+  }
+  function pickApp(side, btn) {
+    if (S[side]) return;
+    const ic = btn.querySelector('.ic');
+    const r = stageRect(ic);
+    btn.querySelector('.pk-ic').style.opacity = '0';
+    fillPane(side, btn.dataset.app, r);
+  }
+
+  // ---------------------------------------------------------------- press feedback
+  function bloom(x, y) {
+    if (reduced) return;
+    const b = document.createElement('div');
+    b.className = 'bloom';
+    const B = SPEC.bloom;
+    b.style.translate = `${x - B.size / 2}px ${y - B.size / 2}px`;
+    fx.appendChild(b);
+    b.animate([
+      { opacity: 0, transform: `scale(${B.scale[0]})` },
+      { opacity: 1, transform: `scale(${B.scale[1]})`, offset: B.peakAt },
+      { opacity: 0, transform: `scale(${B.scale[2]})` },
+    ], { duration: M.bloom.ms, easing: css(M.bloom.ease) }).onfinish = () => b.remove();
+  }
+  /** Feedback on pointerdown, the action on a clean release. */
+  function tapper(el, face, onTap) {
+    el.addEventListener('pointerdown', e => {
+      if (e.button > 0) return;
+      e.preventDefault();
+      const p0 = toStage(e);
+      bloom(p0.x, p0.y);
+      face.animate([{ transform: `scale(${SPEC.press.scale})` }], { duration: D(M.tapPress.ms), easing: css(M.tapPress.ease), fill: 'forwards' });
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+      const up = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        face.animate([{ transform: `scale(${SPEC.press.tapGrow})`, offset: SPEC.press.tapGrowAt }, { transform: 'scale(1)' }], { duration: D(M.tapRelease.ms), easing: css(M.tapRelease.ease), fill: 'forwards' });
+        const p = toStage(ev);
+        if (ev.type === 'pointerup' && Math.hypot(p.x - p0.x, p.y - p0.y) < SPEC.press.slop) onTap(ev);
+      };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    });
+  }
+
+  // ---------------------------------------------------------------- the pill's row
+  const items = new Map();
+  let rowSpec = [];
+  function gapBetween(a, b) {
+    if (a.kind === 'sep' || b.kind === 'sep') return RW.gap.sep;
+    if (a.kind === 'chip' && b.kind === 'chip') return RW.gap.chip;
+    if (a.kind === 'btn' && b.kind === 'btn') return RW.gap.btn;
+    return RW.gap.other;
+  }
+  function layoutSpec(spec, edit) {
+    const pad = edit ? RW.editPad : RW.pad;
+    let x = pad, prev = null;
+    const pos = new Map();
+    for (const s of spec) {
+      if (prev) x += gapBetween(prev, s);
+      pos.set(s.key, x);
+      x += s.w;
+      prev = s;
+    }
+    const W = x + pad;
+    for (const [k, v] of pos) pos.set(k, v - W / 2);
+    return { W, pos };
+  }
+  function pairsSpec() {
+    const edit = S.mode === 'edit';
+    const pins = S.pinned.map(p => ({ key: 'pin:' + pk(p), kind: 'chip', w: CH.stacked, pair: p, pinned: true }));
+    const recs = S.recents.filter(p => !isPinned(p)).map(p => ({ key: 'rec:' + pk(p), kind: 'chip', w: CH.stacked, pair: p, pinned: false }));
+    const chips = pins.concat(recs).slice(0, edit ? Math.max(RW.maxChips, pins.length) : RW.maxChips);
+    const out = chips.slice();
+    if (chips.length) out.push({ key: 'sep', kind: 'sep', w: SPEC.sep.w });
+    if (edit) out.push({ key: 'check', kind: 'btn', w: SPEC.btn.size });
+    else out.push({ key: 'plus', kind: 'btn', w: SPEC.btn.size }, { key: 'star', kind: 'btn', w: SPEC.btn.size });
+    return out;
+  }
+  function repairSpec() {
+    const pair = [S.last.left, S.last.right];
+    const g = { left: !S.left, right: !S.right };
+    const out = [{ key: 'ghost', kind: 'chip', w: CH.open, pair, ghost: g, pinned: false }];
+    const side = emptyTarget();
+    const excl = new Set(pair);
+    const cand = S.hist[side].concat(ORDER).filter((a, i, arr) => a && !excl.has(a) && arr.indexOf(a) === i).slice(0, RW.maxSingles);
+    out.push({ key: 'sepR', kind: 'sep', w: SPEC.sep.w });
+    cand.forEach(a => out.push({ key: 'one:' + a, kind: 'single', w: IC, app: a }));
+    out.push({ key: 'sep', kind: 'sep', w: SPEC.sep.w }, { key: 'plus', kind: 'btn', w: SPEC.btn.size }, { key: 'star', kind: 'btn', w: SPEC.btn.size });
+    return out;
+  }
+  const specNow = () => (S.content === 'repair' ? repairSpec() : pairsSpec());
+
+  // A pair chip has two forms (SPEC.chip). Stacked: the right pane's app tucked behind the left one,
+  // smaller, a cut-out ring between them. Opened: both side by side at full size, `gap` apart -
+  // the form an incomplete pair takes, so the missing app's breathing contour is wholly visible.
+  // `t` runs the form between the two; each side's `g` runs that app between solid and contour.
+  const RI = SPEC.ghost.rimInset, RS = IC - 2 * RI, RR = SPEC.icon.radius - RI;
+  const BACK = CH.back, OPEN_X = CH.inset + IC + CH.gap;
+  const sideG = app => `<g class="solid">${iconInner(app)}</g>` +
+    `<g class="ghost" filter="url(#sp-glow)" style="display:none"><rect class="gh-rim" x="${RI}" y="${RI}" width="${RS}" height="${RS}" rx="${RR}"/><g class="gl gh-gl" transform="translate(13 13) scale(1.0833)">${GLYPH[app]}</g></g>`;
+  function chipHTML(s) {
+    const [a, b] = s.pair;
+    const R = SPEC.ring, rw = CH.stacked + 2 * R.out, rh = CH.h + 2 * R.out;
+    return `<svg class="pair" viewBox="0 0 ${CH.open} ${CH.h}" width="${CH.open}" height="${CH.h}" aria-hidden="true">` +
+      `<g class="ic-r" mask="url(#sp-cut)"><g class="ic-rt" transform="translate(${BACK.x} ${BACK.y}) scale(${BACK.scale})">${sideG(b)}</g></g>` +
+      `<g class="ic-l" transform="translate(${CH.inset} ${CH.inset})">${sideG(a)}</g></svg>` +
+      `<svg class="lp-ring" viewBox="0 0 ${rw} ${rh}" aria-hidden="true"><rect x="${R.inset}" y="${R.inset}" width="${rw - 2 * R.inset}" height="${rh - 2 * R.inset}" rx="${R.r}"/></svg>`;
+  }
+  const RIM = 2 * (RS - 2 * RR) * 2 + 2 * Math.PI * RR;   // the contour's perimeter
+  const DASH = SPEC.ghost.dash;
+  function rimDash(f) {
+    if (f >= 0.999) return DASH.join(' ');
+    const total = f * RIM, out = [];
+    let acc = 0, dash = true;
+    while (acc < total) {
+      const d = Math.min(dash ? DASH[0] : DASH[1], total - acc);
+      out.push(d.toFixed(2)); acc += d; dash = !dash;
+    }
+    if (!dash) out.push('0');   // ended on a gap: close the pair with an empty dash
+    out.push((RIM + SPEC.ghost.tail).toFixed(0));
+    return out.length > 1 ? out.join(' ') : `0 ${(RIM + SPEC.ghost.tail).toFixed(0)}`;
+  }
+  function chipForm(it) {
+    const t = clamp(it.t.v, 0, CH.overshoot);
+    const x = lerp(BACK.x, OPEN_X, t), y = lerp(BACK.y, CH.inset, clamp01(t)), s = lerp(BACK.scale, 1, clamp01(t));
+    it.rt.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${s.toFixed(4)})`);
+    // The mark and the press's origin sit under the middle of whatever the chip covers now.
+    const c = lerp(CH.stacked / 2, CH.open / 2, clamp01(t));
+    st(it.mark, 'translate', `${(c - SPEC.mark.w / 2).toFixed(2)}px 0px`);
+    st(it.face, 'transformOrigin', `${c.toFixed(2)}px ${CH.h / 2}px`);
+    for (const [gv, el] of [[it.gl, it.lg], [it.gr, it.rg]]) {
+      const g = clamp01(gv.v);
+      const solid = el.querySelector('.solid'), ghost = el.querySelector('.ghost');
+      solid.setAttribute('opacity', clamp01(1 - g * SPEC.ghost.solidFade).toFixed(3));
+      ghost.style.display = g > 0.002 ? '' : 'none';
+      if (g > 0.002) {
+        const rf = SPEC.ghost.rimFrom, gf = SPEC.ghost.glyphFrom;
+        ghost.querySelector('.gh-rim').style.strokeDasharray = rimDash(clamp01((g - rf) / (1 - rf)));
+        ghost.querySelector('.gh-gl').setAttribute('opacity', clamp01((g - gf) / (1 - gf)).toFixed(3));
+      }
+    }
+  }
+  /** Send a chip to the form its spec asks for: opened for an incomplete pair, stacked otherwise. */
+  function chipTo(it, instant, delay = 0) {
+    const g = it.s.ghost || {};
+    const tl = g.left ? 1 : 0, tr = g.right ? 1 : 0, to = g.left || g.right ? 1 : 0;
+    if (instant) { it.t.set(to); it.gl.set(tl); it.gr.set(tr); return; }
+    if (it.t.target !== to) it.t.spring(to, SP.form, D(delay));
+    if (it.gl.target !== tl) it.gl.tween(tl, D(M.ghostIn.ms), EASE[M.ghostIn.ease], D(delay));
+    if (it.gr.target !== tr) it.gr.tween(tr, D(M.ghostIn.ms), EASE[M.ghostIn.ease], D(delay));
+  }
+  /** The ghost chip closing back into a stacked, solid pair as the pill melts. */
+  function chipClose(it) {
+    tw(it.gl, 0, M.ghostOut);
+    tw(it.gr, 0, M.ghostOut);
+    it.t.spring(0, SP.form);
+  }
+  const BTN = {
+    plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
+    star: `<svg class="star" viewBox="0 0 24 24"><path d="${STAR}"/></svg>`,
+    check: '<svg viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg>',
+  };
+
+  function createItem(s) {
+    const el = document.createElement('div');
+    el.className = 'it it-' + s.kind;
+    const H = RW.h[s.kind];
+    el.style.width = s.w + 'px';
+    el.style.height = H + 'px';
+    const inn = document.createElement('div');
+    inn.className = 'it-in';
+    const face = document.createElement('div');
+    face.className = 'it-face';
+    el.appendChild(inn);
+    if (s.kind !== 'sep') inn.appendChild(face);
+    let mark = null;
+    if (s.kind === 'chip') {
+      face.innerHTML = chipHTML(s);
+      mark = document.createElement('div');
+      mark.className = 'mark';
+      inn.appendChild(mark);
+    } else if (s.kind === 'single') face.innerHTML = iconSVG(s.app, IC);
+    else if (s.kind === 'btn') face.innerHTML = BTN[s.key];
+    const it = { key: s.key, kind: s.kind, s, el, inn, face, mark, H, badge: null, badgeType: null, dragging: false };
+    it.x = new V(0, v => st(el, 'translate', `${v.toFixed(2)}px ${-H / 2}px`), 0.05);
+    it.sc = new V(1, v => st(face, 'scale', v.toFixed(4)), 0.0005);
+    if (s.kind === 'chip') {
+      it.pairKey = pk(s.pair);
+      bindChipSvg(it);
+      const form = () => chipForm(it);
+      it.t = new V(0, form, 0.002);
+      it.gl = new V(0, form, 0.002);
+      it.gr = new V(0, form, 0.002);
+      chipTo(it, true);
+    }
+    if (s.kind !== 'sep') el.addEventListener('pointerdown', e => onItemDown(it, e));
+    row.appendChild(el);
+    return it;
+  }
+  function updateItem(it, badgeDelay) {
+    const s = it.s;
+    if (it.kind === 'chip') {
+      st(it.el, 'width', s.w + 'px');
+      if (pk(s.pair) !== it.pairKey) {
+        // The pair itself changed under a kept chip (a second pane refilled): redraw its icons.
+        it.pairKey = pk(s.pair);
+        const ring = it.face.querySelector('.lp-ring');
+        it.face.innerHTML = chipHTML(s);
+        if (ring) it.face.replaceChild(ring, it.face.querySelector('.lp-ring'));
+        bindChipSvg(it);
+        chipForm(it);
+      }
+      chipTo(it, false);
+      it.el.classList.toggle('live', !s.ghost && isLive(s.pair));
+      setBadge(it, S.mode === 'edit' && !s.ghost ? (s.pinned ? 'rm' : 'pin') : null, badgeDelay);
+    }
+    if (it.key === 'star') it.el.classList.toggle('solid', isPinned(currentPair()));
+  }
+  function bindChipSvg(it) {
+    it.rt = it.face.querySelector('.ic-rt');
+    it.rg = it.rt;
+    it.lg = it.face.querySelector('.ic-l');
+  }
+  function setBadge(it, type, delay) {
+    if (it.badgeType === type) return;
+    if (it.badge) {
+      const old = it.badge;
+      old.style.pointerEvents = 'none';
+      old.animate([{ transform: 'scale(0)', opacity: 0 }], { duration: D(M.badgeOut.ms), easing: css(M.badgeOut.ease), fill: 'forwards' }).onfinish = () => old.remove();
+    }
+    it.badge = null;
+    it.badgeType = type;
+    if (!type) return;
+    const b = document.createElement('div');
+    b.className = 'badge badge-' + type;
+    b.innerHTML = type === 'rm' ? '<i></i>' : `<svg viewBox="0 0 24 24"><path d="${STAR}"/></svg>`;
+    it.el.appendChild(b);
+    it.badge = b;
+    b.animate([
+      { transform: 'scale(0)', opacity: 0 },
+      { transform: `scale(${SPEC.enter.badgePeak})`, opacity: 1, offset: SPEC.enter.badgePeakAt },
+      { transform: 'scale(1)', opacity: 1 },
+    ], { duration: D(M.badgeIn.ms), delay: D(delay || 0), easing: css(M.badgeIn.ease), fill: 'backwards' });
+    b.addEventListener('pointerdown', e => onBadgeDown(it, b, e));
+  }
+  function exitItem(it, mode) {
+    it.el.style.pointerEvents = 'none';
+    let a;
+    if (mode === 'badge') {
+      it.inn.style.transformOrigin = SPEC.enter.badgeOrigin.map(v => v + 'px').join(' ');
+      a = it.inn.animate([{ transform: 'scale(0)', opacity: 0 }], { duration: D(M.unpin.ms), easing: css(M.unpin.ease), fill: 'forwards' });
+      if (it.badge) it.badge.animate([{ transform: 'scale(0)', opacity: 0 }], { duration: D(M.unpinBadge.ms), delay: D(M.unpinBadge.delay), easing: css(M.unpinBadge.ease), fill: 'forwards' });
+    } else {
+      a = it.el.animate([{ opacity: 0, transform: `scale(${SPEC.enter.exit})` }], { duration: D(M.exit.ms), easing: css(M.exit.ease), fill: 'forwards' });
+    }
+    a.onfinish = () => it.el.remove();
+  }
+  function renameItem(from, to) {
+    const it = items.get(from);
+    if (!it || items.has(to)) return;
+    items.delete(from);
+    it.key = to;
+    items.set(to, it);
+  }
+  function clearItems() {
+    for (const it of items.values()) it.el.remove();
+    items.clear();
+    rowSpec = [];
+  }
+  /** Bring the row to `spec`: kept items glide to their new places, new ones come in, gone ones leave. */
+  function reconcile(spec, opt = {}) {
+    rowSpec = spec;
+    const L = layoutSpec(spec, S.mode === 'edit');
+    const keys = new Set(spec.map(s => s.key));
+    for (const [k, it] of items) if (!keys.has(k)) { items.delete(k); exitItem(it, opt.exit && opt.exit[k]); }
+    let chip = 0;
+    spec.forEach((s, i) => {
+      let it = items.get(s.key);
+      const x = L.pos.get(s.key);
+      if (!it) {
+        it = createItem(s);
+        items.set(s.key, it);
+        it.x.set(x);
+        if (opt.fresh) {
+          it.inn.animate([{ opacity: 0, transform: `translateY(${SPEC.enter.dy}px)` }, { opacity: 1, transform: 'none' }],
+            { duration: D(M.enter.ms), delay: D(M.enter.delay + i * M.enter.stagger), easing: css(M.enter.ease), fill: 'backwards' });
+        } else {
+          it.inn.animate([{ opacity: 0, transform: `scale(${SPEC.enter.pop})` }, { opacity: 1, transform: 'none' }],
+            { duration: D(M.pop.ms), delay: D(opt.enterDelay || 0), easing: css(M.pop.ease), fill: 'backwards' });
+        }
+      } else if (!it.dragging) it.x.spring(x, SP.slide);
+      it.s = s;
+      updateItem(it, opt.stagger ? chip * M.badgeIn.stagger : 0);
+      if (s.kind === 'chip') chip++;
+    });
+    P.w.spring(L.W, opt.wsp || (opt.fresh ? SP.open : SP.resize));
+    return L;
+  }
+
+  // ---------------------------------------------------------------- pill lifecycle
+  function startDim() {
+    clock.cancel(T.dim);
+    T.dim = later(() => { if (S.mode === 'handle') tw(P.hA, HD.dim, M.dim); }, TM.dim);
+  }
+  function wakeHandle() {
+    if (P.hA.target < HD.alpha) tw(P.hA, HD.alpha, M.wake);
+    if (S.mode === 'handle') startDim();
+  }
+  function armAuto() {
+    clock.cancel(T.auto);
+    if (S.mode === 'open' && S.content === 'pairs') T.auto = later(closePill, TM.auto);
+  }
+  function armEdit() { clock.cancel(T.edit); T.edit = later(exitEdit, TM.edit); }
+  function pillTouched() { if (S.mode === 'open') armAuto(); if (S.mode === 'edit') armEdit(); }
+
+  function openPill() {
+    if (S.home) return;
+    const closing = S.mode === 'handle' && items.size > 0;
+    if (S.mode !== 'handle') { S.content = anyEmpty() ? 'repair' : S.content; reconcile(specNow()); armAuto(); return; }
+    S.mode = 'open';
+    S.content = anyEmpty() ? 'repair' : 'pairs';
+    pill.classList.add('is-open');
+    clock.cancel(T.clear); clock.cancel(T.dim);
+    if (closing) { tw(P.rowA, 1, M.rowIn); reconcile(specNow(), { wsp: SP.open }); }
+    else {
+      clearItems(); P.rowA.set(1); reconcile(specNow(), { fresh: true });
+      // Opening by itself on an emptied pane: the pair arrives stacked and whole, then opens up
+      // and lets the missing app go to contour, so the change reads as it happens.
+      const g = S.content === 'repair' && items.get('ghost');
+      if (g) { g.t.set(0); g.gl.set(0); g.gr.set(0); chipTo(g, false, TM.ghostOpen); }
+    }
+    P.h.spring(PL.open.h, SP.openH);
+    tw(P.o, 1, M.glassIn);
+    P.hA.set(HD.alpha);
+    armAuto();
+  }
+  function closePill() {
+    if (S.mode === 'handle') return;
+    S.mode = 'handle';
+    pill.classList.remove('is-open');
+    clock.cancel(T.auto); clock.cancel(T.edit);
+    tw(P.rowA, 0, M.rowOut);
+    P.w.spring(HD.w, SP.close, D(M.shrink.delay));
+    P.h.spring(HD.h, SP.close, D(M.shrink.delay));
+    tw(P.o, 0, M.glassOut);
+    clock.cancel(T.clear);
+    T.clear = later(() => { if (S.mode === 'handle') clearItems(); }, D(TM.clear));
+    startDim();
+  }
+  function showRepair() {
+    if (S.home) return;
+    S.content = 'repair';
+    clock.cancel(T.auto); clock.cancel(T.edit);
+    if (S.mode === 'handle') { openPill(); return; }
+    if (S.mode === 'edit') { S.mode = 'open'; P.h.spring(PL.open.h, SP.edit); }
+    // The pair on screen becomes the incomplete pair: the same chip opens up in place.
+    if (!items.has('ghost')) {
+      const k = pk([S.last.left, S.last.right]);
+      if (items.has('pin:' + k)) renameItem('pin:' + k, 'ghost');
+      else if (items.has('rec:' + k)) renameItem('rec:' + k, 'ghost');
+    }
+    reconcile(repairSpec());
+  }
+  function enterEdit(lifted) {
+    if (S.mode !== 'open' || S.content !== 'pairs') return;
+    S.mode = 'edit';
+    clock.cancel(T.auto);
+    armEdit();
+    reconcile(pairsSpec(), { stagger: true });
+    P.h.spring(PL.edit.h, SP.edit);
+    if (lifted) hideRing(lifted);
+  }
+  function exitEdit() {
+    if (S.mode !== 'edit') return;
+    S.mode = 'open';
+    clock.cancel(T.edit);
+    reconcile(pairsSpec());
+    P.h.spring(PL.open.h, SP.edit);
+    armAuto();
+  }
+
+  // ---------------------------------------------------------------- touches on the pill
+  function startRing(it) {
+    const svg = it.face.querySelector('.lp-ring'), r = svg.querySelector('rect');
+    svg.getAnimations().forEach(a => a.cancel());
+    svg.style.opacity = '1';
+    return r.animate([{ strokeDashoffset: `${SPEC.ring.dash}px` }, { strokeDashoffset: '0px' }], { duration: D(M.ring.ms), delay: D(M.ring.delay), easing: css(M.ring.ease), fill: 'both' });
+  }
+  function hideRing(it) {
+    const svg = it.face.querySelector('.lp-ring');
+    if (!svg) return;
+    svg.animate([{ opacity: 0 }], { duration: D(M.ringOut.ms), easing: css(M.ringOut.ease), fill: 'forwards' }).onfinish = () => {
+      svg.getAnimations().forEach(a => a.cancel());
+      svg.style.opacity = '0';
+      svg.querySelector('rect').getAnimations().forEach(a => a.cancel());
+    };
+  }
+  function nudge(it, to = SPEC.press.nudge) {
+    tw(it.sc, to, M.nudge);
+    later(() => it.sc.spring(1, SP.release), D(M.nudge.ms));
+  }
+
+  function onItemDown(it, e) {
+    if (e.button > 0 || S.mode === 'handle' || S.home || it.el.style.pointerEvents === 'none') return;
+    e.preventDefault();
+    e.stopPropagation();
+    pillTouched();
+    const p0 = toStage(e), t0 = clock.now();
+    bloom(p0.x, p0.y);
+    try { it.el.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+    tw(it.sc, SPEC.press.scale, M.press);
+    const isPair = it.kind === 'chip' && !it.s.ghost;
+    const canLP = isPair && S.mode === 'open' && S.content === 'pairs';
+    let moved = false, lpDone = false, dragging = false, ring = null;
+    const tl = [];
+    if (canLP) {
+      ring = startRing(it);
+      tl.push(clock.after(() => tw(it.sc, SPEC.press.lift, M.lift), TM.liftAt));
+      tl.push(clock.after(() => { lpDone = true; enterEdit(it); }, TM.longPress));
+    }
+    const cancelLP = () => { tl.forEach(id => clock.cancel(id)); if (ring) { ring = null; hideRing(it); } };
+    const move = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      const p = toStage(ev), dx = p.x - p0.x, dy = p.y - p0.y;
+      if (dragging) { dragMove(it, dx); return; }
+      if (isPair && S.mode === 'edit' && it.s.pinned && Math.abs(dx) > SPEC.drag.start) {
+        dragging = true; cancelLP(); dragStart(it); dragMove(it, dx); return;
+      }
+      if (!lpDone && Math.hypot(dx, dy) > SPEC.press.move) { moved = true; cancelLP(); }
+    };
+    const up = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      it.el.removeEventListener('pointermove', move);
+      it.el.removeEventListener('pointerup', up);
+      it.el.removeEventListener('pointercancel', up);
+      it.el.removeEventListener('lostpointercapture', up);
+      if (dragging) { dragEnd(it); return; }
+      if (lpDone) { it.sc.spring(1, SP.release); return; }
+      cancelLP();
+      it.sc.spring(1, SP.release);
+      if (ev.type !== 'pointerup' || moved) return;
+      if (canLP && clock.now() - t0 >= TM.tap) return;
+      tapItem(it);
+    };
+    it.el.addEventListener('pointermove', move);
+    it.el.addEventListener('pointerup', up);
+    it.el.addEventListener('pointercancel', up);
+    it.el.addEventListener('lostpointercapture', up);
+  }
+  function tapItem(it) {
+    if (it.kind === 'chip') {
+      if (it.s.ghost) restoreGhost(it);
+      else if (S.mode === 'open') choosePair(it);
+      return;
+    }
+    if (it.kind === 'single') { fillFromSingle(it); return; }
+    if (it.key === 'plus') plusAction(it);
+    else if (it.key === 'star') starAction(it);
+    else if (it.key === 'check') exitEdit();
+  }
+  function onBadgeDown(it, b, e) {
+    if (e.button > 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pillTouched();
+    const p0 = toStage(e);
+    bloom(p0.x, p0.y);
+    b.animate([{ transform: `scale(${SPEC.press.badge})` }], { duration: D(M.badgePress.ms), easing: css(M.badgePress.ease), fill: 'forwards' });
+    try { b.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+    const up = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      b.removeEventListener('pointerup', up);
+      b.removeEventListener('pointercancel', up);
+      b.animate([{ transform: 'scale(1)' }], { duration: D(M.badgeRelease.ms), easing: css(M.badgeRelease.ease), fill: 'forwards' });
+      const p = toStage(ev);
+      if (ev.type !== 'pointerup' || Math.hypot(p.x - p0.x, p.y - p0.y) > SPEC.press.slop || it.badge !== b) return;
+      if (it.badgeType === 'rm') unpinChip(it); else pinChip(it);
+    };
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', up);
+  }
+
+  function choosePair(it) {
+    const pr = it.s.pair, go = [];
+    SIDES.forEach((side, i) => {
+      if (S[side] !== pr[i]) {
+        const g = it.face.querySelector(i ? '.ic-r' : '.ic-l');
+        go.push([side, pr[i], stageRect(g)]);
+        g.style.opacity = '0';
+      }
+    });
+    S.left = pr[0];
+    S.right = pr[1];
+    makeCurrent();
+    dockUpdate();
+    go.forEach(([side, app, r]) => launch(side, app, r));
+    closePill();
+  }
+  function restoreGhost(it) {
+    const pr = it.s.pair, back = [];
+    SIDES.forEach((side, i) => { if (!S[side] && pr[i]) back.push([side, pr[i], i]); });
+    if (!back.length) return;
+    back.forEach(([side, app]) => { S[side] = app; });
+    if (S.left && S.right) makeCurrent();
+    dockUpdate();
+    clock.cancel(T.repair);
+    // The contour fills with the app's colour first, then the app flies; the pair closes back into
+    // the stacked chip as the pill melts.
+    const gs = back.map(([side, app, i]) => {
+      tw(i ? it.gr : it.gl, 0, M.ghostOut);
+      return [side, app, it.face.querySelector(i ? '.ic-r' : '.ic-l')];
+    });
+    later(() => {
+      gs.forEach(([side, app, g]) => launch(side, app, stageRect(g)));
+      if (!anyEmpty()) { it.t.spring(0, SP.form); closePill(); } else if (S.mode !== 'handle') reconcile(repairSpec());
+    }, D(M.ghostOut.ms));
+  }
+  function fillFromSingle(it) {
+    const side = emptyTarget();
+    if (S[side]) return;
+    const r = stageRect(it.face);
+    it.face.style.opacity = '0';
+    fillPane(side, it.s.app, r);
+  }
+  function plusAction(it) {
+    const side = S.touched || wideSide();
+    if (!S[side]) { nudge(it, SPEC.press.plusNudge); return; }
+    emptyPane(side, 'plus');
+  }
+  function flashStar(it) {
+    const svg = it.face.querySelector('svg');
+    const K = SPEC.color, gw = SPEC.star.glow;
+    const lit = `drop-shadow(0 0 ${gw[0]}px ${K.blue}) drop-shadow(0 0 ${gw[1]}px ${K.blue})`;
+    const out = `drop-shadow(0 0 0 ${K['blue-clear']}) drop-shadow(0 0 0 ${K['blue-clear']})`;
+    svg.animate([
+      { color: K.crown, filter: lit },
+      { color: K.crown, filter: lit, offset: SPEC.star.hold },
+      { color: K.white, filter: out },
+    ], { duration: D(M.starFlash.ms), easing: css(M.starFlash.ease) });
+    tw(it.sc, SPEC.press.star, M.nudge);
+    later(() => it.sc.spring(1, SP.release), D(M.nudge.ms));
+  }
+  function starAction(it) {
+    const pr = currentPair();
+    if (!pr[0] || !pr[1]) return;
+    const key = 'pin:' + pk(pr);
+    if (isPinned(pr)) {
+      const chip = items.get(key);
+      nudge(chip || it);
+      return;
+    }
+    S.pinned.push(pr.slice());
+    S.recents = S.recents.filter(q => !same(q, pr));
+    renameItem('rec:' + pk(pr), key);
+    reconcile(specNow());
+    flashStar(it);
+    const chip = items.get(key);
+    if (chip) later(() => nudge(chip), D(TM.chipNudge));
+  }
+  function pinChip(it) {
+    const pr = it.s.pair;
+    if (isPinned(pr)) return;
+    S.pinned.push(pr.slice());
+    S.recents = S.recents.filter(q => !same(q, pr));
+    renameItem(it.key, 'pin:' + pk(pr));
+    reconcile(pairsSpec());
+  }
+  function unpinChip(it) {
+    const pr = it.s.pair;
+    S.pinned = S.pinned.filter(q => !same(q, pr));
+    S.recents = S.recents.filter(q => !same(q, pr));
+    S.recents.unshift(pr.slice());
+    S.recents = S.recents.slice(0, SPEC.row.recents);
+    reconcile(pairsSpec(), { exit: { [it.key]: 'badge' }, enterDelay: TM.unpinEnter });
+  }
+
+  // Reordering pinned chips in edit mode.
+  function dragStart(it) {
+    it.dragging = true;
+    it.dragX0 = it.x.v;
+    it.el.classList.add('drag');
+    it.sc.spring(SPEC.drag.scale, SP.lift);
+  }
+  function dragMove(it, dx) {
+    pillTouched();
+    const pins = rowSpec.filter(s => s.kind === 'chip' && s.pinned);
+    const L = layoutSpec(rowSpec, true);
+    const slots = pins.map(s => L.pos.get(s.key));
+    const x = clamp(it.dragX0 + dx, slots[0] - SPEC.drag.overshoot, slots[slots.length - 1] + SPEC.drag.overshoot);
+    it.x.set(x);
+    const cur = pins.findIndex(s => s.key === it.key);
+    let best = cur, bd = Infinity;
+    slots.forEach((sx, i) => { const d = Math.abs(sx - x); if (d < bd) { bd = d; best = i; } });
+    if (cur >= 0 && best !== cur) {
+      const pr = S.pinned.splice(cur, 1)[0];
+      S.pinned.splice(best, 0, pr);
+      reconcile(pairsSpec());
+    }
+  }
+  function dragEnd(it) {
+    it.dragging = false;
+    it.el.classList.remove('drag');
+    it.sc.spring(1, SP.release);
+    const L = layoutSpec(rowSpec, S.mode === 'edit');
+    if (L.pos.has(it.key)) it.x.spring(L.pos.get(it.key), SP.slide);
+  }
+
+  // ---------------------------------------------------------------- the handle, the stage, the dock
+  hit.addEventListener('pointerdown', e => {
+    if (e.button > 0 || S.home || S.mode !== 'handle') return;
+    e.preventDefault();
+    const p = toStage(e);
+    bloom(p.x, p.y);
+    openPill();
+  });
+  stage.addEventListener('pointerdown', e => {
+    wakeHandle();
+    if (e.target.closest('#sp-pill') || e.target.closest('#sp-split')) return;
+    if (S.mode === 'edit') exitEdit();
+    else if (S.mode === 'open' && S.content === 'pairs') closePill();
+  }, true);
+  stage.addEventListener('contextmenu', e => e.preventDefault());
+
+  function dockUpdate() { splitIcon.classList.toggle('on', !S.home && !!(S.left || S.right)); }
+  tapper(splitIcon, splitIcon.querySelector('svg'), () => dockSplit());
+
+  function goHome() {
+    if (S.home) return;
+    S.home = true;
+    clock.cancel(T.auto); clock.cancel(T.edit); clock.cancel(T.repair);
+    pill.classList.remove('is-open');
+    pill.classList.add('is-home');
+    tw(P.vis, 0, M.hide);
+    clock.cancel(T.homePill);
+    T.homePill = later(() => {
+      S.mode = 'handle';
+      clearItems();
+      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0);
+    }, D(TM.homeReset));
+    SIDES.forEach(side => { const p = PANES[side]; p.tok++; dropFly(p); });
+    tw(paneOpen, 0, GM.fold);
+    tw(paneA, 0, GM.panesOut);
+    tw(homeA, 1, GM.homeIn);
+    dockUpdate();
+  }
+  function dockSplit() {
+    if (S.home) {
+      S.home = false;
+      clock.cancel(T.homePill);
+      SIDES.forEach(syncPane);
+      S.mode = 'handle';
+      clearItems();
+      pill.classList.remove('is-open', 'is-home');
+      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.hA.set(HD.alpha);
+      tw(P.vis, 1, M.show);
+      tw(paneOpen, 1, GM.unfold);
+      tw(paneA, 1, GM.panesIn);
+      tw(homeA, 0, GM.homeOut);
+      dockUpdate();
+      later(() => { if (!S.home) openPill(); }, D(TM.splitOpen));
+      return;
+    }
+    if (S.mode === 'handle') openPill(); else pillTouched();
+  }
+  function toggleDetent() {
+    S.detent ^= 1;
+    tw(divX, DIV(), GM.detent);
+    SIDES.forEach(relayPane);
+  }
+  function setDay(on) {
+    S.day = !!on;
+    ctlBtn('day').setAttribute('aria-pressed', String(S.day));
+    SIDES.forEach(side => { const p = PANES[side]; if (p.cur && p.cur.app === 'nav') relayPane(side); });
+  }
+  function setBlur(on) {
+    S.blur = !!on;
+    stage.classList.toggle('blur', S.blur);
+    ctlBtn('blur').setAttribute('aria-pressed', String(S.blur));
+  }
+  function standEvict() {
+    if (S.home) return;
+    let side = wideSide();
+    if (!S[side]) side = side === 'left' ? 'right' : 'left';
+    if (S[side]) emptyPane(side, 'evict');
+  }
+  function reset() {
+    epoch++;
+    Object.keys(T).forEach(k => clock.cancel(T[k]));
+    const day = false;
+    S = seed();
+    S.day = day;
+    fx.textContent = '';
+    clearItems();
+    pill.classList.remove('is-open', 'is-home');
+    P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.vis.set(1); P.hA.set(HD.alpha);
+    divX.set(G.detents[0]); paneOpen.set(1); paneA.set(1); homeA.set(0);
+    SIDES.forEach(side => {
+      const p = PANES[side];
+      p.tok++; p.fly = null; p.launching = false;
+      p.contents.slice().forEach(r => drop(p, r));
+      mount(side, S[side]);
+    });
+    setBlur(false);
+    ctlBtn('day').setAttribute('aria-pressed', 'false');
+    dockUpdate();
+    startDim();
+    markDirty();
+  }
+
+  // ---------------------------------------------------------------- the stand
+  const ctl = $('#sp-ctl');
+  const ctlBtn = act => ctl.querySelector(`[data-act="${act}"]`);
+  const ACT = {
+    evict: standEvict, home: goHome, detent: toggleDetent,
+    day: () => setDay(!S.day), blur: () => setBlur(!S.blur), reset,
+  };
+  ctl.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]');
+    if (b && ACT[b.dataset.act]) ACT[b.dataset.act]();
+  });
+
+  window.__stand = {
+    open: () => openPill(),
+    close: () => closePill(),
+    evict: standEvict,
+    closePane: (side = 'right') => emptyPane(side, 'user'),
+    edit: () => { if (S.mode === 'handle') openPill(); enterEdit(); },
+    exitEdit: () => exitEdit(),
+    day: (on = true) => setDay(on),
+    night: () => setDay(false),
+    blur: (on = true) => setBlur(on),
+    home: goHome,
+    split: dockSplit,
+    detent: toggleDetent,
+    plus: () => { const it = items.get('plus'); if (it) plusAction(it); },
+    pin: () => { const it = items.get('star'); if (it) starAction(it); },
+    choose: (i = 0) => { const it = [...items.values()].filter(x => x.kind === 'chip')[i]; if (it) tapItem(it); },
+    reset,
+    state: () => JSON.parse(JSON.stringify(S)),
+  };
+
+  // Boot.
+  SIDES.forEach(side => mount(side, S[side]));
+  dockUpdate();
+  startDim();
+  markDirty();
+
+  // ---------------------------------------------------------------- frozen frames
+  // `#bare-<board>`: a named state, settled, every animation held still. `#bare-<motion>-t<ms>`:
+  // <ms> after a motion starts. Each runs the page's own code on the virtual clock from boot, at
+  // 0 ms: a step list is actions and waits (ms), and the frame is drawn when the list ends. The
+  // stage is alone at scale 1, 1280 x 800 at the window's top-left.
+  if (BARE) {
+    const chip = i => () => { const it = [...items.values()].filter(x => x.kind === 'chip')[i]; if (it) tapItem(it); };
+    const day = () => setDay(true);
+    const vacate = side => () => emptyPane(side, 'user');
+    // The pair on screen made music | browser, so that the first pinned pair after it changes both panes.
+    const browser = [openPill, 1200, chip(2), 2000];
+    const BOARDS = {
+      handle: [],
+      'handle-dim': [TM.dim + M.dim.ms + 300],
+      open: [openPill, 1200],
+      'open-day': [day, 800, openPill, 1200],
+      'open-browser': [...browser, openPill, 1200],
+      'open-wide-left': [toggleDetent, 1000, openPill, 1200],
+      'vacant-right': [vacate('right'), 2000],
+      'vacant-left': [vacate('left'), 2000],
+      'vacant-both': [vacate('right'), 2000, vacate('left'), 2000],
+      edit: [openPill, 1200, () => enterEdit(), 1200],
+      'edit-day': [day, 800, openPill, 1200, () => enterEdit(), 1200],
+      launch: [...browser, openPill, 1200, chip(1), 900],
+      home: [goHome, 1200],
+      'blur-day': [() => setBlur(true), day, 800, openPill, 1200],
+    };
+    // A motion: the steps before it, then its start at t = 0.
+    const MOTIONS = {
+      opening: [[], () => {
+        bloom(clamp(divX.v, PL.margin + HD.w / 2, (G.w - PL.margin) - HD.w / 2), HD.bottom - HD.h / 2);
+        openPill();
+      }],
+      choosing: [[...browser, openPill, 1200], chip(1)],
+      vacating: [[], vacate('right')],
+    };
+    const run = list => { let t = 0; for (const s of list) { if (typeof s === 'number') clock.to(t += s); else s(); } return t; };
+    const [, name, at] = BARE;
+    if (at === undefined && BOARDS[name]) {
+      run(BOARDS[name]);
+      // Boards hold the ghost's breathing at its brightest and a resting placeholder's ring at its
+      // peak; a transition still running ends.
+      clock.freeze(a => (a.animationName === 'sp-breathe' ? M.breathe.ms / 2
+        : a.animationName === 'sp-ring' ? M.pulse.ms : a.effect.getComputedTiming().endTime));
+    } else if (at !== undefined && MOTIONS[name]) {
+      const [before, start] = MOTIONS[name];
+      const t0 = run(before);
+      clock.watch = true;
+      start();
+      clock.to(t0 + Number(at));
+      clock.freeze();
+    } else {
+      console.error('split-pill: no board or motion called ' + name);
+    }
+  }
+
+  // #stand=day,open runs stand helpers in order, for pinned screenshots.
+  const m = /stand=([\w,]+)/.exec(location.hash);
+  if (m) m[1].split(',').forEach((c, i) => setTimeout(() => { if (window.__stand[c]) window.__stand[c](); }, 250 + i * 600));
+})();
+</script>

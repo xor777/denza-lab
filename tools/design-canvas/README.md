@@ -27,6 +27,11 @@ seeded from.
 > [`split-crew/`](split-crew/README.md): the page itself, held to the app's
 > `SplitCrewScene` by `SplitCrewBoardContractTest` and to its pixels by
 > `split-crew/compare.py`.
+>
+> The split screen's own control, «Пилюля сплита» (the handle under the panes and the pill it
+> opens into), was approved on 2026-11-11 and is [`split-pill/`](split-pill/README.md): the page
+> itself, its numbers in `split-pill/spec.json`, its boards and timed frames from
+> `split-pill/shot.py`, and `split-pill/compare.py`. No app code draws it yet.
 
 ## Why this is in the repo
 
