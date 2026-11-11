@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-10-11. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-11-11. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -39,6 +39,7 @@ Updated 2026-10-11. Where this journal and the normative [split-screen-product-c
 | A caption drag down by a third of the display closes the dragged pane app alive. The pane collapses only if its root is left empty; normally our picker under the app is uncovered. Any force-stop of the package over a visible split (an install, Settings, the Recents card) removes both picker bases and leaves the apps, so until the next open the swipe closes the whole pane | live | 2026-10-11 | [A caption swipe closes the whole pane](#a-caption-swipe-closes-the-whole-pane-once-our-picker-is-gone-live-2026-10-11) |
 | Two Denza tasks side by side (hub + picker, picker + picker): a stock divider resize becomes a side swap (`changePrimaryAppAndPosition` returns early); left as the firmware does it, by the owner's decision | live | 2026-09-23 | [A resize between two panes of one package](#a-resize-between-two-panes-of-one-package-moves-them-instead-live-2026-09-23) |
 | Measured: warm open 0.9–1.5 s, cold 3.5 s, first after an install 7.1 s, select 1.1–1.2 s, disable 2.2 s. Budgets: 10 s for toggle/open/select/home, 25 s edge, 30 s reconcile (`SplitOperations.kt`); the waiting shield stays at least 300 ms and at most 15 s (`SplitLaunchOverlay.kt`); a picker's wait for its selection ends by itself at 15 s even with no answer (`SplitPickerWait.kt`, 2026-10-08) | code | 2026-08-27 | [What the operations actually cost](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27), [Explicit restore progress window](#explicit-restore-progress-window-and-bounded-close-2026-08-22) |
+| The remembered pair is erased by the product's own proofs: a pane a restore could not fill within two reads is settled as `Picker` and the task the open created is removed; an application dead under cover, a scene with both applications gone and a collapsed pane lose their package the same way (`SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
 | "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
 | "The wide picker dies (`recent-task-trimmed`) at every fullscreen launch from Home." Not so: only the first task new to recents after a Home or a collapse arms the trim; fullscreen dock launches of running apps armed none | refuted | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it) |
@@ -46,6 +47,7 @@ Updated 2026-10-11. Where this journal and the normative [split-screen-product-c
 | "The Home→dock race cannot be won with hints; catch the dock's Home click through accessibility." Not so: the dock's Home makes no click event, while `homekey` (broadcast +3 ms, our receiver +9 ms) and the area push (+0.1 s) win the race; the accessibility Home hint was removed | refuted | 2026-09-23 | [Home, read end to end](#home-read-end-to-end), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 
 **Open questions**
+- Which branch erases the pair on the road: the two-read restore wait, a death under cover or the end of the scene. The car's `split-journal.log` after a lost pair would settle it ([Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11)).
 - Other BYD firmwares: owners report that split stopped working in 0.7.0-alpha on cars nobody here can reach. A photo of the service's «Технические сведения» split rows («Сплит прошивки», «Сигналы прошивки») would settle which lever is refused ([The split on the service page](#the-split-on-the-service-page-for-a-photo-2026-09-24)).
 - Simulcast has never had its own cross-feature acceptance pass over a live scene; a run with no split task mutations would settle it ([Product direction](#product-direction-explicit-two-picker-session)).
 - The synthetic divider drag (`dragDividerToBalanced`) sends its touch while our launch shield is up, and on the car that touch went to the shield. A live empty-scene open trace would settle it ([An open over a single-pane firmware](#an-open-over-a-single-pane-firmware-after-the-navigator-came-back-live-2026-09-23)).
@@ -80,6 +82,7 @@ Updated 2026-10-11. Where this journal and the normative [split-screen-product-c
 - [The firmware read whole: reconstruction from the OTA image (2026-09-23)](#the-firmware-read-whole-reconstruction-from-the-ota-image-2026-09-23) — the whole OTA corpus (area push, unguarded transactions, detent map, placement, Home, the trim, sleep and wake, self-start) and what the product does with each; the journal and service page (09-24); a cold open against the accessibility repair.
 - [The task proxy's jar, staged by its hash (code, 2026-10-09)](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) — `denza-split-proxy-<sha256>.jar`, verified by hash, every other copy deleted; the same stager as the turn-signal listener's.
 - [The session cut into recipe units (code, 2026-10-09)](#the-session-cut-into-recipe-units-code-2026-10-09) — `SplitPickerShellSession` as the facade of ten units, the proof that no command changed, and the history the recipes' comments used to carry, rule by rule.
+- [Where the remembered pair is lost (code, 2026-11-11)](#where-the-remembered-pair-is-lost-code-2026-11-11) — the five places a slot loses its package, and the two-read restore wait that takes a cold application down.
 
 ## Product direction: explicit two-picker session
 
@@ -3058,3 +3061,24 @@ with the evidence the comments cited.
 | Picker: the width constraint alone decides the grid's columns | Wave 8, diagnosis v23 D3: a fullscreen picker drew half of itself as empty margins |
 | Picker: the header's gap is the larger of the real inset and the pane's own air | Wave 7: a plain `statusBarsPadding()` (f166d42) pressed the header into the drag control; the fixed 42dp before it cut the header of a fullscreen picker left by Back |
 | Picker: one header in every state | Wave 7: an «Открываю …» line duplicated the chosen tile's spinner and moved the pane's top; wave 11 (U5): refusal texts stood in the header over a working list of apps |
+
+## Where the remembered pair is lost (code, 2026-11-11)
+
+Read from the code, not yet from a car: the car was asleep, so `files/split-journal.log` was
+not read. The lines `failed to restore <package>`, `unfinished restore` and `мертво под
+накрытием` in that journal say which of the branches below fires on the road.
+
+The durable slot (`SplitStore.kt`) is one value doing two jobs: what the pane holds now and
+what the user chose. Every proof that a pane holds no application therefore also erases the
+choice, whoever emptied the pane:
+
+| Where | What erases the package |
+|---|---|
+| `OpenOperation.build` (`SplitOperations.kt`, after `scene-built`) | A pane the build could not restore is settled as `Picker`: `unfinishedRestore` is cleared and `BuildSceneSucceeded` carries the live slots. One slow restore forgets the application for good |
+| `SplitSceneBuilder.launchApps` | The restore path waits `RESTORE_DISCOVERY_ATTEMPTS = 2` reads, on the assumption that the task already exists. A pane that is not matched, or whose promote has not landed by then, is `failed`; `discardFailedRestoration` then removes the task this open created, so a cold application is taken down while it is still starting |
+| `ReconcileOperation.settleDeadAppPanes` | An application proven dead under cover (Home, another fullscreen app) settles `AppClosedSettled`: the firmware or the system killing it in the background reads the same as the user closing it |
+| `ReconcileOperation.endScene` | Both recorded applications gone settles `SceneEndedSettled`, both slots to `Picker` (contract 1.7.5, written for «Clear all») |
+| `PaneCollapsedSettled` | The collapsed pane goes to `Closed` (contract 1.3.4); the partner of the pair is not kept anywhere |
+
+A refused open is the one case that keeps the choice: `unfinishedRestore` holds
+`App(package)` over a standing picker until the next tap.
