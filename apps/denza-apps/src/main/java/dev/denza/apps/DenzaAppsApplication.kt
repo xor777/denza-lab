@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
 import androidx.core.content.ContextCompat
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeStartCause
 import dev.denza.apps.feature.split.SplitDiagnostics
@@ -16,6 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Starts the product runtime even when BYD autoload opens no activity. */
 class DenzaAppsApplication : Application() {
+    /** In every process, and before any of its content providers is created: the app's language. */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        AppText.install(base)
+    }
+
     override fun onCreate() {
         super.onCreate()
         SplitDiagnostics.attach(this, Application.getProcessName())

@@ -1,5 +1,7 @@
 package dev.denza.apps.ui.dashboard
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.ui.components.DenzaTileTone
@@ -19,7 +21,7 @@ internal data class HudPanel(
     val rows: List<HudPanelRow>,
 ) {
     companion object {
-        const val SUBTITLE = "Так выглядит проекция во время маршрута"
+        val SUBTITLE: String get() = AppText.s(R.string.hud_panel_subtitle)
 
         fun of(
             navigator: HudNavigatorInstall,
@@ -33,49 +35,53 @@ internal data class HudPanel(
             val alone = navigator == HudNavigatorInstall.YANDEX_HUD_ALONE
             val none = navigator == HudNavigatorInstall.NONE
             val from = when (navigator) {
-                HudNavigatorInstall.YANDEX -> "Из Яндекс Навигатора"
-                else -> "Из YandexHUD"
+                HudNavigatorInstall.YANDEX -> AppText.s(R.string.hud_panel_from_yandex)
+                else -> AppText.s(R.string.hud_panel_from_yandexhud)
+            }
+            val signFrom = when (navigator) {
+                HudNavigatorInstall.YANDEX -> AppText.s(R.string.hud_panel_sign_from_yandex)
+                else -> AppText.s(R.string.hud_panel_sign_from_yandexhud)
             }
             val ours = !none && !alone
             val turns = when {
-                none -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, "Появятся с Яндекс Навигатором или YandexHUD", hints, false)
+                none -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, AppText.s(R.string.hud_panel_turns_soon), hints, false)
                 alone -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, SELF, true, false)
                 else -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, from, hints, !busy)
             }
             val mapRow = when {
-                none -> HudPanelRow(HudPanelRow.Id.MAP, "Карта", "Появится с Яндекс Навигатором или YandexHUD", map, false)
-                alone -> HudPanelRow(HudPanelRow.Id.MAP, "Карта", SELF, true, false)
-                else -> HudPanelRow(HudPanelRow.Id.MAP, "Карта", from, map, hints && !busy)
+                none -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), AppText.s(R.string.hud_panel_map_soon), map, false)
+                alone -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), SELF, true, false)
+                else -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), from, map, hints && !busy)
             }
             // A YandexHUD that draws the HUD itself leaves this app the sign alone, so there it is
             // the one switch, and turning it on turns the feature on with it.
             val signRow = when {
-                none -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, "Появится с навигатором", sign, false)
-                alone -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, "На штатном месте, из YandexHUD", hints && sign, !busy)
+                none -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, AppText.s(R.string.hud_panel_sign_soon), sign, false)
+                alone -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, signFrom, hints && sign, !busy)
                 else -> HudPanelRow(
                     HudPanelRow.Id.SIGN, SIGN_TITLE,
-                    "На штатном месте, " + from.replaceFirstChar { it.lowercase() }, sign, hints && !busy,
+                    signFrom, sign, hints && !busy,
                 )
             }
             val camerasRow = when {
                 radar == HudRadarInstall.NONE -> HudPanelRow(
                     HudPanelRow.Id.CAMERAS, CAMERAS_TITLE,
-                    "Появятся, если поставить HUD Speed с адаптером", false, false,
+                    AppText.s(R.string.hud_panel_cameras_install), false, false,
                 )
                 radar == HudRadarInstall.OFFICIAL -> HudPanelRow(
                     HudPanelRow.Id.CAMERAS, CAMERAS_TITLE,
-                    "Этот HUD Speed показывает их только у себя на экране. Нужна сборка с адаптером",
+                    AppText.s(R.string.hud_panel_cameras_official),
                     false, false, DenzaTileTone.ATTENTION,
                 )
                 alone -> HudPanelRow(
                     HudPanelRow.Id.CAMERAS, CAMERAS_TITLE,
-                    "Эта сборка YandexHUD не оставляет им места. В новой сборке они есть",
+                    AppText.s(R.string.hud_panel_cameras_old_build),
                     false, false, DenzaTileTone.ATTENTION,
                 )
                 none -> HudPanelRow(
-                    HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, "Из HUD Speed, во время маршрута в навигаторе", cameras, false,
+                    HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, AppText.s(R.string.hud_panel_cameras_during_route), cameras, false,
                 )
-                else -> HudPanelRow(HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, "Из HUD Speed", cameras, hints && !busy)
+                else -> HudPanelRow(HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, AppText.s(R.string.hud_panel_cameras_from), cameras, hints && !busy)
             }
             return HudPanel(
                 glass = HudGlass(
@@ -88,11 +94,11 @@ internal data class HudPanel(
             )
         }
 
-        private const val SELF = "YandexHUD выводит сам"
-        private const val TURNS_TITLE = "Манёвры"
-        private const val SIGN_TITLE = "Ограничение скорости"
+        private val SELF: String get() = AppText.s(R.string.hud_panel_self)
+        private val TURNS_TITLE: String get() = AppText.s(R.string.hud_panel_turns_title)
+        private val SIGN_TITLE: String get() = AppText.s(R.string.hud_panel_sign_title)
         // HUD Speed's own words: its base is of «потенциальных опасностей», cameras among them.
-        private const val CAMERAS_TITLE = "Камеры и опасности"
+        private val CAMERAS_TITLE: String get() = AppText.s(R.string.hud_panel_cameras_title)
     }
 }
 

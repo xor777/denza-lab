@@ -10,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.defaultapps.DefaultAppChoice
@@ -68,7 +70,7 @@ internal fun DefaultAppsSheet(
         footer = {
             if (openRole == null) {
                 DenzaPrimaryButton(
-                    text = "Готово",
+                    text = AppText.s(R.string.common_done),
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                         .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
@@ -94,7 +96,7 @@ internal fun DefaultAppsSheet(
         }
 
         DenzaSheetHeader(
-            title = "Приложения по умолчанию",
+            title = AppText.s(R.string.defaultapps_sheet_title),
             subtitle = "",
             onDismiss = onDismiss,
             glyph = DenzaIcons.ApplicationsGlyph,
@@ -104,7 +106,7 @@ internal fun DefaultAppsSheet(
         // and nothing on its face says so; this row is the only place the feature says out loud
         // that it can be handed back to the car.
         DenzaSwitchRow(
-            title = "Заменять приложения",
+            title = AppText.s(R.string.defaultapps_sheet_switch),
             subtitle = defaultAppsSwitchSubtitle(state),
             checked = state.substituting,
             onCheckedChange = onSetEnabled,
@@ -180,7 +182,7 @@ private fun ColumnScope.DefaultAppsChooserPage(
         // приложений недоступен.", "Нет установленных приложений для выбора." - told the driver
         // the panel had given up while the car was still perfectly capable of answering the next
         // read.
-        emptyText = "Ищем установленные приложения…",
+        emptyText = AppText.s(R.string.defaultapps_sheet_searching),
     ) { choice ->
         DenzaAppTile(
             label = choice.label,
@@ -193,15 +195,15 @@ private fun ColumnScope.DefaultAppsChooserPage(
 }
 
 internal fun defaultAppRoleLabel(role: DefaultAppRole): String = when (role) {
-    DefaultAppRole.NAVIGATION -> "Навигация"
-    DefaultAppRole.MUSIC -> "Музыка"
-    DefaultAppRole.VIDEO -> "Видео"
+    DefaultAppRole.NAVIGATION -> AppText.s(R.string.defaultapps_role_navigation)
+    DefaultAppRole.MUSIC -> AppText.s(R.string.defaultapps_role_music)
+    DefaultAppRole.VIDEO -> AppText.s(R.string.defaultapps_role_video)
 }
 
 internal fun defaultAppSectionTitle(role: DefaultAppRole): String = when (role) {
-    DefaultAppRole.NAVIGATION -> "Приложение для навигации"
-    DefaultAppRole.MUSIC -> "Приложение для музыки"
-    DefaultAppRole.VIDEO -> "Приложение для видео"
+    DefaultAppRole.NAVIGATION -> AppText.s(R.string.defaultapps_section_navigation)
+    DefaultAppRole.MUSIC -> AppText.s(R.string.defaultapps_section_music)
+    DefaultAppRole.VIDEO -> AppText.s(R.string.defaultapps_section_video)
 }
 
 /**
@@ -222,8 +224,8 @@ internal fun defaultAppsStatusText(
     roleState: DefaultAppRoleUiState,
 ): String = when {
     roleState.status == DefaultAppRoleStatus.LOADING ->
-        roleState.message.ifBlank { "Загружаем приложения…" }
-    roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
+        roleState.message.ifBlank { AppText.s(R.string.defaultapps_sheet_loading) }
+    roleState.status == DefaultAppRoleStatus.APPLYING -> AppText.s(R.string.defaultapps_sheet_saving)
     roleState.status == DefaultAppRoleStatus.ERROR ->
         roleState.message.ifBlank { DefaultAppsWords.UNREAD }
     // A settled role is its application's name and nothing beside it. A cold start's own message
@@ -242,7 +244,7 @@ internal fun defaultAppsStatusText(
  * with nothing to name says so.
  */
 internal fun defaultAppsOutcomeText(roleState: DefaultAppRoleUiState): String = when {
-    roleState.selectedPackageName == null -> "Не подтверждено"
+    roleState.selectedPackageName == null -> AppText.s(R.string.defaultapps_sheet_unconfirmed)
     else -> roleState.selectedLabel
 }
 
@@ -253,10 +255,10 @@ internal fun defaultAppsOutcomeText(roleState: DefaultAppRoleUiState): String = 
  * it came with, and the rows below still hold the choices the switch would put back.
  */
 internal fun defaultAppsSwitchSubtitle(state: DefaultAppsUiState): String = when {
-    state.reading -> "Читаем настройку…"
-    state.substituting -> "Команды открывают выбранные приложения"
-    state.canSubstitute -> "Команды открывают штатные приложения"
-    else -> "Нечем заменять: подходящие приложения не установлены"
+    state.reading -> AppText.s(R.string.defaultapps_sheet_reading)
+    state.substituting -> AppText.s(R.string.defaultapps_sheet_substituting)
+    state.canSubstitute -> AppText.s(R.string.defaultapps_sheet_stock)
+    else -> AppText.s(R.string.defaultapps_sheet_nothing)
 }
 
 internal fun defaultAppsCanSelect(roleState: DefaultAppRoleUiState): Boolean =
@@ -280,11 +282,7 @@ internal fun defaultAppsChoicesDimmed(roleState: DefaultAppRoleUiState): Boolean
  * seen any of that; what they have seen is the command they say out loud and the application that
  * opens when they do.
  */
-internal const val DEFAULT_APPS_SHORTCUTS_HELP =
-    "Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» " +
-        "запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить " +
-        "воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный " +
-        "плеер."
+internal val DEFAULT_APPS_SHORTCUTS_HELP: String get() = AppText.s(R.string.defaultapps_sheet_help)
 
 /**
  * How often the page asks the car again while it has nothing to show.

@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.adb
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 enum class AdbStartupPrimaryAction {
     NONE,
     CHECK_ACCESS,
@@ -51,10 +54,7 @@ data class AdbStartupOverlayModel(
 
 /** Maps the low-level ADB handshake into the blocking startup experience. */
 object AdbStartupGatePolicy {
-    const val SERVICE_INSTRUCTION =
-        "Разблокировать доступ к ADB можно только в условиях сервиса при помощи " +
-            "официального диагностического компьютера. Пожалуйста, обратитесь в сервис " +
-            "для разблокировки доступа к ADB."
+    val SERVICE_INSTRUCTION: String get() = AppText.s(R.string.adb_gate_service_instruction)
 
     /**
      * What opening the app does about access: a passive look in every phase that is not settled.
@@ -84,23 +84,23 @@ object AdbStartupGatePolicy {
             when (restore.state) {
                 AdbRestoreState.WaitingWifi -> return AdbStartupOverlayModel(
                     visible = true,
-                    title = "Ожидание Wi-Fi",
-                    message = "Нужен Wi-Fi для восстановления доступа",
-                    details = "Android восстанавливает беспроводную отладку при подключении к Wi-Fi",
+                    title = AppText.s(R.string.adb_gate_wifi_title),
+                    message = AppText.s(R.string.adb_gate_wifi_message),
+                    details = AppText.s(R.string.adb_gate_wifi_details),
                     explainerAvailable = true,
                 )
                 AdbRestoreState.Connecting -> return AdbStartupOverlayModel(visible = false)
                 AdbRestoreState.NeedsDialog -> return AdbStartupOverlayModel(
                     visible = true,
-                    title = "Подключение к сети",
-                    message = "Denza Apps подтверждает сетевой диалог автоматически. Если он остаётся на экране, отметьте «Always allow on this network» и нажмите ALLOW.",
+                    title = AppText.s(R.string.adb_gate_dialog_title),
+                    message = AppText.s(R.string.adb_gate_dialog_message),
                     explainerAvailable = true,
                 )
                 is AdbRestoreState.Failed -> return AdbStartupOverlayModel(
                     visible = true,
-                    title = "Восстановление доступа",
-                    message = "Ожидаем следующего подключения к Wi-Fi или пробуждения экрана",
-                    primaryLabel = "Проверить доступ",
+                    title = AppText.s(R.string.adb_gate_failed_title),
+                    message = AppText.s(R.string.adb_gate_failed_message),
+                    primaryLabel = AppText.s(R.string.adb_check_access),
                     primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
                     explainerAvailable = true,
                 )
@@ -119,36 +119,36 @@ object AdbStartupGatePolicy {
         )
         AdbRescuePhase.UNAVAILABLE -> AdbStartupOverlayModel(
             visible = true,
-            title = "ADB недоступен",
+            title = AppText.s(R.string.adb_gate_unavailable_title),
             message = SERVICE_INSTRUCTION,
             details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = "Проверить снова",
+            primaryLabel = AppText.s(R.string.adb_gate_check_again),
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
         )
         AdbRescuePhase.AUTHORIZATION_REQUIRED -> AdbStartupOverlayModel(
             visible = true,
-            title = "Подтвердите доступ к ADB",
-            message = "Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля",
+            title = AppText.s(R.string.adb_gate_confirm_title),
+            message = AppText.s(R.string.adb_gate_authorize_message),
             details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = "Запросить доступ",
+            primaryLabel = AppText.s(R.string.adb_gate_request),
             primaryAction = AdbStartupPrimaryAction.REQUEST_AUTHORIZATION,
             recoveryAvailable = true,
             explainerAvailable = true,
         )
         AdbRescuePhase.REQUESTING -> AdbStartupOverlayModel(
             visible = true,
-            title = "Отправляем запрос ADB",
-            message = "Повторных запросов в фоне не будет",
+            title = AppText.s(R.string.adb_gate_requesting_title),
+            message = AppText.s(R.string.adb_gate_requesting_message),
             busy = true,
             explainerAvailable = true,
         )
         AdbRescuePhase.AWAITING_CONFIRMATION -> AdbStartupOverlayModel(
             visible = true,
-            title = "Подтвердите доступ к ADB",
-            message = "Разрешите системный запрос на экране автомобиля",
+            title = AppText.s(R.string.adb_gate_confirm_title),
+            message = AppText.s(R.string.adb_gate_awaiting_message),
             details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = "Я подтвердил — проверить",
+            primaryLabel = AppText.s(R.string.adb_gate_confirmed_check),
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             recoveryAvailable = true,
             explainerAvailable = true,
@@ -157,10 +157,10 @@ object AdbStartupGatePolicy {
         // «Повторите проверку доступа» was a failure and an instruction the button already is.
         AdbRescuePhase.ERROR -> AdbStartupOverlayModel(
             visible = true,
-            title = "Доступ не подтверждён",
-            message = "Машина не ответила на проверку",
+            title = AppText.s(R.string.adb_access_not_confirmed),
+            message = AppText.s(R.string.adb_gate_error_message),
             details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = "Проверить снова",
+            primaryLabel = AppText.s(R.string.adb_gate_check_again),
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
         )

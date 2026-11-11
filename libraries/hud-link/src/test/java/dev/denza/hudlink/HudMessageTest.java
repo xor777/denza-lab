@@ -65,6 +65,36 @@ public final class HudMessageTest {
         assertEquals("1 ч 5 мин", HudProtocol.duration(3_900));
     }
 
+    @Test
+    public void theRussianWordsThroughTheOverloadAreTheOldSignaturesBytes() {
+        for (int meters : new int[] {0, 350, 999, 1_000, 1_200, 9_949, 9_950, 9_999, 10_000, 12_345, 500_500}) {
+            assertEquals(HudProtocol.routeDistance(meters),
+                    HudProtocol.routeDistance(meters, HudProtocol.SummaryWords.RUSSIAN));
+        }
+        for (int seconds : new int[] {0, 29, 59, 1_020, 3_570, 3_600, 3_900, 7_200, 90_000}) {
+            assertEquals(HudProtocol.duration(seconds),
+                    HudProtocol.duration(seconds, HudProtocol.SummaryWords.RUSSIAN));
+        }
+    }
+
+    @Test
+    public void theOverloadWritesTheWordsAndTheMarkItIsGiven() {
+        HudProtocol.SummaryWords english = new HudProtocol.SummaryWords("m", "km", "min", "h", '.');
+        assertEquals("350 m", HudProtocol.routeDistance(350, english));
+        assertEquals("1.2 km", HudProtocol.routeDistance(1_200, english));
+        assertEquals("12 km", HudProtocol.routeDistance(12_345, english));
+        assertEquals("17 min", HudProtocol.duration(1_020, english));
+        assertEquals("1 h", HudProtocol.duration(3_600, english));
+        assertEquals("1 h 5 min", HudProtocol.duration(3_900, english));
+    }
+
+    /** The mark replaces the figure's point and nothing in a word. */
+    @Test
+    public void theMarkLeavesAWordsOwnPointAlone() {
+        HudProtocol.SummaryWords dotted = new HudProtocol.SummaryWords("m.", "k.m.", "min.", "h.", ',');
+        assertEquals("1,2 k.m.", HudProtocol.routeDistance(1_200, dotted));
+    }
+
     private static String hex(byte[] bytes) {
         StringBuilder out = new StringBuilder();
         for (byte b : bytes) {

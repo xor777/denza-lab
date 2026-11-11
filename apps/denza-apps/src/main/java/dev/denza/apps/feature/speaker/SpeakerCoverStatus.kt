@@ -23,7 +23,7 @@ import dev.denza.apps.core.FeatureWords
  */
 object SpeakerCoverStatus {
     /** A state; the press switches the feature on again, which walks the service through the repair. */
-    const val ACCESS_MESSAGE = FeatureWords.NO_ACCESS
+    val ACCESS_MESSAGE: String get() = FeatureWords.NO_ACCESS
 
     fun snapshot(enabled: Boolean, sessionsObservable: Boolean): FeatureSnapshot = when {
         !enabled -> FeatureReducer.disabled(FeatureId.SPEAKER_COVERS)

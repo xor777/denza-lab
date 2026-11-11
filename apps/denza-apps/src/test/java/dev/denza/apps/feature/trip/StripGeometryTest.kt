@@ -1,11 +1,21 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.core.figure
+import dev.denza.apps.core.say
+import dev.denza.apps.design.luminofor.FontMeasure
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.vehicle.EnergyReadouts
+import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_FILLING
+import dev.denza.apps.feature.vehicle.TRIP_KM_SENTENCE
+import dev.denza.apps.feature.vehicle.WORD_FROM_CHARGER_SENTENCE
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import kotlin.math.max
 
@@ -24,22 +34,22 @@ import kotlin.math.max
  * is [RobotoEstimate]: a measured table, rounded up, plus eight per cent - so a layout that clears
  * here clears with room on the car.
  */
-class StripGeometryTest {
+open class StripGeometryTest {
 
-    private val m = RobotoEstimate
+    internal open val m: StripGeometry.Measure = RobotoEstimate
 
     private fun left(layout: TripPanelLayout) = TripPanelRenderer.box(layout).left
     private fun right(layout: TripPanelLayout) = TripPanelRenderer.box(layout).right
 
     /** A route with ten hours on it, a peak's altitude climbing fast, and the longer sun word. */
-    private fun widestSound(hint: Boolean = false) = StripModel().apply {
+    internal fun widestSound(hint: Boolean = false) = StripModel().apply {
         title = "Midnight City"
         artist = "M83"
         trip[0].set(StripReadings.REMAINING, "10:42", StripReadings.roadLabel(99_940.0))
         if (hint) {
             trip[1].setHint(BaseTripRenderer.LOCATION_HINT)
         } else {
-            trip[1].set(StripReadings.ALTITUDE, "8888", StripReadings.METRES, rate = "88,8")
+            trip[1].set(StripReadings.ALTITUDE, "8888", StripReadings.METRES, rate = figure("88,8"))
         }
         trip[2].set(StripReadings.SUNRISE, "19:44")
         tripCount = 3
@@ -50,7 +60,7 @@ class StripGeometryTest {
      * three, a motor past a hundred degrees, the engine's longer heading over four figures of
      * revolutions, and a trip of a hundred kilowatt-hours under nine hundred kilometres.
      */
-    private fun widestCar() = StripModel().apply {
+    internal fun widestCar() = StripModel().apply {
         power.set(EnergyReadouts.WORD_FROM_CHARGER_SENTENCE, "888", ContourReadout.UNIT_KW, dot = true, blue = true)
         volts.set(VehiclePageWords.VOLTS, "888", VehiclePageWords.UNIT_V)
         engine.set(
@@ -58,10 +68,10 @@ class StripGeometryTest {
             "8888",
             longer(EnergyReadouts.ENGINE_RPM_UNIT, EnergyReadouts.ENGINE_MINUTES_UNIT),
         )
-        tripCell.set("888" + EnergyReadouts.TRIP_KM_SENTENCE, "188,8", ContourReadout.UNIT_KWH)
+        tripCell.set("888" + EnergyReadouts.TRIP_KM_SENTENCE, figure("188,8"), ContourReadout.UNIT_KWH)
         temps.forEach { it.set("888°", StripHeat.DANGER) }
         spendWord = VehiclePageWords.SPEND
-        spendFigure = "-188,8"
+        spendFigure = figure("-188,8")
         spendWindow = ContourReadout.UNIT_PER_100KM_FILLING
     }
 
@@ -88,7 +98,7 @@ class StripGeometryTest {
      * How far a reading actually reaches from its left edge: the board's `readingW`, which leaves
      * the blue mark out, with the mark's [StripGeometry.MARK_INDENT] put back in front of the caption.
      */
-    private fun readingExtent(r: StripReading, size: Float, label: Float): Float =
+    internal fun readingExtent(r: StripReading, size: Float, label: Float): Float =
         max(StripGeometry.runWidth(r, size, m), (if (r.dot) StripGeometry.MARK_INDENT else 0f) + m.sans(r.caption, label, false))
 
     /**
@@ -97,7 +107,7 @@ class StripGeometryTest {
      * [StripGeometry.ROW_UNIT_GAP] past it, the rate's arrow [StripGeometry.ROW_RATE_OFFSET] past the
      * figure and the rate [StripGeometry.ROW_ARROW_ROOM] past the arrow.
      */
-    private fun oneRowExtent(r: StripReading): Float {
+    internal fun oneRowExtent(r: StripReading): Float {
         val s = Head.One.Sound
         val figure = r.figure ?: return m.sans(r.caption, s.LABEL_SIZE, false)
         var ux = s.VALUE_X + WideDigits.width(figure, s.VALUE_SIZE)
@@ -329,7 +339,7 @@ class StripGeometryTest {
      */
     @Test
     fun theClosedPagesInstructionFitsUnderItsCaption() {
-        val message = "ADB-ключ не подтверждён · откройте Denza Apps"
+        val message = say("ADB-ключ не подтверждён · откройте Denza Apps", AppText.s(R.string.vehicle_closed_authorization))
         for ((layout, value, size) in listOf(
             Triple(TripPanelLayout.WIDE, Head.Full.Strip.VALUE, Head.Full.Strip.TITLE_SIZE),
             Triple(TripPanelLayout.MEDIUM, Head.Two.Car.VALUE, Head.Two.Sound.TITLE_SIZE),
@@ -420,4 +430,23 @@ class StripGeometryTest {
         const val GLYPH_WIDTH = 24f
         const val GLYPH_HEIGHT = 23f
     }
+}
+
+/** Every composition with its widest English words, on the same over-estimate. */
+class StripGeometryEnglishTest : StripGeometryTest() {
+    @get:Rule
+    val english = EnglishWords()
+}
+
+/** And on Roboto's own advances: what the estimate over-states, the font does not. */
+class StripGeometryMeasuredTest : StripGeometryTest() {
+    override val m: StripGeometry.Measure = FontMeasure.Strip
+}
+
+/** Both of the above. */
+class StripGeometryMeasuredEnglishTest : StripGeometryTest() {
+    override val m: StripGeometry.Measure = FontMeasure.Strip
+
+    @get:Rule
+    val english = EnglishWords()
 }

@@ -12,6 +12,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleWatcher
 import kotlin.math.abs
@@ -174,7 +176,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     init {
-        contentDescription = "Панель поездки"
+        contentDescription = AppText.s(R.string.trip_panel_description)
     }
 
     override fun onAttachedToWindow() {

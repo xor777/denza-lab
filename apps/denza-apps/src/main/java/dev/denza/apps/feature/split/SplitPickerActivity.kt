@@ -53,6 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.design.DenzaTheme
@@ -511,7 +513,7 @@ private fun SplitPickerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp, bottom = 14.dp),
-                    text = "Выберите приложение",
+                    text = AppText.s(R.string.split_picker_title),
                     color = DenzaColors.Ink,
                     fontSize = DenzaMetrics.Type.LABEL,
                     fontWeight = FontWeight.Normal,
@@ -526,9 +528,9 @@ private fun SplitPickerScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = if (catalogLoading) {
-                                "Загружаю приложения…"
+                                AppText.s(R.string.split_picker_loading)
                             } else {
-                                "Приложения не найдены"
+                                AppText.s(R.string.split_picker_empty)
                             },
                             color = DenzaColors.Muted,
                             textAlign = TextAlign.Center,

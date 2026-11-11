@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppDecimal
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.vehicle.EnergyReadouts
@@ -213,16 +216,17 @@ internal class StripReadings {
     private class Sensor(val signal: VehicleSignal, val band: Double)
 
     companion object {
-        const val ON_THE_ROAD = "В пути"
-        const val REMAINING = "Осталось"
-        const val ALTITUDE = "Высота"
-        const val SUNSET = "Закат"
-        const val SUNRISE = "Рассвет"
-        const val METRES = "м"
-        const val KILOMETRES = "км"
+        val ON_THE_ROAD: String get() = AppText.s(R.string.strip_on_the_road)
+        val REMAINING: String get() = AppText.s(R.string.strip_remaining)
+        val ALTITUDE: String get() = AppText.s(R.string.strip_altitude)
+        val SUNSET: String get() = AppText.s(R.string.strip_sunset)
+        val SUNRISE: String get() = AppText.s(R.string.strip_sunrise)
+        val METRES: String get() = AppText.s(R.string.strip_unit_metres)
+        val KILOMETRES: String get() = AppText.s(R.string.strip_unit_kilometres)
 
         /** The road with its unit: «640 м», «12,8 км», «128 км». */
-        fun roadLabel(metres: Double): String = roadFigure(metres) + " " + distanceUnit(metres)
+        fun roadLabel(metres: Double): String =
+            AppText.s(if (metres < 1000.0) R.string.strip_road_metres else R.string.strip_road_kilometres, roadFigure(metres))
 
         /**
          * The road's figure: whole metres under a kilometre, a tenth of a kilometre under a hundred,
@@ -237,12 +241,8 @@ internal class StripReadings {
 
         fun distanceUnit(metres: Double): String = if (metres < 1000.0) METRES else KILOMETRES
 
-        /** A tenth with the comma this app writes one with: 12 → «1,2». */
-        fun tenths(tenths: Int): String {
-            val sign = if (tenths < 0) "-" else ""
-            val v = abs(tenths)
-            return "$sign${v / 10},${v % 10}"
-        }
+        /** A tenth with the mark this app writes one with: 12 → «1,2». */
+        fun tenths(tenths: Int): String = AppDecimal.tenths(tenths.toLong())
 
         /**
          * The five cells in the order the glyphs are drawn - pack, front, rear left, rear right,

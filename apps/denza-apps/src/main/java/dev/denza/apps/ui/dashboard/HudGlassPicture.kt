@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet.Glass as G
 
@@ -63,7 +65,7 @@ private class GlassDrawing(private val c: Canvas) {
         val sp = r(G.SPEED)
         val un = r(G.UNIT)
         words("64", sp[0] + sp[2] / 2, sp[1] + sp[3] * 0.84f, sp[3] * 0.78f, 1f, 500, WHITE, center = true)
-        words("км/ч", un[0] + un[2] / 2, un[1] + un[3] * 0.72f, un[3] * 0.72f, 0.7f, 400, WHITE, center = true)
+        words(AppText.s(R.string.hud_glass_unit_speed), un[0] + un[2] / 2, un[1] + un[3] * 0.72f, un[3] * 0.72f, 0.7f, 400, WHITE, center = true)
         val parts = mutableListOf<Part>()
 
         val sg = r(G.SIGN)
@@ -77,7 +79,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(sg)
         }
-        parts += Part("Ограничение", sg, up = true, on = glass.sign)
+        parts += Part(AppText.s(R.string.hud_glass_sign), sg, up = true, on = glass.sign)
 
         val tn = r(G.TURN)
         val ds = r(G.DISTANCE)
@@ -100,11 +102,11 @@ private class GlassDrawing(private val c: Canvas) {
                 lineTo(tn[0] + tn[2] * 0.86f, tn[1] + tn[3] * 0.38f)
                 lineTo(tn[0] + tn[2] * 0.62f, tn[1] + tn[3] * 0.6f)
             }, stroke)
-            words("350 м", ds[0], centred(ds[1] + ds[3] * 0.42f, ds[3] * 0.62f), ds[3] * 0.62f, 1f, 500, WHITE)
+            words(AppText.s(R.string.hud_glass_distance), ds[0], centred(ds[1] + ds[3] * 0.42f, ds[3] * 0.62f), ds[3] * 0.62f, 1f, 500, WHITE)
         } else {
             dashed(turnBox)
         }
-        parts += Part("Манёвр", turnBox, up = true, on = glass.turn)
+        parts += Part(AppText.s(R.string.hud_glass_turn), turnBox, up = true, on = glass.turn)
 
         val mp = r(G.MAP)
         val m = G.Map
@@ -147,7 +149,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(mp)
         }
-        parts += Part("Карта", mp, up = true, on = glass.map)
+        parts += Part(AppText.s(R.string.hud_glass_map), mp, up = true, on = glass.map)
 
         // HUD Speed's picture of the lane window, at the lane rect's height from its left edge; on
         // the map only its GPS bars.
@@ -183,7 +185,7 @@ private class GlassDrawing(private val c: Canvas) {
             val x1 = strip[0] + 2 * (t + g)
             val base = centred(strip[1] + strip[3] / 2, d)
             words("350", x1, base, d, 1f, 500, WHITE)
-            words("м", x1 + width("350", d, 500) + g / 2, base, d * warn.UNIT, 1f, 400, WHITE)
+            words(AppText.s(R.string.hud_glass_unit_metres), x1 + width("350", d, 500) + g / 2, base, d * warn.UNIT, 1f, 400, WHITE)
             val s = G.Gps.SIZE * k
             fill.color = G.Ink.GPS
             for (i in 0 until 4) {
@@ -195,7 +197,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(strip)
         }
-        parts += Part("Камеры и опасности", strip, up = false, on = glass.cameras)
+        parts += Part(AppText.s(R.string.hud_glass_cameras), strip, up = false, on = glass.cameras)
 
         val label = G.Label
         val line = G.Line

@@ -1,6 +1,8 @@
 package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.core.StringsXml
+import dev.denza.apps.core.inEnglish
 import dev.denza.apps.feature.simulcast.SimulcastBlocker
 import dev.denza.apps.feature.simulcast.SimulcastCoordinator
 import dev.denza.apps.feature.simulcast.SimulcastEnvironment
@@ -32,6 +34,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.disharebridge.AdbFailures
+import java.io.File
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -55,15 +58,19 @@ import org.junit.Test
  */
 class TileCaptionContractTest {
 
+    /**
+     * The unsettled ones: waiting, broken, or under way. A settled caption is a reading - an
+     * application's name, the language in its own words («English», «Deutsch») - and not ours.
+     */
+    internal fun captions(): List<Triple<String, TileId, String>> = states().flatMap { (source, state) ->
+        DashboardTiles.of(state)
+            .filter { it.id != TileId.SERVICE && it.tone in UNSETTLED }
+            .map { tile -> Triple(source, tile.id, tile.state) }
+    }
+
     @Test
     fun everyUnsettledCaptionFitsItsTileAndSpeaksRussian() {
-        // The unsettled ones: waiting, broken, or under way. A settled caption is a reading - an
-        // application's name, the language in its own words («English», «Deutsch») - and not ours.
-        val captions = states().flatMap { (source, state) ->
-            DashboardTiles.of(state)
-                .filter { it.id != TileId.SERVICE && it.tone in UNSETTLED }
-                .map { tile -> Triple(source, tile.id, tile.state) }
-        }
+        val captions = captions()
         for ((source, id, caption) in captions) {
             assertTrue("$source → $id: «$caption» is ${caption.length} characters", caption.length <= BUDGET)
             val latin = caption.replace("HUD", "").replace("Wi-Fi", "")
@@ -72,6 +79,42 @@ class TileCaptionContractTest {
         // A contract over nothing passes: hold it to having asked every producer.
         val producers = captions.map { it.first.substringBefore(':') }.toSet()
         assertTrue(producers.toString(), producers.containsAll(PRODUCERS))
+    }
+
+    /**
+     * The same captions in English, in the same 17 characters. The no-Latin rule stands in for two
+     * things in Russian, and English has to say both: no Cyrillic left, and no internal name, which
+     * in English looks like any other word. So a caption has to be a string of `values-en/`, as it
+     * stands or with its figure in, which an exception's message or a class's name is not.
+     */
+    @Test
+    fun everyUnsettledCaptionFitsItsTileAndSpeaksEnglish() = inEnglish {
+        val captions = captions()
+        val ours = englishWords()
+        for ((source, id, caption) in captions) {
+            assertTrue("$source → $id: «$caption» is ${caption.length} characters", caption.length <= BUDGET)
+            assertTrue("$source → $id: «$caption» carries Cyrillic", caption.none { it in '\u0400'..'\u04FF' })
+            assertTrue(
+                "$source → $id: «$caption» is no string of values-en",
+                ours.any { it.matches(caption) },
+            )
+        }
+        val producers = captions.map { it.first.substringBefore(':') }.toSet()
+        assertTrue(producers.toString(), producers.containsAll(PRODUCERS))
+        DashboardTiles.of(DenzaUiState()).forEach { tile ->
+            assertTrue("${tile.name} is ${tile.name.length} characters", tile.name.length <= NAME_BUDGET)
+            assertTrue("${tile.name} carries Cyrillic", tile.name.none { it in '\u0400'..'\u04FF' })
+        }
+    }
+
+    /** Every string and plural form of `values-en/` as a pattern, a placeholder matching a figure. */
+    private fun englishWords(): List<Regex> {
+        val file = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+            .map { File(it, EN_STRINGS) }.first { it.isFile }
+        val xml = StringsXml.parse(file.readText())
+        return (xml.strings.values + xml.plurals.values.flatMap { it.values }).map { text ->
+            Regex(PLACEHOLDER.split(text.replace("%%", "%")).joinToString("[0-9.,:]+") { Regex.escape(it) })
+        }
     }
 
     /** Each producer's outputs, as the dashboard state they would be published into. */
@@ -195,6 +238,12 @@ class TileCaptionContractTest {
     private companion object {
         /** The tile's line: see `noTileNeedsASecondLineForItsNameOrItsCaption`. */
         const val BUDGET = 17
+
+        /** The name's own line, 14 characters: `DashboardTilesTest`. */
+        const val NAME_BUDGET = 14
+
+        const val EN_STRINGS = "apps/denza-apps/src/main/res/values-en/strings.xml"
+        val PLACEHOLDER = Regex("%(\\d+\\$)?[sd]")
 
         val BOOLS = listOf(false, true)
 

@@ -7,8 +7,11 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.StringRes
+import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
@@ -98,24 +101,26 @@ object FseInstallStatus {
  * the chooser. Every failure an install can end in is one of these, so the list is the whole of
  * what the tile can say.
  */
-enum class FseInstallFailure(val words: String) {
+enum class FseInstallFailure(@StringRes private val wordsId: Int) {
     /** Guards: the chooser draws what cannot go across as unpressable, so the car changed under it. */
-    NOT_FOUND("Не найдено"),
-    NOT_TRANSFERABLE("Не переносится"),
-    UNREADABLE("Не прочиталось"),
+    NOT_FOUND(R.string.fse_failure_not_found),
+    NOT_TRANSFERABLE(R.string.fse_failure_not_transferable),
+    UNREADABLE(R.string.fse_failure_unreadable),
 
     /** No answer from the passenger screen within its timeout; the staged files are kept. */
-    NO_ANSWER("Экран не ответил"),
+    NO_ANSWER(R.string.fse_failure_no_answer),
 
     /** The passenger screen answered with a code that is not a success. */
-    DECLINED("Экран отклонил"),
-    NOT_COPIED("Не скопировалось"),
+    DECLINED(R.string.fse_failure_declined),
+    NOT_COPIED(R.string.fse_failure_not_copied),
 
     /** The channel's own failure, as on every tile ([AdbProblem]). */
-    NO_ACCESS(AdbProblem.WORDS),
-    NO_SCREEN("Экран не найден"),
-    NOT_INSTALLED("Не установилось"),
+    NO_ACCESS(R.string.feature_no_access),
+    NO_SCREEN(R.string.fse_failure_no_screen),
+    NOT_INSTALLED(R.string.fse_failure_not_installed),
     ;
+
+    val words: String get() = AppText.s(wordsId)
 
     companion object {
         /**
@@ -136,15 +141,17 @@ enum class FseInstallFailure(val words: String) {
  * install's own words until it ends, so they are held to its 17 characters. «Подготавливаю
  * Яндекс Навигатор» was 30.
  */
-enum class FseInstallStep(val words: String) {
-    CHECKING("Проверка экрана"),
-    PREPARING("Подготовка"),
-    INSTALLING("Установка"),
+enum class FseInstallStep(@StringRes private val wordsId: Int) {
+    CHECKING(R.string.fse_step_checking),
+    PREPARING(R.string.fse_step_preparing),
+    INSTALLING(R.string.fse_step_installing),
     ;
+
+    val words: String get() = AppText.s(wordsId)
 
     companion object {
         /** The copy, the one step that can say how far it has got. */
-        fun copying(percent: Int): String = "Копирование: $percent%"
+        fun copying(percent: Int): String = AppText.s(R.string.fse_step_copying, percent.toString())
     }
 }
 
@@ -175,9 +182,9 @@ object FseAppInstaller {
                 val source = File(candidate.applicationInfo.sourceDir.orEmpty())
                 val splitCount = candidate.applicationInfo.splitSourceDirs?.size ?: 0
                 val reason = when {
-                    splitCount > 0 -> "Split APK пока не поддерживается"
-                    candidate.applicationInfo.sourceDir.isNullOrBlank() -> "APK не найден"
-                    !source.isFile -> "APK недоступен"
+                    splitCount > 0 -> AppText.s(R.string.fse_unavailable_split)
+                    candidate.applicationInfo.sourceDir.isNullOrBlank() -> AppText.s(R.string.fse_unavailable_apk_not_found)
+                    !source.isFile -> AppText.s(R.string.fse_unavailable_apk_unreadable)
                     else -> ""
                 }
                 FseInstallApp(

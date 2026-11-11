@@ -20,10 +20,21 @@ object SimulcastScreenDiagnostics {
         val available: Boolean,
     )
 
+    /** How the last DiShare query went, and how the report writes that. */
+    private sealed class ScreenQuery(val report: String) {
+        object NotAsked : ScreenQuery("ещё не запрашивались")
+
+        object Running : ScreenQuery("запрос выполняется")
+
+        class Received(count: Int) : ScreenQuery("получено экранов: $count")
+
+        class Failed(message: String?) : ScreenQuery("ошибка: ${message?.ifBlank { "без описания" } ?: "без описания"}")
+    }
+
     private val queryRunning = AtomicBoolean(false)
 
     @Volatile
-    private var queryStatus = "ещё не запрашивались"
+    private var query: ScreenQuery = ScreenQuery.NotAsked
 
     @Volatile
     private var screenRecords: List<ScreenRecord> = emptyList()
@@ -54,7 +65,7 @@ object SimulcastScreenDiagnostics {
 
     fun refresh(context: Context, onChanged: () -> Unit) {
         if (!queryRunning.compareAndSet(false, true)) return
-        queryStatus = "запрос выполняется"
+        query = ScreenQuery.Running
         onChanged()
         DiShareScreens.query(context.applicationContext, DISHARE_PACKAGE, object : DiShareScreens.Callback {
             override fun onScreens(screens: List<DiShareScreens.Screen>) {
@@ -80,13 +91,13 @@ object SimulcastScreenDiagnostics {
                 available = screen.available,
             )
         }
-        queryStatus = "получено экранов: ${screens.size}"
+        query = ScreenQuery.Received(screens.size)
         screenUpdatedAtMs = System.currentTimeMillis()
     }
 
     @JvmStatic
     fun recordDiShareFailure(message: String?) {
-        queryStatus = "ошибка: ${message?.ifBlank { "без описания" } ?: "без описания"}"
+        query = ScreenQuery.Failed(message)
         screenUpdatedAtMs = System.currentTimeMillis()
     }
 
@@ -147,8 +158,9 @@ object SimulcastScreenDiagnostics {
     }
 
     fun diagnosticLines(nowMs: Long = System.currentTimeMillis()): List<String> = buildList {
-        add("DiShare getScreens=$queryStatus${ageSuffix(screenUpdatedAtMs, nowMs)}")
-        if (screenRecords.isEmpty() && screenUpdatedAtMs > 0L && !queryStatus.startsWith("ошибка")) {
+        val query = query
+        add("DiShare getScreens=${query.report}${ageSuffix(screenUpdatedAtMs, nowMs)}")
+        if (screenRecords.isEmpty() && screenUpdatedAtMs > 0L && query !is ScreenQuery.Failed) {
             add("DiShare receivers=пустой список")
         } else {
             screenRecords.forEachIndexed { index, screen ->

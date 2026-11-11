@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.core.figure
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
@@ -14,6 +16,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -24,7 +27,7 @@ import org.junit.Test
  * And where a case is one the board draws, the strings are compared with the board's own - read
  * out of the debug build's `fixtures.json` - so the app fed the city's car prints the city board.
  */
-class ContourFrameBuilderTest {
+open class ContourFrameBuilderTest {
 
     /** [n] hundred-metre buckets costing [kwh] each: 0.017 is 17 kWh/100 km. */
     private fun road(n: Int, kwh: Double = 0.017) =
@@ -178,7 +181,7 @@ class ContourFrameBuilderTest {
         // contract's, «ДАЛ ДВС» on both and «● РЕКУПЕРАЦИЯ» on P alone (§2.4).
         val moving = ContourPanel().run(city(trip = trip), 1f)
         assertEquals(ContourReadout.CAPTION_ENGINE_GAVE, moving.gaveCaption)
-        assertEquals("1,1", moving.gaveKwh)
+        assertEquals(figure("1,1"), moving.gaveKwh)
         assertNull(moving.regenCaption)
         assertEquals("a whole number on the move", "17", moving.consumption)
     }
@@ -380,4 +383,10 @@ class ContourFrameBuilderTest {
         )
         strings.zip(again).forEach { (a, b) -> assertSame(a, b) }
     }
+}
+
+/** The car of each scene prints its board in English: `fixtures.en.json`, which `shot.py` makes from `values-en/`. */
+class ContourFrameBuilderEnglishTest : ContourFrameBuilderTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

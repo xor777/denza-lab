@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.network
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,19 +15,19 @@ internal data class TrafficMonitorSnapshot(
     val known: Boolean get() = state == TrafficMonitorState.ENABLED || state == TrafficMonitorState.DISABLED
     val canDisable: Boolean get() = state == TrafficMonitorState.ENABLED && !busy
     val summary: String get() = when {
-        busy -> if (known) "Выполняем команду…" else "Проверяем состояние…"
-        state == TrafficMonitorState.ENABLED -> "Монитор включён"
-        state == TrafficMonitorState.DISABLED -> "Монитор отключён"
-        state == TrafficMonitorState.ABSENT -> "Недоступен на этой прошивке"
-        else -> "Не удалось проверить"
+        busy -> if (known) AppText.s(R.string.network_running_command) else AppText.s(R.string.network_checking_state)
+        state == TrafficMonitorState.ENABLED -> AppText.s(R.string.network_monitor_on)
+        state == TrafficMonitorState.DISABLED -> AppText.s(R.string.network_monitor_off)
+        state == TrafficMonitorState.ABSENT -> AppText.s(R.string.network_monitor_absent)
+        else -> AppText.s(R.string.network_check_failed)
     }
 }
 
 internal object TrafficMonitorText {
-    const val TITLE = "Мобильный интернет"
-    const val MONITOR = "Штатный контроль трафика"
-    const val DISABLE = "Отключить"
-    const val CHECK = "Проверить состояние"
+    val TITLE: String get() = AppText.s(R.string.network_title)
+    val MONITOR: String get() = AppText.s(R.string.network_monitor)
+    val DISABLE: String get() = AppText.s(R.string.network_disable)
+    val CHECK: String get() = AppText.s(R.string.network_check)
 }
 
 /**
@@ -55,11 +57,11 @@ internal class TrafficMonitorController(
             val before = read()
             if (before == wanted) {
                 mutable.value = TrafficMonitorSnapshot(state = before,
-                    result = "Монитор уже отключён")
+                    result = AppText.s(R.string.network_already_off))
             } else if (before != TrafficMonitorState.ENABLED) {
                 mutable.value = TrafficMonitorSnapshot(state = before,
-                    error = if (before == TrafficMonitorState.ABSENT) "Монитор не найден. Команда не выполнена."
-                        else "Не удалось проверить состояние. Команда не выполнена.")
+                    error = if (before == TrafficMonitorState.ABSENT) AppText.s(R.string.network_not_found_not_run)
+                        else AppText.s(R.string.network_check_failed_not_run))
             } else {
                 val completed = runCatching {
                     TrafficMonitorProtocol.writeCompleted(shell(TrafficMonitorProtocol.disableCommand))
@@ -70,13 +72,13 @@ internal class TrafficMonitorController(
                 mutable.value = TrafficMonitorSnapshot(
                     state = after,
                     error = when {
-                        after == TrafficMonitorState.UNKNOWN -> "Не удалось подтвердить состояние монитора"
-                        after != wanted -> "Не удалось отключить монитор"
-                        !completed -> "Состояние изменено, но ответ команды не подтверждён"
+                        after == TrafficMonitorState.UNKNOWN -> AppText.s(R.string.network_state_unconfirmed)
+                        after != wanted -> AppText.s(R.string.network_disable_failed)
+                        !completed -> AppText.s(R.string.network_answer_unconfirmed)
                         else -> null
                     },
                     result = if (completed && after == wanted) {
-                        "Отключение подтверждено"
+                        AppText.s(R.string.network_disable_confirmed)
                     } else null,
                 )
             }

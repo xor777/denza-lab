@@ -72,9 +72,11 @@ retired on both screens: a pack with no direction is named by its word and drawn
 white like any calm figure (`main-car-neutral`), because a dimmed figure read as a
 fault and the owner's rule is that calm is flat white. The words and their colours
 above are the car page's, which prints them in its sentence case - «Из батареи»,
-«● В батарею от ДВС» - derived from the capitals by `EnergyReadouts.sentence`, so
-the two cases cannot become two sentences. The cluster prints no direction word:
-the hero is ink out of the pack and while neutral (the stock flat white; a dimmed
+«● В батарею от ДВС». `EnergyReadouts.Direction` is the one decision, and each
+direction has its sentence in `strings.xml`. The cluster prints no direction word,
+so nothing draws the capitals and the app does not hold them: the table's capitals
+live in the test helper `EnergyReadoutsCase.kt`, where `EnergyReadoutsTest` holds
+each pair together. The hero is ink out of the pack and while neutral (the stock flat white; a dimmed
 hero read as a fault), blue coming back, and the «кВт» beside it is grey, blue
 coming back. The side the beam takes says the rest.
 

@@ -1,8 +1,10 @@
 package dev.denza.apps.ui.dashboard
 
+import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.design.luminofor.SpecJson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -14,7 +16,7 @@ import org.junit.Test
  * board of a tile's own panel - not its pages of applications, not «Сервис» or Shortcuts, which
  * have panels of their own - to the app's words.
  */
-class SheetBoardContractTest {
+open class SheetBoardContractTest {
 
     @Test
     fun everyPanelBoardDrawsTheAppsParagraph() {
@@ -42,4 +44,10 @@ class SheetBoardContractTest {
     private companion object {
         val OWN_PANELS = setOf(TileId.SERVICE, TileId.DEFAULT_APPS)
     }
+}
+
+/** Every panel's paragraph on `fixtures.en.json` against what the app writes in English. */
+class SheetBoardContractEnglishTest : SheetBoardContractTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

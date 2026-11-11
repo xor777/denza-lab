@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.mirrors
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -16,7 +18,7 @@ object MirrorDisplayReadiness {
      * mirrors on again, which looks for it again - «Повторите поиск экрана камер» asked the driver
      * to do what the press does, in 28 characters on a line that holds 17.
      */
-    const val SCREEN_NOT_FOUND = "Экран не найден"
+    val SCREEN_NOT_FOUND: String get() = AppText.s(R.string.mirrors_screen_not_found)
 
     fun snapshot(
         selection: ClusterDisplaySelection,

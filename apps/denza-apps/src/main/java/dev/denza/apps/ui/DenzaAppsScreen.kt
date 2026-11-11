@@ -1,5 +1,7 @@
 package dev.denza.apps.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.ui.components.ParagraphText
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
@@ -246,6 +248,7 @@ fun DenzaAppsRoot(
                     onDismiss = { showDiagnostics = false },
                     onSetAdbRestoreEnabled = actions.onSetAdbRestoreEnabled,
                     onOpenService = actions.onServiceOpened,
+                    onSelectLanguage = actions.onSelectLanguage,
                 )
             }
             if (shown.clusterPicker) {
@@ -442,7 +445,7 @@ private fun RecoverButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     DenzaSecondaryButton(text = RECOVER_LABEL, onClick = onClick, modifier = modifier, attention = true)
 }
 
-private const val RECOVER_LABEL = "Восстановить ADB"
+private val RECOVER_LABEL: String get() = AppText.s(R.string.adb_recover)
 
 /**
  * The gate's recovery flow, in a window of its own above it.
@@ -466,7 +469,7 @@ private fun AdbRecoveryDialog(
     val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
     DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
-        Text("Восстановление ADB", style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
+        Text(AppText.s(R.string.adb_recovery_title), style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
         Text(
             state.adbRescue.message,
             style = SheetInk.style(Sheet.Modal.TEXT_SIZE, 400, SheetInk.white(Sheet.Modal.TEXT_ALPHA), Sheet.Note.LEADING),
@@ -475,14 +478,14 @@ private fun AdbRecoveryDialog(
             DenzaNote(details)
         }
         DenzaSecondaryButton(
-            text = "Проверить доступ",
+            text = AppText.s(R.string.adb_check_access),
             onClick = onCheckAdbAccess,
             modifier = Modifier.fillMaxWidth(),
             enabled = !busy,
         )
         if (state.adbRescue.canRequest) {
             DenzaPrimaryButton(
-                text = "Отправить один запрос",
+                text = AppText.s(R.string.adb_request_once),
                 onClick = onRequestAdbAuthorizationOnce,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
@@ -490,7 +493,7 @@ private fun AdbRecoveryDialog(
         }
         if (state.adbRescue.canResetAttempt) {
             DenzaSecondaryButton(
-                text = "Разрешить новую попытку",
+                text = AppText.s(R.string.adb_allow_new_attempt),
                 onClick = onAllowNewAdbAuthorizationAttempt,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
@@ -500,7 +503,7 @@ private fun AdbRecoveryDialog(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            DenzaSecondaryButton(text = "Закрыть", onClick = onDismiss)
+            DenzaSecondaryButton(text = AppText.s(R.string.common_close), onClick = onDismiss)
         }
     }
 }
@@ -554,7 +557,7 @@ private fun clusterDisplayChoices(
 private fun clusterDisplayName(index: Int, display: ClusterDisplayDescriptor): String =
     ClusterDisplayResolver.choiceName(index, display)
 
-private const val CLUSTER_AUTOMATIC_LABEL = "Определять автоматически"
+private val CLUSTER_AUTOMATIC_LABEL: String get() = AppText.s(R.string.cluster_display_detect_automatically)
 
 /**
  * How often the picker asks the car again while it has nothing to offer: a read of the displays,
@@ -581,8 +584,8 @@ private fun ClusterDisplayPickerDialog(
     val choices = clusterDisplayChoices(displays)
     DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
         DenzaSheetHeader(
-            title = "Приборный экран",
-            subtitle = "После выбора на экране появится короткая проверка",
+            title = AppText.s(R.string.cluster_display_title),
+            subtitle = AppText.s(R.string.cluster_display_picker_subtitle),
             onDismiss = onDismiss,
             glyph = DenzaIcons.ClusterGlyph,
         )
@@ -617,6 +620,6 @@ private fun ClusterDisplaySearch(onRefresh: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         WorkingRing(size = Sheet.Header.CLOSE.dp, stroke = glyphStroke(Sheet.Header.CLOSE.dp))
-        DenzaNote("Ищем экраны за рулём")
+        DenzaNote(AppText.s(R.string.cluster_display_searching))
     }
 }

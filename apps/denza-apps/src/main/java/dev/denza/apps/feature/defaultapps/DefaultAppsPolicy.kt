@@ -1,10 +1,27 @@
 package dev.denza.apps.feature.defaultapps
 
-/** A launcher that is worth offering first for one of the stock AutoVoice roles. */
-data class DefaultAppDefinition(
+import androidx.annotation.StringRes
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
+/**
+ * A launcher that is worth offering first for one of the stock AutoVoice roles.
+ *
+ * A name written the same in every language stays here as text. One that changes is a resource,
+ * looked up when it is asked for, because [DefaultAppRole] holds these from class load onward.
+ */
+class DefaultAppDefinition private constructor(
     val packageName: String,
-    val fallbackLabel: String,
-)
+    private val name: String?,
+    @param:StringRes private val nameId: Int,
+) {
+    constructor(packageName: String, name: String) : this(packageName, name, 0)
+
+    constructor(packageName: String, @StringRes nameId: Int) : this(packageName, null, nameId)
+
+    val fallbackLabel: String
+        get() = name ?: AppText.s(nameId)
+}
 
 /**
  * The three AutoVoice default-app roles addressed by stock Shortcuts actions.
@@ -28,11 +45,11 @@ enum class DefaultAppRole(
         verifiedRuntimeCommandId = 102000,
         stockPackageName = "com.byd.launchermap",
         knownThirdPartyApps = listOf(
-            DefaultAppDefinition("ru.yandex.yandexnavi", "Яндекс Навигатор"),
-            DefaultAppDefinition("ru.yandex.yandexmaps", "Яндекс Карты"),
+            DefaultAppDefinition("ru.yandex.yandexnavi", R.string.defaultapps_app_yandex_navigator),
+            DefaultAppDefinition("ru.yandex.yandexmaps", R.string.defaultapps_app_yandex_maps),
             DefaultAppDefinition("com.google.android.apps.maps", "Google Maps"),
             DefaultAppDefinition("com.waze", "Waze"),
-            DefaultAppDefinition("ru.dublgis.dgismobile", "2ГИС"),
+            DefaultAppDefinition("ru.dublgis.dgismobile", R.string.defaultapps_app_2gis),
         ),
     ),
     MUSIC(
@@ -41,11 +58,11 @@ enum class DefaultAppRole(
         verifiedRuntimeCommandId = 129003,
         stockPackageName = "com.byd.mediacenter",
         knownThirdPartyApps = listOf(
-            DefaultAppDefinition("ru.yandex.music", "Яндекс Музыка"),
+            DefaultAppDefinition("ru.yandex.music", R.string.defaultapps_app_yandex_music),
             DefaultAppDefinition("com.apple.android.music", "Apple Music"),
             DefaultAppDefinition("com.spotify.music", "Spotify"),
             DefaultAppDefinition("com.google.android.apps.youtube.music", "YouTube Music"),
-            DefaultAppDefinition("com.uma.musicvk", "VK Музыка"),
+            DefaultAppDefinition("com.uma.musicvk", R.string.defaultapps_app_vk_music),
             DefaultAppDefinition("org.videolan.vlc", "VLC"),
         ),
     ),
@@ -55,12 +72,12 @@ enum class DefaultAppRole(
         verifiedRuntimeCommandId = 131500,
         stockPackageName = "com.byd.videoplay",
         knownThirdPartyApps = listOf(
-            DefaultAppDefinition("com.vk.vkvideo", "VK Видео"),
+            DefaultAppDefinition("com.vk.vkvideo", R.string.defaultapps_app_vk_video),
             DefaultAppDefinition("ru.rutube.app", "RUTUBE"),
-            DefaultAppDefinition("ru.kinopoisk", "Кинопоиск"),
+            DefaultAppDefinition("ru.kinopoisk", R.string.defaultapps_app_kinopoisk),
             DefaultAppDefinition("com.google.android.youtube", "YouTube"),
-            DefaultAppDefinition("ru.ivi.client", "Иви"),
-            DefaultAppDefinition("ru.rt.video.app.mobile", "Смотрим"),
+            DefaultAppDefinition("ru.ivi.client", R.string.defaultapps_app_ivi),
+            DefaultAppDefinition("ru.rt.video.app.mobile", R.string.defaultapps_app_smotrim),
             DefaultAppDefinition("ru.mts.mtstv", "KION"),
             DefaultAppDefinition("ru.start.androidmobile", "START"),
             DefaultAppDefinition("gpm.tnt_premier", "PREMIER"),

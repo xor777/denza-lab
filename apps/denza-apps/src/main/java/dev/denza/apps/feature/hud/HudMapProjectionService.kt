@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import dev.denza.apps.R
 import dev.denza.apps.RuntimeRecoveryService
+import dev.denza.apps.core.AppText
 
 /**
  * The foreground service of type `mediaProjection` (32) that the map's screen capture needs, alive
@@ -50,8 +51,8 @@ class HudMapProjectionService : Service() {
 
     private fun createNotificationChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Карта на проекции", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Копия экрана для карты на проекции"
+            NotificationChannel(CHANNEL_ID, AppText.s(R.string.hud_map_channel_name), NotificationManager.IMPORTANCE_MIN).apply {
+                description = AppText.s(R.string.hud_map_channel_description)
                 setShowBadge(false)
             },
         )
@@ -60,7 +61,7 @@ class HudMapProjectionService : Service() {
     private fun notification(): Notification = Notification.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_denza_apps)
         .setContentTitle("Denza Apps")
-        .setContentText("Карта на проекции")
+        .setContentText(AppText.s(R.string.hud_map_notification_text))
         .setOngoing(true)
         .setShowWhen(false)
         .build()

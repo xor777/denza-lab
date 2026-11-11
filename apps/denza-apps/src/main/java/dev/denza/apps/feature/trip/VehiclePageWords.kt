@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 /**
  * What the car's page says that the cluster does not, and nothing else.
  *
@@ -12,10 +15,10 @@ package dev.denza.apps.feature.trip
  */
 internal object VehiclePageWords {
 
-    const val VOLTS = "Напряжение"
-    const val UNIT_V = "В"
-    const val SPEND = "Расход"
+    val VOLTS: String get() = AppText.s(R.string.car_page_volts)
+    val UNIT_V: String get() = AppText.s(R.string.car_page_unit_volt)
+    val SPEND: String get() = AppText.s(R.string.car_page_spend)
 
     /** Over the instruction, when the shell is closed to us: what the page would have shown. */
-    const val CLOSED = "Питание от машины"
+    val CLOSED: String get() = AppText.s(R.string.car_page_closed)
 }

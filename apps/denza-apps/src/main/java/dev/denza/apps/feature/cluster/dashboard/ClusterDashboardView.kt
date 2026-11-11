@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
 import android.view.View
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleWatcher
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
@@ -68,7 +70,7 @@ internal class ClusterDashboardView(
     private var lastSnapshot: VehicleTelemetry? = null
 
     init {
-        contentDescription = CONTENT_DESCRIPTION
+        contentDescription = AppText.s(R.string.cluster_dashboard_description)
     }
 
     override fun onAttachedToWindow() {
@@ -163,7 +165,5 @@ internal class ClusterDashboardView(
 
         /** Sixty-four whole turns: see [clock]. */
         val CLOCK_WRAP_S = (2.0 * Math.PI * 64.0).toFloat()
-
-        const val CONTENT_DESCRIPTION = "Приборы на экране водителя"
     }
 }

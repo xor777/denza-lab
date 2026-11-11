@@ -3,6 +3,7 @@ package dev.denza.apps.feature.defaultapps
 import android.annotation.SuppressLint
 import android.content.Context
 
+/** The label is worked out from the package when this is read, so it is in today's language. */
 data class ConfirmedSelection(
     val selectedPackageName: String,
     val selectedLabel: String,
@@ -20,33 +21,44 @@ data class ConfirmedSelection(
  * - the remembered pick, which is the last non-stock package the car was seen using for this role.
  *   Switching the substitution off writes the car's own application into every role, and without
  *   this there would be nothing left to say what switching it back on should restore;
- * - the last confirmed package and label, used only until the next provider read completes.
+ * - the last confirmed package, used only until the next provider read completes.
+ *
+ * No display text is stored. Installs from before 2026-11-06 also hold `confirmed_label_<role>`,
+ * possibly a word of ours in the language of that day. Nothing reads it, and the next confirmation
+ * removes it in the same edit that writes the package, so a run that never gets that far just
+ * leaves an unread value behind.
  */
 object DefaultAppsSettings {
     private const val PREFS = "default_apps"
 
-    fun confirmedSelection(context: Context, role: DefaultAppRole): ConfirmedSelection? {
-        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val packageName = preferences.getString(confirmedPackageKey(role), null)
+    fun confirmedPackage(context: Context, role: DefaultAppRole): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(confirmedPackageKey(role), null)
             ?.takeIf(String::isNotBlank)
-            ?: return null
-        val label = preferences.getString(confirmedLabelKey(role), null)
-            ?.takeIf(String::isNotBlank)
-            ?: return null
-        return ConfirmedSelection(packageName, label)
-    }
+
+    /**
+     * What hydrates the panel, read from preferences alone.
+     *
+     * `DefaultAppsRuntime.refresh` calls this inside a state update, on the main thread before the
+     * first frame, so it must not ask PackageManager. The label is [DefaultAppsCatalog.fallbackLabel]:
+     * an unknown third-party app shows its package name until the first provider read replaces it
+     * with what `discover` found.
+     */
+    fun confirmedSelection(context: Context, role: DefaultAppRole): ConfirmedSelection? =
+        confirmedPackage(context, role)?.let { packageName ->
+            ConfirmedSelection(packageName, DefaultAppsCatalog.fallbackLabel(role, packageName))
+        }
 
     fun rememberConfirmedSelection(
         context: Context,
         role: DefaultAppRole,
         selectedPackageName: String,
-        selectedLabel: String,
     ) {
-        if (selectedPackageName.isBlank() || selectedLabel.isBlank()) return
+        if (selectedPackageName.isBlank()) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(confirmedPackageKey(role), selectedPackageName)
-            .putString(confirmedLabelKey(role), selectedLabel)
+            .remove(retiredLabelKey(role))
             .apply()
     }
 
@@ -96,6 +108,6 @@ object DefaultAppsSettings {
     private fun confirmedPackageKey(role: DefaultAppRole): String =
         "confirmed_package_${role.name.lowercase()}"
 
-    private fun confirmedLabelKey(role: DefaultAppRole): String =
+    private fun retiredLabelKey(role: DefaultAppRole): String =
         "confirmed_label_${role.name.lowercase()}"
 }

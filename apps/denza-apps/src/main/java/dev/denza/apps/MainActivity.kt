@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
+import dev.denza.apps.core.AppLanguage
 import dev.denza.apps.feature.adb.AdbRestore
 import dev.denza.apps.feature.adb.AdbRestoreManager
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
@@ -148,6 +149,8 @@ internal object AppActions : DenzaActions {
     override val onServiceOpened: () -> Unit = { AdbRestore.trigger(AdbRestoreManager.SETTINGS) }
     override val onSetAdbRestoreEnabled: (Boolean) -> Unit =
         { enabled -> AdbRestore.setEnabled(enabled) }
+    override val onSelectLanguage: (AppLanguage) -> Unit =
+        { language -> DenzaAppRepository.selectLanguage(language) }
     override val onCheckAdbAccess: () -> Unit = { DenzaAppRepository.checkAdbAccess() }
     override val onCheckAdbAccessThen: (() -> Unit) -> Unit =
         { onTrusted -> DenzaAppRepository.checkAdbAccessThen(onTrusted) }

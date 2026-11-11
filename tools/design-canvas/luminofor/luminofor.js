@@ -1012,7 +1012,7 @@
         }
       });
     } else dashed(strip);
-    parts.push({ text: 'Камеры и опасности', at: strip, up: false, on: !!b.cameras });
+    parts.push({ text: 'Камеры', at: strip, up: false, on: !!b.cameras });
     // each part named by a thin line, above the glass or below it
     const L = GL.label, LN = GL.line;
     parts.forEach(p => {

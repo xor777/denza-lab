@@ -1,11 +1,14 @@
 package dev.denza.apps.ui.dashboard
 
+import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.core.say
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -13,7 +16,7 @@ import org.junit.Test
  * then each row's words, value, greying and colour - in that order and nothing else. The board and
  * the panel move in one change or neither moves.
  */
-class HudPanelBoardContractTest {
+open class HudPanelBoardContractTest {
 
     @Test
     fun everyHudBoardIsThePanelOfItsState() {
@@ -28,7 +31,7 @@ class HudPanelBoardContractTest {
             seen += HudNavigatorInstall.valueOf(state["navigator"] as String)
             seen += HudRadarInstall.valueOf(state["radar"] as String)
             val sheet = fixture["sheet"] as Map<*, *>
-            assertEquals("$id title", "HUD Подсказки", sheet["title"])
+            assertEquals("$id title", say("HUD Подсказки", "HUD hints"), sheet["title"])
             assertEquals("$id subtitle", HudPanel.SUBTITLE, sheet["subtitle"])
             assertEquals("$id blocks", expected(panel), (sheet["blocks"] as List<*>).map { normal(it as Map<*, *>) })
         }
@@ -67,4 +70,10 @@ class HudPanelBoardContractTest {
         cameras = state["cameras"] != false,
         busy = false,
     )
+}
+
+/** Every HUD board in English is the panel of its state in English. */
+class HudPanelBoardContractEnglishTest : HudPanelBoardContractTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

@@ -4,6 +4,7 @@ Lay a screenshot of the app over its Luminofor board and say where they differ.
 
     python3 compare.py main-sound app.png              the board's own size, from the top-left
     python3 compare.py cluster-city app.png --at 0,0   where the board sits in the screenshot
+    python3 compare.py main-sound app.png --lang en    against the English board in _shots/luminofor/en
     python3 compare.py scanner-report app.png --skip 24,64,414,616
                                                        a region left out (board units x0,y0,x1,y1):
                                                        where the board only sketches what the app
@@ -36,10 +37,11 @@ def unit_scale(bid):
     return 720 / 424 if bid.startswith('cluster') else 2.0
 
 
-def main(bid, shot, at=(0, 0), skip=None):
+def main(bid, shot, at=(0, 0), skip=None, lang='ru'):
+    boards = SHOTS if lang == 'ru' else os.path.join(SHOTS, lang)
     # a cluster is compared with its bare board: the hatching is the board's, not the app's
-    bare = os.path.join(SHOTS, bid + '.bare.png')
-    board = Image.open(bare if os.path.exists(bare) else os.path.join(SHOTS, bid + '.png')).convert('RGB')
+    bare = os.path.join(boards, bid + '.bare.png')
+    board = Image.open(bare if os.path.exists(bare) else os.path.join(boards, bid + '.png')).convert('RGB')
     app = Image.open(shot).convert('RGB')
     x, y = at
     app = app.crop((x, y, x + board.width, y + board.height))
@@ -70,7 +72,7 @@ def main(bid, shot, at=(0, 0), skip=None):
     stack.paste(board, (0, 0))
     stack.paste(app, (0, h))
     stack.paste(heat, (0, 2 * h))
-    out = os.path.join(OUT, bid + '.png')
+    out = os.path.join(OUT, bid + '.png' if lang == 'ru' else bid + '.' + lang + '.png')
     stack.save(out)
     print(f'{bid}: {moved / n * 100:.2f}% pixels moved, mean {total / n:.2f} levels  ->  {out}')
     worst = sorted(cells.items(), key=lambda kv: -kv[1])[:12]
@@ -90,4 +92,9 @@ if __name__ == '__main__':
         i = args.index('--skip')
         skip = tuple(float(v) for v in args[i + 1].split(','))
         del args[i:i + 2]
-    main(args[0], args[1], at, skip)
+    lang = 'ru'
+    if '--lang' in args:
+        i = args.index('--lang')
+        lang = args[i + 1]
+        del args[i:i + 2]
+    main(args[0], args[1], at, skip, lang)

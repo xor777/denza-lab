@@ -1,12 +1,18 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.core.figure
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.EnergyReadouts
+import dev.denza.apps.feature.vehicle.TRIP_KM_SENTENCE
+import dev.denza.apps.feature.vehicle.WORD_FROM_ENGINE_SENTENCE
+import dev.denza.apps.feature.vehicle.WORD_FROM_PACK_SENTENCE
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -23,7 +29,7 @@ import org.junit.Test
  * **What it cannot check** is what a screenshot checks: that the drawing the numbers describe is the
  * drawing on the screen. The debug build's `StripFixtures` exists for that comparison.
  */
-class StripBoardContractTest {
+open class StripBoardContractTest {
 
     // ----------------------------------------------------------------------------------- spec
 
@@ -57,7 +63,7 @@ class StripBoardContractTest {
         assertEquals("42" + EnergyReadouts.TRIP_KM_SENTENCE, main.obj("tripCell").str("cap"))
         assertEquals(ContourReadout.UNIT_KWH, main.obj("tripCell").str("unit"))
         assertEquals(
-            VehiclePageWords.SPEND + " 16,9 " + ContourReadout.perHundredKm(10.0, ConsumptionWindow.KM),
+            VehiclePageWords.SPEND + " " + figure("16,9") + " " + ContourReadout.perHundredKm(10.0, ConsumptionWindow.KM),
             main.str("consumptionCaption"),
         )
 
@@ -192,4 +198,10 @@ class StripBoardContractTest {
         assertDrawn("a column's least height", "h = Math.max(${js(SpectrumRenderer.MIN_HEIGHT)}, lv[si] * fh)")
         assertDrawn("a pane's sampling", "const si = Math.round(i * (NN - 1) / Math.max(1, n - 1))")
     }
+}
+
+/** The strip's words against the English scenes. The numbers and literals it holds do not depend on a language. */
+class StripBoardContractEnglishTest : StripBoardContractTest() {
+    @get:Rule
+    val english = EnglishWords()
 }

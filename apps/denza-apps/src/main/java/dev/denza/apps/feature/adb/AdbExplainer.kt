@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.adb
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
+
 /**
  * What the blocking gate says about itself, and the way through it to the service screen.
  *
@@ -21,22 +24,17 @@ package dev.denza.apps.feature.adb
 object AdbExplainer {
 
     /** The door, as it is labelled on the gate. */
-    const val OPEN_LABEL = "Что такое ADB"
+    val OPEN_LABEL: String get() = AppText.s(R.string.adb_explainer_title)
 
-    const val TITLE = "Что такое ADB"
+    val TITLE: String get() = AppText.s(R.string.adb_explainer_title)
 
-    const val WHAT_IT_IS_TITLE = "Что это"
+    val WHAT_IT_IS_TITLE: String get() = AppText.s(R.string.adb_explainer_what_title)
 
-    const val WHAT_IT_IS =
-        "Служебный канал Android, через который приложение отдаёт команды машине: " +
-            "разделить экран, включить зеркала, отправить изображение на приборку. " +
-            "Без него приложение видит машину, но не может ей ничего сказать."
+    val WHAT_IT_IS: String get() = AppText.s(R.string.adb_explainer_what)
 
-    const val HOW_TO_OPEN_TITLE = "Как открыть"
+    val HOW_TO_OPEN_TITLE: String get() = AppText.s(R.string.adb_explainer_how_title)
 
-    const val HOW_TO_OPEN =
-        "Канал открывается на уровне самой машины — из приложения это сделать нельзя. " +
-            "Нужен сервис с диагностическим компьютером."
+    val HOW_TO_OPEN: String get() = AppText.s(R.string.adb_explainer_how)
 
     /** Seven taps on the title, each within [SERVICE_TAP_WINDOW_MS] of the one before it. */
     const val SERVICE_TAPS = 7

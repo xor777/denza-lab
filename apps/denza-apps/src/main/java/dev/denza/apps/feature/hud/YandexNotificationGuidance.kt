@@ -117,6 +117,7 @@ internal object YandexNotificationGuidanceParser {
         val description = fields.description.clean()
         if (
             description.isNotEmpty() &&
+            // DO NOT TRANSLATE: Yandex's own notification text, compared as it arrives (CyrillicLiteralGuardTest).
             description != "Навигатор запущен" &&
             YandexGuidanceParser.parseManeuver(description) == HudManeuver.UNKNOWN &&
             YandexGuidanceParser.parseDurationSeconds(description) == null

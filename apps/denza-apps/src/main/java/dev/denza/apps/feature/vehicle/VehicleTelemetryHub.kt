@@ -3,7 +3,10 @@ package dev.denza.apps.feature.vehicle
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.StringRes
+import dev.denza.apps.R
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.warning.WarningRecorder
 import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.CancellationException
@@ -147,6 +150,9 @@ internal class VehicleTelemetryHub(context: Context) {
 
     @Volatile
     private var forceCold = false
+
+    /** What the last closed snapshot was closed by, so that a repeat of it is not logged again. */
+    private var closedBy: VehicleReadFailure? = null
 
     /** The loop's wait after a failed read; [setActive] wakes it from the views' thread. */
     private val backoff = VehicleBackoff()
@@ -384,21 +390,17 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     private fun publishUnavailable(failure: VehicleReadFailure, error: Throwable? = null) {
-        val message = when (failure) {
-            VehicleReadFailure.AUTHORIZATION -> AUTHORIZATION_REQUIRED
-            VehicleReadFailure.CHANNEL -> NO_CHANNEL
-            VehicleReadFailure.NO_ANSWER -> NO_ANSWER
-        }
-        if (snapshot.access != VehicleAccess.UNAVAILABLE || snapshot.message != message) {
+        if (snapshot.access != VehicleAccess.UNAVAILABLE || closedBy != failure) {
             Log.w(TAG, "Данные машины недоступны: $failure ${error?.javaClass?.simpleName} ${error?.message}")
         }
+        closedBy = failure
         // Everything the hub still holds goes with it. The engine trace used to be left out, so a
         // four-second backoff swapped the right shelf out of the box and back - defeating the
         // hundred and twenty seconds of hysteresis the trace's own length exists to give it.
         val window = log.window
         snapshot = VehicleTelemetry(
             access = VehicleAccess.UNAVAILABLE,
-            message = message,
+            message = failure.message,
             consumption = window,
             chart = ConsumptionChart.of(log.buckets),
             engineTrace = trace.snapshot(),
@@ -426,16 +428,6 @@ internal class VehicleTelemetryHub(context: Context) {
 
         const val HOT_TIMEOUT_MS = 3_000
         const val COLD_TIMEOUT_MS = 8_000
-
-        const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · откройте Denza Apps"
-
-        /**
-         * The two the panel says when the link is closed for anything but the key: a state each,
-         * in the driver's words. They were «Нет связи с локальным ADB» - the app's own plumbing on
-         * the cluster - and «Машина не ответила ни на один запрос».
-         */
-        const val NO_CHANNEL = "Нет связи с машиной"
-        const val NO_ANSWER = "Машина не отвечает"
     }
 }
 
@@ -539,16 +531,25 @@ internal class VehicleBackoff {
     }
 }
 
-/** Why a sweep brought nothing back. */
-internal enum class VehicleReadFailure {
+/**
+ * Why a sweep brought nothing back, and what the panels say about it.
+ *
+ * Both the words for a closed link other than the key are in the driver's terms. They were «Нет
+ * связи с локальным ADB» - the app's own plumbing on the cluster - and «Машина не ответила ни на
+ * один запрос».
+ */
+internal enum class VehicleReadFailure(@StringRes private val messageId: Int) {
     /** The local ADB key is not confirmed. Nothing but the driver changes that. */
-    AUTHORIZATION,
+    AUTHORIZATION(R.string.vehicle_closed_authorization),
 
     /** The shell itself failed: a timeout, a refused connection, a socket reset. */
-    CHANNEL,
+    CHANNEL(R.string.vehicle_closed_no_channel),
 
     /** The shell answered and nothing in the answer was a reading. */
-    NO_ANSWER,
+    NO_ANSWER(R.string.vehicle_closed_no_answer),
+    ;
+
+    val message: String get() = AppText.s(messageId)
 }
 
 /**

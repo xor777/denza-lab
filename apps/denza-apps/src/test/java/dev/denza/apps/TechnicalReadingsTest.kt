@@ -54,4 +54,19 @@ class TechnicalReadingsTest {
         )
         assertEquals(sections, TechnicalReadings.parse(TechnicalReadings.render(sections)))
     }
+
+    /** The title is what is printed; a section the app finds again is found by its id. */
+    @Test
+    fun aSectionCarriesItsIdThroughTheText() {
+        val sections = listOf(
+            TechnicalSection("Разделение экрана", listOf(TechnicalRow("Режим", "выкл")), id = "split"),
+            TechnicalSection("Облако", listOf(TechnicalRow("SIM", "25001"))),
+        )
+        assertEquals(sections, TechnicalReadings.parse(TechnicalReadings.render(sections)))
+        assertEquals(
+            "a mark in a title does not make an id",
+            listOf(TechnicalSection("Экран|2", listOf(TechnicalRow("Ключ", "значение")))),
+            TechnicalReadings.parse("[Экран|2]\nКлюч=значение"),
+        )
+    }
 }

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -66,10 +67,10 @@ class WeatherAdapterService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Погода",
+                AppText.s(R.string.weather_channel_name),
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Передаёт прогноз штатному виджету погоды"
+                description = AppText.s(R.string.weather_channel_description)
                 setShowBadge(false)
             },
         )
@@ -78,7 +79,7 @@ class WeatherAdapterService : Service() {
     private fun notification(): Notification = Notification.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_denza_apps)
         .setContentTitle("Denza Apps")
-        .setContentText("Обновление штатной погоды")
+        .setContentText(AppText.s(R.string.weather_notification_text))
         .setOngoing(true)
         .setShowWhen(false)
         .build()

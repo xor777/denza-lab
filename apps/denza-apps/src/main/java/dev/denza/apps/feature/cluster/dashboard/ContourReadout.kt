@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppDecimal
+import dev.denza.apps.core.AppText
 import java.util.Locale
 
 /**
@@ -24,13 +27,17 @@ import java.util.Locale
  *
  * Everything takes plain numbers rather than a telemetry snapshot, so a test states the case it
  * means instead of assembling a car around it.
+ *
+ * The words read `strings.xml` through [AppText] each time they are asked for, some of them on every
+ * frame. That is an array read after the first time ([AppText.s]). A sentence with a figure in it
+ * formats, so it is asked for only when the figure changes ([ContourFigures]).
  */
 internal object ContourReadout {
 
     // ---- the words
 
-    const val TITLE_PACK = "БАТАРЕЯ · В"
-    const val TITLE_ENGINE_RPM = "ДВС · об/мин"
+    val TITLE_PACK: String get() = AppText.s(R.string.contour_title_pack)
+    val TITLE_ENGINE_RPM: String get() = AppText.s(R.string.contour_title_engine_rpm)
 
     /**
      * The sleeping engine's heading, and the window is in it.
@@ -38,7 +45,7 @@ internal object ContourReadout {
      * «ДВС · мин» alone was six minutes of *something*: this stop, this hour, this trip, the
      * odometer. The aperture leaves 250.1 units at this baseline and the words take 224.9.
      */
-    const val TITLE_ENGINE_MINUTES = "ДВС · мин за поездку"
+    val TITLE_ENGINE_MINUTES: String get() = AppText.s(R.string.contour_title_engine_minutes)
 
     /**
      * The spread of *what* is exactly the question that started the sixth pass.
@@ -48,10 +55,14 @@ internal object ContourReadout {
      * Which means a word there now means the pack is misbehaving, which is worth more than the
      * three captions cost.
      */
-    const val CAPTION_SPREAD = "РАЗБРОС ЯЧЕЕК"
+    val CAPTION_SPREAD: String get() = AppText.s(R.string.contour_caption_spread)
 
-    /** Written after the odometer's own figure and its unit, which lead the phrase. */
-    const val CAPTION_TRIP = "· ЗА ПОЕЗДКУ"
+    /**
+     * The odometer's figure, its unit and what they are the road of, as one sentence.
+     *
+     * Rebuilt only when the figure's own string changes: `ContourFrameBuilder`.
+     */
+    fun tripKm(figure: String): String = AppText.s(R.string.contour_trip_km, figure)
 
     /**
      * And what is left of it when the odometer has gone stale.
@@ -59,13 +70,13 @@ internal object ContourReadout {
      * The separator belongs to the figure in front of it, so it leaves with it: a «·» standing at
      * the head of a cell is a phrase missing its first half rather than a caption.
      */
-    const val CAPTION_TRIP_ALONE = "ЗА ПОЕЗДКУ"
+    val CAPTION_TRIP_ALONE: String get() = AppText.s(R.string.contour_trip_alone)
 
     /** Drawn after a blue marker dot, which is what says the same thing «ВЕРНУЛА» would have. */
-    const val CAPTION_REGEN = "РЕКУПЕРАЦИЯ"
+    val CAPTION_REGEN: String get() = AppText.s(R.string.contour_caption_regen)
 
     /** A verb, and it fits: 94.4 units against a payload of 116.1. */
-    const val CAPTION_ENGINE_GAVE = "ДАЛ ДВС"
+    val CAPTION_ENGINE_GAVE: String get() = AppText.s(R.string.contour_caption_engine_gave)
 
     /**
      * The whole of what stands under the engine's box: a sentence, not a legend.
@@ -82,7 +93,10 @@ internal object ContourReadout {
      * logged. «ДВС ДАЁТ» is true under either meaning and is the same verb the trip's «ДАЛ ДВС»
      * uses; there is no dot, because the blue mark means «into the pack» everywhere else here.
      */
-    const val LEGEND_PREFIX = "ДВС ДАЁТ"
+    val LEGEND_PREFIX: String get() = AppText.s(R.string.contour_engine_gives_alone)
+
+    /** The same sentence with what it is giving now, in kilowatts. */
+    fun engineGives(figure: String): String = AppText.s(R.string.contour_engine_gives, figure)
 
     /**
      * **And the window is the box's own reach rather than a literal.**
@@ -90,57 +104,26 @@ internal object ContourReadout {
      * «ПОСЛЕДНИЕ 2 МИН» was printed from the first second of an engine run, over a box one step
      * wide: the trace grows from the right and is never front-padded, so two minutes is what it
      * holds when it is full and nothing else. The figure beside it was honest about a five-second
-     * window and the words were not. It is written as «м:сс», so every value is one length. See
-     * [intoPack].
+     * window and the words were not. It is written as «м:сс», so every value is one length.
      *
      * Since the Luminofor board it is a line of its own under the box - the caption line carries
      * «ДВС ДАЁТ 14 кВт» over the box and this sits on the detail line under it - so it no longer
      * leads with the «·» that joined it to the sentence.
+     *
+     * @param seconds the trace's own span, which is the box's own width in seconds
      */
-    const val LEGEND_WINDOW_PREFIX = "ПОСЛЕДНИЕ "
+    fun intoPack(seconds: Int): String = AppText.s(R.string.contour_engine_window, clock(seconds))
 
-    const val UNIT_KW = "кВт"
-    const val UNIT_KWH = "кВт·ч"
-    const val UNIT_KM = "км"
-    const val UNIT_MILLIVOLT = "мВ"
+    val UNIT_KW: String get() = AppText.s(R.string.contour_unit_kw)
+    val UNIT_KWH: String get() = AppText.s(R.string.contour_unit_kwh)
+    val UNIT_MILLIVOLT: String get() = AppText.s(R.string.contour_unit_millivolt)
     const val DEGREE = "°"
 
     /** Both charging ids are gated to 0…99, so anything past this is a bad read, not a charge. */
     const val MAX_CHARGE_MINUTES = 99 * 60 + 59
 
-    /**
-     * The petal's unit, and the window is in it: the figure is never the trip average.
-     *
-     * Ten kilometres is what the log has *closed*, not what the window is sized for. A history
-     * that has just started - a fresh install, a reset journal, the first minutes of a drive - is
-     * five hundred metres of road printed under «за 10 км», which is the seventh pass's own defect
-     * one level down. The drawn form is [perHundredKm]; this is the case where the window is full.
-     * The distance itself is [dev.denza.apps.feature.vehicle.ConsumptionWindow.KM]; this string is
-     * what the board prints, and `ContourFixturesContractTest` holds the two together.
-     */
-    const val UNIT_PER_100KM_UNIT = "кВт·ч/100 км"
-
-    /** What joins a unit to the window it is true over, on both screens. */
-    const val SEPARATOR = " · "
-
-    const val UNIT_PER_100KM_PREFIX = UNIT_PER_100KM_UNIT + SEPARATOR + "за "
-    const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "10 км"
-
-    /**
-     * And the widest it ever is, which is a distance still filling the window.
-     *
-     * Jura's figures are not tabular - «1» is 0.37 em and «0» 0.64 - so the template is written in
-     * the widest digit rather than in a likely one. Nothing hangs off the unit: it follows the
-     * figure and there is nothing to its right but the petal's cut-out, which
-     * `ContourGeometryTest` holds it inside behind the widest figure the petal prints.
-     */
-    const val UNIT_PER_100KM_FILLING = UNIT_PER_100KM_PREFIX + "0,0 км"
-
     /** What replaces it while a gun is in, over a figure that is a duration rather than a rate. */
-    const val UNIT_CHARGE_LEFT = "до полной"
-
-    /** The petal's unit ends in this, whatever distance it names. */
-    const val KM_SUFFIX = " км"
+    val UNIT_CHARGE_LEFT: String get() = AppText.s(R.string.contour_charge_left)
 
     /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
     const val MAX_WINDOW_SECONDS = 9 * 60 + 59
@@ -175,9 +158,9 @@ internal object ContourReadout {
     /** A whole number, and never a dash: a value that is not there is not drawn at all. */
     fun whole(value: Double): String = unsigned(String.format(Locale.US, "%.0f", value))
 
-    /** A number with a comma, the way every other panel in this app writes one. */
+    /** A number with a decimal mark, the way every other panel in this app writes one. */
     fun tenth(value: Double): String =
-        unsigned(String.format(Locale.US, "%.1f", value)).replace('.', ',')
+        AppDecimal.written(unsigned(String.format(Locale.US, "%.1f", value)))
 
     /**
      * A minus in front of nothing but zeros is not a direction, so it does not get printed.
@@ -218,15 +201,8 @@ internal object ContourReadout {
     fun perHundredKm(coveredKm: Double, windowKm: Double): String {
         val figure =
             if (coveredKm >= windowKm - KM_EPSILON) whole(windowKm) else tenth(coveredKm)
-        return UNIT_PER_100KM_PREFIX + figure + KM_SUFFIX
+        return AppText.s(R.string.contour_per_100km, figure)
     }
-
-    /**
-     * The engine box's sentence, naming how far back the box actually reaches.
-     *
-     * @param seconds the trace's own span, which is the box's own width in seconds
-     */
-    fun intoPack(seconds: Int): String = LEGEND_WINDOW_PREFIX + clock(seconds)
 
     /**
      * A duration as «м:сс», in tabular figures, so that its width is a constant.

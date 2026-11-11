@@ -7,7 +7,7 @@ availability and returned fields still need a live-car check.
 
 ## Current state
 
-Updated 2026-10-09. How Denza Apps feeds the car's own weather widget a forecast it can show in
+Updated 2026-11-06. How Denza Apps feeds the car's own weather widget a forecast it can show in
 Russia, and what the «Погода» tile reads back.
 
 | Claim | Status | Since | Section |
@@ -18,6 +18,7 @@ Russia, and what the «Погода» tile reads back.
 | The «Погода» tile switches the adapter; on by default, off cancels the alarm and nothing is fetched (`WeatherAdapterState`, `WeatherAdapterService`) | code | 2026-08-26 | [Product implementation](#product-implementation) |
 | The service runs in the app's own process, and the tile follows each run (`WeatherFeature.refresh`, `WeatherAdapterState.observe`; `DenzaAppRepository.refreshWeather` until 2026-10-09) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | "The adapter runs in a short-lived `:weather` process": it did until 2026-10-06, and sharing preferences with the main process left the tile on the process start's temperature | refuted | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
+| The city label and the words written to the row follow the app's language, Russian or English (`AppText`; [The app's own language](system-language.md#the-apps-own-language)) | code | 2026-11-06 | [Product implementation](#product-implementation) |
 | Android `Geocoder` city labels on the car | open | 2026-08-22 | [Boundaries](#boundaries) |
 
 **Open questions**
@@ -82,7 +83,7 @@ Each run:
 1. Selects the newest standard Android last-known location. A fresh fix is used
    immediately; otherwise the adapter asks enabled providers for a current fix.
    Coordinates already stored by native weather are the final fallback.
-2. Asks the Android 13 platform `Geocoder` for a Russian localized city label.
+2. Asks the Android 13 platform `Geocoder` for a city label in the app's language.
    It prefers locality, then district, then region, and keeps `GPS` if the
    platform service is absent, times out, or returns no usable name.
 3. Requests MET Norway Locationforecast using an identifying User-Agent and

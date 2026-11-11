@@ -18,6 +18,8 @@ import dev.denza.hudlink.HudWindow;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Denza Apps' own source for the HUD, the capture (docs/hud-output-architecture.md, 4): the hints
@@ -29,6 +31,13 @@ import java.util.Map;
  * thread.
  */
 final class HudCaptureSource {
+    /**
+     * DO NOT TRANSLATE: Yandex's own text, Russian whatever this app speaks (CyrillicLiteralGuardTest).
+     * Groups: hours, the minutes after them, minutes alone.
+     */
+    private static final Pattern YANDEX_TIME =
+            Pattern.compile("([0-9]{1,3}) ч(?: ([0-9]{1,3}) мин)?|([0-9]{1,3}) мин");
+
     private static final String TAG = "DenzaHudGuidance";
     private static final String MAP_LAYER = "map";
     private static final HudRole[] GUIDANCE_ROLES = {HudRole.MANEUVER, HudRole.ROAD_LIMIT, HudRole.AR};
@@ -156,6 +165,11 @@ final class HudCaptureSource {
      */
     static Map<HudRole, HudFields> fields(
             HudGuidance guidance, byte[] icon, HudArGeometry arGeometry) {
+        return fields(guidance, icon, arGeometry, routeDistance(guidance), summaryTime(guidance));
+    }
+
+    private static Map<HudRole, HudFields> fields(HudGuidance guidance, byte[] icon,
+            HudArGeometry arGeometry, String summaryDistance, String summaryTime) {
         EnumMap<HudRole, HudFields> fields = new EnumMap<>(HudRole.class);
         HudFields.Builder maneuver = new HudFields.Builder();
         Integer remainingMeters = guidance.getRemainingDistanceMeters();
@@ -170,8 +184,8 @@ final class HudCaptureSource {
                 .bytes(Road.MANEUVER_PNG, icon)
                 .number(Road.MANEUVER_METERS, guidance.getManeuverDistanceMeters())
                 .text(Road.ROAD_NAME, guidance.getNextRoadName())
-                .text(Road.SUMMARY_DISTANCE, routeDistance(guidance))
-                .text(Road.SUMMARY_TIME, guidance.getRemainingTimeText())
+                .text(Road.SUMMARY_DISTANCE, summaryDistance)
+                .text(Road.SUMMARY_TIME, summaryTime)
                 .number(Road.STOCK_MANEUVER, guidance.getManeuver().getStockId())
                 .build());
         Integer speedLimit = guidance.getSpeedLimitKmh();
@@ -197,22 +211,55 @@ final class HudCaptureSource {
 
     static String routeDistance(HudGuidance guidance) {
         Integer remainingMeters = guidance.getRemainingDistanceMeters();
-        return remainingMeters == null ? "" : HudProtocol.routeDistance(remainingMeters);
+        return remainingMeters == null
+                ? ""
+                : HudProtocol.routeDistance(remainingMeters, HudSummaryWords.forGlass());
+    }
+
+    /**
+     * Yandex's own text, or in English the same time reprinted when the whole of that text is hours,
+     * minutes, or hours with minutes. The figure comes from this match and not from
+     * {@code remainingTimeSeconds}: the guidance parser reads «1 д 5 ч» as five hours, and a
+     * notification merge can keep the seconds of an earlier text. Any other text stays Yandex's.
+     */
+    static String summaryTime(HudGuidance guidance) {
+        String text = guidance.getRemainingTimeText();
+        if (!HudSummaryWords.printsTime()) {
+            return text;
+        }
+        Matcher time = YANDEX_TIME.matcher(text);
+        if (!time.matches()) {
+            return text;
+        }
+        int minutes = whole(time.group(1)) * 60 + whole(time.group(2)) + whole(time.group(3));
+        // HudProtocol.duration prints at least a minute, which «0 мин» did not say.
+        return minutes == 0 ? text : HudProtocol.duration(minutes * 60, HudSummaryWords.forGlass());
+    }
+
+    private static int whole(String digits) {
+        return digits == null ? 0 : Integer.parseInt(digits);
     }
 
     /** The road packet the compositor makes of {@code guidance} from this source alone. */
     static byte[] roadPacketForTest(HudGuidance guidance, HudArGeometry arGeometry) {
-        return sceneForTest(guidance, arGeometry).compose(0L).road();
+        return sceneForTest(fields(guidance, null, arGeometry)).compose(0L).road();
+    }
+
+    /** The same packet with the summary's two lines as given, to hold them to the frozen bytes. */
+    static byte[] roadPacketForTest(HudGuidance guidance, HudArGeometry arGeometry,
+            String summaryDistance, String summaryTime) {
+        return sceneForTest(fields(guidance, null, arGeometry, summaryDistance, summaryTime))
+                .compose(0L).road();
     }
 
     /** The clear the compositor sends once this source's route is gone. */
     static byte[] clearPacketForTest(HudGuidance guidance) {
-        return sceneForTest(guidance, null).compose(0L).clear();
+        return sceneForTest(fields(guidance, null, null)).compose(0L).clear();
     }
 
-    private static HudScene sceneForTest(HudGuidance guidance, HudArGeometry arGeometry) {
+    private static HudScene sceneForTest(Map<HudRole, HudFields> fields) {
         HudScene scene = new HudScene();
-        for (Map.Entry<HudRole, HudFields> role : fields(guidance, null, arGeometry).entrySet()) {
+        for (Map.Entry<HudRole, HudFields> role : fields.entrySet()) {
             scene.fields(HudSource.CAPTURE, role.getKey(), role.getValue(), GUIDANCE_TTL_MS, 0L);
         }
         return scene;

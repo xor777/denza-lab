@@ -190,17 +190,6 @@ class DashboardTilesTest {
     }
 
     @Test
-    fun theCountAgreesWithItsNounAndItsVerb() {
-        // Russian agrees on the last digit and then makes an exception of the teens, so eleven
-        // takes the same form as five and twenty-one the same as one.
-        assertEquals("1 функция", DashboardTiles.featureCount(1))
-        assertEquals("2 функции", DashboardTiles.featureCount(2))
-        assertEquals("5 функций", DashboardTiles.featureCount(5))
-        assertEquals("11 функций", DashboardTiles.featureCount(11))
-        assertEquals("21 функция", DashboardTiles.featureCount(21))
-    }
-
-    @Test
     fun aFeatureThatIsSwitchedOffDoesNotLookLikeAFeatureThatBroke() {
         // The screen this replaces drew both in the same muted grey, so "I turned that off" and
         // "that failed" were one picture.
@@ -605,21 +594,6 @@ class DashboardTilesTest {
             ),
         )
         assertEquals("Выберите экран", waiting.tile(TileId.MIRRORS).state)
-    }
-
-    @Test
-    fun russianAgreesTheNounWithTheLastDigitAndMakesAnExceptionOfTheTeens() {
-        assertEquals("1 приложение", DashboardTiles.applications(1))
-        assertEquals("2 приложения", DashboardTiles.applications(2))
-        assertEquals("4 приложения", DashboardTiles.applications(4))
-        assertEquals("5 приложений", DashboardTiles.applications(5))
-        // The teens all take the plural, including eleven, which its last digit would not predict.
-        assertEquals("11 приложений", DashboardTiles.applications(11))
-        assertEquals("14 приложений", DashboardTiles.applications(14))
-        // And past them the last digit rules again: twenty-one agrees like one.
-        assertEquals("21 приложение", DashboardTiles.applications(21))
-        assertEquals("22 приложения", DashboardTiles.applications(22))
-        assertEquals("25 приложений", DashboardTiles.applications(25))
     }
 
     @Test

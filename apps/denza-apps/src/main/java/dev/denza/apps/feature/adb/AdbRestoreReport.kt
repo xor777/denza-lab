@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.adb
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cloud.CloudLinkReport
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -17,10 +19,10 @@ import java.util.TimeZone
  * opening of «Сервис» had itself just made. What support reads is the technical page's, once.
  */
 object AdbRestoreReport {
-    const val TITLE = "Восстановление ADB"
-    const val SWITCH = "Восстанавливать автоматически"
-    const val SWITCH_SUMMARY = "Если после перезагрузки машина закроет доступ, приложение вернёт его через Wi-Fi"
-    const val BOOT_SECTION = "Последняя перезагрузка"
+    val TITLE: String get() = AppText.s(R.string.adb_restore_title)
+    val SWITCH: String get() = AppText.s(R.string.adb_restore_switch)
+    val SWITCH_SUMMARY: String get() = AppText.s(R.string.adb_restore_switch_summary)
+    val BOOT_SECTION: String get() = AppText.s(R.string.adb_restore_boot_section)
 
     enum class Tone { QUIET, ATTENTION, BROKEN }
 
@@ -29,22 +31,22 @@ object AdbRestoreReport {
     /** The page's sentence; null when the switch is off, which says it all. */
     fun status(s: AdbRestoreSnapshot): Line? = when {
         !s.enabled -> null
-        s.state == AdbRestoreState.Unsupported -> Line("Восстановление работает с Android 11")
+        s.state == AdbRestoreState.Unsupported -> Line(AppText.s(R.string.adb_restore_status_unsupported))
         // Not looked at in this process: the snapshot's NotNeeded is its default, not an answer.
-        s.lastTrigger == null -> Line("Проверяю доступ…")
+        s.lastTrigger == null -> Line(AppText.s(R.string.adb_checking))
         else -> when (s.state) {
             AdbRestoreState.NotNeeded, is AdbRestoreState.Restored ->
-                if (s.boot?.outcome == AdbBootOutcome.RESTORED) Line("Доступ есть: после перезагрузки его вернуло приложение")
-                else Line("Доступ есть, восстанавливать не нужно")
-            AdbRestoreState.Connecting -> Line("Доступа нет, возвращаю его через Wi-Fi")
+                if (s.boot?.outcome == AdbBootOutcome.RESTORED) Line(AppText.s(R.string.adb_restore_status_restored))
+                else Line(AppText.s(R.string.adb_restore_status_not_needed))
+            AdbRestoreState.Connecting -> Line(AppText.s(R.string.adb_restore_status_connecting))
             AdbRestoreState.WaitingWifi ->
-                Line("Доступа нет. Вернётся, как только машина подключится к Wi-Fi", Tone.ATTENTION)
+                Line(AppText.s(R.string.adb_restore_status_waiting_wifi), Tone.ATTENTION)
             AdbRestoreState.NeedsDialog ->
-                if (s.retryBudgetExhausted) Line("Доступа нет: система не включает отладку по Wi-Fi", Tone.BROKEN)
-                else Line("Доступа нет. Жду, пока система включит отладку по Wi-Fi", Tone.ATTENTION)
+                if (s.retryBudgetExhausted) Line(AppText.s(R.string.adb_restore_status_system_refuses), Tone.BROKEN)
+                else Line(AppText.s(R.string.adb_restore_status_waiting_system), Tone.ATTENTION)
             AdbRestoreState.NeedsActivation ->
-                Line("Доступа нет. Через Wi-Fi его не вернуть: машина не доверяет приложению", Tone.BROKEN)
-            is AdbRestoreState.Failed -> Line("Доступ вернуть не удалось. Приложение попробует ещё раз", Tone.BROKEN)
+                Line(AppText.s(R.string.adb_restore_status_untrusted), Tone.BROKEN)
+            is AdbRestoreState.Failed -> Line(AppText.s(R.string.adb_restore_status_failed), Tone.BROKEN)
             AdbRestoreState.Disabled, AdbRestoreState.Unsupported -> null
         }
     }
@@ -55,27 +57,28 @@ object AdbRestoreReport {
         val clock = Clock(nowMs, zone)
         val restore = when (boot.outcome) {
             null -> when (boot.look) {
-                AdbBootLook.OPEN -> "не понадобилось"
-                null -> "ещё не было"
-                else -> "идёт"
+                AdbBootLook.OPEN -> AppText.s(R.string.adb_boot_restore_not_needed)
+                null -> AppText.s(R.string.adb_boot_restore_none)
+                else -> AppText.s(R.string.adb_boot_restore_running)
             }
-            AdbBootOutcome.CONNECTING -> "идёт"
-            AdbBootOutcome.WAITING_WIFI -> "ждёт Wi-Fi"
-            AdbBootOutcome.NEEDS_DIALOG -> "ждёт разрешения системы"
-            AdbBootOutcome.NEEDS_ACTIVATION -> "невозможно"
-            AdbBootOutcome.FAILED -> "не вышло ${clock.at(boot.outcomeAtMs)}"
-            AdbBootOutcome.RESTORED -> "удалось ${clock.at(boot.outcomeAtMs)}${took(boot)}"
-            AdbBootOutcome.RETURNED -> "доступ появился ${clock.at(boot.outcomeAtMs)}"
+            AdbBootOutcome.CONNECTING -> AppText.s(R.string.adb_boot_restore_running)
+            AdbBootOutcome.WAITING_WIFI -> AppText.s(R.string.adb_boot_restore_waiting_wifi)
+            AdbBootOutcome.NEEDS_DIALOG -> AppText.s(R.string.adb_boot_restore_waiting_system)
+            AdbBootOutcome.NEEDS_ACTIVATION -> AppText.s(R.string.adb_boot_restore_impossible)
+            AdbBootOutcome.FAILED -> AppText.s(R.string.adb_boot_restore_failed_at, clock.at(boot.outcomeAtMs))
+            AdbBootOutcome.RESTORED -> tookMs(boot)?.let { AppText.s(R.string.adb_boot_restore_restored_took, clock.at(boot.outcomeAtMs), span(it)) }
+                ?: AppText.s(R.string.adb_boot_restore_restored_at, clock.at(boot.outcomeAtMs))
+            AdbBootOutcome.RETURNED -> AppText.s(R.string.adb_boot_restore_returned_at, clock.at(boot.outcomeAtMs))
         }
         return listOf(
-            "Когда" to clock.day(boot.bootAtMs),
-            "Доступ после неё" to when (boot.look) {
-                AdbBootLook.OPEN -> "был сразу"
-                AdbBootLook.CLOSED -> "был закрыт"
-                AdbBootLook.REFUSED -> "ключ не принят"
-                null -> "ещё не проверен"
+            AppText.s(R.string.adb_boot_when) to clock.day(boot.bootAtMs),
+            AppText.s(R.string.adb_boot_access) to when (boot.look) {
+                AdbBootLook.OPEN -> AppText.s(R.string.adb_boot_look_open)
+                AdbBootLook.CLOSED -> AppText.s(R.string.adb_boot_look_closed)
+                AdbBootLook.REFUSED -> AppText.s(R.string.adb_boot_look_refused)
+                null -> AppText.s(R.string.adb_boot_look_unknown)
             },
-            "Восстановление" to restore,
+            AppText.s(R.string.adb_boot_restore) to restore,
         )
     }
 
@@ -83,23 +86,23 @@ object AdbRestoreReport {
     fun summary(s: AdbRestoreSnapshot, nowMs: Long, zone: TimeZone = TimeZone.getDefault()): Line {
         val boot = s.boot
         return when {
-            !s.enabled -> Line("Выключено")
+            !s.enabled -> Line(AppText.s(R.string.adb_restore_summary_off))
             else -> when (s.state) {
-                AdbRestoreState.Unsupported -> Line("Недоступно на этой версии Android")
-                AdbRestoreState.WaitingWifi -> Line("Ждёт Wi-Fi", Tone.ATTENTION)
+                AdbRestoreState.Unsupported -> Line(AppText.s(R.string.adb_restore_summary_unsupported))
+                AdbRestoreState.WaitingWifi -> Line(AppText.s(R.string.adb_restore_summary_waiting_wifi), Tone.ATTENTION)
                 AdbRestoreState.NeedsDialog ->
-                    if (s.retryBudgetExhausted) Line("Система не включает отладку по Wi-Fi", Tone.BROKEN)
-                    else Line("Ждёт разрешения системы", Tone.ATTENTION)
-                AdbRestoreState.NeedsActivation -> Line("Не может вернуть доступ", Tone.BROKEN)
-                is AdbRestoreState.Failed -> Line("Не вернуло доступ", Tone.BROKEN)
-                AdbRestoreState.Connecting -> Line("Возвращает доступ…")
+                    if (s.retryBudgetExhausted) Line(AppText.s(R.string.adb_restore_summary_system_refuses), Tone.BROKEN)
+                    else Line(AppText.s(R.string.adb_restore_summary_waiting_system), Tone.ATTENTION)
+                AdbRestoreState.NeedsActivation -> Line(AppText.s(R.string.adb_restore_summary_cannot), Tone.BROKEN)
+                is AdbRestoreState.Failed -> Line(AppText.s(R.string.adb_restore_summary_failed), Tone.BROKEN)
+                AdbRestoreState.Connecting -> Line(AppText.s(R.string.adb_restore_summary_connecting))
                 else -> when {
                     boot?.outcome == AdbBootOutcome.RESTORED ->
-                        Line("Вернуло доступ ${Clock(nowMs, zone).moment(boot.outcomeAtMs)}")
+                        Line(AppText.s(R.string.adb_restore_summary_restored_at, Clock(nowMs, zone).moment(boot.outcomeAtMs)))
                     boot?.outcome == AdbBootOutcome.RETURNED ->
-                        Line("Доступ появился ${Clock(nowMs, zone).moment(boot.outcomeAtMs)}")
-                    boot?.look == AdbBootLook.OPEN -> Line("После перезагрузки не понадобилось")
-                    else -> Line("Включено")
+                        Line(AppText.s(R.string.adb_restore_summary_returned_at, Clock(nowMs, zone).moment(boot.outcomeAtMs)))
+                    boot?.look == AdbBootLook.OPEN -> Line(AppText.s(R.string.adb_restore_summary_not_needed))
+                    else -> Line(AppText.s(R.string.adb_restore_summary_on))
                 }
             }
         }
@@ -154,8 +157,20 @@ object AdbRestoreReport {
     }
 
     private fun took(boot: AdbBootRecord): String =
-        if (boot.closedAtMs > 0 && boot.outcomeAtMs >= boot.closedAtMs) ", за ${CloudLinkReport.span(boot.outcomeAtMs - boot.closedAtMs)}"
-        else ""
+        tookMs(boot)?.let { ", за ${CloudLinkReport.span(it)}" }.orEmpty()
+
+    private fun tookMs(boot: AdbBootRecord): Long? =
+        if (boot.closedAtMs > 0 && boot.outcomeAtMs >= boot.closedAtMs) boot.outcomeAtMs - boot.closedAtMs else null
+
+    /** The page's «12 с», «4 мин», «2 ч 5 мин». [CloudLinkReport.span] is the technical page's. */
+    private fun span(ms: Long): String {
+        val seconds = (ms.coerceAtLeast(0L) + 500L) / 1000L
+        return when {
+            seconds < 60 -> AppText.s(R.string.adb_span_seconds, seconds)
+            seconds < 3600 -> AppText.s(R.string.adb_span_minutes, seconds / 60)
+            else -> AppText.s(R.string.adb_span_hours, seconds / 3600, seconds % 3600 / 60)
+        }
+    }
 
     private fun stateWords(state: AdbRestoreState): String = when (state) {
         AdbRestoreState.NotNeeded -> "доступ есть"
@@ -205,19 +220,20 @@ object AdbRestoreReport {
 
         /** «сегодня, 08:10», «вчера, 23:40», «16.10, 08:10». */
         fun day(ms: Long): String = when (daysAgo(ms)) {
-            0 -> "сегодня, ${format(ms, "HH:mm")}"
-            1 -> "вчера, ${format(ms, "HH:mm")}"
+            0 -> AppText.s(R.string.adb_time_today, format(ms, "HH:mm"))
+            1 -> AppText.s(R.string.adb_time_yesterday, format(ms, "HH:mm"))
             else -> format(ms, "dd.MM, HH:mm")
         }
 
         /** «в 08:11», «вчера в 08:11», «16.10 в 08:11» - after a word that says what happened. */
         fun at(ms: Long): String = when (daysAgo(ms)) {
-            0 -> "в ${format(ms, "HH:mm")}"
-            1 -> "вчера в ${format(ms, "HH:mm")}"
-            else -> "${format(ms, "dd.MM")} в ${format(ms, "HH:mm")}"
+            0 -> AppText.s(R.string.adb_at_time, format(ms, "HH:mm"))
+            1 -> AppText.s(R.string.adb_at_yesterday, format(ms, "HH:mm"))
+            else -> AppText.s(R.string.adb_at_date, format(ms, "dd.MM"), format(ms, "HH:mm"))
         }
 
         /** «сегодня в 08:11»: the same, standing alone after a verb. */
-        fun moment(ms: Long): String = if (daysAgo(ms) == 0) "сегодня ${at(ms)}" else at(ms)
+        fun moment(ms: Long): String =
+            if (daysAgo(ms) == 0) AppText.s(R.string.adb_at_today, format(ms, "HH:mm")) else at(ms)
     }
 }

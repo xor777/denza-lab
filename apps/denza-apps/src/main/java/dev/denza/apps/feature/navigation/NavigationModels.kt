@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.navigation
 
 import dev.denza.apps.BuildConfig
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
@@ -41,7 +43,7 @@ object NavigationAppPolicy {
      */
     const val DASHBOARD_PACKAGE: String = BuildConfig.APPLICATION_ID
 
-    const val DASHBOARD_LABEL = "Приборы"
+    val DASHBOARD_LABEL: String get() = AppText.s(R.string.navigation_dashboard_label)
 
     fun isDashboard(packageName: String): Boolean = packageName == DASHBOARD_PACKAGE
 }
@@ -127,12 +129,12 @@ data class NavigationSession(
      * no in-between step to report: showing it is one intent to a service in this same process.
      */
     private fun dashboardLabel(): String =
-        if (phase == NavigationPhase.PROJECTED) "Убрать" else "На приборку"
+        if (phase == NavigationPhase.PROJECTED) AppText.s(R.string.navigation_remove) else AppText.s(R.string.navigation_to_dashboard)
 
     private fun applicationLabel(): String = when (phase) {
-        NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
-        NavigationPhase.OPENING, NavigationPhase.PROJECTING -> "Проверяю"
-        else -> "На приборку"
+        NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> AppText.s(R.string.navigation_return)
+        NavigationPhase.OPENING, NavigationPhase.PROJECTING -> AppText.s(R.string.navigation_checking)
+        else -> AppText.s(R.string.navigation_to_dashboard)
     }
 }
 
