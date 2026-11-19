@@ -28,7 +28,7 @@ how Denza Apps picks the language of its own words.
 | `res/values-en/strings.xml` holds an English copy of every string, a draft awaiting the owner's approval. The app shows it once a driver chooses English in «Сервис». `StringParityTest` holds the keys, placeholders, plural forms and firmware marks to `values/` | code | 2026-11-06 | [The English text](#the-english-text) |
 | A word read on every frame reaches `Resources` once per process, and a steady frame of the Contour or the car page formats nothing (`DrawnWordsCostTest`, on the JVM). What that costs on the head unit has not been timed | code | 2026-11-06 | [Words on a draw loop](#words-on-a-draw-loop) |
 | The contract tests run in Russian and in English, and `DrawnWordsFitTest` measures every word drawn in a fixed cell in the font files, in both | code | 2026-11-06 | [What is tested in English](#what-is-tested-in-english) |
-| `hud_glass_cameras` stays inside the HUD panel's glass picture at both widths in both languages. The owner shortened the Russian to «Камеры»; the panel's row keeps «Камеры и опасности» | code | 2026-11-07 | [What is tested in English](#what-is-tested-in-english) |
+| Superseded 2026-11-19: the glass picture names its parts with the rows' own words (`hud_panel_*_title`, `hud_panel_map`), each a flag hanging from its line, and the `hud_glass_sign`/`turn`/`map`/`cameras` keys are gone. `theCamerasLabelAgainstTheGlasssLeftEdge` holds the flag inside the picture at both widths in both languages | code | 2026-11-19 | [What is tested in English](#what-is-tested-in-english) |
 | In English the capture sends the HUD's `SUMMARY_DISTANCE` and `SUMMARY_TIME` in English words (`HudSummaryWords.SEND_ENGLISH_TO_GLASS`). Russian bytes are frozen by `HudWireGoldenTest`. The YandexHUD module stays Russian and was not rebuilt. No car has drawn the English | code | 2026-11-06 | [Words that leave the app or get stored](#words-that-leave-the-app-or-get-stored) |
 | `AppText`'s `Resources` path has been compiled and has never run, on a car or on an emulator | open | 2026-11-06 | [The holder](#the-holder) |
 
@@ -742,6 +742,11 @@ Usage -188.8 kWh/100 km · last 0.0 km, is 226.4 of 392 in a one-third pane and 
 wider two.
 `contour_unit_millivolt`, `strip_unit_*`, `strip_road_*`, `hud_glass_unit_*`, `hud_glass_distance` and
 `hud_radar_unit_*` are a few dp wider than the Russian and all fit, so none of them changed.
+
+**Superseded on 2026-11-19:** the picture's labels are the rows' own words now, «Камеры и опасности» and
+Cameras and hazards among them, and a label is no longer centred on its line: it hangs from it like a flag,
+from 3 dp left of it, or ending 4 dp right of it where it would run off the glass. `hud_glass_cameras` is
+gone. What follows is the record of the centred label.
 
 `hud_glass_cameras` did change, in both languages. The label is in Roboto 13/500, centred on the lane window at
 52, or 46 in a pane, so it has 104 dp and 92 dp inside the glass picture. «Камеры и опасности» is 127.8 dp and

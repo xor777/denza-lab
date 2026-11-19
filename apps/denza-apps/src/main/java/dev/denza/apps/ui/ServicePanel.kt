@@ -105,8 +105,17 @@ internal data class ServiceModel(
             val missing = phase != AdbRescuePhase.TRUSTED && phase != AdbRescuePhase.UNKNOWN && !busy
             val (status, tone) = when {
                 missing -> NO_ACCESS to DenzaTileTone.BROKEN
-                // The service tile's own words: the count the panel's rows add up to.
-                trouble.isNotEmpty() -> tiles.first { it.id == TileId.SERVICE }.state to DenzaTileTone.ATTENTION
+                // The service tile's count and colour: what the panel's rows add up to, in the colour
+                // of the worst of them. Broken, the panel says it whole - «2 функции не работают» -
+                // where the tile's face has room for «2 не работают» only.
+                trouble.isNotEmpty() -> tiles.first { it.id == TileId.SERVICE }.let { door ->
+                    val words = if (door.tone == DenzaTileTone.BROKEN) {
+                        AppText.p(R.plurals.service_broken, trouble.size, trouble.size)
+                    } else {
+                        door.state
+                    }
+                    words to door.tone
+                }
                 else -> null to null
             }
             return ServiceModel(
@@ -176,11 +185,18 @@ internal fun ServicePanel(
         dev.denza.apps.feature.diagnostics.ui.DiagnosticsSection { page = ServicePage.MAIN }
         return
     }
+    // Read here rather than in the page: its button stands at the panel's foot, outside the page.
+    val traffic = if (page == ServicePage.MOBILE_INTERNET) rememberTrafficMonitor(trafficMonitorFixture) else null
     DenzaSheet(
         onDismiss = { if (page == ServicePage.MAIN) onDismiss() else back() },
         compact = compactLayout,
         scrollState = scrolls.getValue(page),
-        footer = { if (page == ServicePage.MAIN) DenzaSheetFootnote(version) },
+        footer = {
+            when {
+                page == ServicePage.MAIN -> DenzaSheetFootnote(version)
+                traffic != null -> ServiceMobileInternetFooter(traffic)
+            }
+        },
     ) {
         when (page) {
             ServicePage.DIAGNOSTICS -> Unit
@@ -221,7 +237,7 @@ internal fun ServicePanel(
             }
             ServicePage.MOBILE_INTERNET -> {
                 DenzaSheetHeader(title = TrafficMonitorText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
-                ServiceMobileInternetPage(trafficMonitorFixture)
+                traffic?.let { ServiceMobileInternetPage(it) }
             }
             ServicePage.WARNINGS -> {
                 DenzaSheetHeader(title = WarningText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)

@@ -96,6 +96,7 @@ internal object SheetFixtures {
                         busy = traffic.optBoolean("busy"),
                         error = traffic.optString("error").takeIf { it.isNotBlank() && it != "null" },
                         result = traffic.optString("result").takeIf { it.isNotBlank() && it != "null" },
+                        stayedOn = traffic.optBoolean("stayedOn"),
                     )
                 } ?: TrafficMonitorSnapshot(),
                 warningsFixture = s.optJSONObject("warnings")?.let(WarningsFixture::view),
@@ -182,10 +183,12 @@ internal object SheetFixtures {
             state = state.copy(
                 hudGuidance = FeatureReducer.needsAction(
                     FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                    "Нет доступа",
+                    AppText.s(R.string.feature_no_access),
                     resolution = FeatureResolution.RETRY,
                 ),
-                cloudLink = FeatureSnapshot(FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = "Не включилось"),
+                cloudLink = FeatureSnapshot(
+                    FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = AppText.s(R.string.feature_refused_on),
+                ),
             )
         }
         return state

@@ -285,7 +285,8 @@ fun DenzaSectionLabel(title: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * A panel's closing note: what pressing the tile does, said once, under the action it describes.
+ * A panel's quiet last line at its foot - the service's version. Not a second explanation of a
+ * button: what a press on a tile does is the tile's to show.
  */
 @Composable
 fun DenzaSheetFootnote(text: String, modifier: Modifier = Modifier) {

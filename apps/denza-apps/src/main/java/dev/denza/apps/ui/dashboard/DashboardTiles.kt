@@ -111,7 +111,7 @@ object DashboardTiles {
     /**
      * Every tile on the main screen, in the order the Luminofor boards place them.
      *
-     * Twelve - two full rows of six - with the service door last. The Shortcuts tile is not a
+     * Twelve - two full rows of six - with the service door last. The «Приложения» tile is not a
      * runtime feature: it is the settings entry for the three stock Shortcuts roles. The cloud link
      * stands between it and the door, the last of the things the car is set to do.
      */
@@ -261,7 +261,7 @@ object DashboardTiles {
             state = caption(
                 snapshot,
                 // "6 приложений" made this tile read like a second application selector beside
-                // Shortcuts, one row along; "выбрано" names the projection's own fact.
+                // «Приложения», one row along; "выбрано" names the projection's own fact.
                 if (state.selectedAppCount == 0) {
                     FeatureWords.NOT_CHOSEN
                 } else {
@@ -444,7 +444,7 @@ object DashboardTiles {
             // The language in its own word for itself, which is the word the list the press opens
             // writes on the row that is selected.
             state = state.systemLanguage.name,
-            // Quiet, like "Штатные" on the Shortcuts tile: a setting showing its value, not a
+            // Quiet, like "Штатные" on the «Приложения» tile: a setting showing its value, not a
             // feature that is running. There is no "off" to be grey about - the car is always
             // speaking something - and the subtitle says which.
             tone = DenzaTileTone.IDLE,
@@ -475,14 +475,14 @@ object DashboardTiles {
         )
     }
 
-    /** The launch targets used by the car's own navigation, music and video Shortcuts actions. */
+    /** The launch targets used by the car's own navigation, music and video commands. */
     private fun defaultApps(state: DenzaUiState): DashboardTile {
         val defaults = state.defaultApps
         val configured = defaults.configuredCount
         return DashboardTile(
             id = TileId.DEFAULT_APPS,
             icon = TileIcon.DEFAULT_APPS,
-            name = "Shortcuts",
+            name = AppText.s(R.string.tile_default_apps_name),
             state = when {
                 defaults.hasError -> AppText.s(R.string.tile_default_apps_unchecked)
                 defaults.reading -> AppText.s(R.string.tile_default_apps_checking)
@@ -492,8 +492,11 @@ object DashboardTiles {
                 defaults.substituting -> configuredApps(configured)
                 else -> AppText.s(R.string.tile_default_apps_stock)
             },
+            // A role the car has not answered for is not a fault: the car runs its own applications
+            // meanwhile, and «Не проверено» says so in the quiet grey under a lit plate. Coral here
+            // made the service count a feature as broken that nobody could fix.
             tone = when {
-                defaults.hasError -> DenzaTileTone.BROKEN
+                defaults.hasError -> DenzaTileTone.LIVE
                 defaults.reading -> DenzaTileTone.WORKING
                 defaults.substituting -> DenzaTileTone.LIVE
                 else -> DenzaTileTone.IDLE
@@ -556,21 +559,23 @@ object DashboardTiles {
         // list the panel behind it prints. The seven-feature count it replaces could not see a
         // stuck language or an unread application role at all.
         //
-        // Broken and waiting counted together, and amber either way, which is what the board
-        // draws: one broken feature and one waiting reads "2 функции ждут". Coral would be this
-        // tile claiming to be the thing that failed, and nothing about a door has failed - it is
-        // the room behind it that needs somebody. The count is how many things need one.
+        // Broken and waiting are counted together - the count is how many things need somebody -
+        // and the line takes the worst of them, words and colour: one broken feature among them
+        // reads "2 не работают" in coral - the face has no room for «функции» beside it, the panel
+        // behind says it whole - and all of them waiting "2 функции ждут" in amber.
+        // A summary in amber over a broken row said the worst thing on the car was a decision.
         val needing = others.count { needsSomebody(it.tone) }
+        val tone = DenzaTileTone.summary(others.map { it.tone })
         return DashboardTile(
             id = TileId.SERVICE,
             icon = TileIcon.SERVICE,
             name = AppText.s(R.string.tile_service_name),
-            state = if (needing > 0) {
-                AppText.p(R.plurals.tile_service_waiting, needing, needing)
-            } else {
-                AppText.s(R.string.tile_service_all_fine)
+            state = when (tone) {
+                DenzaTileTone.BROKEN -> AppText.p(R.plurals.tile_service_broken, needing, needing)
+                DenzaTileTone.ATTENTION -> AppText.p(R.plurals.tile_service_waiting, needing, needing)
+                else -> AppText.s(R.string.tile_service_all_fine)
             },
-            tone = if (needing > 0) DenzaTileTone.ATTENTION else DenzaTileTone.IDLE,
+            tone = tone,
             // A reading of the car, not a setting - so on a healthy car it stays grey, and when it
             // is not grey the tone has already said which kind of trouble it is.
             caption = DenzaTileCaption.READING,

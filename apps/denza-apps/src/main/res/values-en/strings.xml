@@ -5,7 +5,6 @@
     <string name="split_picker_a11y_service_desc">Controls the choice of apps and a safe exit from split screen.</string>
     <string name="navigation_transfer_overlay_text">Moving…</string>
     <string name="split_launch_overlay_text">Starting split screen…</string>
-    <string name="speaker_examples">Yandex Music, Spotify, YouTube, Kinopoisk, stock player</string>
     <string name="speaker_channel_name">Speakers</string>
     <string name="speaker_channel_description">Speakers rise when music is playing</string>
     <string name="speaker_notification_automatic">Automatic speaker control on</string>
@@ -30,7 +29,7 @@
     <string name="network_not_found_not_run">Monitor not found. Command not run.</string>
     <string name="network_check_failed_not_run">Could not check state. Command not run.</string>
     <string name="network_state_unconfirmed">Could not confirm monitor state</string>
-    <string name="network_disable_failed">Could not turn off monitor</string>
+    <string name="network_stayed_on">Stayed on</string>
     <string name="network_answer_unconfirmed">State changed, but the command\'s answer is not confirmed</string>
     <string name="network_disable_confirmed">Turn-off confirmed</string>
     <string name="network_title">Mobile internet</string>
@@ -192,6 +191,7 @@
     <string name="tile_speakers_off">Off</string>
     <string name="tile_locale_name">Car language</string>
     <string name="tile_passenger_name">Right screen</string>
+    <string name="tile_default_apps_name">Apps</string>
     <string name="tile_default_apps_unchecked">Not checked</string>
     <string name="tile_default_apps_checking">Checking…</string>
     <string name="tile_default_apps_stock">Stock</string>
@@ -202,13 +202,20 @@
         <item quantity="one">%1$d feature waits</item>
         <item quantity="other">%1$d features wait</item>
     </plurals>
+    <plurals name="tile_service_broken">
+        <item quantity="one">%1$d not working</item>
+        <item quantity="other">%1$d not working</item>
+    </plurals>
+    <plurals name="service_broken">
+        <item quantity="one">%1$d feature not working</item>
+        <item quantity="other">%1$d features not working</item>
+    </plurals>
     <plurals name="tile_default_apps_configured">
         <item quantity="one">%1$d set up</item>
         <item quantity="other">%1$d set up</item>
     </plurals>
 
     <!-- Feature panels -->
-    <string name="sheet_tile_press_note">A short press on the tile does the same</string>
     <string name="sheet_launch">Launch</string>
     <string name="sheet_split_now">Split the screen</string>
     <string name="sheet_choose_app">Choose an app</string>
@@ -217,7 +224,7 @@
     <string name="sheet_turn_off">Turn off</string>
     <string name="sheet_turn_on">Turn on</string>
     <string name="sheet_continue">Continue</string>
-    <string name="sheet_cluster_help">The cluster behind the wheel shows one thing at a time: the instruments or any app on the car. A short press on the tile puts it there and takes it back.</string>
+    <string name="sheet_cluster_help">The screen behind the wheel shows the instruments or any app on the car.</string>
     <string name="sheet_cluster_placement">Placement</string>
     <string name="sheet_cluster_wheel_button">★ button on the wheel</string>
     <string name="sheet_cluster_map_card_title">Map in the right window</string>
@@ -226,9 +233,9 @@
     <string name="sheet_placement_left">Left</string>
     <string name="sheet_placement_center">Centre</string>
     <string name="sheet_placement_right">Right</string>
-    <string name="sheet_simulcast_help">The chosen apps show on the passenger screen and the rear screen. Launch opens them there at once.</string>
+    <string name="sheet_simulcast_help">The chosen apps go to the passenger screen and the rear screen.</string>
     <string name="sheet_simulcast_support">Simulcast support</string>
-    <string name="sheet_mirrors_help">When a turn signal is on, the camera on that side appears on the screen and goes away with the signal. “In the centre” shows both cameras, one above the other.</string>
+    <string name="sheet_mirrors_help">With a turn signal on, the screen shows that side\'s camera.</string>
     <string name="sheet_mirrors_check">Check cameras</string>
     <string name="sheet_mirrors_switch">Mirrors</string>
     <string name="sheet_mirrors_where">Where to show</string>
@@ -240,14 +247,14 @@
     <string name="sheet_weather_help">The app fetches the forecast and hands it to the stock weather widget. It draws no weather of its own, and the widget stays stock.</string>
     <string name="sheet_weather_widget_data">Data for the widget</string>
     <string name="sheet_weather_given">Sent to the widget %1$s</string>
-    <string name="sheet_speakers_help">The speakers rise when music is playing or a player is open, including apps the car does not count as its own (%1$s). The car lowers them itself. “Raise” brings them up again if the car lowered them while idle.</string>
+    <string name="sheet_speakers_help">The speakers rise for music from any app.</string>
     <string name="sheet_speakers_auto">Automatic speaker control</string>
     <string name="sheet_speakers_raise">Raise</string>
-    <string name="sheet_cloud_help">The car reaches the cloud over Wi-Fi or mobile internet, and the Denza app on your phone works with it as usual: it shows the car\'s status and controls the car. The link comes back if the modem sees a Chinese ICCID, from the original eSIM or from an rSIM. “Keep Wi-Fi on” stops the car turning Wi-Fi off when it goes to sleep, so the link stays while parked.</string>
+    <string name="sheet_cloud_help">The Denza app on the phone controls the car.</string>
     <string name="sheet_cloud_keep_link">Keep the cloud link up</string>
     <string name="sheet_cloud_keep_wifi">Keep Wi-Fi on</string>
     <string name="sheet_cloud_keep_wifi_cost">The battery may drain faster while parked</string>
-    <string name="sheet_locale_help">The language changes for the whole car, not for the app: the car itself opens the list, which has forty languages, and the chosen one applies at once, with no restart.</string>
+    <string name="sheet_locale_help">The language changes for the whole car at once, with no restart.</string>
     <string name="sheet_service_help">Car readings, the app\'s access to the car, and the stock settings it can reach.</string>
 
     <!-- HUD panel -->
@@ -271,7 +278,6 @@
     <string name="hud_panel_cameras_from">From HUD Speed</string>
 
     <!-- Default applications panel -->
-    <string name="defaultapps_sheet_title">Default apps</string>
     <string name="defaultapps_sheet_switch">Replace apps</string>
     <string name="defaultapps_sheet_searching">Looking for installed apps…</string>
     <string name="defaultapps_role_navigation">Navigation</string>
@@ -290,7 +296,7 @@
     <!-- Quotes the firmware's own Shortcuts actions, as the English UI names them in
          docs/shortcuts-automation-findings.md: Navi → Access map, Video → Open video, Music → Continue
          playing, Music → Open music. The Russian «Открыть навигацию» is the action English calls Access map. -->
-    <string name="defaultapps_sheet_help">Stock Shortcuts open apps on command: “Access map” and “Open video” start the ones chosen here. On this firmware music is started by “Continue playing” when nothing is playing; “Open music” always opens the stock player.</string>
+    <string name="defaultapps_sheet_help">The car\'s commands open the navigator and the video app chosen here, and the chosen player carries on the music.</string>
 
     <!-- Application choosers -->
     <string name="chooser_nothing_found">Nothing found</string>
@@ -588,17 +594,10 @@
     <string name="vehicle_closed_no_channel">No link with the car</string>
     <string name="vehicle_closed_no_answer">Car not answering</string>
 
-    <!-- The HUD panel's picture of the glass, in Roboto 13/500 at 432 dp wide and at 384 in a pane.
-         Half widths of hud_glass_turn and hud_glass_sign must sum to under 81, and 72 in a pane; English 28.
-         hud_glass_cameras is centred at 52, 46 in a pane, so it has 104 and 92 inside the picture. English 90.
-         "Cameras and hazards" is 127 and would run past the left edge, as the Russian row's 128 would. -->
+    <!-- The HUD panel's picture of the glass; its parts are named by their rows' own titles (hud_panel_*). -->
     <string name="hud_glass_unit_speed">km/h</string>
     <string name="hud_glass_distance">350 m</string>
     <string name="hud_glass_unit_metres">m</string>
-    <string name="hud_glass_sign">Limit</string>
-    <string name="hud_glass_turn">Turn</string>
-    <string name="hud_glass_map">Map</string>
-    <string name="hud_glass_cameras">Speed cameras</string>
 
     <!-- HUD Speed's warning, drawn into the picture the HUD's lane window shows, at half the digits' size. -->
     <string name="hud_radar_unit_metres">m</string>

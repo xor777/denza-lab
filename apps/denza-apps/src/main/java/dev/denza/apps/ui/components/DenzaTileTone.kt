@@ -52,5 +52,21 @@ enum class DenzaTileTone {
          */
         fun shown(tone: DenzaTileTone, enabled: Boolean): DenzaTileTone =
             if (enabled) tone else IDLE
+
+        /**
+         * The colour of a line that sums others up: the worst of them. One broken row makes the
+         * summary coral, a row waiting on the driver and none broken makes it amber, and nothing
+         * needing anybody leaves it [IDLE] - a summary is quiet when the rows under it are.
+         *
+         * A summary in amber over a coral row told the driver that the worst thing on the panel was
+         * a decision, when it was a fault. And nothing grey can climb: [LIVE], [IDLE] and [WORKING]
+         * are not trouble, so a role the car has not answered for yet, drawn as unchecked rather
+         * than broken, adds nothing to the count and nothing to the colour.
+         */
+        fun summary(tones: Iterable<DenzaTileTone>): DenzaTileTone = when {
+            tones.any { it == BROKEN } -> BROKEN
+            tones.any { it == ATTENTION } -> ATTENTION
+            else -> IDLE
+        }
     }
 }

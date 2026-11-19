@@ -1,8 +1,5 @@
 package dev.denza.apps.ui.dashboard
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -21,7 +18,6 @@ import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
-import dev.denza.apps.feature.speaker.SpeakerCoverApps
 import dev.denza.apps.ui.FSE_INSTALL_HELP
 import dev.denza.apps.ui.NAVIGATION_CHOICE_TITLE
 import dev.denza.apps.ui.NavigationAppChooser
@@ -39,7 +35,6 @@ import dev.denza.apps.ui.components.DenzaSection
 import dev.denza.apps.ui.components.DenzaSegmentedRow
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
-import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaStatusLine
 import dev.denza.apps.ui.components.DenzaSwitchLine
 import dev.denza.apps.ui.components.DenzaSwitchRow
@@ -116,7 +111,16 @@ fun FeatureSheet(
                     )
                 }
             } else if (action.label.isNotBlank()) {
-                Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M)) {
+                // The button and nothing under it: what a press on the tile does is the tile's to
+                // show, and a footnote saying so was one more line to read before driving off.
+                if (action.secondary) {
+                    DenzaSecondaryButton(
+                        text = action.label,
+                        onClick = action.onClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !busy && action.enabled,
+                    )
+                } else {
                     DenzaPrimaryButton(
                         text = action.label,
                         onClick = action.onClick,
@@ -124,9 +128,6 @@ fun FeatureSheet(
                             .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
                         enabled = !busy && action.enabled,
                     )
-                    if (action.isTheTilePress) {
-                        DenzaSheetFootnote(AppText.s(R.string.sheet_tile_press_note))
-                    }
                 }
             }
         },
@@ -236,10 +237,9 @@ internal fun helpOf(id: TileId): String = when (id) {
     TileId.SPLIT -> AppText.s(R.string.sheet_split_help)
     TileId.HUD -> ""
     TileId.WEATHER -> AppText.s(R.string.sheet_weather_help)
-    TileId.SPEAKERS -> AppText.s(R.string.sheet_speakers_help, SpeakerCoverApps.EXAMPLES)
-    // The one condition the car does not show: the cloud recognises it by the ICCID the modem
-    // presents, so without a Chinese one the tile says «Нет связи» on working internet, and this
-    // is the only place that says why.
+    TileId.SPEAKERS -> AppText.s(R.string.sheet_speakers_help)
+    // What the link is for, which a switch named after the cloud does not say. The ICCID the cloud
+    // recognises the car by is no longer said here: the sentence is the feature, not its plumbing.
     TileId.CLOUD -> AppText.s(R.string.sheet_cloud_help)
     TileId.LOCALE -> AppText.s(R.string.sheet_locale_help)
     // The tile no longer opens a panel - both of its gestures open the chooser, and the sentence
@@ -266,15 +266,15 @@ internal fun helpOf(id: TileId): String = when (id) {
  * the feature is off and nothing in it said why, because the switch that would have said so was
  * the one thing missing.
  *
- * [isTheTilePress] is what the footnote is allowed to promise. The button usually is the tile's
- * own press said in words, and where it is not - the mirrors panel previews the cameras, it does
- * not stop watching them - the footnote goes rather than becoming untrue.
+ * The button stands at the panel's foot, whichever panel it is: the eye finds the one thing to do
+ * in one place. [secondary] is the quiet one, for an action beside a switch that already holds the
+ * feature - the speakers' lift - rather than the panel's whole point.
  */
 private data class PanelAction(
     val label: String,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
-    val isTheTilePress: Boolean = true,
+    val secondary: Boolean = false,
 )
 
 private fun panelAction(
@@ -291,7 +291,6 @@ private fun panelAction(
             label = AppText.s(R.string.sheet_mirrors_check),
             onClick = { actions.onPreviewMirrors(); onDismiss() },
             enabled = state.mirrors.desiredEnabled,
-            isTheTilePress = false,
         )
         // The tile presses this into a toggle while projection is off; the panel does not, because
         // the switch above is already that decision.
@@ -299,10 +298,20 @@ private fun panelAction(
             label = AppText.s(R.string.sheet_launch),
             onClick = { actions.onLaunchSimulcast(); onDismiss() },
             enabled = state.simulcast.desiredEnabled,
-            isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
+        )
+        // One button, and the missing one is the point. The car has no close command; the only
+        // thing that puts the covers away on demand is switching the car's own auto-lift off, which
+        // costs the driver their stock automation for the rest of the trip. A button labelled
+        // «Опустить» would look like half of a pair and spend exactly that on every press. It stays
+        // open: the covers rising are what the driver is waiting to see.
+        TileId.SPEAKERS -> PanelAction(
+            label = AppText.s(R.string.sheet_speakers_raise),
+            onClick = actions.onRaiseSpeakerCovers,
+            enabled = !state.speakerCoversReporting,
+            secondary = true,
         )
         // Their switch is in the panel, so the foot would only be that switch again.
-        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS, TileId.CLOUD -> PanelAction(
+        TileId.HUD, TileId.WEATHER, TileId.CLOUD -> PanelAction(
             label = "",
             onClick = {},
         )
@@ -562,28 +571,12 @@ private const val WEATHER_AGE_TICK_MS = 30_000L
  */
 @Composable
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    val reporting = busy || state.speakerCoversReporting
     DenzaSwitchRow(
         title = AppText.s(R.string.sheet_speakers_auto),
         checked = state.speakerCovers.desiredEnabled,
         onCheckedChange = actions.onToggleSpeakerCovers,
         enabled = !busy,
     )
-    // One button, and the missing one is the point. The car has no close command; the only thing
-    // that puts the covers away on demand is switching the car's own auto-lift off, which costs the
-    // driver their stock automation for the rest of the trip. A button labelled «Опустить» would
-    // look like half of a pair and spend exactly that on every press.
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-    ) {
-        DenzaSecondaryButton(
-            text = AppText.s(R.string.sheet_speakers_raise),
-            onClick = actions.onRaiseSpeakerCovers,
-            modifier = Modifier.weight(1f),
-            enabled = !reporting,
-        )
-    }
 }
 
 /**

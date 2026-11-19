@@ -289,25 +289,40 @@ open class DrawnWordsFitTest {
         /** The middle of the lane window, which the camera's label centres on. */
         val cameras = x(G.LANES) + strip / 2
 
+        /**
+         * Where a part's name lies: a flag from its line, from 3 dp left of it, or ending 4 dp right
+         * of it where it would run off the glass's right edge - `GlassDrawing`'s rule.
+         */
+        fun flag(cx: Float, word: String): Pair<Float, Float> {
+            val w = label(word)
+            return if (cx - 3f + w > width) (cx + 4f - w) to (cx + 4f) else (cx - 3f) to (cx - 3f + w)
+        }
+
         fun cells(): List<Cell> {
             val surface = "glass at ${width.toInt()}"
-            val signWord = AppText.s(R.string.hud_glass_sign)
-            val turnWord = AppText.s(R.string.hud_glass_turn)
-            val mapWord = AppText.s(R.string.hud_glass_map)
-            val camerasWord = AppText.s(R.string.hud_glass_cameras)
+            // The rows' own words: the picture names its parts as the switches under it do.
+            val signWord = AppText.s(R.string.hud_panel_sign_title)
+            val turnWord = AppText.s(R.string.hud_panel_turns_title)
+            val mapWord = AppText.s(R.string.hud_panel_map)
+            val camerasWord = AppText.s(R.string.hud_panel_cameras_title)
             val distance = AppText.s(R.string.hud_glass_distance)
             val speed = AppText.s(R.string.hud_glass_unit_speed)
             val metres = AppText.s(R.string.hud_glass_unit_metres)
             val digits = G.Warning.DIGITS * q
             val tile = (G.Warning.TILE + G.Warning.GAP) * q
             val afterDigits = 2 * tile + strong.width("350", digits) + G.Warning.GAP * q / 2
+            val (turnFrom, turnTo) = flag(turn, turnWord)
+            val (signFrom, signTo) = flag(sign, signWord)
+            val (mapFrom, mapTo) = flag(map, mapWord)
+            val (camerasFrom, camerasTo) = flag(cameras, camerasWord)
             return listOf(
-                Cell(surface, "the turn's label, from the left edge", turnWord, label(turnWord), 2 * turn),
-                Cell(surface, "the turn's and the sign's labels", "$turnWord $signWord", (label(turnWord) + label(signWord)) / 2, sign - turn),
-                Cell(surface, "the sign's and the map's labels", "$signWord $mapWord", (label(signWord) + label(mapWord)) / 2, map - sign),
-                Cell(surface, "the map's label, to the right edge", mapWord, label(mapWord), 2 * (width - map)),
-                Cell(surface, "the cameras' label, in the window", camerasWord, label(camerasWord), 2 * (cameras + windowPad)),
-                Cell(surface, "the cameras' label, to the right edge", camerasWord, label(camerasWord), 2 * (width - cameras)),
+                // A cell's width is where a name ends, its room where the next one starts.
+                Cell(surface, "the turn's label, from the left edge", turnWord, -turnFrom, 0f),
+                Cell(surface, "the turn's and the sign's labels", "$turnWord $signWord", turnTo + FLAG_AIR, signFrom),
+                Cell(surface, "the sign's and the map's labels", "$signWord $mapWord", signTo + FLAG_AIR, mapFrom),
+                Cell(surface, "the map's label, to the right edge", mapWord, mapTo, width),
+                Cell(surface, "the cameras' label, in the window", camerasWord, -camerasFrom, windowPad),
+                Cell(surface, "the cameras' label, to the right edge", camerasWord, camerasTo, width),
                 Cell(surface, "the speed's unit", speed, sans.width(speed, h(G.UNIT) * 0.72f), w(G.UNIT)),
                 Cell(surface, "the turn's distance", distance, strong.width(distance, h(G.DISTANCE) * 0.62f), w(G.DISTANCE)),
                 Cell(surface, "the lane's unit", metres, sans.width(metres, digits * G.Warning.UNIT), strip - afterDigits),
@@ -315,7 +330,7 @@ open class DrawnWordsFitTest {
         }
 
         /** How far the cameras' label stands past the glass's own left edge; below nothing, it is inside. */
-        val overrun get() = label(AppText.s(R.string.hud_glass_cameras)) / 2 - cameras
+        val overrun get() = -flag(cameras, AppText.s(R.string.hud_panel_cameras_title)).first
     }
 
     /** The two widths the panel opens at: its 480 less 24 each side, a pane's 416 less 16. */
@@ -327,9 +342,9 @@ open class DrawnWordsFitTest {
     }
 
     /**
-     * The label is centred on the lane window, near the glass's left edge, so it can be no wider than
-     * twice that distance. The panel's row, «Камеры и опасности», would not fit; the label is shorter
-     * in both languages, and this holds it inside the picture at both widths.
+     * The cameras' label hangs from the lane window, near the glass's left edge, as a flag starting
+     * just left of its line: the row's own words, «Камеры и опасности», run to the right of it, and
+     * this holds its start inside the picture at both widths.
      */
     @Test
     fun theCamerasLabelAgainstTheGlasssLeftEdge() {
@@ -629,6 +644,9 @@ open class DrawnWordsFitTest {
     }
 
     private companion object {
+        /** The least air between two of the glass's names on one line. */
+        const val FLAG_AIR = 6f
+
         /** Panel 480 less 24 each side; the pane's 416 less 16. */
         val GLASS_FULL = Sheet.Panel.WIDTH - 2 * Sheet.Panel.PAD_X
         val GLASS_ONE_THIRD = Head.One.WIDTH - 2 * Sheet.Compact.PAD_X

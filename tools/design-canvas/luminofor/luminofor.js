@@ -1046,7 +1046,7 @@
       });
       words(c, '60', cx, centred(cy, rr * 0.95), rr * 0.95, 1, { w: 500, align: 'center' });
     } else dashed(sg);
-    parts.push({ text: 'Ограничение', at: sg, up: true, on: !!b.sign });
+    parts.push({ text: 'Ограничение скорости', at: sg, up: true, on: !!b.sign });
     // the manoeuvre: an arrow and the metres to it
     const tn = R(GL.rects.turn), ds = R(GL.rects.distance), turnBox = [tn[0], tn[1], ds[0] + ds[2] - tn[0], ds[3]];
     if (b.turn) {
@@ -1059,7 +1059,7 @@
       });
       words(c, '350 м', ds[0], centred(ds[1] + ds[3] * 0.42, ds[3] * 0.62), ds[3] * 0.62, 1, { w: 500 });
     } else dashed(turnBox);
-    parts.push({ text: 'Манёвр', at: turnBox, up: true, on: !!b.turn });
+    parts.push({ text: 'Манёвры', at: turnBox, up: true, on: !!b.turn });
     // the map window: an illustration of the navigator's map with one of its own marks
     const mp = R(GL.rects.map), M = GL.map;
     if (b.map) over(c, () => {
@@ -1120,8 +1120,10 @@
         }
       });
     } else dashed(strip);
-    parts.push({ text: 'Камеры', at: strip, up: false, on: !!b.cameras });
-    // each part named by a thin line, above the glass or below it
+    parts.push({ text: 'Камеры и опасности', at: strip, up: false, on: !!b.cameras });
+    // each part named by a thin line, above the glass or below it, in the words of its own row under
+    // the picture; a name hangs from its line like a flag, so the long ones pass each other - from
+    // its left, or from its right where it would run off the glass's right edge
     const L = GL.label, LN = GL.line;
     parts.forEach(p => {
       const cx = p.at[0] + p.at[2] / 2;
@@ -1132,7 +1134,8 @@
         c.fillStyle = hexA(LN.color, p.on ? LN.alpha : LN.offAlpha); c.beginPath(); c.arc(cx + 0.5, to, LN.dot, 0, Math.PI * 2); c.fill();
       });
       const base = p.up ? y + L.size * RB.ascent : gy + h + L.room - L.size * RB.descent;
-      words(c, p.text, cx, base, L.size, p.on ? L.alpha : L.offAlpha, { w: 500, align: 'center' });
+      const flagRight = cx - 3 + wordsW(c, p.text, L.size, 500) > x + w;
+      words(c, p.text, flagRight ? cx + 4 : cx - 3, base, L.size, p.on ? L.alpha : L.offAlpha, { w: 500, align: flagRight ? 'right' : 'left' });
     });
     return L.room + h + L.room;
   }

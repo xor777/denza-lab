@@ -56,10 +56,10 @@ class DashboardTilesTest {
     }
 
     @Test
-    fun hudAndShortcutsUseTheirDashboardNames() {
+    fun hudAndApplicationsUseTheirDashboardNames() {
         val state = DenzaUiState()
         assertEquals("HUD Подсказки", state.tile(TileId.HUD).name)
-        assertEquals("Shortcuts", state.tile(TileId.DEFAULT_APPS).name)
+        assertEquals("Приложения", state.tile(TileId.DEFAULT_APPS).name)
     }
 
     @Test
@@ -142,10 +142,10 @@ class DashboardTilesTest {
                 simulcast = snapshot(FeatureStatus.ERROR),
             ),
         ).first { it.id == TileId.SERVICE }
-        // Broken and waiting count together and read amber, which is what `Attention.dc.html`
-        // draws for exactly this pair. Coral here would be the door claiming to be the fault.
-        assertEquals("2 функции ждут", hurt.state)
-        assertEquals(DenzaTileTone.ATTENTION, hurt.tone)
+        // Broken and waiting count together, and the line takes the worst of them: one broken
+        // among them reads coral, in the broken words - as short as the tile's face holds them.
+        assertEquals("2 не работают", hurt.state)
+        assertEquals(DenzaTileTone.BROKEN, hurt.tone)
     }
 
     /**
@@ -168,12 +168,17 @@ class DashboardTilesTest {
 
         val needing = DashboardTiles.attentionTiles(state)
         assertEquals(
-            listOf(TileId.MIRRORS, TileId.SPEAKERS, TileId.DEFAULT_APPS),
+            listOf(TileId.MIRRORS, TileId.SPEAKERS),
             needing.map { it.id },
         )
         // Whatever the door says is the length of that list, said in Russian.
-        assertEquals("3 функции ждут", state.tile(TileId.SERVICE).state)
+        assertEquals("2 функции ждут", state.tile(TileId.SERVICE).state)
         assertEquals(DenzaTileTone.ATTENTION, state.tile(TileId.SERVICE).tone)
+        // A role the car has not answered for is unchecked, in the quiet grey: not a fault, and not
+        // on the door's list.
+        val roles = state.tile(TileId.DEFAULT_APPS)
+        assertEquals("Не проверено", roles.state)
+        assertEquals(DenzaTileTone.LIVE, roles.tone)
     }
 
     @Test
@@ -294,7 +299,7 @@ class DashboardTilesTest {
         assertEquals("3 настроены", DashboardTiles.configuredApps(3))
 
         val tile = DenzaUiState(defaultApps = configuredDefaults(2)).tile(TileId.DEFAULT_APPS)
-        assertEquals("Shortcuts", tile.name)
+        assertEquals("Приложения", tile.name)
         assertEquals("2 настроены", tile.state)
         assertEquals(TileAction.TOGGLE, tile.action)
         assertEquals(DenzaTileTone.LIVE, tile.tone)

@@ -103,7 +103,7 @@ interface DenzaActions {
     /** Hand the language over to the car's own list; this app does not set it itself. */
     val onOpenSystemLanguage: () -> Unit
 
-    // «Shortcuts»
+    // «Приложения» (the stock Shortcuts roles)
     /** Read the roles again; `true` also drops the launcher catalog the panel was drawn from. */
     val onRefreshDefaultApps: (force: Boolean) -> Unit
     val onSetDefaultAppsEnabled: (Boolean) -> Unit

@@ -86,8 +86,9 @@ def english_table():
     Two keys can share one Russian text and differ in English: the first key in the file wins, and
     `shared` lists them for `--stays`; no two do today. The words `luminofor.js` writes inline are the
     glass picture's, and `drawn` holds their own keys, so a word on the glass takes its `hud_glass_*`
-    English even if another key shares its Russian: «Камеры» is `hud_glass_cameras`, and the row under
-    the picture, «Камеры и опасности», is `hud_panel_cameras_title`.
+    English even if another key shares its Russian. Only the picture's readings have such keys - the
+    speed's unit, the turn's distance, the lane's metres; its parts are named with the rows' own words,
+    «Камеры и опасности» is `hud_panel_cameras_title` on the glass and under it.
     """
     ru, ru_plurals = strings_xml('values')
     en, en_plurals = strings_xml('values-en')

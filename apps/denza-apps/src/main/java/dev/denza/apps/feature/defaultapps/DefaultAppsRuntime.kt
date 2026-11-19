@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.runBlocking
 
 /**
- * The «Shortcuts» tile behind the screen: the three PersonBean roles read from the car, written to
+ * The «Приложения» tile behind the screen: the three PersonBean roles read from the car, written to
  * it, and reported as they land.
  *
  * Nothing here is read by the state publisher. The roles are read and written on this runtime's

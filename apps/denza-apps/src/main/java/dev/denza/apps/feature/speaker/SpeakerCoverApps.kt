@@ -1,8 +1,5 @@
 package dev.denza.apps.feature.speaker
 
-import dev.denza.apps.R
-import dev.denza.apps.core.AppText
-
 /**
  * Applications whose foreground transition is a useful pre-roll hint.
  *
@@ -39,16 +36,6 @@ object SpeakerCoverApps {
         "com.amazon.avod.thirdpartyclient",
         "com.plexapp.android",
     )
-
-    /**
-     * A handful of the above, by the names on their icons, for the panel's paragraph.
-     *
-     * Not the list - twenty package names is a wall, and a driver reading a settings panel wants to
-     * know the shape of the answer, not its contents. These are the ones most likely to be
-     * recognised; the sentence around them says "known applications", which the rest of
-     * [eagerPackages] also are.
-     */
-    val EXAMPLES: String get() = AppText.s(R.string.speaker_examples)
 
     fun opensEagerly(packageName: String?): Boolean = packageName in eagerPackages
 }

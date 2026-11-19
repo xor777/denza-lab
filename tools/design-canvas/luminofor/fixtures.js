@@ -39,20 +39,21 @@
     { name: 'Динамики', status: 'Включена', on: true, icon: [['r', 2, 3, 12, 18, 2], ['c', 8, 14, 3.2], ['c', 8, 7, 1.2]] },
     { name: 'Язык системы', status: 'Русский язык', on: false, icon: [['c', 11, 12, 9], ['p', 'M2.4 9.5h17.2M2.4 14.5h17.2'], ['p', 'M11 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z']] },
     { name: 'Экран справа', status: 'Не выбрано', on: false, icon: [['r', 2, 2.5, 14, 19, 2], ['p', 'M9 6.5v7'], ['p', 'M6 10.5l3 3 3-3'], ['p', 'M6 17.5h6']] },
-    { name: 'Shortcuts', status: '3 настроены', on: true, icon: [['r', 2, 3, 7, 7, 2], ['r', 13, 3, 7, 7, 2], ['r', 2, 14, 7, 7, 2], ['p', 'm13.5 17.5 2 2 4-5']] },
+    { name: 'Приложения', status: '3 настроены', on: true, icon: [['r', 2, 3, 7, 7, 2], ['r', 13, 3, 7, 7, 2], ['r', 2, 14, 7, 7, 2], ['p', 'm13.5 17.5 2 2 4-5']] },
     { name: 'Облако', status: 'На связи', on: true, icon: [['p', 'M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24'], ['p', 'M12 13v8'], ['p', 'M8 17l4-4 4 4']] },
     { name: 'Сервис', status: 'Всё в норме', on: false, icon: [['p', 'M2 7h16M2 12h16M2 17h16'], ['k', 13, 7, 2], ['k', 6, 12, 2], ['k', 15, 17, 2]] }
   ];
 
   // A first run on a car that has not been set up: what the emulator shows on a fresh install.
-  // Weather is fetching (working), Shortcuts could not be checked (broken), Service has a
-  // function waiting on the driver (attention); the rest are off.
+  // Weather is fetching (working), the applications could not be checked yet - said in the quiet
+  // grey, since nothing has failed - Service has a function waiting on the driver (attention); the
+  // rest are off.
   const tone = (t, status, k) => Object.assign({}, t, { status, on: k !== 'idle', tone: k });
   const TILES_FIRST = [
     tone(TILES[0], 'Google Maps', 'idle'), tone(TILES[1], 'Выбрано 1', 'idle'), tone(TILES[2], 'Выключены', 'idle'),
     tone(TILES[3], 'Выключено', 'idle'), tone(TILES[4], 'Выключены', 'idle'), tone(TILES[5], 'Данных ещё нет', 'working'),
     tone(TILES[6], 'Выключена', 'idle'), tone(TILES[7], 'Русский язык', 'idle'), tone(TILES[8], 'Не выбрано', 'idle'),
-    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], 'Выключено', 'idle'),
+    tone(TILES[9], 'Не проверено', 'live'), tone(TILES[10], 'Выключено', 'idle'),
     tone(TILES[11], '1 функция ждёт', 'attention')
   ];
 
@@ -178,7 +179,6 @@
   // A feature's settings over the dashboard it came from. `sheet` is what the panel draws, block by
   // block, in the words the app prints for the state the debug build's SheetFixtures builds from
   // `state` - the two are one scene, and compare.py is what says so.
-  const TAP = 'Короткое нажатие на плитку делает то же самое';
   const sheetOf = (tile, sheet, state) => Object.assign({}, head, { sheet: Object.assign({ icon: TILES[tile].icon, tone: 'live' }, sheet), state });
   // the driver's screen: this app's instruments, then every application the car can open
   const DIAL = [['p', 'M4 15a8 8 0 0 1 16 0'], ['p', 'M12 15l4.2-4.6'], ['p', 'M12.9 15a0.9 0.9 0 1 1-1.8 0a0.9 0.9 0 1 1 1.8 0']];
@@ -194,9 +194,9 @@
         { t: 'section', label: 'Размещение', body: { t: 'segmented', labels: ['Полный', 'Слева', 'Центр', 'Справа'], selected: 0 } },
         { t: 'switch', title: 'Кнопка ★ на руле', on: true },
         { t: 'switch', title: 'Карта в правом окне', summary: 'Карта с HUD вместо штатной, когда правое окно приборки показывает карту', on: false },
-        { t: 'note', text: 'На приборную панель за рулём встаёт что-то одно: приборы или любое приложение с машины. Короткое нажатие на плитку ставит его туда и убирает обратно.' }
+        { t: 'note', text: 'На экране за рулём — приборы или любое приложение с машины.' }
       ],
-      footer: [{ t: 'button', text: 'На приборку' }, { t: 'footnote', text: TAP }]
+      footer: [{ t: 'button', text: 'На приборку' }]
     }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, mapCard: false, buttonLabel: 'На приборку' }),
     mirrors: sheetOf(2, {
       title: 'Зеркала',
@@ -204,7 +204,7 @@
         { t: 'switch', title: 'Зеркала', on: true },
         { t: 'section', label: 'Где показывать', body: { t: 'segmented', labels: ['По сторонам', 'По центру'], selected: 0 } },
         { t: 'switch', title: 'Улучшение изображения', on: false },
-        { t: 'note', text: 'Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.' }
+        { t: 'note', text: 'С поворотником на экране камера этой стороны.' }
       ],
       footer: [{ t: 'button', text: 'Проверить камеры' }]
     }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false }),
@@ -213,9 +213,9 @@
       blocks: [
         { t: 'switch', title: 'Поддержка трансляции', on: true },
         { t: 'group', rows: [{ kind: 'choice', title: 'Что транслировать', icons: ['VK Видео', 'Rutube'] }] },
-        { t: 'note', text: 'Выбранные приложения показываются на пассажирском экране и на экране сзади. Запуск открывает их там сразу.' }
+        { t: 'note', text: 'Выбранные приложения идут на экран пассажира и на экран сзади.' }
       ],
-      footer: [{ t: 'button', text: 'Запустить' }, { t: 'footnote', text: TAP }]
+      footer: [{ t: 'button', text: 'Запустить' }]
     }, { tile: 'SIMULCAST', simulcast: true, apps: CAST }),
     // «Что показывать», the page the driver's screen row opens: the instruments over the car's
     // applications, one grid, a name over each run
@@ -236,12 +236,12 @@
       title: 'Динамики',
       blocks: [
         { t: 'switch', title: 'Автоуправление динамиками', on: true },
-        { t: 'button', kind: 'secondary', text: 'Поднять' },
-        { t: 'note', text: 'Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, которые машина своими не считает (Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер). Убирает их машина сама. «Поднять» выдвигает их снова, если машина убрала их в простое.' }
-      ]
+        { t: 'note', text: 'Динамики выезжают под музыку из любого приложения.' }
+      ],
+      footer: [{ t: 'button', kind: 'secondary', text: 'Поднять' }]
     }, { tile: 'SPEAKERS', speakers: true }),
     defaults: sheetOf(9, {
-      title: 'Приложения по умолчанию',
+      title: 'Приложения',
       blocks: [
         { t: 'switch', title: 'Заменять приложения', summary: 'Команды открывают выбранные приложения', on: true },
         { t: 'group', rows: [
@@ -249,14 +249,14 @@
           { kind: 'choice', title: 'Музыка', icons: ['Яндекс Музыка'], value: 'Яндекс Музыка' },
           { kind: 'choice', title: 'Видео', icons: ['VK Видео'], value: 'VK Видео' }
         ] },
-        { t: 'note', text: 'Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.' }
+        { t: 'note', text: 'Команды машины открывают выбранные здесь навигатор и видео, а музыку продолжает выбранный плеер.' }
       ],
       footer: [{ t: 'button', text: 'Готово' }]
     }, { tile: 'DEFAULT_APPS', substituting: true, roles: { NAVIGATION: 'Яндекс Навигатор', MUSIC: 'Яндекс Музыка', VIDEO: 'VK Видео' } }),
     locale: sheetOf(7, {
       title: 'Язык системы', tone: 'idle',
-      blocks: [{ t: 'note', text: 'Язык меняется у всей машины, а не у приложения: список открывает сама машина, в нём сорок языков, и выбранный применяется сразу, без перезагрузки.' }],
-      footer: [{ t: 'button', text: 'Выбрать язык' }, { t: 'footnote', text: TAP }]
+      blocks: [{ t: 'note', text: 'Язык меняется у всей машины сразу, без перезагрузки.' }],
+      footer: [{ t: 'button', text: 'Выбрать язык' }]
     }, { tile: 'LOCALE' }),
     // a broken feature says so first, in the car's red, and keeps its switches under it
     broken: sheetOf(2, {
@@ -266,7 +266,7 @@
         { t: 'switch', title: 'Зеркала', on: true },
         { t: 'section', label: 'Где показывать', body: { t: 'segmented', labels: ['По сторонам', 'По центру'], selected: 0 } },
         { t: 'switch', title: 'Улучшение изображения', on: false },
-        { t: 'note', text: 'Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.' }
+        { t: 'note', text: 'С поворотником на экране камера этой стороны.' }
       ],
       footer: [{ t: 'button', text: 'Проверить камеры' }]
     }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false, error: 'Не переключилось' }),
@@ -410,19 +410,24 @@
       { t: 'section', label: 'Последняя перезагрузка', body: { t: 'group', rows: rows.map(([title, value]) => ({ kind: 'pair', title, value })) } }
     ]
   }, Object.assign({}, svcState, { page: 'restore', adbRestore }));
-  const mobilePage = (state, error, busy = false, result) => sheetOf(11, {
+  // The page's action stands on the panel's foot, where every panel's does. A disable the monitor
+  // outlived is the row's own outcome, «Остался включён» in orange, with the button still there.
+  const mobilePage = (state, error, busy = false, result, stayedOn = false) => sheetOf(11, {
     title: 'Мобильный интернет', back: true,
     blocks: [
       { t: 'group', rows: [{ title: 'Штатный контроль трафика',
         summary: busy ? (['ENABLED', 'DISABLED'].includes(state) ? 'Выполняем команду…' : 'Проверяем состояние…')
-          : state === 'ENABLED' ? 'Монитор включён' : state === 'DISABLED' ? 'Монитор отключён'
-          : state === 'ABSENT' ? 'Недоступен на этой прошивке' : 'Не удалось проверить' }] },
+          : stayedOn ? 'Остался включён' : state === 'ENABLED' ? 'Монитор включён' : state === 'DISABLED' ? 'Монитор отключён'
+          : state === 'ABSENT' ? 'Недоступен на этой прошивке' : 'Не удалось проверить',
+        tone: stayedOn && !busy ? 'attention' : undefined }] },
+      ...(error ? [{ t: 'status', text: error, tone: 'broken' }] : result ? [{ t: 'status', text: result }] : [])
+    ],
+    footer: [
       ...(['ENABLED', 'DISABLED'].includes(state) ? [{ t: 'button', kind: 'secondary',
         text: 'Отключить', enabled: state === 'ENABLED' && !busy }] : []),
-      ...(state === 'UNKNOWN' && !busy ? [{ t: 'button', kind: 'secondary', text: 'Проверить состояние' }] : []),
-      ...(error ? [{ t: 'status', text: error, tone: 'broken' }] : result ? [{ t: 'status', text: result }] : [])
+      ...(state === 'UNKNOWN' && !busy ? [{ t: 'button', kind: 'secondary', text: 'Проверить состояние' }] : [])
     ]
-  }, Object.assign({}, svcState, { page: 'mobile', trafficMonitor: { state, error, busy, result } }));
+  }, Object.assign({}, svcState, { page: 'mobile', trafficMonitor: { state, error, busy, result, stayedOn } }));
   const warnWords = (kind, code) => kind === 'start' ? 'Приложение запущено'
     : kind === 'lost' ? 'Машина не отвечает' : kind === 'off' ? 'Запись выключена' : kind === 'on' ? 'Запись включена'
     : kind === 'cleared' ? 'Журнал очищен'
@@ -457,7 +462,7 @@
     mobileOff: mobilePage('DISABLED', undefined, false, 'Отключение подтверждено'),
     mobileUnknown: mobilePage('UNKNOWN'),
     mobileAbsent: mobilePage('ABSENT'),
-    mobileFailed: mobilePage('ENABLED', 'Не удалось отключить монитор'),
+    mobileFailed: mobilePage('ENABLED', undefined, false, undefined, true),
     mobileBusy: mobilePage('ENABLED', undefined, true),
     restore: restorePage('Доступ есть, восстанавливать не нужно',
       [['Когда', 'сегодня, 08:10'], ['Доступ после неё', 'был сразу'], ['Восстановление', 'не понадобилось']]),
@@ -475,7 +480,7 @@
     trouble: sheetOf(11, {
       title: 'Сервис',
       blocks: [
-        { t: 'status', tone: 'attention', text: '2 функции ждут' },
+        { t: 'status', tone: 'broken', text: '2 функции не работают' },
         { t: 'group', rows: [
           { kind: 'choice', title: 'HUD Подсказки', summary: 'Нет доступа', tone: 'attention' },
           { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
@@ -561,7 +566,7 @@
     blocks: [
       { t: 'switch', title: 'Поддерживать связь с облаком', on: true },
       { t: 'switch', title: 'Держать Wi-Fi включённым', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
-      { t: 'note', text: 'Машина выходит в облако через Wi-Fi или мобильный интернет, и приложение Denza на телефоне работает с ней как обычно: показывает состояние и управляет машиной. Связь восстанавливается, если модем видит китайский ICCID — от родной eSIM или от rSIM. «Держать Wi-Fi включённым» не даёт машине выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке.' }
+      { t: 'note', text: 'Приложение Denza на телефоне управляет машиной.' }
     ]
   }, { tile: 'CLOUD', cloud: true, wifi: false });
 

@@ -42,8 +42,9 @@ class ServiceModelTest {
                 cloudLink = FeatureSnapshot(FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = "Не включилось"),
             ),
         )
-        assertEquals("2 функции ждут", model.status)
-        assertEquals(DenzaTileTone.ATTENTION, model.statusTone)
+        // The summary takes its worst row's words and colour: one of the two is broken.
+        assertEquals("2 функции не работают", model.status)
+        assertEquals(DenzaTileTone.BROKEN, model.statusTone)
         assertEquals(listOf(TileId.HUD, TileId.CLOUD), model.trouble.map { it.id })
         assertEquals(listOf("Нет доступа", "Не включилось"), model.trouble.map { it.state })
         assertEquals(listOf(DenzaTileTone.ATTENTION, DenzaTileTone.BROKEN), model.trouble.map { it.tone })

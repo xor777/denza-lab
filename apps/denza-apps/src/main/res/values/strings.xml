@@ -5,7 +5,6 @@
     <string name="split_picker_a11y_service_desc">Управляет выбором приложений и безопасным выходом из разделения экрана.</string>
     <string name="navigation_transfer_overlay_text">Переносим…</string>
     <string name="split_launch_overlay_text">Запускаем разделение экрана…</string>
-    <string name="speaker_examples">Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер</string>
     <string name="speaker_channel_name">Динамики</string>
     <string name="speaker_channel_description">Динамики выезжают, когда играет музыка</string>
     <string name="speaker_notification_automatic">Автоуправление динамиками включено</string>
@@ -30,7 +29,8 @@
     <string name="network_not_found_not_run">Монитор не найден. Команда не выполнена.</string>
     <string name="network_check_failed_not_run">Не удалось проверить состояние. Команда не выполнена.</string>
     <string name="network_state_unconfirmed">Не удалось подтвердить состояние монитора</string>
-    <string name="network_disable_failed">Не удалось отключить монитор</string>
+    <!-- The monitor outlived a disable: the row's own outcome, in orange, with the button still under it. -->
+    <string name="network_stayed_on">Остался включён</string>
     <string name="network_answer_unconfirmed">Состояние изменено, но ответ команды не подтверждён</string>
     <string name="network_disable_confirmed">Отключение подтверждено</string>
     <string name="network_title">Мобильный интернет</string>
@@ -196,6 +196,8 @@
     <string name="tile_speakers_off">Выключена</string>
     <string name="tile_locale_name">Язык системы</string>
     <string name="tile_passenger_name">Экран справа</string>
+    <!-- Full screen: the tile's 19/500 name has 147 dp; «Приложения» takes 109. -->
+    <string name="tile_default_apps_name">Приложения</string>
     <string name="tile_default_apps_unchecked">Не проверено</string>
     <string name="tile_default_apps_checking">Проверяем…</string>
     <string name="tile_default_apps_stock">Штатные</string>
@@ -208,6 +210,21 @@
         <item quantity="many">%1$d функций ждут</item>
         <item quantity="other">%1$d функции ждут</item>
     </plurals>
+    <!-- The same count when one of the features is broken: the summary takes its worst row's words and colour.
+         On the tile's face under «Сервис», where «функции» does not fit beside «не работают». -->
+    <plurals name="tile_service_broken">
+        <item quantity="one">%1$d не работает</item>
+        <item quantity="few">%1$d не работают</item>
+        <item quantity="many">%1$d не работают</item>
+        <item quantity="other">%1$d не работают</item>
+    </plurals>
+    <!-- And whole, on the service panel's status line, which has the room. -->
+    <plurals name="service_broken">
+        <item quantity="one">%1$d функция не работает</item>
+        <item quantity="few">%1$d функции не работают</item>
+        <item quantity="many">%1$d функций не работают</item>
+        <item quantity="other">%1$d функции не работают</item>
+    </plurals>
     <plurals name="tile_default_apps_configured">
         <item quantity="one">%1$d настроено</item>
         <item quantity="few">%1$d настроены</item>
@@ -216,7 +233,6 @@
     </plurals>
 
     <!-- Feature panels -->
-    <string name="sheet_tile_press_note">Короткое нажатие на плитку делает то же самое</string>
     <string name="sheet_launch">Запустить</string>
     <string name="sheet_split_now">Разделить экран</string>
     <string name="sheet_choose_app">Выбрать приложение</string>
@@ -225,7 +241,7 @@
     <string name="sheet_turn_off">Выключить</string>
     <string name="sheet_turn_on">Включить</string>
     <string name="sheet_continue">Продолжить</string>
-    <string name="sheet_cluster_help">На приборную панель за рулём встаёт что-то одно: приборы или любое приложение с машины. Короткое нажатие на плитку ставит его туда и убирает обратно.</string>
+    <string name="sheet_cluster_help">На экране за рулём — приборы или любое приложение с машины.</string>
     <string name="sheet_cluster_placement">Размещение</string>
     <string name="sheet_cluster_wheel_button">Кнопка ★ на руле</string>
     <string name="sheet_cluster_map_card_title">Карта в правом окне</string>
@@ -234,9 +250,9 @@
     <string name="sheet_placement_left">Слева</string>
     <string name="sheet_placement_center">Центр</string>
     <string name="sheet_placement_right">Справа</string>
-    <string name="sheet_simulcast_help">Выбранные приложения показываются на пассажирском экране и на экране сзади. Запуск открывает их там сразу.</string>
+    <string name="sheet_simulcast_help">Выбранные приложения идут на экран пассажира и на экран сзади.</string>
     <string name="sheet_simulcast_support">Поддержка трансляции</string>
-    <string name="sheet_mirrors_help">Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.</string>
+    <string name="sheet_mirrors_help">С поворотником на экране камера этой стороны.</string>
     <string name="sheet_mirrors_check">Проверить камеры</string>
     <string name="sheet_mirrors_switch">Зеркала</string>
     <string name="sheet_mirrors_where">Где показывать</string>
@@ -248,14 +264,14 @@
     <string name="sheet_weather_help">Приложение забирает прогноз и отдаёт его штатному виджету погоды. Своей погоды оно не рисует — виджет остаётся штатным.</string>
     <string name="sheet_weather_widget_data">Данные для виджета</string>
     <string name="sheet_weather_given">Отдано виджету %1$s</string>
-    <string name="sheet_speakers_help">Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, которые машина своими не считает (%1$s). Убирает их машина сама. «Поднять» выдвигает их снова, если машина убрала их в простое.</string>
+    <string name="sheet_speakers_help">Динамики выезжают под музыку из любого приложения.</string>
     <string name="sheet_speakers_auto">Автоуправление динамиками</string>
     <string name="sheet_speakers_raise">Поднять</string>
-    <string name="sheet_cloud_help">Машина выходит в облако через Wi-Fi или мобильный интернет, и приложение Denza на телефоне работает с ней как обычно: показывает состояние и управляет машиной. Связь восстанавливается, если модем видит китайский ICCID — от родной eSIM или от rSIM. «Держать Wi-Fi включённым» не даёт машине выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке.</string>
+    <string name="sheet_cloud_help">Приложение Denza на телефоне управляет машиной.</string>
     <string name="sheet_cloud_keep_link">Поддерживать связь с облаком</string>
     <string name="sheet_cloud_keep_wifi">Держать Wi-Fi включённым</string>
     <string name="sheet_cloud_keep_wifi_cost">На стоянке аккумулятор может разряжаться быстрее</string>
-    <string name="sheet_locale_help">Язык меняется у всей машины, а не у приложения: список открывает сама машина, в нём сорок языков, и выбранный применяется сразу, без перезагрузки.</string>
+    <string name="sheet_locale_help">Язык меняется у всей машины сразу, без перезагрузки.</string>
     <string name="sheet_service_help">Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается.</string>
 
     <!-- HUD panel -->
@@ -279,7 +295,6 @@
     <string name="hud_panel_cameras_from">Из HUD Speed</string>
 
     <!-- Default applications panel -->
-    <string name="defaultapps_sheet_title">Приложения по умолчанию</string>
     <string name="defaultapps_sheet_switch">Заменять приложения</string>
     <string name="defaultapps_sheet_searching">Ищем установленные приложения…</string>
     <string name="defaultapps_role_navigation">Навигация</string>
@@ -298,7 +313,7 @@
     <!-- Quotes the firmware's own Shortcuts actions: «Открыть навигацию», «Открыть видео», «Продолжить
          воспроизведение», «Открыть музыку». In another language take those four labels from the
          firmware's own resources for that language; do not translate them freely. -->
-    <string name="defaultapps_sheet_help">Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</string>
+    <string name="defaultapps_sheet_help">Команды машины открывают выбранные здесь навигатор и видео, а музыку продолжает выбранный плеер.</string>
 
     <!-- Application choosers -->
     <string name="chooser_nothing_found">Ничего не найдено</string>
@@ -606,18 +621,11 @@
     <string name="vehicle_closed_no_channel">Нет связи с машиной</string>
     <string name="vehicle_closed_no_answer">Машина не отвечает</string>
 
-    <!-- The HUD panel's picture of the glass, at 432 dp wide and in Roboto 13/500, measured in the font
-         file and not yet on a screen. The names are centred on their parts: hud_glass_turn at 62 and
-         hud_glass_sign at 143 leave 17 dp between them today, on half widths that must sum to under 81.
-         hud_glass_cameras is centred at 52, 46 in a pane, so it has 104 and 92 inside the picture; it takes 50.
-         hud_panel_cameras_title, at 128, would run past the left edge, so the picture's label is shorter. -->
+    <!-- The HUD panel's picture of the glass. Its parts are named by their rows' own titles
+         (hud_panel_*), each hanging from its line like a flag; these are the words drawn on the glass. -->
     <string name="hud_glass_unit_speed">км/ч</string>
     <string name="hud_glass_distance">350 м</string>
     <string name="hud_glass_unit_metres">м</string>
-    <string name="hud_glass_sign">Ограничение</string>
-    <string name="hud_glass_turn">Манёвр</string>
-    <string name="hud_glass_map">Карта</string>
-    <string name="hud_glass_cameras">Камеры</string>
 
     <!-- HUD Speed's warning, drawn into the picture the HUD's lane window shows. Half the digits' size,
          in a window that shrinks the digits to fit from 46 down to 30, then lets them run out. -->

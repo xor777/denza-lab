@@ -32,12 +32,11 @@ class DefaultAppsSheetTest {
      * music on this firmware is not started by "Открыть музыку".
      */
     @Test
-    fun helpNamesTheFirmwareSpecificLaunchActionsWithoutPromisingOpenMusic() {
+    fun helpSaysWhatTheChoicesDoWithoutPromisingOpenMusic() {
+        // Music is carried on by the chosen player, not opened: on this firmware «Открыть музыку»
+        // always opens the stock player, so the sentence promises only what holds.
         assertEquals(
-            "Штатные сценарии открывают приложения по команде: «Открыть навигацию» и " +
-                "«Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает " +
-                "«Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда " +
-                "открывает штатный плеер.",
+            "Команды машины открывают выбранные здесь навигатор и видео, а музыку продолжает выбранный плеер.",
             DEFAULT_APPS_SHORTCUTS_HELP,
         )
     }

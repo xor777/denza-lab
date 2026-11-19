@@ -13,7 +13,7 @@ class TrafficMonitorBoardTest {
             val sheet = fixture["sheet"] as Map<*, *>
             val state = (fixture["state"] as Map<*, *>)["trafficMonitor"] as Map<*, *>
             val snapshot = TrafficMonitorSnapshot(TrafficMonitorState.valueOf(state["state"] as String),
-                state["busy"] == true, state["error"] as? String, state["result"] as? String)
+                state["busy"] == true, state["error"] as? String, state["result"] as? String, state["stayedOn"] == true)
             assertEquals(TrafficMonitorText.TITLE, sheet["title"])
             val blocks = (sheet["blocks"] as List<*>).map { it as Map<*, *> }
             assertTrue(blocks.none { it["t"] == "note" })
@@ -21,7 +21,12 @@ class TrafficMonitorBoardTest {
             val row = (blocks.first { it["t"] == "group" }["rows"] as List<*>).single() as Map<*, *>
             assertEquals(TrafficMonitorText.MONITOR, row["title"])
             assertEquals(snapshot.summary, row["summary"])
-            val buttons = blocks.filter { it["t"] == "button" }
+            // Still on after a press is the row's own state in amber, never a red line under it.
+            assertEquals(if (snapshot.stayedOn && !snapshot.busy) "attention" else null, row["tone"])
+            // The button stands at the panel's foot, as every panel's does.
+            assertTrue(blocks.none { it["t"] == "button" })
+            val buttons = ((sheet["footer"] as? List<*>) ?: emptyList<Any>()).map { it as Map<*, *> }
+                .filter { it["t"] == "button" }
             when {
                 snapshot.known -> {
                     assertEquals(TrafficMonitorText.DISABLE,

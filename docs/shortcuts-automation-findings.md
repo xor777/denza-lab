@@ -1929,7 +1929,9 @@ resolves to `ru.yandex.yandexnavi/.core.NavigatorActivity`.
 `DefaultAppsRuntime.providerState` treats a confirmed package missing from the
 launchable catalog as ERROR / `DefaultAppsWords.GONE` («Не установлено»).
 `DashboardTiles.defaultApps` turns any role ERROR into «Не проверено»; this is
-not evidence that the provider query failed. The panel showed the navigation
+not evidence that the provider query failed. Since 2026-11-19 the tile is
+«Приложения» and «Не проверено» is drawn in the quiet grey under a lit plate,
+not as broken, so it no longer counts on the «Сервис» door. The panel showed the navigation
 error and healthy Yandex Music / VK Video rows. Stored `pick_navigation` is
 still `ru.yandex.yandexnavi`, but that preference does not override PersonBean.
 Who disabled the stock map or reset the role, and when, is not established;

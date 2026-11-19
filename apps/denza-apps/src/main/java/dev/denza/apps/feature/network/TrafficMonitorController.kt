@@ -11,11 +11,17 @@ internal data class TrafficMonitorSnapshot(
     val busy: Boolean = false,
     val error: String? = null,
     val result: String? = null,
+    /**
+     * A disable was pressed, ran, and the read-back found the monitor still on. Not an error
+     * sentence: the row says what the monitor is now, in amber, and the button is still there.
+     */
+    val stayedOn: Boolean = false,
 ) {
     val known: Boolean get() = state == TrafficMonitorState.ENABLED || state == TrafficMonitorState.DISABLED
     val canDisable: Boolean get() = state == TrafficMonitorState.ENABLED && !busy
     val summary: String get() = when {
         busy -> if (known) AppText.s(R.string.network_running_command) else AppText.s(R.string.network_checking_state)
+        stayedOn && state == TrafficMonitorState.ENABLED -> AppText.s(R.string.network_stayed_on)
         state == TrafficMonitorState.ENABLED -> AppText.s(R.string.network_monitor_on)
         state == TrafficMonitorState.DISABLED -> AppText.s(R.string.network_monitor_off)
         state == TrafficMonitorState.ABSENT -> AppText.s(R.string.network_monitor_absent)
@@ -73,13 +79,14 @@ internal class TrafficMonitorController(
                     state = after,
                     error = when {
                         after == TrafficMonitorState.UNKNOWN -> AppText.s(R.string.network_state_unconfirmed)
-                        after != wanted -> AppText.s(R.string.network_disable_failed)
-                        !completed -> AppText.s(R.string.network_answer_unconfirmed)
+                        after == wanted && !completed -> AppText.s(R.string.network_answer_unconfirmed)
                         else -> null
                     },
                     result = if (completed && after == wanted) {
                         AppText.s(R.string.network_disable_confirmed)
                     } else null,
+                    // Still on after the command: the row's own state, not a red sentence under it.
+                    stayedOn = after == TrafficMonitorState.ENABLED,
                 )
             }
         }

@@ -2348,7 +2348,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -2893,7 +2893,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -3438,7 +3438,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -3985,7 +3985,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -4539,7 +4539,7 @@
      "tone": "idle"
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "Not checked",
      "on": true,
      "icon": [
@@ -4572,7 +4572,7 @@
        "m13.5 17.5 2 2 4-5"
       ]
      ],
-     "tone": "broken"
+     "tone": "live"
     },
     {
      "name": "Cloud",
@@ -5073,7 +5073,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -5619,7 +5619,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -6164,7 +6164,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -6711,7 +6711,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -7267,7 +7267,7 @@
      "tone": "idle"
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "Not checked",
      "on": true,
      "icon": [
@@ -7300,7 +7300,7 @@
        "m13.5 17.5 2 2 4-5"
       ]
      ],
-     "tone": "broken"
+     "tone": "live"
     },
     {
      "name": "Cloud",
@@ -7801,7 +7801,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -8348,7 +8348,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -8893,7 +8893,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -9438,7 +9438,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -9983,7 +9983,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -10527,7 +10527,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -10930,17 +10930,13 @@
      },
      {
       "t": "note",
-      "text": "The cluster behind the wheel shows one thing at a time: the instruments or any app on the car. A short press on the tile puts it there and takes it back."
+      "text": "The screen behind the wheel shows the instruments or any app on the car."
      }
     ],
     "footer": [
      {
       "t": "button",
       "text": "To cluster"
-     },
-     {
-      "t": "footnote",
-      "text": "A short press on the tile does the same"
      }
     ]
    },
@@ -11199,7 +11195,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -11580,7 +11576,7 @@
      },
      {
       "t": "note",
-      "text": "When a turn signal is on, the camera on that side appears on the screen and goes away with the signal. “In the centre” shows both cameras, one above the other."
+      "text": "With a turn signal on, the screen shows that side's camera."
      }
     ],
     "footer": [
@@ -11799,7 +11795,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -12182,17 +12178,13 @@
      },
      {
       "t": "note",
-      "text": "The chosen apps show on the passenger screen and the rear screen. Launch opens them there at once."
+      "text": "The chosen apps go to the passenger screen and the rear screen."
      }
     ],
     "footer": [
      {
       "t": "button",
       "text": "Launch"
-     },
-     {
-      "t": "footnote",
-      "text": "A short press on the tile does the same"
      }
     ]
    },
@@ -12431,7 +12423,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -13071,7 +13063,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -13744,7 +13736,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -14417,7 +14409,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -14790,13 +14782,15 @@
       "on": true
      },
      {
+      "t": "note",
+      "text": "The speakers rise for music from any app."
+     }
+    ],
+    "footer": [
+     {
       "t": "button",
       "kind": "secondary",
       "text": "Raise"
-     },
-     {
-      "t": "note",
-      "text": "The speakers rise when music is playing or a player is open, including apps the car does not count as its own (Yandex Music, Spotify, YouTube, Kinopoisk, stock player). The car lowers them itself. “Raise” brings them up again if the car lowered them while idle."
      }
     ]
    },
@@ -15007,7 +15001,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -15380,7 +15374,7 @@
      ]
     ],
     "tone": "live",
-    "title": "Default apps",
+    "title": "Apps",
     "blocks": [
      {
       "t": "switch",
@@ -15419,7 +15413,7 @@
      },
      {
       "t": "note",
-      "text": "Stock Shortcuts open apps on command: “Access map” and “Open video” start the ones chosen here. On this firmware music is started by “Continue playing” when nothing is playing; “Open music” always opens the stock player."
+      "text": "The car's commands open the navigator and the video app chosen here, and the chosen player carries on the music."
      }
     ],
     "footer": [
@@ -15641,7 +15635,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -16004,17 +15998,13 @@
     "blocks": [
      {
       "t": "note",
-      "text": "The language changes for the whole car, not for the app: the car itself opens the list, which has forty languages, and the chosen one applies at once, with no restart."
+      "text": "The language changes for the whole car at once, with no restart."
      }
     ],
     "footer": [
      {
       "t": "button",
       "text": "Choose a language"
-     },
-     {
-      "t": "footnote",
-      "text": "A short press on the tile does the same"
      }
     ]
    },
@@ -16224,7 +16214,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -16610,7 +16600,7 @@
      },
      {
       "t": "note",
-      "text": "When a turn signal is on, the camera on that side appears on the screen and goes away with the signal. “In the centre” shows both cameras, one above the other."
+      "text": "With a turn signal on, the screen shows that side's camera."
      }
     ],
     "footer": [
@@ -16830,7 +16820,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -17379,7 +17369,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -17601,7 +17591,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -17972,8 +17962,8 @@
     "blocks": [
      {
       "t": "status",
-      "tone": "attention",
-      "text": "2 features wait"
+      "tone": "broken",
+      "text": "2 features not working"
      },
      {
       "t": "group",
@@ -18164,7 +18154,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -18387,7 +18377,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -18959,7 +18949,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -19189,7 +19179,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -19692,7 +19682,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -19914,7 +19904,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -20432,7 +20422,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -20654,7 +20644,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -21172,7 +21162,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -21402,7 +21392,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -21921,7 +21911,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -22151,7 +22141,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -22732,7 +22722,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -22954,7 +22944,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -23545,7 +23535,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -23767,7 +23757,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -24359,7 +24349,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -24581,7 +24571,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -24959,7 +24949,9 @@
         "summary": "Monitor on"
        }
       ]
-     },
+     }
+    ],
+    "footer": [
      {
       "t": "button",
       "kind": "secondary",
@@ -25080,7 +25072,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -25100,7 +25092,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "ENABLED",
-     "busy": false
+     "busy": false,
+     "stayedOn": false
     }
    }
   }
@@ -25306,7 +25299,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -25686,14 +25679,16 @@
       ]
      },
      {
+      "t": "status",
+      "text": "Turn-off confirmed"
+     }
+    ],
+    "footer": [
+     {
       "t": "button",
       "kind": "secondary",
       "text": "Turn off",
       "enabled": false
-     },
-     {
-      "t": "status",
-      "text": "Turn-off confirmed"
      }
     ]
    },
@@ -25809,7 +25804,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -25830,7 +25825,8 @@
     "trafficMonitor": {
      "state": "DISABLED",
      "busy": false,
-     "result": "Turn-off confirmed"
+     "result": "Turn-off confirmed",
+     "stayedOn": false
     }
    }
   }
@@ -26036,7 +26032,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -26414,7 +26410,9 @@
         "summary": "Could not check"
        }
       ]
-     },
+     }
+    ],
+    "footer": [
      {
       "t": "button",
       "kind": "secondary",
@@ -26534,7 +26532,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -26554,7 +26552,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "UNKNOWN",
-     "busy": false
+     "busy": false,
+     "stayedOn": false
     }
    }
   }
@@ -26760,7 +26759,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -27139,7 +27138,8 @@
        }
       ]
      }
-    ]
+    ],
+    "footer": []
    },
    "state": {
     "tile": "SERVICE",
@@ -27253,7 +27253,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -27273,7 +27273,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "ABSENT",
-     "busy": false
+     "busy": false,
+     "stayedOn": false
     }
    }
   }
@@ -27479,7 +27480,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -27854,20 +27855,18 @@
       "rows": [
        {
         "title": "Stock traffic monitor",
-        "summary": "Monitor on"
+        "summary": "Stayed on",
+        "tone": "attention"
        }
       ]
-     },
+     }
+    ],
+    "footer": [
      {
       "t": "button",
       "kind": "secondary",
       "text": "Turn off",
       "enabled": true
-     },
-     {
-      "t": "status",
-      "text": "Could not turn off monitor",
-      "tone": "broken"
      }
     ]
    },
@@ -27983,7 +27982,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -28003,8 +28002,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "ENABLED",
-     "error": "Could not turn off monitor",
-     "busy": false
+     "busy": false,
+     "stayedOn": true
     }
    }
   }
@@ -28210,7 +28209,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -28588,7 +28587,9 @@
         "summary": "Running command…"
        }
       ]
-     },
+     }
+    ],
+    "footer": [
      {
       "t": "button",
       "kind": "secondary",
@@ -28709,7 +28710,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -28729,7 +28730,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "ENABLED",
-     "busy": true
+     "busy": true,
+     "stayedOn": false
     }
    }
   }
@@ -28935,7 +28937,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -29313,7 +29315,9 @@
         "summary": "Monitor on"
        }
       ]
-     },
+     }
+    ],
+    "footer": [
      {
       "t": "button",
       "kind": "secondary",
@@ -29434,7 +29438,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -29454,7 +29458,8 @@
     "page": "mobile",
     "trafficMonitor": {
      "state": "ENABLED",
-     "busy": false
+     "busy": false,
+     "stayedOn": false
     }
    }
   }
@@ -29660,7 +29665,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -30040,14 +30045,16 @@
       ]
      },
      {
+      "t": "status",
+      "text": "Turn-off confirmed"
+     }
+    ],
+    "footer": [
+     {
       "t": "button",
       "kind": "secondary",
       "text": "Turn off",
       "enabled": false
-     },
-     {
-      "t": "status",
-      "text": "Turn-off confirmed"
      }
     ]
    },
@@ -30163,7 +30170,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -30184,7 +30191,8 @@
     "trafficMonitor": {
      "state": "DISABLED",
      "busy": false,
-     "result": "Turn-off confirmed"
+     "result": "Turn-off confirmed",
+     "stayedOn": false
     }
    }
   }
@@ -30390,7 +30398,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -30908,7 +30916,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -31138,7 +31146,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -31646,7 +31654,7 @@
          {
           "kind": "pair",
           "title": "Последнее открытие",
-          "value": "20:34 · не вышло · 3,1 с"
+          "value": "20:34 · не вышло · 3.1 s"
          },
          {
           "kind": "pair",
@@ -31786,7 +31794,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -32008,7 +32016,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -32516,7 +32524,7 @@
          {
           "kind": "pair",
           "title": "Последнее открытие",
-          "value": "20:34 · не вышло · 3,1 с"
+          "value": "20:34 · не вышло · 3.1 s"
          },
          {
           "kind": "pair",
@@ -32657,7 +32665,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -32880,7 +32888,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -33253,7 +33261,7 @@
     "blocks": [
      {
       "t": "section",
-      "label": "Открытие 20:34:02 · не вышло · 3,1 с",
+      "label": "Открытие 20:34:02 · не вышло · 3.1 s",
       "body": {
        "t": "group",
        "rows": [
@@ -33292,7 +33300,7 @@
      },
      {
       "t": "section",
-      "label": "Выбор 20:33:40 · готово · 1,2 с",
+      "label": "Выбор 20:33:40 · готово · 1.2 s",
       "body": {
        "t": "group",
        "rows": [
@@ -33306,7 +33314,7 @@
      },
      {
       "t": "section",
-      "label": "Открытие 20:33:21 · готово · 1,9 с",
+      "label": "Открытие 20:33:21 · готово · 1.9 s",
       "body": {
        "t": "group",
        "rows": [
@@ -33432,7 +33440,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -33654,7 +33662,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -34025,8 +34033,8 @@
     "blocks": [
      {
       "t": "status",
-      "tone": "attention",
-      "text": "2 features wait"
+      "tone": "broken",
+      "text": "2 features not working"
      },
      {
       "t": "group",
@@ -34217,7 +34225,7 @@
      "Запрос ждёт ответа=нет",
      "[Разделение экрана]",
      "Состояние=active",
-     "Последнее открытие=20:34 · не вышло · 3,1 с",
+     "Последнее открытие=20:34 · не вышло · 3.1 s",
      "Сплит прошивки=две панели · область 0",
      "Сигналы прошивки=Home да · область да · вызовы нет"
     ],
@@ -34440,7 +34448,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -35028,7 +35036,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -35616,7 +35624,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -36199,7 +36207,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -36782,7 +36790,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -37154,7 +37162,7 @@
      },
      {
       "t": "note",
-      "text": "The car reaches the cloud over Wi-Fi or mobile internet, and the Denza app on your phone works with it as usual: it shows the car's status and controls the car. The link comes back if the modem sees a Chinese ICCID, from the original eSIM or from an rSIM. “Keep Wi-Fi on” stops the car turning Wi-Fi off when it goes to sleep, so the link stays while parked."
+      "text": "The Denza app on the phone controls the car."
      }
     ]
    },
@@ -37366,7 +37374,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -37738,7 +37746,7 @@
      },
      {
       "t": "note",
-      "text": "The car reaches the cloud over Wi-Fi or mobile internet, and the Denza app on your phone works with it as usual: it shows the car's status and controls the car. The link comes back if the modem sees a Chinese ICCID, from the original eSIM or from an rSIM. “Keep Wi-Fi on” stops the car turning Wi-Fi off when it goes to sleep, so the link stays while parked."
+      "text": "The Denza app on the phone controls the car."
      }
     ]
    },
@@ -37950,7 +37958,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -38556,7 +38564,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -39162,7 +39170,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -39770,7 +39778,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -40377,7 +40385,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -40987,7 +40995,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -41597,7 +41605,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -42000,17 +42008,13 @@
      },
      {
       "t": "note",
-      "text": "The cluster behind the wheel shows one thing at a time: the instruments or any app on the car. A short press on the tile puts it there and takes it back."
+      "text": "The screen behind the wheel shows the instruments or any app on the car."
      }
     ],
     "footer": [
      {
       "t": "button",
       "text": "To cluster"
-     },
-     {
-      "t": "footnote",
-      "text": "A short press on the tile does the same"
      }
     ]
    },
@@ -42269,7 +42273,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [

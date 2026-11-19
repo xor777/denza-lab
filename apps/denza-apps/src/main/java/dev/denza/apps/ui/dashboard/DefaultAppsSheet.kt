@@ -96,7 +96,7 @@ internal fun DefaultAppsSheet(
         }
 
         DenzaSheetHeader(
-            title = AppText.s(R.string.defaultapps_sheet_title),
+            title = AppText.s(R.string.tile_default_apps_name),
             subtitle = "",
             onDismiss = onDismiss,
             glyph = DenzaIcons.ApplicationsGlyph,

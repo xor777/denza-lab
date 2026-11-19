@@ -97,20 +97,24 @@ class TrafficMonitorTest {
         assertEquals("Монитор уже отключён", h.snapshot.result)
     }
 
-    @Test fun `refused command and unchanged readback report failure with real state`() {
+    @Test fun `refused command and unchanged readback say the monitor stayed on`() {
         val h = Harness(enabled, enabled, "SecurityException\n@@traffic:write:exit=1", enabled)
         h.refresh(); h.controller.disable(); h.executor.finish()
         assertEquals(TrafficMonitorState.ENABLED, h.snapshot.state)
-        assertEquals("Не удалось отключить монитор", h.snapshot.error)
+        // The row's own state, not a red sentence under it; the button is still there.
+        assertTrue(h.snapshot.stayedOn)
+        assertEquals("Остался включён", h.snapshot.summary)
+        assertNull(h.snapshot.error)
         assertNull(h.snapshot.result)
         assertFalse(h.snapshot.busy)
+        assertTrue(h.snapshot.canDisable)
     }
 
     @Test fun `successful command alone cannot confirm switching`() {
         val h = Harness(enabled, enabled, completed, enabled)
         h.refresh(); h.controller.disable(); h.executor.finish()
         assertEquals(TrafficMonitorState.ENABLED, h.snapshot.state)
-        assertNotNull(h.snapshot.error)
+        assertTrue(h.snapshot.stayedOn)
         assertNull(h.snapshot.result)
     }
 

@@ -79,7 +79,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(sg)
         }
-        parts += Part(AppText.s(R.string.hud_glass_sign), sg, up = true, on = glass.sign)
+        parts += Part(AppText.s(R.string.hud_panel_sign_title), sg, up = true, on = glass.sign)
 
         val tn = r(G.TURN)
         val ds = r(G.DISTANCE)
@@ -106,7 +106,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(turnBox)
         }
-        parts += Part(AppText.s(R.string.hud_glass_turn), turnBox, up = true, on = glass.turn)
+        parts += Part(AppText.s(R.string.hud_panel_turns_title), turnBox, up = true, on = glass.turn)
 
         val mp = r(G.MAP)
         val m = G.Map
@@ -149,7 +149,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(mp)
         }
-        parts += Part(AppText.s(R.string.hud_glass_map), mp, up = true, on = glass.map)
+        parts += Part(AppText.s(R.string.hud_panel_map), mp, up = true, on = glass.map)
 
         // HUD Speed's picture of the lane window, at the lane rect's height from its left edge; on
         // the map only its GPS bars.
@@ -197,7 +197,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(strip)
         }
-        parts += Part(AppText.s(R.string.hud_glass_cameras), strip, up = false, on = glass.cameras)
+        parts += Part(AppText.s(R.string.hud_panel_cameras_title), strip, up = false, on = glass.cameras)
 
         val label = G.Label
         val line = G.Line
@@ -215,7 +215,14 @@ private class GlassDrawing(private val c: Canvas) {
             c.drawLine(cx + 0.5f, from, cx + 0.5f, to, stroke)
             circle(cx + 0.5f, to, line.DOT, ink)
             val base = if (p.up) y + label.SIZE * Sheet.Roboto.ASCENT else gy + h + label.ROOM - label.SIZE * Sheet.Roboto.DESCENT
-            words(p.text, cx, base, label.SIZE, if (p.on) label.ALPHA else label.OFF_ALPHA, 500, WHITE, center = true)
+            // The rows' own words name the parts, so the long ones hang from their line like a
+            // flag and pass each other: from its left, or from its right where the name would run
+            // off the glass's right edge.
+            val flagRight = cx - FLAG_LEFT + width(p.text, label.SIZE, 500) > x + w
+            words(
+                p.text, if (flagRight) cx + FLAG_RIGHT else cx - FLAG_LEFT, base, label.SIZE,
+                if (p.on) label.ALPHA else label.OFF_ALPHA, 500, WHITE, right = flagRight,
+            )
         }
     }
 
@@ -253,14 +260,15 @@ private class GlassDrawing(private val c: Canvas) {
         c.drawCircle(cx, cy, radius, stroke)
     }
 
-    /** The board's `words`: Roboto on a baseline, left or centred on [x]. */
+    /** The board's `words`: Roboto on a baseline, left of, centred on or right of [x]. */
     private fun words(
         str: String, x: Float, baseline: Float, size: Float, alpha: Float, weight: Int, color: Int,
         center: Boolean = false,
+        right: Boolean = false,
     ) {
         val width = width(str, size, weight)
         type.color = withAlpha(color, alpha)
-        c.drawText(str, if (center) x - width / 2 else x, baseline, type)
+        c.drawText(str, if (center) x - width / 2 else if (right) x - width else x, baseline, type)
     }
 
     /** The board's `wordsW`: how wide [words] lays [str] down. */
@@ -277,6 +285,9 @@ private class GlassDrawing(private val c: Canvas) {
         ((((color ushr 24) * alpha) + 0.5f).toInt().coerceIn(0, 255) shl 24) or (color and 0xFFFFFF)
 
     private companion object {
+        /** A flag's name starts this far left of its line, or ends this far right of it. */
+        const val FLAG_LEFT = 3f
+        const val FLAG_RIGHT = 4f
         const val WHITE = 0xFFFFFFFF.toInt()
         const val BLACK = 0xFF000000.toInt()
         val REGULAR: Typeface = Typeface.create(Typeface.SANS_SERIF, 400, false)

@@ -334,7 +334,7 @@ object DenzaAppRepository {
     )
 
     /**
-     * The «Shortcuts» tile's runtime: the three roles, read and written on its own thread and
+     * The «Приложения» tile's runtime: the three roles, read and written on its own thread and
      * published through their one field of [state]; see [DefaultAppsRuntime].
      */
     val defaultApps = DefaultAppsRuntime(
