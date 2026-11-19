@@ -34,15 +34,21 @@ CHROME = os.environ.get('DC_CHROME', '/Applications/Google Chrome.app/Contents/M
 
 # The boards, one settled state each (the README says what each shows).
 BOARDS = ['handle', 'handle-dim', 'open', 'open-day', 'open-browser', 'open-wide-left',
-          'vacant-right', 'vacant-left', 'vacant-both', 'edit', 'edit-day', 'launch', 'home', 'blur-day']
+          'vacant-right', 'vacant-left', 'vacant-both', 'edit', 'edit-day', 'launch', 'home', 'blur-day',
+          'apps', 'apps-wide-left']
 
 # The timed frames shot by default, in ms after each motion starts: the open morph through its
 # entrances; a pair chosen through the flights, the rest, the launch and the dissolve; a pane
-# vacated through the picker, the pill opening by itself and the pair opening up.
+# vacated through the picker, the pill opening by itself and the pair opening up; a finger pulling
+# the pill out of the handle, held at 60, back and held at 30, then flicking it open (released at
+# 550); «+» switching the pill to the apps row (the pairs out, the mark, the apps from it outward)
+# and an app chosen from it into the left pane at 700.
 FRAMES = {
     'opening': [0, 40, 80, 120, 160, 240, 320, 480],
     'choosing': [0, 60, 120, 200, 300, 380, 700, 1030, 1150, 1300],
     'vacating': [0, 130, 270, 400, 460, 520, 620, 760, 900, 1200],
+    'pulling': [0, 60, 120, 200, 250, 360, 420, 450, 520, 550, 580, 620, 700, 900],
+    'adding': [0, 40, 60, 80, 100, 140, 200, 280, 700, 760, 860, 1000, 1400, 1800, 2100],
 }
 
 

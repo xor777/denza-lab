@@ -87,12 +87,17 @@
     "bloom-mid": "rgba(67, 159, 252, 0.26)"
   },
   "handle": {
-    "w": 44,
-    "h": 5,
-    "bottom": 727,
+    "w": 32,
+    "h": 32,
+    "rise": 3,
+    "bottom": 733,
+    "cy": 717,
+    "bead": 8,
     "alpha": 0.35,
     "dim": 0.2,
-    "fadeBy": 26,
+    "dimGlass": 0.7,
+    "fadeBy": 6,
+    "swell": 2,
     "hit": {
       "w": 96,
       "h": 48
@@ -238,9 +243,9 @@
   },
   "badge": {
     "size": 24,
-    "x": -8,
-    "y": 0,
-    "hit": 8,
+    "x": 69,
+    "y": 3,
+    "hit": 12,
     "minus": {
       "w": 12,
       "h": 2,
@@ -264,6 +269,51 @@
       10,
       12
     ]
+  },
+  "apps": {
+    "mark": {
+      "w": 2,
+      "h": 56,
+      "r": 1,
+      "alpha": 0.35,
+      "glow": 0
+    },
+    "gap": 18
+  },
+  "pull": {
+    "travel": 69,
+    "width": "linear",
+    "items": {
+      "from": 0.04,
+      "to": 0.4,
+      "each": 0.2
+    },
+    "band": {
+      "factor": 0.25,
+      "cap": 10
+    },
+    "window": 80,
+    "project": 120,
+    "half": 0.5,
+    "bound": {
+      "width": 0.04,
+      "height": 10,
+      "shut": 0
+    },
+    "down": {
+      "start": 10,
+      "dominance": 1
+    },
+    "catch": {
+      "span": 24,
+      "settle": [
+        160,
+        1
+      ]
+    },
+    "tap": {
+      "visible": 0.5
+    }
   },
   "fly": {
     "size": 96,
@@ -307,7 +357,6 @@
     "scale": 0.93,
     "lift": 1.08,
     "nudge": 1.06,
-    "plusNudge": 1.08,
     "star": 1.14,
     "badge": 0.86,
     "tapGrow": 1.015,
@@ -322,8 +371,8 @@
     "badgePeak": 1.22,
     "badgePeakAt": 0.62,
     "badgeOrigin": [
-      4,
-      12
+      81,
+      15
     ]
   },
   "star": {
@@ -541,6 +590,24 @@
     "starFlash": {
       "ms": 680,
       "ease": "ease-out"
+    },
+    "swapOut": {
+      "ms": 90,
+      "ease": "ease-out",
+      "scale": 0.92
+    },
+    "swapMark": {
+      "ms": 160,
+      "ease": "settle",
+      "delay": 40
+    },
+    "swapIn": {
+      "ms": 150,
+      "ease": "settle",
+      "delay": 70,
+      "spread": 60,
+      "from": 12,
+      "scale": 0.8
     }
   },
   "timer": {

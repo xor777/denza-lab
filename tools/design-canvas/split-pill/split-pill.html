@@ -374,6 +374,8 @@
     z-index: 20;
   }
   .pill.is-open { pointer-events: auto; touch-action: none; }
+  /* Closing, the pill can still be caught anywhere on it. */
+  .pill.is-flying { pointer-events: auto; touch-action: none; }
   .pill-shadow { position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--pill-lift); opacity: 0; }
   .pill-glass {
     position: absolute; inset: 0; border-radius: inherit; opacity: 0;
@@ -391,7 +393,7 @@
     background: linear-gradient(180deg, var(--glass-sheen), transparent var(--sheen-stop)), var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter);
   }
-  .pill-handle { position: absolute; inset: 0; border-radius: inherit; background: var(--handle); opacity: var(--handle-a); }
+  .pill-handle { position: absolute; left: 0; top: 0; width: var(--handle-w); height: var(--handle-h); border-radius: 50%; background: var(--handle); opacity: var(--handle-a); }
   .pill-clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
   .row { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
   .hit {
@@ -409,9 +411,10 @@
   .it-single .it-face { left: 0; top: var(--single-top); width: var(--icon); height: var(--icon); }
   .it-btn .it-face { inset: 0; border-radius: 50%; background: var(--btn); display: grid; place-items: center; color: var(--white); }
   .it-btn svg { width: var(--btn-glyph); height: var(--btn-glyph); fill: none; stroke: currentColor; stroke-width: var(--btn-stroke); stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
-  .it-btn.solid .star path { fill: currentColor; }
   .it-sep { cursor: default; }
   .it-sep .it-in { background: var(--sep); }
+  .it-divider { cursor: default; }
+  .it-divider .it-in { background: var(--apps-mark); border-radius: var(--apps-mark-r); box-shadow: var(--apps-mark-glow); }
   .pair { display: block; overflow: visible; }
   .mark {
     position: absolute; left: 0; top: var(--mark-top); width: var(--mark-w); height: var(--mark-h); border-radius: var(--mark-r);
@@ -431,13 +434,14 @@
 
   .badge {
     position: absolute; left: var(--badge-x); top: var(--badge-y); width: var(--badge); height: var(--badge); border-radius: 50%;
-    display: grid; place-items: center; z-index: 3; touch-action: none;
+    display: grid; place-items: center; z-index: 3; touch-action: none; color: var(--white);
   }
-  .badge::after { content: ""; position: absolute; inset: var(--badge-hit); border-radius: 50%; }
+  .badge::after { content: ""; position: absolute; inset: var(--badge-hit); border-radius: 50%; clip-path: var(--badge-hit-clip); }
   .badge-rm { background: var(--red); box-shadow: var(--badge-drop-shadow); }
   .badge-rm i { width: var(--minus-w); height: var(--minus-h); border-radius: var(--minus-r); background: var(--white); }
-  .badge-pin { background: var(--badge-dark); box-shadow: var(--badge-ring-shadow), var(--badge-drop-shadow); }
-  .badge-pin svg { width: var(--badge-star); height: var(--badge-star); fill: none; stroke: var(--white); stroke-width: var(--badge-star-stroke); stroke-linejoin: round; }
+  .badge-pin, .badge-pinned { background: var(--badge-dark); box-shadow: var(--badge-ring-shadow), var(--badge-drop-shadow); }
+  .badge-pin svg, .badge-pinned svg { width: var(--badge-star); height: var(--badge-star); fill: none; stroke: currentColor; stroke-width: var(--badge-star-stroke); stroke-linejoin: round; overflow: visible; }
+  .badge-pinned svg { fill: currentColor; }
 
   .fx { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
   .fly { position: absolute; left: 0; top: 0; width: var(--fly); height: var(--fly); transform-origin: var(--fly-origin); }
@@ -579,7 +583,20 @@
       'bloom-core': 'rgba(200, 228, 255, 0.55)',
       'bloom-mid': 'rgba(67, 159, 252, 0.26)',
     },
-    handle: { w: 44, h: 5, bottom: 727, alpha: 0.35, dim: 0.2, fadeBy: 26, hit: { w: 96, h: 48 } },
+    // The handle is a disc: the pill at rest, a capsule as wide as it is tall, in the pill's own
+    // dense glass (fill, rim, a shadow scaled to its size) with a white bead at its centre. It lies
+    // over the joint of the two panes, centred on the divider, its bottom edge `rise` above the
+    // panes' bottom edge, so it covers the gap and the panes' bottom corners and stays out of the
+    // band below. `alpha` is the bead's white, `bead` its size; idle, the bead goes to `dim` and
+    // the glass to `dimGlass`. The bead fades over the first `fadeBy` of the pill's growth. Under
+    // a press the disc swells by `swell`, about its centre, on the press's timing, and gives that
+    // back over the first 2 x `swell` of growth.
+    handle: {
+      w: 32, h: 32, rise: 3,
+      get bottom() { return SPEC.stage.paneTop + SPEC.stage.paneH - SPEC.handle.rise; },
+      get cy() { return SPEC.handle.bottom - SPEC.handle.h / 2; },
+      bead: 8, alpha: 0.35, dim: 0.2, dimGlass: 0.7, fadeBy: 6, swell: 2, hit: { w: 96, h: 48 },
+    },
     pill: {
       open: { h: 88, bottom: 720 },
       edit: { h: 108 },
@@ -613,21 +630,67 @@
       breathe: { lo: 0.5, hi: 1, still: 0.85 },
       solidFade: 1.6, rimFrom: 0.15, glyphFrom: 0.35,
     },
+    // A badge sits on a chip's top-right corner, over the corner of the app behind: there it keeps
+    // 11 from the open pill's top edge and clear of its rounded ends wherever the chip stands. Its
+    // touch target reaches `hit` beyond the disc, cut where the gap to the next chip is halved.
     badge: {
-      size: 24, x: -8, y: 0, hit: 8,
+      size: 24, x: 69, y: 3, hit: 12,
       minus: { w: 12, h: 2, r: 1 }, star: 13, starStroke: 1.7, ring: 1, drop: [0, 1, 3],
     },
     drag: { start: 6, overshoot: 14, scale: 1.06, shadow: [0, 10, 12] },
+    // The apps row «+» opens: the left pane's single apps on the left, the right pane's on the
+    // right, each half laid outward from the divider's mark, which stands on the divider's x (the
+    // pill is moved off the divider by as much as the halves differ). The mark is a vertical line,
+    // the handle's white at the handle's alpha, `gap` from the apps on either side.
+    apps: {
+      mark: { w: 2, h: 56, r: 1, alpha: 0.35, glow: 0 },
+      gap: 18,
+    },
+    // The pull. Under the finger the pill is a function of one number, p: 0 the handle, 1 the
+    // open pill. Height and bottom follow p linearly, so the top edge moves with the finger over
+    // `travel` - the way from the disc's top edge to the open pill's, derived below (69).
+    // Width and height both start at the disc's diameter: the width is handle.w + (row width -
+    // handle.w) * p (`width` names the ease; linear). The row is drawn at min(1, height / open
+    // height, width / row width), so at every p the pill is a miniature of the open one and nothing
+    // is cut; past the open height it stays at full size on the bottom. The glass is there from
+    // p 0 (the disc is glass); the disc's bead fades as the row arrives (handle.fadeBy). Item i of n rises enter.dy (scaled
+    // with the row) and fades in over p from + i * s to that + each, s = (to - from - each) / (n -
+    // 1). Past p 1 the top edge goes on by cap * tanh(factor * x / cap) for x dp of finger; below
+    // p 0 nothing moves. A release opens the pill when p + the finger's speed over `project` ms
+    // reaches `half`, else closes it, the speed fitted over the last `window` ms; the springs are
+    // the opening and closing ones and start with the finger's speed, as much of it as keeps the
+    // spring within `bound`: opening, the width at most `bound.width` of the row's width past it and
+    // the height at most `bound.height` (the band's cap) past the open height; closing, neither
+    // more than `bound.shut` under the handle's. A pull down on the open pill starts once the
+    // finger is `down.start` from where it landed, with its way down more than `down.dominance`
+    // times its way across. A touch that catches the pill in flight stops it and p is read back
+    // from the height; the width line is bent through where it was caught, and what the stopped
+    // motion had moved the glass, the row's size and opacity and its items off this mapping fades
+    // out over `catch.span` dp of finger travel, and after the release on the `catch.settle`
+    // spring. Released as a tap, a catch on an item at least `tap.visible` visible is that item's
+    // tap and the pill opens; on the handle it opens; on bare glass the pill goes on where it was
+    // going.
+    pull: {
+      get travel() { return (SPEC.handle.bottom - SPEC.handle.h) - (SPEC.pill.open.bottom - SPEC.pill.open.h); },
+      width: 'linear',
+      items: { from: 0.04, to: 0.4, each: 0.2 },
+      band: { factor: 0.25, cap: 10 },
+      window: 80, project: 120, half: 0.5,
+      bound: { width: 0.04, get height() { return SPEC.pull.band.cap; }, shut: 0 },
+      down: { start: 10, dominance: 1 },
+      catch: { span: 24, settle: [160, 1] },
+      tap: { visible: 0.5 },
+    },
     fly: {
       size: 96, radius: 26, drop: [0, 14, 34], arc: 80, samples: 24, dim: 0.3, grow: 1.15,
       ring: { inset: 11, r: 36, border: 1.5, glow: 10, innerGlow: 8, lo: 0.35, s0: 0.98, hi: 1, s1: 1.03 },
     },
     bloom: { size: 90, stops: [0, 38, 70], scale: [0.55, 1, 1.22], peakAt: 0.14 },
     press: {
-      scale: 0.93, lift: 1.08, nudge: 1.06, plusNudge: 1.08, star: 1.14, badge: 0.86,
+      scale: 0.93, lift: 1.08, nudge: 1.06, star: 1.14, badge: 0.86,
       tapGrow: 1.015, tapGrowAt: 0.55, slop: 14, move: 10,
     },
-    enter: { dy: 8, pop: 0.6, exit: 0.8, badgePeak: 1.22, badgePeakAt: 0.62, badgeOrigin: [4, 12] },
+    enter: { dy: 8, pop: 0.6, exit: 0.8, badgePeak: 1.22, badgePeakAt: 0.62, badgeOrigin: [81, 15] },
     star: { hold: 0.18, glow: [5, 12] },
     ease: {
       out: '1 - (1 - t)^3',
@@ -684,6 +747,14 @@
       flyOut: { ms: 140, ease: 'linear' },
       bloom: { ms: 300, ease: 'ease-out' },
       starFlash: { ms: 680, ease: 'ease-out' },
+      // Between the apps row and any other, the rows do not cross: the outgoing items leave first
+      // (swapOut, to `scale`), the divider's mark grows from its centre (swapMark), and the incoming
+      // items arrive from the divider outward (swapIn): nearest first, the farthest `spread` ms
+      // later, each from `from` closer to the divider and at `scale`. All within the width's
+      // spring (280 ms).
+      swapOut: { ms: 90, ease: 'ease-out', scale: 0.92 },
+      swapMark: { ms: 160, ease: 'settle', delay: 40 },
+      swapIn: { ms: 150, ease: 'settle', delay: 70, spread: 60, from: 12, scale: 0.8 },
     },
     timer: {
       auto: 5000, edit: 10000, dim: 3000, selfOpen: 400, ghostOpen: 220,
@@ -893,6 +964,7 @@
   // ---------------------------------------------------------------- SPEC into the stylesheet
   (function applySpec() {
     const px = v => v + 'px', pc = v => v + '%';
+    const rgba = (hex, a) => `rgba(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')}, ${a})`;
     const shadow = (a, c) => `${a.map(px).join(' ')} var(--${c})`;
     const C = SPEC.ghost, B = SPEC.badge, F = SPEC.fly, R = SPEC.ring, K = SPEC.mark;
     const vars = {
@@ -920,6 +992,9 @@
       '--breathe-still': String(C.breathe.still),
       '--rim-stroke': String(C.stroke), '--rim-dash': C.dash.join(' '),
       '--badge': px(B.size), '--badge-x': px(B.x), '--badge-y': px(B.y), '--badge-hit': px(-B.hit),
+      '--badge-hit-clip': `inset(0px ${px(Math.max(0, B.x + B.size + B.hit - (CH.stacked + RW.gap.chip / 2)))} 0px 0px)`,
+      '--apps-mark': rgba(SPEC.color.handle, SPEC.apps.mark.alpha), '--apps-mark-r': px(SPEC.apps.mark.r),
+      '--apps-mark-glow': SPEC.apps.mark.glow ? `0px 0px ${px(SPEC.apps.mark.glow)} ${rgba(SPEC.color.handle, SPEC.apps.mark.alpha)}` : 'none',
       '--badge-drop-shadow': shadow(B.drop, 'badge-drop'),
       '--badge-ring-shadow': `inset 0px 0px 0px ${px(B.ring)} var(--badge-ring)`,
       '--minus-w': px(B.minus.w), '--minus-h': px(B.minus.h), '--minus-r': px(B.minus.r),
@@ -1042,6 +1117,7 @@
   const wideSide = () => (S.detent ? 'left' : 'right');
   const currentPair = () => (S.left && S.right ? [S.left, S.right] : [S.last.left, S.last.right]);
   const isLive = p => !S.home && S.left === p[0] && S.right === p[1];
+  const livePair = () => (!S.home && S.left && S.right ? [S.left, S.right] : null);
   function moveFront(list, x) { const i = list.indexOf(x); if (i >= 0) list.splice(i, 1); list.unshift(x); }
   function makeCurrent() {
     if (!S.left || !S.right) return;
@@ -1071,7 +1147,20 @@
     hA: new V(HD.alpha, null, 0.002),
     rowA: new V(0, v => st(pillClip, 'opacity', String(v)), 0.002),
     vis: new V(1, v => st(pill, 'opacity', String(v)), 0.002),
+    // How far the pill stands off the divider: 0 but on the apps row, whose mark keeps to the
+    // divider when its halves differ. `dxT` is where the row being shown wants it.
+    dx: new V(0, null, 0.05),
+    // The disc's swell under a pressing finger, 0 to 1 (SPEC.handle.swell).
+    sw: new V(0, null, 0.002),
   };
+  let dxT = 0;
+  // The pull (see "the pull"). While `pull.bound`, the glass, the row's opacity and each item's rise
+  // are read off the pill's height instead of their own values, under the finger and after it.
+  const pull = { id: null, kind: null, phase: 'idle', bound: false, W: HD.w, raw: 0, p0: 0, floor: 0, give: false, res: null, anchor: null, samples: [],
+    was: null, item: null, press: null, onHit: false, t0: 0 };
+  // What is left of a motion a catch stopped: 1 at the catch, 0 once the finger has taken over.
+  const PR = new V(0, null, 0.002);
+  let flying = false;
   // The panes stand `edge` in from the stage's sides with `gap` between them, centred on the divider.
   const HALF = G.gap / 2, RIGHT = G.w - G.edge;
   const DIV = () => G.detents[S.detent];
@@ -1091,20 +1180,41 @@
     }
     st(grip, 'translate', `${(d - G.grip.w / 2).toFixed(2)}px ${paneCY - G.grip.h / 2}px`);
 
-    const w = Math.max(PL.min.w, P.w.v), h = Math.max(PL.min.h, P.h.v), o = clamp01(P.o.v);
+    if (pull.bound && pull.phase === 'release' && !live.has(P.h) && !live.has(PR)) settlePull();
+    let w = Math.max(PL.min.w, P.w.v), h = Math.max(PL.min.h, P.h.v);
     // The bottom edge rises from the handle's to the open pill's as the height grows.
     const k = clamp01((h - HD.h) / (PL.open.h - HD.h));
-    const yb = HD.bottom - (HD.bottom - PL.open.bottom) * k;
-    const cx = clamp(d, PL.margin + w / 2, (G.w - PL.margin) - w / 2);
+    // A pressed disc is swollen about its centre; the swell is given back over the first 2 x swell
+    // of growth, flat at both ends, so the top edge picks up the finger without a step.
+    const sw = P.sw.v ? P.sw.v * HD.swell * Math.pow(1 - clamp01((h - HD.h) / (2 * HD.swell)), 2) : 0;
+    const o = pull.bound ? pulledRow(k) : clamp01(P.o.v);
+    const fl = S.mode === 'handle' && !S.home && h > HD.h + 0.5;
+    if (fl !== flying) { flying = fl; pill.classList.toggle('is-flying', fl); }
+    let yb = HD.bottom - (HD.bottom - PL.open.bottom) * k;
+    const h0 = h;
+    if (sw) { w += sw; h += sw; yb += sw / 2; }
+    // Under a pull the offset goes with the width, so the pill grows out of the handle and back.
+    const ox = pull.bound ? dxT * clamp01((w - HD.w) / Math.max(1, pull.W - HD.w)) : P.dx.v;
+    const cx = clamp(d + ox, PL.margin + w / 2, (G.w - PL.margin) - w / 2);
     st(pill, 'width', w.toFixed(2) + 'px');
     st(pill, 'height', h.toFixed(2) + 'px');
     st(pill, 'borderRadius', (h / 2).toFixed(2) + 'px');
     st(pill, 'translate', `${(cx - w / 2).toFixed(2)}px ${(yb - h).toFixed(2)}px`);
-    st(pillGlass, 'opacity', o.toFixed(3));
-    st(pillShadow, 'opacity', o.toFixed(3));
-    // The handle's white only lives while the shape is still handle-sized, so the morph never
-    // flashes a large pale capsule on its way open or shut.
-    st(pillHandle, 'opacity', (P.hA.v * (1 - o) * clamp01(1 - (h - HD.h) / HD.fadeBy)).toFixed(3));
+    // The disc is glass at rest: idle, it goes as quiet as `dimGlass` with the bead's dimming.
+    const awake = clamp01((P.hA.v - HD.dim) / (HD.alpha - HD.dim));
+    const g = Math.max(o, HD.dimGlass + (1 - HD.dimGlass) * awake);
+    st(pillGlass, 'opacity', g.toFixed(3));
+    st(pillShadow, 'opacity', g.toFixed(3));
+    // The shadow scales with the pill's size, up to the open pill's own.
+    const f = h / PL.open.h;
+    st(pillShadow, 'boxShadow', f >= 1 ? '' : PL.lift.map(l => `${l.slice(0, 3).map(v => (v * f).toFixed(2) + 'px').join(' ')} var(--${l[3]})`).join(', '));
+    // The handle's white is a bead at the pill's centre: it keeps its size while the glass grows
+    // round it and fades over the first `fadeBy` of growth.
+    const bead = Math.min(w, h, HD.bead + sw);
+    st(pillHandle, 'width', bead.toFixed(2) + 'px');
+    st(pillHandle, 'height', bead.toFixed(2) + 'px');
+    st(pillHandle, 'translate', `${((w - bead) / 2).toFixed(2)}px ${((h - bead) / 2).toFixed(2)}px`);
+    st(pillHandle, 'opacity', (P.hA.v * clamp01(1 - (h0 - HD.h) / HD.fadeBy)).toFixed(3));
   }
 
   // ---------------------------------------------------------------- pane content
@@ -1403,7 +1513,6 @@
     });
     dockUpdate();
     clock.cancel(T.repair);
-    if (reason === 'plus') { showRepair(); return; }
     T.repair = later(() => { if (anyEmpty() && !S.home) showRepair(); }, D(TM.selfOpen));
   }
   function fillPane(side, app, from) {
@@ -1418,7 +1527,7 @@
       if (g && S.mode !== 'handle') chipClose(g);
       closePill();
     }
-    else if (S.mode !== 'handle') reconcile(repairSpec());
+    else if (S.mode !== 'handle') { S.content = 'repair'; reconcile(repairSpec()); }
   }
   function pickApp(side, btn) {
     if (S[side]) return;
@@ -1467,7 +1576,9 @@
   // ---------------------------------------------------------------- the pill's row
   const items = new Map();
   let rowSpec = [];
+  const INERT = new Set(['sep', 'divider']);
   function gapBetween(a, b) {
+    if (a.kind === 'divider' || b.kind === 'divider') return SPEC.apps.gap;
     if (a.kind === 'sep' || b.kind === 'sep') return RW.gap.sep;
     if (a.kind === 'chip' && b.kind === 'chip') return RW.gap.chip;
     if (a.kind === 'btn' && b.kind === 'btn') return RW.gap.btn;
@@ -1487,30 +1598,48 @@
     for (const [k, v] of pos) pos.set(k, v - W / 2);
     return { W, pos };
   }
+  // The pairs: pinned first, then recent ones, three at most; the pair on screen is always among
+  // them, taking the third place when it would not be. Then «+» (the check in edit).
   function pairsSpec() {
     const edit = S.mode === 'edit';
     const pins = S.pinned.map(p => ({ key: 'pin:' + pk(p), kind: 'chip', w: CH.stacked, pair: p, pinned: true }));
     const recs = S.recents.filter(p => !isPinned(p)).map(p => ({ key: 'rec:' + pk(p), kind: 'chip', w: CH.stacked, pair: p, pinned: false }));
-    const chips = pins.concat(recs).slice(0, edit ? Math.max(RW.maxChips, pins.length) : RW.maxChips);
+    const all = pins.concat(recs);
+    const n = edit ? Math.max(RW.maxChips, pins.length) : RW.maxChips;
+    const chips = all.slice(0, n);
+    const lp = livePair();
+    const li = lp ? all.findIndex(s => same(s.pair, lp)) : -1;
+    if (li >= n) { if (edit && pins.length >= RW.maxChips) chips.push(all[li]); else chips[RW.maxChips - 1] = all[li]; }
     const out = chips.slice();
     if (chips.length) out.push({ key: 'sep', kind: 'sep', w: SPEC.sep.w });
-    if (edit) out.push({ key: 'check', kind: 'btn', w: SPEC.btn.size });
-    else out.push({ key: 'plus', kind: 'btn', w: SPEC.btn.size }, { key: 'star', kind: 'btn', w: SPEC.btn.size });
+    out.push(edit ? { key: 'check', kind: 'btn', w: SPEC.btn.size } : { key: 'plus', kind: 'btn', w: SPEC.btn.size });
     return out;
   }
+  // Up to three single apps for a pane: its own recent apps first, then the rest, never one in `not`.
+  const singlesFor = (side, not) => S.hist[side].concat(ORDER).filter((a, i, arr) => a && !not.has(a) && arr.indexOf(a) === i).slice(0, RW.maxSingles);
+  const single = (side, a, pre) => ({ key: pre + a, kind: 'single', w: IC, app: a, side });
+  // The apps row: the left pane's apps on the left and the right pane's on the right, each half
+  // laid outward from the divider's mark (the most recent next to it), never an app on screen.
+  function appsSpec() {
+    const on = new Set([S.left, S.right].filter(Boolean));
+    const out = singlesFor('left', on).reverse().map(a => single('left', a, 'L:'));
+    out.push({ key: 'divider', kind: 'divider', w: SPEC.apps.mark.w });
+    singlesFor('right', on).forEach(a => out.push(single('right', a, 'R:')));
+    return out;
+  }
+  // The repair row: the pair that was on screen as an opened chip, a separator, and the singles
+  // for the empty pane on that pane's side of the chip. Both panes empty, it is the apps row.
   function repairSpec() {
+    if (!S.left && !S.right) return S.pinned.length || S.recents.length ? pairsSpec() : appsSpec();
     const pair = [S.last.left, S.last.right];
     const g = { left: !S.left, right: !S.right };
-    const out = [{ key: 'ghost', kind: 'chip', w: CH.open, pair, ghost: g, pinned: false }];
+    const chip = { key: 'ghost', kind: 'chip', w: CH.open, pair, ghost: g, pinned: false };
     const side = emptyTarget();
-    const excl = new Set(pair);
-    const cand = S.hist[side].concat(ORDER).filter((a, i, arr) => a && !excl.has(a) && arr.indexOf(a) === i).slice(0, RW.maxSingles);
-    out.push({ key: 'sepR', kind: 'sep', w: SPEC.sep.w });
-    cand.forEach(a => out.push({ key: 'one:' + a, kind: 'single', w: IC, app: a }));
-    out.push({ key: 'sep', kind: 'sep', w: SPEC.sep.w }, { key: 'plus', kind: 'btn', w: SPEC.btn.size }, { key: 'star', kind: 'btn', w: SPEC.btn.size });
-    return out;
+    const ones = singlesFor(side, new Set(pair)).map(a => single(side, a, 'one:'));
+    const sep = { key: 'sepR', kind: 'sep', w: SPEC.sep.w };
+    return side === 'left' ? ones.reverse().concat([sep, chip]) : [chip, sep].concat(ones);
   }
-  const specNow = () => (S.content === 'repair' ? repairSpec() : pairsSpec());
+  const specNow = () => (S.content === 'repair' ? repairSpec() : S.content === 'apps' ? appsSpec() : pairsSpec());
 
   // A pair chip has two forms (SPEC.chip). Stacked: the right pane's app tucked behind the left one,
   // smaller, a cut-out ring between them. Opened: both side by side at full size, `gap` apart -
@@ -1579,14 +1708,13 @@
   }
   const BTN = {
     plus: '<svg viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></svg>',
-    star: `<svg class="star" viewBox="0 0 24 24"><path d="${STAR}"/></svg>`,
     check: '<svg viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg>',
   };
 
   function createItem(s) {
     const el = document.createElement('div');
     el.className = 'it it-' + s.kind;
-    const H = RW.h[s.kind];
+    const H = s.kind === 'divider' ? SPEC.apps.mark.h : RW.h[s.kind];
     el.style.width = s.w + 'px';
     el.style.height = H + 'px';
     const inn = document.createElement('div');
@@ -1594,7 +1722,7 @@
     const face = document.createElement('div');
     face.className = 'it-face';
     el.appendChild(inn);
-    if (s.kind !== 'sep') inn.appendChild(face);
+    if (!INERT.has(s.kind)) inn.appendChild(face);
     let mark = null;
     if (s.kind === 'chip') {
       face.innerHTML = chipHTML(s);
@@ -1615,11 +1743,18 @@
       it.gr = new V(0, form, 0.002);
       chipTo(it, true);
     }
-    if (s.kind !== 'sep') el.addEventListener('pointerdown', e => onItemDown(it, e));
+    if (!INERT.has(s.kind)) el.addEventListener('pointerdown', e => onItemDown(it, e));
     row.appendChild(el);
     return it;
   }
-  function updateItem(it, badgeDelay) {
+  /** A chip's badge: in edit unpin on pinned pairs and pin on the others; out of edit only the
+   *  pair on screen has one, its star solid while the pair is pinned. */
+  function badgeOf(s) {
+    if (s.ghost) return null;
+    if (S.mode === 'edit') return s.pinned ? 'rm' : 'pin';
+    return isLive(s.pair) ? (s.pinned ? 'pinned' : 'pin') : null;
+  }
+  function updateItem(it, badgeDelay, born) {
     const s = it.s;
     if (it.kind === 'chip') {
       st(it.el, 'width', s.w + 'px');
@@ -1634,17 +1769,24 @@
       }
       chipTo(it, false);
       it.el.classList.toggle('live', !s.ghost && isLive(s.pair));
-      setBadge(it, S.mode === 'edit' && !s.ghost ? (s.pinned ? 'rm' : 'pin') : null, badgeDelay);
+      setBadge(it, badgeOf(s), badgeDelay, born);
     }
-    if (it.key === 'star') it.el.classList.toggle('solid', isPinned(currentPair()));
   }
   function bindChipSvg(it) {
     it.rt = it.face.querySelector('.ic-rt');
     it.rg = it.rt;
     it.lg = it.face.querySelector('.ic-l');
   }
-  function setBadge(it, type, delay) {
+  const STARS = new Set(['pin', 'pinned']);
+  /** `born`: the badge comes with a new chip, as part of it, without a pop of its own. Between the
+   *  outline and the solid star the same badge stays and only its star changes. */
+  function setBadge(it, type, delay, born) {
     if (it.badgeType === type) return;
+    if (it.badge && STARS.has(it.badgeType) && STARS.has(type)) {
+      it.badge.className = 'badge badge-' + type;
+      it.badgeType = type;
+      return;
+    }
     if (it.badge) {
       const old = it.badge;
       old.style.pointerEvents = 'none';
@@ -1656,22 +1798,28 @@
     const b = document.createElement('div');
     b.className = 'badge badge-' + type;
     b.innerHTML = type === 'rm' ? '<i></i>' : `<svg viewBox="0 0 24 24"><path d="${STAR}"/></svg>`;
-    it.el.appendChild(b);
+    b.sc = new V(1, v => st(b, 'scale', v.toFixed(4)), 0.0005);
+    // In the item's content, so it comes and goes with the chip (its entrance, the pull).
+    it.inn.appendChild(b);
     it.badge = b;
+    b.addEventListener('pointerdown', e => onBadgeDown(it, b, e));
+    if (born) return;
     b.animate([
       { transform: 'scale(0)', opacity: 0 },
       { transform: `scale(${SPEC.enter.badgePeak})`, opacity: 1, offset: SPEC.enter.badgePeakAt },
       { transform: 'scale(1)', opacity: 1 },
     ], { duration: D(M.badgeIn.ms), delay: D(delay || 0), easing: css(M.badgeIn.ease), fill: 'backwards' });
-    b.addEventListener('pointerdown', e => onBadgeDown(it, b, e));
   }
   function exitItem(it, mode) {
     it.el.style.pointerEvents = 'none';
     let a;
     if (mode === 'badge') {
+      if (it.badge) it.el.appendChild(it.badge);   // the chip shrinks into its badge, which stays
       it.inn.style.transformOrigin = SPEC.enter.badgeOrigin.map(v => v + 'px').join(' ');
       a = it.inn.animate([{ transform: 'scale(0)', opacity: 0 }], { duration: D(M.unpin.ms), easing: css(M.unpin.ease), fill: 'forwards' });
       if (it.badge) it.badge.animate([{ transform: 'scale(0)', opacity: 0 }], { duration: D(M.unpinBadge.ms), delay: D(M.unpinBadge.delay), easing: css(M.unpinBadge.ease), fill: 'forwards' });
+    } else if (mode === 'swap') {
+      a = it.el.animate([{ opacity: 0, transform: `scale(${M.swapOut.scale})` }], { duration: D(M.swapOut.ms), easing: css(M.swapOut.ease), fill: 'forwards' });
     } else {
       a = it.el.animate([{ opacity: 0, transform: `scale(${SPEC.enter.exit})` }], { duration: D(M.exit.ms), easing: css(M.exit.ease), fill: 'forwards' });
     }
@@ -1691,14 +1839,22 @@
   }
   /** Bring the row to `spec`: kept items glide to their new places, new ones come in, gone ones leave. */
   function reconcile(spec, opt = {}) {
+    const hasMark = sp => sp.some(s => s.kind === 'divider');
+    // To or from the apps row with a row on show: the sequence, not a cross-dissolve.
+    const swap = !opt.fresh && !opt.pull && items.size > 0 && hasMark(rowSpec) !== hasMark(spec);
     rowSpec = spec;
     const L = layoutSpec(spec, S.mode === 'edit');
     const keys = new Set(spec.map(s => s.key));
-    for (const [k, it] of items) if (!keys.has(k)) { items.delete(k); exitItem(it, opt.exit && opt.exit[k]); }
+    for (const [k, it] of items) if (!keys.has(k)) { items.delete(k); exitItem(it, swap ? 'swap' : opt.exit && opt.exit[k]); }
+    // Where the divider stands in the new row, and each new item's rank by its distance from it.
+    const mk0 = spec.find(s => s.kind === 'divider');
+    const divAt = mk0 ? L.pos.get(mk0.key) + mk0.w / 2 : 0;
+    const away = s => Math.round(Math.abs(L.pos.get(s.key) + s.w / 2 - divAt));
+    const dists = [...new Set(spec.filter(s => !items.has(s.key) && s.kind !== 'divider').map(away))].sort((a, b) => a - b);
     let chip = 0;
     spec.forEach((s, i) => {
       let it = items.get(s.key);
-      const x = L.pos.get(s.key);
+      const x = L.pos.get(s.key), born = !it;
       if (!it) {
         it = createItem(s);
         items.set(s.key, it);
@@ -1706,16 +1862,32 @@
         if (opt.fresh) {
           it.inn.animate([{ opacity: 0, transform: `translateY(${SPEC.enter.dy}px)` }, { opacity: 1, transform: 'none' }],
             { duration: D(M.enter.ms), delay: D(M.enter.delay + i * M.enter.stagger), easing: css(M.enter.ease), fill: 'backwards' });
-        } else {
+        } else if (swap && s.kind === 'divider') {
+          it.inn.animate([{ transform: 'scaleY(0)' }, { transform: 'none' }],
+            { duration: D(M.swapMark.ms), delay: D(M.swapMark.delay), easing: css(M.swapMark.ease), fill: 'backwards' });
+        } else if (swap) {
+          const I = M.swapIn, r = dists.length > 1 ? dists.indexOf(away(s)) / (dists.length - 1) : 0;
+          const toward = Math.sign(divAt - (x + s.w / 2)) * I.from;
+          it.inn.animate([{ opacity: 0, transform: `translateX(${toward}px) scale(${I.scale})` }, { opacity: 1, transform: 'none' }],
+            { duration: D(I.ms), delay: D(I.delay + r * I.spread), easing: css(I.ease), fill: 'backwards' });
+        } else if (!opt.pull) {
           it.inn.animate([{ opacity: 0, transform: `scale(${SPEC.enter.pop})` }, { opacity: 1, transform: 'none' }],
             { duration: D(M.pop.ms), delay: D(opt.enterDelay || 0), easing: css(M.pop.ease), fill: 'backwards' });
         }
       } else if (!it.dragging) it.x.spring(x, SP.slide);
       it.s = s;
-      updateItem(it, opt.stagger ? chip * M.badgeIn.stagger : 0);
+      updateItem(it, opt.stagger ? chip * M.badgeIn.stagger : 0, born);
       if (s.kind === 'chip') chip++;
     });
-    P.w.spring(L.W, opt.wsp || (opt.fresh ? SP.open : SP.resize));
+    // The apps row stands with its mark on the divider.
+    const mk = spec.find(s => s.kind === 'divider');
+    dxT = mk ? -(L.pos.get(mk.key) + mk.w / 2) : 0;
+    // Under a pull the finger sets the width, and the items arrive by p, not by time.
+    if (!opt.pull) {
+      const ws = opt.wsp || (opt.fresh ? SP.open : SP.resize);
+      P.w.spring(L.W, ws);
+      if (P.dx.target !== dxT) P.dx.spring(dxT, ws);
+    }
     return L;
   }
 
@@ -1730,7 +1902,7 @@
   }
   function armAuto() {
     clock.cancel(T.auto);
-    if (S.mode === 'open' && S.content === 'pairs') T.auto = later(closePill, TM.auto);
+    if (S.mode === 'open' && S.content !== 'repair' && !anyEmpty()) T.auto = later(closePill, TM.auto);
   }
   function armEdit() { clock.cancel(T.edit); T.edit = later(exitEdit, TM.edit); }
   function pillTouched() { if (S.mode === 'open') armAuto(); if (S.mode === 'edit') armEdit(); }
@@ -1764,6 +1936,8 @@
     tw(P.rowA, 0, M.rowOut);
     P.w.spring(HD.w, SP.close, D(M.shrink.delay));
     P.h.spring(HD.h, SP.close, D(M.shrink.delay));
+    dxT = 0;
+    if (P.dx.target !== 0) P.dx.spring(0, SP.close, D(M.shrink.delay));
     tw(P.o, 0, M.glassOut);
     clock.cancel(T.clear);
     T.clear = later(() => { if (S.mode === 'handle') clearItems(); }, D(TM.clear));
@@ -1775,8 +1949,14 @@
     clock.cancel(T.auto); clock.cancel(T.edit);
     if (S.mode === 'handle') { openPill(); return; }
     if (S.mode === 'edit') { S.mode = 'open'; P.h.spring(PL.open.h, SP.edit); }
-    // The pair on screen becomes the incomplete pair: the same chip opens up in place.
-    if (!items.has('ghost')) {
+    const spec = repairSpec();
+    const g = items.get('ghost');
+    if (g && !spec.some(x => x.key === 'ghost')) {
+      // Both panes empty: the incomplete pair closes back into its chip among the pairs.
+      const to = spec.find(x => x.kind === 'chip' && same(x.pair, g.s.pair));
+      if (to) renameItem('ghost', to.key);
+    } else if (!g && spec.some(x => x.key === 'ghost')) {
+      // The pair on screen becomes the incomplete pair: the same chip opens up in place.
       const k = pk([S.last.left, S.last.right]);
       if (items.has('pin:' + k)) renameItem('pin:' + k, 'ghost');
       else if (items.has('rec:' + k)) renameItem('rec:' + k, 'ghost');
@@ -1833,7 +2013,7 @@
     tw(it.sc, SPEC.press.scale, M.press);
     const isPair = it.kind === 'chip' && !it.s.ghost;
     const canLP = isPair && S.mode === 'open' && S.content === 'pairs';
-    let moved = false, lpDone = false, dragging = false, ring = null;
+    let moved = false, lpDone = false, dragging = false, ring = null, decided = false;
     const tl = [];
     if (canLP) {
       ring = startRing(it);
@@ -1841,6 +2021,12 @@
       tl.push(clock.after(() => { lpDone = true; enterEdit(it); }, TM.longPress));
     }
     const cancelLP = () => { tl.forEach(id => clock.cancel(id)); if (ring) { ring = null; hideRing(it); } };
+    const off = () => {
+      it.el.removeEventListener('pointermove', move);
+      it.el.removeEventListener('pointerup', up);
+      it.el.removeEventListener('pointercancel', up);
+      it.el.removeEventListener('lostpointercapture', up);
+    };
     const move = ev => {
       if (ev.pointerId !== e.pointerId) return;
       const p = toStage(ev), dx = p.x - p0.x, dy = p.y - p0.y;
@@ -1848,14 +2034,18 @@
       if (isPair && S.mode === 'edit' && it.s.pinned && Math.abs(dx) > SPEC.drag.start) {
         dragging = true; cancelLP(); dragStart(it); dragMove(it, dx); return;
       }
+      // Leaving the press mostly downwards takes the open pill down with the finger.
+      if (!decided && !lpDone && Math.hypot(dx, dy) > SPEC.pull.down.start) {
+        decided = true;
+        if (canPullDown() && dy > SPEC.pull.down.dominance * Math.abs(dx)) {
+          off(); cancelLP(); it.sc.spring(1, SP.release); pullDown(ev, it.el); return;
+        }
+      }
       if (!lpDone && Math.hypot(dx, dy) > SPEC.press.move) { moved = true; cancelLP(); }
     };
     const up = ev => {
       if (ev.pointerId !== e.pointerId) return;
-      it.el.removeEventListener('pointermove', move);
-      it.el.removeEventListener('pointerup', up);
-      it.el.removeEventListener('pointercancel', up);
-      it.el.removeEventListener('lostpointercapture', up);
+      off();
       if (dragging) { dragEnd(it); return; }
       if (lpDone) { it.sc.spring(1, SP.release); return; }
       cancelLP();
@@ -1872,16 +2062,15 @@
   function tapItem(it) {
     if (it.kind === 'chip') {
       if (it.s.ghost) restoreGhost(it);
-      else if (S.mode === 'open') choosePair(it);
+      else if (S.mode === 'open') { if (isLive(it.s.pair)) nudge(it); else choosePair(it); }
       return;
     }
-    if (it.kind === 'single') { fillFromSingle(it); return; }
+    if (it.kind === 'single') { chooseSingle(it); return; }
     if (it.key === 'plus') plusAction(it);
-    else if (it.key === 'star') starAction(it);
     else if (it.key === 'check') exitEdit();
   }
   function onBadgeDown(it, b, e) {
-    if (e.button > 0) return;
+    if (e.button > 0 || S.mode === 'handle' || S.home || it.el.style.pointerEvents === 'none') return;
     e.preventDefault();
     e.stopPropagation();
     pillTouched();
@@ -1896,7 +2085,9 @@
       b.animate([{ transform: 'scale(1)' }], { duration: D(M.badgeRelease.ms), easing: css(M.badgeRelease.ease), fill: 'forwards' });
       const p = toStage(ev);
       if (ev.type !== 'pointerup' || Math.hypot(p.x - p0.x, p.y - p0.y) > SPEC.press.slop || it.badge !== b) return;
-      if (it.badgeType === 'rm') unpinChip(it); else pinChip(it);
+      if (it.badgeType === 'rm') unpinChip(it);
+      else if (S.mode === 'edit') pinChip(it);
+      else toggleLive(it);
     };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
@@ -1937,20 +2128,39 @@
       if (!anyEmpty()) { it.t.spring(0, SP.form); closePill(); } else if (S.mode !== 'handle') reconcile(repairSpec());
     }, D(M.ghostOut.ms));
   }
-  function fillFromSingle(it) {
-    const side = emptyTarget();
-    if (S[side]) return;
+  /** A single app goes into the pane of its side: into an empty one as the repair row does, or in
+   *  place of what that pane shows, by the flight for one pane; the other pane is not touched. */
+  function chooseSingle(it) {
+    const side = it.s.side || emptyTarget(), app = it.s.app;
+    if (S[side] === app) return;
     const r = stageRect(it.face);
     it.face.style.opacity = '0';
-    fillPane(side, it.s.app, r);
+    if (!S[side]) { fillPane(side, app, r); return; }
+    S[side] = app;
+    S.last[side] = app;
+    makeCurrent();
+    dockUpdate();
+    launch(side, app, r);
+    closePill();
   }
-  function plusAction(it) {
-    const side = S.touched || wideSide();
-    if (!S[side]) { nudge(it, SPEC.press.plusNudge); return; }
-    emptyPane(side, 'plus');
+  /** «+»: the pill switches in place to the apps row. Nothing is closed until an app is chosen. */
+  function plusAction() {
+    if (S.mode !== 'open' || !items.has('plus')) return;
+    S.content = 'apps';
+    reconcile(appsSpec());
+    armAuto();
   }
-  function flashStar(it) {
-    const svg = it.face.querySelector('svg');
+  /** While a pane is empty the pill cannot close, so a touch outside it or a pull down on the apps
+   *  row takes it back to the row «+» was pressed in, through the same sequenced change. */
+  const canGoBack = () => S.mode === 'open' && S.content === 'apps' && anyEmpty();
+  function backFromApps() {
+    S.content = 'repair';
+    reconcile(specNow());
+    armAuto();
+  }
+  /** The star's flash, on the badge of the pair on screen: crown-blue and lit, then white. */
+  function flashStar(b) {
+    const svg = b.querySelector('svg');
     const K = SPEC.color, gw = SPEC.star.glow;
     const lit = `drop-shadow(0 0 ${gw[0]}px ${K.blue}) drop-shadow(0 0 ${gw[1]}px ${K.blue})`;
     const out = `drop-shadow(0 0 0 ${K['blue-clear']}) drop-shadow(0 0 0 ${K['blue-clear']})`;
@@ -1959,25 +2169,26 @@
       { color: K.crown, filter: lit, offset: SPEC.star.hold },
       { color: K.white, filter: out },
     ], { duration: D(M.starFlash.ms), easing: css(M.starFlash.ease) });
-    tw(it.sc, SPEC.press.star, M.nudge);
-    later(() => it.sc.spring(1, SP.release), D(M.nudge.ms));
+    tw(b.sc, SPEC.press.star, M.nudge);
+    later(() => b.sc.spring(1, SP.release), D(M.nudge.ms));
   }
-  function starAction(it) {
-    const pr = currentPair();
-    if (!pr[0] || !pr[1]) return;
-    const key = 'pin:' + pk(pr);
+  /** The badge on the pair on screen: pinning flashes the star solid and the chip slides to its
+   *  place among the pins; unpinning empties it and the chip slides to the first place after them. */
+  function toggleLive(it) {
+    const pr = it.s.pair;
     if (isPinned(pr)) {
-      const chip = items.get(key);
-      nudge(chip || it);
+      S.pinned = S.pinned.filter(q => !same(q, pr));
+      S.recents = [pr.slice()].concat(S.recents.filter(q => !same(q, pr))).slice(0, SPEC.row.recents);
+      renameItem(it.key, 'rec:' + pk(pr));
+      reconcile(pairsSpec());
       return;
     }
     S.pinned.push(pr.slice());
     S.recents = S.recents.filter(q => !same(q, pr));
-    renameItem('rec:' + pk(pr), key);
-    reconcile(specNow());
-    flashStar(it);
-    const chip = items.get(key);
-    if (chip) later(() => nudge(chip), D(TM.chipNudge));
+    renameItem(it.key, 'pin:' + pk(pr));
+    reconcile(pairsSpec());
+    if (it.badge) flashStar(it.badge);
+    later(() => nudge(it), D(TM.chipNudge));
   }
   function pinChip(it) {
     const pr = it.s.pair;
@@ -2027,19 +2238,382 @@
     if (L.pos.has(it.key)) it.x.spring(L.pos.get(it.key), SP.slide);
   }
 
-  // ---------------------------------------------------------------- the handle, the stage, the dock
-  hit.addEventListener('pointerdown', e => {
-    if (e.button > 0 || S.home || S.mode !== 'handle') return;
+  // ---------------------------------------------------------------- the pull
+  // The handle opens the pill by a tap or by a pull, and a pull down on the open pill puts it away.
+  // Under the finger the pill is a function of p (SPEC.pull): the height, and with it the top edge,
+  // follows the finger from the first pixel; the width, the glass and the row follow p. Past the
+  // ends a band resists. The release hands the finger's speed to the opening or closing springs. A
+  // touch on a pill that is opening or closing stops it where it is and the finger goes on from
+  // there: p is read back from the height, the width curve bends through where it was caught
+  // (wAt), and whatever else the stopped motion had moved off the mapping is kept as `res` and
+  // fades out as the finger moves (PR).
+  const PU = SPEC.pull, SPAN = PL.open.h - HD.h;
+  const SR = sp(PU.catch.settle[0], PU.catch.settle[1]);
+  const bandOf = x => PU.band.cap * Math.tanh(x * PU.band.factor / PU.band.cap);
+  const bandBack = b => PU.band.cap / PU.band.factor * Math.atanh(clamp(b / PU.band.cap, 0, 0.999));
+  /** The finger's progress to the pill's: banded past 1; below the floor held, or banded. */
+  function pOf(raw) {
+    const L = PU.travel;
+    if (raw > 1) return 1 + bandOf((raw - 1) * L) / L;
+    if (raw < pull.floor) return pull.give ? pull.floor - bandOf((pull.floor - raw) * L) / L : pull.floor;
+    return raw;
+  }
+  const hOf = q => (q <= 1 ? HD.h + SPAN * q : PL.open.h + (q - 1) * PU.travel);
+  // `linear` is CSS's own name; the others are the script's curves.
+  const WE = PU.width === 'linear' ? (t => t) : EASE[PU.width];
+  const wOf = q => HD.w + (pull.W - HD.w) * WE(clamp01(q));
+  /** The width under the finger. After a catch the line is bent through where the pill was
+   *  caught, so it moves only with the finger: from there up to the row's width, down to the
+   *  handle's. */
+  function wAt(q) {
+    const a = pull.anchor;
+    if (!a) return wOf(q);
+    const e = WE(clamp01(q)), e0 = WE(clamp01(a.q));
+    if (e >= e0) return e0 >= 1 ? a.w : a.w + (pull.W - a.w) * (e - e0) / (1 - e0);
+    return HD.w + (a.w - HD.w) * e / e0;
+  }
+  // The glass is whole from the disc on.
+  const glassOf = () => 1;
+  /** The finger's progress read back from a height: the inverse of hOf(pOf()). */
+  const rawOf = h => (h <= PL.open.h ? clamp01((h - HD.h) / SPAN) : 1 + bandBack(h - PL.open.h) / PU.travel);
+  function revealOf(i, n, k) {
+    const I = PU.items, s = n > 1 ? (I.to - I.from - I.each) / (n - 1) : 0;
+    return clamp01((k - (I.from + i * s)) / I.each);
+  }
+  const ZERO = { o: 0, y: 0, s: 0 };
+  /** The row's size in a pill so big: the open row in miniature, by whichever of the height and
+   *  the width is further from open (after a release they part), full size past the open pill. */
+  const rowScale = (h, w) => Math.min(1, h / PL.open.h, w / pull.W);
+  /** The row as p shows it (render calls this while the pull is bound); returns the glass. The
+   *  row is drawn at the pill's own scale, so it is never cut; past the open height it keeps to
+   *  the bottom while the top edge stretches. */
+  function pulledRow(k) {
+    const r = PR.v, R = pull.res, n = rowSpec.length, h = Math.max(PL.min.h, P.h.v);
+    const sc = Math.max(0, rowScale(h, Math.max(PL.min.w, P.w.v)) + R.scale * r);
+    // Past the open height the row keeps to the bottom while the top edge stretches; below it the
+    // miniature stands at the pill's centre.
+    const dy = Math.max(0, h - PL.open.h) / 2;
+    st(row, 'transform', `translate(0px, ${dy.toFixed(2)}px) scale(${sc.toFixed(4)})`);
+    st(pillClip, 'opacity', clamp01(1 + R.row * r).toFixed(3));
+    rowSpec.forEach((s, i) => {
+      const it = items.get(s.key);
+      if (!it) return;
+      const q = revealOf(i, n, k), d = R.items.get(s.key) || ZERO;
+      st(it.inn, 'opacity', clamp01(q + d.o * r).toFixed(3));
+      st(it.inn, 'transform', `translateY(${(SPEC.enter.dy * (1 - q) + d.y * r).toFixed(2)}px) scale(${(1 + d.s * r).toFixed(4)})`);
+    });
+    return clamp01(glassOf(k) + R.o * r);
+  }
+  const noRes = () => ({ h: 0, o: 0, row: 0, scale: 0, items: new Map() });
+  /** A spring opening or closing the pill: the motion a touch catches. */
+  const inFlight = () => live.has(P.h) && P.h.m === 1 && S.mode !== 'edit' && (P.h.k === SP.openH.k || P.h.k === SP.close.k);
+  const canPullDown = () => S.mode === 'open' && !S.home && pull.id === null && !inFlight();
+
+  /** The first pixel of a pull from the handle: the row is laid out, every item still hidden. */
+  function armHandle() {
+    clock.cancel(T.clear);
+    clearItems();
+    S.content = anyEmpty() ? 'repair' : 'pairs';
+    if (S.content === 'repair') clock.cancel(T.repair);
+    pull.W = reconcile(specNow(), { pull: true }).W;
+    pull.floor = 0; pull.give = false;
+    pull.res = noRes(); pull.anchor = null; PR.set(0);
+    P.o.set(P.o.v); P.rowA.set(P.rowA.v);
+    pull.bound = true;
+  }
+  /** The pill as it is shown becomes the pill under the finger: its springs and tweens stop where
+   *  they are, p is read back from the height, and whatever else differs from the mapping there is
+   *  kept as `res`, to fade as the finger moves. */
+  function seize() {
+    const k0 = clamp01((Math.max(PL.min.h, P.h.v) - HD.h) / SPAN);
+    const shown = new Map();
+    for (const [key, it] of items) {
+      const cs = getComputedStyle(it.inn);
+      const m = new DOMMatrixReadOnly(cs.transform === 'none' ? undefined : cs.transform);
+      shown.set(key, { o: parseFloat(cs.opacity), y: m.f, s: m.a });
+    }
+    const o0 = parseFloat(getComputedStyle(pillGlass).opacity), row0 = parseFloat(getComputedStyle(pillClip).opacity);
+    const rt = getComputedStyle(row).transform, s0 = rt === 'none' ? 1 : new DOMMatrixReadOnly(rt).a;
+    pull.was = live.has(P.h) && P.h.t === PL.open.h ? 'open' : 'close';
+    clock.cancel(T.clear);
+    // Caught closing: the row is the one it would reopen on.
+    if (S.mode === 'handle') { S.content = anyEmpty() ? 'repair' : 'pairs'; reconcile(specNow(), { pull: true }); }
+    if (!rowSpec.length) reconcile(specNow(), { pull: true });
+    pull.W = layoutSpec(rowSpec, false).W;
+    // A pill that stays open while a pane is empty gives below where it was caught, and returns.
+    const keep = anyEmpty();
+    pull.raw = rawOf(P.h.v);
+    pull.floor = keep ? Math.min(pull.raw, 1) : 0;
+    pull.give = keep;
+    const q = pOf(pull.raw);
+    const res = noRes();
+    res.h = P.h.v - hOf(q); res.o = o0 - glassOf(k0); res.row = row0 - 1;
+    res.scale = s0 - rowScale(Math.max(PL.min.h, P.h.v), Math.max(PL.min.w, P.w.v));
+    pull.anchor = { q, w: P.w.v };
+    rowSpec.forEach((s, i) => {
+      const it = items.get(s.key), v = shown.get(s.key);
+      if (!it || !v) return;
+      it.inn.getAnimations().forEach(a => a.cancel());
+      const qi = revealOf(i, rowSpec.length, k0);
+      res.items.set(s.key, { o: v.o - qi, y: v.y - SPEC.enter.dy * (1 - qi), s: v.s - 1 });
+    });
+    pull.res = res; PR.set(1);
+    P.h.set(P.h.v); P.w.set(P.w.v); P.o.set(o0); P.rowA.set(row0);
+    pull.bound = true;
+  }
+  /** The derived values handed back to their own: as the pill came to rest, or as it is now. */
+  function unbind(end) {
+    const k = clamp01((Math.max(PL.min.h, P.h.v) - HD.h) / SPAN);
+    const o = clamp01(glassOf(k) + pull.res.o * PR.v);
+    const w = Math.max(PL.min.w, P.w.v);
+    P.dx.set(end === 'open' ? dxT : end === 'closed' ? 0 : dxT * clamp01((w - HD.w) / Math.max(1, pull.W - HD.w)));
+    pull.bound = false;
+    if (end === 'open') { P.o.set(1); P.rowA.set(1); }
+    else if (end === 'closed') { P.o.set(0); P.rowA.set(0); }
+    else P.o.set(o);
+    for (const it of items.values()) { st(it.inn, 'opacity', ''); st(it.inn, 'transform', ''); }
+    st(row, 'transform', '');
+    PR.set(0);
+    markDirty();
+  }
+  function settlePull() {
+    pull.phase = 'idle';
+    unbind(P.h.v >= PL.open.h ? 'open' : 'closed');
+  }
+
+  function sample(ev) {
+    const co = !clock.virtual && ev.type === 'pointermove' && ev.getCoalescedEvents ? ev.getCoalescedEvents() : [];
+    for (const c of (co.length ? co : [ev])) pull.samples.push({ t: clock.virtual ? clock.now() : c.timeStamp, y: toStage(c).y });
+    const s = pull.samples, tl = s[s.length - 1].t;
+    while (s.length > 2 && tl - s[0].t > PU.window) s.shift();
+  }
+  /** The finger's upward speed, dp/s: a least-squares parabola through the samples of the last
+   *  SPEC.pull.window ms, its slope at the last one; a line while there are fewer than four. */
+  function fingerSpeed() {
+    const s = pull.samples;
+    if (s.length < 2) return 0;
+    const tl = s[s.length - 1].t;
+    let pts = s.filter(a => tl - a.t <= PU.window);
+    if (pts.length < 2) pts = s.slice(-2);
+    const X = pts.map(a => (a.t - tl) / 1000), Y = pts.map(a => -a.y), n = pts.length;
+    let s1 = 0, s2 = 0, s3 = 0, s4 = 0, y0 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < n; i++) {
+      const x = X[i], x2 = x * x;
+      s1 += x; s2 += x2; s3 += x2 * x; s4 += x2 * x2; y0 += Y[i]; y1 += x * Y[i]; y2 += x2 * Y[i];
+    }
+    if (n >= 4) {
+      const det = n * (s2 * s4 - s3 * s3) - s1 * (s1 * s4 - s2 * s3) + s2 * (s1 * s3 - s2 * s2);
+      if (Math.abs(det) > 1e-18) return (n * (y1 * s4 - s3 * y2) - y0 * (s1 * s4 - s2 * s3) + s2 * (s1 * y2 - s2 * y1)) / det;
+    }
+    const dl = n * s2 - s1 * s1;
+    return Math.abs(dl) > 1e-12 ? (n * y1 - s1 * y0) / dl : 0;
+  }
+
+  /** A finger takes the pill: `handle` from the handle, `catch` in flight, `down` on the open pill. */
+  function hold(e, el, kind) {
+    pull.id = e.pointerId; pull.kind = kind; pull.phase = 'drag';
+    const p = toStage(e);
+    pull.x0 = p.x; pull.y0 = p.y; pull.dist = 0;
+    pull.samples = [];
+    sample(e);
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+    window.addEventListener('pointermove', onPullMove);
+    window.addEventListener('pointerup', onPullUp);
+    window.addEventListener('pointercancel', onPullUp);
+    clock.cancel(T.auto); clock.cancel(T.dim);
+  }
+  function unhold() {
+    window.removeEventListener('pointermove', onPullMove);
+    window.removeEventListener('pointerup', onPullUp);
+    window.removeEventListener('pointercancel', onPullUp);
+    pull.id = null;
+  }
+  function follow(ev) {
+    const p = toStage(ev);
+    pull.dist = Math.max(pull.dist, Math.hypot(p.x - pull.x0, p.y - pull.y0));
+    if (pull.item && pull.dist >= SPEC.press.move) { pull.item.sc.spring(1, SP.release); pull.item = null; }
+    pull.raw = pull.p0 + (pull.y0 - p.y) / PU.travel;
+    if (!pull.bound) { if (pull.raw <= 0) return; armHandle(); }
+    if (PR.v > 0) PR.set(Math.min(PR.v, 1 - clamp01(pull.dist / PU.catch.span)));
+    const q = pOf(pull.raw);
+    P.h.set(hOf(q) + pull.res.h * PR.v);
+    P.w.set(wAt(q));
+  }
+  function onPullMove(ev) {
+    if (ev.pointerId !== pull.id) return;
+    sample(ev);
+    follow(ev);
+  }
+  function onPullUp(ev) {
+    if (ev.pointerId !== pull.id) return;
+    unhold();
+    sample(ev);
+    follow(ev);
+    letGo(ev.type === 'pointerup');
+  }
+  /** The most of `v` a spring from `x` to `t` can be handed without passing `edge`, found on the
+   *  springs' own integrator: a bound on the overshoot, not on the drawn value. */
+  function boundVel(v, x, t, s, edge) {
+    const dir = Math.sign(edge - t) || Math.sign(t - x) || 1;   // the side the bound is on
+    if (v * dir <= 0) return v;
+    const past = u => {
+      let y = x, vel = u * dir, far = y * dir;
+      const hh = 1 / SPEC.rate;
+      for (let i = 0; i < SPEC.rate * 2; i++) {
+        vel += (-s.k * (y - t) - s.c * vel) * hh; y += vel * hh;
+        if (y * dir > far) far = y * dir;
+        else if (vel * dir < 0 && i > 2) break;
+      }
+      return far - edge * dir;
+    };
+    if (past(Math.abs(v)) <= 0) return v;
+    if (past(0) > 0) return 0;
+    let lo = 0, hi = Math.abs(v);
+    for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (past(m) <= 0) lo = m; else hi = m; }
+    return lo * dir;
+  }
+  function launchOpen(vh, vw) {
+    const B = PU.bound;
+    P.h.vel = boundVel(vh, P.h.v, PL.open.h, SP.openH, PL.open.h + B.height);
+    P.w.vel = boundVel(vw, P.w.v, pull.W, SP.open, pull.W * (1 + B.width));
+  }
+  /** The item a touch landed on, if any: by its box, since the handle's target lies over the row
+   *  of a closing pill. */
+  function itemAt(e) {
+    const el = e.target.closest && e.target.closest('.it');
+    for (const it of items.values()) {
+      if (it.el === el) return it;
+      if (INERT.has(it.kind)) continue;
+      const r = it.el.getBoundingClientRect();
+      if (!el && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return it;
+    }
+    return null;
+  }
+  const shownAlpha = it => parseFloat(getComputedStyle(it.inn).opacity) * parseFloat(getComputedStyle(pillClip).opacity);
+
+  /** The release: a tap opens the pill; otherwise p and the finger's speed decide, and the springs
+   *  leave from where the finger left the pill, with its speed. A catch released as a tap on an
+   *  item that shows is that item's tap; on bare glass the pill goes on where it was going. */
+  function letGo(up) {
+    const tap = up && pull.kind !== 'down' && pull.dist < SPEC.press.move;
+    if (P.sw.target) P.sw.spring(0, SP.release);
+    if (!pull.bound) {   // a press on the handle that never pulled up
+      pull.phase = 'idle';
+      if (tap) openPill(); else startDim();
+      return;
+    }
+    const vr = fingerSpeed() / PU.travel, e = 1e-4;
+    const slope = f => (f(pull.raw + e) - f(pull.raw - e)) / (2 * e);
+    const vh = slope(r => hOf(pOf(r))) * vr, vw = slope(r => wAt(pOf(r))) * vr;
+    if (tap && pull.kind === 'handle') {
+      // A tap that moved the pill a little: the usual opening, from there.
+      pull.phase = 'idle';
+      unbind('tap');
+      clearItems();
+      launchOpen(vh, vw);
+      openPill();
+      return;
+    }
+    let open, item = null;
+    const keep = anyEmpty();
+    const back = pull.kind === 'down' && canGoBack();
+    if (pull.kind === 'catch' && pull.press) pull.press.sc.spring(1, SP.release);
+    if (tap && pull.kind === 'catch') {
+      const it = pull.press;
+      const held = clock.now() - pull.t0;
+      if (it && items.get(it.key) === it && shownAlpha(it) >= PU.tap.visible &&
+          !(it.kind === 'chip' && !it.s.ghost && held >= TM.tap)) item = it;
+      open = keep || !!item || pull.onHit || pull.was === 'open';
+    } else open = keep || tap || pOf(pull.raw) + vr * PU.project / 1000 >= PU.half;
+    pull.phase = 'release';
+    PR.spring(0, SR);
+    if (open) {
+      if (S.mode === 'handle') { S.mode = 'open'; pill.classList.add('is-open'); }
+      clock.cancel(T.clear); clock.cancel(T.dim);
+      launchOpen(vh, vw);
+      P.h.spring(PL.open.h, SP.openH);
+      P.w.spring(pull.W, SP.open);
+      armAuto();
+      if (item) tapItem(item);
+      // A pull down on the apps row that cannot close: the pill springs back open, and the row
+      // goes back to the one «+» was pressed in, handed over from where the finger left it.
+      if (back) { pull.phase = 'idle'; unbind('now'); backFromApps(); }
+    } else {
+      S.mode = 'handle';
+      pill.classList.remove('is-open');
+      clock.cancel(T.auto); clock.cancel(T.edit);
+      const B = PU.bound;
+      P.h.vel = boundVel(vh, P.h.v, HD.h, SP.close, HD.h - B.shut); P.h.spring(HD.h, SP.close);
+      P.w.vel = boundVel(vw, P.w.v, HD.w, SP.close, HD.w - B.shut); P.w.spring(HD.w, SP.close);
+      clock.cancel(T.clear);
+      T.clear = later(() => { if (S.mode === 'handle') clearItems(); }, D(TM.clear));
+      startDim();
+    }
+    markDirty();
+  }
+  /** The open pill taken down from where the finger is now. */
+  function pullDown(ev, el) {
+    hold(ev, el, 'down');
+    seize();
+    pull.p0 = pull.raw;
+  }
+  // A touch on the glass between the items: a pull down once it leaves mostly downwards.
+  function watchGlass(e) {
+    const id = e.pointerId, p0 = toStage(e);
+    try { pill.setPointerCapture(id); } catch (_) { /* fine */ }
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    const move = ev => {
+      if (ev.pointerId !== id) return;
+      const p = toStage(ev), dx = p.x - p0.x, dy = p.y - p0.y;
+      if (Math.hypot(dx, dy) <= PU.down.start) return;
+      stop();
+      if (canPullDown() && dy > PU.down.dominance * Math.abs(dx)) pullDown(ev, pill);
+    };
+    const end = ev => { if (ev.pointerId === id) stop(); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  }
+
+  // Before the items: a pill in flight is caught wherever it is touched, and the handle is pressed.
+  pill.addEventListener('pointerdown', e => {
+    if (e.button > 0 || S.home) return;
+    if (pull.id !== null) { e.preventDefault(); e.stopPropagation(); return; }   // one finger at a time
+    const caught = inFlight();
+    if (!caught && !(e.target === hit && S.mode === 'handle')) return;
     e.preventDefault();
+    e.stopPropagation();
     const p = toStage(e);
     bloom(p.x, p.y);
-    openPill();
+    pull.item = pull.press = null;
+    if (caught) {
+      const it = itemAt(e);
+      hold(e, pill, 'catch'); seize(); pull.p0 = pull.raw;
+      pull.onHit = e.target === hit; pull.t0 = clock.now();
+      // A press on an item in flight looks like one; it may yet turn out to be its tap.
+      if (it) { pull.item = pull.press = it; tw(it.sc, SPEC.press.scale, M.press); }
+    } else { hold(e, hit, 'handle'); pull.p0 = 0; pull.raw = 0; tw(P.sw, 1, M.press); }
+  }, true);
+  // After the items, which keep their own touches: the glass itself.
+  pill.addEventListener('pointerdown', e => {
+    if (e.button > 0 || S.home || S.mode !== 'open' || pull.id !== null) return;
+    e.preventDefault();
+    pillTouched();
+    watchGlass(e);
   });
+
+  // ---------------------------------------------------------------- the handle, the stage, the dock
   stage.addEventListener('pointerdown', e => {
     wakeHandle();
+    if (pull.id !== null) return;
     if (e.target.closest('#sp-pill') || e.target.closest('#sp-split')) return;
     if (S.mode === 'edit') exitEdit();
-    else if (S.mode === 'open' && S.content === 'pairs') closePill();
+    else if (canGoBack()) backFromApps();
+    else if (S.mode === 'open' && S.content !== 'repair' && !anyEmpty()) closePill();
   }, true);
   stage.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -2057,7 +2631,7 @@
     T.homePill = later(() => {
       S.mode = 'handle';
       clearItems();
-      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0);
+      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.dx.set(0); dxT = 0; P.sw.set(0);
     }, D(TM.homeReset));
     SIDES.forEach(side => { const p = PANES[side]; p.tok++; dropFly(p); });
     tw(paneOpen, 0, GM.fold);
@@ -2073,7 +2647,7 @@
       S.mode = 'handle';
       clearItems();
       pill.classList.remove('is-open', 'is-home');
-      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.hA.set(HD.alpha);
+      P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.hA.set(HD.alpha); P.dx.set(0); dxT = 0; P.sw.set(0);
       tw(P.vis, 1, M.show);
       tw(paneOpen, 1, GM.unfold);
       tw(paneA, 1, GM.panesIn);
@@ -2112,9 +2686,11 @@
     S = seed();
     S.day = day;
     fx.textContent = '';
+    unhold();
+    pull.bound = false; pull.phase = 'idle'; PR.set(0);
     clearItems();
     pill.classList.remove('is-open', 'is-home');
-    P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.vis.set(1); P.hA.set(HD.alpha);
+    P.w.set(HD.w); P.h.set(HD.h); P.o.set(0); P.rowA.set(0); P.vis.set(1); P.hA.set(HD.alpha); P.dx.set(0); dxT = 0; P.sw.set(0);
     divX.set(G.detents[0]); paneOpen.set(1); paneA.set(1); homeA.set(0);
     SIDES.forEach(side => {
       const p = PANES[side];
@@ -2154,11 +2730,24 @@
     home: goHome,
     split: dockSplit,
     detent: toggleDetent,
-    plus: () => { const it = items.get('plus'); if (it) plusAction(it); },
-    pin: () => { const it = items.get('star'); if (it) starAction(it); },
+    plus: () => plusAction(),
+    // The badge on the pair on screen: pins it, or unpins it.
+    pin: () => { const it = [...items.values()].find(x => x.kind === 'chip' && STARS.has(x.badgeType)); if (it) toggleLive(it); },
+    // A single app of the apps row or the repair row, by its app id and (on the apps row) side.
+    app: (app, side) => { const it = [...items.values()].find(x => x.kind === 'single' && x.s.app === app && (!side || x.s.side === side)); if (it) tapItem(it); },
     choose: (i = 0) => { const it = [...items.values()].filter(x => x.kind === 'chip')[i]; if (it) tapItem(it); },
     reset,
     state: () => JSON.parse(JSON.stringify(S)),
+    // The pill as drawn: its box on the stage in dp, the glass and the row's opacity.
+    pill: () => {
+      const tr = (pill.style.translate || '0px 0px').split(' ').map(parseFloat);
+      return { x: tr[0], top: tr[1], w: parseFloat(pill.style.width), h: parseFloat(pill.style.height),
+        glass: parseFloat(pillGlass.style.opacity || '0'), row: parseFloat(getComputedStyle(pillClip).opacity), mode: S.mode,
+        vh: P.h.vel, vw: P.w.vel };
+    },
+    // On a bare page, the virtual clock: step it on to `ms`, read where it is.
+    to: ms => { if (clock.virtual) clock.to(ms); },
+    now: () => clock.now(),
   };
 
   // Boot.
@@ -2178,6 +2767,8 @@
     const vacate = side => () => emptyPane(side, 'user');
     // The pair on screen made music | browser, so that the first pinned pair after it changes both panes.
     const browser = [openPill, 1200, chip(2), 2000];
+    // A single app of the apps row, by app and side.
+    const one = (app, side) => () => window.__stand.app(app, side);
     const BOARDS = {
       handle: [],
       'handle-dim': [TM.dim + M.dim.ms + 300],
@@ -2193,15 +2784,48 @@
       launch: [...browser, openPill, 1200, chip(1), 900],
       home: [goHome, 1200],
       'blur-day': [() => setBlur(true), day, 800, openPill, 1200],
+      apps: [openPill, 1200, plusAction, 1200],
+      'apps-wide-left': [toggleDetent, 1000, openPill, 1200, plusAction, 1200],
     };
+    // A scripted finger: pointer events on the clock at 60 Hz, as a touch screen sends them, all to
+    // `target`, the element it lands on (as pointer capture would have them; named, because a
+    // headless window is laid out shorter than the stage when the script runs, so hit-testing the
+    // point finds nothing). `keys` are [ms, dp up from where it landed, ease]; it lifts at the last.
+    const FINGER_EASE = { inOut: EASE.inOut, in: t => t * t, hold: () => 1 };
+    function finger(target, x, y0, keys) {
+      const send = (type, y) => target.dispatchEvent(new PointerEvent(type, {
+        pointerId: 1, pointerType: 'touch', isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+        clientX: x, clientY: y, bubbles: true, cancelable: true, composed: true,
+      }));
+      send('pointerdown', y0);
+      let t0 = 0, u0 = 0;
+      const hz = 1000 / 60;
+      for (const [t1, u1, ease] of keys) {
+        const e = FINGER_EASE[ease || 'hold'], a = t0, b = u0;
+        for (let t = t0 + hz; t < t1 - 1e-6; t += hz) {
+          const u = ease ? b + (u1 - b) * e((t - a) / (t1 - a)) : b;
+          clock.after(() => send('pointermove', y0 - u), t);
+        }
+        clock.after(() => send('pointermove', y0 - u1), t1);
+        t0 = t1; u0 = u1;
+      }
+      clock.after(() => send('pointerup', y0 - u0), t0);
+    }
+    const handleX = () => clamp(divX.v, PL.margin + HD.w / 2, (G.w - PL.margin) - HD.w / 2);
     // A motion: the steps before it, then its start at t = 0.
     const MOTIONS = {
       opening: [[], () => {
-        bloom(clamp(divX.v, PL.margin + HD.w / 2, (G.w - PL.margin) - HD.w / 2), HD.bottom - HD.h / 2);
+        bloom(handleX(), HD.bottom - HD.h / 2);
         openPill();
       }],
       choosing: [[...browser, openPill, 1200], chip(1)],
+      // «+» on the open pill, and 700 ms later the messenger, next to the mark, into the left pane.
+      adding: [[openPill, 1200], () => { plusAction(); clock.after(one('msg', 'left'), 700); }],
       vacating: [[], vacate('right')],
+      // A finger on the handle: up 60 over 200 ms, held, back down to 30, held, then a flick up 40
+      // in 70 ms and the release.
+      pulling: [[], () => finger(hit, handleX(), HD.bottom - HD.h / 2,
+        [[200, 60, 'inOut'], [300, 60], [420, 30, 'inOut'], [480, 30], [550, 70, 'in']])],
     };
     const run = list => { let t = 0; for (const s of list) { if (typeof s === 'number') clock.to(t += s); else s(); } return t; };
     const [, name, at] = BARE;
