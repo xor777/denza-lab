@@ -93,7 +93,6 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherFeature
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
-import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
 import kotlinx.coroutines.flow.StateFlow
@@ -1350,8 +1349,7 @@ object DenzaAppRepository {
             enabled = enabled,
             navigatorInstalled = enabled &&
                 isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE),
-            accessibilityEnabled = enabled && AccessibilityHealth.read(context).enabled,
-            accessibilityConnected = AccessibilityHost.isConnected(),
+            accessibility = AccessibilityHealth.read(context),
             active = HudGuidanceRuntime.isActive(),
             details = HudGuidanceRuntime::details,
         )

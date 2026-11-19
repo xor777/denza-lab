@@ -33,6 +33,9 @@ internal object AccessibilityRepair {
         try {
             executor.execute {
                 val failure = runCatching { repairNow(context, flight::isStillWanted) }.exceptionOrNull()
+                // The repair rewrote the setting: the system binds anew, with a full deadline, and
+                // every owner's read after this one starts the clock again.
+                AccessibilityHealth.bindWatch.restart()
                 flight.complete(failure)
             }
         } catch (error: RuntimeException) {

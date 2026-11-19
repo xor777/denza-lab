@@ -2,6 +2,7 @@ package dev.denza.apps.feature.simulcast
 
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.platform.accessibility.AccessibilityBindWatch
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.disharebridge.AdbFailures
 import java.net.SocketTimeoutException
@@ -26,46 +27,30 @@ class SimulcastCoordinatorTest {
 
     /**
      * Listed in the setting, never bound, after a repair that returned clean: the tile used to say
-     * it was recovering for good, and the panel held its switch disabled under that.
+     * it was recovering for good, and the panel held its switch disabled under that. The clock is
+     * the shared one every feature reads ([AccessibilityBindWatch]); a late bind clears it unpressed.
      */
     @Test
     fun `a service that never binds is a retryable no access after the deadline`() {
-        fun unbound(forMs: Long) = SimulcastCoordinator.evaluate(
+        val watch = AccessibilityBindWatch {}
+        fun at(nowMs: Long, connected: Boolean = false) = SimulcastCoordinator.evaluate(
             SimulcastEnvironment(
                 desired = true,
                 overlayAllowed = true,
-                accessibility = AccessibilityHealth(enabled = true, connected = false),
+                accessibility = watch.read(enabled = true, connected = connected, nowMs = nowMs),
                 active = false,
-                unboundForMs = forMs,
             ),
         )
 
-        assertEquals(FeatureStatus.RECOVERING, unbound(0L).status)
-        assertEquals(FeatureStatus.RECOVERING, unbound(SimulcastBindWatch.BIND_DEADLINE_MS - 1).status)
+        assertEquals(FeatureStatus.RECOVERING, at(1_000L).status)
+        assertEquals(FeatureStatus.RECOVERING, at(1_000L + AccessibilityHealth.BIND_DEADLINE_MS - 1).status)
 
-        val stalled = unbound(SimulcastBindWatch.BIND_DEADLINE_MS)
+        val stalled = at(1_000L + AccessibilityHealth.BIND_DEADLINE_MS)
         assertEquals(FeatureStatus.NEEDS_ACTION, stalled.status)
         assertEquals("Нет доступа", stalled.message)
         assertEquals(FeatureResolution.RETRY, stalled.resolution)
-    }
 
-    @Test
-    fun `the bind clock runs while listed and unbound, and a repair restarts it`() {
-        val scheduled = mutableListOf<Long>()
-        val watch = SimulcastBindWatch { scheduled += it }
-
-        assertEquals(0L, watch.unboundForMs(enabled = true, connected = false, nowMs = 1_000L))
-        assertEquals(listOf(SimulcastBindWatch.BIND_DEADLINE_MS), scheduled)
-        assertEquals(12_000L, watch.unboundForMs(enabled = true, connected = false, nowMs = 13_000L))
-        assertEquals("one re-read per stall", 1, scheduled.size)
-
-        watch.restart()
-        assertEquals(0L, watch.unboundForMs(enabled = true, connected = false, nowMs = 14_000L))
-        assertEquals(2, scheduled.size)
-
-        assertEquals(0L, watch.unboundForMs(enabled = true, connected = true, nowMs = 30_000L))
-        assertEquals(0L, watch.unboundForMs(enabled = true, connected = false, nowMs = 31_000L))
-        assertEquals(500L, watch.unboundForMs(enabled = true, connected = false, nowMs = 31_500L))
+        assertEquals(FeatureStatus.READY, at(30_000L, connected = true).status)
     }
 
     @Test

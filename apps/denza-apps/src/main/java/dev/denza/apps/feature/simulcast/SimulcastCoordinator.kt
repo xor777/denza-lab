@@ -2,12 +2,7 @@ package dev.denza.apps.feature.simulcast
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import dev.denza.apps.R
-import dev.denza.apps.StateMarks
-import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.AppText
@@ -26,11 +21,6 @@ data class SimulcastEnvironment(
     val overlayAllowed: Boolean,
     val accessibility: AccessibilityHealth,
     val active: Boolean,
-    /**
-     * How long the shared service has been listed in the setting without binding to this process
-     * ([SimulcastBindWatch]); 0 when it is bound, switched off, or was only just seen unbound.
-     */
-    val unboundForMs: Long = 0L,
 ) {
     /** The shared service's one check, with the projection's own extra need: the overlay grant. */
     val needsSetup: Boolean = !accessibility.ready(extra = overlayAllowed)
@@ -84,31 +74,13 @@ sealed interface SimulcastReconcileEvent {
 object SimulcastCoordinator {
     const val DISHARE_PACKAGE = "com.byd.dishare"
 
-    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
-
-    /** Reads the slice again when a bind's deadline runs out, so the tile does not wait for a resume. */
-    private val bindWatch = SimulcastBindWatch { delayMs ->
-        mainHandler.postDelayed(
-            { StateMarks.mark(StateSlice.SIMULCAST, "simulcast bind deadline") },
-            delayMs,
-        )
-    }
-
-    fun inspect(context: Context): SimulcastEnvironment {
-        val accessibility = AccessibilityHealth.read(context)
-        return SimulcastEnvironment(
-            desired = SimulcastIntegration.isEnabled(context),
-            blocker = blocker(context),
-            overlayAllowed = hasOverlayPermission(context),
-            accessibility = accessibility,
-            active = SimulcastIntegration.getLastTargetPackage() != null,
-            unboundForMs = bindWatch.unboundForMs(
-                accessibility.enabled,
-                accessibility.connected,
-                SystemClock.elapsedRealtime(),
-            ),
-        )
-    }
+    fun inspect(context: Context): SimulcastEnvironment = SimulcastEnvironment(
+        desired = SimulcastIntegration.isEnabled(context),
+        blocker = blocker(context),
+        overlayAllowed = hasOverlayPermission(context),
+        accessibility = AccessibilityHealth.read(context),
+        active = SimulcastIntegration.getLastTargetPackage() != null,
+    )
 
     fun evaluate(environment: SimulcastEnvironment): FeatureSnapshot {
         if (!environment.desired) {
@@ -117,8 +89,10 @@ object SimulcastCoordinator {
         environment.blocker?.let { blocker ->
             return blockedSnapshot(blocker)
         }
-        if (!environment.overlayAllowed || !environment.accessibility.enabled) {
-            // The press repairs it: [AccessibilityRepair.repair] grants the overlay and enables the service.
+        if (!environment.overlayAllowed || !environment.accessibility.available) {
+            // The press repairs it: [AccessibilityRepair.repair] grants the overlay and enables the
+            // service. A service listed and never bound past the deadline is here too
+            // ([AccessibilityHealth.available]); it used to read «Восстанавливаю трансляцию» for good.
             return FeatureReducer.needsAction(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
                 FeatureWords.NO_ACCESS,
@@ -126,17 +100,6 @@ object SimulcastCoordinator {
             )
         }
         if (!environment.accessibility.connected) {
-            // A service the setting lists and the system never binds - after an update, or one
-            // the firmware left crashed - used to read «Восстанавливаю трансляцию» for good, with
-            // the panel's switch held disabled under it. Past the deadline it is what it is: no
-            // access, and the press repairs it again.
-            if (environment.unboundForMs >= SimulcastBindWatch.BIND_DEADLINE_MS) {
-                return FeatureReducer.needsAction(
-                    FeatureReducer.starting(FeatureId.SIMULCAST),
-                    FeatureWords.NO_ACCESS,
-                    resolution = FeatureResolution.RETRY,
-                )
-            }
             return FeatureReducer.recovering(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
                 AppText.s(R.string.simulcast_recovering),
@@ -207,8 +170,6 @@ object SimulcastCoordinator {
                     ),
                 )
             } else if (repaired) {
-                // The repair rewrote the setting: the system binds anew, with a full deadline.
-                bindWatch.restart()
                 SimulcastOverlayService.showActiveExit(context)
                 onEvent(SimulcastReconcileEvent.Repaired)
             } else {
@@ -256,43 +217,5 @@ object SimulcastCoordinator {
         true
     } catch (_: PackageManager.NameNotFoundException) {
         false
-    }
-}
-
-/**
- * How long the shared accessibility service has stood in the setting without binding, as the
- * projection's tile counts it, and one re-read of the slice when that reaches [BIND_DEADLINE_MS].
- *
- * The clock starts the first time a read finds the service listed and unbound, and stops when it
- * binds or leaves the setting; a finished repair starts it again, because the repair rewrote the
- * setting and the system binds anew.
- */
-internal class SimulcastBindWatch(private val schedule: (delayMs: Long) -> Unit) {
-    private var unboundSinceMs: Long? = null
-
-    @Synchronized
-    fun unboundForMs(enabled: Boolean, connected: Boolean, nowMs: Long): Long {
-        if (!enabled || connected) {
-            unboundSinceMs = null
-            return 0L
-        }
-        val since = unboundSinceMs ?: nowMs.also {
-            unboundSinceMs = it
-            schedule(BIND_DEADLINE_MS)
-        }
-        return (nowMs - since).coerceAtLeast(0L)
-    }
-
-    @Synchronized
-    fun restart() {
-        unboundSinceMs = null
-    }
-
-    companion object {
-        /**
-         * Ten seconds. A bind takes milliseconds and a repair already waits two seconds for it
-         * ([AccessibilityHealth.BIND_GRACE_MS]); a service still unbound after ten is not coming.
-         */
-        const val BIND_DEADLINE_MS = 10_000L
     }
 }

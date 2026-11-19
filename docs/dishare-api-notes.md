@@ -35,7 +35,7 @@ ends.
 | Dialog lifecycle comes from the accessibility service with a 320 ms disappearance grace, never from `action.byd.dishare.DIALOG_HOME`/`DIALOG_LAUNCHER`/`DIALOG_CLOSE`; the outgoing `DIALOG_CLOSE` is package-scoped to `com.byd.dishare` (`SimulcastDialogOverlay.java`, `SimulcastOverlayService.java`) | code | 2026-08-27 | [Dialog lifecycle trust boundary](#dialog-lifecycle-trust-boundary) |
 | The overlay rides on the app's shared accessibility service (`SimulcastOverlayRider.kt`). With «Трансляция» switched off and nothing of the overlay's on screen or to finish, a window event starts no walk of the windows, so the «Счётчики окон» row stops counting; switching it on or off starts one at once (`SimulcastIntegration.setEnabled`), so a dialog already open is drawn without waiting for an event | code | 2026-10-09 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
 | Self-repair over local ADB grants `SYSTEM_ALERT_WINDOW` and enables `SimulcastAccessibilityService` (`AccessibilityRepair.kt`, `SimulcastCoordinator.kt` until 2026-10-09); `LocalAdbClient.java` tries `127.0.0.1:5555`, then the car's non-loopback IPv4 addresses | code | 2026-06-30 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
-| The projection tile reads «Восстанавливаю трансляцию» while the shared service is listed but unbound for under 10 s (`SimulcastBindWatch.BIND_DEADLINE_MS`, restarted by each finished repair); past that it reads «Нет доступа» and the press repairs again, so the panel's switch is never held disabled by a bind that is not coming | code | 2026-11-19 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
+| The projection tile reads «Восстанавливаю трансляцию» while the shared service is listed but unbound for under 10 s (`AccessibilityHealth.BIND_DEADLINE_MS`: one clock for every feature, `AccessibilityBindWatch`, restarted by each finished repair; the projection's own `SimulcastBindWatch` earlier that day); past that it reads «Нет доступа» (`AccessibilityHealth.available`) and the press repairs again, so the panel's switch is never held disabled by a bind that is not coming. HUD guidance reads the same rule | code | 2026-11-19 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
 | DiShare video to `screen_hud` ends with exit `605` when HUD availability `0x38B00036` falls 2→1 on P→D at 0 km/h, and does not come back in P (hud-projection-findings.md) | live | 2026-09-24 | [hud-projection-findings.md](hud-projection-findings.md) |
 | Generated frames and Camera2 ids `0`/`1` stream to the HUD through DiShare; ids `2` and `10`, which AVC uses, throw for a normal app UID, and AVC `initDisplay` into the DiShare encoder surface gives a black HUD | live | 2026-06-26 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
 | Never call AVC AIDL tx 8 (`getCameraSurface()`): it returns the renderer's input and releases AVC's own copy of that Surface | firmware | 2026-09-23 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
@@ -61,16 +61,17 @@ ends.
 - A non-AVC copy of the stock camera window: the parked shell buffer/crop pipeline in
   [Stock-owned non-AIDL candidate](#stock-owned-non-aidl-candidate-2026-07-18).
 - HUD video while driving: an input that survives P→D, which DiShare's does not
-- A listed service that never binds (2026-11-19, `SimulcastCoordinatorTest` only): after an APK
-  update, «Трансляция» reads «Нет доступа» about 10 s after a clean repair, and its press brings the
-  service back.
+  (hud-projection-findings.md).
+- A listed service that never binds (2026-11-19, `SimulcastCoordinatorTest` and
+  `AccessibilityHealthTest` only): after an APK update, the service enabled but unbound,
+  «Трансляция» reads «Нет доступа» within 10 s, its press repairs the service, and a bind that lands
+  late clears the state without a press.
 - A failed start on the car (2026-11-19, firmware reading only): whether DiShare's API service
   stays alive after the failed start's unbind, and that the removal shows as `onClientRemoved` in
   DiShare's log with no `exitAll` when no share ran. A refused start to a receiver that is not
   there, then `logcat -s DiShareApiServiceImpl`.
 - Switching «Поддержка трансляции» off with a share started from the stock dialog
   (2026-11-19, `SimulcastStopPolicyTest` only): the share keeps running.
-  (hud-projection-findings.md).
 - The product's end of a share on the car: cast to the HUD, shift P→D, and the exit control
   and the tile's running state go within about two seconds; the stock exit control and a
   same-app re-cast to another screen must give `ended` and no `ended` respectively in the
@@ -493,10 +494,14 @@ A service the setting lists and the system never binds (after an update, or one 
 crashed) is not repaired by a rewrite that returns clean. Until 2026-11-19 that ended in
 `SimulcastReconcileEvent.Repaired` and then «Восстанавливаю трансляцию» for good: the status was
 RECOVERING, which the panel reads as busy and disables its switch for, and no repair was running.
-Now `SimulcastBindWatch` (in `SimulcastCoordinator.kt`, tested in `SimulcastCoordinatorTest`)
+Now `AccessibilityBindWatch` (in `AccessibilityHealth.kt`, tested in `AccessibilityHealthTest`)
 counts how long the service has stood listed and unbound, from the first read that saw it so or
-from the end of the last repair, and re-reads the slice when that reaches 10 s; from then the tile
-reads «Нет доступа» with the repair as its press, and the switch is free.
+from the end of the last repair, and re-reads every slice that reads the service
+(`StateMarks.accessibilityChanged`) when that reaches 10 s; from then
+`AccessibilityHealth.available` is false, the tile reads «Нет доступа» with the repair as its press,
+and the switch is free. A bind that lands late marks the same slices as it connects, and clears it.
+The clock was the projection's own (`SimulcastBindWatch`) for the first hours of 2026-11-19 and
+moved into the shared health the same day, because HUD guidance had the same stuck state.
 
 ### Dialog lifecycle trust boundary
 

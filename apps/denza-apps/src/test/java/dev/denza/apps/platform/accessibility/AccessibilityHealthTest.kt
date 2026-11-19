@@ -1,6 +1,8 @@
 package dev.denza.apps.platform.accessibility
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AccessibilityHealthTest {
@@ -50,5 +52,49 @@ class AccessibilityHealthTest {
         assertEquals(0L, AccessibilityHealth(enabled = true, connected = false).bindWaitMs())
         assertEquals(0L, AccessibilityHealth(enabled = false, connected = false, bindingForMs = 0).bindWaitMs())
         assertEquals(0L, AccessibilityHealth(enabled = true, connected = true, bindingForMs = 0).bindWaitMs())
+    }
+
+    /**
+     * After an APK update the setting can list the service while the system never binds it. Every
+     * feature reads that as "on its way" for [AccessibilityHealth.BIND_DEADLINE_MS], then as no
+     * access - the state whose press repairs - and a bind that lands late clears it by itself.
+     */
+    @Test
+    fun `a listed service that never binds stops being available at the deadline`() {
+        val deadline = AccessibilityHealth.BIND_DEADLINE_MS
+        val watch = AccessibilityBindWatch {}
+
+        assertTrue(watch.read(enabled = true, connected = false, nowMs = 5_000L).available)
+        assertTrue(watch.read(enabled = true, connected = false, nowMs = 5_000L + deadline - 1).available)
+        val stalled = watch.read(enabled = true, connected = false, nowMs = 5_000L + deadline)
+        assertFalse(stalled.available)
+        assertFalse("a repair is still wanted", stalled.ready())
+
+        assertTrue("a late bind clears it", watch.read(enabled = true, connected = true, nowMs = 60_000L).available)
+        assertTrue(watch.read(enabled = true, connected = false, nowMs = 61_000L).available)
+        assertFalse("switched off is never available", watch.read(enabled = false, connected = false, nowMs = 0L).available)
+    }
+
+    /** One re-read per stall, at the deadline; a finished repair starts the clock and the re-read again. */
+    @Test
+    fun `the bind clock runs while listed and unbound, and a repair restarts it`() {
+        val scheduled = mutableListOf<Long>()
+        val watch = AccessibilityBindWatch { scheduled += it }
+        fun unboundFor(nowMs: Long, connected: Boolean = false) =
+            watch.read(enabled = true, connected = connected, nowMs = nowMs).unboundForMs
+
+        assertEquals(0L, unboundFor(1_000L))
+        assertEquals(listOf(AccessibilityHealth.BIND_DEADLINE_MS), scheduled)
+        assertEquals(12_000L, unboundFor(13_000L))
+        assertEquals("one re-read per stall", 1, scheduled.size)
+
+        watch.restart()
+        assertEquals(0L, unboundFor(14_000L))
+        assertEquals(2, scheduled.size)
+
+        assertEquals(0L, unboundFor(30_000L, connected = true))
+        assertEquals(0L, unboundFor(31_000L))
+        assertEquals(500L, unboundFor(31_500L))
+        assertEquals(3, scheduled.size)
     }
 }
