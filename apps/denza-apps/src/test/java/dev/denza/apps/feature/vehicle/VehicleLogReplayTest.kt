@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.design.luminofor.SpecJson
+import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.cluster.dashboard.ContourScene
 import java.io.File
 import kotlin.math.abs
@@ -22,7 +24,12 @@ import org.junit.Test
  *  - the figure is energy over known road, and nothing else;
  *  - every point is the trailing ten readings, none of them is a `NaN`, and nothing is drawn from
  *    fewer than five;
- *  - the engine's box is never up with the running flag down past its own hold.
+ *  - the engine's block is never up with the running flag down past its own hold, and a drive the
+ *    engine ran in raises it.
+ *
+ * And one thing that does depend on meaning, because the board pictures it: the engine block's five
+ * moments on the Luminofor boards (`cluster-engine`, `-kickdown`, `-stopped`, `-gone`, `-parked`)
+ * are these drives at those rows, chart, figure and time, replayed through the same step.
  *
  * `tools/vehicle_log.py` writes the files, into `captures/vehicle-log/` (git-ignored, so this test
  * runs against whatever the machine has). **It is skipped with nothing there**, which is the state
@@ -34,8 +41,8 @@ import org.junit.Test
  *
  * The recorder writes a row a second for as long as it is asked to, so an eight-hour drive is
  * thirty thousand rows and the next one is another; three of the window checks are `O(window)`
- * each. Every row is still *fed* - the log, the ledger, the trace and the scene are the cheap part,
- * and the engine box's invariant is about the frame it is asserted in - but the window is only
+ * each. Every row is still *fed* - the log, the ledger, the run and the scene are the cheap part,
+ * and the engine block's invariant is about the frame it is asserted in - but the window is only
  * *checked* where it changed, which is where a bucket closed. [MAX_FILES] and [MAX_ROWS] are the
  * outer bound: a suite that gets slower every time somebody drives is a suite people stop running.
  */
@@ -67,12 +74,12 @@ class VehicleLogReplayTest {
         var closed = false
         val log = ConsumptionLog(onBucketClosed = { closed = true })
         val ledger = TripEnergyLedger()
-        val trace = EngineTrace()
+        val charge = EngineCharge()
         val scene = ContourScene()
         var previous = Double.NaN
         var flagDownFor = Double.MAX_VALUE
-        var gave = false
-        var boxUp = false
+        var ran = false
+        var blockUp = false
 
         rows.drop(1).forEach { line ->
             val cells = line.split(',')
@@ -87,7 +94,7 @@ class VehicleLogReplayTest {
             val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
 
             // The hub's own step, not a copy of it: the row's cold readings stand for what the last
-            // cold sweep left. The scene is stepped on every row - the engine box's invariant is
+            // cold sweep left. The scene is stepped on every row - the engine block's invariant is
             // about a frame - and the window is checked below only where a bucket closed.
             closed = false
             val values = VehicleAnsweredSweep.feed(
@@ -97,18 +104,18 @@ class VehicleLogReplayTest {
                 dtSeconds = dt,
                 log = log,
                 ledger = ledger,
-                trace = trace,
+                charge = charge,
             )
-            val snapshot = VehicleAnsweredSweep.snapshot(values, log, ledger, trace)
+            val snapshot = VehicleAnsweredSweep.snapshot(values, log, ledger, charge)
             scene.frame(snapshot, arrived = true, dt = dt.toFloat())
-            gave = gave || (parsed[VehicleSignal.GENERATION_KW] ?: 0.0) > 0.0
-            boxUp = boxUp || scene.stage.engineBox
+            ran = ran || engineRunning == true
+            blockUp = blockUp || scene.stage.engineBlock
 
             flagDownFor = if (engineRunning == true) 0.0 else flagDownFor + dt
             if (flagDownFor > ContourScene.ENGINE_HOLD_SECONDS + 1.0) {
                 assertTrue(
-                    "${file.name} at $mono s: the box is up with the flag down for $flagDownFor s",
-                    !scene.stage.engineBox,
+                    "${file.name} at $mono s: the block is up with the flag down for $flagDownFor s",
+                    !scene.stage.engineBlock,
                 )
             }
 
@@ -117,10 +124,100 @@ class VehicleLogReplayTest {
             checkFigure(file, mono, snapshot.consumption, snapshot.consumptionMean)
             checkPoints(file, mono, log.buckets, snapshot.chart)
         }
-        // The box's invariant holds trivially over a drive whose box never came up, and over the
-        // three newest drives (2026-09-22 to 24) it never did. A drive the engine gave in has to
-        // raise it.
-        if (gave) assertTrue("${file.name}: the engine gave and its box never came up", boxUp)
+        // The block's invariant holds trivially over a drive whose block never came up. A drive the
+        // engine ran in has to raise it.
+        if (ran) assertTrue("${file.name}: the engine ran and its block never came up", blockUp)
+    }
+
+    /**
+     * The engine block's boards are these drives at these rows.
+     *
+     * The board's chart, figure and time and the trip's detail after the block has gone, each held
+     * to what the hub's own step makes of the recorded rows up to that moment: a board drawn from
+     * numbers the app would not print is the defect the fixtures exist to stop.
+     */
+    @Test
+    fun theEngineBlocksBoardsAreTheRecordedDrives() {
+        val drive = capture("vehicle-20260924-182412-car.csv")
+        val parked = capture("vehicle-20260918-183009.csv")
+        assumeTrue("the drives the engine block's boards were drawn from", drive != null && parked != null)
+
+        moment(drive!!, "2026-09-24T18:40:04.500", "cluster-engine", running = true)
+        moment(drive, "2026-09-24T18:39:39.500", "cluster-engine-kickdown", running = true)
+        moment(drive, "2026-09-24T19:25:30", "cluster-engine-stopped", running = false)
+        moment(parked!!, "2026-09-18T18:33:40", "cluster-engine-parked", running = true)
+
+        // Past the hold the block is gone and the trip says what the engine charged this trip.
+        val (gone, scene) = replayTo(drive, "2026-09-24T19:25:40")
+        val board = SpecJson.fixture("cluster-engine-gone")
+        assertTrue("the block left", !scene.stage.engineBlock)
+        assertEquals("the trip's «ЗАРЯД ОТ ДВС»", board["gaveKwh"], ContourReadout.tenth(gone.trip.engineKwh))
+        val readouts = EnergyReadouts().also { it.read(gone, parked = false) }
+        assertEquals(EnergyReadouts.EngineCell.MINUTES, readouts.engineCell)
+        assertEquals("the trip's engine minutes", board["iceFigure"], readouts.engineCellFigure)
+        assertEquals("the trip", board["tripKwh"], readouts.tripFigure)
+        assertEquals("its road", (board["tripCaption"] as String).lowercase(), readouts.tripCaption.lowercase())
+    }
+
+    private fun moment(file: File, until: String, board: String, running: Boolean) {
+        val (t, scene) = replayTo(file, until)
+        val f = SpecJson.fixture(board)
+        val run = t.engineCharge
+        assertEquals("$board: running", running, run.running)
+        assertTrue("$board: the block is up", scene.stage.engineBlock)
+        assertEquals("$board: the figure", f["engineKwh"], ContourReadout.engineKwh(run.kwh))
+        assertEquals("$board: the time", f["engineRun"], ContourReadout.engineRun(run.seconds.toInt()))
+        val line = (f["chargeLine"] as List<*>).map { (it as Number).toFloat() }
+        assertEquals("$board: points", line.size, run.points.size)
+        line.forEachIndexed { index, expected ->
+            assertEquals("$board: point $index", expected, run.points[index], 0.006f)
+        }
+        assertEquals(
+            "$board: the ceiling",
+            if (line.max() < EngineCharge.LOW_BELOW_KW) EngineCharge.CEILING_LOW_KW else EngineCharge.CEILING_KW,
+            run.ceilingKw,
+            0f,
+        )
+    }
+
+    /** The hub's step over [file]'s rows whose wall time is not past [until]: the last snapshot and the scene. */
+    private fun replayTo(file: File, until: String): Pair<VehicleTelemetry, ContourScene> {
+        val rows = file.readLines().filter { it.isNotBlank() }
+        val header = rows[0].split(',')
+        val wall = header.indexOf("time")
+        val time = header.indexOf(VehicleCaptureColumns.MONO)
+        val columns = VehicleSignal.entries
+            .associateWith { signal -> header.indexOf(VehicleCaptureColumns.of(signal)) }
+            .filterValues { it >= 0 }
+        val log = ConsumptionLog()
+        val ledger = TripEnergyLedger()
+        val charge = EngineCharge()
+        val scene = ContourScene()
+        var previous = Double.NaN
+        var snapshot = VehicleTelemetry()
+        for (line in rows.drop(1)) {
+            val cells = line.split(',')
+            if (cells.size < header.size) continue
+            if (cells[wall] > until) break
+            val mono = cells.getOrNull(time)?.toDoubleOrNull() ?: continue
+            val dt = if (previous.isNaN() || mono <= previous) 0.0 else mono - previous
+            previous = mono
+            val parsed = columns.entries.mapNotNull { (signal, index) ->
+                cells.getOrNull(index)?.toDoubleOrNull()?.let { signal to it }
+            }.toMap()
+            val values = VehicleAnsweredSweep.feed(
+                parsed = parsed,
+                cold = parsed.filterKeys { it in VehicleSignal.COLD },
+                atMillis = (mono * 1000.0).toLong(),
+                dtSeconds = dt,
+                log = log,
+                ledger = ledger,
+                charge = charge,
+            )
+            snapshot = VehicleAnsweredSweep.snapshot(values, log, ledger, charge)
+            scene.frame(snapshot, arrived = true, dt = dt.toFloat())
+        }
+        return snapshot to scene
     }
 
     /**
@@ -247,30 +344,38 @@ class VehicleLogReplayTest {
 
     /**
      * The recorder's own directory, at the repository root: its newest drives, and the newest drive
-     * the engine gave in wherever that falls.
+     * the engine ran in wherever that falls.
      *
-     * The newest by name alone left the engine box's invariant with nothing to hold: none of the
-     * three newest drives (2026-09-22 to 24) had the engine give, and the one that did
-     * (2026-09-18) had sorted out of reach.
+     * The newest by name alone could leave the engine block's invariant with nothing to hold.
      */
     private fun captures(): List<File> {
-        val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")) { "user.dir" })) {
-            it.parentFile
-        }.firstOrNull { File(it, "tools/design-canvas").isDirectory } ?: return emptyList()
-        val directory = File(root, "captures/vehicle-log")
-        if (!directory.isDirectory) return emptyList()
+        val directory = directory() ?: return emptyList()
         val drives = directory.listFiles { file -> file.isFile && file.name.endsWith(".csv") }
             ?.sortedBy { it.name }
             ?: return emptyList()
-        return (drives.takeLast(MAX_FILES) + listOfNotNull(drives.lastOrNull(::engineGave))).distinct()
+        return (drives.takeLast(MAX_FILES) + listOfNotNull(drives.lastOrNull(::engineRan))).distinct()
     }
 
-    /** Whether the engine gave anywhere in the rows [replay] reads of [file]. */
-    private fun engineGave(file: File): Boolean = file.useLines { lines ->
+    private fun directory(): File? {
+        val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")) { "user.dir" })) {
+            it.parentFile
+        }.firstOrNull { File(it, "tools/design-canvas").isDirectory } ?: return null
+        return File(root, "captures/vehicle-log").takeIf { it.isDirectory }
+    }
+
+    /** One named drive, if this machine has it. */
+    private fun capture(name: String): File? = directory()?.let { File(it, name) }?.takeIf { it.isFile }
+
+    /** Whether the engine ran anywhere in the rows [replay] reads of [file]. */
+    private fun engineRan(file: File): Boolean = file.useLines { lines ->
         val rows = lines.filter { it.isNotBlank() }.take(MAX_ROWS + 1).iterator()
-        val generation = if (rows.hasNext()) rows.next().split(',').indexOf("generation_kw") else -1
-        generation >= 0 &&
-            rows.asSequence().any { (it.split(',').getOrNull(generation)?.toDoubleOrNull() ?: 0.0) > 0.0 }
+        val running = if (rows.hasNext()) {
+            rows.next().split(',').indexOf(VehicleCaptureColumns.of(VehicleSignal.ENGINE_RUNNING))
+        } else {
+            -1
+        }
+        running >= 0 &&
+            rows.asSequence().any { (it.split(',').getOrNull(running)?.toDoubleOrNull() ?: 0.0) >= 1.0 }
     }
 
     private companion object {

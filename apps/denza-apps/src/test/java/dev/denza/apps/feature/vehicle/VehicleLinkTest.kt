@@ -94,7 +94,7 @@ class VehicleLinkTest {
             cold = cold,
             consumption = emptyList(),
             chart = ConsumptionChartSnapshot.EMPTY,
-            engineTrace = EngineTraceSnapshot.EMPTY,
+            engineCharge = EngineChargeSnapshot.EMPTY,
             trip = trip,
         )
 
@@ -109,7 +109,7 @@ class VehicleLinkTest {
             cold = emptyMap(),
             consumption = emptyList(),
             chart = ConsumptionChartSnapshot.EMPTY,
-            engineTrace = EngineTraceSnapshot.EMPTY,
+            engineCharge = EngineChargeSnapshot.EMPTY,
             trip = TripEnergy(),
         )
         assertEquals("a failure is not an answer", VehicleAccess.STARTING, starting.access)

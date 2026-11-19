@@ -31,10 +31,10 @@ class AppTextTest {
     /** A format string is the same word, with the formatting left to its caller's memo. */
     @Test
     fun aFormatStringIsReadOnceAndFilledEachTime() {
-        assertEquals("ПОСЛЕДНИЕ 1:22", AppText.s(R.string.contour_engine_window, "1:22"))
+        assertEquals("ЗА 1:22", AppText.s(R.string.contour_engine_run, "1:22"))
         val before = StringsXmlSource.lookups.get()
-        assertEquals("ПОСЛЕДНИЕ 2:00", AppText.s(R.string.contour_engine_window, "2:00"))
-        assertEquals("ПОСЛЕДНИЕ %1\$s", AppText.s(R.string.contour_engine_window))
+        assertEquals("ЗА 2:00", AppText.s(R.string.contour_engine_run, "2:00"))
+        assertEquals("ЗА %1\$s", AppText.s(R.string.contour_engine_run))
         assertEquals(before, StringsXmlSource.lookups.get())
     }
 

@@ -21,25 +21,6 @@ class EngineTelemetryTest {
     }
 
     @Test
-    fun generationCountsWhenEitherTheStateOrThePowerSaysSo() {
-        assertFalse(telemetry(VehicleSignal.GENERATION_KW to 0.0).generating)
-        assertTrue(telemetry(VehicleSignal.GENERATION_KW to 14.0).generating)
-        assertTrue(telemetry(VehicleSignal.GENERATION_STATE to 1.0).generating)
-    }
-
-    @Test
-    fun theShutdownStateIsNotGeneration() {
-        // Captured on the car: the state goes 1 -> 2 a second and a half before
-        // the engine stops, with the kilowatt figure already back at zero. A
-        // `>= 1` test would have kept claiming generation through the spin-down.
-        val t = telemetry(
-            VehicleSignal.GENERATION_STATE to 2.0,
-            VehicleSignal.GENERATION_KW to 0.0,
-        )
-        assertFalse(t.generating)
-    }
-
-    @Test
     fun theMeasuredStateThreeMeansRunningBeforeGenerationStarts() {
         // 2026-08-23, parked: state 3 and 1619 rpm appeared before generation
         // came online. Treating only state 1 as running would miss this phase.
@@ -50,7 +31,6 @@ class EngineTelemetryTest {
             VehicleSignal.GENERATION_STATE to 0.0,
         )
         assertTrue(starting.engineRunning!!)
-        assertFalse(starting.generating)
     }
 
     @Test

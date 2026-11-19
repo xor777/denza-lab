@@ -80,12 +80,16 @@ class ContourFiguresTest {
     }
 
     @Test
-    fun theEngineWindowIsKeyedOnItsSeconds() {
+    fun theEngineRunIsKeyedOnItsSeconds() {
         val figures = ContourFigures()
-        val window = figures.intoPack(82)
-        assertEquals("ПОСЛЕДНИЕ 1:22", window)
-        assertSame(window, figures.intoPack(82))
-        assertEquals("ПОСЛЕДНИЕ 1:23", figures.intoPack(83))
+        val run = figures.engineRun(82)
+        assertEquals("ЗА 1:22", run)
+        assertSame(run, figures.engineRun(82))
+        assertEquals("ЗА 1:23", figures.engineRun(83))
+        val kwh = figures.engineKwh(0.1857)
+        assertEquals("0,2", kwh)
+        assertSame(kwh, figures.engineKwh(0.1857))
+        assertEquals("0,4", figures.engineKwh(0.4247))
     }
 
     @Test

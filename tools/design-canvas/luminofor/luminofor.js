@@ -376,6 +376,41 @@
     return x;
   }
 
+  // The engine's block (energy contract §2.5): what the pack took while the engine ran, a point a
+  // second over the run's last two minutes, drawn by silhouette() as the ten kilometres are - one
+  // curve, its field, ten runs dimmer toward the past, the end dot and the cut tick - in the return
+  // blue, from a zero on the figures' baseline up to their cap. «ЗАРЯД ОТ ДВС» over the line, the
+  // run's figure at its right end with the run's time under it. A younger run grows from the right
+  // edge at the full window's pitch. The ceiling is the app's EngineCharge.ceilingKw.
+  function engineBlock(c, f, base, RE) {
+    const K = S.cluster.engineCharge;
+    const top = base - D.capRatio * CG.figureSize;
+    const lineL = RE - K.width, lineR = RE - K.column - 2 * CT.gapFromAxis, figX = RE - K.column;
+    const vals = f.chargeLine || [];
+    const upTo = Math.max(0, ...vals) < K.lowBelow ? K.upToLow : K.upTo;
+    const b0 = new Path2D(); b0.moveTo(lineL, base); b0.lineTo(lineR, base); beam(c, b0, K.baseStroke, INK, 0.35, 0);
+    if (vals.length > 1) {
+      const end = silhouette(c, vals, {
+        right: lineR, pitch: (lineR - lineL) / (K.points - 1), zero: base, top, bottom: base + 1,
+        upTo, downTo: 1e9, upLight: BLUE, downLight: BLUE, stroke: CT.stroke, tick: CT.tick, runs: CT.runs,
+        intensity: (r, runs) => 0.28 + 0.72 * Math.pow((r + 1) / runs, 1.6),
+        fillUp: (cc, field, x0, x1) => {
+          const g = cc.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, rgba(BLUE[0], 0.05)); g.addColorStop(1, rgba(BLUE[0], 0.3));
+          cc.fillStyle = g; cc.fill(field);
+        },
+        fillDown: () => {}
+      });
+      const dot = new Path2D(); dot.arc(end.x, end.y, 2.6, 0, Math.PI * 2);
+      glowFill(c, dot, BLUE, 1, 12);
+    }
+    text(c, f.engineCaption, lineL, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
+    if (f.engineKwh) {
+      const fw = num(c, f.engineKwh, figX, base, CG.figureSize, INK, 1, 'left');
+      text(c, f.tripUnit, figX + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
+    }
+    if (f.engineRun) text(c, f.engineRun, figX, base + CG.detailDrop, CG.detailSize, GREY, 1, { track: CG.cellCaptionTrack });
+  }
+
   function drawCluster(c, f) {
     if (f.keepout !== false) keepout(c);
     if (f.unavailable) {
@@ -419,24 +454,8 @@
     }
 
     // right group: the engine at the group's left edge, the trip flush right
-    if (f.engineGiving) {
-      const E = S.cluster.engineBox;
-      const bw = E.width, bx0 = RE - bw, top = base - D.capRatio * CG.figureSize, zeroY = base;
-      const sy = v => zeroY - (zeroY - top) * Math.min(1, Math.max(0, v) / E.upTo);
-      const step = bw / f.generation.length;
-      const edge = new Path2D(), area = new Path2D();
-      area.moveTo(bx0, zeroY);
-      f.generation.forEach((v, i) => { const yy = sy(v); if (i === 0) edge.moveTo(bx0, yy); else edge.lineTo(bx0 + i * step, yy); edge.lineTo(bx0 + (i + 1) * step, yy); area.lineTo(bx0 + i * step, yy); area.lineTo(bx0 + (i + 1) * step, yy); });
-      area.lineTo(RE, zeroY); area.closePath();
-      c.save(); c.globalCompositeOperation = 'lighter';
-      // the history's colours, not the return's: what G is in motion is open (contract §2.5), and
-      // blue on this panel means «into the pack» and nothing else
-      const g = c.createLinearGradient(0, top, 0, zeroY); g.addColorStop(0, rgba(INK[0], 0.16)); g.addColorStop(1, rgba(INK[0], 0.02));
-      c.fillStyle = g; c.fill(area); c.restore();
-      beam(c, edge, E.stroke, INK, 0.95, 0);
-      const b0 = new Path2D(); b0.moveTo(bx0, zeroY); b0.lineTo(RE, zeroY); beam(c, b0, E.baseStroke, INK, 0.35, 0);
-      text(c, f.engineCaption, bx0, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
-      text(c, f.engineWindow, bx0, base + CG.detailDrop, CG.detailSize, GREY, 1, { track: CG.cellCaptionTrack });
+    if (f.engineBlock) {
+      engineBlock(c, f, base, RE);
     } else if (f.tripCaption) {
       const uw = textWidth(c, f.tripUnit, CG.unitSize), cw = textWidth(c, f.tripCaption, CG.captionSize, { track: CG.cellCaptionTrack });
       const fw = f.tripKwh ? numExtent(f.tripKwh, CG.figureSize) : 0;
@@ -447,8 +466,8 @@
         num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
         text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
       }
-      // the trip's detail: «ДАЛ ДВС» whenever the engine gave this trip (the contract keeps that
-      // seat on the move), recuperation on P; one line under the trip, in the fixture's order
+      // the trip's detail: «ЗАРЯД ОТ ДВС» whenever the pack took something with the engine running
+      // this trip, recuperation on P; one line under the trip, in the fixture's order
       const parts = [];
       if (f.gaveKwh) parts.push({ text: f.gaveCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.gaveKwh, after: 0 });
       if (f.gaveKwh && f.regenKwh) parts.push({ gap: 28 });

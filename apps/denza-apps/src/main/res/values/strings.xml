@@ -517,7 +517,7 @@
          figures that line can print. -->
     <!-- Budget 167 to the first temperature glyph; 112 today. -->
     <string name="contour_title_pack">БАТАРЕЯ · В</string>
-    <!-- Both headings: budget 276 to the engine box; 117 and 202 today. The trip caption shares the line. -->
+    <!-- Revolutions: budget 175 to the engine block, 117 today; the minutes (202) never stand beside the block. The trip caption shares the line. -->
     <string name="contour_title_engine_rpm">ДВС · об/мин</string>
     <string name="contour_title_engine_minutes">ДВС · мин за поездку</string>
     <!-- Budget 440 beside its figure; 121 today. -->
@@ -525,13 +525,12 @@
     <!-- Flush right on the engine heading's line: 304 from the longer heading to the margin; 190 today at 999 km. -->
     <string name="contour_trip_km">%1$s км · ЗА ПОЕЗДКУ</string>
     <string name="contour_trip_alone">ЗА ПОЕЗДКУ</string>
-    <!-- This and contour_caption_engine_gave share the park line: 506 with figures and units; 389 today. -->
+    <!-- This and contour_engine_charge share the park line: 506 with figures and units. -->
     <string name="contour_caption_regen">РЕКУПЕРАЦИЯ</string>
-    <string name="contour_caption_engine_gave">ДАЛ ДВС</string>
-    <string name="contour_engine_gives_alone">ДВС ДАЁТ</string>
-    <!-- This and contour_engine_window sit in the box. Budget 230; 151 and 134 today. -->
-    <string name="contour_engine_gives">ДВС ДАЁТ %1$s кВт</string>
-    <string name="contour_engine_window">ПОСЛЕДНИЕ %1$s</string>
+    <!-- The engine block's caption over its line and the trip's detail after it: one meaning, one wording. -->
+    <string name="contour_engine_charge">ЗАРЯД ОТ ДВС</string>
+    <!-- The run's time under the block's figure, in the figure's seat: 136. -->
+    <string name="contour_engine_run">ЗА %1$s</string>
     <!-- Beside the hero, the pair centred on the axis: 79 of room on the right at size 34; 56 today. -->
     <string name="contour_unit_kw">кВт</string>
     <string name="contour_unit_kwh">кВт·ч</string>

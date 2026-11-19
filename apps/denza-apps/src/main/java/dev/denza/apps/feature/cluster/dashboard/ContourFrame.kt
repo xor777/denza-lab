@@ -106,25 +106,31 @@ internal class ContourFrame {
     var iceCaption: String? = null
     var iceFigure: String? = null
 
-    /** The engine gives: its box stands where the trip is, and [generation] is what it draws. */
-    var engineGiving: Boolean = false
+    /**
+     * The engine runs, or stopped less than ten seconds ago: its block stands where the trip is,
+     * and [charge] is what it draws.
+     */
+    var engineBlock: Boolean = false
 
-    /** The box's bins, oldest first, right-anchored; `NaN` where nothing answered. */
-    val generation: FloatArray = FloatArray(GENERATION_BINS)
-    var generationCount: Int = 0
+    /** What the pack took, a point a second, oldest first, right-anchored; never a `NaN`. */
+    val charge: FloatArray = FloatArray(LuminoforSpec.Cluster.EngineCharge.POINTS)
+    var chargeCount: Int = 0
 
-    /** «ДВС ДАЁТ 14 кВт», or the words alone while there is no figure. */
-    var engineCaption: String = ""
+    /** «ЗАРЯД ОТ ДВС», over the line. */
+    var engineCaption: String? = null
 
-    /** «ПОСЛЕДНИЕ 1:22», under the box. */
-    var engineWindow: String = ""
+    /** «0,4» kWh since the engine started, at the line's right end; null while there is none. */
+    var engineKwh: String? = null
+
+    /** «ЗА 2:51», under it. */
+    var engineRun: String? = null
 
     /** «42 км · ЗА ПОЕЗДКУ», or null while the trip has not answered: then the shelf is empty. */
     var tripCaption: String? = null
     var tripKwh: String? = null
     var tripUnit: String = ContourReadout.UNIT_KWH
 
-    /** The detail line under the trip, right to left: «1,1 кВт·ч ДАЛ ДВС», then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». */
+    /** The detail line under the trip, right to left: «0,8 кВт·ч ЗАРЯД ОТ ДВС», then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». */
     var gaveCaption: String? = null
     var gaveKwh: String? = null
     var regenCaption: String? = null
@@ -169,10 +175,11 @@ internal class ContourFrame {
         spreadLevel = ContourReadout.Level.NORMAL
         iceCaption = null
         iceFigure = null
-        engineGiving = false
-        generationCount = 0
-        engineCaption = ""
-        engineWindow = ""
+        engineBlock = false
+        chargeCount = 0
+        engineCaption = null
+        engineKwh = null
+        engineRun = null
         tripCaption = null
         tripKwh = null
         tripUnit = ContourReadout.UNIT_KWH
@@ -190,8 +197,5 @@ internal class ContourFrame {
     companion object {
         /** Pack, front motor, rear left, rear right, inverter - `ThermalGlyphs.Cell`'s order. */
         const val CELLS = 5
-
-        /** The engine's box: twenty-four steps of five seconds, `EngineTrace`'s own two minutes. */
-        const val GENERATION_BINS = ContourGeometry.ENGINE_BINS
     }
 }

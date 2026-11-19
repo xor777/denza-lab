@@ -41,8 +41,8 @@ internal data class VehicleTelemetry(
      * (`docs/energy-display-contract.md` §2.3).
      */
     val chart: ConsumptionChartSnapshot = ConsumptionChartSnapshot.EMPTY,
-    /** The last two minutes of what the engine put back, on a one-second axis. */
-    val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
+    /** The engine's newest run: what the pack took while it ran, a point a second ([EngineCharge]). */
+    val engineCharge: EngineChargeSnapshot = EngineChargeSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
     val trip: TripEnergy = TripEnergy(),
     /**
@@ -163,33 +163,8 @@ internal data class VehicleTelemetry(
 
     val engineRpm: Double? get() = this[VehicleSignal.ENGINE_RPM]
 
-    /** Kilowatts the engine is putting into the pack; 0 with the engine off. */
-    val generationKw: Double? get() = this[VehicleSignal.GENERATION_KW]
-
-    /**
-     * Measured 2026-08-23: the state reads `1` while generating and `2` through
-     * the shutdown, where the kilowatt figure has already fallen to zero and the
-     * engine is only spinning down. Only `1` counts, so the dashboard stops claiming
-     * generation a second and a half before the engine actually stops.
-     */
-    val generating: Boolean
-        get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
-            (generationKw ?: 0.0) > GENERATION_FLOOR_KW
-
     companion object {
-        /**
-         * Below this a generation reading is rounding, not the engine working.
-         *
-         * Read by [generating] and by `EnergyReadouts`, which prints the figure: a box whose
-         * sentence says «ДВС ДАЁТ 0 кВт» is the zero this panel does not draw, and the two drives
-         * so far are exactly the case that produces it - the engine running with the id flat.
-         */
-        const val GENERATION_FLOOR_KW = 0.5
-
         /** The one gun value this car has been read at, on AC, with power flowing. */
         private const val GUN_AC_CONNECTED = 2.0
-
-        /** `2` is the shutdown transition, not generation. */
-        private const val GENERATION_ON = 1.0
     }
 }

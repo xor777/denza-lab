@@ -75,44 +75,35 @@ internal object ContourReadout {
     /** Drawn after a blue marker dot, which is what says the same thing «ВЕРНУЛА» would have. */
     val CAPTION_REGEN: String get() = AppText.s(R.string.contour_caption_regen)
 
-    /** A verb, and it fits: 94.4 units against a payload of 116.1. */
-    val CAPTION_ENGINE_GAVE: String get() = AppText.s(R.string.contour_caption_engine_gave)
+    /**
+     * What the pack took while the engine ran, said once and the same way everywhere: over the
+     * engine's block while it is on the panel, and after the trip's figure on its detail line once
+     * it has left (`docs/energy-display-contract.md` §2.5, §3).
+     *
+     * It replaced two phrases that said one thing in two ways - «ДВС ДАЁТ 8 кВт» over the old box,
+     * «ДАЛ ДВС» on the trip - and that never moved on the move, because the id behind them reads
+     * zero there. No dot: the block's own blue already says «into the pack».
+     */
+    val CAPTION_ENGINE_CHARGE: String get() = AppText.s(R.string.contour_engine_charge)
 
     /**
-     * The whole of what stands under the engine's box: a sentence, not a legend.
+     * How long the run behind the block's figure is: «ЗА 0:40», under the figure.
      *
-     * The seventh pass wrote `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` under two runs, and the owner's verdict
-     * on the built panel was that it was not understandable - which is the game lost, because a key
-     * is what a display read at 90 km/h does not get to need. One run left, one sentence: what the
-     * shape is, what it is worth now, and how far back it goes, in that order. The words «ГЕНЕРАЦИЯ»
-     * and «ОБОРОТЫ» are on no part of this panel any more.
-     *
-     * **And the sentence says «даёт» rather than «В БАТАРЕЮ»** since the energy display contract
-     * (§2.5). Where `GENERATION_KW` goes in motion has never been recorded - the two drives so far
-     * saw the engine run with the id flat - so «В БАТАРЕЮ» was a claim about a signal nobody has
-     * logged. «ДВС ДАЁТ» is true under either meaning and is the same verb the trip's «ДАЛ ДВС»
-     * uses; there is no dot, because the blue mark means «into the pack» everywhere else here.
+     * Written as «м:сс», so every value is one length, and clamped at [MAX_WINDOW_SECONDS], past
+     * which it would gain a glyph.
      */
-    val LEGEND_PREFIX: String get() = AppText.s(R.string.contour_engine_gives_alone)
-
-    /** The same sentence with what it is giving now, in kilowatts. */
-    fun engineGives(figure: String): String = AppText.s(R.string.contour_engine_gives, figure)
+    fun engineRun(seconds: Int): String = AppText.s(R.string.contour_engine_run, clock(seconds))
 
     /**
-     * **And the window is the box's own reach rather than a literal.**
+     * The block's figure: a tenth, and a whole number from ten kilowatt-hours on.
      *
-     * «ПОСЛЕДНИЕ 2 МИН» was printed from the first second of an engine run, over a box one step
-     * wide: the trace grows from the right and is never front-padded, so two minutes is what it
-     * holds when it is full and nothing else. The figure beside it was honest about a five-second
-     * window and the words were not. It is written as «м:сс», so every value is one length.
-     *
-     * Since the Luminofor board it is a line of its own under the box - the caption line carries
-     * «ДВС ДАЁТ 14 кВт» over the box and this sits on the detail line under it - so it no longer
-     * leads with the «·» that joined it to the sentence.
-     *
-     * @param seconds the trace's own span, which is the box's own width in seconds
+     * The column after the chart is the width of «9,9 кВт·ч»; «12,4 кВт·ч» would run past the
+     * group's margin, and a run that long is read in whole kilowatt-hours anyway.
      */
-    fun intoPack(seconds: Int): String = AppText.s(R.string.contour_engine_window, clock(seconds))
+    fun engineKwh(kwh: Double): String = if (kwh < ENGINE_KWH_WHOLE_FROM) tenth(kwh) else whole(kwh)
+
+    /** Where the block's figure drops its tenth: 9,95 prints «10». */
+    const val ENGINE_KWH_WHOLE_FROM = 9.95
 
     val UNIT_KW: String get() = AppText.s(R.string.contour_unit_kw)
     val UNIT_KWH: String get() = AppText.s(R.string.contour_unit_kwh)
@@ -207,8 +198,8 @@ internal object ContourReadout {
     /**
      * A duration as «м:сс», in tabular figures, so that its width is a constant.
      *
-     * Clamped at [MAX_WINDOW_SECONDS]: past it the string gains a glyph, and the phrase in front of
-     * it is laid out right to left off a fixed edge. The trace it names is two minutes long.
+     * Clamped at [MAX_WINDOW_SECONDS]: past it the string gains a glyph. An engine that runs longer
+     * than that is still «9:59» under its block, which is a run long enough to read as long.
      */
     fun clock(seconds: Int): String {
         val bounded = seconds.coerceIn(0, MAX_WINDOW_SECONDS)

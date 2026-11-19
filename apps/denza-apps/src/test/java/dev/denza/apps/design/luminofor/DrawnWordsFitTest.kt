@@ -97,9 +97,10 @@ open class DrawnWordsFitTest {
         val engineReach = max(start + headingMinutes, start + figures("8888", Grid.FIGURE_SIZE))
         val unitKwh = jura.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
         val trip = "999 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
-        val sentence = "${ContourReadout.LEGEND_PREFIX} 99 ${ContourReadout.UNIT_KW}"
-        val window = ContourReadout.intoPack(ContourReadout.MAX_WINDOW_SECONDS)
-        val park = detail(ContourReadout.CAPTION_ENGINE_GAVE) + g.DETAIL_AFTER_CAPTION +
+        val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
+        // a tenth up to 9,9 and whole from ten: the widest of either
+        val chargeFigure = max(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP + unitKwh
+        val park = detail(ContourReadout.CAPTION_ENGINE_CHARGE) + g.DETAIL_AFTER_CAPTION +
             jura.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) + g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
             g.DETAIL_PAIR_GAP + detail(ContourReadout.CAPTION_REGEN) + g.DETAIL_AFTER_CAPTION +
             jura.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) + g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
@@ -118,13 +119,16 @@ open class DrawnWordsFitTest {
                     "the hero's unit", ContourReadout.UNIT_KW, jura.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE),
                     2 * min(g.AXIS - end, start - g.AXIS) - g.HERO_FIELD - Grid.HERO_UNIT_GAP,
                 ),
-                cell("the engine's heading", ContourReadout.TITLE_ENGINE_RPM, headingRpm, g.BOX_LEFT - start),
-                cell("the sleeping engine's heading", ContourReadout.TITLE_ENGINE_MINUTES, headingMinutes, g.BOX_LEFT - start),
+                cell("the engine's heading", ContourReadout.TITLE_ENGINE_RPM, headingRpm, g.BLOCK_LEFT - start),
+                // never beside the block: in its hold the corner is empty
+                cell("the sleeping engine's heading", ContourReadout.TITLE_ENGINE_MINUTES, headingMinutes, right - start),
                 cell("the trip's caption", trip, caption(trip), right - engineReach),
                 cell("the trip's unit", ContourReadout.UNIT_KWH, g.tripPayload(figures("99,9", Grid.FIGURE_SIZE), unitKwh), right - engineReach),
-                cell("the engine box's sentence", sentence, caption(sentence), right - g.BOX_LEFT),
-                cell("the engine box's window", window, jura.width(window, Grid.DETAIL_SIZE, track), right - g.BOX_LEFT),
-                cell("the park line", "${ContourReadout.CAPTION_ENGINE_GAVE} ${ContourReadout.CAPTION_REGEN}", park, right - start),
+                // over the chart, from its left end to its right: the caption never reaches the figure
+                cell("the engine block's caption", ContourReadout.CAPTION_ENGINE_CHARGE, caption(ContourReadout.CAPTION_ENGINE_CHARGE), g.CHARGE_RIGHT - g.CHARGE_LEFT),
+                cell("the engine block's figure", "9,9 ${ContourReadout.UNIT_KWH}", chargeFigure, right - g.CHARGE_FIGURE_X),
+                cell("the engine block's run", run, jura.width(run, Grid.DETAIL_SIZE, track), right - g.CHARGE_FIGURE_X),
+                cell("the park line", "${ContourReadout.CAPTION_ENGINE_CHARGE} ${ContourReadout.CAPTION_REGEN}", park, right - start),
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("-12,3", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM),

@@ -109,28 +109,22 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun theEngineBoxSaysWhatItGivesRatherThanWhereItGoes() {
-        // The eighth pass drew «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», which was a key to a picture, and a
-        // panel with no room for a key is not allowed to need one. The ninth wrote «В БАТАРЕЮ»,
-        // which is a claim about what `GENERATION_KW` is in motion that no recording supports.
-        // «ДВС ДАЁТ» is true under either meaning and is the trip cell's own verb.
-        assertEquals("ДВС ДАЁТ", ContourReadout.LEGEND_PREFIX)
+    fun theEngineBlockNamesWhatThePackTookAndForHowLong() {
+        // One wording for the block over its chart and for the trip's detail after it has gone:
+        // what the pack took while the engine ran.
+        assertEquals("ЗАРЯД ОТ ДВС", ContourReadout.CAPTION_ENGINE_CHARGE)
         assertTrue(
-            "and no mark leads it: blue means «into the pack»",
-            !ContourReadout.LEGEND_PREFIX.contains("●"),
+            "and no mark leads it: the chart's blue is the mark",
+            !ContourReadout.CAPTION_ENGINE_CHARGE.contains("●"),
         )
-    }
-
-    @Test
-    fun theEngineBoxNamesHowFarBackItActuallyReaches() {
-        // The ninth pass's own defect. «ПОСЛЕДНИЕ 2 МИН» is the box's *capacity*: the trace grows
-        // from the right and is never front-padded, so five seconds after an engine start the
-        // shape was one step wide and the words under it claimed two minutes of it.
-        assertEquals("ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5))
-        assertEquals("ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82))
-        // The Luminofor board's own words under its box, with no «·» since the window has a line
-        // of its own.
-        assertEquals("ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120))
+        // The run's own time under its figure: five seconds after a start it says five seconds.
+        assertEquals("ЗА 0:05", ContourReadout.engineRun(5))
+        assertEquals("ЗА 2:52", ContourReadout.engineRun(172))
+        // A tenth, and whole from ten: the column after the chart holds «9,9» or «99».
+        assertEquals("0,4", ContourReadout.engineKwh(0.4247))
+        assertEquals("9,9", ContourReadout.engineKwh(9.94))
+        assertEquals("10", ContourReadout.engineKwh(9.95))
+        assertEquals("12", ContourReadout.engineKwh(12.4))
     }
 
     @Test

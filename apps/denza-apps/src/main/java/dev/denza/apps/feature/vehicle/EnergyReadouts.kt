@@ -7,6 +7,7 @@ import dev.denza.apps.feature.cluster.dashboard.ContourFigures
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourMotion
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
+import dev.denza.apps.feature.cluster.dashboard.ContourScene
 import kotlin.math.abs
 
 /**
@@ -87,15 +88,15 @@ internal class EnergyReadouts {
     var window: String = ""
         private set
 
-    /** «ДВС ДАЁТ» - what the engine gives, not where it goes. */
-    val enginePrefix: String get() = ContourReadout.LEGEND_PREFIX
-
-    /** What it is giving now, in whole kilowatts, or null when it is not giving. */
-    var engineFigure: String? = null
+    /**
+     * What the pack took since the engine started - the engine block's figure, a tenth of a
+     * kilowatt-hour - or null when there is no run to speak of.
+     */
+    var engineKwh: String? = null
         private set
 
-    /** How far back its box reaches: «ПОСЛЕДНИЕ 1:22», on the line under the box. */
-    var engineWindow: String = ""
+    /** And how long that run is: «ЗА 0:40», under the figure. Empty with no run. */
+    var engineRun: String = ""
         private set
 
     /** Which of the engine's three cells this snapshot earns, and [EngineCell.NONE] is one of them. */
@@ -169,7 +170,9 @@ internal class EnergyReadouts {
             telemetry.charging -> Direction.FROM_CHARGER
             load == null || band == ContourFlow.NEUTRAL -> Direction.NEUTRAL
             band == ContourFlow.OUT -> Direction.FROM_PACK
-            telemetry.generating -> Direction.FROM_ENGINE
+            // The engine's run, not `GENERATION_KW`, which reads zero on the move: what comes into
+            // the pack while the engine runs is the engine's charge on both screens (contract §2.5).
+            telemetry.engineRunning == true -> Direction.FROM_ENGINE
             else -> Direction.TO_PACK
         }
         // A sentence that names a source is blue whatever the magnitude is. «В БАТАРЕЮ ОТ
@@ -186,20 +189,14 @@ internal class EnergyReadouts {
 
         window = figures.perHundredKm(telemetry.consumptionKm)
 
-        val trace = telemetry.engineTrace
-        engineWindow = figures.intoPack(trace.spanSeconds)
-        val generation = telemetry.generationKw
-        // A figure of «0 кВт» inside «ДВС ДАЁТ … » is the zero this panel does not draw, and it is
-        // the state the two drives so far recorded: the engine running with the id flat.
-        engineFigure =
-            if (telemetry.engineRunning == true &&
-                generation != null &&
-                generation > VehicleTelemetry.GENERATION_FLOOR_KW
-            ) {
-                figures.whole(ContourFigures.Slot.GENERATION, generation)
-            } else {
-                null
-            }
+        val run = telemetry.engineCharge
+        if (run.isEmpty) {
+            engineKwh = null
+            engineRun = ""
+        } else {
+            engineKwh = figures.engineKwh(run.kwh)
+            engineRun = figures.engineRun(run.seconds.toInt())
+        }
 
         readEngineCell(telemetry)
         voltsFigure = telemetry[VehicleSignal.PACK_VOLT]?.let {
@@ -244,20 +241,20 @@ internal class EnergyReadouts {
     /**
      * The engine's one cell, and the three things it can say - on both screens.
      *
-     * Turning, it is the revolutions. Just stopped, it is how long it ran this trip. Otherwise
-     * nothing at all: a zero here would be an accountant's way of saying the engine did not run,
-     * and a run under a minute is a zero with a unit on it.
+     * Turning, it is the revolutions. Stopped a little while ago, it is how long it ran this trip.
+     * Otherwise nothing at all: a zero here would be an accountant's way of saying the engine did
+     * not run, and a run under a minute is a zero with a unit on it.
      *
-     * **«Just stopped» is the trace, not the trip**, and that is the owner's own finding from the
-     * first drive: he got into the car, had not started the engine, and the cell said «3 мин за
-     * поездку». It was not lying - a trip runs from the first movement after P, so yesterday's
-     * drive was still the trip - but a cell that says «за поездку» beside a cold engine is read as
-     * *this* drive, and being technically right is not an answer. So the cell lives as long as the
-     * trace holds a slot the engine was alive in, which is a hundred and twenty seconds with no
-     * timer of its own.
+     * **«A little while» is the run, not the trip**, and that is the owner's own finding from the
+     * first drive: in the car with the engine not yet started, the cell said «3 мин за поездку» -
+     * not lying, since a trip runs from the first movement after P, but a cell that says «за
+     * поездку» beside a cold engine is read as *this* drive. So the cell lives for
+     * [EngineChargeSnapshot.RECENT_SECONDS] after the engine stops.
      *
-     * The cluster used to decide this from the trip alone and the car page from the trace, so the
-     * same cold engine had a corner on one screen and none on the other.
+     * **And not in the first [ENGINE_HOLD_SECONDS] after it stops**, while the cluster's engine
+     * block still stands on the shelf with the run's own figure: the minutes are the trip's, and the
+     * block and the trip's minutes side by side are two answers to «how long did it run». The car
+     * page has no block and says nothing there too, so both screens answer the same.
      */
     private fun readEngineCell(t: VehicleTelemetry) {
         val rpm = t.engineRpm
@@ -270,7 +267,10 @@ internal class EnergyReadouts {
             return
         }
         val minutes = t.trip.engineMinutes
-        if (!t.engineTrace.isEmpty && t.trip.engineRan && minutes >= 1.0) {
+        val run = t.engineCharge
+        if (run.stoppedRecently && run.stoppedSeconds >= ENGINE_HOLD_SECONDS &&
+            t.trip.engineRan && minutes >= 1.0
+        ) {
             engineCell = EngineCell.MINUTES
             engineCellTitle = ContourReadout.TITLE_ENGINE_MINUTES
             engineCellCaption = ENGINE_MINUTES_CAPTION
@@ -334,6 +334,12 @@ internal class EnergyReadouts {
 
         /** The phrase alone, while the odometer has nothing to say. */
         val TRIP_ALONE_SENTENCE: String get() = AppText.s(R.string.energy_trip_alone)
+
+        /**
+         * How long the engine's block outlives its run, in the snapshot's whole seconds: the
+         * cluster's own hold.
+         */
+        val ENGINE_HOLD_SECONDS: Long = ContourScene.ENGINE_HOLD_SECONDS.toLong()
 
         /** The cluster's first seat, which is the trip's net: the slot the figure is memoised in. */
         private const val TRIP_SEAT = 0

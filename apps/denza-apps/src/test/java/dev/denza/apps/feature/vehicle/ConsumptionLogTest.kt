@@ -148,7 +148,6 @@ class ConsumptionLogTest {
             ledger.sample(
                 odometerKm = odometerKm,
                 powerKw = powerKw,
-                generationKw = 0.0,
                 engineRunning = false,
                 parked = false,
                 dtSeconds = dt,

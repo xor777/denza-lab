@@ -5,8 +5,8 @@ import dev.denza.apps.core.figure
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
-import dev.denza.apps.feature.vehicle.EngineTrace
-import dev.denza.apps.feature.vehicle.EngineTraceSnapshot
+import dev.denza.apps.feature.vehicle.EngineCharge
+import dev.denza.apps.feature.vehicle.EngineChargeSnapshot
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
@@ -33,25 +33,27 @@ open class ContourFrameBuilderTest {
     private fun road(n: Int, kwh: Double = 0.017) =
         List(n) { ConsumptionSample(110.0 - (n - 1 - it) * 0.1, kwh, 0.1, 0.1) }
 
-    private fun trace(seconds: Int, running: Boolean, generationKw: Double): EngineTraceSnapshot {
-        val engine = EngineTrace()
-        repeat(seconds) { engine.sample(it * 1_000L, engineRunning = running, generationKw = generationKw) }
+    /**
+     * A run of [seconds] at [loadKw] of pack power (negative into the pack), a sweep a second, and
+     * then [stoppedFor] seconds with the flag down.
+     */
+    private fun run(seconds: Int, loadKw: Double, stoppedFor: Int = 0): EngineChargeSnapshot {
+        val engine = EngineCharge()
+        repeat(seconds + stoppedFor) {
+            engine.sample(it * 1_000L, engineRunning = it < seconds, loadKw = loadKw, dtSeconds = 1.0)
+        }
         return engine.snapshot()
     }
 
-    /** An engine that ran a moment ago and gave nothing: the minutes' cell, and no box. */
-    private fun stoppedEngine(): EngineTraceSnapshot {
-        val engine = EngineTrace()
-        repeat(30) { engine.sample(it * 1_000L, engineRunning = it < 5, generationKw = 0.0) }
-        return engine.snapshot()
-    }
+    /** An engine that ran a while ago: the minutes' cell, and no block. */
+    private fun stoppedEngine(): EngineChargeSnapshot = run(5, loadKw = 26.0, stoppedFor = 25)
 
     /** The city board's car: 26 kW out, 549 V, the five cells calm, six minutes of engine behind it. */
     private fun city(
         values: Map<VehicleSignal, Double> = emptyMap(),
         buckets: List<ConsumptionSample> = road(100),
         trip: TripEnergy = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0),
-        trace: EngineTraceSnapshot = stoppedEngine(),
+        trace: EngineChargeSnapshot = stoppedEngine(),
         access: VehicleAccess = VehicleAccess.READY,
     ): VehicleTelemetry {
         val all = linkedMapOf(
@@ -70,7 +72,7 @@ open class ContourFrameBuilderTest {
             values = all,
             consumption = buckets,
             chart = ConsumptionChart.of(buckets),
-            engineTrace = trace,
+            engineCharge = trace,
             trip = trip,
         )
     }
@@ -129,7 +131,7 @@ open class ContourFrameBuilderTest {
 
         assertEquals(board["iceCaption"], frame.iceCaption)
         assertEquals(board["iceFigure"], frame.iceFigure)
-        assertFalse(frame.engineGiving)
+        assertFalse(frame.engineBlock)
         assertEquals(board["tripCaption"], frame.tripCaption)
         assertEquals(board["tripKwh"], frame.tripKwh)
         assertEquals(board["tripUnit"], frame.tripUnit)
@@ -177,35 +179,37 @@ open class ContourFrameBuilderTest {
         assertEquals("a tenth on P", board["consumption"], parked.consumption)
         assertEquals(board["tripCaption"], parked.tripCaption)
 
-        // On the move the recuperation leaves and what the engine gave stays: the seats are the
-        // contract's, «ДАЛ ДВС» on both and «● РЕКУПЕРАЦИЯ» on P alone (§2.4).
+        // On the move the recuperation leaves and the engine's charge stays: the seats are the
+        // contract's, «ЗАРЯД ОТ ДВС» on both and «● РЕКУПЕРАЦИЯ» on P alone (§2.4).
         val moving = ContourPanel().run(city(trip = trip), 1f)
-        assertEquals(ContourReadout.CAPTION_ENGINE_GAVE, moving.gaveCaption)
+        assertEquals(ContourReadout.CAPTION_ENGINE_CHARGE, moving.gaveCaption)
         assertEquals(figure("1,1"), moving.gaveKwh)
         assertNull(moving.regenCaption)
         assertEquals("a whole number on the move", "17", moving.consumption)
     }
 
     @Test
-    fun theEnginesBoxTakesTheTripsPlaceWhileItGives() {
+    fun theEnginesBlockTakesTheTripsPlaceWhileItRuns() {
+        // Forty-one seconds at 16 kW into the pack: «0,2» «ЗА 0:41», the charging board's words.
         val running = city(
             values = mapOf(
-                VehicleSignal.POWER_KW to -14.0,
+                VehicleSignal.POWER_KW to -16.0,
                 VehicleSignal.ENGINE_RUNNING to 3.0,
-                VehicleSignal.ENGINE_RPM to 1650.0,
-                VehicleSignal.GENERATION_KW to 14.0,
+                VehicleSignal.ENGINE_RPM to 1518.0,
             ),
-            trace = trace(120, running = true, generationKw = 14.0),
+            trace = run(41, loadKw = -16.0),
         )
         val frame = ContourPanel().run(running, 1f)
         val board = board("cluster-engine")
-        assertTrue(frame.engineGiving)
+        assertTrue(frame.engineBlock)
         assertEquals(board["engineCaption"], frame.engineCaption)
-        assertEquals(board["engineWindow"], frame.engineWindow)
+        assertEquals(board["engineKwh"], frame.engineKwh)
+        assertEquals(board["engineRun"], frame.engineRun)
         assertEquals(board["iceCaption"], frame.iceCaption)
         assertEquals(board["iceFigure"], frame.iceFigure)
-        assertEquals((board["generation"] as List<*>).size, frame.generationCount)
-        assertNull("the box stands where the trip was", frame.tripCaption)
+        assertEquals("a point a second, the filling one too", 41, frame.chargeCount)
+        assertEquals("the newest point is the last ten seconds' mean", 16f, frame.charge[40], 1e-3f)
+        assertNull("the block stands where the trip was", frame.tripCaption)
         assertNull(frame.gaveCaption)
         assertTrue("energy into the pack is blue", frame.into)
         // The consumption is the battery's alone while the engine runs, so it says nothing more
@@ -214,25 +218,45 @@ open class ContourFrameBuilderTest {
     }
 
     @Test
-    fun theEnginesSentenceClosesUpWhenItsFigureStopsArriving() {
+    fun theBlockHoldsItsRunBesideAnEmptyCornerAndThenGivesTheShelfBack() {
         val panel = ContourPanel()
-        val giving = city(
-            values = mapOf(
-                VehicleSignal.ENGINE_RUNNING to 3.0,
-                VehicleSignal.ENGINE_RPM to 1650.0,
-                VehicleSignal.GENERATION_KW to 14.0,
+        // The recorded drive's trip at 19:25:40 (VehicleLogReplayTest): one run, its 0,4 the trip's.
+        val trip = TripEnergy(netKwh = 0.45, kilometres = 2.0, engineSeconds = 172.8, engineKwh = 0.42)
+        panel.run(
+            city(
+                values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1650.0),
+                trip = trip,
+                trace = run(60, loadKw = -14.0),
             ),
-            trace = trace(60, running = true, generationKw = 14.0),
+            1f,
         )
-        panel.run(giving, 1f)
-        // The flag drops and the box holds its ten seconds; the figure goes with the flag.
-        val stopped = city(
-            values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
-            trace = trace(60, running = true, generationKw = 14.0),
+        // The flag drops and the block holds its ten seconds with the run's figure and time; the
+        // corner is empty rather than a second answer beside them.
+        val held = panel.run(
+            city(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0), trip = trip, trace = run(60, loadKw = -14.0, stoppedFor = 1)),
+            3f,
         )
-        val frame = panel.run(stopped, 3f)
-        assertTrue("the box holds", frame.engineGiving)
-        assertEquals(ContourReadout.LEGEND_PREFIX, frame.engineCaption)
+        assertTrue("the block holds", held.engineBlock)
+        assertEquals(ContourReadout.CAPTION_ENGINE_CHARGE, held.engineCaption)
+        assertEquals(figure("0,2"), held.engineKwh)
+        assertEquals(ContourReadout.engineRun(60), held.engineRun)
+        assertNull("the trip is not beside it", held.gaveCaption)
+        assertNull("an empty corner", held.iceCaption)
+        assertNull(held.iceFigure)
+
+        // Past the hold: the trip is back and its detail says what the engine charged this trip.
+        val gone = panel.run(
+            city(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0), trip = trip, trace = run(60, loadKw = -14.0, stoppedFor = 12)),
+            8f,
+        )
+        val board = board("cluster-engine-gone")
+        assertFalse(gone.engineBlock)
+        assertEquals(board["gaveCaption"], gone.gaveCaption)
+        assertEquals(board["gaveKwh"], gone.gaveKwh)
+        assertEquals(board["iceCaption"], gone.iceCaption)
+        assertEquals(board["iceFigure"], gone.iceFigure)
+        assertEquals(board["tripKwh"], gone.tripKwh)
+        assertEquals(board["tripCaption"], gone.tripCaption)
     }
 
     @Test

@@ -155,9 +155,11 @@ class LuminoforSpecContractTest {
         n(t.TICK, "cluster", "trace", "tick")
         n(t.STROKE, "cluster", "trace", "stroke"); n(t.FIGURE_SIZE, "cluster", "trace", "figureSize")
         n(t.UNIT_GAP, "cluster", "trace", "unitGap"); n(t.UNIT_SIZE, "cluster", "trace", "unitSize")
-        val e = Cluster.EngineBox
-        n(e.WIDTH, "cluster", "engineBox", "width"); n(e.UP_TO, "cluster", "engineBox", "upTo")
-        n(e.STROKE, "cluster", "engineBox", "stroke"); n(e.BASE_STROKE, "cluster", "engineBox", "baseStroke")
+        val e = Cluster.EngineCharge
+        n(e.WIDTH, "cluster", "engineCharge", "width"); n(e.COLUMN, "cluster", "engineCharge", "column")
+        n(e.UP_TO, "cluster", "engineCharge", "upTo"); n(e.UP_TO_LOW, "cluster", "engineCharge", "upToLow")
+        n(e.LOW_BELOW, "cluster", "engineCharge", "lowBelow"); n(e.BASE_STROKE, "cluster", "engineCharge", "baseStroke")
+        n(e.POINTS.toFloat(), "cluster", "engineCharge", "points")
         n(Cluster.Glyph.OUTLINE, "cluster", "glyph", "outline"); n(Cluster.Glyph.WHEEL, "cluster", "glyph", "wheel")
         n(Cluster.Glyph.HEIGHT, "cluster", "glyph", "height")
     }

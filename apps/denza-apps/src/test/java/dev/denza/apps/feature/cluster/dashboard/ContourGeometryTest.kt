@@ -3,7 +3,7 @@ package dev.denza.apps.feature.cluster.dashboard
 import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
-import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineCharge as Block
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
@@ -12,7 +12,7 @@ import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionChart
-import dev.denza.apps.feature.vehicle.EngineTrace
+import dev.denza.apps.feature.vehicle.EngineCharge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -65,22 +65,27 @@ open class ContourGeometryTest {
     }
 
     @Test
-    fun theEngineBoxIsTheTracesTwoMinutesOnALinearSpanToThirtyKilowatts() {
-        assertEquals(30f, EngineBox.UP_TO, 0f)
-        assertEquals("two minutes of five-second steps", 24, g.ENGINE_BINS)
-        assertEquals(EngineTrace.SLOTS, g.ENGINE_BINS * EngineTrace.BIN_SECONDS)
-        assertEquals(g.ENGINE_BINS, ContourFrame.GENERATION_BINS)
-        assertEquals(EngineBox.WIDTH, g.BOX_PITCH * g.ENGINE_BINS, 1e-3f)
-        // The box is the figures' own height, on their baseline.
-        assertEquals(Grid.BASELINE, g.BOX_ZERO, 0f)
-        assertEquals(Digits.CAP_RATIO * Grid.FIGURE_SIZE, g.BOX_ZERO - g.BOX_TOP, 1e-3f)
-        assertEquals(g.BOX_ZERO, g.boxY(0f), 0f)
-        assertEquals("a zero or a hole draws nothing above the base", g.BOX_ZERO, g.boxY(-4f), 0f)
-        assertEquals(g.BOX_TOP, g.boxY(30f), 1e-4f)
-        // Linear: the 14 kW this car ordinarily generates is 0.467 of the box, where the concept's
-        // square root over a hundred made it 0.37 and the owner called it flat twice.
-        assertEquals(0.467f, (g.BOX_ZERO - g.boxY(14f)) / (g.BOX_ZERO - g.BOX_TOP), 1e-3f)
-        assertEquals("clamped rather than open-topped", g.BOX_TOP, g.boxY(55f), 1e-4f)
+    fun theEngineBlockIsTwoMinutesOfSecondsOnTheFiguresBaseline() {
+        assertEquals("a point a second over two minutes", 120, Block.POINTS)
+        assertEquals(EngineCharge.WINDOW_SECONDS, Block.POINTS)
+        assertEquals(Block.POINTS, ContourFrame().charge.size)
+        // The chart runs from the block's left edge to a gutter short of the figure's column.
+        assertEquals(g.GROUP_RIGHT_END - Block.WIDTH, g.CHARGE_LEFT, 0f)
+        assertEquals(g.GROUP_RIGHT_END - Block.COLUMN, g.CHARGE_FIGURE_X, 0f)
+        assertEquals(g.CHARGE_FIGURE_X - 2f * Trace.GAP_FROM_AXIS, g.CHARGE_RIGHT, 0f)
+        assertEquals(g.CHARGE_RIGHT - g.CHARGE_LEFT, g.CHARGE_PITCH * (Block.POINTS - 1), 1e-3f)
+        // The chart is the figures' own height, on their baseline.
+        assertEquals(Grid.BASELINE, g.CHARGE_ZERO, 0f)
+        assertEquals(Digits.CAP_RATIO * Grid.FIGURE_SIZE, g.CHARGE_ZERO - g.CHARGE_TOP, 1e-3f)
+    }
+
+    @Test
+    fun theEngineChartsCeilingIsFiftyOrTwentyFiveByItsOwnWindow() {
+        assertEquals(50f, EngineCharge.CEILING_KW, 0f)
+        assertEquals(25f, EngineCharge.CEILING_LOW_KW, 0f)
+        assertEquals(25f, EngineCharge.ceilingKw(floatArrayOf(8f, 10f, 19.9f)), 0f)
+        assertEquals(50f, EngineCharge.ceilingKw(floatArrayOf(8f, 20f)), 0f)
+        assertEquals("only the drawn points count", 25f, EngineCharge.ceilingKw(floatArrayOf(8f, 40f), count = 1), 0f)
     }
 
     @Test
@@ -221,15 +226,20 @@ open class ContourGeometryTest {
             assertEquals("and so does the payload", end, figureLeft + payload, 1e-3f)
         }
 
-        // The engine's box in the trip's place: its sentence and its window inside the box.
-        assertTrue("the box starts at ${g.BOX_LEFT}", g.BOX_LEFT > iceCaption && g.BOX_LEFT > iceFigure)
-        val sentence = "${ContourReadout.LEGEND_PREFIX} 99 ${ContourReadout.UNIT_KW}"
-        assertTrue(g.BOX_LEFT + JuraMeasure.width(sentence, Grid.CAPTION_SIZE, track) < end)
-        val window = ContourReadout.intoPack(ContourReadout.MAX_WINDOW_SECONDS)
-        assertTrue(g.BOX_LEFT + JuraMeasure.width(window, Grid.DETAIL_SIZE, track) < end)
+        // The engine's block in the trip's place: clear of the engine's cell - revolutions, since the
+        // minutes are never beside it - its caption over the chart, its figure and its run's time in
+        // the column after it.
+        val rpmCaption = start + JuraMeasure.width(ContourReadout.TITLE_ENGINE_RPM, Grid.CAPTION_SIZE, track)
+        assertTrue("the block starts at ${g.BLOCK_LEFT}", g.BLOCK_LEFT > rpmCaption && g.BLOCK_LEFT > iceFigure)
+        assertTrue(g.CHARGE_LEFT + JuraMeasure.width(ContourReadout.CAPTION_ENGINE_CHARGE, Grid.CAPTION_SIZE, track) < g.CHARGE_RIGHT)
+        val kwh = maxOf(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP +
+            JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
+        assertTrue(g.CHARGE_FIGURE_X + kwh < end)
+        val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
+        assertTrue(g.CHARGE_FIGURE_X + JuraMeasure.width(run, Grid.DETAIL_SIZE, track) < end)
 
         // The park line, right to left, with both seats and three-digit figures in them.
-        val detail = JuraMeasure.width(ContourReadout.CAPTION_ENGINE_GAVE, Grid.DETAIL_SIZE, Grid.DETAIL_TRACK) +
+        val detail = JuraMeasure.width(ContourReadout.CAPTION_ENGINE_CHARGE, Grid.DETAIL_SIZE, Grid.DETAIL_TRACK) +
             g.DETAIL_AFTER_CAPTION + JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) +
             g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
             g.DETAIL_PAIR_GAP +

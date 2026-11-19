@@ -92,9 +92,9 @@ internal class VehicleTelemetryHub(context: Context) {
 
     /**
      * Kept in memory only. The consumption journal survives a restart because it is about the road;
-     * two minutes of revolutions is about right now, and a restart is long enough to make it a lie.
+     * the engine's run is about right now, and a restart is long enough to make it a lie.
      */
-    private val trace = EngineTrace()
+    private val charge = EngineCharge()
 
     /**
      * The sweep, written down, on the drives nobody can attach a laptop to.
@@ -344,7 +344,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     dtSeconds = clock.tick(now),
                     log = log,
                     ledger = ledger,
-                    trace = trace,
+                    charge = charge,
                 )
                 saveTrip(now)
 
@@ -359,7 +359,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     }
                 } else {
                     link.answered(now)
-                    snapshot = VehicleAnsweredSweep.snapshot(merged, log, ledger, trace)
+                    snapshot = VehicleAnsweredSweep.snapshot(merged, log, ledger, charge)
                 }
 
                 // Last, and out of the same map the panel is now reading: a recording of what the
@@ -390,7 +390,7 @@ internal class VehicleTelemetryHub(context: Context) {
             cold = cold,
             consumption = log.window,
             chart = ConsumptionChart.of(log.buckets),
-            engineTrace = trace.snapshot(),
+            engineCharge = charge.snapshot(),
             trip = ledger.trip,
         )
     }
@@ -400,16 +400,15 @@ internal class VehicleTelemetryHub(context: Context) {
             Log.w(TAG, "Данные машины недоступны: $failure ${error?.javaClass?.simpleName} ${error?.message}")
         }
         closedBy = failure
-        // Everything the hub still holds goes with it. The engine trace used to be left out, so a
-        // four-second backoff swapped the right shelf out of the box and back - defeating the
-        // hundred and twenty seconds of hysteresis the trace's own length exists to give it.
+        // Everything the hub still holds goes with it. The engine's run used to be left out, so a
+        // four-second backoff swapped the right shelf out of the engine's block and back.
         val window = log.window
         snapshot = VehicleTelemetry(
             access = VehicleAccess.UNAVAILABLE,
             message = failure.message,
             consumption = window,
             chart = ConsumptionChart.of(log.buckets),
-            engineTrace = trace.snapshot(),
+            engineCharge = charge.snapshot(),
             trip = ledger.trip,
         )
     }
@@ -632,8 +631,9 @@ internal class VehicleLink {
 internal object VehicleAnsweredSweep {
 
     /**
-     * Feeds one sweep to the trace, the log and the ledger, and returns the values the screens are
-     * shown: the cold ones [cold] carries and this sweep's hot ones. Empty when nothing answered.
+     * Feeds one sweep to the engine's run, the log and the ledger, and returns the values the
+     * screens are shown: the cold ones [cold] carries and this sweep's hot ones. Empty when nothing
+     * answered.
      */
     fun feed(
         parsed: Map<VehicleSignal, Double>,
@@ -642,18 +642,14 @@ internal object VehicleAnsweredSweep {
         dtSeconds: Double,
         log: ConsumptionLog,
         ledger: TripEnergyLedger,
-        trace: EngineTrace,
+        charge: EngineCharge,
     ): Map<VehicleSignal, Double> {
         val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
-        // Sampled on every sweep. The engine's box is up for the slots this flag was true in: the
-        // rpm and generation ids used to decide that and one of them is not zero on an electric
-        // drive.
-        trace.sample(
-            atMillis = atMillis,
-            engineRunning = engineRunning,
-            generationKw = parsed[VehicleSignal.GENERATION_KW],
-        )
         val load = VehicleConvention.load(parsed[VehicleSignal.POWER_KW])
+        // Sampled on every sweep: a run is the engine's own flag, and what it charts is what the
+        // pack took while the flag was up (contract §2.5), not `GENERATION_KW`, which reads zero on
+        // the move.
+        charge.sample(atMillis = atMillis, engineRunning = engineRunning, loadKw = load, dtSeconds = dtSeconds)
         log.sample(
             odometerKm = parsed[VehicleSignal.ODOMETER_KM],
             powerKw = load,
@@ -666,7 +662,6 @@ internal object VehicleAnsweredSweep {
         ledger.sample(
             odometerKm = parsed[VehicleSignal.ODOMETER_KM],
             powerKw = load,
-            generationKw = parsed[VehicleSignal.GENERATION_KW],
             engineRunning = engineRunning,
             parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
             dtSeconds = dtSeconds,
@@ -705,13 +700,13 @@ internal object VehicleAnsweredSweep {
         values: Map<VehicleSignal, Double>,
         log: ConsumptionLog,
         ledger: TripEnergyLedger,
-        trace: EngineTrace,
+        charge: EngineCharge,
     ): VehicleTelemetry = VehicleTelemetry(
         access = VehicleAccess.READY,
         values = values,
         consumption = log.window,
         chart = ConsumptionChart.of(log.buckets),
-        engineTrace = trace.snapshot(),
+        engineCharge = charge.snapshot(),
         trip = ledger.trip,
     )
 }
@@ -736,7 +731,7 @@ internal object VehicleDroppedRead {
         cold: Map<VehicleSignal, Double>,
         consumption: List<ConsumptionSample>,
         chart: ConsumptionChartSnapshot,
-        engineTrace: EngineTraceSnapshot,
+        engineCharge: EngineChargeSnapshot,
         trip: TripEnergy,
     ): VehicleTelemetry = VehicleTelemetry(
         access = if (previous == VehicleAccess.STARTING) VehicleAccess.STARTING else VehicleAccess.READY,
@@ -744,7 +739,7 @@ internal object VehicleDroppedRead {
         values = LinkedHashMap(cold),
         consumption = consumption,
         chart = chart,
-        engineTrace = engineTrace,
+        engineCharge = engineCharge,
         trip = trip,
         dropped = true,
     )
@@ -925,7 +920,7 @@ internal object VehicleSweepCadence {
  * Process-scoped owner of the vehicle hub, mirroring
  * [dev.denza.apps.feature.trip.TripSession]: the view attaches and detaches, while
  * the hub outlives activity recreation. Closed consumption buckets also survive a
- * process restart through [ConsumptionJournal]; the short engine trace does not.
+ * process restart through [ConsumptionJournal]; the engine's run does not.
  */
 internal object VehicleSession {
     private var hub: VehicleTelemetryHub? = null

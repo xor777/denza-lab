@@ -20,18 +20,18 @@ import kotlin.math.min
  *    peak's hold and decay all inside them. The hero is blue on [ContourFlow.BACK] and on nothing
  *    else, so the colour cannot flicker on a coast;
  *  - **every energy string** is `EnergyReadouts`' - the consumption and its window, the engine's
- *    cell, its sentence and its window, the volts, the hundred points (`docs/energy-display-
+ *    cell, its run's figure and time, the volts, the hundred points (`docs/energy-display-
  *    contract.md` §1). The trip's seats and the charge countdown are [ContourFigures]'s, as they
  *    were;
  *  - **which trip seats exist when** is [ContourStage]'s and the ledger's: the trip's cell while it
- *    has answered, «ДАЛ ДВС» while the engine gave something this trip, «● РЕКУПЕРАЦИЯ» on P
- *    alone, and none of them while the engine's box owns the shelf.
+ *    has answered, «ЗАРЯД ОТ ДВС» while the pack took something with the engine running this trip,
+ *    «● РЕКУПЕРАЦИЯ» on P alone, and none of them while the engine's block owns the shelf.
  *
  * ### Nothing is formatted here either
  *
  * Every string is a memoised one: the figures come out of [ContourFigures] and `EnergyReadouts`,
- * and the two phrases built around a figure - «42 км · ЗА ПОЕЗДКУ» and «ДВС ДАЁТ 14 кВт» - are
- * rebuilt only when the figure's own string changes, which [ContourFigures] makes an identity test.
+ * and the phrase built around a figure - «42 км · ЗА ПОЕЗДКУ» - is rebuilt only when the figure's
+ * own string changes, which [ContourFigures] makes an identity test.
  * A steady panel allocates nothing in a frame.
  */
 internal class ContourFrameBuilder {
@@ -41,11 +41,9 @@ internal class ContourFrameBuilder {
 
     private var odometerFor: String? = null
     private var tripCaption: String = ""
-    private var generationFor: String? = null
 
     /** The consumption figure last printed, for [ContourFrame.consumptionHeld]. */
     private var heldConsumption: String? = null
-    private var engineCaption: String = ""
 
     /**
      * Refills [frame] from one snapshot and the scene and motion the view has just stepped.
@@ -164,14 +162,16 @@ internal class ContourFrameBuilder {
                     frame.iceFigure = figures.whole(ContourFigures.Slot.RPM, motion.rpm.toDouble())
                 }
             }
-            EnergyReadouts.EngineCell.MINUTES -> {
+            // Not beside the block: while it holds after a stop the block's own figure and time
+            // are the run's, and the trip's minutes beside them would be a second answer.
+            EnergyReadouts.EngineCell.MINUTES -> if (!stage.engineBlock) {
                 frame.iceCaption = readouts.engineCellTitle
                 if (scene.fresh(ContourValue.ENGINE_MINUTES)) frame.iceFigure = readouts.engineCellFigure
             }
         }
 
-        if (stage.engineBox) {
-            engineBox(frame, t, scene, stage)
+        if (stage.engineBlock) {
+            engineBlock(frame, t)
             return
         }
         if (!scene.known(ContourValue.TRIP_NET)) return
@@ -185,10 +185,10 @@ internal class ContourFrameBuilder {
         }
         if (scene.fresh(ContourValue.TRIP_NET)) frame.tripKwh = figures.seat(0, trip.netKwh)
 
-        // The detail line: what the engine gave this trip, and on P what came back. A seat's index
-        // is its memo slot as well as its place.
+        // The detail line: what the pack took with the engine running this trip, and on P what
+        // came back. A seat's index is its memo slot as well as its place.
         if (scene.known(ContourValue.TRIP_ENGINE)) {
-            frame.gaveCaption = ContourReadout.CAPTION_ENGINE_GAVE
+            frame.gaveCaption = ContourReadout.CAPTION_ENGINE_CHARGE
             if (scene.fresh(ContourValue.TRIP_ENGINE)) frame.gaveKwh = figures.seat(1, trip.engineKwh)
         }
         if (stage.parked && scene.known(ContourValue.TRIP_REGEN)) {
@@ -198,22 +198,21 @@ internal class ContourFrameBuilder {
     }
 
     /**
-     * The box, in the trip's place, while the engine gives (`docs/energy-display-contract.md`
-     * §2.5). Its sentence names the figure only while the flag is up and the reading fresh: the box
-     * holds ten seconds after the flag drops, and a figure that stopped arriving is not a figure,
-     * so the words close up instead.
+     * The block, in the trip's place, while the engine runs and ten seconds after
+     * (`docs/energy-display-contract.md` §2.5): the run's points, its figure and its time. They
+     * are the hub's, as the trip is, so they are as fresh as the packet that carried them; after
+     * the stop they are the run's last answer and stay as they were.
      */
-    private fun engineBox(frame: ContourFrame, t: VehicleTelemetry, scene: ContourScene, stage: ContourStage) {
-        val bins = t.engineTrace.bins
-        val count = min(bins.size, ContourFrame.GENERATION_BINS)
-        val newest = bins.size - count
-        for (index in 0 until count) frame.generation[index] = bins[newest + index]
-        frame.generationCount = count
-        frame.engineGiving = true
-        val figure =
-            if (stage.engineRunning && scene.fresh(ContourValue.GENERATION)) readouts.engineFigure else null
-        frame.engineCaption = engineCaption(figure)
-        frame.engineWindow = readouts.engineWindow
+    private fun engineBlock(frame: ContourFrame, t: VehicleTelemetry) {
+        val points = t.engineCharge.points
+        val count = min(points.size, frame.charge.size)
+        val first = points.size - count
+        for (index in 0 until count) frame.charge[index] = points[first + index]
+        frame.chargeCount = count
+        frame.engineBlock = true
+        frame.engineCaption = ContourReadout.CAPTION_ENGINE_CHARGE
+        frame.engineKwh = readouts.engineKwh
+        frame.engineRun = readouts.engineRun
     }
 
     private fun trace(frame: ContourFrame, t: VehicleTelemetry, scene: ContourScene, stage: ContourStage) {
@@ -265,16 +264,6 @@ internal class ContourFrameBuilder {
             tripCaption = ContourReadout.tripKm(odometer)
         }
         return tripCaption
-    }
-
-    /** «ДВС ДАЁТ 14 кВт», or «ДВС ДАЁТ» closed up when there is no figure. */
-    private fun engineCaption(figure: String?): String {
-        if (figure == null) return readouts.enginePrefix
-        if (figure !== generationFor) {
-            generationFor = figure
-            engineCaption = ContourReadout.engineGives(figure)
-        }
-        return engineCaption
     }
 
     private companion object {

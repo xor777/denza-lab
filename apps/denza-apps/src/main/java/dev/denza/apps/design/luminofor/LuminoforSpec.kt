@@ -167,10 +167,14 @@ object LuminoforSpec {
             const val UNIT_SIZE: Float = 17f
         }
 
-        object EngineBox {
-            const val WIDTH: Float = 230f
-            const val UP_TO: Float = 30f
-            const val STROKE: Float = 1.8f
+        /** The engine's charge into the pack: `cluster.engineCharge`. */
+        object EngineCharge {
+            const val WIDTH: Float = 330f
+            const val COLUMN: Float = 136f
+            const val UP_TO: Float = 50f
+            const val UP_TO_LOW: Float = 25f
+            const val LOW_BELOW: Float = 20f
+            const val POINTS: Int = 120
             const val BASE_STROKE: Float = 0.8f
         }
 

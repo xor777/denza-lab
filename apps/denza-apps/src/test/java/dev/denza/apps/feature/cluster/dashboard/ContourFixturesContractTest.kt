@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.cluster.dashboard
 
 import dev.denza.apps.core.EnglishWords
+import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
@@ -39,22 +40,24 @@ open class ContourFixturesContractTest {
         boards.map { it to fixture(it) }.filter { it.second["batteryCaption"] != null }.forEach { (id, f) ->
             assertEquals(id, ContourReadout.TITLE_PACK, f["batteryCaption"])
             assertEquals(id, ContourReadout.UNIT_KWH, f["tripUnit"])
+            // Beside the engine's block in the seconds it holds after a stop the cell is empty.
+            val heldEmpty = f["engineBlock"] == true && f["iceFigure"] == null
             assertTrue(
                 "$id: «${f["iceCaption"]}»",
-                f["iceCaption"] in setOf(ContourReadout.TITLE_ENGINE_MINUTES, ContourReadout.TITLE_ENGINE_RPM),
+                f["iceCaption"] in setOf(ContourReadout.TITLE_ENGINE_MINUTES, ContourReadout.TITLE_ENGINE_RPM) ||
+                    heldEmpty && f["iceCaption"].let { it == null || it == "" },
             )
-            // A stale trip loses its kilometres and the separator with them.
-            assertEquals(
-                id,
-                if (f["tripKwh"] == null) {
-                    ContourReadout.CAPTION_TRIP_ALONE
-                } else {
-                    "42 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
-                },
-                f["tripCaption"],
-            )
-            if (f["parked"] == true) {
-                assertEquals(id, ContourReadout.CAPTION_ENGINE_GAVE, f["gaveCaption"])
+            // A stale trip loses its kilometres and the separator with them; the recorded drives'
+            // scenes have their own kilometres.
+            if (f["tripKwh"] == null) {
+                assertEquals(id, ContourReadout.CAPTION_TRIP_ALONE, f["tripCaption"])
+            } else {
+                val km = (f["tripCaption"] as String).substringBefore(' ')
+                assertTrue("$id: «$km»", km.toIntOrNull() != null)
+                assertEquals(id, "$km ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}", f["tripCaption"])
+            }
+            if (f["gaveKwh"] != null) assertEquals(id, ContourReadout.CAPTION_ENGINE_CHARGE, f["gaveCaption"])
+            if (f["parked"] == true && f["regenKwh"] != null) {
                 assertEquals(id, ContourReadout.CAPTION_REGEN, f["regenCaption"])
             }
         }
@@ -78,15 +81,20 @@ open class ContourFixturesContractTest {
     }
 
     @Test
-    fun theEnginesSentenceIsTheAppsSentence() {
-        val engine = fixture("cluster-engine")
-        assertEquals(ContourReadout.TITLE_ENGINE_RPM, engine["iceCaption"])
-        assertEquals(
-            "${ContourReadout.LEGEND_PREFIX} 14 ${ContourReadout.UNIT_KW}",
-            engine["engineCaption"],
-        )
-        assertEquals(ContourReadout.intoPack(120), engine["engineWindow"])
-        assertEquals("two minutes of five-second steps", ContourGeometry.ENGINE_BINS, (engine["generation"] as List<*>).size)
+    fun theEngineBlocksWordsAreTheAppsWords() {
+        val blocks = boards.map { it to fixture(it) }.filter { it.second["engineBlock"] == true }
+        assertTrue("the engine's boards draw the block", blocks.size >= 4)
+        blocks.forEach { (id, f) ->
+            assertEquals(id, ContourReadout.CAPTION_ENGINE_CHARGE, f["engineCaption"])
+            // «ЗА м:сс», the run's own clock
+            val run = f["engineRun"] as String
+            val (m, s) = run.substringAfterLast(' ').split(':').map { it.toInt() }
+            assertEquals(id, ContourReadout.engineRun(m * 60 + s), run)
+            assertEquals(id, ContourReadout.UNIT_KWH, f["tripUnit"])
+            val line = f["chargeLine"] as List<*>
+            assertTrue("$id: a point a second, two minutes at most", line.size in 2..LuminoforSpec.Cluster.EngineCharge.POINTS)
+            assertTrue("$id: upward only", line.all { (it as Number).toFloat() >= 0f })
+        }
     }
 
     @Test
@@ -105,7 +113,7 @@ open class ContourFixturesContractTest {
         // would be drawn with a hole: the reason the countdown is «12:30» rather than «12 ч».
         val drawable = SpecJson.at("digits", "glyphs") as Map<*, *>
         boards.map(::fixture).forEach { f ->
-            val figures = listOfNotNull(f["volts"], f["tripKwh"], f["iceFigure"], f["consumption"], f["gaveKwh"], f["regenKwh"]) +
+            val figures = listOfNotNull(f["volts"], f["tripKwh"], f["iceFigure"], f["consumption"], f["gaveKwh"], f["regenKwh"], f["engineKwh"]) +
                 // A stale cell keeps its glyph and prints no figure.
                 (f["temps"] as List<*>? ?: emptyList<Any>()).mapNotNull { (it as Map<*, *>)["value"] }
             figures.map { it as String }.forEach { figure ->

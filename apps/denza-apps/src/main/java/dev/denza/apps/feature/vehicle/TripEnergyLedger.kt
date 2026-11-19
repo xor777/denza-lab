@@ -9,16 +9,18 @@ package dev.denza.apps.feature.vehicle
  *  - [netKwh] is `∫P dt` over the trip - **the net that left the battery**. Regeneration is a
  *    negative pack flow, so it is subtracted by the integral itself, and so is whatever the engine
  *    put back while it ran. That is the figure the shelf prints against the kilometres;
- *  - [recoveredKwh] is `∫P⁻ dt` **over intervals with the engine off only**. Under generation a
- *    negative pack flow is indistinguishable from braking, and claiming the engine's charge as
- *    regeneration would be a lie the driver cannot check. The engine's share is [engineKwh];
- *  - [engineKwh] is `∫GENERATION_KW dt`, what the engine handed the pack;
+ *  - [recoveredKwh] is `∫P⁻ dt` **over intervals with the engine off only**;
+ *  - [engineKwh] is `∫P⁻ dt` **over intervals with the engine running** - «ЗАРЯД ОТ ДВС», what the
+ *    pack took while the engine ran. With the engine running a negative pack flow is the engine
+ *    charging or the road giving back, and the pack cannot tell the two apart, so all of it is the
+ *    engine's run (`docs/energy-display-contract.md` §2.5). The two together are every
+ *    kilowatt-hour the pack took on the trip, and neither is counted twice;
  *  - [engineSeconds] is how long the engine actually ran, which is the answer to the question a
  *    hybrid's driver asks and nothing on this panel used to give.
  *
- * Whichever way the unlogged question about `GENERATION_KW ⊂ POWER_KW` lands (see
- * [VehicleSignal.GENERATION_KW] and docs/instrument-display-findings.md), the first figure does not
- * double-count: it is one integral of one signal.
+ * Until 2026-11-19 [engineKwh] was `∫GENERATION_KW dt`, which on this firmware is above zero only
+ * during forced generation standing in P, where the trip integrates nothing: on the move it read
+ * zero while the engine charged the pack, so the figure never moved.
  */
 internal data class TripEnergy(
     val netKwh: Double = 0.0,
@@ -114,7 +116,6 @@ internal class TripEnergyLedger(
      * @param odometerKm the vehicle odometer; null skips the sample entirely, because without it
      *   there is no way to tell standing still from a lost reading
      * @param powerKw pack power, positive out of the battery
-     * @param generationKw what the engine is putting back, if it is running
      * @param engineRunning null while nothing has answered, which is not the same as stopped
      * @param parked whether the selector is in P
      * @param dtSeconds real time since the previous sample
@@ -122,7 +123,6 @@ internal class TripEnergyLedger(
     fun sample(
         odometerKm: Double?,
         powerKw: Double?,
-        generationKw: Double?,
         engineRunning: Boolean?,
         parked: Boolean?,
         dtSeconds: Double,
@@ -156,13 +156,14 @@ internal class TripEnergyLedger(
         val hours = dtSeconds / 3600.0
         if (powerKw != null) {
             net += powerKw * hours
-            // Only where the engine is known to be off. Under generation a negative pack flow is
-            // the engine charging, not a hill, and the two are indistinguishable on this bus.
+            // Only where the engine is known to be off. With it running a negative pack flow is
+            // the engine charging or a hill, and the two are indistinguishable on this bus: that
+            // is the engine's run, below.
             if (powerKw < 0.0 && engineRunning == false) recovered += -powerKw * hours
         }
         if (engineRunning == true) {
             engineSeconds += dtSeconds
-            if (generationKw != null && generationKw > 0.0) engine += generationKw * hours
+            if (powerKw != null && powerKw < 0.0) engine += -powerKw * hours
         }
     }
 

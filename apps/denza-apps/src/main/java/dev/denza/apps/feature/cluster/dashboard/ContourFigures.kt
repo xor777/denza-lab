@@ -51,7 +51,9 @@ internal class ContourFigures {
         ENGINE_MINUTES,
         SPREAD,
         ODOMETER,
-        GENERATION,
+
+        /** The engine block's figure, what the pack took since the run started. */
+        ENGINE_KWH,
 
         /** The five cells of the temperature row, in the order [cell] indexes them. */
         CELL_0,
@@ -70,8 +72,8 @@ internal class ContourFigures {
         PETAL_UNIT,
         CHARGE_LEFT,
 
-        /** The engine box's own window, «ПОСЛЕДНИЕ 1:22». */
-        WINDOW,
+        /** And the run's time under it, «ЗА 1:22». */
+        ENGINE_RUN,
         ;
     }
 
@@ -121,11 +123,15 @@ internal class ContourFigures {
             ?: keep(Slot.CHARGE_LEFT, value, false, ContourReadout.chargeLeft(minutes))
     }
 
-    /** The engine box's sentence, whose window is the box's own reach in seconds. */
-    fun intoPack(seconds: Int): String {
+    /** The engine block's figure: a tenth of a kilowatt-hour, whole from ten ([ContourReadout.engineKwh]). */
+    fun engineKwh(kwh: Double): String =
+        hit(Slot.ENGINE_KWH, kwh, false) ?: keep(Slot.ENGINE_KWH, kwh, false, ContourReadout.engineKwh(kwh))
+
+    /** And the run's time under it, keyed on the whole seconds it prints. */
+    fun engineRun(seconds: Int): String {
         val value = seconds.toDouble()
-        return hit(Slot.WINDOW, value, false)
-            ?: keep(Slot.WINDOW, value, false, ContourReadout.intoPack(seconds))
+        return hit(Slot.ENGINE_RUN, value, false)
+            ?: keep(Slot.ENGINE_RUN, value, false, ContourReadout.engineRun(seconds))
     }
 
     private fun hit(slot: Slot, value: Double, mark: Boolean): String? {

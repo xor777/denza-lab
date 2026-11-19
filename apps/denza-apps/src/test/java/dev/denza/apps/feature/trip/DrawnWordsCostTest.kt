@@ -5,7 +5,7 @@ import dev.denza.apps.core.StringsXmlSource
 import dev.denza.apps.feature.cluster.dashboard.ContourPanel
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
-import dev.denza.apps.feature.vehicle.EngineTrace
+import dev.denza.apps.feature.vehicle.EngineCharge
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
@@ -29,8 +29,8 @@ class DrawnWordsCostTest {
 
     private fun steady(): VehicleTelemetry {
         val road = List(100) { ConsumptionSample(110.0 - (99 - it) * 0.1, 0.017, 0.1, 0.1) }
-        val engine = EngineTrace()
-        repeat(30) { engine.sample(it * 1_000L, engineRunning = it < 5, generationKw = 0.0) }
+        val engine = EngineCharge()
+        repeat(30) { engine.sample(it * 1_000L, engineRunning = it < 5, loadKw = 26.0, dtSeconds = 1.0) }
         return VehicleTelemetry(
             access = VehicleAccess.READY,
             values = linkedMapOf(
@@ -45,7 +45,7 @@ class DrawnWordsCostTest {
             ),
             consumption = road,
             chart = ConsumptionChart.of(road),
-            engineTrace = engine.snapshot(),
+            engineCharge = engine.snapshot(),
             trip = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
         )
     }

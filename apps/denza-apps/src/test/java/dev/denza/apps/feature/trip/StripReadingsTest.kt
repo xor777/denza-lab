@@ -2,7 +2,7 @@ package dev.denza.apps.feature.trip
 
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
-import dev.denza.apps.feature.vehicle.EngineTrace
+import dev.denza.apps.feature.vehicle.EngineCharge
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleDroppedRead
@@ -36,14 +36,14 @@ class StripReadingsTest {
         val all = LinkedHashMap<VehicleSignal, Double>(values)
         if (powerKw != null) all[VehicleSignal.POWER_KW] = powerKw
         val road = List(100) { ConsumptionSample(110.0 - (99 - it) * 0.1, 0.017, 0.1, 0.1) }
-        val engine = EngineTrace()
-        repeat(engineSeconds) { engine.sample(it * 1_000L, engineRunning = true, generationKw = 8.0) }
+        val engine = EngineCharge()
+        repeat(engineSeconds) { engine.sample(it * 1_000L, engineRunning = true, loadKw = -8.0, dtSeconds = 1.0) }
         return VehicleTelemetry(
             access = VehicleAccess.READY,
             values = all,
             consumption = road,
             chart = ConsumptionChart.of(road),
-            engineTrace = engine.snapshot(),
+            engineCharge = engine.snapshot(),
             trip = trip,
         )
     }
@@ -103,7 +103,6 @@ class StripReadingsTest {
                 values = mapOf(
                     VehicleSignal.ENGINE_RUNNING to 3.0,
                     VehicleSignal.ENGINE_RPM to 1650.0,
-                    VehicleSignal.GENERATION_KW to 14.0,
                 ),
                 engineSeconds = 60,
             ),
@@ -172,7 +171,7 @@ class StripReadingsTest {
                 cold = answered.values.filterKeys { it.poll == VehiclePoll.COLD },
                 consumption = answered.consumption,
                 chart = answered.chart,
-                engineTrace = answered.engineTrace,
+                engineCharge = answered.engineCharge,
                 trip = answered.trip,
             ),
         )

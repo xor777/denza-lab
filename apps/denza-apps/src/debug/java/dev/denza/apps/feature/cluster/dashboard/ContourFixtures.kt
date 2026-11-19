@@ -72,16 +72,17 @@ internal object ContourFixtures {
         // the right group
         frame.iceCaption = f.text("iceCaption")
         frame.iceFigure = f.text("iceFigure")
-        if (f.optBoolean("engineGiving", false)) {
-            frame.engineGiving = true
-            frame.generationCount = floats(f.optJSONArray("generation"), frame.generation)
-            frame.engineCaption = f.text("engineCaption").orEmpty()
-            frame.engineWindow = f.text("engineWindow").orEmpty()
+        if (f.optBoolean("engineBlock", false)) {
+            frame.engineBlock = true
+            frame.chargeCount = floats(f.optJSONArray("chargeLine"), frame.charge)
+            frame.engineCaption = f.text("engineCaption")
+            frame.engineKwh = f.text("engineKwh")
+            frame.engineRun = f.text("engineRun")
         }
         frame.tripCaption = f.text("tripCaption")
         frame.tripKwh = f.text("tripKwh")
         f.text("tripUnit")?.let { frame.tripUnit = it }
-        // What the fixture carries is what is printed: «ДАЛ ДВС» on the move too, as the app has it.
+        // What the fixture carries is what is printed: «ЗАРЯД ОТ ДВС» on the move too, as the app has it.
         frame.gaveCaption = f.text("gaveCaption")
         frame.gaveKwh = f.text("gaveKwh")
         frame.regenCaption = f.text("regenCaption")

@@ -13,7 +13,7 @@ import dev.denza.apps.design.luminofor.LightPen.Align
 import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
-import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineCharge
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
@@ -22,6 +22,7 @@ import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.ThermalGlyphs
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.cluster.dashboard.ContourGeometry.AXIS
+import dev.denza.apps.feature.vehicle.EngineCharge as EngineRun
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -63,7 +64,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     constructor(context: Context) : this(LightPen.create(context))
 
     private val path = Path()
-    private val area = Path()
 
     private val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -92,7 +92,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     private var glowBlue: Shader? = null
     private var hotOrange: Shader? = null
     private var hotRed: Shader? = null
-    private var boxShader: Shader? = null
 
     /** The ten kilometres: ink over zero and blue under it, ten runs brightening to the present. */
     private val silhouette = Silhouette(
@@ -104,6 +103,21 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         upFill = floatArrayOf(TRACE_UP_OLD, TRACE_UP_NEW),
         downFill = floatArrayOf(TRACE_DOWN_OLD, TRACE_DOWN_NEW),
         capacity = Trace.POINTS,
+    )
+
+    /**
+     * The engine's charge: the same painter in the return blue alone, nothing below its zero, ten
+     * runs brightening to the present as the ten kilometres do.
+     */
+    private val charge = Silhouette(
+        upLight = ClusterInk.BLUE,
+        downLight = ClusterInk.BLUE,
+        stroke = Trace.STROKE,
+        tick = Trace.TICK,
+        runLevels = FloatArray(Trace.RUNS) { ContourGeometry.runIntensity(it) },
+        upFill = floatArrayOf(ContourGeometry.CHARGE_FILL_OLD, ContourGeometry.CHARGE_FILL_NEW),
+        downFill = floatArrayOf(0f, 0f),
+        capacity = EngineCharge.POINTS,
     )
 
 
@@ -306,9 +320,9 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
 
     // ---------------------------------------------------------------- the right group
 
-    /** The engine at the group's left edge, and the trip - or the engine's box - flush right. */
+    /** The engine at the group's left edge, and the trip - or the engine's block - flush right. */
     private fun rightGroup(f: ContourFrame) {
-        if (f.engineGiving) engineBox(f) else trip(f)
+        if (f.engineBlock) engineBlock(f) else trip(f)
         f.iceCaption?.let {
             pen.text(
                 it,
@@ -342,7 +356,7 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     }
 
     /**
-     * The detail line under the trip, laid right to left off the margin: «1,1 кВт·ч ДАЛ ДВС», then
+     * The detail line under the trip, laid right to left off the margin: «0,8 кВт·ч ЗАРЯД ОТ ДВС», then
      * twenty-eight units, then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». A seat that does not exist this trip
      * takes no room, so what is there is packed against the edge; a figure gone stale takes its
      * unit with it and leaves the words.
@@ -383,67 +397,46 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     }
 
     /**
-     * The engine's box in the trip's place: a step trace of what it gave, over the figures' own
-     * height, its sentence on the caption line and its window under it.
-     *
-     * In the history's colours - ink, a faint ink field, the sentence grey like every caption - and
-     * not the return's blue: what `G` is in motion is open (contract §2.5), and blue on this panel
-     * means «into the pack» and nothing else.
-     *
-     * The board draws every bin as one step line; the app draws the runs of bins the engine
-     * actually gave in, because a bin nothing answered in and a bin at zero are not a reading - a
-     * step across a gap would claim a steady output through five seconds nobody watched. With every
-     * bin answered and above zero, which is every fixture, the two are one path.
+     * The engine's block in the trip's place (`docs/energy-display-contract.md` §2.5): what the
+     * pack took while the engine ran, a point a second over the last two minutes, drawn by the same
+     * [Silhouette] as the ten kilometres - one curve through the points, its field, ten runs
+     * brightening to the present, the end dot and the tick of a cut - in the return blue, from a
+     * zero on the figures' baseline up to their cap. «ЗАРЯД ОТ ДВС» over the line, and at its right
+     * end the run's figure with its time under it.
      */
-    private fun engineBox(f: ContourFrame) {
-        val count = f.generationCount
-        val right = ContourGeometry.GROUP_RIGHT_END
-        val start = right - count * ContourGeometry.BOX_PITCH
-        val zeroY = ContourGeometry.BOX_ZERO
+    private fun engineBlock(f: ContourFrame) {
+        val zero = ContourGeometry.CHARGE_ZERO
         path.rewind()
-        area.rewind()
-        ContourRuns.forEach(count, { f.generation[it] > 0f }) { first, length ->
-            val x0 = start + first * ContourGeometry.BOX_PITCH
-            area.moveTo(x0, zeroY)
-            for (i in first until first + length) {
-                val yy = ContourGeometry.boxY(f.generation[i])
-                val a = start + i * ContourGeometry.BOX_PITCH
-                val b = a + ContourGeometry.BOX_PITCH
-                if (i == first) path.moveTo(a, yy) else path.lineTo(a, yy)
-                path.lineTo(b, yy)
-                area.lineTo(a, yy)
-                area.lineTo(b, yy)
-            }
-            area.lineTo(start + (first + length) * ContourGeometry.BOX_PITCH, zeroY)
-            area.close()
+        path.moveTo(ContourGeometry.CHARGE_LEFT, zero)
+        path.lineTo(ContourGeometry.CHARGE_RIGHT, zero)
+        pen.beam(path, EngineCharge.BASE_STROKE, ClusterInk.INK, ContourGeometry.CHARGE_BASE_INTENSITY)
+        val n = f.chargeCount
+        val drawn = charge.draw(
+            pen, f.charge, 0, n,
+            right = ContourGeometry.CHARGE_RIGHT,
+            pitch = ContourGeometry.CHARGE_PITCH,
+            zero = zero,
+            top = ContourGeometry.CHARGE_TOP,
+            bottom = zero + 1f,
+            upTo = EngineRun.ceilingKw(f.charge, n),
+            downTo = NOTHING_BELOW,
+        )
+        if (drawn && n > 1) {
+            path.rewind()
+            path.addCircle(charge.endX, charge.endY, ContourGeometry.TRACE_DOT, Path.Direction.CW)
+            pen.glowFill(path, ClusterInk.BLUE, 1f, ContourGeometry.TRACE_DOT_BLUR)
         }
-        shade.shader = boxShader
-        shade.alpha = OPAQUE
-        pen.canvas.drawPath(pen.toPx(area), shade)
-        shade.shader = null
-        pen.beam(path, EngineBox.STROKE, ClusterInk.INK, BOX_EDGE_INTENSITY)
-        path.rewind()
-        path.moveTo(ContourGeometry.BOX_LEFT, zeroY)
-        path.lineTo(right, zeroY)
-        pen.beam(path, EngineBox.BASE_STROKE, ClusterInk.INK, BOX_BASE_INTENSITY)
-        pen.text(
-            f.engineCaption,
-            ContourGeometry.BOX_LEFT,
-            Grid.CAPTION,
-            Grid.CAPTION_SIZE,
-            ClusterInk.GREY,
-            1f,
-            track = Grid.CELL_CAPTION_TRACK,
-        )
-        pen.text(
-            f.engineWindow,
-            ContourGeometry.BOX_LEFT,
-            ContourGeometry.DETAIL_BASELINE,
-            Grid.DETAIL_SIZE,
-            ClusterInk.GREY,
-            1f,
-            track = Grid.CELL_CAPTION_TRACK,
-        )
+        f.engineCaption?.let {
+            pen.text(it, ContourGeometry.CHARGE_LEFT, Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CELL_CAPTION_TRACK)
+        }
+        val x = ContourGeometry.CHARGE_FIGURE_X
+        f.engineKwh?.let { kwh ->
+            val fw = pen.figures(kwh, x, Grid.BASELINE, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+            pen.text(f.tripUnit, x + fw + Grid.UNIT_GAP, Grid.BASELINE, Grid.UNIT_SIZE, ClusterInk.GREY, 1f)
+        }
+        f.engineRun?.let {
+            pen.text(it, x, ContourGeometry.DETAIL_BASELINE, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, track = Grid.CELL_CAPTION_TRACK)
+        }
     }
 
     // ---------------------------------------------------------------- the ten kilometres
@@ -525,10 +518,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         val hot = pen.px(ContourGeometry.HOT_RADIUS)
         hotOrange = RadialGradient(0f, 0f, hot, ClusterInk.ORANGE.halo, clear(ClusterInk.ORANGE.halo), Shader.TileMode.CLAMP)
         hotRed = RadialGradient(0f, 0f, hot, ClusterInk.RED.halo, clear(ClusterInk.RED.halo), Shader.TileMode.CLAMP)
-        boxShader = LinearGradient(
-            0f, pen.y(ContourGeometry.BOX_TOP), 0f, pen.y(ContourGeometry.BOX_ZERO),
-            LightPen.alpha(ink, BOX_FILL_TOP), LightPen.alpha(ink, BOX_FILL_ZERO), Shader.TileMode.CLAMP,
-        )
     }
 
     private fun unit(a: Float): Int = (a.coerceIn(0f, 1f) * 255f).roundToInt()
@@ -537,16 +526,11 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         /** `ThermalGlyphs`' cells in the frame's order: pack, front, rear left, rear right, inverter. */
         val GLYPHS = ThermalGlyphs.Cell.entries.toTypedArray()
 
-        const val OPAQUE = 255
-
         /** The filament's centre stop is 0.85 of the alpha spec.json gives it. */
         const val FILAMENT_PEAK = 0.85f
 
-        /** The engine box: its edge, its base line and its fill, top to zero. */
-        const val BOX_EDGE_INTENSITY = 0.95f
-        const val BOX_BASE_INTENSITY = 0.35f
-        const val BOX_FILL_TOP = 0.16f
-        const val BOX_FILL_ZERO = 0.02f
+        /** The engine's charge is never below its zero, so its lower ladder is out of reach. */
+        const val NOTHING_BELOW = 1e9f
 
         /** The trace's fills, oldest point to newest. */
         const val TRACE_UP_OLD = 0.03f

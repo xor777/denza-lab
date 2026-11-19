@@ -2,12 +2,11 @@ package dev.denza.apps.feature.cluster.dashboard
 
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
-import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineCharge
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
 import dev.denza.apps.design.luminofor.WideDigits
-import dev.denza.apps.feature.vehicle.EngineTrace
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -19,7 +18,7 @@ import kotlin.math.sqrt
  *
  * Every anchor `drawCluster` computes is here once, and the renderer draws at these: the two side
  * groups and their edges, the hero's group centred on the axis, the band's square-root reach, the
- * trace's hundred-point pitch and its two ladders, the engine box. What depends on a measured
+ * trace's hundred-point pitch and its two ladders, the engine's block. What depends on a measured
  * string - the hero's «кВт», the trip's caption - takes the width as an argument, so the renderer
  * passes the car's own Jura and a JVM test passes the same TTF measured through AWT.
  *
@@ -42,7 +41,7 @@ internal object ContourGeometry {
     const val GROUP_RIGHT_START: Float = AXIS + Grid.SIDE
     const val GROUP_RIGHT_END: Float = W - Cluster.MARGIN
 
-    /** The detail line under a group: the park line, the spread, the engine box's window. */
+    /** The detail line under a group: the park line, the spread, the engine's run. */
     const val DETAIL_BASELINE: Float = Grid.BASELINE + Grid.DETAIL_DROP
 
     // ---- the band
@@ -163,7 +162,7 @@ internal object ContourGeometry {
     const val DETAIL_AFTER_UNIT: Float = 6f
     const val DETAIL_AFTER_FIGURE: Float = 6f
 
-    /** Between «ДАЛ ДВС»'s figure and «РЕКУПЕРАЦИЯ». */
+    /** Between «ЗАРЯД ОТ ДВС»'s figure and «РЕКУПЕРАЦИЯ». */
     const val DETAIL_PAIR_GAP: Float = 28f
 
     /** The blue mark in front of the recuperation: centred 4 left and 5 up, and it takes ten. */
@@ -174,39 +173,31 @@ internal object ContourGeometry {
     const val DOT_BLUR: Float = 8f
     const val DOT_INTENSITY: Float = 0.9f
 
-    // ---- the engine box
-
-    /** `EngineTrace`'s two minutes in its own five-second steps. */
-    const val ENGINE_BINS: Int = EngineTrace.SLOTS / EngineTrace.BIN_SECONDS
-
-    const val BOX_LEFT: Float = GROUP_RIGHT_END - EngineBox.WIDTH
-
-    /** The box is the figures' own height: zero on their baseline, the top at their cap. */
-    const val BOX_ZERO: Float = Grid.BASELINE
-    const val BOX_TOP: Float = Grid.BASELINE - Digits.CAP_RATIO * Grid.FIGURE_SIZE
+    // ---- the engine's block
 
     /**
-     * One step. The board divides the box by the bins it was given, which is twenty-four in every
-     * fixture; the app divides it by twenty-four always and anchors the steps at the right edge,
-     * because the trace grows from the right and is never front-padded - a box forty seconds old
-     * under «ПОСЛЕДНИЕ 0:40» is eight steps wide, not twenty-four steps stretched.
+     * The block is flush right, [EngineCharge.WIDTH] wide: the line from its left edge to the
+     * figure's seat, the seat [EngineCharge.COLUMN] wide at the right end. Between them two of the
+     * trace's gaps, the room the ten kilometres leave between their line and their figure.
      */
-    const val BOX_PITCH: Float = EngineBox.WIDTH / ENGINE_BINS
+    const val BLOCK_LEFT: Float = GROUP_RIGHT_END - EngineCharge.WIDTH
+    const val CHARGE_LEFT: Float = BLOCK_LEFT
+    const val CHARGE_RIGHT: Float = GROUP_RIGHT_END - EngineCharge.COLUMN - 2f * Trace.GAP_FROM_AXIS
+    const val CHARGE_FIGURE_X: Float = GROUP_RIGHT_END - EngineCharge.COLUMN
 
-    /**
-     * Generation on its linear span to 30 kW ([EngineBox.UP_TO]), clamped at both ends.
-     *
-     * Linear because the concept's square root to 100 kW read as flat to the owner twice: at the
-     * 14 kW this car ordinarily generates, a root over 100 fills a third of the box and linear over
-     * 30 a half - and 30 is what this generator does rather than a span borrowed from the band. A
-     * root buys resolution near zero, and near zero this quantity is *off*. Clamped rather than
-     * autoscaled for the reason the trace's ladder is fixed - a step that changes height because a
-     * *different* step changed value never draws the same two minutes twice - and rather than
-     * open-topped because more than the span is the same fact as the span: the engine is giving
-     * everything it has.
-     */
-    fun boxY(kilowatts: Float): Float =
-        BOX_ZERO - (BOX_ZERO - BOX_TOP) * min(1f, max(0f, kilowatts) / EngineBox.UP_TO)
+    /** A point a second: a full window runs edge to edge, a younger run grows from the right. */
+    const val CHARGE_PITCH: Float = (CHARGE_RIGHT - CHARGE_LEFT) / (EngineCharge.POINTS - 1)
+
+    /** The line's height is the figures': zero on their baseline, the ceiling at their cap. */
+    const val CHARGE_ZERO: Float = Grid.BASELINE
+    const val CHARGE_TOP: Float = Grid.BASELINE - Digits.CAP_RATIO * Grid.FIGURE_SIZE
+
+    /** The block's fill under its line, the ten kilometres' blue below their zero: oldest, newest. */
+    const val CHARGE_FILL_OLD: Float = 0.05f
+    const val CHARGE_FILL_NEW: Float = 0.3f
+
+    /** And its zero, a hairline across the line's width. */
+    const val CHARGE_BASE_INTENSITY: Float = 0.35f
 
     // ---- the ten kilometres
 

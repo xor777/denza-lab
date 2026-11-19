@@ -18,8 +18,6 @@
     v += (rnd() - 0.5) * 6; v = v * 0.86 + 17 * 0.14;
     chart.push(+(v + (rnd() < 0.08 ? -rnd() * 26 : 0) + (i > 58 && i < 68 ? 14 : 0)).toFixed(2));
   }
-  const generation = [];
-  for (let i = 0; i < 24; i++) generation.push(+(10 + Math.sin(i / 3) * 3 + rnd() * 3).toFixed(2));
 
   // the analyser at one instant: the approved board's 26 heights spread over 36 bands
   const seed26 = [30, 55, 91, 133, 160, 182, 164, 140, 112, 88, 124, 153, 177, 159, 131, 98, 78, 110, 136, 155, 138, 108, 82, 58, 82, 105];
@@ -67,7 +65,7 @@
     tripCaption: '42 км · ЗА ПОЕЗДКУ', tripKwh: '9,3', tripUnit: 'кВт·ч',
     iceCaption: 'ДВС · мин за поездку', iceFigure: '6',
     consumption: '17', consumptionUnit: 'кВт·ч/100 км · за 10 км',
-    chart, generation
+    chart
   };
   const scenes = {
     city:   Object.assign({}, clusterBase, { power: 26, peak: 34, peakAge: 1.0, volts: '549', temps: temps([28, 31, 29, 31, 32]) }),
@@ -77,17 +75,14 @@
     // and a long regen under the floor: one tick below
     regen:  Object.assign({}, clusterBase, { power: -38, peak: -40, peakAge: 0.5, volts: '554', temps: temps([28, 31, 29, 31, 32]),
                                              chart: chart.slice(0, 97).concat([-14, -27, -33]) }),
-    engine: Object.assign({}, clusterBase, { power: -14, peak: -15, peakAge: 2.0, volts: '553', temps: temps([29, 38, 35, 36, 44]),
-                                             iceCaption: 'ДВС · об/мин', iceFigure: '1650',
-                                             engineGiving: true, engineCaption: 'ДВС ДАЁТ 14 кВт', engineWindow: 'ПОСЛЕДНИЕ 2:00' }),
     hot:    Object.assign({}, clusterBase, { power: 62, peak: 71, peakAge: 1.5, volts: '546',
                                              temps: temps([36, 88, 61, 63, 74], { 1: 'danger', 4: 'warning' }) }),
     park:   Object.assign({}, clusterBase, { power: 1, peak: 1, peakAge: 9, volts: '552', temps: temps([28, 31, 29, 31, 32]),
                                              consumption: '16,8', parked: true,
-                                             gaveCaption: 'ДАЛ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1' }),
+                                             gaveCaption: 'ЗАРЯД ОТ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1' }),
     // on the charger: power is -|CHARGE_KW|, the petal's figure becomes the countdown
     charging: Object.assign({}, clusterBase, { power: -7, peak: -7, peakAge: 9, volts: '561', temps: temps([27, 26, 25, 25, 29]),
-                                               parked: true, gaveCaption: 'ДАЛ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1',
+                                               parked: true, gaveCaption: 'ЗАРЯД ОТ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1',
                                                consumption: '2:15', consumptionUnit: 'до полной' }),
     // the pack's cells drift apart: the spread appears under the battery, in its level's colour
     spread: Object.assign({}, clusterBase, { power: 31, peak: 38, peakAge: 1.2, volts: '547', temps: temps([34, 41, 39, 40, 46]),
@@ -106,6 +101,20 @@
     waking: { t: 1.3, power: 0, peak: 0, peakAge: 9, powerFresh: false, powerKnown: false, heroUnit: false, temps: [], chart: [] },
     // no access to the car: the skeleton and the message in the petal's place, nothing else
     unavailable: { t: 1.3, unavailable: true, message: 'ADB-ключ не подтверждён · откройте Denza Apps', power: 0, peak: 0, peakAge: 9, chart: [] }
+  };
+
+  // The engine's block at five moments of two recorded drives, as EngineCharge replays them
+  // (VehicleLogReplayTest holds these numbers to the Kotlin): charging on the move 2026-09-24 18:40:04,
+  // the kickdown 18:39:39 of the same run, four seconds after its stop at 19:25:29 (the engine's cell
+  // empty beside the block), past the hold at 19:25:40 - the block gone and the trip's detail in its
+  // place: that run was the trip's only one, so its 0,4 is the trip's too - and forced charge standing
+  // in P, 2026-09-18 18:33:39, on the lower ceiling.
+  const engine = {
+    charging: {"t": 1.3, "batteryCaption": "БАТАРЕЯ · В", "volts": "557", "temps": [{"value": "29", "state": "normal"}, {"value": "38", "state": "normal"}, {"value": "35", "state": "normal"}, {"value": "36", "state": "normal"}, {"value": "44", "state": "normal"}], "power": -16.0, "peak": -37.0, "peakAge": 3.5, "tripUnit": "кВт·ч", "chart": [30.33, 27.78, 25.36, 23.16, 27.1, 34.06, 32.78, 30.31, 29.75, 22.97, 22.47, 29.75, 36.53, 30.92, 23.33], "consumption": "25", "consumptionUnit": "кВт·ч/100 км · за 1,5 км", "tripCaption": "2 км · ЗА ПОЕЗДКУ", "tripKwh": "0,6", "iceCaption": "ДВС · об/мин", "iceFigure": "1518", "engineBlock": true, "chargeLine": [0.0, 0.0, 0.0, 3.6, 7.2, 10.6, 14.0, 17.1, 20.2, 22.3, 24.8, 27.3, 27.3, 23.7, 20.1, 16.7, 14.4, 12.4, 11.7, 12.0, 12.8, 14.1, 17.9, 19.5, 21.1, 23.4, 24.6, 25.8, 25.7, 23.3, 20.0, 16.2, 12.4, 10.8, 9.7, 7.9, 9.3, 10.7, 8.4, 10.0], "engineCaption": "ЗАРЯД ОТ ДВС", "engineKwh": "0,2", "engineRun": "ЗА 0:41"},
+    kickdown: {"t": 1.3, "batteryCaption": "БАТАРЕЯ · В", "volts": "485", "temps": [{"value": "29", "state": "normal"}, {"value": "38", "state": "normal"}, {"value": "35", "state": "normal"}, {"value": "36", "state": "normal"}, {"value": "44", "state": "normal"}], "power": 226.0, "peak": 226.0, "peakAge": 0.5, "tripUnit": "кВт·ч", "chart": [30.33, 27.78, 25.36, 23.16, 27.1, 34.06, 32.78, 30.31, 29.75, 22.97, 22.47, 29.75], "consumption": "29", "consumptionUnit": "кВт·ч/100 км · за 1,2 км", "tripCaption": "2 км · ЗА ПОЕЗДКУ", "tripKwh": "0,6", "iceCaption": "ДВС · об/мин", "iceFigure": "2985", "engineBlock": true, "chargeLine": [0.0, 0.0, 0.0, 3.6, 7.2, 10.6, 14.0, 17.1, 20.2, 22.3, 24.8, 27.3, 27.3, 23.7, 20.1], "engineCaption": "ЗАРЯД ОТ ДВС", "engineKwh": "0,1", "engineRun": "ЗА 0:15"},
+    stopped: {"t": 1.3, "batteryCaption": "БАТАРЕЯ · В", "volts": "559", "temps": [{"value": "29", "state": "normal"}, {"value": "38", "state": "normal"}, {"value": "35", "state": "normal"}, {"value": "36", "state": "normal"}, {"value": "44", "state": "normal"}], "power": -9.0, "peak": -20.0, "peakAge": 4.0, "tripUnit": "кВт·ч", "chart": [22.97, 22.47, 29.75, 36.53, 30.92, 23.33, 13.14, 8.92, 8.81, 6.56, 18.03, 15.39, 6.81, 3.06, 7.44, 13.61, 16.83, 22.78, 27.83, 41.5, 34.06, 40.39, 43.11, 45.11, 44.56, 38.08, 49.78, 41.36, 38.5, 32.61, 33.56, 28.72, 29.31, 26.97, 39.17, 40.94, 31.31, 37.75, 38.58, 32.72, 40.08, 39.72, 42.25, 39.39, 29.28, 36.17, 32.36, 33.75, 25.0, 25.61, 23.44, 24.33, 22.19, 25.97, 21.78, 21.69, 23.64, 26.22, 34.5, 31.33, 24.78, 27.22, 36.31, 31.19, 36.94, 28.78, 28.33, 23.33, 23.42, 19.0, 22.22, 21.03, 12.67, 9.11, 8.25, 5.89, -0.03, 0.75, -0.19, 7.25, 4.22, 8.36, 6.5, 20.42, 11.08, 17.47, 14.33, 18.39, 17.28, 16.33, 22.03, 19.81, 17.97, 17.92, 31.03, 27.19, 40.08, 36.58, 30.92, 32.08], "consumption": "24", "consumptionUnit": "кВт·ч/100 км · за 10 км", "tripCaption": "2 км · ЗА ПОЕЗДКУ", "tripKwh": "0,5", "iceCaption": "", "iceFigure": null, "engineBlock": true, "chargeLine": [0.0, 2.4, 4.4, 6.4, 7.2, 8.4, 10.1, 11.8, 11.8, 11.8, 11.8, 9.4, 7.4, 5.4, 5.9, 6.0, 4.3, 2.6, 2.6, 2.6, 2.6, 2.6, 2.6, 3.7, 2.4, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.0, 0.0, 1.2, 2.4, 4.1, 4.1, 4.1, 4.1, 4.1, 4.1, 4.6, 5.4, 4.2, 3.0, 1.3, 1.3, 1.3, 1.3, 3.6, 5.2, 4.7, 3.9, 3.9, 3.9, 3.9, 3.9, 3.9, 3.9, 1.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.2, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 2.3, 0.0, 2.4, 5.3, 5.3, 5.3, 5.7, 7.2, 8.7, 8.7, 8.7, 8.7, 6.3, 3.4, 3.4, 3.4, 3.0, 1.5, 0.0, 0.0, 1.0, 5.2, 9.6, 14.0, 18.2, 21.2, 24.2, 27.2, 27.2, 27.2, 26.2, 22.0, 17.6, 13.2, 11.2, 10.4, 10.2, 10.7, 12.0, 13.3, 14.0], "engineCaption": "ЗАРЯД ОТ ДВС", "engineKwh": "0,4", "engineRun": "ЗА 2:52"},
+    gone: {"t": 1.3, "batteryCaption": "БАТАРЕЯ · В", "volts": "550", "temps": [{"value": "29", "state": "normal"}, {"value": "38", "state": "normal"}, {"value": "35", "state": "normal"}, {"value": "36", "state": "normal"}, {"value": "44", "state": "normal"}], "power": 7.0, "peak": 9.0, "peakAge": 2.0, "tripUnit": "кВт·ч", "chart": [22.97, 22.47, 29.75, 36.53, 30.92, 23.33, 13.14, 8.92, 8.81, 6.56, 18.03, 15.39, 6.81, 3.06, 7.44, 13.61, 16.83, 22.78, 27.83, 41.5, 34.06, 40.39, 43.11, 45.11, 44.56, 38.08, 49.78, 41.36, 38.5, 32.61, 33.56, 28.72, 29.31, 26.97, 39.17, 40.94, 31.31, 37.75, 38.58, 32.72, 40.08, 39.72, 42.25, 39.39, 29.28, 36.17, 32.36, 33.75, 25.0, 25.61, 23.44, 24.33, 22.19, 25.97, 21.78, 21.69, 23.64, 26.22, 34.5, 31.33, 24.78, 27.22, 36.31, 31.19, 36.94, 28.78, 28.33, 23.33, 23.42, 19.0, 22.22, 21.03, 12.67, 9.11, 8.25, 5.89, -0.03, 0.75, -0.19, 7.25, 4.22, 8.36, 6.5, 20.42, 11.08, 17.47, 14.33, 18.39, 17.28, 16.33, 22.03, 19.81, 17.97, 17.92, 31.03, 27.19, 40.08, 36.58, 30.92, 32.08], "consumption": "24", "consumptionUnit": "кВт·ч/100 км · за 10 км", "tripCaption": "2 км · ЗА ПОЕЗДКУ", "tripKwh": "0,5", "iceCaption": "ДВС · мин за поездку", "iceFigure": "3", "gaveCaption": "ЗАРЯД ОТ ДВС", "gaveKwh": "0,4"},
+    parked: {"t": 1.3, "batteryCaption": "БАТАРЕЯ · В", "volts": "556", "temps": [{"value": "29", "state": "normal"}, {"value": "38", "state": "normal"}, {"value": "35", "state": "normal"}, {"value": "36", "state": "normal"}, {"value": "44", "state": "normal"}], "power": -8.0, "peak": -8.0, "peakAge": 4.0, "tripUnit": "кВт·ч", "parked": true, "chart": chart, "consumption": "16,8", "consumptionUnit": "кВт·ч/100 км · за 10 км", "tripCaption": "0 км · ЗА ПОЕЗДКУ", "tripKwh": "-0,2", "iceCaption": "ДВС · об/мин", "iceFigure": "1360", "engineBlock": true, "chargeLine": [0.0, 0.8, 1.6, 2.4, 3.2, 4.0, 4.8, 5.6, 6.4, 7.2, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.2, 8.4, 8.6, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 10.0, 10.0, 10.0, 10.0, 10.0, 9.8, 9.6, 9.4, 9.2, 9.0, 8.8, 8.6, 8.4, 8.2, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0], "engineCaption": "ЗАРЯД ОТ ДВС", "engineKwh": "0,3", "engineRun": "ЗА 1:56"},
   };
 
   // what the head unit prints
@@ -1833,7 +1842,11 @@
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
     'cluster-launch': [{ kind: 'cluster' }, scenes.launch],
     'cluster-regen':  [{ kind: 'cluster' }, scenes.regen],
-    'cluster-engine': [{ kind: 'cluster' }, scenes.engine],
+    'cluster-engine':          [{ kind: 'cluster' }, engine.charging],
+    'cluster-engine-kickdown': [{ kind: 'cluster' }, engine.kickdown],
+    'cluster-engine-stopped':  [{ kind: 'cluster' }, engine.stopped],
+    'cluster-engine-gone':     [{ kind: 'cluster' }, engine.gone],
+    'cluster-engine-parked':   [{ kind: 'cluster' }, engine.parked],
     'cluster-hot':    [{ kind: 'cluster' }, scenes.hot],
     'cluster-park':   [{ kind: 'cluster' }, scenes.park],
     'cluster-charging':    [{ kind: 'cluster' }, scenes.charging],

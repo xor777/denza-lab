@@ -40,7 +40,7 @@ open class EnergyReadoutsTest {
         powerKw: Double? = null,
         values: Map<VehicleSignal, Double> = emptyMap(),
         buckets: List<ConsumptionSample> = emptyList(),
-        trace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
+        trace: EngineChargeSnapshot = EngineChargeSnapshot.EMPTY,
         trip: TripEnergy = TripEnergy(),
         volts: Double? = 549.0,
     ): VehicleTelemetry {
@@ -52,7 +52,7 @@ open class EnergyReadoutsTest {
             values = all,
             consumption = buckets,
             chart = ConsumptionChart.of(buckets),
-            engineTrace = trace,
+            engineCharge = trace,
             trip = trip,
         )
     }
@@ -61,9 +61,12 @@ open class EnergyReadoutsTest {
     private fun road(n: Int, kwh: Double = 0.02) =
         List(n) { ConsumptionSample(110.0 - (n - 1 - it) * 0.1, kwh, 0.1, 0.1) }
 
-    private fun trace(seconds: Int, generationKw: Float): EngineTraceSnapshot {
-        val engine = EngineTrace()
-        repeat(seconds) { engine.sample(it * 1_000L, engineRunning = true, generationKw = generationKw.toDouble()) }
+    /** A run of [seconds] with the pack taking [chargeKw], a sweep a second, stopped [stoppedFor] seconds ago. */
+    private fun trace(seconds: Int, chargeKw: Float, stoppedFor: Int = 0): EngineChargeSnapshot {
+        val engine = EngineCharge()
+        repeat(seconds + stoppedFor) {
+            engine.sample(it * 1_000L, engineRunning = it < seconds, loadKw = -chargeKw.toDouble(), dtSeconds = 1.0)
+        }
         return engine.snapshot()
     }
 
@@ -89,23 +92,21 @@ open class EnergyReadoutsTest {
         return listOf(
             "electric drive" to snapshot(powerKw = 34.0, buckets = electric, trip = trip),
             "return" to snapshot(powerKw = -42.0, buckets = electric),
-            "engine giving" to snapshot(
+            "engine charging" to snapshot(
                 powerKw = -8.0,
                 values = mapOf(
                     VehicleSignal.ENGINE_RUNNING to 3.0,
                     VehicleSignal.ENGINE_RPM to 1650.0,
-                    VehicleSignal.GENERATION_KW to 8.0,
                 ),
                 buckets = electric,
                 trace = trace(60, 8f),
                 trip = engineTrip,
             ),
-            "engine running and giving nothing" to snapshot(
+            "engine running and charging nothing" to snapshot(
                 powerKw = 34.0,
                 values = mapOf(
                     VehicleSignal.ENGINE_RUNNING to 3.0,
                     VehicleSignal.ENGINE_RPM to 2150.0,
-                    VehicleSignal.GENERATION_KW to 0.0,
                 ),
                 buckets = electric,
                 trace = trace(60, 0f),
@@ -115,7 +116,14 @@ open class EnergyReadoutsTest {
                 powerKw = 34.0,
                 values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
                 buckets = electric,
-                trace = trace(60, 14f),
+                trace = trace(60, 14f, stoppedFor = 1),
+                trip = engineTrip,
+            ),
+            "engine stopped past the hold" to snapshot(
+                powerKw = 34.0,
+                values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
+                buckets = electric,
+                trace = trace(60, 14f, stoppedFor = 30),
                 trip = engineTrip,
             ),
             "engine ran yesterday" to snapshot(
@@ -194,9 +202,9 @@ open class EnergyReadoutsTest {
                 assertEquals("$name: its reading", frame.iceFigure, model.engine.figure)
             }
 
-            // The trip, wherever the cluster has not given its seat to the engine's box: one figure,
-            // and one phrase in two cases.
-            if (!frame.engineGiving) {
+            // The trip, wherever the cluster has not given its seat to the engine's block: one
+            // figure, and one phrase in two cases.
+            if (!frame.engineBlock) {
                 assertEquals("$name: whether there is a trip", frame.tripCaption != null, model.tripCell.present)
                 assertEquals("$name: the trip", frame.tripKwh, model.tripCell.figure)
                 assertEquals("$name: its road", frame.tripCaption?.lowercase(), model.tripCell.caption.takeIf { model.tripCell.present }?.lowercase())
@@ -242,7 +250,7 @@ open class EnergyReadoutsTest {
                 EnergyReadouts.ENGINE_MINUTES_UNIT -> seen += "minutes"
             }
             if (!model.engine.present) seen += "no cell"
-            if (!frame.engineGiving && model.tripCell.present) seen += "trip"
+            if (!frame.engineBlock && model.tripCell.present) seen += "trip"
             if (frame.consumptionUnit != ContourReadout.UNIT_CHARGE_LEFT && model.spendFigure != null) {
                 seen += "consumption"
                 if (distance(model.spendWindow) != "10") seen += "a filling window"
@@ -278,10 +286,7 @@ open class EnergyReadoutsTest {
             word(
                 snapshot(
                     powerKw = -8.0,
-                    values = mapOf(
-                        VehicleSignal.ENGINE_RUNNING to 3.0,
-                        VehicleSignal.GENERATION_KW to 8.0,
-                    ),
+                    values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0),
                 ),
             ),
         )
@@ -329,7 +334,7 @@ open class EnergyReadoutsTest {
             sentence(
                 snapshot(
                     powerKw = -8.0,
-                    values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.GENERATION_KW to 8.0),
+                    values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0),
                 ),
             ),
         )
@@ -355,7 +360,7 @@ open class EnergyReadoutsTest {
         readouts.read(
             snapshot(
                 values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
-                trace = trace(2, 8f),
+                trace = trace(2, 8f, stoppedFor = 20),
                 trip = TripEnergy(engineSeconds = 6 * 60.0),
             ),
             parked = false,
@@ -521,69 +526,45 @@ open class EnergyReadoutsTest {
     }
 
     @Test
-    fun theEngineSentenceSaysWhatItGivesAndHowFarBackTheBoxReaches() {
+    fun theEngineBlockSaysWhatThePackTookAndForHowLong() {
         val readouts = EnergyReadouts()
         readouts.read(
-            snapshot(
-                powerKw = -8.0,
-                values = mapOf(
-                    VehicleSignal.ENGINE_RUNNING to 3.0,
-                    VehicleSignal.GENERATION_KW to 14.0,
-                ),
-                trace = trace(82, 14f),
-            ),
+            snapshot(powerKw = -14.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0), trace = trace(82, 14f)),
             parked = false,
         )
-        assertEquals(say("ДВС ДАЁТ", "ENGINE GIVES"), readouts.enginePrefix)
-        assertEquals("14", readouts.engineFigure)
-        assertEquals(say("ПОСЛЕДНИЕ 1:22", "LAST 1:22"), readouts.engineWindow)
+        // 14 kW for 82 s is 0.319 kWh.
+        assertEquals(figure("0,3"), readouts.engineKwh)
+        assertEquals(say("ЗА 1:22", "IN 1:22"), readouts.engineRun)
+        assertEquals(EnergyReadouts.WORD_FROM_ENGINE, readouts.word)
 
-        // Nothing about the engine while it is not turning - not even a generation reading that
-        // is still on the wire. The flag is what says the engine is there to give anything.
+        // After the stop the run keeps its own figure and time, which the block holds for its ten
+        // seconds; the sentence leaves with the flag.
         readouts.read(
-            snapshot(
-                powerKw = 34.0,
-                values = mapOf(
-                    VehicleSignal.ENGINE_RUNNING to 0.0,
-                    VehicleSignal.GENERATION_KW to 14.0,
-                ),
-                trace = trace(60, 14f),
-            ),
+            snapshot(powerKw = 34.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0), trace = trace(82, 14f, stoppedFor = 3)),
             parked = false,
         )
-        assertNull(readouts.engineFigure)
-        readouts.read(snapshot(powerKw = 34.0, trace = trace(60, 14f)), parked = false)
-        assertNull(readouts.engineFigure)
+        assertEquals(figure("0,3"), readouts.engineKwh)
+        assertEquals(EnergyReadouts.WORD_FROM_PACK, readouts.word)
+
+        // No run since the hub started: nothing.
+        readouts.read(snapshot(powerKw = 34.0), parked = false)
+        assertNull(readouts.engineKwh)
     }
 
     /**
-     * And «ДВС ДАЁТ 0 кВт» is the zero this panel does not draw.
-     *
-     * It is not a corner case either: the two drives so far both recorded the engine running with
-     * `GENERATION_KW` flat, so a figure printed at zero is the *ordinary* picture of an engine that
-     * is turning and giving the pack nothing.
+     * The sentence names the engine whenever the pack takes with the engine running: the same
+     * condition the block's figure counts under, so the car page's «В батарею от ДВС» and the
+     * cluster's «ЗАРЯД ОТ ДВС» never disagree about whose energy it is.
      */
     @Test
-    fun theEngineFigureIsAbsentWhileTheEngineGivesNothing() {
+    fun theEngineIsTheSourceWheneverItRunsAndThePackTakes() {
         val readouts = EnergyReadouts()
-        fun figure(generationKw: Double): String? {
-            readouts.read(
-                snapshot(
-                    powerKw = 34.0,
-                    values = mapOf(
-                        VehicleSignal.ENGINE_RUNNING to 3.0,
-                        VehicleSignal.GENERATION_STATE to 1.0,
-                        VehicleSignal.GENERATION_KW to generationKw,
-                    ),
-                    trace = trace(60, generationKw.toFloat()),
-                ),
-                parked = false,
-            )
-            return readouts.engineFigure
-        }
-        assertNull("flat", figure(0.0))
-        assertNull("rounding, not the engine working", figure(VehicleTelemetry.GENERATION_FLOOR_KW))
-        assertEquals("14", figure(14.0))
+        readouts.read(snapshot(powerKw = -8.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)), parked = true)
+        assertEquals("standing in P", EnergyReadouts.WORD_FROM_ENGINE, readouts.word)
+        readouts.read(snapshot(powerKw = -8.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
+        assertEquals("a return with the engine off is a return", EnergyReadouts.WORD_TO_PACK, readouts.word)
+        readouts.read(snapshot(powerKw = 34.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)), parked = false)
+        assertEquals("out of the pack is out of the pack", EnergyReadouts.WORD_FROM_PACK, readouts.word)
     }
 
     /**
@@ -609,7 +590,7 @@ open class EnergyReadoutsTest {
             readouts.read(
                 snapshot(
                     values = values,
-                    trace = if (warm) trace(2, 8f) else EngineTraceSnapshot.EMPTY,
+                    trace = if (warm) trace(2, 8f, stoppedFor = 20) else EngineChargeSnapshot.EMPTY,
                     trip = trip,
                 ),
                 parked = false,

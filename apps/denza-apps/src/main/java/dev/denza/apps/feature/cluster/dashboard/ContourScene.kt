@@ -20,7 +20,7 @@ import dev.denza.apps.feature.vehicle.VehicleTelemetry
  * And the [ledger] ones differ in what their *absence* means. A sampled value missing from a sweep
  * is a read that failed, and its caption stays for the figure to come back under. A trip quantity
  * missing from a packet that carried the trip is a statement: it did not happen on this trip. The
- * owner's photograph of 2026-09-05 had «ДАЛ ДВС» standing on the shelf over nothing - the engine
+ * owner's photograph of 2026-09-05 had the engine's trip caption standing on the shelf over nothing - the engine
  * had run on the previous trip, the car moved off P, the ledger cleared, and the caption of a
  * quantity that was now zero stayed for the rest of the drive. So a ledger quantity that is absent
  * from a fresh packet is unknown again, caption and all.
@@ -38,13 +38,12 @@ internal enum class ContourValue(val poll: VehiclePoll, val ledger: Boolean = fa
      * The engine's own flag, which is a reading like any other and used not to be one.
      *
      * It was read straight off the newest snapshot in every frame, so a hub that stopped answering
-     * with the flag up held the engine's box on the shelf for as long as the panel was open - the
+     * with the flag up held the engine's block on the shelf for as long as the panel was open - the
      * view re-feeds the same object at sixty frames a second, and «the flag has been down for n
      * seconds» never started counting. As a value it goes stale like the volts.
      */
     ENGINE_FLAG(VehiclePoll.HOT),
     ENGINE_MINUTES(VehiclePoll.HOT, ledger = true),
-    GENERATION(VehiclePoll.HOT),
     TRIP_NET(VehiclePoll.HOT),
     TRIP_KM(VehiclePoll.HOT, ledger = true),
     TRIP_REGEN(VehiclePoll.HOT, ledger = true),
@@ -62,7 +61,7 @@ internal enum class ContourValue(val poll: VehiclePoll, val ledger: Boolean = fa
  * link loss and an unreachable shell - and the panel read two of those words. It could not read the
  * rest, because it does not have arrangements for them: **there is no "link lost" picture.** Link
  * loss is the staleness rule firing on every value at once, park is a seat count and a decimal
- * place, the engine's box is a shape, and starting is the skeleton with nothing on it yet. Each of
+ * place, the engine's block is a shape, and starting is the skeleton with nothing on it yet. Each of
  * those is already decided somewhere the renderer asks, and a word restating it was a second way to
  * answer a question with one answer.
  *
@@ -89,19 +88,16 @@ internal data class ContourStage(
     val charging: Boolean = false,
     val parked: Boolean = false,
     /**
-     * Whether the engine's box owns the right shelf, which takes **two** true things at once.
+     * Whether the engine's block owns the right shelf: while the engine runs, on the move and on P
+     * alike, and for [ContourScene.ENGINE_HOLD_SECONDS] after it stops
+     * (`docs/energy-display-contract.md` §2.5).
      *
-     * `docs/energy-display-contract.md` §2.5: the flag is up, and the engine gave the pack
-     * something somewhere in the trace's window. Either alone is not the box. A running engine
-     * that gives nothing keeps the trip's cells on the shelf and its revolutions in the corner -
-     * that is the truth the first two drives showed, and a flat blue bar under «В БАТАРЕЮ» was its
-     * caricature. A warm trace behind a stopped engine is a history of a drive that has ended, and
-     * two minutes of zeros drawn in blue is not a reading.
-     *
-     * On P as on the move: the owner sat on P with the generator charging the pack and saw, in the
-     * box's place, three trip figures the ledger had frozen at the last metre.
+     * The block draws what the pack took during the run, so it has nothing to wait for: an engine
+     * that has just started stands up a block with its first second on it. Until 2026-11-19 it also
+     * needed `GENERATION_KW` above zero somewhere in its window, and that id reads zero on the move,
+     * so the block was only ever seen parked.
      */
-    val engineBox: Boolean = false,
+    val engineBlock: Boolean = false,
     val engineRunning: Boolean = false,
     val message: String = "",
 )
@@ -142,8 +138,8 @@ internal data class ContourStage(
  *
  * [CHARGE_DWELL_SECONDS] on the gun, because a gun that has just gone in reports itself for a moment
  * before the charger has agreed to anything, and a panel that swaps scene and back is worse than one
- * that waits. Everything else here is instantaneous by design: the engine box has 120 seconds of
- * hysteresis of its own in the trace's length, and P is a switch.
+ * that waits. Everything else here is instantaneous by design: the engine's block has its own ten
+ * seconds of hold against a dropped flag ([ENGINE_HOLD_SECONDS]), and P is a switch.
  *
  * Deterministic in `dt`, and free of Android: [frame] is the whole surface.
  */
@@ -160,16 +156,15 @@ internal class ContourScene {
     private var chargeDwell = 0f
 
     /**
-     * How long since a packet last said the engine was running, which is the box's only hysteresis.
+     * How long since a packet last said the engine was running, which is the block's only hysteresis.
      *
      * [ENGINE_HOLD_SECONDS] of it, and it is against a *dropped read* rather than an afterlife:
-     * the box used to live on the trace's own length, so a stopped engine left two minutes of
-     * zeros drawn in blue on the shelf. It starts at the ceiling, so a panel that has heard
-     * nothing has no box.
+     * the old box lived on its trace's own length, so a stopped engine left two minutes of
+     * zeros on the shelf. It starts at the ceiling, so a panel that has heard nothing has no block.
      *
      * **Only an arrived packet resets it.** It used to be read off the newest snapshot in every
      * frame, and the view hands the same snapshot back sixty times a second while the hub is
-     * stalled - so a link that died with the flag up left the box standing for the rest of the
+     * stalled - so a link that died with the flag up left the block standing for the rest of the
      * session. It is a real-time age, exactly like [age]: the clock runs on every frame and only
      * a sweep that actually said «running» puts it back to zero.
      */
@@ -260,11 +255,11 @@ internal class ContourScene {
         // seconds does not get to keep saying the engine is turning.
         val engineRunning = held(ContourValue.ENGINE_FLAG) == FLAG_UP
         val unavailable = t.access == VehicleAccess.UNAVAILABLE
-        // The flag and the giving, and both of them: see [ContourStage.engineBox]. The flag is
-        // held for ten seconds after it drops so one missed read does not swap the shelf - and
-        // the packet's own age is the guard above that, so a silence removes the box the way it
-        // removes every other reading rather than freezing the last one that arrived.
-        val engineBox = t.engineTrace.gives && everAnswered && packetAge < STALE_SECONDS &&
+        // The flag, held for ten seconds after it drops so one missed read does not swap the shelf
+        // - and the packet's own age is the guard above that, so a silence removes the block the
+        // way it removes every other reading rather than freezing the last one that arrived. See
+        // [ContourStage.engineBlock].
+        val engineBlock = !t.engineCharge.isEmpty && everAnswered && packetAge < STALE_SECONDS &&
             engineOffFor < ENGINE_HOLD_SECONDS
         // The order the scene name used to carry, kept as the guards on the one flag that needed
         // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all
@@ -274,7 +269,7 @@ internal class ContourScene {
         val message = if (unavailable) t.message else ""
         val held = stage
         if (held.unavailable == unavailable && held.charging == charging &&
-            held.parked == parked && held.engineBox == engineBox &&
+            held.parked == parked && held.engineBlock == engineBlock &&
             held.engineRunning == engineRunning && held.message == message
         ) {
             return held
@@ -283,7 +278,7 @@ internal class ContourScene {
             unavailable = unavailable,
             charging = charging,
             parked = parked,
-            engineBox = engineBox,
+            engineBlock = engineBlock,
             engineRunning = engineRunning,
             message = message,
         )
@@ -308,7 +303,6 @@ internal class ContourScene {
         ContourValue.RPM -> t.engineRunning == true && t.engineRpm != null
         ContourValue.ENGINE_FLAG -> t.engineRunning != null
         ContourValue.ENGINE_MINUTES -> t.trip.engineRan
-        ContourValue.GENERATION -> t.generating && t.generationKw != null
         ContourValue.TRIP_NET -> true
         ContourValue.TRIP_KM -> t.trip.kilometres > 0.0
         ContourValue.TRIP_REGEN -> t.trip.recoveredKwh > 0.0
@@ -348,12 +342,12 @@ internal class ContourScene {
         const val CHARGE_DWELL_SECONDS = 2f
 
         /**
-         * And how long the engine's box outlives the flag dropping.
+         * And how long the engine's block outlives the flag dropping.
          *
          * Ten seconds is two and a half hot horizons: long enough that a dropped `ENGINE_RUNNING`
          * read cannot swap the right shelf and back, short enough that it is hysteresis rather
-         * than a second history. The 120 seconds it replaces were the trace's own length being
-         * used as a timer, which drew a box of zeros over a cold engine.
+         * than a second history. The 120 seconds it replaced were the old trace's own length used
+         * as a timer, which drew a box of zeros over a cold engine.
          */
         const val ENGINE_HOLD_SECONDS = 10f
 

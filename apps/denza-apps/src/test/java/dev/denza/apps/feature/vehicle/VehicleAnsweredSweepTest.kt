@@ -16,7 +16,7 @@ class VehicleAnsweredSweepTest {
 
     private val log = ConsumptionLog()
     private val ledger = TripEnergyLedger()
-    private val trace = EngineTrace()
+    private val charge = EngineCharge()
     private var odometerKm = 100.0
     private var atMillis = 0L
 
@@ -33,8 +33,8 @@ class VehicleAnsweredSweepTest {
             VehicleSignal.ODOMETER_KM to odometerKm,
             VehicleSignal.POWER_KW to powerKw,
         ) + extra
-        val values = VehicleAnsweredSweep.feed(parsed, cold, atMillis, SWEEP_SECONDS, log, ledger, trace)
-        return VehicleAnsweredSweep.snapshot(values, log, ledger, trace)
+        val values = VehicleAnsweredSweep.feed(parsed, cold, atMillis, SWEEP_SECONDS, log, ledger, charge)
+        return VehicleAnsweredSweep.snapshot(values, log, ledger, charge)
     }
 
     /**
@@ -93,7 +93,7 @@ class VehicleAnsweredSweepTest {
             dtSeconds = 1.0,
             log = log,
             ledger = ledger,
-            trace = trace,
+            charge = charge,
         )
         assertFalse("a power figure does not outlive its sweep", VehicleSignal.POWER_KW in values)
         assertEquals("and a cold id in a hot batch is not the cold sweep's", 28.0, values[VehicleSignal.PACK_TEMP_AVG]!!, 0.0)
@@ -102,22 +102,34 @@ class VehicleAnsweredSweepTest {
     /** Nothing answered is nothing to show: the hub turns an empty sweep into a failed read. */
     @Test
     fun aSweepWithNothingInItIsEmpty() {
-        val values = VehicleAnsweredSweep.feed(emptyMap(), emptyMap(), 1_000L, 1.0, log, ledger, trace)
+        val values = VehicleAnsweredSweep.feed(emptyMap(), emptyMap(), 1_000L, 1.0, log, ledger, charge)
         assertTrue(values.isEmpty())
     }
 
-    /** The engine flag reads 1 or 3 when it turns and the trace takes either as running. */
+    /** The engine flag reads 1 or 3 when it turns and the run takes either as running. */
     @Test
     fun theEngineFlagFromOneUpIsTheEngineRunning() {
-        repeat(5) {
-            sweep(
-                powerKw = -8.0,
-                extra = mapOf(VehicleSignal.ENGINE_RUNNING to 1.0, VehicleSignal.GENERATION_KW to 8.0),
-            )
-        }
-        val t = sweep(powerKw = -8.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 1.0, VehicleSignal.GENERATION_KW to 8.0))
-        assertTrue("the trace has the engine giving", t.engineTrace.gives)
+        repeat(5) { sweep(powerKw = -8.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 1.0)) }
+        val t = sweep(powerKw = -8.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 1.0))
+        assertTrue("the run is going", t.engineCharge.running)
+        assertEquals("and has the pack's charge in it", 8f, t.engineCharge.points.last(), 1e-3f)
         assertTrue("and the trip has its minutes", t.trip.engineSeconds > 0.0)
+    }
+
+    /**
+     * The block's figure and the trip's are one integral: the same sweeps, the same intervals, the
+     * same rule. A trip whose ledger is open counts exactly what the run counts.
+     */
+    @Test
+    fun theRunsFigureIsTheTripsOwnIntegral() {
+        sweep(powerKw = 0.0, km = 0.0)
+        sweep(powerKw = 10.0) // the trip opens on the first movement
+        repeat(30) { sweep(powerKw = -12.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)) }
+        val t = sweep(powerKw = 40.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0))
+        val expected = 30 * 12.0 * SWEEP_SECONDS / 3600.0
+        assertEquals(expected, t.engineCharge.kwh, 1e-9)
+        assertEquals(expected, t.trip.engineKwh, 1e-9)
+        assertEquals(31 * SWEEP_SECONDS, t.engineCharge.seconds, 1e-9)
     }
 
     /** kWh per 100 km of a hundred-metre bucket driven at [kw] for one sweep. */

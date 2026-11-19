@@ -31,11 +31,10 @@ class TripEnergyLedgerTest {
         ledger: TripEnergyLedger,
         odometerKm: Double,
         powerKw: Double? = null,
-        generationKw: Double? = null,
         engineRunning: Boolean? = false,
         parked: Boolean? = false,
         seconds: Double = 1.0,
-    ) = ledger.sample(odometerKm, powerKw, generationKw, engineRunning, parked, seconds)
+    ) = ledger.sample(odometerKm, powerKw, engineRunning, parked, seconds)
 
     @Test
     fun theFirstFigureIsTheNetThatLeftTheBattery() {
@@ -58,19 +57,19 @@ class TripEnergyLedgerTest {
     fun regenerationIsNotCountedWhileTheEngineIsRunning() {
         val ledger = ledger()
         moving(ledger, 100.0)
-        moving(ledger, 100.1, powerKw = -6.0, engineRunning = true, generationKw = 6.0, seconds = hour)
+        moving(ledger, 100.1, powerKw = -6.0, engineRunning = true, seconds = hour)
 
         val trip = ledger.trip
         assertEquals("the pack still gained it", -6.0, trip.netKwh, 1e-9)
         assertEquals("but it was the engine, not a hill", 0.0, trip.recoveredKwh, 1e-9)
-        assertEquals("and the engine's own cell says so", 6.0, trip.engineKwh, 1e-9)
+        assertEquals("and «ЗАРЯД ОТ ДВС» says so", 6.0, trip.engineKwh, 1e-9)
     }
 
     @Test
     fun anEngineWhoseStateNeverAnsweredCountsNothingEitherWay() {
         val ledger = ledger()
         moving(ledger, 100.0)
-        moving(ledger, 100.1, powerKw = -6.0, engineRunning = null, generationKw = 6.0, seconds = hour)
+        moving(ledger, 100.1, powerKw = -6.0, engineRunning = null, seconds = hour)
 
         // Unknown is not "off": a figure that might be the engine's charge must not be printed
         // under the word РЕКУПЕРАЦИЯ.
@@ -80,16 +79,16 @@ class TripEnergyLedgerTest {
     }
 
     @Test
-    fun anEngineReturningNothingAddsNothingToTheCellThatSaysWhatItGave() {
+    fun anEngineRunWhileThePackGivesAddsNothingToItsCharge() {
         val ledger = ledger()
         moving(ledger, 100.0)
-        // A running engine that is putting nothing back: the shutdown transition, where the state
-        // still reads running and the kilowatt figure has already fallen to zero, and a direct
-        // drive, where it can turn for a minute returning nothing at all.
-        moving(ledger, 100.1, powerKw = 4.0, generationKw = 0.0, engineRunning = true, seconds = hour)
-        moving(ledger, 100.2, powerKw = 4.0, generationKw = -2.0, engineRunning = true, seconds = hour)
+        // A running engine with the pack giving rather than taking: a hard pull, where the engine
+        // turns the wheels and the pack helps it, and the spin-down, where the flag still reads
+        // running and the pack is already back to driving the car.
+        moving(ledger, 100.1, powerKw = 4.0, engineRunning = true, seconds = hour)
+        moving(ledger, 100.2, powerKw = 40.0, engineRunning = true, seconds = hour)
 
-        assertEquals("«ДАЛ ДВС» is what it gave, and it gave nothing", 0.0, ledger.trip.engineKwh, 1e-9)
+        assertEquals("«ЗАРЯД ОТ ДВС» is what the pack took, and it took nothing", 0.0, ledger.trip.engineKwh, 1e-9)
         // The minutes are the other question and they still count: the engine ran.
         assertTrue(ledger.trip.engineRan)
         assertEquals(2.0 * hour, ledger.trip.engineSeconds, 1e-9)
@@ -123,7 +122,7 @@ class TripEnergyLedgerTest {
         assertEquals(10.0, ledger.trip.netKwh, 1e-9)
 
         // In P: the finished trip stays on the shelf in full, which is exactly when it is read.
-        repeat(5) { ledger.sample(100.1, 0.0, null, false, true, 60.0) }
+        repeat(5) { ledger.sample(100.1, 0.0, false, true, 60.0) }
         assertEquals("the trip is still there on P", 10.0, ledger.trip.netKwh, 1e-6)
         assertEquals(0.1, ledger.trip.kilometres, 1e-6)
 
@@ -139,7 +138,7 @@ class TripEnergyLedgerTest {
         moving(ledger, 100.0)
         moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
         // A long traffic light is not the end of a trip, and the odometer cannot tell it from one.
-        repeat(20) { ledger.sample(100.1, 2.0, null, false, false, 60.0) }
+        repeat(20) { ledger.sample(100.1, 2.0, false, false, 60.0) }
         moving(ledger, 100.2)
 
         assertTrue("the trip carried on through the stop", ledger.trip.netKwh > 10.0)
@@ -203,7 +202,7 @@ class TripEnergyLedgerTest {
         // A gun in, the pack taking seven kilowatts, the panel up and the selector in P. The trip is
         // closed: this is not a drive, and an hour of it used to add seven kilowatt-hours to
         // РЕКУПЕРАЦИЯ and take seven off the net, against kilometres that could not move.
-        repeat(4) { ledger.sample(100.1, -7.0, null, false, true, hour) }
+        repeat(4) { ledger.sample(100.1, -7.0, false, true, hour) }
 
         assertEquals("the finished trip is exactly the finished trip", 10.0, ledger.trip.netKwh, 1e-9)
         assertEquals(0.0, ledger.trip.recoveredKwh, 1e-9)
@@ -215,7 +214,7 @@ class TripEnergyLedgerTest {
         val ledger = ledger()
         moving(ledger, 100.0)
         moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
-        ledger.sample(100.1, -6.0, 6.0, true, true, hour)
+        ledger.sample(100.1, -6.0, true, true, hour)
 
         assertEquals("the trip on the shelf ended when the car did", 0.0, ledger.trip.engineKwh, 1e-9)
         assertFalse(ledger.trip.engineRan)
@@ -268,7 +267,7 @@ class TripEnergyLedgerTest {
     fun thereIsNothingToJournalUntilTheOdometerHasAnswered() {
         val ledger = TripEnergyLedger()
         assertNull(ledger.record())
-        ledger.sample(100.0, 10.0, null, false, false, 1.0)
+        ledger.sample(100.0, 10.0, false, false, 1.0)
         assertEquals(100.0, ledger.record()!!.odometerKm, 1e-9)
     }
 }
