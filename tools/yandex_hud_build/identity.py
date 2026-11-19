@@ -6,7 +6,8 @@ Builds 5 to 29 were the ADAS bridge's, distributed from the branch stock-sender-
 build 30 was the first 31.1.4 rebase. Build 31 replaces its defective split merge,
 which omitted every resource value supplied by config.xxhdpi.
 Build 31 was built with the `current` renderer profile and never distributed; build 32
-carries the car's profile, RENDERER_PROFILE below.
+carries the car's profile, RENDERER_PROFILE below. Build 33 carries the fixes of the
+2026-11-19 pre-release review (docs/hud-output-architecture.md, section 14).
 """
 
 # The base: the reviewed upstream APK, its own version and where it lives. A new Navigator
@@ -18,7 +19,7 @@ BASE_VERSION_NAME = '31.1.4'
 BASE_VERSION_CODE = 739735800
 
 LABEL = 'YandexHUD'
-BUILD_NUMBER = 32
+BUILD_NUMBER = 33
 # The map the car drives with since 29.8.1-YandexHUD.4: the stock HUD camera, the close zoom
 # when slow, our colours. build.py's default, so a release cannot fall back to `current`.
 RENDERER_PROFILE = 'stock-prototype'

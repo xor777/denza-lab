@@ -374,6 +374,65 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-11-19)
 
+**YandexHUD build 33, ARM64 debug, the car's renderer profile:**
+`captures/yandex-hud-33-20261119/build-33-arm64/YandexHUD-33-stock-prototype-arm64-debug.apk`,
+265,293,943 bytes, SHA-256
+`c085d9996d6ebb5c5d3307f4bb6e3549605adcf4ce9acd2c43f302a73493f4c1`.
+Version `31.1.4-YandexHUD.33`, code `739735833`, the same local certificate
+(`df4100bd…9c6`), the same base (31.1.4, pin `29229369…5188`) and
+`"renderer_profile": "stock-prototype"`. Against build 32 only two entries
+differ: `AndroidManifest.xml` (version) and the module dex `classes17.dex`; the
+theme, resources and every other dex are byte-identical.
+
+It carries the module side of the 2026-11-19 pre-release review
+([architecture, section 14](../../docs/hud-output-architecture.md#hud-out-review-2026-11-19)):
+the hold never repeats a limit the current frame did not read; guidance off
+resets the hold and the metre rounding, a new route id the rounding; the held
+position belongs to its route id; a batch the host did not take goes again
+whole instead of starting a second writer; a session dropped by a failed send
+comes back for the clear it owes. Host protocol, roles and fields are
+unchanged, so build 33 attaches to Denza Apps 0.7.1 as build 32 did; the host
+side of the review needs a new Denza Apps.
+
+Checked on 2026-11-19 (evidence in `captures/yandex-hud-33-20261119/`):
+
+- Builder: 20,275 module, 152 AR, 2,126 CameraTest and 63 StockCameraTest
+  assertions; `symbols.py` 11 classes and 108 methods, nothing missing; manifest
+  and resource checks passed. The base and its merge are build 32's, so
+  `check_merge.py` was not repeated.
+- Fresh emulator AVD (API 35 Google APIs, 2560×1600, port 5664, host GPU; deleted
+  afterwards). Installed with `install -r` over `29.8.1-YandexHUD.4` (`34690516…`)
+  and, on a second install, over build 32: both accepted, same app id,
+  first-install time and a private marker file kept (`upgrade-*.txt`).
+- `acceptance-33-run3/` passed at `--target-fps 5 --require-lanes --require-ar`:
+  39 foreground and 60 background frames, 58/59 unique PNGs, 48 background lane
+  packets, AR within 0.006 m of the native route, geometry built once,
+  reconnect, background-disable clear, and the new cancellation check: an
+  active session before the cancel, then 4 new black frames, an inactive road
+  packet, the session stopped and nothing after. `acceptance-33-run1/` ran on a
+  software GPU (1–3 fps, invalid); `run2/` failed only its foreground frame
+  count (22 < 25) on the first route after the emulator's restart.
+- Through the host: Denza Apps debug from this tree (`denza-apps-debug-0e84600f.apk`,
+  SHA-256 `cd1608ca…3f92`), «Повороты» and «Карта» on. `acceptance-33-host-run4/`
+  passed: the module logs `host attached` / `HUD through the host`, Denza Apps
+  `hosting MODULE` and `YandexHUD brings its own source`, only Denza Apps binds
+  the receiver, 40 foreground and 60 background frames, cancellation cleared by
+  the host. `host-run3/` also passed but once sent a clear when Navigator went
+  to the background (3 black frames, then frames again); `host-run4/` and build 32
+  through the same host (`control-32-host-run1/`) did not. Cause not
+  established. `host-run1/` stopped on AR samples left from the previous
+  route in the receiver's ring (the runner does not empty it), `host-run2/` on a
+  simulation that never left rerouting.
+- `install_check.py` and `artwork_test.py` passed. `account_check.py` was not
+  run: as committed it cannot run on 31.1.4 (build 32 below); the account type
+  and every resource are byte-identical to build 32's.
+
+Only the car can show the review's car checks
+([architecture, section 11](../../docs/hud-output-architecture.md#hud-out-trip), items 12–17),
+the install over its 29.8.1 data and performance.
+
+### Build 32 (2026-11-19)
+
 **YandexHUD build 32, ARM64 debug, the car's renderer profile:**
 `captures/yandex-hud-32-20261119/build-32-arm64/YandexHUD-32-stock-prototype-arm64-debug.apk`,
 265,293,943 bytes, SHA-256
