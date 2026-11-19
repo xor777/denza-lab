@@ -360,12 +360,28 @@ internal class DiagnosticsSession(
             recordingSince = now.takeIf { recording != null }
             recorded = null
         } else if (recording?.first == request) {
-            recording?.second?.close()
-            recording = null
-            recorded = recordingSince?.let { request to (wallClock() - it).coerceAtLeast(0L) }
-            recordingSince = null
-            scope?.launch { lookRecording() }
+            endRecording(request)
         }
+    }
+
+    /** The recording of [request] ends: its length stays on its tab, the report looks for it. Under [lock]. */
+    private fun endRecording(request: Int) {
+        recording?.second?.close()
+        recording = null
+        recorded = recordingSince?.let { request to (wallClock() - it).coerceAtLeast(0L) }
+        recordingSince = null
+        scope?.launch { lookRecording() }
+    }
+
+    /**
+     * [lines] into the recording of [request]; one that ended by itself - full, or a write the storage refused -
+     * stops there as «Стоп записи» would, so the tab says what was captured and not a clock running on. Under [lock].
+     */
+    private fun record(request: Int, lines: List<String>) {
+        val sink = recording?.takeIf { it.first == request }?.second ?: return
+        if (sink.write(lines)) return
+        log("diagnostics: the recording of ${Figures.address(request)} ended by itself")
+        endRecording(request)
     }
 
     override fun setParam(key: ParamKey?) = act {
@@ -715,7 +731,7 @@ internal class DiagnosticsSession(
                 val reply = ask(job.ask)
                 synchronized(lock) {
                     val lines = streams[job.request]?.accept(reply).orEmpty()
-                    recording?.takeIf { it.first == job.request }?.second?.write(lines)
+                    record(job.request, lines)
                     publish()
                 }
             }
@@ -726,7 +742,7 @@ internal class DiagnosticsSession(
                     val lines = page.trace.accept(reply)
                     // The table's row stays fresh for the way back; its own CSV lines would double these.
                     streams[job.request]?.accept(reply)
-                    recording?.takeIf { it.first == job.request }?.second?.write(lines)
+                    record(job.request, lines)
                     if (reply is DiagReply.NoReply || reply is DiagReply.GatewayBusy) {
                         page.gap = (page.gap * 2).coerceAtMost(STREAM_GAP_MS)
                         gap(page.gap)
@@ -924,7 +940,7 @@ internal class DiagnosticsSession(
                     liveShown?.let { liveTables[it] }?.take(r)
                     live?.let { request ->
                         val lines = streams[request]?.carTick(r).orEmpty()
-                        recording?.takeIf { it.first == request }?.second?.write(lines)
+                        record(request, lines)
                     }
                     val h = halt
                     if (h is Halt.Paused) {
