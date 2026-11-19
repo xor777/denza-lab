@@ -24,6 +24,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public final class LocalAdbClient {
     private static final String HOST = "127.0.0.1";
@@ -161,9 +162,48 @@ public final class LocalAdbClient {
         public final AuthorizationRequestResult result;
         private final Socket socket;
 
-        private AuthorizationRequest(AuthorizationRequestResult result, Socket socket) {
+        AuthorizationRequest(AuthorizationRequestResult result, Socket socket) {
             this.result = result;
             this.socket = socket;
+        }
+
+        /**
+         * Waits up to {@code waitMs} for the person's answer on the transport that asked.
+         *
+         * <p>adbd answers an approved prompt with CNXN on this transport, with or without "always
+         * allow" ticked; only the tick makes the key trusted on the next connection, which the
+         * caller proves with a passive one. Returns true on that CNXN and false when nothing came
+         * in time, with the request still open for another wait. A transport that adbd closed, or
+         * that {@link #close()} closed from another thread, throws.
+         */
+        public boolean awaitApproval(int waitMs) throws IOException {
+            if (result == AuthorizationRequestResult.ALREADY_AUTHORIZED) {
+                return true;
+            }
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(Math.max(1, waitMs));
+            InputStream input = socket.getInputStream();
+            while (true) {
+                long left = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+                if (left <= 0) {
+                    return false;
+                }
+                socket.setSoTimeout((int) Math.max(1, Math.min(Integer.MAX_VALUE, left)));
+                int first;
+                try {
+                    first = input.read();
+                } catch (SocketTimeoutException quiet) {
+                    return false;
+                }
+                if (first < 0) {
+                    throw new EOFException("adbd closed the requesting transport");
+                }
+                socket.setSoTimeout(READ_TIMEOUT_MS);
+                Message message = readMessage(new SequenceInputStream(
+                        new ByteArrayInputStream(new byte[] {(byte) first}), input));
+                if (message.command == A_CNXN) {
+                    return true;
+                }
+            }
         }
 
         @Override

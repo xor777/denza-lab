@@ -458,6 +458,96 @@ public final class LocalAdbClientTest {
         }
     }
 
+    /**
+     * A held request answers true on the CNXN adbd sends to the transport that asked once the
+     * prompt is approved, skips anything else, and answers false when the wait runs out with the
+     * transport still open for the next wait.
+     */
+    @Test
+    public void aHeldRequestNoticesTheApprovalOnItsOwnTransport() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                    server.getLocalPort()), 2_000);
+            try (Socket adbd = server.accept();
+                    LocalAdbClient.AuthorizationRequest request = new LocalAdbClient.AuthorizationRequest(
+                            LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT, socket)) {
+                long started = System.nanoTime();
+                assertFalse("nothing answered yet", request.awaitApproval(150));
+                assertTrue("the wait is the one asked for",
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) >= 140);
+
+                adbd.getOutputStream().write(concat(
+                        message("OKAY", 0, 0, ""),
+                        message("CNXN", 0x01000000, 4096, "device::")));
+                adbd.getOutputStream().flush();
+                assertTrue("the approval is the CNXN", request.awaitApproval(2_000));
+            }
+        }
+    }
+
+    /** A transport that adbd closed is not a quiet wait: the caller must look again passively. */
+    @Test
+    public void aHeldRequestWhoseTransportClosedThrows() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                    server.getLocalPort()), 2_000);
+            LocalAdbClient.AuthorizationRequest request = new LocalAdbClient.AuthorizationRequest(
+                    LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT, socket);
+            server.accept().close();
+            try {
+                request.awaitApproval(2_000);
+                fail("a closed transport must throw");
+            } catch (IOException expected) {
+                // EOF from adbd's side.
+            }
+            request.close();
+        }
+    }
+
+    /** Closing from another thread ends a wait at once, the way leaving the foreground does. */
+    @Test
+    public void closingAHeldRequestEndsItsWait() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                    server.getLocalPort()), 2_000);
+            try (Socket ignored = server.accept()) {
+                LocalAdbClient.AuthorizationRequest request = new LocalAdbClient.AuthorizationRequest(
+                        LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT, socket);
+                Thread closer = new Thread(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ignore) {
+                        Thread.currentThread().interrupt();
+                    }
+                    request.close();
+                });
+                closer.start();
+                long started = System.nanoTime();
+                try {
+                    request.awaitApproval(10_000);
+                    fail("a closed request must throw");
+                } catch (IOException expected) {
+                    assertTrue("the close ended the wait, not its timeout",
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) < 5_000);
+                }
+                closer.join();
+            }
+        }
+    }
+
+    /** A key that was already trusted needs no answer. */
+    @Test
+    public void anAlreadyTrustedRequestIsApprovedWithoutReading() throws Exception {
+        try (Socket socket = new Socket()) {
+            LocalAdbClient.AuthorizationRequest request = new LocalAdbClient.AuthorizationRequest(
+                    LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED, socket);
+            assertTrue(request.awaitApproval(10));
+        }
+    }
+
     private static final class CountingOutputStream extends ByteArrayOutputStream {
         int writes;
 
