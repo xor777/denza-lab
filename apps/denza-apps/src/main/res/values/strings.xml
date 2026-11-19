@@ -328,7 +328,7 @@
     <string name="service_all_working">Все функции работают</string>
     <string name="service_access">Доступ к машине</string>
     <string name="service_diagnostics">Диагностика</string>
-    <string name="service_diagnostics_value">Автоскан блоков, коды неисправностей, потоковые данные</string>
+    <string name="service_diagnostics_value">Коды неисправностей и данные блоков</string>
     <!-- «Сервис → Диагностика»: the section's chrome - the rail, the tabs, the titles, the scan button and the link. The rest of the section is Russian still (CyrillicLiteralGuardTest, SCANNER). -->
     <string name="diag_summary">Сводка</string>
     <string name="diag_blocks">Блоки</string>

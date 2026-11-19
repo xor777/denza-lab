@@ -682,7 +682,7 @@ numbers.
 | сценарии | Shortcuts | The firmware's own name for the engine (docs/shortcuts-automation-findings.md). |
 | головное устройство | head unit |  |
 | журнал работы | work log |  |
-| блок | module | In «Auto-scan of modules». Plainer than ECU. |
+| блок | module | In «Fault codes and module data». Plainer than ECU. |
 
 Spelling is British, as in these docs. A figure's decimal mark comes from `AppDecimal`, so no string
 writes one.

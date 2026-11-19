@@ -16423,7 +16423,7 @@
        {
         "kind": "choice",
         "title": "Diagnostics",
-        "summary": "Auto-scan of modules, fault codes, live data"
+        "summary": "Fault codes and module data"
        },
        {
         "kind": "choice",
@@ -17194,7 +17194,7 @@
        {
         "kind": "choice",
         "title": "Diagnostics",
-        "summary": "Auto-scan of modules, fault codes, live data"
+        "summary": "Fault codes and module data"
        },
        {
         "kind": "choice",
@@ -17974,7 +17974,7 @@
        {
         "kind": "choice",
         "title": "Diagnostics",
-        "summary": "Auto-scan of modules, fault codes, live data"
+        "summary": "Fault codes and module data"
        },
        {
         "kind": "choice",
@@ -32953,7 +32953,7 @@
        {
         "kind": "choice",
         "title": "Diagnostics",
-        "summary": "Auto-scan of modules, fault codes, live data"
+        "summary": "Fault codes and module data"
        },
        {
         "kind": "choice",

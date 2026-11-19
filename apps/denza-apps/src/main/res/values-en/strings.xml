@@ -318,7 +318,7 @@
     <string name="service_all_working">All features working</string>
     <string name="service_access">Car access</string>
     <string name="service_diagnostics">Diagnostics</string>
-    <string name="service_diagnostics_value">Auto-scan of modules, fault codes, live data</string>
+    <string name="service_diagnostics_value">Fault codes and module data</string>
     <string name="diag_summary">Summary</string>
     <string name="diag_blocks">Modules</string>
     <string name="diag_journal">Log</string>

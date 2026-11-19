@@ -278,7 +278,7 @@
   // the panel has no such row. «Предупреждения машины» is parked: its row exists only in a
   // `-Pwarnings` build, not here; its page's boards stay.
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
-    { kind: 'choice', title: 'Диагностика', summary: 'Автоскан блоков, коды неисправностей, потоковые данные' },
+    { kind: 'choice', title: 'Диагностика', summary: 'Коды неисправностей и данные блоков' },
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
