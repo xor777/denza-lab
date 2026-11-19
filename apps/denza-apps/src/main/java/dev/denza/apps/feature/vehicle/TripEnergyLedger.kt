@@ -157,7 +157,10 @@ internal class TripEnergyLedger(
 
         val deltaKm = odometer.deltaKm
         val moved = deltaKm > KM_EPSILON
-        if (moved && armed) {
+        // Movement out of P, not a tick read in P. A P sweep that missed its odometer arms the
+        // reset, and the next P sweep can carry the tick the car rolled across before it stopped:
+        // that tick used to clear the trip that had just finished, with the car standing in P.
+        if (moved && armed && parked != true) {
             clear()
             armed = false
             opened = true

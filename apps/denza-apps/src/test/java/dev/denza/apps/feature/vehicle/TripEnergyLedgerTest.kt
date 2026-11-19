@@ -150,6 +150,28 @@ class TripEnergyLedgerTest {
         assertEquals(0.1, ledger.trip.kilometres, 1e-6)
     }
 
+    /**
+     * The car rolled across the next odometer tick as it stopped; the first P sweep missed the
+     * odometer and armed the reset, and the second P sweep carried the tick. That tick is not
+     * movement out of P: the finished trip stays until the car leaves P.
+     */
+    @Test
+    fun aTickReadInParkAfterAParkWithoutTheOdometerKeepsTheFinishedTrip() {
+        val ledger = ledger()
+        moving(ledger, 100.0)
+        moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
+
+        ledger.sample(null, 0.0, false, true, 1.0)
+        ledger.sample(100.2, 0.0, false, true, 1.0)
+        assertTrue(ledger.trip.opened)
+        assertEquals("still the finished trip in P", 10.0, ledger.trip.netKwh, 1e-9)
+        assertEquals(0.1, ledger.trip.kilometres, 1e-6)
+        assertTrue("and still armed", ledger.record()!!.armed)
+
+        moving(ledger, 100.3, powerKw = 4.0, seconds = hour)
+        assertEquals("leaving P starts the next trip", 4.0, ledger.trip.netKwh, 1e-9)
+    }
+
     @Test
     fun standingStillWithoutParkKeepsTheTripGoing() {
         val ledger = ledger()
