@@ -85,6 +85,22 @@ internal class SessionSnapshot(
 )
 
 /**
+ * A block's PID 01 - MIL, its code count, readiness - as the newest read says it: the autoscan's and the
+ * identification's of an opened block are two reads of one thing, and the later one is the car now. The
+ * block's page, «Сводка» and the report all take it from here.
+ */
+internal object Pid01 {
+    fun newestReply(r: ModuleResult?, id: IdentResult?): Pair<MonitorStatus, DiagReply?>? {
+        val scan = (r?.monitors as? Polled.Got)?.let { Triple(it.value, r.read.reply(ScanRequests.PID_01), r.read.atMillis) }
+        val ident = (id?.monitors as? Polled.Got)?.let { Triple(it.value, id.read.reply(ScanRequests.PID_01), id.read.atMillis) }
+        val newest = listOfNotNull(scan, ident).maxByOrNull { it.third } ?: return null
+        return newest.first to newest.second
+    }
+
+    fun newest(r: ModuleResult?, id: IdentResult?): MonitorStatus? = newestReply(r, id)?.first
+}
+
+/**
  * [DiagnosticsModel] out of a [SessionSnapshot]: words, figures and states, decided here so the
  * screens never decode a byte or read the catalog (architecture, 7). Names follow the board
  * «Сканер (v3)»; a value nobody read is said to be unread, never zero.
@@ -198,7 +214,7 @@ internal class ModelBuilder(
         val results = s.results.values
         val answered = results.count { it.answered }
         val scanned = s.phase != ScanPhase.NEVER || results.isNotEmpty()
-        val mils = results.mapNotNull { it.mil }
+        val mils = (s.results.keys + s.idents.keys).mapNotNull { Pid01.newest(s.results[it], s.idents[it])?.mil }
         return ScanSummary(
             phase = s.phase,
             done = s.done,
@@ -463,9 +479,7 @@ internal class ModelBuilder(
 
     private fun obd(s: SessionSnapshot, ecu: Ecu, r: ModuleResult?, id: IdentResult?): ObdView {
         val request = ecu.request!!
-        val (status, reply) = (id?.monitors as? Polled.Got)?.let { it.value to id.read.reply(ScanRequests.PID_01) }
-            ?: (r?.monitors as? Polled.Got)?.let { it.value to r.read.reply(ScanRequests.PID_01) }
-            ?: (null to null)
+        val (status, reply) = Pid01.newestReply(r, id) ?: (null to null)
         val raw = (reply as? DiagReply.Answer)?.let { Figures.spaced(hex(it.uds)) } ?: "—"
         val monitors = status?.let(::monitorRows).orEmpty()
         val supported = monitors.count { it.state != MonitorState.UNSUPPORTED }

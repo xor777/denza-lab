@@ -137,18 +137,24 @@ internal object SummaryBuilder {
         val routed = EcuCatalog.routed
         val all = routed.flatMap { e -> i.records[e.request].orEmpty() }
         val active = all.count { it.mark == Mark.ACTIVE }
-        val mil = s.results.values.any { it.mil == true }
+        val mil = routed.any { e -> Pid01.newest(s.results[e.request], s.idents[e.request])?.mil == true }
         val running = s.phase == ScanPhase.RUNNING || s.phase == ScanPhase.PAUSED
+        // «No faults» only where every block's memory was read: a memory not read is said as a count, never as none.
+        val read = routed.count { e -> s.results[e.request]?.memoryRead == true }
         val verdict = when {
             running -> "Опрос… ${s.done} из ${routed.size}"
             s.phase == ScanPhase.STOPPED -> "Скан не завершён"
             active > 0 -> "$active " + Words.plural(active, "активная неисправность", "активные неисправности", "активных неисправностей")
+            mil -> "MIL горит"
+            read < routed.size -> "Память прочитана у $read из ${routed.size}"
             else -> "Активных неисправностей нет"
         }
         val answered = s.results.values.count { it.answered }
         val withRecords = routed.filter { e -> i.records[e.request].orEmpty().isNotEmpty() }
         val silent = s.results.values.count { !it.answered }
-        val quiet = s.results.size - withRecords.size
+        // A block whose memory was not read has no records to show, and is not «без записей» either.
+        val quiet = routed.count { e -> s.results[e.request]?.memoryRead == true && i.records[e.request].isNullOrEmpty() }
+        val unread = s.results.values.count { it.answered && !it.memoryRead }
         return SummaryView(
             verdict = verdict,
             verdictMark = if (active > 0 || mil) Mark.ACTIVE else null,
@@ -157,8 +163,9 @@ internal object SummaryBuilder {
             band = band(all, withRecords.size),
             columns = columns(i),
             rest = "${Words.count(quiet, "блок", "блока", "блоков")} без записей · " +
-                if (silent == 0) "все ответили" else "не ответили $silent",
-            restAttention = silent > 0,
+                (if (silent == 0) "все ответили" else "не ответили $silent") +
+                (if (unread > 0) " · память не прочитана $unread" else ""),
+            restAttention = silent > 0 || unread > 0,
             footnote = listOfNotNull(
                 Words.count(i.facts.count, "обмен", "обмена", "обменов"),
                 i.facts.medianMs?.let { "медиана $it мс" },

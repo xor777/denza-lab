@@ -577,7 +577,7 @@ internal object ScannerFixtures {
         }
         val blocks = sc.getInt("blocks")
         val answered = sc.getInt("answered")
-        val quiet = blocks - nBlocks
+        val quiet = answered - nBlocks
         return SummaryView(
             verdict = if (act > 0) "$act " + plural(act, "активная неисправность", "активные неисправности", "активных неисправностей") else "Активных неисправностей нет",
             verdictMark = Mark.ACTIVE.takeIf { act > 0 },

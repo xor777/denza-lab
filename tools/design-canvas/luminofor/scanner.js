@@ -504,7 +504,8 @@
         colY[k] = y;
       });
       // the blocks with nothing to say, under the left column
-      const quiet = sc.blocks - f.systems.reduce((a, s) => a + s.blocks.length, 0), Q = S.quiet;
+      // a block that did not answer has no memory read: it is «не ответили», not «без записей» as well
+      const quiet = sc.answered - f.systems.reduce((a, s) => a + s.blocks.length, 0), Q = S.quiet;
       const qt = `${quiet} ${plural(quiet, 'блок', 'блока', 'блоков')} без записей · ` +
         (sc.answered === sc.blocks ? 'все ответили' : `не ответили ${sc.blocks - sc.answered}`);
       const qy = colY[0] + Q.gap, qw = text(c, qt, 24, mid(qy, Q.h, 'unit'), 'unit', 'mute');

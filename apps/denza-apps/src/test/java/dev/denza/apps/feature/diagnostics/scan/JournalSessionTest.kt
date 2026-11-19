@@ -112,7 +112,8 @@ class JournalSessionTest {
         runCurrent()
         val first = s.model.value
         assertTrue(first.railLines.isNotEmpty())
-        assertEquals("Активных неисправностей нет", first.summary!!.verdict)
+        // the research runs read 19 memories; the other blocks answered their gate alone - no all-clear for them
+        assertEquals("Память прочитана у 19 из 68", first.summary!!.verdict)
         assertEquals(68, first.blocks!!.groups.sumOf { it.rows.size })
         // «Журнал» is built only while it shows; the scan that just ended is in it
         assertNull(first.journal)

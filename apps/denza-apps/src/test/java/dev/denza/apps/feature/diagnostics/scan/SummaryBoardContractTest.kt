@@ -192,7 +192,8 @@ class SummaryBoardContractTest {
         assertTrue(blocks.plainLit)
         assertEquals("НЕТ ОТВЕТА · 1", m.blocks!!.groups.last().title)
         assertEquals(Mark.NO_REPLY, m.blocks!!.groups.last().rows.single().mark)
-        assertEquals("62 блока без записей · не ответили 1", m.summary!!.rest)
+        // 6 blocks with records, 61 read and empty, 1 silent: the silent one is not «без записей» as well
+        assertEquals("61 блок без записей · не ответили 1", m.summary!!.rest)
         assertTrue(m.summary!!.restAttention)
         // no journal: no dates
         assertNull(m.summary!!.columns.flatten().first().blocks.first().since)
