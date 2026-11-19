@@ -374,6 +374,83 @@ class AdbRestoreManagerTest {
         assertNull(AdbBootRecord.decode("broken"))
         assertNull(AdbBootRecord.decode(null))
     }
+    /** An attempt that ends `Failed` at once: no TLS port to read, and discovery finds none. */
+    private fun TestScope.failedOnce(): Fixture {
+        val f = Fixture(this); f.system.property = null; f.system.discovered = null
+        f.manager.attemptIfNeeded("process-start"); settle()
+        assertEquals("mDNS timeout", (f.manager.snapshot().state as AdbRestoreState.Failed).reason)
+        assertEquals(1, f.system.discoveries)
+        return f
+    }
+
+    @Test fun aFailureIsNotRestartedByPassiveHintsOnTheSameNetwork() = runTest {
+        val f = failedOnce(); val failed = f.manager.snapshot()
+        val probes = f.system.probes; val writes = f.system.writes.size
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        f.manager.attemptIfNeeded("recovery"); runCurrent()
+        advanceTimeBy(60_000); runCurrent()
+        f.manager.attemptIfNeeded("watchdog"); runCurrent()
+        // The port is still looked at on every hint; nothing past it runs.
+        assertEquals(probes + 3, f.system.probes)
+        assertEquals(1, f.system.discoveries); assertTrue(f.system.endpoints.isEmpty())
+        assertEquals(writes, f.system.writes.size)
+        assertEquals(failed.state, f.manager.snapshot().state)
+        assertEquals("process-start", f.manager.snapshot().lastTrigger)
+    }
+    @Test fun aFailureOnOneNetworkDoesNotHoldAnother() = runTest {
+        val f = failedOnce(); f.system.wifi = AdbRestoreWifi("hotspot", "phone")
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun theScreenComingOnTriesAgainAfterAFailure() = runTest {
+        val f = failedOnce()
+        f.manager.attemptIfNeeded(AdbRestoreManager.SCREEN_ON); runCurrent()
+        assertEquals(2, f.system.discoveries)
+        assertEquals(AdbRestoreManager.SCREEN_ON, f.manager.snapshot().lastTrigger)
+    }
+    @Test fun aPressAndServiceTryAgainAfterAFailure() = runTest {
+        val f = failedOnce()
+        f.manager.attemptIfNeeded(AdbRestoreManager.GATE); runCurrent()
+        assertEquals(2, f.system.discoveries)
+        f.manager.attemptIfNeeded(AdbRestoreManager.SETTINGS); runCurrent()
+        assertEquals(3, f.system.discoveries)
+        // And the failures they end in hold the passive hints again.
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(3, f.system.discoveries)
+    }
+    @Test fun aFailureHoldsForTheCooldownOnly() = runTest {
+        val f = failedOnce()
+        advanceTimeBy(AdbRestoreManager.FAILED_COOLDOWN_MS - 1_000); runCurrent()
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(1, f.system.discoveries)
+        advanceTimeBy(1_000); runCurrent()
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun accessThatComesBackDuringTheHoldIsStillNoticed() = runTest {
+        val f = failedOnce(); f.system.live = true
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(AdbRestoreState.NotNeeded, f.manager.snapshot().state)
+        // And the hold went with the failure.
+        f.system.live = false
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun wifiLostAndBackIsANewConnection() = runTest {
+        val f = failedOnce(); val router = f.system.wifi
+        f.system.wifi = null
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI_LOST); runCurrent()
+        assertEquals(AdbRestoreState.WaitingWifi, f.manager.snapshot().state)
+        f.system.wifi = router
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun aRefusedKeyDuringTheHoldStillNeedsActivation() = runTest {
+        val f = failedOnce(); f.system.probe = { throw AdbRestoreKeyUntrustedException() }
+        f.manager.attemptIfNeeded("wifi"); runCurrent()
+        assertEquals(AdbRestoreState.NeedsActivation, f.manager.snapshot().state)
+    }
+
     @Test fun turningTheSwitchOnLooksAtOnceLikeOpeningService() = runTest {
         val f = Fixture(this); f.manager.setEnabled(false); f.system.live = true
         f.manager.setEnabled(true); runCurrent()

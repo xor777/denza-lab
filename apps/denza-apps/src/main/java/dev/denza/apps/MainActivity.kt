@@ -151,7 +151,7 @@ internal object AppActions : DenzaActions {
         { enabled -> AdbRestore.setEnabled(enabled) }
     override val onSelectLanguage: (AppLanguage) -> Unit =
         { language -> DenzaAppRepository.selectLanguage(language) }
-    override val onCheckAdbAccess: () -> Unit = { DenzaAppRepository.checkAdbAccess() }
+    override val onCheckAdbAccess: () -> Unit = { DenzaAppRepository.checkAdbAccessByUser() }
     override val onCheckAdbAccessThen: (() -> Unit) -> Unit =
         { onTrusted -> DenzaAppRepository.checkAdbAccessThen(onTrusted) }
     override val onRequestAdbAuthorizationOnce: () -> Unit =

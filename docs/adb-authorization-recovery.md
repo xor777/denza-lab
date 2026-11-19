@@ -2,7 +2,7 @@
 
 ## Current state
 
-Updated 2026-10-18. Static firmware evidence and local checks do not establish recovery on a
+Updated 2026-11-19. Static firmware evidence and local checks do not establish recovery on a
 currently inaccessible vehicle.
 
 | Claim | Status | Section |
@@ -19,6 +19,7 @@ currently inaccessible vehicle.
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
 | The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -39,6 +40,7 @@ currently inaccessible vehicle.
 - [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
 - [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
   - [The page after a boot](#the-page-after-a-boot-2026-10-18)
+  - [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
 - [Local key storage](#local-key-storage-and-history-redaction-2026-10-13)
 - [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10)
@@ -818,6 +820,75 @@ the first look its process makes, and an update starts the process long after th
 
 What the car has to show: after a full reboot on a 2605 image, the page says «был сразу» and
 «не понадобилось», and opening «Сервис» again does not change either.
+
+### The gate hidden while a restore connects (field report, 2026-11-19)
+
+Status: read from the code of 0.7.0/0.7.1 against a field report; **not reproduced on a car**, and
+the «Технические сведения» readings of the reported car have not been seen. No image of the newer
+firmware is in the corpus, so why the restore fails there is not known.
+
+The report: on newer firmware the app opens, a dialog with one wide blue button is on screen for a
+fraction of a second, and then the dashboard stands with every tile disabled and nothing over it.
+A reboot changes nothing.
+
+The dashboard in that picture is one state of the code and no other:
+`adbStartupBlocked && !adbStartupOverlay.visible` in `DenzaAppsScreen` - the phase is not `TRUSTED`,
+so `DashboardBody(enabled = false)` and the invisible input shield are up, and
+`AdbStartupGatePolicy.overlay` returned `visible = false`. It does that for `UNKNOWN`/`CHECKING`,
+which a passive check leaves within seconds (900 ms to connect and 2.5 s to read per address), and
+for `AdbRestoreState.Connecting`, which outranks the phase.
+
+`Connecting` is not short. With `trusted_before`, `WRITE_SECURE_SETTINGS` and Wi-Fi in place, and
+`adb_wifi_enabled` holding, one attempt is the TLS `tcpip:5555` request, 15 s of classic probes, up
+to 45 s of mDNS discovery and 15 s more of probes before it publishes `Failed`. And attempts follow
+one another:
+
+- every passive check that ends `UNAVAILABLE`, `ERROR` or `AUTHORIZATION_REQUIRED` sends the
+  `recovery` hint (`DenzaAppRepository.onAdbRescueChanged`), and the autoload window makes five of
+  them in 32 s, the app's opening one more;
+- every `onCapabilitiesChanged` of the Wi-Fi network sends `wifi`, and a signal-strength change is
+  one;
+- the gate's own «Проверить доступ» under `Failed` runs a check, whose failure is a hint.
+
+A hint that arrives during an attempt waits and starts the next one the moment this one ends, so
+`Failed` - the only state of this loop with a gate, and through «Что такое ADB» the only door to
+«Сервис» - is on screen for milliseconds between two `Connecting`. That is the dialog that flashes
+when the app is opened: the last published state is drawn, the entry check fails at once on a
+closed port, and the next attempt hides it. On a fresh process the same happens with «ADB недоступен»
+while the settings write settles (1.5 s).
+
+The car this fits has had the app trusted once (the two preconditions are written only then) and
+closes 5555 at every boot, which is what owners report of builds after 2605. The restore was built
+for exactly that car; where it does not succeed, it takes the gate away instead.
+
+What to ask of a reported car: whether the app ever worked on it, the title of the dialog in a
+frozen frame of the video («Восстановление доступа», «ADB недоступен», or SystemUI's network
+confirmation), and the «Восстановление ADB» section of «Технические сведения». The page is reachable
+on 0.7.x only by turning the head unit's Wi-Fi off first: `WaitingWifi` has a gate that stays, with
+«Что такое ADB» and its seven taps; the restore's switch on «Сервис» then ends the loop.
+
+Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
+
+- A blocked dashboard always has a gate once the first check is over. `Connecting` shows
+  «Восстановление доступа» over «Возвращаем доступ через Wi-Fi» with the working ring and «Что такое
+  ADB», and no other button. `Restored` shows the same gate while the phase is still the closed
+  port's (`UNKNOWN`, `CHECKING`, `UNAVAILABLE`, `ERROR`), so «ADB недоступен» does not flash between
+  the restore and the check that says `TRUSTED`; over a phase that wants the driver it is that
+  phase's gate. `WaitingWifi`, `NeedsDialog` and `Failed` still outrank the phase. The only blocked
+  state without a gate is the first passive check of a process (`AdbStartupGatePolicyTest`).
+- A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
+  check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
+  `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the
+  glyph. The recovery dialog stays open through the check with its buttons in place and inactive.
+- A restore that failed on a network is not restarted by passive hints on that network
+  (`AdbRestoreManager.FAILED_COOLDOWN_MS`, 10 minutes, in memory only: a new process gets one fresh
+  attempt). The classic probe still runs on every hint, so a port that opens by itself is
+  `NotNeeded` and a refused key is `NeedsActivation`. The hold ends with the screen coming on
+  (`screen-on`), with Wi-Fi lost (`wifi-lost`, `WaitingWifi`), on another network, with `NotNeeded`
+  or `Restored`, with the switch, and with a forcing request: «Сервис» opened, or a press on the
+  gate's button, the recovery dialog's or the service panel's (`gate`, «нажата проверка доступа» on
+  the technical page). The `Failed` gate's «Ожидаем следующего подключения к Wi-Fi или пробуждения
+  экрана» is what the code does.
 
 ## Dipilot identity rescue (local review, 2026-10-08)
 

@@ -12,6 +12,7 @@ import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeStartCause
 import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.adb.AdbRestore
+import dev.denza.apps.feature.adb.AdbRestoreManager
 import dev.denza.apps.feature.vehicle.VehicleSession
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -58,7 +59,7 @@ internal object ScreenOnRuntimeRecovery {
         override fun onReceive(context: Context, intent: Intent?) {
             if (ScreenOnRecoveryPolicy.shouldRecover(intent?.action)) {
                 DenzaRuntimeCoordinator.bootstrap(context, RuntimeStartCause.SCREEN_ON)
-                AdbRestore.trigger("screen-on")
+                AdbRestore.trigger(AdbRestoreManager.SCREEN_ON)
             }
         }
     }

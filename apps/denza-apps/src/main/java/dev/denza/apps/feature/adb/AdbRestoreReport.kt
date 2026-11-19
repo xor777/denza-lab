@@ -187,13 +187,14 @@ object AdbRestoreReport {
     /** What made the check, in the words of what happened: the hints are the manager's names. */
     private fun triggerWords(trigger: String): String = when (trigger) {
         "process-start" -> "запуск приложения"
-        "screen-on" -> "включение экрана"
+        AdbRestoreManager.SCREEN_ON -> "включение экрана"
         "wifi" -> "Wi-Fi"
-        "wifi-lost" -> "потеря Wi-Fi"
+        AdbRestoreManager.WIFI_LOST -> "потеря Wi-Fi"
         "watchdog" -> "проверка функций"
         "recovery" -> "восстановление функций"
         AdbRestoreManager.SETTINGS -> "открыт «Сервис»"
         AdbRestoreManager.SWITCH -> "включён переключатель"
+        AdbRestoreManager.GATE -> "нажата проверка доступа"
         "dialog-allowed" -> "разрешение отладки"
         "retry" -> "повтор"
         else -> trigger

@@ -139,6 +139,12 @@ class AdbRestoreReportTest {
     }
 
     @Test
+    fun `a press on the gate is named as one`() {
+        val rows = AdbRestoreReport.technicalRows(restored.copy(lastTrigger = AdbRestoreManager.GATE), zone).toMap()
+        assertEquals("доступ есть · 14:02:11 · нажата проверка доступа", rows.getValue("Последняя проверка"))
+    }
+
+    @Test
     fun `with the port rows the section still says the permission once`() {
         val section = AdbRestoreReport.technicalRows(restored, zone).map { it.first } +
             AdbPortRestoreReport.rows(true, AdbPortRestoreState(), nowMs = 0L).map { it.first }

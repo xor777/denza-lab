@@ -29,6 +29,7 @@ import dev.denza.apps.feature.adb.AdbAutostartRetryAction
 import dev.denza.apps.feature.adb.AdbAutostartRetryPolicy
 import dev.denza.apps.feature.adb.AdbPortRestore
 import dev.denza.apps.feature.adb.AdbRestore
+import dev.denza.apps.feature.adb.AdbRestoreManager
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
@@ -1030,6 +1031,16 @@ object DenzaAppRepository {
     fun checkAdbAccess() {
         val context = appContext ?: return
         AdbRescueCoordinator.checkAccess(context) { onAdbRescueChanged(context) }
+    }
+
+    /**
+     * [checkAdbAccess] for a press: the gate's button, the recovery dialog's, the service panel's.
+     * The restore hears it as a request, which a restore that failed on this network does not
+     * hold back the way it holds back the passive hints.
+     */
+    fun checkAdbAccessByUser() {
+        AdbRestore.trigger(AdbRestoreManager.GATE)
+        checkAdbAccess()
     }
 
     /**

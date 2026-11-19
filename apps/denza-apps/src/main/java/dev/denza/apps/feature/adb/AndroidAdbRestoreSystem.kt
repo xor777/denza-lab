@@ -137,7 +137,7 @@ object AdbRestore {
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
                 if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) trigger("wifi")
             }
-            override fun onLost(network: Network) { trigger("wifi-lost") }
+            override fun onLost(network: Network) { trigger(AdbRestoreManager.WIFI_LOST) }
         }
         runCatching {
             application.getSystemService(ConnectivityManager::class.java).registerNetworkCallback(

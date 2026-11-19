@@ -177,6 +177,13 @@ class AdbRestoreManager(
     private var wave: Job? = null
     private var waveNetwork: String? = null
     private var exhaustedNetwork: String? = null
+    /**
+     * The network an attempt last failed on, and when, by the elapsed clock. In memory only: a new
+     * process gets one fresh attempt. While it holds, a passive hint on the same network does not
+     * start another attempt - one is up to 75 s of `Connecting`, and hints come back to back.
+     */
+    private var failedNetwork: String? = null
+    private var failedAtElapsedMs = 0L
     @Volatile private var current = AdbRestoreSnapshot(
         enabled = store.enabled,
         state = if (store.enabled) AdbRestoreState.NotNeeded else AdbRestoreState.Disabled,
@@ -228,6 +235,8 @@ class AdbRestoreManager(
                 exhaustedNetwork = null
                 wave?.cancel(); wave = null; waveNetwork = null
             }
+            // Wi-Fi gone: whatever comes up next is a new connection, even to the same router.
+            if (request.force || request.trigger == WIFI_LOST) forgetFailure()
             val before = pending
             pending = request.copy(force = request.force || before?.force == true,
                 retry = request.retry && before?.retry != false)
@@ -238,6 +247,7 @@ class AdbRestoreManager(
     fun setEnabled(enabled: Boolean) {
         synchronized(control) {
             store.enabled = enabled // durable before a mutation is allowed
+            forgetFailure()
             if (!enabled) {
                 generation++
                 pending = null
@@ -266,6 +276,7 @@ class AdbRestoreManager(
     private suspend fun attempt(gen: Long, request: Request) {
         if (abandoned(gen)) return
         if (system.sdk < MIN_SDK) { publish(gen, AdbRestoreState.Unsupported, request); return }
+        val before = current
         synchronized(control) {
             current = current.copy(lastTrigger = request.trigger, writeWasReverted = false,
                 retryBudgetExhausted = false)
@@ -289,6 +300,14 @@ class AdbRestoreManager(
         }
         val network = system.wifiNetwork()
         if (network == null) { publish(gen, AdbRestoreState.WaitingWifi, request); return }
+        if (failedHere(network, request)) {
+            // Nothing happened, so nothing is said: the page keeps the failure and what made it.
+            synchronized(control) {
+                current = current.copy(lastTrigger = before.lastTrigger, writeWasReverted = before.writeWasReverted,
+                    retryBudgetExhausted = before.retryBudgetExhausted)
+            }
+            return
+        }
         if (!enableWireless(gen, network, request)) return
         if (!valid(gen, network)) return
         publish(gen, AdbRestoreState.Connecting, request)
@@ -307,6 +326,19 @@ class AdbRestoreManager(
             publish(gen, AdbRestoreState.Failed("classic port silent after tcpip", system.nowMs()))
         }
     }
+
+    /**
+     * Whether this attempt would repeat the one that just failed on [network]. Only a passive hint
+     * is held back, and only while the failure is what the gate shows: a press, «Сервис», the
+     * switch and the screen coming on each get an attempt, and so does a dialog wave's retry.
+     */
+    private fun failedHere(network: AdbRestoreWifi, request: Request): Boolean = synchronized(control) {
+        !request.force && request.trigger != SCREEN_ON && current.state is AdbRestoreState.Failed &&
+            failedNetwork == network.id && system.elapsedMs() - failedAtElapsedMs in 0 until FAILED_COOLDOWN_MS
+    }
+
+    /** Under [control]. */
+    private fun forgetFailure() { failedNetwork = null; failedAtElapsedMs = 0L }
 
     private suspend fun enableWireless(gen: Long, network: AdbRestoreWifi, request: Request): Boolean {
         if (!valid(gen, network)) return false
@@ -376,6 +408,11 @@ class AdbRestoreManager(
                 permissionHeld = system.permissionHeld(), wifi = system.wifiNetwork())
             if (state == AdbRestoreState.NotNeeded || state is AdbRestoreState.Restored) {
                 exhaustedNetwork = null
+            }
+            when (state) {
+                is AdbRestoreState.Failed -> current.wifi?.id?.let { failedNetwork = it; failedAtElapsedMs = system.elapsedMs() }
+                AdbRestoreState.NotNeeded, is AdbRestoreState.Restored, AdbRestoreState.WaitingWifi -> forgetFailure()
+                else -> Unit
             }
             if (state !is AdbRestoreState.Connecting) {
                 store.recordOutcome(outcome, at)
@@ -470,11 +507,17 @@ class AdbRestoreManager(
         /** «Сервис» opened, and the switch turned on: somebody is looking, so the cooldown waits. */
         const val SETTINGS = "settings"
         const val SWITCH = "switch"
-        private val FORCING = setOf(SETTINGS, SWITCH)
+        /** The gate's button, or the recovery dialog's: a person asked, so nothing holds it back. */
+        const val GATE = "gate"
+        private val FORCING = setOf(SETTINGS, SWITCH, GATE)
+        /** The screen coming on: passes the failed-network hold, the one the gate promises, but forces nothing. */
+        const val SCREEN_ON = "screen-on"
+        const val WIFI_LOST = "wifi-lost"
         const val MIN_SDK = 30
         const val SETTINGS_SETTLE_MS = 1_500L
         const val DISCOVERY_TIMEOUT_MS = 45_000L
         const val WRITE_COOLDOWN_MS = 600_000L
+        const val FAILED_COOLDOWN_MS = 600_000L
         const val WRITE_RETRY_INTERVAL_MS = 15_000L
         const val TCPIP_POLL_TIMEOUT_MS = 15_000L
         const val TCPIP_POLL_INTERVAL_MS = 1_000L
