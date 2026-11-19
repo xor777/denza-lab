@@ -7,10 +7,13 @@ currently inaccessible vehicle.
 
 | Claim | Status | Section |
 | --- | --- | --- |
-| The startup gate and healthy one-shot request work on the reference DiLink 5.1 car | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
+| The startup gate and healthy one-shot request work on the reference DiLink 5.1 car (the one-shot button and its latch were replaced on 2026-11-19, see below) | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
 | Product queue recovery remains disabled pending vehicle acceptance | code | [Vehicle acceptance gate](#vehicle-acceptance-gate) |
 | A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
-| The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
+| The access row says a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» (the recovery dialog that said them too is gone since 2026-11-19) | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
+| A foreground opening on a refused key sends one request by itself (three a day, the gate's **Запросить снова** past them), holds its socket up to 2 min and leaves the gate on the approval with no press; an approval without the box puts the car's own box on the gate and sends the next request at once; the latch, **Я подтвердил — проверить**, **Разрешить новую попытку** and the recovery dialog are gone | code, unit tests and emulator (`ro.adb.secure=1`), 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
+| The prompt queue that hid the dialog on 2026-11-19 was held by a pending first prompt for another key, not by the app's repeats; holding the socket did not move it, one rejection did | live (Car ADB Gateway), 2026-11-19 | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
+| **ADB недоступен** gives the service-centre sentence only to a car that never trusted the app; a car trusted before is told newer firmware closes ADB at start and access comes back over Wi-Fi | code and unit tests, 2026-11-19; not on a car | [Product behaviour](#product-behaviour) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot key material is supplied only from an ignored owner-local file; tracked sources contain no private key or public blob | build inputs, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
 | Published `main` and `denza-apps-v0.7.0` have redacted key history, but the original commit remains accessible by SHA until GitHub Support purges server-side objects | fresh-clone audit and GitHub API, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
@@ -32,6 +35,7 @@ currently inaccessible vehicle.
 - [Operator flow](#operator-flow)
 - [The second asker](#the-second-asker-adb-rescue-probe-built-and-run-2026-08-29)
 - [Stuck prompt queue](#stuck-prompt-queue)
+- [Holding the request, and the prompt queue](#holding-the-request-and-the-prompt-queue-2026-11-19)
 - [Live result](#2026-08-18-live-result)
 - [Vehicle acceptance gate](#vehicle-acceptance-gate)
 - [The two states are not actually distinguished](#the-two-states-are-not-actually-distinguished-reported-2026-08-26)
@@ -81,10 +85,10 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   an uninstall and the following `PACKAGE_ADDED` as a fresh install with the blocked default
   (live 2026-09-23). After each installed build the switch has to be turned off again.
 - Autoload owns one finite readiness window: passive probes happen at 0, 4, 8, 16, and 32 seconds
-  after cycle start. `UNAVAILABLE` and `ERROR` may repeat a passive check inside that window because
-  car services can still be coming up. `AWAITING_CONFIRMATION` repeats one because an approval can
-  land at any moment. A plain refusal (`AUTHORIZATION_REQUIRED`) is not repeated: nothing was
-  submitted, so nothing can approve it. No refusal ever submits a key automatically.
+  after cycle start. `UNAVAILABLE`, `ERROR` and a refusal (`AUTHORIZATION_REQUIRED`) may repeat a
+  passive check inside that window: car services can still be coming up, and a prompt answered with
+  the box after its request was closed trusts the key with nobody watching. Background work never
+  submits a key (`AdbAutostartRetryPolicy.action`; `RuntimeRecoveryManifestContractTest`).
 - A feature whose call fails on the channel while the app runs - an untrusted key, a pending
   request, a refused or silent adbd (`AdbProblem`, by type) - says «Нет доступа» on its tile, and
   the press runs one passive check (`DenzaAppRepository.checkAdbAccessThen`). A car that still
@@ -92,15 +96,40 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   comes up over the dashboard. The press never submits a key (since 2026-10-09; it used to retry
   the feature under the gate's words «Подтвердите запрос…» or «Включите отладку USB…»).
   Outside this window, opening the app (and the accessibility service connecting) runs one passive
-  check in every phase that is not `TRUSTED`, unless a check or the request is already in flight.
-  Only an explicit user action sends the one-shot request (`AdbStartupGatePolicy.entryAction`,
-  `AdbAutostartRetryPolicy.action`). Until 2026-10-08 only `UNKNOWN` was checked on opening, and
+  check in every phase that is not `TRUSTED`, unless a check or the request is already in flight
+  (`AdbStartupGatePolicy.entryAction`). Until 2026-10-08 only `UNKNOWN` was checked on opening, and
   autoload skipped `AWAITING_CONFIRMATION`. A request approved with *Always allow* on a car that
   slept before **Я подтвердил — проверить** was pressed left every later process waiting for that
   press: the key was trusted and no feature started.
   This is startup convergence, not resurrection after Android `force-stop`.
-- A refused/timeout/no-route endpoint is shown as **ADB недоступен** with the service-only
-  instruction. A successful ADB handshake with an untrusted Denza Apps key is shown separately as
+- **The request (since 2026-11-19).** A foreground opening of the main screen
+  (`MainActivity.onStart` → `AdbRescueCoordinator.foregroundStarted`) sends one request by itself
+  when the phase is `AUTHORIZATION_REQUIRED`, the system switch, read again just before, is not
+  off, nothing is held, this opening has not asked yet and fewer than three requests went out in
+  the last 24 hours (`AdbAccessCore.autoAllowed`; the times persist in the `adb_rescue` prefs).
+  A refusal found by the opening's own passive check counts: the request follows the check on the
+  same worker. A rotation is not an opening (`isChangingConfigurations`), and the car's prompt
+  only pauses the activity, so it is not one either.
+- The request's transport stays open (`LocalAdbClient.AuthorizationRequest.awaitApproval`) for up
+  to two minutes, with a passive check about every three seconds. adbd sends CNXN on that
+  transport when the driver allows the key, with or without the box, and the gate leaves by itself
+  on `TRUSTED`: there is no **Я подтвердил — проверить**. The transport is closed on the approval,
+  on the timeout, on the switch turning off, and when the main screen stops in the foreground
+  (`AdbRescueCoordinator.foregroundStopped`). A denial sends nothing to the transport, so the ring
+  turns until the timeout, which ends in `AUTHORIZATION_REQUIRED` with **Запросить снова**.
+- An approval whose passive look still refuses the key, twice a second apart (the framework writes
+  `adb_keys` after the dialog's OK), was given without **Всегда разрешать отладку с этого
+  компьютера**: only that box persists the key. The gate then shows that box, ticked, in the car's
+  own words (`AdbAlwaysAllowLabel`, the firmware's `usb_debugging_always` in its language), and
+  the next request goes out at once; still one at a time, and still counted in the day's three.
+- With no request out, the gate is **Доступ не выдан** over the switch reading and **Запросить
+  снова** (the glyph in orange). The control sends one request now, past the daily cap too; it is
+  the only way to ask outside an opening. There is no one-shot latch, no **Разрешить новую
+  попытку** and no recovery dialog.
+- A refused/timeout/no-route endpoint is shown as **ADB недоступен**. A car that never trusted
+  this app gets the service-only instruction; one that did (`AdbRestorePreferences.trustedBefore`)
+  is told that newer firmware closes ADB when the car starts and that access comes back over
+  Wi-Fi. A successful ADB handshake with an untrusted Denza Apps key is shown separately as
   **Подтвердите доступ к ADB**.
 - Feature clients use `DenzaLocalAdb` in `PASSIVE` mode. They may sign a challenge with an
   existing key, but never submit that public key to Android's prompt queue.
@@ -115,12 +144,14 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
 - The key pair is stored in one atomic file protected by an OS file lock. The old
   `adb_auth` SharedPreferences pair is migrated without changing the identity. This prevents the
   main process and `:weather` process from racing to create different first-install keys.
-- The startup overlay exposes the explicit **ADB Rescue** panel. A denied passive check enables
-  **Отправить один запрос**; that action submits the public key once and closes the transport
-  without retrying. The diagnostics screen retains the same controls for support use.
-- A persisted one-shot latch prevents process or activity restarts from rearming the request.
-  After submission, only a passive check is automatic. **Разрешить новую попытку** merely clears
-  the app latch; it does not submit a key and does not clear Android's system queue.
+- «Сервис» keeps the same two controls under the access row: **Запросить снова** while a request
+  can go out, and **Проверить доступ**; both wait while a check or a request is under way.
+  «Технические сведения» counts the requests sent and those of the last 24 hours.
+- Until 2026-11-19 the gate offered **Запросить доступ** and **Восстановить ADB**, a dialog with
+  **Отправить один запрос**, **Разрешить новую попытку** and **Проверить доступ**, and a persisted
+  one-shot latch that kept `AWAITING_CONFIRMATION` across restarts until **Я подтвердил —
+  проверить**. The request's transport was closed at once, so the app learned of an approval only
+  from a press or the next check. All of it is removed.
 - No key material, endpoint, or token is included in support diagnostics.
 
 Technical diagnostics are an ordinary **Сервис** tile on the dashboard. They were a seven-tap
@@ -182,13 +213,15 @@ screen where they mean something to whoever is reading them.
    authorization request was generated.
 2. If **ADB недоступен** is shown, use the service path described on screen; an APK cannot unlock
    the disabled endpoint.
-3. If **Подтвердите доступ к ADB** is shown, press **Запросить доступ** once. The compact
-   **Восстановление ADB** panel exposes the same one-shot action and status.
-4. Approve the Android dialog on the vehicle, then press **Я подтвердил — проверить** or
-   **Проверить доступ**. If the car sleeps or the app is closed before that, the next wake or the
-   next opening of the app checks on its own.
-5. If no dialog appears, do not repeatedly rearm the request. Preserve the pending state and use
-   the stuck-queue procedure below when a separately trusted transport is available.
+3. If **Подтвердите доступ к ADB** is shown with the ring, the request is already on the car's
+   screen: allow it there, with **Всегда разрешать отладку с этого компьютера** ticked. The gate
+   leaves by itself. If the gate shows that box instead of a sentence, the last approval came
+   without it; the next request is already out.
+4. If it shows **Доступ не выдан** and **Запросить снова**, the last request went unanswered for
+   two minutes or the day's three are spent; the button sends one now.
+5. If no dialog appears, do not press again and again: every press adds one more entry to the same
+   queue. Use the stuck-queue procedure below when a separately trusted transport is available.
+   (Until 2026-11-19 the steps were **Запросить доступ** once, then **Я подтвердил — проверить**.)
 
 An ordinary APK cannot inspect or drain `libadbd_auth` before its own ADB key is trusted. A second
 APK is therefore not a *repair* on its own: it creates another RSA identity and adds another
@@ -211,7 +244,7 @@ an unanswerable question into a two-way test the owner can run alone:
 
 - a prompt appears for the probe's key - the authorization path on that car works, and the problem
   is Denza Apps' own latch or its own key, both of which the product can already clear from its own
-  screen;
+  screen (since 2026-11-19 there is no latch: each opening asks once, three a day);
 - no prompt appears for the probe's key either - the path itself is broken, and the queue is the
   first place to look.
 
@@ -225,7 +258,8 @@ trusted shell is the thing the product could never get to. Its **Спасти De
 the bounded procedure below - read `adbd_auth`, reject one prompt at a time with `service call
 adb 2`, re-read after every call, stop at five - and then force-stops and relaunches Denza Apps so
 it asks again on a car that can now answer. It does not touch Denza Apps' data: the product clears
-its own one-shot latch from its own screen, and the thing it cannot clear is Android's queue.
+its own one-shot latch from its own screen (a latch removed on 2026-11-19), and the thing it cannot
+clear is Android's queue.
 
 This is also where the queue drain earns the live validation the acceptance gate asks for. It runs
 in a probe, on an identity that is not the product's, which is what the governance lane is for.
@@ -256,6 +290,12 @@ without ADB it has to reach the head unit the same way Denza Apps did - see
 
 ## Stuck prompt queue
 
+> **Read again 2026-11-19:** the queue that hid the dialog on 2026-11-19 was held by one pending
+> first prompt, for another computer's key, and not by an overflow of this app's repeated
+> requests; holding the request's socket did not move it, and one rejection of the outstanding
+> prompt did. The procedure below stands. What the queue does with each request is in
+> [Holding the request, and the prompt queue](#holding-the-request-and-the-prompt-queue-2026-11-19).
+
 The observed failure signature is one dispatched authorization prompt followed by queued prompts,
 with logcat repeating `adbd_auth: prompt currently pending, skipping`. The visible dialog can be
 missing even though the system still considers that prompt pending; these are SystemUI/adbd auth
@@ -276,6 +316,77 @@ procedure is:
 Never clear all trusted ADB keys as part of this flow. If no trusted transport remains, recovery
 requires physical/system UI access; Denza Apps must remain passive rather than guessing at binder
 calls.
+
+## Holding the request, and the prompt queue (2026-11-19)
+
+Status: code, unit tests and an Android 15 emulator with `ro.adb.secure=1`, 2026-11-19. Not on a
+car.
+
+**What the queue does with a request.** Every RSAPUBLICKEY a client sends is its own entry in
+`libadbd_auth`'s queue. Closing the socket that sent it does not remove the entry, and two entries
+for the same key are not merged. One prompt is dispatched at a time; while it is pending, the
+others wait and the log says `adbd_auth: prompt currently pending, skipping`. Only an answer to
+the dispatched prompt moves the queue on.
+
+**The evidence of 2026-11-19** (Car ADB Gateway on the owner's car,
+[car-adb-gateway-architecture.md](car-adb-gateway-architecture.md), "ADB recovery after
+enrollment"). A request sent from a fresh opening produced no dialog; the native log said
+`prompt currently pending, skipping`, and the framework still named another computer's key as the
+last one received. Holding the requesting socket open for two minutes did not move the queue.
+One operator rejection of the outstanding prompt did: the framework received the app's key, the
+stock dialog came up with the matching fingerprint, the approval persisted, and a second queued
+request for the same fingerprint was confirmed with it. The prompt that blocked the queue was a
+pending first prompt for a different key, not an overflow of the app's own repeats, which is what
+[Stuck prompt queue](#stuck-prompt-queue) had been read as.
+
+**What the app does about it.** It cannot see or drain the queue, so it spends as few entries as
+it can and notices an answer the moment it comes:
+
+| | Until 2026-11-19 | Since |
+| --- | --- | --- |
+| Who sends a request | a press on **Запросить доступ** or **Отправить один запрос** | the foreground opening of the main screen, once; **Запросить снова** |
+| Requests a day | one, then a latch until **Разрешить новую попытку** | three openings in 24 hours; the control past them |
+| The request's socket | closed at once | held up to 2 min, a passive look every 3 s |
+| How an approval is noticed | **Я подтвердил — проверить**, or the next check | CNXN on the held socket, or a look that finds the key trusted |
+| An approval without the box | trusted for that one socket, then refused again; nothing said | the gate shows the car's box, ticked, and the next request goes out at once |
+| States on the gate | **Запросить доступ** + **Восстановить ADB**; the ring of `REQUESTING`; **Я подтвердил — проверить** + **Восстановить ADB**; a three-button dialog behind both | **Доступ не выдан** + **Запросить снова**; the ring with no button; the box in place of the sentence on either |
+
+**The emulator, 2026-11-19** (`system_ext/etc/build.prop` set to `ro.adb.secure=1`, the app
+connecting to the guest's own adbd on `127.0.0.1:5555`):
+
+- An opening with an untrusted key raised exactly one `adbd_auth: prompting user for adb
+  authentication`, and the gate showed the ring under the stock dialog.
+- Under that dialog `MainActivity` is `PAUSED`, not `STOPPED` (`dumpsys activity activities`): the
+  dialog is not a departure, and the held socket stays open while the driver reads it.
+- **Allow** without the box: the gate switched to the box in the system's language («Always allow
+  from this computer» on that image) with the ring, and the follow-up request raised the prompt
+  again 2.5 s after the tap. adbd had sent CNXN on the held socket; fresh passive connections were
+  still refused.
+- **Allow** with the box: the gate left by itself and the runtime started; no press, no further
+  prompt.
+- **Cancel**: nothing reached the socket. The ring turned on, a rotation sent no second request,
+  and at the timeout the gate came back to **Доступ не выдан** with **Запросить снова**.
+- The fourth opening within 24 hours sent nothing; **Запросить снова** sent one at once.
+- Home with the prompt up: on this image the stock dialog closed with it, and the next request
+  was drawn at once. The queue could not be made to stick here; that remains the car's case.
+- The framework keeps an «always allow» key in its own keystore (`adb_temp_keys.xml`) as well as
+  `adb_keys`, and re-writes `adb_keys` from it; removing a line from `adb_keys` does not untrust a
+  key. The emulator runs used a new app key instead.
+
+**Unverified on a car:**
+
+- that the car's prompt only pauses `MainActivity` (its SystemUI dialog is the stock
+  dialog-themed `UsbDebuggingActivity` in the corpus, unchecked live);
+- that the car's adbd sends CNXN on the held socket after an approval, with and without the box;
+- that the box's words on the gate match the car's dialog (`usb_debugging_always` from the OTA:
+  «Всегда разрешать отладку с этого компьютера», and the zh-rCN/TW/HK strings);
+- what three entries a day do on a car whose prompt is never drawn
+  ([The prompt is never drawn on this car](#the-prompt-is-never-drawn-on-this-car-live-2026-08-29)):
+  each one waits in the queue until it is answered or rejected;
+- that the 3-second looks of a held request leave the autonomous restore and other ADB clients
+  alone;
+- the **ADB недоступен** sentence for a car trusted before, on newer firmware that closes the port
+  at start.
 
 ## 2026-08-18 live result
 
@@ -306,10 +417,13 @@ target firmware:
    public-key prompt was added.
 3. Exercise representative feature clients (split, navigation, mirrors, HUD, FSE, weather) and
    prove they remain passive while authorization is absent.
-4. Press **Отправить один запрос** and prove exactly one public-key request is submitted. Restart
-   the activity and process and prove the persisted latch suppresses another request.
-5. Approve the dialog, run **Проверить доступ**, and prove trusted shell access survives a full
-   disconnect/reconnect.
+4. Open the app in front with the key untrusted and prove exactly one public-key request is
+   submitted; rotate, and prove no second one. Reopen it a fourth time within 24 hours and prove
+   none is sent by itself. (Until 2026-11-19 this item pressed **Отправить один запрос** and
+   proved the persisted latch; both are gone, see
+   [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19).)
+5. Approve the dialog with the box and prove the gate leaves with no press, then that trusted
+   shell access survives a full disconnect/reconnect.
 6. Exercise the main and `:weather` processes and prove they use the same public-key fingerprint.
 7. Reproduce a deliberately pending prompt under a retained safety transport, verify the bounded
    one-at-a-time drain command and stopping condition, and only then decide whether a firmware-

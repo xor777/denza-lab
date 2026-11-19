@@ -2,11 +2,14 @@ package dev.denza.apps.feature.adb
 
 import dev.denza.apps.R
 import dev.denza.apps.core.AppText
+import java.util.Locale
 
 enum class AdbStartupPrimaryAction {
     NONE,
     CHECK_ACCESS,
-    REQUEST_AUTHORIZATION,
+
+    /** One request now: the gate's control after a request ended unanswered, or past the daily cap. */
+    ASK,
 }
 
 enum class AdbStartupEntryAction {
@@ -24,24 +27,31 @@ enum class AdbAutostartRetryAction {
 data class AdbStartupOverlayModel(
     val visible: Boolean,
     val title: String = "",
+    /** Empty where [checkbox] says it all. */
     val message: String = "",
     /**
      * Why this particular car is in this state, when the app can actually tell.
      *
      * [message] is the same sentence for every car in a given state, which is what makes it useless
      * for telling two of them apart: a car whose ADB switch is off and a car that stopped answering
-     * both read "ADB недоступен" and are both sent to a service, and the owner is given no way to
-     * know which one they are looking at - or to repeat it to whoever they call.
+     * both read "ADB недоступен", and the owner is given no way to know which one they are looking
+     * at - or to repeat it to whoever they call.
      *
      * It carries a classification and never a failure label. The exception names the coordinator
      * records are worth having, and they are already on the service screen, which is where a name
      * like `ConnectException` means something to the person reading it.
      */
     val details: String? = null,
+    /**
+     * The box on the car's own prompt, ticked, in the car's words: the last approval came without it.
+     * Shown in place of the message and the note - the box is all the driver needs to see.
+     */
+    val checkbox: String? = null,
     val primaryLabel: String? = null,
     val primaryAction: AdbStartupPrimaryAction = AdbStartupPrimaryAction.NONE,
     val busy: Boolean = false,
-    val recoveryAvailable: Boolean = false,
+    /** The glyph in amber: the next step is the driver's, not the car's. */
+    val attention: Boolean = false,
     /**
      * Whether the gate offers [AdbExplainer], and through it the service screen.
      *
@@ -59,27 +69,29 @@ object AdbStartupGatePolicy {
     /**
      * What opening the app does about access: a passive look in every phase that is not settled.
      *
-     * Only UNKNOWN used to be checked, and that left a hole exactly where it hurt. A request the
-     * owner approved, with «always allow», on a car that then slept before «Я подтвердил —
-     * проверить» was pressed, brought every later process up in AWAITING_CONFIRMATION, and nothing
-     * ever looked again: the key was trusted and no feature started. A passive check signs with the
-     * key it has and never submits it, so it costs no prompt and no attempt. It is skipped only
-     * while a check or the request is already in flight.
+     * A passive check signs with the key it has and never submits it, so it costs no prompt. It is
+     * skipped only while a check or a request is already on the worker. The request a refused key
+     * needs is the foreground opening's ([AdbRescueCoordinator.foregroundStarted]), not this one's:
+     * a process can start without anybody at the screen.
      */
     fun entryAction(phase: AdbRescuePhase): AdbStartupEntryAction = when (phase) {
         AdbRescuePhase.TRUSTED -> AdbStartupEntryAction.START_RUNTIME
         AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.AUTHORIZATION_REQUIRED,
-        AdbRescuePhase.AWAITING_CONFIRMATION,
         AdbRescuePhase.UNAVAILABLE,
         AdbRescuePhase.ERROR,
         -> AdbStartupEntryAction.CHECK_ACCESS
         AdbRescuePhase.CHECKING,
-        AdbRescuePhase.REQUESTING,
+        AdbRescuePhase.AWAITING_CONFIRMATION,
         -> AdbStartupEntryAction.NONE
     }
 
-    fun overlay(snapshot: AdbRescueSnapshot, restore: AdbRestoreSnapshot? = null): AdbStartupOverlayModel {
+    /** [carLocale] is the language the car draws its own prompt in, for the box's words. */
+    fun overlay(
+        snapshot: AdbRescueSnapshot,
+        restore: AdbRestoreSnapshot? = null,
+        carLocale: Locale = Locale.getDefault(),
+    ): AdbStartupOverlayModel {
         if (snapshot.phase != AdbRescuePhase.TRUSTED && restore?.enabled == true) {
             when (restore.state) {
                 AdbRestoreState.WaitingWifi -> return AdbStartupOverlayModel(
@@ -121,13 +133,9 @@ object AdbStartupGatePolicy {
             // A check of a gate that is up: the same gate, the ring in place of its glyph and nothing
             // else changed, so the card neither leaves nor resizes. The button stops answering while
             // the ring turns: a press would only send the restore another forcing hint.
-            return phaseGate(recheckOf, snapshot).copy(busy = true)
+            return phaseGate(recheckOf, snapshot, carLocale).copy(busy = true)
         }
-        if (snapshot.phase == AdbRescuePhase.UNKNOWN && recheckOf != null) {
-            // The latch just released, with its check about to start: the gate it was pressed on.
-            return phaseGate(recheckOf, snapshot)
-        }
-        return phaseGate(snapshot.phase, snapshot)
+        return phaseGate(snapshot.phase, snapshot, carLocale)
     }
 
     private val CLOSED_PORT = setOf(
@@ -145,7 +153,7 @@ object AdbStartupGatePolicy {
         explainerAvailable = true,
     )
 
-    private fun phaseGate(phase: AdbRescuePhase, snapshot: AdbRescueSnapshot): AdbStartupOverlayModel =
+    private fun phaseGate(phase: AdbRescuePhase, snapshot: AdbRescueSnapshot, carLocale: Locale): AdbStartupOverlayModel =
         when (phase) {
         AdbRescuePhase.TRUSTED -> AdbStartupOverlayModel(visible = false)
         AdbRescuePhase.UNKNOWN,
@@ -156,42 +164,27 @@ object AdbStartupGatePolicy {
             // does not start any ADB-dependent runtime until TRUSTED.
             visible = false,
         )
+        // A car that trusted this app before and stopped answering is the newer firmware closing
+        // the port at start-up; the service centre is for a car that was never opened.
         AdbRescuePhase.UNAVAILABLE -> AdbStartupOverlayModel(
             visible = true,
             title = AppText.s(R.string.adb_gate_unavailable_title),
-            message = SERVICE_INSTRUCTION,
+            message = if (snapshot.trustedBefore) AppText.s(R.string.adb_gate_closed_at_start) else SERVICE_INSTRUCTION,
             details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = AppText.s(R.string.adb_gate_check_again),
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
         )
-        AdbRescuePhase.AUTHORIZATION_REQUIRED -> AdbStartupOverlayModel(
-            visible = true,
-            title = AppText.s(R.string.adb_gate_confirm_title),
-            message = AppText.s(R.string.adb_gate_authorize_message),
-            details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = AppText.s(R.string.adb_gate_request),
-            primaryAction = AdbStartupPrimaryAction.REQUEST_AUTHORIZATION,
-            recoveryAvailable = true,
-            explainerAvailable = true,
+        // No request out: the opening's own went unanswered, or the day's were spent. The control
+        // sends one now.
+        AdbRescuePhase.AUTHORIZATION_REQUIRED -> confirm(snapshot, AppText.s(R.string.adb_gate_not_granted), carLocale).copy(
+            primaryLabel = AppText.s(R.string.adb_gate_ask_again),
+            primaryAction = AdbStartupPrimaryAction.ASK,
+            attention = true,
         )
-        AdbRescuePhase.REQUESTING -> AdbStartupOverlayModel(
-            visible = true,
-            title = AppText.s(R.string.adb_gate_requesting_title),
-            message = AppText.s(R.string.adb_gate_requesting_message),
-            busy = true,
-            explainerAvailable = true,
-        )
-        AdbRescuePhase.AWAITING_CONFIRMATION -> AdbStartupOverlayModel(
-            visible = true,
-            title = AppText.s(R.string.adb_gate_confirm_title),
-            message = AppText.s(R.string.adb_gate_awaiting_message),
-            details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = AppText.s(R.string.adb_gate_confirmed_check),
-            primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
-            recoveryAvailable = true,
-            explainerAvailable = true,
-        )
+        // A request is out and its transport held; the gate leaves by itself on the approval.
+        AdbRescuePhase.AWAITING_CONFIRMATION ->
+            confirm(snapshot, AppText.s(R.string.adb_gate_awaiting_message), carLocale).copy(busy = true)
         // A state, and the button under it is the check again. «Не удалось проверить ADB» over
         // «Повторите проверку доступа» was a failure and an instruction the button already is.
         AdbRescuePhase.ERROR -> AdbStartupOverlayModel(
@@ -205,6 +198,25 @@ object AdbStartupGatePolicy {
         )
         }
 
+    /** «Подтвердите доступ к ADB» with [message], or with the box the last approval left unticked. */
+    private fun confirm(snapshot: AdbRescueSnapshot, message: String, carLocale: Locale): AdbStartupOverlayModel =
+        if (snapshot.alwaysAllowMissed) {
+            AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_confirm_title),
+                checkbox = AdbAlwaysAllowLabel.of(carLocale),
+                explainerAvailable = true,
+            )
+        } else {
+            AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_confirm_title),
+                message = message,
+                details = systemSwitchReading(snapshot.systemSwitch),
+                explainerAvailable = true,
+            )
+        }
+
     /**
      * Что машина ответила про свой тумблер отладки — на каждом экране, где человек застрял.
      *
@@ -213,11 +225,6 @@ object AdbStartupGatePolicy {
      * тумблера, выдумывать причину хуже, чем промолчать. Первая половина верна и сейчас. Вторая
      * оказалась неверной: «прочитать не удалось» - это не выдумка, а ровно то, что произошло, и
      * молчали мы именно в тех двух случаях, где сами не знаем ответа.
-     *
-     * Практическая цена этого молчания известна поимённо. Владелец сообщил о дефекте скриншотом;
-     * ответить, его ли это случай, оказалось нечем, потому что на снимке нет ни одного факта о
-     * машине - а доступа к той машине у нас нет и не будет. Экран, который честно говорит, что
-     * прочитал, отвечает на такой вопрос сам, без инструкций владельцу и без семи тапов.
      *
      * Ни одна из трёх строк ничего не советует: это показание, не диагноз и не отказ.
      */
@@ -228,21 +235,20 @@ object AdbStartupGatePolicy {
 /**
  * A bounded autoload retry may repeat passive checks, but never requests a new ADB key.
  *
- * AWAITING_CONFIRMATION is checked because an approval can land at any moment, and every sleep
- * kills the process: a wake is the only time a car with no one at the screen gets to notice it. A
- * plain refusal (AUTHORIZATION_REQUIRED) is not: nothing was submitted, so nothing can approve it.
+ * A refused key is looked at too: a prompt answered with «always allow» after its request was
+ * closed - the driver left, the hold ran out - trusts the key with nobody watching, and a wake is
+ * when a car with no one at the screen notices it. A look is free: it never offers the key.
  */
 object AdbAutostartRetryPolicy {
     fun action(phase: AdbRescuePhase): AdbAutostartRetryAction = when (phase) {
         AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.UNAVAILABLE,
         AdbRescuePhase.ERROR,
-        AdbRescuePhase.AWAITING_CONFIRMATION,
+        AdbRescuePhase.AUTHORIZATION_REQUIRED,
         -> AdbAutostartRetryAction.CHECK_ACCESS
         AdbRescuePhase.TRUSTED -> AdbAutostartRetryAction.START_RUNTIME
         AdbRescuePhase.CHECKING,
-        AdbRescuePhase.AUTHORIZATION_REQUIRED,
-        AdbRescuePhase.REQUESTING,
+        AdbRescuePhase.AWAITING_CONFIRMATION,
         -> AdbAutostartRetryAction.NONE
     }
 }

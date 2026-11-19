@@ -128,7 +128,7 @@ object AdbRestore {
                 StateMarks.mark(StateSlice.ADB_ACCESS, "adb restore")
                 if (manager?.snapshot()?.state == AdbRestoreState.NotNeeded &&
                     AdbRescueCoordinator.snapshot().phase in listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.ERROR,
-                        AdbRescuePhase.AUTHORIZATION_REQUIRED, AdbRescuePhase.AWAITING_CONFIRMATION)) {
+                        AdbRescuePhase.AUTHORIZATION_REQUIRED)) {
                     DenzaAppRepository.checkAdbAccess()
                 }
             }

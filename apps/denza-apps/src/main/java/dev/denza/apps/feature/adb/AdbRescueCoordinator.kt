@@ -2,20 +2,21 @@ package dev.denza.apps.feature.adb
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.SystemClock
 import dev.denza.apps.R
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.AppText
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 
 enum class AdbRescuePhase {
     UNKNOWN,
     CHECKING,
     TRUSTED,
     AUTHORIZATION_REQUIRED,
-    REQUESTING,
+
+    /** A request is out and its transport held: the car's prompt is this app's, and the gate turns. */
     AWAITING_CONFIRMATION,
     UNAVAILABLE,
     ERROR,
@@ -25,7 +26,6 @@ data class AdbRescueSnapshot(
     val phase: AdbRescuePhase = AdbRescuePhase.UNKNOWN,
     val message: String = AppText.s(R.string.adb_not_checked),
     val details: String? = null,
-    val requestPending: Boolean = false,
     val attemptCount: Int = 0,
     val lastAttemptAtMillis: Long = 0L,
     /** What the last reading of Android's own switch said, and therefore what decided the phase. */
@@ -41,38 +41,24 @@ data class AdbRescueSnapshot(
      * phase had a gate up. Null at every other time, and during the first check, which has no gate.
      * The gate stays as it was through the check, with the ring in place of its glyph; taking it
      * down for the check's seconds and putting it back was a flash on every press.
-     *
-     * Also set while [phase] is UNKNOWN right after «Разрешить новую попытку»: the reset is followed
-     * by a check at once, and the gate it was pressed on stays up through both.
      */
     val recheckOf: AdbRescuePhase? = null,
     /**
-     * The words of the gate in [recheckOf], for the recovery dialog: [message] is «Проверяю доступ…»
-     * during the check, and printing it there resized the dialog on every press. Null with [recheckOf].
+     * This car has trusted this app's key before. A port that does not answer is then the firmware
+     * closing it at start-up, which Wi-Fi brings back, and not a car that was never opened.
      */
-    val recheckMessage: String? = null,
-    val recheckDetails: String? = null,
-) {
+    val trustedBefore: Boolean = false,
     /**
-     * This snapshot as the gate and its recovery dialog show it: during a re-check, the phase and the
-     * words the check is looking at again, so neither the buttons nor the text move until it answers.
+     * The last approval came without «always allow»: adbd let that one connection in and the key
+     * stayed untrusted. The gate shows that box, named as the car names it. This process only.
      */
-    val settled: AdbRescueSnapshot
-        get() {
-            val phase = recheckOf ?: return this
-            return if (recheckMessage == null) copy(phase = phase)
-            else copy(phase = phase, message = recheckMessage, details = recheckDetails)
-        }
-
-    // The single request is also a slot in Android's prompt queue. Never offer to spend it where
-    // the system has already said no prompt can be drawn.
-    val canRequest: Boolean
-        get() = phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && !requestPending &&
-            systemSwitch != AdbSystemSwitch.DISABLED
-
-    val canResetAttempt: Boolean
-        get() = requestPending && phase != AdbRescuePhase.CHECKING &&
-            phase != AdbRescuePhase.REQUESTING
+    val alwaysAllowMissed: Boolean = false,
+    /** Requests sent in the last day, as of the last one: the technical page's. */
+    val requestsToday: Int = 0,
+) {
+    /** The control that sends a request now: a refused key, on a car whose prompt can be drawn. */
+    val canAsk: Boolean
+        get() = phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && systemSwitch != AdbSystemSwitch.DISABLED
 }
 
 internal enum class AdbCheckOutcome {
@@ -82,14 +68,26 @@ internal enum class AdbCheckOutcome {
     ERROR,
 }
 
-internal enum class AdbRequestOutcome {
-    ALREADY_TRUSTED,
-    REQUEST_SENT,
-    UNAVAILABLE,
-    ERROR,
-}
-
 internal object AdbRescuePolicy {
+    /** Requests an opening may send by itself in a day; the gate's control is not counted against it. */
+    const val DAILY_ASKS = 3
+    const val DAY_MS = 24 * 60 * 60 * 1000L
+
+    /** How long a request's transport is held for the driver's answer. */
+    const val HOLD_MS = 120_000L
+
+    /** How often a held request looks passively for an approval that came by another transport. */
+    const val LOOK_MS = 3_000L
+
+    /** Looks after an approval before it counts as given without «always allow», and their gap. */
+    const val APPROVAL_LOOKS = 2
+    const val APPROVAL_LOOK_GAP_MS = 1_000L
+
+    /** Report words: the technical page's «Последний сбой». */
+    const val NO_ANSWER = "нет ответа за 2 мин"
+    const val NOT_RECORDED = "запрос не записан в настройки"
+    const val UNEXPECTED_REPLY = "неожиданный ответ на проверку"
+
     /**
      * Что приложение прочитало о системном тумблере отладки — на всех трёх исходах чтения.
      *
@@ -98,8 +96,7 @@ internal object AdbRescuePolicy {
      * — то есть экран не говорил ничего именно тогда, когда сказать было важнее всего.
      *
      * Это факт чтения, а не сообщение об ошибке: ни одно из трёх ничего не советует и ни в чём не
-     * обвиняет. Хвост «системный запрос не появится» убран — на экране «ADB недоступен» кнопки
-     * запроса нет вообще, и фраза говорила про орган, которого там не видно.
+     * обвиняет.
      */
     val SYSTEM_SWITCH_OFF_DETAIL: String get() = AppText.s(R.string.adb_switch_off)
 
@@ -117,83 +114,35 @@ internal object AdbRescuePolicy {
     /** The access row's words for a car whose adbd does not answer, or whose switch is off. */
     val NO_LINK: String get() = AppText.s(R.string.adb_no_link)
 
-    /**
-     * Whether the single attempt may be spent, given a switch read at the moment of the press.
-     *
-     * The phase is already checked before this point, so the switch is the only condition that can
-     * still refuse here — a car whose flag was unreadable when it was classified, or one switched
-     * off between the check and the press.
-     */
-    fun maySubmit(previous: AdbRescueSnapshot, systemSwitch: AdbSystemSwitch): Boolean =
-        previous.canRequest && systemSwitch != AdbSystemSwitch.DISABLED
+    /** The requests of the last day. A time ahead of the clock is a clock set back, not a request. */
+    fun lastDay(times: List<Long>, nowMs: Long): List<Long> = times.filter { it <= nowMs && nowMs - it < DAY_MS }
 
-    /**
-     * The state of a car that answers, refuses this key, and can never draw the prompt that would
-     * fix it. The one-shot latch and the attempt counter are left exactly as they were: nothing
-     * was submitted, so nothing was spent.
-     */
+    /** A car that answers, refuses this key, and can never draw the prompt that would fix it. */
     fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNAVAILABLE,
         recheckOf = null,
-        recheckMessage = null,
-        recheckDetails = null,
         message = NO_LINK,
         details = SYSTEM_SWITCH_OFF_DETAIL,
         systemSwitch = AdbSystemSwitch.DISABLED,
     )
 
-    fun initial(
-        requestPending: Boolean,
-        attemptCount: Int,
-        lastAttemptAtMillis: Long,
-    ): AdbRescueSnapshot = if (requestPending) {
-        AdbRescueSnapshot(
-            phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-            message = AppText.s(R.string.adb_previous_request_pending),
-            details = AppText.s(R.string.adb_previous_request_details),
-            requestPending = true,
-            attemptCount = attemptCount,
-            lastAttemptAtMillis = lastAttemptAtMillis,
-        )
-    } else {
-        AdbRescueSnapshot(
-            attemptCount = attemptCount,
-            lastAttemptAtMillis = lastAttemptAtMillis,
-        )
-    }
-
-    fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot {
+    fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
+        phase = AdbRescuePhase.CHECKING,
+        message = AppText.s(R.string.adb_checking),
+        details = null,
         // A gate that is up is looked at again with its words kept; a check pressed again during a
-        // check, or the check that follows a reset, keeps what is already kept.
-        val standing = previous.phase in STANDING_GATES
-        val carried = previous.phase == AdbRescuePhase.CHECKING || previous.phase == AdbRescuePhase.UNKNOWN
-        return previous.copy(
-            phase = AdbRescuePhase.CHECKING,
-            message = AppText.s(R.string.adb_checking),
-            details = null,
-            recheckOf = when {
-                standing -> previous.phase
-                carried -> previous.recheckOf
-                else -> null
-            },
-            recheckMessage = when {
-                standing -> previous.message
-                carried -> previous.recheckMessage
-                else -> null
-            },
-            recheckDetails = when {
-                standing -> previous.details
-                carried -> previous.recheckDetails
-                else -> null
-            },
-        )
-    }
+        // check keeps what is already kept.
+        recheckOf = when (previous.phase) {
+            in STANDING_GATES -> previous.phase
+            AdbRescuePhase.CHECKING -> previous.recheckOf
+            else -> null
+        },
+    )
 
     /** The phases whose gate stays up while a check looks again. */
     private val STANDING_GATES = setOf(
         AdbRescuePhase.UNAVAILABLE,
         AdbRescuePhase.AUTHORIZATION_REQUIRED,
-        AdbRescuePhase.AWAITING_CONFIRMATION,
         AdbRescuePhase.ERROR,
     )
 
@@ -203,8 +152,7 @@ internal object AdbRescuePolicy {
         systemSwitch: AdbSystemSwitch,
         failure: String? = null,
     ): AdbRescueSnapshot {
-        val base = previous.copy(systemSwitch = systemSwitch, recheckOf = null, recheckMessage = null,
-            recheckDetails = null)
+        val base = previous.copy(systemSwitch = systemSwitch, recheckOf = null)
         return when (outcome) {
             // A completed handshake outranks the flag: whatever the switch says, this key is
             // trusted and the transport works.
@@ -212,7 +160,8 @@ internal object AdbRescuePolicy {
                 phase = AdbRescuePhase.TRUSTED,
                 message = AppText.s(R.string.adb_trusted),
                 details = AppText.s(R.string.adb_trusted_details),
-                requestPending = false,
+                trustedBefore = true,
+                alwaysAllowMissed = false,
             )
             // A refused key means one of two different things, and only the switch separates them.
             // Off is the service state; enabled and unreadable both keep the request path, because
@@ -221,19 +170,7 @@ internal object AdbRescuePolicy {
                 AdbSystemSwitch.DISABLED -> systemSwitchOff(base)
                 AdbSystemSwitch.ENABLED,
                 AdbSystemSwitch.UNKNOWN,
-                -> if (base.requestPending) {
-                    base.copy(
-                        phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-                        message = AppText.s(R.string.adb_request_sent_not_granted),
-                        details = AppText.s(R.string.adb_request_sent_not_granted_details),
-                    )
-                } else {
-                    base.copy(
-                        phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
-                        message = AppText.s(R.string.adb_permission_needed),
-                        details = AppText.s(R.string.adb_permission_needed_details),
-                    )
-                }
+                -> refused(base).copy(lastFailure = failure ?: base.lastFailure)
             }
             // The note under the message is what the car said about its switch, as on the gate; the
             // failure's own name is the technical page's.
@@ -252,83 +189,48 @@ internal object AdbRescuePolicy {
         }
     }
 
-    fun requesting(
-        previous: AdbRescueSnapshot,
-        attemptAtMillis: Long,
-        systemSwitch: AdbSystemSwitch,
-    ): AdbRescueSnapshot = previous.copy(
-        phase = AdbRescuePhase.REQUESTING,
-        message = AppText.s(R.string.adb_requesting),
-        details = AppText.s(R.string.adb_requesting_details),
+    /** A refused key with no request out: the gate's control is the way forward. */
+    fun refused(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
+        phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
         recheckOf = null,
-        recheckMessage = null,
-        recheckDetails = null,
-        requestPending = true,
-        attemptCount = previous.attemptCount + 1,
-        lastAttemptAtMillis = attemptAtMillis,
-        // The reading that let the attempt through, recorded where support can see it.
-        systemSwitch = systemSwitch,
+        message = AppText.s(R.string.adb_permission_needed),
+        details = switchReading(previous.systemSwitch),
     )
 
-    fun afterRequest(
-        previous: AdbRescueSnapshot,
-        outcome: AdbRequestOutcome,
-        failure: String? = null,
-    ): AdbRescueSnapshot = when (outcome) {
-        AdbRequestOutcome.ALREADY_TRUSTED -> previous.copy(
-            phase = AdbRescuePhase.TRUSTED,
-            message = AppText.s(R.string.adb_already_trusted),
-            details = AppText.s(R.string.adb_already_trusted_details),
-            requestPending = false,
-        )
-        AdbRequestOutcome.REQUEST_SENT -> previous.copy(
-            phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-            message = AppText.s(R.string.adb_request_sent),
-            details = AppText.s(R.string.adb_request_sent_details),
-        )
-        AdbRequestOutcome.UNAVAILABLE -> previous.copy(
-            phase = AdbRescuePhase.UNAVAILABLE,
-            message = AppText.s(R.string.adb_request_unconfirmed),
-            details = switchReading(previous.systemSwitch),
-            lastFailure = failure,
-        )
-        AdbRequestOutcome.ERROR -> previous.copy(
-            phase = AdbRescuePhase.ERROR,
-            message = AppText.s(R.string.adb_request_unconfirmed),
-            details = switchReading(previous.systemSwitch),
-            lastFailure = failure,
-        )
-    }
+    /** A request about to go out: the ring from the moment it is decided. */
+    fun asking(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
+        phase = AdbRescuePhase.AWAITING_CONFIRMATION,
+        recheckOf = null,
+        message = AppText.s(R.string.adb_gate_awaiting_message),
+        details = switchReading(previous.systemSwitch),
+    )
 
-    /**
-     * The latch released: UNKNOWN, so nothing can be requested until a check has said the key is
-     * refused, and the check follows at once. The gate the reset was pressed on stays up through it
-     * as a re-check of that phase ([AdbRescueSnapshot.recheckOf]). Without it UNKNOWN had no gate: the
-     * card left, the recovery dialog closed with it, and the check that followed had nothing to keep.
-     */
-    fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot {
-        val message = AppText.s(R.string.adb_new_attempt_allowed)
-        val details = AppText.s(R.string.adb_check_first)
-        val gate = previous.phase.takeIf { it in STANDING_GATES }
-        return previous.copy(
-            phase = AdbRescuePhase.UNKNOWN,
-            recheckOf = gate,
-            recheckMessage = message.takeIf { gate != null },
-            recheckDetails = details.takeIf { gate != null },
-            message = message,
-            details = details,
-            requestPending = false,
+    /** The request recorded, with the switch reading that let it through. */
+    fun sent(previous: AdbRescueSnapshot, systemSwitch: AdbSystemSwitch, log: AdbAskLog): AdbRescueSnapshot =
+        asking(previous.copy(systemSwitch = systemSwitch)).copy(
+            attemptCount = log.total,
+            lastAttemptAtMillis = log.lastAtMs,
+            requestsToday = log.times.size,
         )
+
+    fun failureLabel(error: Throwable): String {
+        val root = generateSequence(error) { it.cause }.last()
+        return root.javaClass.simpleName.ifBlank { "UnknownFailure" }
     }
 }
 
-/** Single owner for passive trust checks and explicit one-shot authorization. */
+/**
+ * The app's single owner of access to the car's adbd: passive looks for everyone, and the key
+ * request for the foreground opening and the gate's control alone. [AdbAccessCore] decides; this
+ * wires it to the car, the clocks and the preferences.
+ */
 object AdbRescueCoordinator {
     private const val PREFS_NAME = "adb_rescue"
-    private const val KEY_REQUEST_PENDING = "request_pending"
     private const val KEY_ATTEMPT_COUNT = "attempt_count"
     private const val KEY_LAST_ATTEMPT_AT = "last_attempt_at"
+    private const val KEY_ASK_TIMES = "ask_times"
     private const val CHECK_MARKER = "DENZA_ADB_RESCUE_OK"
+
     /**
      * A note about this code, not a message to anybody driving.
      *
@@ -341,158 +243,99 @@ object AdbRescueCoordinator {
         "очистка системной очереди отключена до проверки на машине"
 
     private val executor = Executors.newSingleThreadExecutor()
-    private val running = AtomicBoolean(false)
 
     @Volatile
-    private var current = AdbRescueSnapshot()
+    private var core: AdbAccessCore? = null
 
-    @Volatile
-    private var initialized = false
-
-    fun initialize(context: Context) {
-        if (initialized) return
-        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        current = AdbRescuePolicy.initial(
-            requestPending = prefs.getBoolean(KEY_REQUEST_PENDING, false),
-            attemptCount = prefs.getInt(KEY_ATTEMPT_COUNT, 0),
-            lastAttemptAtMillis = prefs.getLong(KEY_LAST_ATTEMPT_AT, 0L),
+    /** The first call wins; [onChanged] hears every change of the snapshot, from any thread. */
+    @Synchronized
+    fun initialize(context: Context, onChanged: () -> Unit) {
+        if (core != null) return
+        val app = context.applicationContext
+        core = AdbAccessCore(
+            system = AndroidAdbAccessSystem(app),
+            store = PreferencesAskStore(app),
+            worker = { executor.execute(it) },
+            trustedBefore = AdbRestorePreferences(app).trustedBefore,
+            listener = onChanged,
         )
-        initialized = true
     }
 
-    fun snapshot(): AdbRescueSnapshot = current
+    fun snapshot(): AdbRescueSnapshot = core?.current ?: AdbRescueSnapshot()
 
-    fun checkAccess(context: Context, onChanged: () -> Unit) {
-        if (!running.compareAndSet(false, true)) return
-        val app = context.applicationContext
-        current = AdbRescuePolicy.checking(current)
-        onChanged()
-        executor.execute {
-            val (outcome, failure) = try {
-                val output = DenzaLocalAdb.client(app).shell("printf $CHECK_MARKER")
-                if (output.contains(CHECK_MARKER)) {
-                    AdbCheckOutcome.TRUSTED to null
-                } else {
-                    AdbCheckOutcome.ERROR to "неожиданный ответ на проверку"
-                }
-            } catch (_: LocalAdbClient.AuthorizationRequiredException) {
-                AdbCheckOutcome.AUTHORIZATION_REQUIRED to null
-            } catch (error: Exception) {
-                if (isUnavailable(error)) {
-                    AdbCheckOutcome.UNAVAILABLE to failureLabel(error)
-                } else {
-                    AdbCheckOutcome.ERROR to failureLabel(error)
-                }
-            }
-            if (outcome == AdbCheckOutcome.TRUSTED) {
-                persistPending(app, pending = false)
-                AdbRestore.recordTrusted(app)
-            }
-            // Read as late as possible, so the flag that classifies the outcome is as fresh as
-            // the outcome itself.
-            val systemSwitch = AdbSystemSwitchReader.read(app)
-            current = AdbRescuePolicy.afterCheck(current, outcome, systemSwitch, failure)
-            running.set(false)
-            onChanged()
-        }
+    /** A passive look: never a prompt. [after] runs once it has answered. */
+    fun checkAccess(after: (() -> Unit)? = null) {
+        core?.check(after)
     }
 
-    fun requestOnce(context: Context, onChanged: () -> Unit) {
-        val before = current
-        if (!before.canRequest || !running.compareAndSet(false, true)) return
-        val app = context.applicationContext
-        // The attempt is spent for good — a latch that survives restarts, plus a slot in Android's
-        // own prompt queue, which is where the documented stuck-queue failure comes from. Both are
-        // wasted on a car that cannot draw the prompt, so the switch is re-read here rather than
-        // trusted from the last check, and refusing costs the user nothing.
-        val systemSwitch = AdbSystemSwitchReader.read(app)
-        if (!AdbRescuePolicy.maySubmit(before, systemSwitch)) {
-            current = AdbRescuePolicy.systemSwitchOff(before)
-            running.set(false)
-            onChanged()
-            return
-        }
-        val request = AdbRescuePolicy.requesting(before, System.currentTimeMillis(), systemSwitch)
-        if (!persistAttempt(app, request)) {
-            running.set(false)
-            current = before.copy(
-                phase = AdbRescuePhase.ERROR,
-                message = AppText.s(R.string.adb_request_not_sent),
-                details = null,
-                lastFailure = "запрос не записан в настройки",
-            )
-            onChanged()
-            return
-        }
-        current = request
-        onChanged()
-        executor.execute {
-            val (outcome, failure) = try {
-                when (DenzaLocalAdb.client(app).requestAuthorization()) {
-                    LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED ->
-                        AdbRequestOutcome.ALREADY_TRUSTED to null
-                    LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT ->
-                        AdbRequestOutcome.REQUEST_SENT to null
-                }
-            } catch (error: Exception) {
-                if (isUnavailable(error)) {
-                    AdbRequestOutcome.UNAVAILABLE to failureLabel(error)
-                } else {
-                    AdbRequestOutcome.ERROR to failureLabel(error)
-                }
-            }
-            if (outcome == AdbRequestOutcome.ALREADY_TRUSTED) {
-                persistPending(app, pending = false)
-                AdbRestore.recordTrusted(app)
-            }
-            current = AdbRescuePolicy.afterRequest(current, outcome, failure)
-            running.set(false)
-            onChanged()
-        }
+    /** The gate's control: one request now. */
+    fun ask() {
+        core?.ask()
     }
 
-    fun allowNewAttempt(context: Context, onChanged: () -> Unit) {
-        if (!running.compareAndSet(false, true)) return
-        if (!current.canResetAttempt) {
-            running.set(false)
-            return
-        }
-        val app = context.applicationContext
-        if (!persistPending(app, pending = false)) {
-            // The phase stays where it was: nothing was checked, and ERROR would put up the gate's
-            // «check failed» screen over a car whose access did not change.
-            current = current.copy(
-                message = AppText.s(R.string.adb_new_attempt_refused),
-                lastFailure = "попытка не записана в настройки",
-            )
-        } else {
-            current = AdbRescuePolicy.resetAttempt(current)
-        }
-        running.set(false)
-        onChanged()
+    fun foregroundStarted() {
+        core?.foregroundStarted()
     }
 
-    // A synchronous result is part of the one-shot safety boundary: never submit a key unless
-    // the latch is durably stored first.
-    @SuppressLint("UseKtx")
-    private fun persistAttempt(context: Context, snapshot: AdbRescueSnapshot): Boolean =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_REQUEST_PENDING, true)
-            .putInt(KEY_ATTEMPT_COUNT, snapshot.attemptCount)
-            .putLong(KEY_LAST_ATTEMPT_AT, snapshot.lastAttemptAtMillis)
+    fun foregroundStopped(changingConfigurations: Boolean) {
+        core?.foregroundStopped(changingConfigurations)
+    }
+
+    private class AndroidAdbAccessSystem(private val app: Context) : AdbAccessSystem {
+        override fun passiveCheck(): AdbCheckResult = try {
+            val output = DenzaLocalAdb.client(app).shell("printf $CHECK_MARKER")
+            if (output.contains(CHECK_MARKER)) {
+                AdbCheckResult(AdbCheckOutcome.TRUSTED)
+            } else {
+                AdbCheckResult(AdbCheckOutcome.ERROR, AdbRescuePolicy.UNEXPECTED_REPLY)
+            }
+        } catch (_: LocalAdbClient.AuthorizationRequiredException) {
+            AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
+        } catch (error: Exception) {
+            requestFailure(error)
+        }
+
+        override fun openRequest(): AdbHeldRequest {
+            val request = DenzaLocalAdb.client(app).openAuthorizationRequest()
+            return object : AdbHeldRequest {
+                override val alreadyTrusted: Boolean =
+                    request.result == LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED
+
+                override fun awaitApproval(waitMs: Int): Boolean = request.awaitApproval(waitMs)
+
+                override fun close() = request.close()
+            }
+        }
+
+        /** An adbd that does not answer, as opposed to one that answered something unexpected. */
+        override fun requestFailure(error: Throwable): AdbCheckResult = AdbCheckResult(
+            if (AdbProblem.of(error) == AdbProblem.NO_LINK) AdbCheckOutcome.UNAVAILABLE else AdbCheckOutcome.ERROR,
+            AdbRescuePolicy.failureLabel(error),
+        )
+
+        // Read as late as possible, so the flag that classifies an outcome is as fresh as it.
+        override fun systemSwitch(): AdbSystemSwitch = AdbSystemSwitchReader.read(app)
+        override fun wallMs(): Long = System.currentTimeMillis()
+        override fun elapsedMs(): Long = SystemClock.elapsedRealtime()
+        override fun sleep(ms: Long) = Thread.sleep(ms)
+        override fun recordTrusted() = AdbRestore.recordTrusted(app)
+    }
+
+    private class PreferencesAskStore(context: Context) : AdbAskStore {
+        private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        override fun load(): AdbAskLog = AdbAskLog(
+            times = prefs.getString(KEY_ASK_TIMES, null).orEmpty().split(',').mapNotNull { it.toLongOrNull() },
+            total = prefs.getInt(KEY_ATTEMPT_COUNT, 0),
+            lastAtMs = prefs.getLong(KEY_LAST_ATTEMPT_AT, 0L),
+        )
+
+        // Synchronous: a request is a queue entry the car keeps, so it is never sent unrecorded.
+        @SuppressLint("UseKtx", "ApplySharedPref")
+        override fun save(log: AdbAskLog): Boolean = prefs.edit()
+            .putString(KEY_ASK_TIMES, log.times.joinToString(","))
+            .putInt(KEY_ATTEMPT_COUNT, log.total)
+            .putLong(KEY_LAST_ATTEMPT_AT, log.lastAtMs)
             .commit()
-
-    @SuppressLint("UseKtx")
-    private fun persistPending(context: Context, pending: Boolean): Boolean =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_REQUEST_PENDING, pending)
-            .commit()
-
-    /** An adbd that does not answer, as opposed to one that answered something unexpected. */
-    private fun isUnavailable(error: Throwable): Boolean = AdbProblem.of(error) == AdbProblem.NO_LINK
-
-    private fun failureLabel(error: Throwable): String {
-        val root = generateSequence(error) { it.cause }.last()
-        return root.javaClass.simpleName.ifBlank { "UnknownFailure" }
     }
 }

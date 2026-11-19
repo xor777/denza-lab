@@ -319,8 +319,10 @@ final class RescueRunner {
             log.append("\nDenza Apps остановлено.\n");
             shellOrThrow("am start -n " + DENZA_APPS_LAUNCHER);
             log.append("Denza Apps запущено заново.\n");
-            log.append("\nТеперь в самом Denza Apps: «Разрешить новую попытку», затем "
-                    + "«Отправить один запрос» - и разрешите системный диалог.\n");
+            // Since 2026-11-19 the product asks by itself on a foreground opening, which the start
+            // above is, up to three a day; past them its gate's one button asks. No latch to clear.
+            log.append("\nDenza Apps отправит запрос сам или по кнопке «Запросить снова» - "
+                    + "разрешите системный диалог, отметив «Всегда разрешать отладку с этого компьютера».\n");
         } catch (Exception error) {
             log.append("\nПрервано: ").append(error.getClass().getSimpleName())
                     .append(' ').append(String.valueOf(error.getMessage())).append('\n');

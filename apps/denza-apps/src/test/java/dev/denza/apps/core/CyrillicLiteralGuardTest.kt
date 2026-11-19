@@ -303,11 +303,14 @@ private fun allow(reason: Reason, vararg files: Pair<String, Int>): Map<String, 
  * - `YandexNotificationGuidance.kt`: 1 of Yandex's literals (121) and 11 of its own, the canonical
  *   instructions (136-146), which reach only the technical report.
  * - `BlockRecords.kt`: 1 literal (135), matched against Russian DTC titles from the research JSON.
+ * - `AdbAlwaysAllowLabel.kt`: 1 literal, the box on the car's own ADB prompt as SystemUI words it;
+ *   it follows the car's language, not this app's.
  *
  * An own word that has to be translated moves to another file first.
  */
 private val EXTERNAL = allow(
     Reason.EXTERNAL,
+    "feature/adb/AdbAlwaysAllowLabel.kt" to 1,
     "feature/diagnostics/scan/BlockRecords.kt" to 1,
     "feature/hud/HudCaptureSource.java" to 1,
     "feature/hud/HudGuidanceModels.kt" to 47,

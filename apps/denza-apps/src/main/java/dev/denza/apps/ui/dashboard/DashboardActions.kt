@@ -139,8 +139,9 @@ interface DenzaActions {
      * up by itself.
      */
     val onCheckAdbAccessThen: (onTrusted: () -> Unit) -> Unit
-    val onRequestAdbAuthorizationOnce: () -> Unit
-    val onAllowNewAdbAuthorizationAttempt: () -> Unit
+
+    /** «Запросить снова»: one key request now, held until the driver answers the car's prompt. */
+    val onAskForAdbAccess: () -> Unit
 }
 
 /**
@@ -191,8 +192,7 @@ open class IdleActions : DenzaActions {
     override val onSelectLanguage: (AppLanguage) -> Unit = {}
     override val onCheckAdbAccess: () -> Unit = {}
     override val onCheckAdbAccessThen: (() -> Unit) -> Unit = { onTrusted -> onTrusted() }
-    override val onRequestAdbAuthorizationOnce: () -> Unit = {}
-    override val onAllowNewAdbAuthorizationAttempt: () -> Unit = {}
+    override val onAskForAdbAccess: () -> Unit = {}
 }
 
 /**

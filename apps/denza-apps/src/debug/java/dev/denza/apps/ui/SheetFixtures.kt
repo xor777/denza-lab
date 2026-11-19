@@ -7,6 +7,7 @@ import dev.denza.apps.R
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.SupportDiagnostics
 import dev.denza.apps.TechnicalReadings
+import dev.denza.apps.core.AppLanguage
 import dev.denza.apps.core.AppText
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -46,6 +47,7 @@ import dev.denza.apps.ui.dashboard.IdleActions
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -73,8 +75,7 @@ internal object SheetFixtures {
                 onOpenFeature = {},
                 onSelectClusterDisplay = {},
                 onCheckAdbAccess = {},
-                onRequestAdbAuthorizationOnce = {},
-                onAllowNewAdbAuthorizationAttempt = {},
+                onAskForAdbAccess = {},
                 onDismiss = {},
                 firstPage = when (s.optString("page")) {
                     "screen" -> ServicePage.SCREEN
@@ -126,23 +127,31 @@ internal object SheetFixtures {
         )
     }
 
-    /** A `modal-*` board: the ADB gate the startup policy draws for the fixture's phase. */
+    /**
+     * A `modal-*` board: the ADB gate the startup policy draws for the fixture's phase. The car's
+     * prompt speaks the board's language: Russian on `fixtures.json`, English on `fixtures.en.json`.
+     */
     @Composable
     fun Modal(fixture: JSONObject, compact: Boolean) {
         val s = fixture.getJSONObject("state")
         val snapshot = AdbRescueSnapshot(
             phase = AdbRescuePhase.valueOf(s.getString("gate")),
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),
+            trustedBefore = s.optBoolean("trustedBefore"),
+            alwaysAllowMissed = s.optBoolean("alwaysAllowMissed"),
         )
         AdbStartupOverlay(
-            model = AdbStartupGatePolicy.overlay(snapshot, when (s.optString("restore")) {
-                "WaitingWifi" -> AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi)
-                "Connecting" -> AdbRestoreSnapshot(state = AdbRestoreState.Connecting)
-                else -> null
-            }),
+            model = AdbStartupGatePolicy.overlay(
+                snapshot,
+                when (s.optString("restore")) {
+                    "WaitingWifi" -> AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi)
+                    "Connecting" -> AdbRestoreSnapshot(state = AdbRestoreState.Connecting)
+                    else -> null
+                },
+                carLocale = if (AppText.language == AppLanguage.ENGLISH) Locale.ENGLISH else Locale("ru"),
+            ),
             compact = compact,
             onPrimaryAction = {},
-            onOpenRecovery = {},
             onOpenExplainer = {},
         )
     }

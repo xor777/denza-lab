@@ -1271,11 +1271,22 @@
       const n = wrap(c, str, px, 400, iw).length;
       return { str, px, a, h: n ? px * RB.ascent + (n - 1) * px * SH.note.leading + px * RB.descent : 0 };
     };
-    const msg = para(m.message, M.textSize, M.textAlpha), det = m.details ? para(m.details, SH.note.size, SH.note.alpha) : null;
+    const msg = m.message ? para(m.message, M.textSize, M.textAlpha) : null, det = m.details ? para(m.details, SH.note.size, SH.note.alpha) : null;
+    // the box on the car's own prompt: the label wraps beside the box and the plate grows with it.
+    // Its words are the firmware's, not ours, so the board carries them in both languages and an
+    // English render has already picked `en` (english.js).
+    const boxX = SH.row.padX + M.box + M.boxGap, boxW = iw - boxX - SH.row.padX;
+    const label = m.checkbox && (typeof m.checkbox === 'string' ? m.checkbox : m.checkbox.ru);
+    const box = label ? (() => {
+      const n = wrap(c, label, M.textSize, 400, boxW).length;
+      const th = M.textSize * RB.ascent + (n - 1) * M.textSize * SH.note.leading + M.textSize * RB.descent;
+      return { th, h: Math.max(M.boxRow, Math.max(M.box, th) + 2 * M.boxPad) };
+    })() : null;
     const quiet = m.quiet || [];
     // in a pane the quiet ones are the card's own lines, at the card's own gap
     const quietH = quiet.length ? (full ? SH.button.secondaryHeight : quiet.length * SH.button.secondaryHeight + (quiet.length - 1) * M.gap) : 0;
-    const parts = [M.icon, msg.h].concat(det ? [det.h] : []).concat(m.primary ? [SH.button.height] : []).concat(quiet.length ? [quietH] : []);
+    const parts = [M.icon].concat(msg ? [msg.h] : []).concat(box ? [box.h] : []).concat(det ? [det.h] : [])
+      .concat(m.primary ? [SH.button.height] : []).concat(quiet.length ? [quietH] : []);
     const ch = 2 * pad + parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * M.gap;
     const cx = (size[0] - cw) / 2, cy = bar + (size[1] - bar - ch) / 2;
     fillRound(c, cx, cy, cw, ch, M.radius, SH.plate.color);
@@ -1288,7 +1299,19 @@
     const ts = full ? M.titleSize : M.compactTitleSize;
     words(c, m.title, x + M.icon + M.iconGap, centred(y + M.icon / 2, ts), ts, 1, { w: 500 });
     y += M.icon + M.gap;
-    y += paragraph(c, msg.str, x, y, iw, msg.px, SH.note.leading, msg.a) + M.gap;
+    if (msg) y += paragraph(c, msg.str, x, y, iw, msg.px, SH.note.leading, msg.a) + M.gap;
+    if (box) {
+      fillRound(c, x, y, iw, box.h, SH.button.radius, rgba([255, 255, 255], SH.button.secondaryAlpha));
+      const bx = x + SH.row.padX, by = y + (box.h - M.box) / 2, u = M.box / 24, TICK = M.boxTick;
+      fillRound(c, bx, by, M.box, M.box, M.boxRadius, SH.switch.on);
+      over(c, () => {
+        c.strokeStyle = '#FFFFFF'; c.lineWidth = M.boxStroke; c.lineCap = 'round'; c.lineJoin = 'round';
+        c.beginPath(); c.moveTo(bx + TICK[0] * u, by + TICK[1] * u); c.lineTo(bx + TICK[2] * u, by + TICK[3] * u);
+        c.lineTo(bx + TICK[4] * u, by + TICK[5] * u); c.stroke();
+      });
+      paragraph(c, label, x + boxX, y + (box.h - box.th) / 2, boxW, M.textSize, SH.note.leading, SH.row.titleAlpha);
+      y += box.h + M.gap;
+    }
     if (det) y += paragraph(c, det.str, x, y, iw, det.px, SH.note.leading, det.a) + M.gap;
     if (m.primary) y += button(c, { text: m.primary }, x, y, iw) + M.gap;
     if (quiet.length) {

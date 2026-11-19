@@ -80,9 +80,13 @@
     return out;
   }
 
+  /** Words that are the car's own and not ours, which a board carries in both languages: `{ ru, en }`. */
+  const bilingual = v => Object.keys(v).length === 2 && typeof v.ru === 'string' && typeof v.en === 'string';
+
   function walk(v) {
     if (typeof v === 'string') return translate(v);
     if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === 'object' && bilingual(v)) return v.en;
     if (v && typeof v === 'object') {
       const out = {};
       Object.keys(v).forEach(k => { out[k] = walk(v[k]); });

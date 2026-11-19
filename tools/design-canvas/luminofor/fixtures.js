@@ -325,7 +325,7 @@
     '[Доступ к машине]',
     'Состояние=trusted',
     'Отладка ADB в машине=включено',
-    'Запрос ждёт ответа=нет',
+    'Отправлено запросов=0',
     // the sections between - projection, mirrors, the driver's screen - are left out, as the ones
     // after are. The split's: a car on another firmware whose open did not go, the in-process calls
     // refused (2026-09-24)
@@ -496,9 +496,9 @@
       blocks: [
         { t: 'status', tone: 'broken', text: 'Нет доступа к машине, без него большинство функций не работает' },
         { t: 'group', rows: [{ title: 'Доступ к машине', summary: 'Нужно разрешение ADB для Denza Apps', tone: 'broken' }] },
-        { t: 'note', text: 'Можно вручную отправить ровно один запрос' },
+        { t: 'note', text: 'Отладка по ADB включена в системе автомобиля' },
         { t: 'stack', gap: 12, items: [
-          { t: 'button', text: 'Отправить один запрос' },
+          { t: 'button', text: 'Запросить снова' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
         SVC_LANGUAGE,
@@ -506,7 +506,7 @@
         svcMore('Не может вернуть доступ', 'broken')
       ],
       footer: [SVC_VERSION]
-    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED',
+    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Отладка по ADB включена в системе автомобиля', adbPhase: 'AUTHORIZATION_REQUIRED',
       adbRestore: { state: 'NeedsActivation', look: 'REFUSED', outcome: 'NEEDS_ACTIVATION', closed: '08:10:40', outcomeAt: '08:10:40' } })),
     screen: sheetOf(11, {
       title: 'Приборный экран', back: true,
@@ -529,17 +529,51 @@
       Object.assign({}, svcState, { page: 'journal' }))
   };
 
-  // the ADB gate asking for the car's permission: the service's glyph in orange because there is a
-  // recovery to offer, the request across the card, the recovery and the explainer under it
+  // the ADB gate with no request out - the opening's own went unanswered, or the day's three are
+  // spent: the service's glyph in orange because the next step is the driver's, the state, the
+  // switch, and the one control that sends a request now
   const gate = Object.assign({}, head, {
     modal: {
       icon: TILES[11].icon, tone: 'attention', title: 'Подтвердите доступ к ADB',
-      message: 'Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля',
+      message: 'Доступ не выдан',
       details: 'Отладка по ADB включена в системе автомобиля',
-      primary: 'Запросить доступ',
-      quiet: [{ text: 'Восстановить ADB', attention: true }, { text: 'Что такое ADB' }]
+      primary: 'Запросить снова',
+      quiet: [{ text: 'Что такое ADB' }]
     },
     state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
+  });
+  // a request on the car's screen, its transport held: the tiles' working ring in the glyph's place
+  // and no button - the gate leaves by itself on the approval
+  const waitingGate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[11].icon, tone: 'idle', busy: true, title: 'Подтвердите доступ к ADB',
+      message: 'Разрешите системный запрос на экране автомобиля',
+      details: 'Отладка по ADB включена в системе автомобиля',
+      quiet: [{ text: 'Что такое ADB' }]
+    },
+    state: { gate: 'AWAITING_CONFIRMATION', systemSwitch: 'ENABLED' }
+  });
+  // the last approval came without the box and the next request is already out: the car's own box,
+  // ticked, in the car's own words (the firmware's `usb_debugging_always`, not one of ours, so the
+  // board carries both languages), and nothing else
+  const alwaysGate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[11].icon, tone: 'idle', busy: true, title: 'Подтвердите доступ к ADB',
+      checkbox: { ru: 'Всегда разрешать отладку с этого компьютера', en: 'Always allow from this computer' },
+      quiet: [{ text: 'Что такое ADB' }]
+    },
+    state: { gate: 'AWAITING_CONFIRMATION', systemSwitch: 'ENABLED', alwaysAllowMissed: true }
+  });
+  // a car that trusted the app before and stopped answering: newer firmware closing the port at start
+  const closedGate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[11].icon, tone: 'idle', title: 'ADB недоступен',
+      message: 'Новые прошивки закрывают ADB при запуске машины. Доступ возвращается через Wi-Fi',
+      details: 'Отладка по ADB включена в системе автомобиля',
+      primary: 'Проверить снова',
+      quiet: [{ text: 'Что такое ADB' }]
+    },
+    state: { gate: 'UNAVAILABLE', systemSwitch: 'ENABLED', trustedBefore: true }
   });
   const wifiGate = Object.assign({}, head, {
     modal: {
@@ -1915,6 +1949,10 @@
     'one-sheet-service-trouble': [{ kind: 'sheet', mode: 'one' }, service.trouble],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
+    'modal-adb-waiting': [{ kind: 'modal', mode: 'full' }, waitingGate],
+    'modal-adb-always': [{ kind: 'modal', mode: 'full' }, alwaysGate],
+    'one-modal-adb-always': [{ kind: 'modal', mode: 'one' }, alwaysGate],
+    'modal-adb-closed': [{ kind: 'modal', mode: 'full' }, closedGate],
     'modal-adb-wifi':  [{ kind: 'modal', mode: 'full' }, wifiGate],
     'modal-adb-restoring': [{ kind: 'modal', mode: 'full' }, restoringGate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],

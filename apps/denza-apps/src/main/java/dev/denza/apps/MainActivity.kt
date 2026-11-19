@@ -40,6 +40,18 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // Start and stop, not resume and pause: the car's ADB prompt is a dialog over this screen, which
+    // pauses it and leaves it visible, and a request must stay open under its own prompt.
+    override fun onStart() {
+        super.onStart()
+        DenzaAppRepository.onForegroundStarted()
+    }
+
+    override fun onStop() {
+        DenzaAppRepository.onForegroundStopped(isChangingConfigurations)
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         NavigationTransferOverlay.setMainActivityResumed(this, true)
@@ -154,8 +166,5 @@ internal object AppActions : DenzaActions {
     override val onCheckAdbAccess: () -> Unit = { DenzaAppRepository.checkAdbAccessByUser() }
     override val onCheckAdbAccessThen: (() -> Unit) -> Unit =
         { onTrusted -> DenzaAppRepository.checkAdbAccessThen(onTrusted) }
-    override val onRequestAdbAuthorizationOnce: () -> Unit =
-        { DenzaAppRepository.requestAdbAuthorizationOnce() }
-    override val onAllowNewAdbAuthorizationAttempt: () -> Unit =
-        { DenzaAppRepository.allowNewAdbAuthorizationAttempt() }
+    override val onAskForAdbAccess: () -> Unit = { DenzaAppRepository.askForAdbAccess() }
 }

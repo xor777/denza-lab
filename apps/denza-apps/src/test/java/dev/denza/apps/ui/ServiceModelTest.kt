@@ -73,6 +73,18 @@ class ServiceModelTest {
         assertTrue(model.accessBusy)
     }
 
+    /** A request on the car's screen ends by itself; nothing on the panel may send another. */
+    @Test
+    fun `a request on the car's screen keeps the access buttons waiting`() {
+        val model = ServiceModel.of(
+            DenzaUiState(adbRescue = AdbRescueSnapshot(phase = AdbRescuePhase.AWAITING_CONFIRMATION)),
+        )
+        assertNull(model.status)
+        assertTrue(model.accessActions)
+        assertTrue(model.accessBusy)
+        assertFalse(AdbRescueSnapshot(phase = AdbRescuePhase.AWAITING_CONFIRMATION).canAsk)
+    }
+
     /** The split's journal is opened from the technical page, and its way back goes there. */
     @Test
     fun `the journal goes back to the technical page and every other page to the answer`() {

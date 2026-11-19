@@ -347,6 +347,9 @@ class LuminoforSpecContractTest {
         n(m.ICON, "sheet", "modal", "icon"); n(m.ICON_GAP, "sheet", "modal", "iconGap")
         n(m.GAP, "sheet", "modal", "gap"); n(m.TITLE_SIZE, "sheet", "modal", "titleSize"); n(m.TEXT_SIZE, "sheet", "modal", "textSize")
         n(m.TEXT_ALPHA, "sheet", "modal", "textAlpha"); n(m.COMPACT_TITLE_SIZE, "sheet", "modal", "compactTitleSize")
+        n(m.BOX, "sheet", "modal", "box"); n(m.BOX_RADIUS, "sheet", "modal", "boxRadius"); n(m.BOX_GAP, "sheet", "modal", "boxGap")
+        n(m.BOX_ROW, "sheet", "modal", "boxRow"); n(m.BOX_PAD, "sheet", "modal", "boxPad"); n(m.BOX_STROKE, "sheet", "modal", "boxStroke")
+        assertEquals("sheet.modal.boxTick", list("sheet", "modal", "boxTick").map { (it as Number).toFloat() }, m.BOX_TICK.toList())
     }
 
     @Test

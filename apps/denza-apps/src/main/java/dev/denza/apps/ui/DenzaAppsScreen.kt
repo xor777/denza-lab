@@ -9,8 +9,19 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.ui.components.glyphStroke
 import dev.denza.apps.ui.components.WorkingRing
 import dev.denza.apps.ui.components.NamedGlyph
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -50,7 +61,6 @@ import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.ui.components.DenzaModalCard
-import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
@@ -90,17 +100,10 @@ fun DenzaAppsRoot(
     // the gate's own windows are not a tile's: they are what the gate leaves the driver.
     val windows = rememberSaveable(saver = DashboardWindows.Saver) { DashboardWindows() }
     var showDiagnostics by rememberSaveable { mutableStateOf(false) }
-    var showAdbRecovery by rememberSaveable { mutableStateOf(false) }
     var showAdbExplainer by rememberSaveable { mutableStateOf(false) }
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue, uiState.adbRestore)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     val shown = windows.shown(gateUp = adbStartupBlocked)
-    // The recovery window belongs to the gate and cannot outlive it. Latched, it reopened itself:
-    // the car answers, the gate goes, the flag stays true, and the next thing to block the app
-    // arrived with a recovery dialog already on top of it that nobody had asked for.
-    LaunchedEffect(adbStartupOverlay.visible) {
-        if (!adbStartupOverlay.visible) showAdbRecovery = false
-    }
     // The app's actions and this screen's own doors, as one vocabulary for a tile and its panel.
     //
     // Held across frames under the object the activity built and the windows' holder, which is the
@@ -243,8 +246,7 @@ fun DenzaAppsRoot(
                     },
                     onSelectClusterDisplay = actions.onSelectClusterDisplay,
                     onCheckAdbAccess = actions.onCheckAdbAccess,
-                    onRequestAdbAuthorizationOnce = actions.onRequestAdbAuthorizationOnce,
-                    onAllowNewAdbAuthorizationAttempt = actions.onAllowNewAdbAuthorizationAttempt,
+                    onAskForAdbAccess = actions.onAskForAdbAccess,
                     onDismiss = { showDiagnostics = false },
                     onSetAdbRestoreEnabled = actions.onSetAdbRestoreEnabled,
                     onOpenService = actions.onServiceOpened,
@@ -308,11 +310,9 @@ fun DenzaAppsRoot(
                         when (adbStartupOverlay.primaryAction) {
                             AdbStartupPrimaryAction.NONE -> Unit
                             AdbStartupPrimaryAction.CHECK_ACCESS -> actions.onCheckAdbAccess()
-                            AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
-                                actions.onRequestAdbAuthorizationOnce()
+                            AdbStartupPrimaryAction.ASK -> actions.onAskForAdbAccess()
                         }
                     },
-                    onOpenRecovery = { showAdbRecovery = true },
                     onOpenExplainer = { showAdbExplainer = true },
                 )
             }
@@ -341,16 +341,6 @@ fun DenzaAppsRoot(
                         ),
                 )
             }
-            if (showAdbRecovery && adbStartupOverlay.visible) {
-                AdbRecoveryDialog(
-                    state = uiState,
-                    compact = compactLayout,
-                    onCheckAdbAccess = actions.onCheckAdbAccess,
-                    onRequestAdbAuthorizationOnce = actions.onRequestAdbAuthorizationOnce,
-                    onAllowNewAdbAuthorizationAttempt = actions.onAllowNewAdbAuthorizationAttempt,
-                    onDismiss = { showAdbRecovery = false },
-                )
-            }
         }
     }
 }
@@ -360,7 +350,6 @@ internal fun AdbStartupOverlay(
     model: AdbStartupOverlayModel,
     compact: Boolean,
     onPrimaryAction: () -> Unit,
-    onOpenRecovery: () -> Unit,
     onOpenExplainer: () -> Unit,
 ) {
     // No scrim touch to answer: the gate's whole statement is that nothing behind it may be used
@@ -372,16 +361,16 @@ internal fun AdbStartupOverlay(
             horizontalArrangement = Arrangement.spacedBy(m.ICON_GAP.dp),
         ) {
             // Working, the settings' own ring; otherwise the service's glyph, in the car's orange
-            // when there is a recovery to offer - the door the orange button below opens.
+            // when the next step is the driver's - the button below.
             if (model.busy) {
                 WorkingRing(size = m.ICON.dp, stroke = glyphStroke(m.ICON.dp))
             } else {
                 NamedGlyph(
                     glyph = DenzaIcons.ServiceGlyph,
                     size = m.ICON.dp,
-                    alpha = if (model.recoveryAvailable) 1f else Sheet.Header.CLOSE_ALPHA,
+                    alpha = if (model.attention) 1f else Sheet.Header.CLOSE_ALPHA,
                     ground = Color(Sheet.Plate.COLOR),
-                    tint = if (model.recoveryAvailable) Color(ClusterInk.ORANGE.halo) else Color.White,
+                    tint = if (model.attention) Color(ClusterInk.ORANGE.halo) else Color.White,
                 )
             }
             Text(
@@ -390,21 +379,22 @@ internal fun AdbStartupOverlay(
                 maxLines = 1,
             )
         }
-        ParagraphText(
-            model.message,
-            style = SheetInk.style(m.TEXT_SIZE, 400, SheetInk.white(m.TEXT_ALPHA), Sheet.Note.LEADING),
-            size = m.TEXT_SIZE,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (model.message.isNotEmpty()) {
+            ParagraphText(
+                model.message,
+                style = SheetInk.style(m.TEXT_SIZE, 400, SheetInk.white(m.TEXT_ALPHA), Sheet.Note.LEADING),
+                size = m.TEXT_SIZE,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        model.checkbox?.let { label -> AlwaysAllowBox(label) }
         // The cause, under the instruction that is the same for every car in this state. Without it
         // two different "ADB недоступен" gates are the same screen, and the one fact the app
         // actually read about this car - that the switch is off - reaches nobody.
         model.details?.let { details -> DenzaNote(details) }
-        // The stock dialog's actions: the one it exists for across the card, the quiet ones under it
-        // side by side at equal widths - or, in a pane, each on a line of its own, primary first,
-        // because a card 384 dp wide has room for one button per line and no room for two.
-        // Inactive while the ring turns, as the recovery dialog's are: a press during a re-check was
-        // absorbed by the check and still sent the restore another forcing hint.
+        // The stock dialog's actions: the one it exists for across the card, the quiet one under it.
+        // Inactive while the ring turns: a press during a re-check was absorbed by the check and
+        // still sent the restore another forcing hint.
         model.primaryLabel?.let { label ->
             DenzaPrimaryButton(
                 text = label,
@@ -413,109 +403,50 @@ internal fun AdbStartupOverlay(
                 enabled = !model.busy,
             )
         }
-        val quiet = listOfNotNull<@Composable (Modifier) -> Unit>(
-            if (model.primaryLabel != null && model.recoveryAvailable) {
-                { modifier -> RecoverButton(onClick = onOpenRecovery, modifier = modifier) }
-            } else {
-                null
-            },
-            if (model.explainerAvailable) {
-                { modifier -> DenzaSecondaryButton(AdbExplainer.OPEN_LABEL, onOpenExplainer, modifier) }
-            } else {
-                null
-            },
-        )
-        if (quiet.isNotEmpty()) {
-            if (compact) {
-                quiet.forEach { it(Modifier.fillMaxWidth()) }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Sheet.Footnote.GAP.dp),
-                ) {
-                    quiet.forEach { it(Modifier.weight(1f)) }
-                }
-            }
+        if (model.explainerAvailable) {
+            DenzaSecondaryButton(AdbExplainer.OPEN_LABEL, onOpenExplainer, Modifier.fillMaxWidth())
         }
     }
 }
 
 /**
- * The gate's second action, in one place because two layouts draw it.
- *
- * The only button in the app with an amber edge, and the reason it is written out here rather than
- * taken from [DenzaSecondaryButton]: this is the door to a recovery flow, and amber is what the
- * vehicle itself uses for something waiting on a decision.
+ * The box on the car's own prompt, ticked, worded as the car words it: a picture of what to tick,
+ * not a control - the prompt is the car's, and it is drawn over this card.
  */
 @Composable
-private fun RecoverButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    DenzaSecondaryButton(text = RECOVER_LABEL, onClick = onClick, modifier = modifier, attention = true)
-}
-
-private val RECOVER_LABEL: String get() = AppText.s(R.string.adb_recover)
-
-/**
- * The gate's recovery flow, in a window of its own above it.
- *
- * It was the one surface on this screen with no narrow layout at all: 0.68 of the window behind
- * 32 dp of padding down each side, which in a 416 dp pane is 219 dp of content and three button
- * labels with nowhere to go. Everything about the width, the corner and the padding is now the
- * modal's, and the three actions are the app's own buttons - so they carry a single line with an
- * ellipsis rather than clipping, and they all stop answering while the handshake is in flight, the
- * way the same three do on the service panel.
- */
-@Composable
-private fun AdbRecoveryDialog(
-    state: DenzaUiState,
-    compact: Boolean,
-    onCheckAdbAccess: () -> Unit,
-    onRequestAdbAuthorizationOnce: () -> Unit,
-    onAllowNewAdbAuthorizationAttempt: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
-        state.adbRescue.phase == AdbRescuePhase.REQUESTING
-    // A re-check keeps the gate up, and with it this window: its words and buttons stay where they
-    // are and the buttons stop answering, rather than «Проверяю доступ…» resizing it for the check's
-    // seconds. The access row on «Сервис» is the place that says a check is running.
-    val settled = state.adbRescue.settled
-    DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
-        Text(AppText.s(R.string.adb_recovery_title), style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
-        Text(
-            settled.message,
-            style = SheetInk.style(Sheet.Modal.TEXT_SIZE, 400, SheetInk.white(Sheet.Modal.TEXT_ALPHA), Sheet.Note.LEADING),
-        )
-        settled.details?.let { details ->
-            DenzaNote(details)
-        }
-        DenzaSecondaryButton(
-            text = AppText.s(R.string.adb_check_access),
-            onClick = onCheckAdbAccess,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !busy,
-        )
-        if (settled.canRequest) {
-            DenzaPrimaryButton(
-                text = AppText.s(R.string.adb_request_once),
-                onClick = onRequestAdbAuthorizationOnce,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !busy,
+private fun AlwaysAllowBox(label: String) {
+    val m = Sheet.Modal
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = m.BOX_ROW.dp)
+            .clip(RoundedCornerShape(Sheet.Button.RADIUS.dp))
+            .background(SheetInk.white(Sheet.Button.SECONDARY_ALPHA))
+            .padding(horizontal = Sheet.Row.PAD_X.dp, vertical = m.BOX_PAD.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(m.BOX_GAP.dp),
+    ) {
+        Canvas(Modifier.size(m.BOX.dp)) {
+            val unit = size.width / m.BOX
+            drawRoundRect(Color(Sheet.Switch.ON), cornerRadius = CornerRadius(m.BOX_RADIUS * unit))
+            val t = m.BOX_TICK
+            val tick = Path().apply {
+                moveTo(t[0] * unit, t[1] * unit)
+                lineTo(t[2] * unit, t[3] * unit)
+                lineTo(t[4] * unit, t[5] * unit)
+            }
+            drawPath(
+                tick,
+                Color.White,
+                style = Stroke(width = m.BOX_STROKE * unit, cap = StrokeCap.Round, join = StrokeJoin.Round),
             )
         }
-        if (settled.canResetAttempt) {
-            DenzaSecondaryButton(
-                text = AppText.s(R.string.adb_allow_new_attempt),
-                onClick = onAllowNewAdbAuthorizationAttempt,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !busy,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            DenzaSecondaryButton(text = AppText.s(R.string.common_close), onClick = onDismiss)
-        }
+        ParagraphText(
+            label,
+            style = SheetInk.style(m.TEXT_SIZE, 400, SheetInk.white(Sheet.Row.TITLE_ALPHA), Sheet.Note.LEADING),
+            size = m.TEXT_SIZE,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

@@ -377,15 +377,12 @@ object DenzaAppRepository {
     fun recoverAutostart(context: Context, onChanged: (() -> Unit)? = null) {
         val app = context.applicationContext
         appContext = app
-        AdbRescueCoordinator.initialize(app)
+        AdbRescueCoordinator.initialize(app) { onAdbRescueChanged(app) }
         AdbRestore.initialize(app)
         when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
             AdbAutostartRetryAction.CHECK_ACCESS -> {
                 refresh("autostart")
-                AdbRescueCoordinator.checkAccess(app) {
-                    onAdbRescueChanged(app)
-                    onChanged?.invoke()
-                }
+                AdbRescueCoordinator.checkAccess { onChanged?.invoke() }
             }
             AdbAutostartRetryAction.START_RUNTIME -> {
                 startAdbRuntime(app)
@@ -1029,14 +1026,13 @@ object DenzaAppRepository {
     }
 
     fun checkAdbAccess() {
-        val context = appContext ?: return
-        AdbRescueCoordinator.checkAccess(context) { onAdbRescueChanged(context) }
+        AdbRescueCoordinator.checkAccess()
     }
 
     /**
-     * [checkAdbAccess] for a press: the gate's button, the recovery dialog's, the service panel's.
-     * The restore hears it as a request, which a restore that failed on this network does not
-     * hold back the way it holds back the passive hints.
+     * [checkAdbAccess] for a press: the gate's button, the service panel's. The restore hears it
+     * as a request, which a restore that failed on this network does not hold back the way it
+     * holds back the passive hints.
      */
     fun checkAdbAccessByUser() {
         AdbRestore.trigger(AdbRestoreManager.GATE)
@@ -1050,29 +1046,29 @@ object DenzaAppRepository {
      * this press too, without it.
      */
     fun checkAdbAccessThen(onTrusted: () -> Unit) {
-        val context = appContext ?: return
-        val answered = AtomicBoolean(false)
-        AdbRescueCoordinator.checkAccess(context) {
-            onAdbRescueChanged(context)
-            if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED &&
-                answered.compareAndSet(false, true)
-            ) {
+        AdbRescueCoordinator.checkAccess {
+            if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED) {
                 Handler(Looper.getMainLooper()).post(onTrusted)
             }
         }
     }
 
-    fun requestAdbAuthorizationOnce() {
-        val context = appContext ?: return
-        AdbRescueCoordinator.requestOnce(context) { onAdbRescueChanged(context) }
+    /** The gate's control and the service panel's: one key request now, held for the answer. */
+    fun askForAdbAccess() {
+        AdbRescueCoordinator.ask()
     }
 
-    fun allowNewAdbAuthorizationAttempt() {
-        val context = appContext ?: return
-        AdbRescueCoordinator.allowNewAttempt(context) {
-            invalidate(StateSlice.ADB_ACCESS, "adb attempt")
-            checkAdbAccess()
-        }
+    /**
+     * The main screen came to the front: an opening, which owns one request of its own on a
+     * refused key. Background work never gets here, so it never offers the key.
+     */
+    fun onForegroundStarted() {
+        AdbRescueCoordinator.foregroundStarted()
+    }
+
+    /** The main screen left the front; a configuration change keeps the opening and its request. */
+    fun onForegroundStopped(changingConfigurations: Boolean) {
+        AdbRescueCoordinator.foregroundStopped(changingConfigurations)
     }
 
     /**
@@ -1103,8 +1099,9 @@ object DenzaAppRepository {
     }
 
     private fun initializeAdbGate(context: Context) {
-        appContext = context.applicationContext
-        AdbRescueCoordinator.initialize(context)
+        val app = context.applicationContext
+        appContext = app
+        AdbRescueCoordinator.initialize(app) { onAdbRescueChanged(app) }
         AdbRestore.initialize(context)
         // The three roles are an ordinary ContentResolver read; they owe the ADB phase nothing.
         defaultApps.refresh()

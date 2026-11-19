@@ -68,6 +68,9 @@ What stays as it is in an English render:
   warning names (`sheet-service-warnings*`), which the code does not take from a resource;
 - «Русский», «Русский язык» and «Язык / Language», which each language writes in its own words.
 
+The car's own words a board draws - the box on the ADB prompt in `modal-adb-always` - are not ours and
+have no key: the fixture carries them as `{ ru, en }`, and an English render takes `en`.
+
 Boards are shot by headless Chrome with Jura, Roboto and Roboto Mono from `fonts/` (OFL, their
 licences beside them), inlined into the page so a render never waits on the network or falls back
 to a system face mid-word. The cluster board is 2560 x 720, the head unit 2560 x 1360 (1280 x 680
@@ -100,7 +103,10 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-service-warnings`, `-off`, `one-sheet-service-warnings` | «Предупреждения машины», parked (its row only in a `-Pwarnings` build, so the main service boards have none): the cluster's warning slot as the app records it - since when, the switch, every code with its last sighting and how often under the car's name, «Экспортировать» and «Очистить», the newest events to the second; recording, switched off, and the car not answering in the one-third pane (orange). `WarningBoardContractTest` holds every word to `WarningText` |
 | `sheet-service-split`, `sheet-service-journal` | the technical report scrolled to its end - the split's section and the row to its journal - and «Журнал работы»: a failed open step by step over the two operations before it |
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
-| `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
+| `modal-adb`, `one-modal-adb` | the ADB gate with no request out - the opening's own went unanswered or the day's three are spent: the glyph in orange, «Доступ не выдан», the switch and «Запросить снова» |
+| `modal-adb-waiting` | a request on the car's screen, its transport held: the tiles' working ring in the glyph's place and no button; the gate leaves by itself on the approval |
+| `modal-adb-always`, `one-modal-adb-always` | the last approval came without the box: the car's own box, ticked, in the car's own words (the firmware's string, carried in both languages by the fixture), while the next request is on the screen |
+| `modal-adb-closed` | a car that trusted the app before and stopped answering: newer firmware closing the port at start, back over Wi-Fi; the service centre's sentence is only for a car never trusted |
 | `sheet-service-restore`, `sheet-service-restored`, `sheet-service-restore-wifi`, `one-sheet-service-restore`, `modal-adb-wifi`, `modal-adb-restoring` | automatic ADB restoration: its page after the last boot - the port open at the first look, closed and opened again by the app (wide and in the one-third pane), closed with no Wi-Fi - a sentence, the switch and the boot's three rows; the neutral Wi-Fi waiting gate; and the gate while an attempt is under way, the tiles' working ring in the glyph's place (a re-check of a standing gate draws its ring the same way) |
 | `scanner-summary`, `-summary-active` | «Сводка», the section's entry since v4 (2026-10-23): the verdict, the scan's line, 12 V, insulation, the cells' spread and SOH in the head, the band of record kinds, every record of the last scan by system and block - most severe first, then the most records, the systems into the shorter of two columns - and «62 блока без записей · все ответили»; the parked scan of 2026-10-20 19:31 (`summary()`), and the same with IDC's C3200-7B active and R_ZCU's B130E-01 pending and 12 V low, illustrative: the verdict red, ● and ◌ |
 | `scanner-blocks` | «Блоки»: every block on one table - with records first, then the catalog's order - request → reply, protocol, records, F194 and the block's median answer of the scan of 20.10 19:31 (`blocksTable()`), the filters «Все / С записями / Без ответа / ПО изменено» as tabs. Its `groups` are the catalog's blocks every other board shares |
@@ -158,7 +164,7 @@ Which Kotlin draws what a board function draws (paths under
 | `drawHead`: the car page, `carChart`, `tempsRow`, `closedPage` | `VehiclePageRenderer` (`feature/trip/`) |
 | `drawSheet`: rows, `toggle`, `segmented`, `apps`, `button` | `DenzaSheet` and `SheetInk` (`ui/components/`); each tile's panel is in `ui/dashboard/FeatureSheets.kt` |
 | `drawSheet`: `glass`, the HUD panel's picture of the projection | `HudGlassPicture` (`ui/dashboard/`), what it lights from `HudPanel` |
-| `drawModal` | `DenzaModalDialog` (`ui/components/DenzaSurfaces.kt`) |
+| `drawModal` | `DenzaModalDialog` (`ui/components/DenzaSurfaces.kt`); the ADB gate is `AdbStartupOverlay`, its box `AlwaysAllowBox` (`ui/DenzaAppsScreen.kt`) |
 | `spec.json` | `LuminoforSpec` (`design/luminofor/`), held to it by `LuminoforSpecContractTest` |
 
 Which tile is which feature, and where each one's panel, runtime and tests are:

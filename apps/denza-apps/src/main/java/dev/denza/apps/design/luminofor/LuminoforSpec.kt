@@ -372,6 +372,17 @@ object LuminoforSpec {
             const val COMPACT_TITLE_SIZE: Float = 20f
             const val TEXT_SIZE: Float = 16f
             const val TEXT_ALPHA: Float = 0.7f
+
+            /** The box on the car's own ADB prompt, ticked, as the gate draws it. */
+            const val BOX: Float = 24f
+            const val BOX_RADIUS: Float = 6f
+            const val BOX_GAP: Float = 12f
+            const val BOX_ROW: Float = 56f
+            const val BOX_PAD: Float = 16f
+            const val BOX_STROKE: Float = 2.5f
+
+            /** The tick's three points in the box, on its 24-unit grid. */
+            val BOX_TICK: FloatArray = floatArrayOf(6.5f, 12.5f, 10.5f, 16.5f, 17.5f, 8.5f)
         }
 
         /**

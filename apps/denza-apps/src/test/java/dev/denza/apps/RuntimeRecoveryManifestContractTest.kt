@@ -43,6 +43,26 @@ class RuntimeRecoveryManifestContractTest {
         assertTrue(localAdb.contains("AuthorizationPolicy.PASSIVE"))
         assertTrue(autostart.contains("AdbRescueCoordinator.checkAccess"))
         assertFalse(autostart.contains("requestAuthorization"))
-        assertFalse(autostart.contains("requestOnce"))
+        assertFalse(autostart.contains("openAuthorizationRequest"))
+        assertFalse(autostart.contains(".ask("))
+        assertFalse(autostart.contains("foregroundStarted"))
+    }
+
+    /**
+     * The key request belongs to a foreground opening of the main screen and to a press: the only
+     * callers of the coordinator's two doors to it are the activity's start and the gate's control.
+     */
+    @Test
+    fun `only the main screen's start and a press can lead to a key request`() {
+        val sources = File("src/main/java").walkTopDown().filter { it.extension == "kt" }
+            .associate { it.path to it.readText() }
+        val opening = sources.filterValues { "AdbRescueCoordinator.foregroundStarted()" in it }.keys
+        val asking = sources.filterValues { "AdbRescueCoordinator.ask()" in it }.keys
+        assertEquals(setOf("src/main/java/dev/denza/apps/DenzaAppRepository.kt"), opening)
+        assertEquals(setOf("src/main/java/dev/denza/apps/DenzaAppRepository.kt"), asking)
+        val foregroundCallers = sources.filterValues { "DenzaAppRepository.onForegroundStarted()" in it }.keys
+        assertEquals(setOf("src/main/java/dev/denza/apps/MainActivity.kt"), foregroundCallers)
+        val requestCallers = sources.filterValues { "openAuthorizationRequest()" in it }.keys
+        assertEquals(setOf("src/main/java/dev/denza/apps/feature/adb/AdbRescueCoordinator.kt"), requestCallers)
     }
 }

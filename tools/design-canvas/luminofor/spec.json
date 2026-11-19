@@ -149,7 +149,9 @@
     "status": { "size": 15, "leading": 1.466667 },
     "button": { "height": 56, "radius": 12, "primary": "#296DCC", "disabledAlpha": 0.5, "size": 18, "secondaryAlpha": 0.06, "secondaryHeight": 48, "secondarySize": 16 },
     "footnote": { "size": 14, "alpha": 0.4, "gap": 12 },
-    "modal": { "width": 560, "radius": 18, "pad": 28, "gap": 18, "icon": 32, "iconGap": 16, "titleSize": 24, "compactTitleSize": 20, "textSize": 16, "textAlpha": 0.7 },
+    "modal": { "width": 560, "radius": 18, "pad": 28, "gap": 18, "icon": 32, "iconGap": 16, "titleSize": 24, "compactTitleSize": 20, "textSize": 16, "textAlpha": 0.7,
+      "_box": "The box on the car's own ADB prompt, ticked, in the car's words: a quiet plate (button.secondaryAlpha, button.radius) at least boxRow high, the box in switch.on with a white tick at boxStroke, the label at textSize and row.titleAlpha after boxGap; a label that wraps grows the plate by boxPad above and below.",
+      "box": 24, "boxRadius": 6, "boxGap": 12, "boxRow": 56, "boxPad": 16, "boxStroke": 2.5, "boxTick": [6.5, 12.5, 10.5, 16.5, 17.5, 8.5] },
     "glass": {
       "_note": "The HUD panel's picture of the projection during a route (docs/hud-output-architecture.md, 12). Rectangles are BYD's own layout in its logical pixels - FSE BydHud assets/resources/layout/sz_vechicleCfg.json - and view is the part of that scene the picture shows, scaled to the panel's width. Each part is named by a thin line above the glass or below it; a part that is off is an empty dashed outline. warning is HUD Speed's picture of the lane window as HudRadarPainter paints it - six stock cells, 246 x 60: its tile, its frame with the limit, the metres in large digits with the unit small after them - drawn at the lanes rect's height from its left edge; gps is its bars in the 300 x 180 map window, where HudRadarSource puts them; map is the illustration in that window.",
       "view": [150, 250, 1030, 262],

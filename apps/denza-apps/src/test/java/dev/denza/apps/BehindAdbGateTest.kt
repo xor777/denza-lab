@@ -41,7 +41,6 @@ class BehindAdbGateTest {
             it.behindAdbGate(
                 AdbRescueSnapshot(
                     phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-                    requestPending = true,
                     systemSwitch = AdbSystemSwitch.ENABLED,
                 ),
             )

@@ -100,7 +100,7 @@ internal data class ServiceModel(
             val tiles = DashboardTiles.of(state)
             val trouble = DashboardTiles.attentionTiles(state)
             val phase = state.adbRescue.phase
-            val busy = phase == AdbRescuePhase.CHECKING || phase == AdbRescuePhase.REQUESTING
+            val busy = phase == AdbRescuePhase.CHECKING || phase == AdbRescuePhase.AWAITING_CONFIRMATION
             // Not yet checked is not missing: the app asks at start, and the answer is seconds away.
             val missing = phase != AdbRescuePhase.TRUSTED && phase != AdbRescuePhase.UNKNOWN && !busy
             val (status, tone) = when {
@@ -155,8 +155,7 @@ internal fun ServicePanel(
     onOpenFeature: (TileId) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
     onCheckAdbAccess: () -> Unit,
-    onRequestAdbAuthorizationOnce: () -> Unit,
-    onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onAskForAdbAccess: () -> Unit,
     onDismiss: () -> Unit,
     firstPage: ServicePage = ServicePage.MAIN,
     firstPageAtEnd: Boolean = false,
@@ -206,8 +205,7 @@ internal fun ServicePanel(
                     state = state,
                     onOpenFeature = onOpenFeature,
                     onCheckAdbAccess = onCheckAdbAccess,
-                    onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-                    onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onAskForAdbAccess = onAskForAdbAccess,
                     onPage = { page = it },
                     nowMs = nowMs,
                     warnings = warnings,
@@ -252,8 +250,7 @@ private fun ServiceMain(
     state: DenzaUiState,
     onOpenFeature: (TileId) -> Unit,
     onCheckAdbAccess: () -> Unit,
-    onRequestAdbAuthorizationOnce: () -> Unit,
-    onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onAskForAdbAccess: () -> Unit,
     onPage: (ServicePage) -> Unit,
     nowMs: () -> Long,
     warnings: WarningsView?,
@@ -280,10 +277,10 @@ private fun ServiceMain(
     if (model.accessActions) {
         adb.details?.let { DenzaNote(it) }
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BUTTON_GAP.dp)) {
-            if (adb.canRequest) {
+            if (adb.canAsk) {
                 DenzaPrimaryButton(
-                    text = AppText.s(R.string.adb_request_once),
-                    onClick = onRequestAdbAuthorizationOnce,
+                    text = AppText.s(R.string.adb_gate_ask_again),
+                    onClick = onAskForAdbAccess,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !model.accessBusy,
                 )
@@ -294,14 +291,6 @@ private fun ServiceMain(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !model.accessBusy,
             )
-            if (adb.canResetAttempt) {
-                DenzaSecondaryButton(
-                    text = AppText.s(R.string.adb_allow_new_attempt),
-                    onClick = onAllowNewAdbAuthorizationAttempt,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !model.accessBusy,
-                )
-            }
         }
     }
     LanguageRow(onSelectLanguage)
