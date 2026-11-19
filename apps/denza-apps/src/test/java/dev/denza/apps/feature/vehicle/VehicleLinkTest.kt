@@ -88,7 +88,7 @@ class VehicleLinkTest {
     @Test
     fun aDroppedReadIsNothingTheCarSaidAfterTheFailure() {
         val cold = mapOf(VehicleSignal.PACK_TEMP_AVG to 28.0)
-        val trip = TripEnergy(netKwh = 9.3, kilometres = 42.0)
+        val trip = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0)
         val read = VehicleDroppedRead.snapshot(
             previous = VehicleAccess.READY,
             cold = cold,

@@ -47,7 +47,7 @@ class DrawnWordsCostTest {
             consumption = road,
             chart = ConsumptionChart.of(road),
             engineCharge = engine.snapshot(),
-            trip = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
+            trip = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
         )
     }
 

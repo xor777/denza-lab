@@ -44,7 +44,14 @@ internal enum class ContourValue(val poll: VehiclePoll, val ledger: Boolean = fa
      */
     ENGINE_FLAG(VehiclePoll.HOT),
     ENGINE_MINUTES(VehiclePoll.HOT, ledger = true),
-    TRIP_NET(VehiclePoll.HOT),
+
+    /**
+     * The trip's own figure, present only once the ledger has opened a trip
+     * (`TripEnergy.opened`): no trip is a statement about the trip, not a read that failed, so it
+     * is a [ledger] quantity like the rest of the trip. Until 2026-11-19 every packet carried it,
+     * and a car that answered its pack but not its odometer stood «ЗА ПОЕЗДКУ 0,0» on the shelf.
+     */
+    TRIP_NET(VehiclePoll.HOT, ledger = true),
     TRIP_KM(VehiclePoll.HOT, ledger = true),
     TRIP_REGEN(VehiclePoll.HOT, ledger = true),
     TRIP_ENGINE(VehiclePoll.HOT, ledger = true),
@@ -322,7 +329,7 @@ internal class ContourScene {
         ContourValue.RPM -> t.engineRunning == true && t.engineRpm != null
         ContourValue.ENGINE_FLAG -> t.engineRunning != null
         ContourValue.ENGINE_MINUTES -> t.trip.engineRan
-        ContourValue.TRIP_NET -> true
+        ContourValue.TRIP_NET -> t.trip.opened
         ContourValue.TRIP_KM -> t.trip.kilometres > 0.0
         ContourValue.TRIP_REGEN -> t.trip.recoveredKwh > 0.0
         ContourValue.TRIP_ENGINE -> t.trip.engineKwh > 0.0

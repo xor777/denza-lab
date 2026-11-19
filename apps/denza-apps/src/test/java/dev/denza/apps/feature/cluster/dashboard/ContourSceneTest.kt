@@ -30,7 +30,7 @@ class ContourSceneTest {
     private fun ready(
         values: Map<VehicleSignal, Double> = mapOf(VehicleSignal.POWER_KW to 34.0),
         consumption: List<ConsumptionSample> = listOf(ConsumptionSample(100.1, 0.017, 0.1, 0.1)),
-        trip: TripEnergy = TripEnergy(netKwh = 9.3, kilometres = 42.0),
+        trip: TripEnergy = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0),
         trace: EngineCharge? = null,
     ) = VehicleTelemetry(
         access = VehicleAccess.READY,
@@ -133,7 +133,7 @@ class ContourSceneTest {
         val scene = ContourScene()
         run(
             scene,
-            ready(trip = TripEnergy(netKwh = 5.9, engineKwh = 0.6, engineSeconds = 180.0, kilometres = 27.0)),
+            ready(trip = TripEnergy(opened = true, netKwh = 5.9, engineKwh = 0.6, engineSeconds = 180.0, kilometres = 27.0)),
             1f,
         )
         assertTrue(scene.known(ContourValue.TRIP_ENGINE))
@@ -144,7 +144,7 @@ class ContourSceneTest {
         // for the rest of the drive, because "known" was "seen once" for the trip's cells as it
         // is for a sampled value - and a trip quantity that a fresh packet does not carry is not a
         // read that failed, it is a thing that did not happen.
-        run(scene, ready(trip = TripEnergy(netKwh = 0.1, kilometres = 0.3)), 1f)
+        run(scene, ready(trip = TripEnergy(opened = true, netKwh = 0.1, kilometres = 0.3)), 1f)
         assertFalse("«ДАЛ ДВС» went with the trip it was about", scene.known(ContourValue.TRIP_ENGINE))
         assertFalse("and so did the corner's minutes", scene.known(ContourValue.ENGINE_MINUTES))
         assertTrue("the trip's own phrase is still there", scene.known(ContourValue.TRIP_NET))
@@ -500,7 +500,7 @@ class ContourSceneTest {
     @Test
     fun aQuantityThatDidNotHappenThisTripHasNoCell() {
         val scene = ContourScene()
-        run(scene, ready(trip = TripEnergy(netKwh = 9.3, kilometres = 42.0)), 1f)
+        run(scene, ready(trip = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0)), 1f)
 
         assertTrue(scene.known(ContourValue.TRIP_NET))
         assertTrue(scene.known(ContourValue.TRIP_KM))
@@ -515,7 +515,7 @@ class ContourSceneTest {
         val scene = ContourScene()
         run(
             scene,
-            ready(trip = TripEnergy(netKwh = 5.9, engineKwh = 0.6, engineSeconds = 180.0, kilometres = 27.0)),
+            ready(trip = TripEnergy(opened = true, netKwh = 5.9, engineKwh = 0.6, engineSeconds = 180.0, kilometres = 27.0)),
             1f,
         )
 

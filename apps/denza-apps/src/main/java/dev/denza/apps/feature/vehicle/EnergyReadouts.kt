@@ -128,7 +128,8 @@ internal class EnergyReadouts {
      *
      * The same integral the cluster's first seat draws ([TripEnergy.netKwh], a tenth), through the
      * same memo slot a seat uses, so the two screens print one number. Null until the car has
-     * answered: a trip that has not been read is not a trip of nothing.
+     * answered and its ledger has opened a trip: a trip that has not been read, or never started,
+     * is not a trip of nothing.
      */
     var tripFigure: String? = null
         private set
@@ -220,9 +221,13 @@ internal class EnergyReadouts {
      * reads each snapshot as it comes, so the rule here is the snapshot's own: a car that has
      * answered carries its trip ([VehicleTelemetry.trip] is integrated by the hub), and one that has
      * not - still starting, or closed to us - has no trip to print.
+     *
+     * **And a ledger that has opened no trip has none** ([TripEnergy.opened]): a car that answers
+     * its pack and not its odometer is READY with an empty ledger, and until 2026-11-19 both screens
+     * printed «0,0 кВт·ч» for it - a measured trip of nothing where there was no trip.
      */
     private fun readTrip(t: VehicleTelemetry) {
-        if (t.access != VehicleAccess.READY) {
+        if (t.access != VehicleAccess.READY || !t.trip.opened) {
             tripFigure = null
             tripCaption = TRIP_ALONE_SENTENCE
             tripKm = null

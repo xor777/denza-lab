@@ -32,7 +32,7 @@ class StripReadingsTest {
     private fun snapshot(
         powerKw: Double? = 34.0,
         values: Map<VehicleSignal, Double> = emptyMap(),
-        trip: TripEnergy = TripEnergy(netKwh = 9.27, kilometres = 42.2),
+        trip: TripEnergy = TripEnergy(opened = true, netKwh = 9.27, kilometres = 42.2),
         engineSeconds: Int = 0,
     ): VehicleTelemetry {
         val all = LinkedHashMap<VehicleSignal, Double>(values)

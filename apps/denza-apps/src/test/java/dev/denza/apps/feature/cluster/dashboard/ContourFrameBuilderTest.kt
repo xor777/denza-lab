@@ -52,7 +52,7 @@ open class ContourFrameBuilderTest {
     private fun city(
         values: Map<VehicleSignal, Double> = emptyMap(),
         buckets: List<ConsumptionSample> = road(100),
-        trip: TripEnergy = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0),
+        trip: TripEnergy = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0),
         trace: EngineChargeSnapshot = stoppedEngine(),
         access: VehicleAccess = VehicleAccess.READY,
     ): VehicleTelemetry {
@@ -160,6 +160,7 @@ open class ContourFrameBuilderTest {
     @Test
     fun standingOnPTheDetailLineCarriesBothSeatsAndTheTenth() {
         val trip = TripEnergy(
+            opened = true,
             netKwh = 9.3,
             kilometres = 42.0,
             engineSeconds = 360.0,
@@ -226,7 +227,7 @@ open class ContourFrameBuilderTest {
     fun theBlockHoldsItsRunBesideAnEmptyCornerAndThenGivesTheShelfBack() {
         val panel = ContourPanel()
         // The recorded drive's trip at 19:25:40 (VehicleLogReplayTest): one run, its 0,4 the trip's.
-        val trip = TripEnergy(netKwh = 0.45, kilometres = 2.0, engineSeconds = 172.8, engineKwh = 0.42)
+        val trip = TripEnergy(opened = true, netKwh = 0.45, kilometres = 2.0, engineSeconds = 172.8, engineKwh = 0.42)
         panel.run(
             city(
                 values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1650.0),
@@ -404,7 +405,7 @@ open class ContourFrameBuilderTest {
         // hands back the very strings the last one did, so nothing was built to draw it.
         val panel = ContourPanel()
         val t = city(
-            trip = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
+            trip = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
         )
         val first = panel.run(t, 1f)
         val strings = listOf(

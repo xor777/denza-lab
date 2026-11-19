@@ -296,8 +296,14 @@ movement starts the new trip.
 **A ledger that has opened no trip has none** (`TripEnergy.opened`): true from the
 first movement after the process started, or for a restored trip, and still true
 in P after it. A car that answers its pack and not its odometer has no trip,
-which is not a trip of nothing; the screens are to read this flag before they
-print a trip figure.
+which is not a trip of nothing: both screens read this flag before they print a
+trip figure - the cluster's «ЗА ПОЕЗДКУ» is a ledger quantity present only with
+it (`ContourValue.TRIP_NET`), the car page's cell is empty without it
+(`EnergyReadouts.readTrip`) - and a restored trip, this build's record or
+0.7.1's, carries it (`EnergyReadoutsTest.aLedgerThatOpenedNoTripPrintsNoneOnEitherScreen`).
+
+> **Superseded 2026-11-19:** this paragraph said the screens «are to read» the
+> flag; they did not, and every READY packet put «0,0 кВт·ч» on both.
 
 On the Luminofor cluster the trip is the right group's figure - «ЗА ПОЕЗДКУ»
 over «9,3 кВт·ч» - and the detail line under it reads right to left from the

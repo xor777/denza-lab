@@ -88,7 +88,7 @@ open class EnergyReadoutsTest {
             for (index in 88 until 98) list[index] = list[index].copy(kwh = 0.3)
         }
         // A trip both screens can print: forty-two kilometres, 9,3 kWh out of the pack.
-        val trip = TripEnergy(netKwh = 9.3, kilometres = 42.0)
+        val trip = TripEnergy(opened = true, netKwh = 9.3, kilometres = 42.0)
         val engineTrip = trip.copy(engineSeconds = 400.0)
         return listOf(
             "electric drive" to snapshot(powerKw = 34.0, buckets = electric, trip = trip),
@@ -390,6 +390,29 @@ open class EnergyReadoutsTest {
     }
 
     /**
+     * A car that answers its pack and not its odometer: the hub is READY and its ledger has opened
+     * no trip. Until 2026-11-19 both screens printed «0,0 кВт·ч» for it - the cluster's «ЗА
+     * ПОЕЗДКУ» seeded by every packet, the car page's cell by the access alone. And a trip the
+     * ledger restored - from this build's record or 0.7.1's - is a trip on both.
+     */
+    @Test
+    fun aLedgerThatOpenedNoTripPrintsNoneOnEitherScreen() {
+        val ledger = TripEnergyLedger()
+        repeat(40) { ledger.sample(odometerKm = null, powerKw = 30.0, engineRunning = false, parked = false, dtSeconds = 0.25) }
+        val (frame, model) = screens(snapshot(powerKw = 30.0, buckets = road(100), trip = ledger.trip))
+        assertNull("the cluster has no trip", frame.tripCaption)
+        assertNull(frame.tripKwh)
+        assertFalse("nor has the car page", model.tripCell.present)
+
+        val restored = TripEnergyLedger()
+        val record = TripRecord(TripEnergy(9.3, 3.1, 1.1, 360.0, 42.0, opened = true), 1000.0, armed = true)
+        assertTrue(restored.restore(record, odometerKm = 1000.0))
+        val (back, page) = screens(snapshot(powerKw = 30.0, buckets = road(100), trip = restored.trip))
+        assertEquals(figure("9,3"), back.tripKwh)
+        assertEquals(back.tripKwh, page.tripCell.figure)
+    }
+
+    /**
      * A snapshot the hub leaves standing - a reader blocked behind a helper's start - is aged by
      * one horizon on both screens. The cluster ages it on its own clock from when it arrived; the car
      * page reads each snapshot as it comes and kept printing «80 кВт» from it after the cluster's
@@ -430,7 +453,7 @@ open class EnergyReadoutsTest {
     @Test
     fun theTripCellIsTheClustersFirstSeatInTheCarPagesCase() {
         val readouts = EnergyReadouts()
-        readouts.read(snapshot(trip = TripEnergy(netKwh = 9.27, kilometres = 42.3)), parked = false)
+        readouts.read(snapshot(trip = TripEnergy(opened = true, netKwh = 9.27, kilometres = 42.3)), parked = false)
         assertEquals(ContourReadout.tenth(9.27), readouts.tripFigure)
         assertEquals(figure("9,3"), readouts.tripFigure)
         assertEquals(say("42 км · за поездку", "42 km · this trip"), readouts.tripCaption)
@@ -441,10 +464,14 @@ open class EnergyReadoutsTest {
         )
 
         // The odometer has said nothing yet: the phrase stands alone, the way the cluster's does.
-        readouts.read(snapshot(trip = TripEnergy(netKwh = 0.4)), parked = false)
+        readouts.read(snapshot(trip = TripEnergy(opened = true, netKwh = 0.4)), parked = false)
         assertEquals(figure("0,4"), readouts.tripFigure)
         assertEquals(say("За поездку", "This trip"), readouts.tripCaption)
         assertEquals(EnergyReadouts.sentence(ContourReadout.CAPTION_TRIP), readouts.tripCaption)
+
+        // A ledger that has opened no trip has none, rather than a trip of nothing.
+        readouts.read(snapshot(trip = TripEnergy()), parked = false)
+        assertNull(readouts.tripFigure)
 
         // A car that has not answered has no trip to print, rather than a trip of nothing.
         readouts.read(VehicleTelemetry(), parked = false)
