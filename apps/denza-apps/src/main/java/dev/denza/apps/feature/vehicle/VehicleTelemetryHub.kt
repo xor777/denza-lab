@@ -68,9 +68,11 @@ internal class VehicleTelemetryHub(context: Context) {
      * of the hole a sudden power cut leaves. Ten buckets is a kilometre of road,
      * which at any speed worth measuring is well under a minute.
      */
-    private val journal = ConsumptionJournal.of(app.filesDir) { why ->
-        Log.w(TAG, "Журнал расхода сброшен: $why")
-    }
+    private val journal = ConsumptionJournal.of(
+        app.filesDir,
+        onWiped = { why -> Log.w(TAG, "Журнал расхода сброшен: $why") },
+        onWriteFailed = { why -> Log.w(TAG, "Журнал расхода не дописан, записанное цело: $why") },
+    )
     private val pending = ArrayList<ConsumptionSample>(FLUSH_EVERY)
     private var restored = false
 

@@ -443,7 +443,7 @@ private val LOG = allow(
     "feature/vehicle/TripJournal.kt" to 3,
     "feature/vehicle/VehicleCapture.kt" to 3,
     "feature/vehicle/VehicleReaders.kt" to 2,
-    "feature/vehicle/VehicleTelemetryHub.kt" to 8,
+    "feature/vehicle/VehicleTelemetryHub.kt" to 9,
     "feature/warning/WarningJournal.kt" to 4,
     "feature/warning/WarningRecorder.kt" to 6,
     "feature/warning/WarningText.kt" to 9,

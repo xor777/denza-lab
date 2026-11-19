@@ -23,9 +23,10 @@ class ConsumptionJournalTest {
     val folder = TemporaryFolder()
 
     private val wipes = mutableListOf<String>()
+    private val failures = mutableListOf<String>()
 
     private fun journal(): ConsumptionJournal =
-        ConsumptionJournal(File(folder.root, "consumption.log")) { wipes.add(it) }
+        ConsumptionJournal(File(folder.root, "consumption.log"), { wipes.add(it) }, { failures.add(it) })
 
     private fun file() = File(folder.root, "consumption.log")
 
@@ -143,6 +144,30 @@ class ConsumptionJournalTest {
         file().writeText("1000.0,0.0")
         journal().append(bars(2, from = 1000.1))
         assertEquals(2, journal().load().size)
+    }
+
+    /**
+     * A write that fails - here a file the writer may not open, as a full disk or a refused sync
+     * would be - costs its own batch. It used to wipe the file, and thirty kilometres of valid
+     * lines went with one failed bucket. Reported once, however many buckets keep failing.
+     */
+    @Test
+    fun aWriteThatFailsKeepsWhatIsAlreadyOnDisk() {
+        val journal = journal()
+        journal.append(bars(3))
+        assertTrue(file().setWritable(false))
+
+        journal.append(bars(1, from = 1000.3))
+        journal.append(bars(1, from = 1000.4))
+
+        assertTrue("the file is still there", file().exists())
+        assertEquals(listOf(1000.0, 1000.1, 1000.2), journal().load().map { it.odometerKm })
+        assertTrue("nothing was wiped: $wipes", wipes.isEmpty())
+        assertEquals("said once", 1, failures.size)
+
+        assertTrue(file().setWritable(true))
+        journal.append(bars(1, from = 1000.5))
+        assertEquals(listOf(1000.0, 1000.1, 1000.2, 1000.5), journal().load().map { it.odometerKm })
     }
 
     @Test

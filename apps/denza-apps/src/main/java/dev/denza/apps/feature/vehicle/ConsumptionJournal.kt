@@ -59,9 +59,14 @@ import java.util.Locale
 internal class ConsumptionJournal(
     private val file: File,
     private val onWiped: (String) -> Unit = {},
+    /** A write that did not reach the disk; said once per run of failures, not once per bucket. */
+    private val onWriteFailed: (String) -> Unit = {},
 ) {
 
     private var lines = 0
+
+    /** Whether the last append failed, so a full disk is reported once rather than every bucket. */
+    private var failing = false
 
     /**
      * Everything the file holds, oldest first.
@@ -119,19 +124,26 @@ internal class ConsumptionJournal(
      * The batch is what bounds the loss: everything written before the last sync
      * survives the ignition, so the size of a batch is the size of the hole a
      * sudden power cut leaves.
+     *
+     * A write that fails loses this batch and nothing else. Until 2026-11-19 it
+     * wiped the file, so one failed write - a full disk, a sync refused - took
+     * thirty kilometres of valid lines with it. Whatever half of a line it may
+     * have left is cut off by the next append ([endTornTail]), as a cut by the
+     * ignition is; the failure is reported once, until a write succeeds again.
      */
     fun append(samples: List<ConsumptionSample>) {
         if (samples.isEmpty()) return
         if (!endTornTail()) {
-            wipe("обрывок строки не убрать")
+            failed("обрывок строки не убрать")
             return
         }
         val text = StringBuilder(samples.size * LINE_BYTES)
         samples.forEach { text.append(line(it)) }
         if (!JournalFile.append(file, text.toString())) {
-            wipe("запись не удалась")
+            failed("запись не удалась")
             return
         }
+        failing = false
         lines += samples.size
         if (lines > MAX_LINES + TRIM_SLACK) trim()
     }
@@ -156,6 +168,15 @@ internal class ConsumptionJournal(
      */
     private fun endTornTail(): Boolean = runCatching {
         if (!file.exists()) return true
+        // Read-only for the check every append makes; writable only when there is a tail to settle.
+        val whole = RandomAccessFile(file, "r").use { raf ->
+            val length = raf.length()
+            length == 0L || run {
+                raf.seek(length - 1)
+                raf.read() == NEWLINE
+            }
+        }
+        if (whole) return true
         RandomAccessFile(file, "rw").use { raf ->
             val length = raf.length()
             if (length == 0L) return true
@@ -232,6 +253,11 @@ internal class ConsumptionJournal(
         lines = 0
     }
 
+    private fun failed(why: String) {
+        if (!failing) onWriteFailed(why)
+        failing = true
+    }
+
     private fun wipe(why: String, cause: Throwable? = null): List<ConsumptionSample> {
         clear()
         onWiped(if (cause == null) why else "$why: ${cause.javaClass.simpleName}")
@@ -240,8 +266,11 @@ internal class ConsumptionJournal(
 
     companion object {
         /** The journal for an app-private directory, named the one way. */
-        fun of(directory: File, onWiped: (String) -> Unit = {}): ConsumptionJournal =
-            ConsumptionJournal(File(directory, FILE_NAME), onWiped)
+        fun of(
+            directory: File,
+            onWiped: (String) -> Unit = {},
+            onWriteFailed: (String) -> Unit = {},
+        ): ConsumptionJournal = ConsumptionJournal(File(directory, FILE_NAME), onWiped, onWriteFailed)
 
         private const val FILE_NAME = "consumption.log"
 
