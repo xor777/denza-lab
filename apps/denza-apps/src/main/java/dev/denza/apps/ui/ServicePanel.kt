@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -50,6 +51,9 @@ import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.dashboard.DashboardTile
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.TileId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Where in the service panel the driver is: the answer, one of the two pages behind it, or the
@@ -170,7 +174,18 @@ internal fun ServicePanel(
     autoType: () -> String? = DiagnosticsCar::autoType,
 ) {
     LaunchedEffect(Unit) { onOpenService() }
-    val diagnostics = remember { DiagnosticsCar.offered(autoType()) }
+    // The car's model off the main thread - its route may be a process - and bounded: the row is absent while the
+    // car is not known and appears once it is, without leaving the panel (DiagnosticsCar).
+    val diagnostics by produceState(DiagnosticsCar.offered(DiagnosticsCar.known), autoType) {
+        for (attempt in 1..AUTO_TYPE_TRIES) {
+            val type = withContext(Dispatchers.IO) { autoType() }
+            if (type != null) {
+                value = DiagnosticsCar.offered(type)
+                break
+            }
+            delay(AUTO_TYPE_RETRY_MS)
+        }
+    }
     // The warning recorder is parked outside a `-Pwarnings` build (build.gradle.kts): no row, and the
     // journal is not opened. A board brings its own record for the page's boards.
     val warnings = warningsFixture ?: if (BuildConfig.WARNINGS) rememberWarnings() else null
@@ -468,3 +483,7 @@ private const val JOURNAL_ROW = "journal"
 
 /** Between the access buttons, as the board's stack draws them. */
 private const val BUTTON_GAP = 12f
+
+/** How often, and how far apart, «Сервис» asks for the car's model while it is not known. */
+private const val AUTO_TYPE_TRIES = 12
+private const val AUTO_TYPE_RETRY_MS = 5_000L
