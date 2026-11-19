@@ -72,7 +72,7 @@ internal class ContourFigures {
         PETAL,
         PETAL_UNIT,
 
-        /** And the run's time under it, «ЗА 1:22». */
+        /** And the run's time under it, «ЗА 1 мин». */
         ENGINE_RUN,
         ;
     }
@@ -133,9 +133,9 @@ internal class ContourFigures {
     fun engineKwh(kwh: Double): String =
         hit(Slot.ENGINE_KWH, kwh, false) ?: keep(Slot.ENGINE_KWH, kwh, false, ContourReadout.engineKwh(kwh))
 
-    /** And the run's time under it, keyed on the whole seconds it prints. */
+    /** And the run's time under it, keyed on what it prints: a second, then a minute ([AppDuration.key]). */
     fun engineRun(seconds: Int): String {
-        val value = seconds.toDouble()
+        val value = AppDuration.key(seconds.toLong()).toDouble()
         return hit(Slot.ENGINE_RUN, value, false)
             ?: keep(Slot.ENGINE_RUN, value, false, ContourReadout.engineRun(seconds))
     }

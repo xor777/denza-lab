@@ -87,12 +87,13 @@ internal object ContourReadout {
     val CAPTION_ENGINE_CHARGE: String get() = AppText.s(R.string.contour_engine_charge)
 
     /**
-     * How long the run behind the block's figure is: «ЗА 0:40», under the figure.
+     * How long the run behind the block's figure is: «ЗА 40 с», «ЗА 2 мин», under the figure.
      *
-     * Written as «м:сс», so every value is one length, and clamped at [MAX_WINDOW_SECONDS], past
-     * which it would gain a glyph.
+     * [AppDuration]'s, like every duration in the app, and never clamped: until 2026-11-19 it was
+     * a clock stopped at 9:59, so a long run's time froze under a figure that went on growing.
      */
-    fun engineRun(seconds: Int): String = AppText.s(R.string.contour_engine_run, clock(seconds))
+    fun engineRun(seconds: Int): String =
+        AppText.s(R.string.contour_engine_run, AppDuration.of(seconds.toLong()).toString())
 
     /**
      * The block's figure: a tenth, and a whole number from ten kilowatt-hours on.
@@ -117,9 +118,6 @@ internal object ContourReadout {
 
     /** What replaces it while a gun is in, over a figure that is a duration rather than a rate. */
     val UNIT_CHARGE_LEFT: String get() = AppText.s(R.string.contour_charge_left)
-
-    /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
-    const val MAX_WINDOW_SECONDS = 9 * 60 + 59
 
     // ---- the thresholds, unchanged from the panel this replaces
 
@@ -195,17 +193,6 @@ internal object ContourReadout {
         val figure =
             if (coveredKm >= windowKm - KM_EPSILON) whole(windowKm) else tenth(coveredKm)
         return AppText.s(R.string.contour_per_100km, figure)
-    }
-
-    /**
-     * A duration as «м:сс», in tabular figures, so that its width is a constant.
-     *
-     * Clamped at [MAX_WINDOW_SECONDS]: past it the string gains a glyph. An engine that runs longer
-     * than that is still «9:59» under its block, which is a run long enough to read as long.
-     */
-    fun clock(seconds: Int): String {
-        val bounded = seconds.coerceIn(0, MAX_WINDOW_SECONDS)
-        return String.format(Locale.US, "%d:%02d", bounded / 60, bounded % 60)
     }
 
     /**

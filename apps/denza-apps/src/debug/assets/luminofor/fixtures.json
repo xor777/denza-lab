@@ -549,7 +549,7 @@
    ],
    "engineCaption": "ЗАРЯД ОТ ДВС",
    "engineKwh": "0,2",
-   "engineRun": "ЗА 0:41"
+   "engineRun": "ЗА 41 с"
   }
  ],
  "cluster-engine-kickdown": [
@@ -630,7 +630,7 @@
    ],
    "engineCaption": "ЗАРЯД ОТ ДВС",
    "engineKwh": "0,1",
-   "engineRun": "ЗА 0:15"
+   "engineRun": "ЗА 15 с"
   }
  ],
  "cluster-engine-stopped": [
@@ -903,7 +903,7 @@
    ],
    "engineCaption": "ЗАРЯД ОТ ДВС",
    "engineKwh": "0,4",
-   "engineRun": "ЗА 2:52"
+   "engineRun": "ЗА 2 мин"
   }
  ],
  "cluster-engine-gone": [
@@ -1324,7 +1324,7 @@
    ],
    "engineCaption": "ЗАРЯД ОТ ДВС",
    "engineKwh": "0,3",
-   "engineRun": "ЗА 1:56"
+   "engineRun": "ЗА 1 мин"
   }
  ],
  "cluster-hot": [

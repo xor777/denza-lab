@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.R
 import dev.denza.apps.core.AppDuration
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -117,9 +119,10 @@ class ContourReadoutTest {
             "and no mark leads it: the chart's blue is the mark",
             !ContourReadout.CAPTION_ENGINE_CHARGE.contains("●"),
         )
-        // The run's own time under its figure: five seconds after a start it says five seconds.
-        assertEquals("ЗА 0:05", ContourReadout.engineRun(5))
-        assertEquals("ЗА 2:52", ContourReadout.engineRun(172))
+        // The run's own time under its figure, AppDuration's: five seconds after a start it says
+        // five seconds, and past a minute the whole minutes.
+        assertEquals("ЗА 5 с", ContourReadout.engineRun(5))
+        assertEquals("ЗА 2 мин", ContourReadout.engineRun(172))
         // A tenth, and whole from ten: the column after the chart holds «9,9» or «99».
         assertEquals("0,4", ContourReadout.engineKwh(0.4247))
         assertEquals("9,9", ContourReadout.engineKwh(9.94))
@@ -128,17 +131,18 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun aWindowIsFourGlyphsAndAMarkWhateverItIsWorth() {
-        // Which is what lets a caption be a coordinate and a reading at once: the phrase is laid
-        // out right to left off a fixed edge, the figures are tabular, so no anchor in front of the
-        // duration moves as it counts up.
-        val lengths = (0..ContourReadout.MAX_WINDOW_SECONDS).map { ContourReadout.clock(it).length }
-        assertEquals("every «м:сс» is one length", setOf(4), lengths.toSet())
-        // Past the clamp the string would gain a glyph and every anchor would move. The trace it
-        // names is two minutes long, so this is a guard rather than a case.
-        assertEquals("9:59", ContourReadout.clock(ContourReadout.MAX_WINDOW_SECONDS))
-        assertEquals("9:59", ContourReadout.clock(100_000))
-        assertEquals("0:00", ContourReadout.clock(-1))
+    fun theEnginesRunKeepsCountingWhileItsChargeGrows() {
+        // Until 2026-11-19 the run was a clock clamped at 9:59, so a twenty-minute run printed
+        // «ЗА 9:59» under a figure that went on growing: two readings of one run disagreeing.
+        assertEquals("ЗА 10 мин", ContourReadout.engineRun(10 * 60))
+        assertEquals("ЗА 20 мин", ContourReadout.engineRun(20 * 60))
+        assertEquals("ЗА 1 ч 05 мин", ContourReadout.engineRun(65 * 60))
+        for (seconds in listOf(0, 41, 172, 599, 600, 1_200, 3_900, 100_000)) {
+            assertEquals(
+                AppText.s(R.string.contour_engine_run, AppDuration.of(seconds.toLong()).toString()),
+                ContourReadout.engineRun(seconds),
+            )
+        }
     }
 
     @Test

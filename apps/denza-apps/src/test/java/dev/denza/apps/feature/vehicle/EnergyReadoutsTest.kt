@@ -539,7 +539,7 @@ open class EnergyReadoutsTest {
         )
         // 14 kW for 82 s is 0.319 kWh.
         assertEquals(figure("0,3"), readouts.engineKwh)
-        assertEquals(say("ЗА 1:22", "IN 1:22"), readouts.engineRun)
+        assertEquals(say("ЗА 1 мин", "IN 1 min"), readouts.engineRun)
         assertEquals(EnergyReadouts.WORD_FROM_ENGINE, readouts.word)
 
         // After the stop the run keeps its own figure and time, which the block holds for its ten

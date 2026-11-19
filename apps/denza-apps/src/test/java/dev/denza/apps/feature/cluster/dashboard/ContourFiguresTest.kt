@@ -80,12 +80,14 @@ class ContourFiguresTest {
     }
 
     @Test
-    fun theEngineRunIsKeyedOnItsSeconds() {
+    fun theEngineRunIsKeyedOnWhatItPrints() {
         val figures = ContourFigures()
         val run = figures.engineRun(82)
-        assertEquals("ЗА 1:22", run)
-        assertSame(run, figures.engineRun(82))
-        assertEquals("ЗА 1:23", figures.engineRun(83))
+        assertEquals("ЗА 1 мин", run)
+        // a second later it reads the same, so it is the same string
+        assertSame(run, figures.engineRun(83))
+        assertEquals("ЗА 2 мин", figures.engineRun(120))
+        assertEquals("ЗА 41 с", figures.engineRun(41))
         val kwh = figures.engineKwh(0.1857)
         assertEquals("0,2", kwh)
         assertSame(kwh, figures.engineKwh(0.1857))

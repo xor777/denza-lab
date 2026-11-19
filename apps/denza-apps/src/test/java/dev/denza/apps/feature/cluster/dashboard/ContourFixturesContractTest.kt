@@ -101,10 +101,9 @@ open class ContourFixturesContractTest {
         assertTrue("the engine's boards draw the block", blocks.size >= 4)
         blocks.forEach { (id, f) ->
             assertEquals(id, ContourReadout.CAPTION_ENGINE_CHARGE, f["engineCaption"])
-            // «ЗА м:сс», the run's own clock
+            // the run's own time, as the app prints some run of up to two hours
             val run = f["engineRun"] as String
-            val (m, s) = run.substringAfterLast(' ').split(':').map { it.toInt() }
-            assertEquals(id, ContourReadout.engineRun(m * 60 + s), run)
+            assertTrue("$id: «$run»", (0..7_200).any { ContourReadout.engineRun(it) == run })
             assertEquals(id, ContourReadout.UNIT_KWH, f["tripUnit"])
             val line = f["chargeLine"] as List<*>
             assertTrue("$id: a point a second, two minutes at most", line.size in 2..LuminoforSpec.Cluster.EngineCharge.POINTS)

@@ -358,7 +358,9 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
 - **The figure** is the run's kilowatt-hours, a tenth («0,4»; whole from ten,
   where the column runs out), at the chart's right end on the figures' baseline,
   with the run's time under it: «ЗА 2:52». The caption «ЗАРЯД ОТ ДВС» stands over
-  the chart from its left edge.
+  the chart from its left edge. **Superseded 2026-11-19:** the run's time is
+  `AppDuration`'s, «ЗА 41 с», «ЗА 2 мин», «ЗА 1 ч 05 мин», and keeps counting; the
+  clock it was stopped at «9:59» while the kilowatt-hours over it went on growing.
 - **Lifetime**: on the cluster while the engine runs, moving and parked, with or
   without a charge (a hard pull draws a line on zero and «0,0»); it holds ten
   seconds after the flag drops - hysteresis against a dropped read - and then
@@ -527,7 +529,7 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «Расход 16,9 кВт·ч/100 км · за 10 км» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
 | the pack's volts | «НАПРЯЖЕНИЕ» over «412 В»; car page «Напряжение» + «В» | «БАТАРЕЯ · В» (until 2026-11-19), a unit in a caption |
 | the trip | «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», under it «42 км» · «ЗАРЯД ОТ ДВС 0,8 кВт·ч» · «● РЕКУПЕРАЦИЯ 3,1 кВт·ч»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19), «42 км · ЗА ПОЕЗДКУ» and «0,8 кВт·ч ЗАРЯД ОТ ДВС» (until 2026-11-19) |
-| the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes |
+| the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2 мин» (a clock, «ЗА 2:52», until 2026-11-19); car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes |
 | the engine, stopped | an empty corner for the block's ten seconds, then «ДВС ЗА ПОЕЗДКУ» over «6 мин»; car page «ДВС за поездку» + «мин» | a block of zeros after its hold, «ДВС · мин за поездку» (until 2026-11-19) |
 | charging, the countdown | «2 ч 15 мин до полной», «45 мин до полной», «12 ч 30 мин до полной»: `AppDuration`'s figure-unit pairs (since 2026-11-19) | a day count, a clock - «2:15» (until 2026-11-19) |
 | the car page, closed | «Данные машины» over the state - «Нет доступа», «Нет связи», «Нет ответа» (2026-11-19; until then «Питание от машины» over the instruction) | a row of empty captions, an instruction, a «·» |
@@ -651,7 +653,7 @@ debug build draws the same scenes (`LuminoforFixtureActivity`) and
 board; `cluster-filling` is thirty-seven points under «за 3,7 км». The engine's
 block is on five boards drawn from two recorded drives, as `EngineCharge`
 replays them (`VehicleLogReplayTest` holds the numbers): `cluster-engine`
-charging on the move (2026-09-24 18:40:04, «0,2» «ЗА 0:41»), `-kickdown` at
+charging on the move (2026-09-24 18:40:04, «0,2» «ЗА 41 с»), `-kickdown` at
 226 kW out fifteen seconds into the same run, `-stopped` four seconds after the
 19:25 stop with the corner empty, `-gone` past the hold with «ЗАРЯД ОТ ДВС 0,4
 кВт·ч» under the trip, and `-parked`, forced charge in P on 2026-09-18 on the lower

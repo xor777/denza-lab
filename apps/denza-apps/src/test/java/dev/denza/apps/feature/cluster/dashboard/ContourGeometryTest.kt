@@ -258,8 +258,9 @@ open class ContourGeometryTest {
         val kwh = maxOf(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP +
             JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
         assertTrue(g.CHARGE_FIGURE_X + kwh < end)
-        val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
-        assertTrue(g.CHARGE_FIGURE_X + JuraMeasure.width(run, Grid.DETAIL_SIZE, track) < end)
+        // the run's time keeps counting: the widest a hub keeps is two-figure hours and minutes
+        val run = ContourReadout.engineRun(99 * 3600 + 59 * 60)
+        assertTrue("«$run»", g.CHARGE_FIGURE_X + JuraMeasure.width(run, Grid.DETAIL_SIZE, track) < end)
 
         // The park line, right to left, each reading caption, figure, unit: the road, the engine's
         // charge and the recuperation. With a two-digit road and both seats under ten it stays in

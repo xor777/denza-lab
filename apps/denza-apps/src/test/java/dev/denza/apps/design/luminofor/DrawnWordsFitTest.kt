@@ -100,7 +100,8 @@ open class DrawnWordsFitTest {
         val engineReach = start + maxOf(headingMinutes, rpmReading, minutesReading)
         val unitKwh = jura.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
         val voltsReading = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP + jura.width(ContourReadout.UNIT_VOLT, Grid.UNIT_SIZE)
-        val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
+        // the widest run time a hub keeps: two-figure hours and minutes
+        val run = ContourReadout.engineRun(99 * 3600 + 59 * 60)
         // a tenth up to 9,9 and whole from ten: the widest of either
         val chargeFigure = max(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP + unitKwh
         // each reading of the detail line is caption, figure, unit; the road has no caption

@@ -549,7 +549,7 @@
    ],
    "engineCaption": "ENGINE CHARGE",
    "engineKwh": "0.2",
-   "engineRun": "IN 0:41"
+   "engineRun": "IN 41 s"
   }
  ],
  "cluster-engine-kickdown": [
@@ -630,7 +630,7 @@
    ],
    "engineCaption": "ENGINE CHARGE",
    "engineKwh": "0.1",
-   "engineRun": "IN 0:15"
+   "engineRun": "IN 15 s"
   }
  ],
  "cluster-engine-stopped": [
@@ -903,7 +903,7 @@
    ],
    "engineCaption": "ENGINE CHARGE",
    "engineKwh": "0.4",
-   "engineRun": "IN 2:52"
+   "engineRun": "IN 2 min"
   }
  ],
  "cluster-engine-gone": [
@@ -1324,7 +1324,7 @@
    ],
    "engineCaption": "ENGINE CHARGE",
    "engineKwh": "0.3",
-   "engineRun": "IN 1:56"
+   "engineRun": "IN 1 min"
   }
  ],
  "cluster-hot": [
