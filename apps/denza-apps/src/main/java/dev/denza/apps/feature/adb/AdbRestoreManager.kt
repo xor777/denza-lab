@@ -112,6 +112,8 @@ data class AdbRestoreSnapshot(
     val writeWasReverted: Boolean = false,
     val retryBudgetExhausted: Boolean = false,
     val autoAllow: String? = null,
+    /** What the shared accessibility service was, and what was done for it, before the last dialog. */
+    val dialogService: String? = null,
     /** This boot's record; null until the restore has looked at the port since the boot. */
     val boot: AdbBootRecord? = null,
 )
@@ -129,6 +131,7 @@ interface AdbRestoreStore {
     var lastOutcome: String?
     var lastOutcomeAtMs: Long
     var autoAllow: String?
+    var dialogService: String?
     var boot: AdbBootRecord?
     fun recordWrite(network: String, atMs: Long) { lastWriteNetwork = network; lastWriteAtMs = atMs }
     fun recordOutcome(outcome: String, atMs: Long) { lastOutcome = outcome; lastOutcomeAtMs = atMs }
@@ -151,7 +154,24 @@ interface AdbRestoreSystem {
     suspend fun discoverTlsPort(timeoutMs: Long): AdbTlsEndpoint?
     suspend fun restartTcpip(endpoint: AdbTlsEndpoint, abandoned: () -> Boolean)
     suspend fun ensureAccessibilityForDialog(abandoned: () -> Boolean)
+    /** The shared accessibility service, which presses the network dialog, as the shared health reads it. */
+    fun dialogService(): AdbDialogService
+    /**
+     * Lists the shared service in this process, with `WRITE_SECURE_SETTINGS` and no ADB: the port is
+     * closed when the restore needs it. Throws when the setting could not be written.
+     */
+    suspend fun enableDialogService(abandoned: () -> Boolean)
     suspend fun recoverRuntime()
+}
+
+/** The service that presses the network dialog, at the moment before the write that raises it. */
+enum class AdbDialogService {
+    /** Switched on and bound: it will see the dialog. */
+    BOUND,
+    /** Listed and within its bind deadline (`AccessibilityHealth.available`): on its way, not to be rewritten. */
+    BINDING,
+    /** Switched off, or listed and never bound: only a rewrite of the setting brings it. */
+    MISSING,
 }
 
 internal class AdbRestoreKeyUntrustedException : Exception()
@@ -228,6 +248,7 @@ class AdbRestoreManager(
         lastOutcome = store.lastOutcome,
         lastOutcomeAtMs = store.lastOutcomeAtMs.takeIf { it > 0 },
         autoAllow = store.autoAllow,
+        dialogService = store.dialogService,
         // An earlier boot's record is history the page has no row for: this boot starts its own.
         boot = store.boot?.takeIf { it.isBoot(system.bootCount(), system.elapsedMs()) },
     )
@@ -438,6 +459,7 @@ class AdbRestoreManager(
             synchronized(control) { current = current.copy(retryBudgetExhausted = exhaustedNetwork == network.id) }
             return false
         }
+        readyDialogService(gen)
         synchronized(control) {
             if (!valid(gen, network)) return false
             store.recordWrite(network.id, system.nowMs())
@@ -453,6 +475,56 @@ class AdbRestoreManager(
             return false
         }
         return true
+    }
+
+    /**
+     * The write that comes next raises the network dialog, and only the shared accessibility service
+     * presses it: on a window-state event, so a service bound after the dialog came up never sees it.
+     * Until 2026-11-19 the service was prepared only on the healthy classic path and after a restore,
+     * over the shell - which a cold start with port 5555 closed, the case the restore exists for, does
+     * not have. A bound service is left alone; one on its way is waited for and never rewritten (a
+     * rewrite takes both Denza services down for about three seconds); any other is listed in this
+     * process and then waited for. Never fatal: the write follows whatever came of it, and the
+     * reading is kept for «Технические сведения».
+     */
+    private suspend fun readyDialogService(gen: Long) {
+        val found = system.dialogService()
+        val step = when (found) {
+            AdbDialogService.BOUND -> return recordDialogService(gen, "bound")
+            AdbDialogService.BINDING -> "binding"
+            AdbDialogService.MISSING -> {
+                if (!system.permissionHeld()) return recordDialogService(gen, "missing, no permission")
+                try {
+                    system.enableDialogService { abandoned(gen) }
+                    "enabled"
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (error: Exception) {
+                    return recordDialogService(gen, "enable failed: ${error.javaClass.simpleName}")
+                }
+            }
+        }
+        if (abandoned(gen)) return
+        val bound = awaitDialogService(gen)
+        recordDialogService(gen, if (bound) "$step, bound" else "$step, not bound in ${DIALOG_SERVICE_BIND_WAIT_MS / 1000} s")
+    }
+
+    /** Whether the service bound within [DIALOG_SERVICE_BIND_WAIT_MS], read every [DIALOG_SERVICE_POLL_MS]. */
+    private suspend fun awaitDialogService(gen: Long): Boolean {
+        repeat((DIALOG_SERVICE_BIND_WAIT_MS / DIALOG_SERVICE_POLL_MS).toInt()) {
+            if (abandoned(gen)) return false
+            if (system.dialogService() == AdbDialogService.BOUND) return true
+            delay(DIALOG_SERVICE_POLL_MS)
+        }
+        return system.dialogService() == AdbDialogService.BOUND
+    }
+
+    private fun recordDialogService(gen: Long, reading: String) {
+        synchronized(control) {
+            if (abandoned(gen)) return
+            store.dialogService = reading
+            current = current.copy(dialogService = reading)
+        }
+        changed()
     }
 
     private suspend fun runTcpip(gen: Long, network: AdbRestoreWifi, endpoint: AdbTlsEndpoint): Boolean {
@@ -613,6 +685,15 @@ class AdbRestoreManager(
         const val MAX_NETWORK_RESTARTS = 3
         const val NETWORK_UNSETTLED = "network kept changing"
         const val SETTINGS_SETTLE_MS = 1_500L
+        /**
+         * How long the write waits for the dialog's service to bind. A bind takes milliseconds once
+         * the setting lists the service, and the repair itself allows the system
+         * [dev.denza.apps.platform.accessibility.AccessibilityHealth.BIND_GRACE_MS] (2 s) for it; a
+         * third second is margin for a head unit still busy after its boot. Longer only holds back a
+         * dialog the driver can still answer by hand.
+         */
+        const val DIALOG_SERVICE_BIND_WAIT_MS = 3_000L
+        const val DIALOG_SERVICE_POLL_MS = 100L
         const val DISCOVERY_TIMEOUT_MS = 45_000L
         /**
          * Between two writes of `adb_wifi_enabled=1` on one network, for every request that does not

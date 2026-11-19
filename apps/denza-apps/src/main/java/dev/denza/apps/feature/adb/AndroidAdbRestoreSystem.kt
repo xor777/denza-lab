@@ -101,6 +101,17 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
             }
         }
     }
+    override fun dialogService(): AdbDialogService {
+        val health = AccessibilityHealth.read(app)
+        return when {
+            health.ready() -> AdbDialogService.BOUND
+            health.available -> AdbDialogService.BINDING
+            else -> AdbDialogService.MISSING
+        }
+    }
+    override suspend fun enableDialogService(abandoned: () -> Boolean) {
+        AccessibilityRepair.repairInProcess(app) { !abandoned() }
+    }
     override suspend fun recoverRuntime() {
         // The product's helpers belong to their feature runtimes; the normal recovery pass starts
         // exactly the enabled functions, without a second generic daemon or autostart owner.

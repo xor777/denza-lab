@@ -33,6 +33,9 @@ class AdbRestorePreferences(context: Context) : AdbRestoreStore {
     override var autoAllow: String?
         get() = prefs.getString("auto_allow", null)
         set(value) { save { putString("auto_allow", value) } }
+    override var dialogService: String?
+        get() = prefs.getString("dialog_service", null)
+        set(value) { save { putString("dialog_service", value) } }
     override var boot: AdbBootRecord?
         get() = AdbBootRecord.decode(prefs.getString("boot_record", null))
         set(value) { save { putString("boot_record", value?.encode()) } }

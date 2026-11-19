@@ -133,6 +133,7 @@ object AdbRestoreReport {
             "После неё" to (boot?.let { afterBoot(it) { ms -> stamp(ms, "HH:mm:ss") } } ?: "—"),
             "Последняя проверка" to check,
             "TLS-порт" to (s.tlsPort?.toString() ?: "—"),
+            "Служба перед диалогом" to (s.dialogService ?: "ещё не было"),
             "Сетевой диалог" to (s.autoAllow ?: "ещё не было"),
             "Повторы" to if (s.retryBudgetExhausted) "бюджет на этой сети исчерпан" else "в пределах бюджета",
         )

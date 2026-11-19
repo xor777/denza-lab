@@ -46,6 +46,39 @@ internal object AccessibilityRepair {
     fun isRunning(): Boolean = flight.isRunning()
 
     /**
+     * The services' part of [repair] - the same transaction, the split's service only while the split
+     * is on and after the shared one - written in this process with the app's own
+     * `WRITE_SECURE_SETTINGS`, for an owner that has no shell: the ADB restore just before it raises
+     * the network dialog with port 5555 closed (2026-11-19). No overlay grant, which needs the shell
+     * and which the dialog does not. Blocking; throws what the transaction threw.
+     *
+     * It does not join the shell repair's flight: one under way with the port closed is about to
+     * fail, and this one waits for the setting's lock behind it, then rewrites only if the service
+     * is still not available. A bind the system has under way is waited out first, as [repair] does.
+     * True when the setting was rewritten.
+     */
+    fun repairInProcess(context: Context, stillWanted: () -> Boolean): Boolean {
+        if (!stillWanted()) return false
+        val read = { AccessibilityHealth.read(context) }
+        if (awaitBind(read, Thread::sleep, stillWanted)) return false
+        var writing = false
+        try {
+            return DenzaAccessibilityRepairController(
+                settings = SecureAccessibilityServiceList(context.contentResolver),
+                splitLeaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(context),
+            ).repair(
+                ensureSplit = SplitScreenSettings.isEnabled(context),
+                stillWanted = stillWanted,
+                needed = { (!read().available).also { writing = it } },
+            )
+        } finally {
+            // As after the shell's repair, rolled back or not: the system binds anew, with a full
+            // deadline.
+            if (writing) AccessibilityHealth.bindWatch.restart()
+        }
+    }
+
+    /**
      * Waits out a bind the system has under way ([AccessibilityHealth.bindWaitMs]), reading [read]
      * every [BIND_POLL_MS]; true when the service connected meanwhile, so the repair has nothing of
      * it to rewrite. False at once when no bind is under way - a crashed service, a service switched
