@@ -53,8 +53,11 @@ data class AdbRescueSnapshot(
      * stayed untrusted. The gate shows that box, named as the car names it. This process only.
      */
     val alwaysAllowMissed: Boolean = false,
-    /** Requests sent in the last day, as of the last one: the technical page's. */
-    val requestsToday: Int = 0,
+    /**
+     * A request went out from this process since the key was last trusted, so the control asks
+     * «again»; before one has, it asks for the first time. This process only.
+     */
+    val asked: Boolean = false,
 ) {
     /** The control that sends a request now: a refused key, on a car whose prompt can be drawn. */
     val canAsk: Boolean
@@ -69,9 +72,16 @@ internal enum class AdbCheckOutcome {
 }
 
 internal object AdbRescuePolicy {
-    /** Requests an opening may send by itself in a day; the gate's control is not counted against it. */
+    /**
+     * Requests the app may send by itself in 24 hours: an opening's own and the follow-up after an
+     * approval without the box. Every request counts toward it, a press of the control included,
+     * because each is an entry the car's queue keeps; the press is the only one it never stops.
+     */
     const val DAILY_ASKS = 3
     const val DAY_MS = 24 * 60 * 60 * 1000L
+
+    /** Request times kept in the log: enough for the cap, bounded where the clock cannot bound it. */
+    const val ASK_LOG_KEEP = 10
 
     /** How long a request's transport is held for the driver's answer. */
     const val HOLD_MS = 120_000L
@@ -79,9 +89,16 @@ internal object AdbRescuePolicy {
     /** How often a held request looks passively for an approval that came by another transport. */
     const val LOOK_MS = 3_000L
 
-    /** Looks after an approval before it counts as given without «always allow», and their gap. */
-    const val APPROVAL_LOOKS = 2
-    const val APPROVAL_LOOK_GAP_MS = 1_000L
+    /** How long a configuration change may take to bring the screen back before it counts as leaving. */
+    const val RECREATE_MS = 5_000L
+
+    /**
+     * When the looks after an approval run, from the approval: it counts as given without «always
+     * allow» only if the last still finds the key refused. The framework answers adbd before it
+     * stores the key, on its own handler; a store that lands after a second is not unusual on a
+     * busy unit, and taking it for a missed box sends the driver a prompt they already answered.
+     */
+    val APPROVAL_LOOKS_MS = listOf(0L, 1_000L, 2_500L)
 
     /** Report words: the technical page's «Последний сбой». */
     const val NO_ANSWER = "нет ответа за 2 мин"
@@ -114,8 +131,16 @@ internal object AdbRescuePolicy {
     /** The access row's words for a car whose adbd does not answer, or whose switch is off. */
     val NO_LINK: String get() = AppText.s(R.string.adb_no_link)
 
-    /** The requests of the last day. A time ahead of the clock is a clock set back, not a request. */
-    fun lastDay(times: List<Long>, nowMs: Long): List<Long> = times.filter { it <= nowMs && nowMs - it < DAY_MS }
+    /**
+     * The requests that count as recent: those of the last 24 hours, and every one dated ahead of
+     * the clock. A head unit often boots with its clock behind until it syncs; dropping the entries
+     * that clock puts in the future would reset the cap on every such boot. A clock set back so
+     * errs toward asking less, never more, and [keep] bounds what it can hold on to.
+     */
+    fun recent(times: List<Long>, nowMs: Long): List<Long> = times.filter { it > nowMs || nowMs - it < DAY_MS }
+
+    /** The log's times after a request at [nowMs]: the recent ones and it, the last [ASK_LOG_KEEP]. */
+    fun keep(times: List<Long>, nowMs: Long): List<Long> = (recent(times, nowMs) + nowMs).takeLast(ASK_LOG_KEEP)
 
     /** A car that answers, refuses this key, and can never draw the prompt that would fix it. */
     fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
@@ -162,6 +187,7 @@ internal object AdbRescuePolicy {
                 details = AppText.s(R.string.adb_trusted_details),
                 trustedBefore = true,
                 alwaysAllowMissed = false,
+                asked = false,
             )
             // A refused key means one of two different things, and only the switch separates them.
             // Off is the service state; enabled and unreadable both keep the request path, because
@@ -210,7 +236,7 @@ internal object AdbRescuePolicy {
         asking(previous.copy(systemSwitch = systemSwitch)).copy(
             attemptCount = log.total,
             lastAttemptAtMillis = log.lastAtMs,
-            requestsToday = log.times.size,
+            asked = true,
         )
 
     fun failureLabel(error: Throwable): String {
@@ -263,6 +289,9 @@ object AdbRescueCoordinator {
 
     fun snapshot(): AdbRescueSnapshot = core?.current ?: AdbRescueSnapshot()
 
+    /** Requests recorded in the 24 hours before now: counted at the moment of reading. */
+    fun requestsLastDay(): Int = core?.requestsLastDay() ?: 0
+
     /** A passive look: never a prompt. [after] runs once it has answered. */
     fun checkAccess(after: (() -> Unit)? = null) {
         core?.check(after)
@@ -295,8 +324,10 @@ object AdbRescueCoordinator {
             requestFailure(error)
         }
 
-        override fun openRequest(): AdbHeldRequest {
-            val request = DenzaLocalAdb.client(app).openAuthorizationRequest()
+        override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
+            val cancellation = LocalAdbClient.RequestCancellation()
+            cancel.onCancel(cancellation::cancel)
+            val request = DenzaLocalAdb.client(app).openAuthorizationRequest(cancellation)
             return object : AdbHeldRequest {
                 override val alreadyTrusted: Boolean =
                     request.result == LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED

@@ -36,7 +36,7 @@ class AdbRescuePolicyTest {
         assertFalse(asking.canAsk)
         assertEquals(7, sent.attemptCount)
         assertEquals(20L, sent.lastAttemptAtMillis)
-        assertEquals(2, sent.requestsToday)
+        assertTrue("the control asks again from now on", sent.asked)
         // The reading that let the request through, not the one from the last check.
         assertEquals(AdbSystemSwitch.UNKNOWN, sent.systemSwitch)
         assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_UNREADABLE_DETAIL, sent.details)
@@ -125,12 +125,13 @@ class AdbRescuePolicyTest {
     }
 
     @Test
-    fun `the day's requests are the last twenty-four hours, and a clock set back forgets them`() {
+    fun `the recent requests are the last twenty-four hours and every one ahead of the clock`() {
         val day = AdbRescuePolicy.DAY_MS
         val now = 10 * day
+        // A time ahead of the clock is a clock set back, not a request that never was: it counts.
         assertEquals(
-            listOf(now - day + 1, now - 1, now),
-            AdbRescuePolicy.lastDay(listOf(now - day, now - day + 1, now - 1, now, now + 5), now),
+            listOf(now - day + 1, now - 1, now, now + 5),
+            AdbRescuePolicy.recent(listOf(now - day, now - day + 1, now - 1, now, now + 5), now),
         )
     }
 }

@@ -62,7 +62,7 @@ class RuntimeRecoveryManifestContractTest {
         assertEquals(setOf("src/main/java/dev/denza/apps/DenzaAppRepository.kt"), asking)
         val foregroundCallers = sources.filterValues { "DenzaAppRepository.onForegroundStarted()" in it }.keys
         assertEquals(setOf("src/main/java/dev/denza/apps/MainActivity.kt"), foregroundCallers)
-        val requestCallers = sources.filterValues { "openAuthorizationRequest()" in it }.keys
+        val requestCallers = sources.filterValues { "openAuthorizationRequest(" in it }.keys
         assertEquals(setOf("src/main/java/dev/denza/apps/feature/adb/AdbRescueCoordinator.kt"), requestCallers)
     }
 }

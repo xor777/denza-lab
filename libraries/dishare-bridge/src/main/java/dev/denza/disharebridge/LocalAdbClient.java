@@ -212,26 +212,143 @@ public final class LocalAdbClient {
         }
     }
 
+    /** A request whose opening was cancelled: the public key was not written. */
+    public static final class AuthorizationRequestCancelledException extends IOException {
+        AuthorizationRequestCancelledException() {
+            super("ADB authorization request cancelled before the key was sent");
+        }
+    }
+
+    /**
+     * Ends an {@link #openAuthorizationRequest(RequestCancellation)} from another thread.
+     *
+     * <p>A request is a queue entry the head unit keeps whatever happens to the client, so the one
+     * moment that matters is the write of the public key. {@link #cancel()} closes the socket being
+     * connected or handshaken, and the key is written under the same lock only while nothing has
+     * cancelled: a cancel either comes first and nothing is sent, or comes after the key went out.
+     */
+    public static final class RequestCancellation {
+        private final Object lock = new Object();
+        private boolean cancelled;
+        private Socket socket;
+
+        public void cancel() {
+            Socket closing;
+            synchronized (lock) {
+                cancelled = true;
+                closing = socket;
+                socket = null;
+            }
+            closeQuietly(closing);
+        }
+
+        public boolean isCancelled() {
+            synchronized (lock) {
+                return cancelled;
+            }
+        }
+
+        /** The socket a cancel closes from now on; false, and nothing kept, once cancelled. */
+        boolean attach(Socket candidate) {
+            synchronized (lock) {
+                if (cancelled) {
+                    return false;
+                }
+                socket = candidate;
+                return true;
+            }
+        }
+
+        void detach(Socket candidate) {
+            synchronized (lock) {
+                if (socket == candidate) {
+                    socket = null;
+                }
+            }
+        }
+
+        /** Writes the public key unless a cancel came first; never after one. */
+        void writeKey(OutputStream output, byte[] payload) throws IOException {
+            synchronized (lock) {
+                if (cancelled) {
+                    throw new AuthorizationRequestCancelledException();
+                }
+                writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, payload);
+            }
+        }
+    }
+
+    /** What a handshake needs of the key: adbd's token signed, and the public key to offer. */
+    interface AuthKeys {
+        byte[] signToken(byte[] token) throws GeneralSecurityException;
+
+        byte[] publicKeyPayload() throws GeneralSecurityException;
+    }
+
+    private final AuthKeys keys = new AuthKeys() {
+        @Override
+        public byte[] signToken(byte[] token) throws GeneralSecurityException {
+            return keyStore.signToken(token);
+        }
+
+        @Override
+        public byte[] publicKeyPayload() throws GeneralSecurityException {
+            return keyStore.publicKeyPayload();
+        }
+    };
+
     /** Submits at most one key. The caller closes the request on approval, cancellation or timeout. */
-    public synchronized AuthorizationRequest openAuthorizationRequest()
+    public AuthorizationRequest openAuthorizationRequest()
             throws IOException, GeneralSecurityException {
+        return openAuthorizationRequest(new RequestCancellation());
+    }
+
+    /**
+     * {@link #openAuthorizationRequest()} that [cancel] can stop while it connects and handshakes:
+     * a cancel before the key is written ends it with {@link AuthorizationRequestCancelledException}
+     * and nothing in the head unit's queue.
+     */
+    public synchronized AuthorizationRequest openAuthorizationRequest(RequestCancellation cancel)
+            throws IOException, GeneralSecurityException {
+        return openAuthorizationRequest(hosts, PORT, keys, cancel);
+    }
+
+    static AuthorizationRequest openAuthorizationRequest(
+            List<String> hosts,
+            int port,
+            AuthKeys keys,
+            RequestCancellation cancel) throws IOException, GeneralSecurityException {
         IOException lastIoFailure = null;
         for (String host : hosts) {
             Socket socket = new Socket();
-            try {
-                socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
-            } catch (IOException error) {
+            if (!cancel.attach(socket)) {
                 closeQuietly(socket);
+                throw new AuthorizationRequestCancelledException();
+            }
+            try {
+                socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
+            } catch (IOException error) {
+                cancel.detach(socket);
+                closeQuietly(socket);
+                if (cancel.isCancelled()) {
+                    throw new AuthorizationRequestCancelledException();
+                }
                 lastIoFailure = error;
                 continue;
             }
             try {
                 prepareTransport(socket, READ_TIMEOUT_MS);
-                AuthorizationRequestResult result = connectForAuthorizationRequest(
-                        socket.getInputStream(), socket.getOutputStream());
+                AuthorizationRequestResult result = handshake(
+                        socket.getInputStream(), socket.getOutputStream(), keys,
+                        AuthorizationPolicy.AUTOMATIC, true, cancel);
+                cancel.detach(socket);
                 return new AuthorizationRequest(result, socket);
             } catch (IOException | GeneralSecurityException | RuntimeException failure) {
+                cancel.detach(socket);
                 closeQuietly(socket);
+                if (cancel.isCancelled()) {
+                    throw new AuthorizationRequestCancelledException();
+                }
                 throw failure;
             }
         }
@@ -458,19 +575,17 @@ public final class LocalAdbClient {
 
     private void connect(InputStream input, OutputStream output)
             throws IOException, GeneralSecurityException {
-        connect(input, output, false);
+        handshake(input, output, keys, authorizationPolicy, false, null);
     }
 
-    private AuthorizationRequestResult connectForAuthorizationRequest(
-            InputStream input,
-            OutputStream output) throws IOException, GeneralSecurityException {
-        return connect(input, output, true);
-    }
-
-    private AuthorizationRequestResult connect(
+    /** [cancel], when there is one, is checked at the write of the public key and nowhere else. */
+    private static AuthorizationRequestResult handshake(
             InputStream input,
             OutputStream output,
-            boolean explicitRequest) throws IOException, GeneralSecurityException {
+            AuthKeys keys,
+            AuthorizationPolicy authorizationPolicy,
+            boolean explicitRequest,
+            RequestCancellation cancel) throws IOException, GeneralSecurityException {
         writeMessage(output, A_CNXN, ADB_VERSION, MAX_PAYLOAD, "host::\0".getBytes(
                 StandardCharsets.US_ASCII));
         boolean publicKeySent = false;
@@ -484,7 +599,7 @@ public final class LocalAdbClient {
             }
             if (!publicKeySent) {
                 writeMessage(output, A_AUTH, ADB_AUTH_SIGNATURE, 0,
-                        keyStore.signToken(message.payload));
+                        keys.signToken(message.payload));
                 Message reply = readMessage(input);
                 if (reply.command == A_CNXN) {
                     return AuthorizationRequestResult.ALREADY_AUTHORIZED;
@@ -502,8 +617,12 @@ public final class LocalAdbClient {
                 if (action == AuthChallengeAction.REPORT_PENDING) {
                     throw authorizationPending();
                 }
-                writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0,
-                        keyStore.publicKeyPayload());
+                byte[] payload = keys.publicKeyPayload();
+                if (cancel != null) {
+                    cancel.writeKey(output, payload);
+                } else {
+                    writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, payload);
+                }
                 publicKeySent = true;
                 if (explicitRequest) {
                     return AuthorizationRequestResult.REQUEST_SENT;

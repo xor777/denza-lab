@@ -548,6 +548,185 @@ public final class LocalAdbClientTest {
         }
     }
 
+    /**
+     * The whole path a request takes, against an adbd made of a server socket: the handshake signs
+     * the token, the second token gets the public key, the request comes back REQUEST_SENT with
+     * its transport open, a quiet wait is false, and the CNXN adbd sends on the approval is true.
+     */
+    @Test
+    public void aRequestThroughTheHandshakeIsHeldUntilTheApprovalOnItsTransport() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            FakeAdbd adbd = new FakeAdbd(server, false);
+            adbd.start();
+            LocalAdbClient.AuthorizationRequest request = LocalAdbClient.openAuthorizationRequest(
+                    Arrays.asList("127.0.0.1"), server.getLocalPort(), new TestKeys(null),
+                    new LocalAdbClient.RequestCancellation());
+            try {
+                assertEquals(LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT, request.result);
+                assertTrue("the key reached adbd", adbd.keySent.await(2, TimeUnit.SECONDS));
+                assertFalse("no answer yet, and the transport stays open", request.awaitApproval(150));
+                adbd.approve.countDown();
+                assertTrue("the approval is the CNXN on the transport that asked",
+                        request.awaitApproval(2_000));
+            } finally {
+                request.close();
+            }
+            adbd.join(2_000);
+            assertEquals(Arrays.asList("CNXN", "AUTH:2", "AUTH:3"), adbd.received);
+        }
+    }
+
+    /** A cancel that lands just before the key would be written: the handshake ends, no key sent. */
+    @Test
+    public void aCancelBeforeTheKeyIsWrittenSendsNoKey() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            FakeAdbd adbd = new FakeAdbd(server, false);
+            adbd.start();
+            LocalAdbClient.RequestCancellation cancel = new LocalAdbClient.RequestCancellation();
+            try {
+                LocalAdbClient.openAuthorizationRequest(Arrays.asList("127.0.0.1"),
+                        server.getLocalPort(), new TestKeys(cancel), cancel);
+                fail("a cancelled request was opened");
+            } catch (LocalAdbClient.AuthorizationRequestCancelledException expected) {
+                // The opening is gone; so is its socket.
+            }
+            adbd.join(2_000);
+            assertEquals(Arrays.asList("CNXN", "AUTH:2"), adbd.received);
+            assertTrue(adbd.closedByClient);
+        }
+    }
+
+    /** A cancel while adbd is slow to answer the CNXN ends the opening at once, nothing sent. */
+    @Test
+    public void aCancelDuringTheHandshakeEndsItAtOnce() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            FakeAdbd adbd = new FakeAdbd(server, true);
+            adbd.start();
+            LocalAdbClient.RequestCancellation cancel = new LocalAdbClient.RequestCancellation();
+            Thread canceller = new Thread(() -> {
+                try {
+                    adbd.stalled.await(2, TimeUnit.SECONDS);
+                } catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
+                }
+                cancel.cancel();
+            });
+            canceller.start();
+            long started = System.nanoTime();
+            try {
+                LocalAdbClient.openAuthorizationRequest(Arrays.asList("127.0.0.1"),
+                        server.getLocalPort(), new TestKeys(null), cancel);
+                fail("a cancelled request was opened");
+            } catch (LocalAdbClient.AuthorizationRequestCancelledException expected) {
+                assertTrue("the cancel ended it, not the read timeout",
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) < 2_000);
+            }
+            canceller.join();
+            adbd.join(2_000);
+            assertEquals(Arrays.asList("CNXN"), adbd.received);
+        }
+    }
+
+    /** Keys that sign anything; [cancelAtKey], when given, is cancelled as the key is asked for. */
+    private static final class TestKeys implements LocalAdbClient.AuthKeys {
+        private final LocalAdbClient.RequestCancellation cancelAtKey;
+
+        TestKeys(LocalAdbClient.RequestCancellation cancelAtKey) {
+            this.cancelAtKey = cancelAtKey;
+        }
+
+        @Override
+        public byte[] signToken(byte[] token) {
+            return new byte[256];
+        }
+
+        @Override
+        public byte[] publicKeyPayload() {
+            if (cancelAtKey != null) {
+                cancelAtKey.cancel();
+            }
+            return "QAAAAA== test\0".getBytes(StandardCharsets.US_ASCII);
+        }
+    }
+
+    /**
+     * adbd for one connection: a token for the CNXN, another for the signature, then it waits for
+     * {@link #approve} and sends CNXN. With [stall] it answers nothing after the CNXN. It records
+     * what it received, an AUTH by its type.
+     */
+    private static final class FakeAdbd extends Thread {
+        final List<String> received = java.util.Collections.synchronizedList(new ArrayList<>());
+        final CountDownLatch keySent = new CountDownLatch(1);
+        final CountDownLatch approve = new CountDownLatch(1);
+        final CountDownLatch stalled = new CountDownLatch(1);
+        volatile boolean closedByClient;
+        private final ServerSocket server;
+        private final boolean stall;
+
+        FakeAdbd(ServerSocket server, boolean stall) {
+            this.server = server;
+            this.stall = stall;
+            setDaemon(true);
+        }
+
+        @Override
+        public void run() {
+            try (Socket client = server.accept()) {
+                java.io.InputStream in = client.getInputStream();
+                java.io.OutputStream out = client.getOutputStream();
+                byte[] token = new byte[20];
+                while (true) {
+                    String header = readHeader(in);
+                    if (header == null) {
+                        closedByClient = true;
+                        return;
+                    }
+                    received.add(header);
+                    if (header.equals("CNXN")) {
+                        if (stall) {
+                            stalled.countDown();
+                            continue;
+                        }
+                        out.write(message("AUTH", 1, 0, token));
+                    } else if (header.equals("AUTH:2")) {
+                        out.write(message("AUTH", 1, 0, token));
+                    } else if (header.equals("AUTH:3")) {
+                        keySent.countDown();
+                        approve.await(5, TimeUnit.SECONDS);
+                        out.write(message("CNXN", 0x01000000, 4096, "device::"));
+                    }
+                    out.flush();
+                }
+            } catch (IOException | InterruptedException ignored) {
+                closedByClient = true;
+            }
+        }
+
+        /** The next message's command - an AUTH with its type - or null at the end of the stream. */
+        private static String readHeader(java.io.InputStream in) throws IOException {
+            byte[] header = new byte[24];
+            int read = 0;
+            while (read < header.length) {
+                int n = in.read(header, read, header.length - read);
+                if (n < 0) {
+                    return null;
+                }
+                read += n;
+            }
+            ByteBuffer buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
+            String name = commandName(buffer.getInt());
+            int arg0 = buffer.getInt();
+            buffer.getInt();
+            int length = buffer.getInt();
+            for (int skipped = 0; skipped < length; skipped++) {
+                if (in.read() < 0) {
+                    return null;
+                }
+            }
+            return name.equals("AUTH") ? name + ":" + arg0 : name;
+        }
+    }
+
     private static final class CountingOutputStream extends ByteArrayOutputStream {
         int writes;
 

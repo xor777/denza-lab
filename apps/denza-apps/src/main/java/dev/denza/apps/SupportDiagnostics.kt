@@ -191,8 +191,9 @@ object SupportDiagnostics {
             // be told from a screenshot of the right one.
             row("Отладка ADB в машине", adbSwitchLabel(adbRescue.systemSwitch)),
             row("Отправлено запросов", adbRescue.attemptCount.toString()),
-            // The automatic ones stop at three a day; the gate's control does not.
-            row("Из них за сутки", adbRescue.requestsToday.toString()),
+            // Counted over the 24 hours before this reading: the app stops asking by itself at three,
+            // the gate's control does not stop.
+            row("Из них за сутки", AdbRescueCoordinator.requestsLastDay().toString()),
             // The failure's own name - `ConnectException` and the like - is read here and only
             // here; the access row on the panel says the state and what the car said about its switch.
             row("Последний сбой", adbRescue.lastFailure ?: "нет"),

@@ -48,6 +48,9 @@ class AdbAccessCoreTest {
         }
     }
 
+    /** Requests the car holds open at once, at most; one is the rule. */
+    private var maxOpen = 0
+
     private inner class FakeCar : AdbAccessSystem {
         var elapsed = 0L
         var wallBase = 1_000_000_000L
@@ -60,22 +63,41 @@ class AdbAccessCoreTest {
         var trustRecorded = 0
         var requestFails: Exception? = null
 
+        /** A look's own failure: its read timed out, whatever the key's state. */
+        var looksTimeOut = false
+
+        /** What happens on another thread while the handshake runs, before the key is written. */
+        var duringHandshake: (() -> Unit)? = null
+
+        /** Public keys the car received: a queue entry each. */
+        var keysSent = 0
+
         val trusted: Boolean get() = trustedAt?.let { elapsed >= it } == true
 
         override fun passiveCheck(): AdbCheckResult {
             looks++
             elapsed += 20
             return when {
+                looksTimeOut -> AdbCheckResult(AdbCheckOutcome.ERROR, "SocketTimeoutException")
                 !portOpen -> AdbCheckResult(AdbCheckOutcome.UNAVAILABLE, "ConnectException")
                 trusted -> AdbCheckResult(AdbCheckOutcome.TRUSTED)
                 else -> AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
             }
         }
 
-        override fun openRequest(): AdbHeldRequest {
+        override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
             requestFails?.let { throw it }
             if (!portOpen) throw ConnectException("refused")
-            return FakeRequest(trusted).also { requests += it }
+            var socketClosed = false
+            cancel.onCancel { socketClosed = true }
+            duringHandshake?.invoke()
+            // LocalAdbClient checks the cancel under the lock it writes the key with.
+            if (cancel.isCancelled || socketClosed) throw IOException("cancelled before the key was written")
+            if (!trusted) keysSent++
+            return FakeRequest(trusted).also {
+                requests += it
+                maxOpen = maxOf(maxOpen, requests.count { r -> !r.closed })
+            }
         }
 
         override fun requestFailure(error: Throwable): AdbCheckResult = AdbCheckResult(
@@ -240,7 +262,7 @@ class AdbAccessCoreTest {
         val now = car.wallMs()
         store.log = AdbAskLog(listOf(now - 3_000_000, now - 2_000_000, now - 1_000_000), total = 9, lastAtMs = now - 1_000_000)
         core()
-        assertEquals(3, core.current.requestsToday)
+        assertEquals(3, core.requestsLastDay())
         assertEquals(9, core.current.attemptCount)
 
         core.foregroundStarted()
@@ -489,23 +511,36 @@ class AdbAccessCoreTest {
         assertTrue(car.requests.single().closed)
     }
 
+    /**
+     * Everything that may start work, called while a request is held: a look, the control, and a new
+     * opening (a stop and a start). The worker here is synchronous, so without the guard in `check`
+     * or `ask` a look or a second request would run inside the block itself.
+     */
     @Test
     fun `nothing runs beside a held request`() {
         core()
-        var looksDuringHold = -1
+        var looksInBlock = -1
+        var requestsInBlock = -1
         car.meanwhile(at = 4_000) {
-            val before = car.looks
+            val looks = car.looks
+            val requests = car.requests.size
             core.check()
             core.ask()
+            core.foregroundStopped(changingConfigurations = false)
             core.foregroundStarted()
-            looksDuringHold = car.looks - before
+            looksInBlock = car.looks - looks
+            requestsInBlock = car.requests.size - requests
         }
+        car.approve(at = 9_000, tick = true)
 
         core.foregroundStarted()
-        core.check()
 
-        assertEquals(0, looksDuringHold)
-        assertEquals(1, car.requests.size)
+        assertEquals(0, looksInBlock)
+        assertEquals(0, requestsInBlock)
+        assertEquals("one request open at a time", 1, maxOpen)
+        // The new opening asked once the first request had unwound.
+        assertEquals(2, car.requests.size)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
     }
 
     @Test
@@ -544,5 +579,300 @@ class AdbAccessCoreTest {
         car.meanwhile(at = 1_000) { core.check { heard++ } }
         core.foregroundStarted()
         assertEquals("a look asked for during a request is not run, and not answered", 2, heard)
+    }
+
+    /** A listener that counts what the app does on each change: the runtime on TRUSTED, the restore otherwise. */
+    private class Heard {
+        var runtimeStarts = 0
+        var restoreTriggers = 0
+        val outcomes = mutableListOf<AdbRescuePhase>()
+
+        fun hear(snapshot: AdbRescueSnapshot) {
+            when (snapshot.phase) {
+                AdbRescuePhase.TRUSTED -> runtimeStarts++
+                AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.ERROR, AdbRescuePhase.AUTHORIZATION_REQUIRED -> restoreTriggers++
+                else -> Unit
+            }
+            if (snapshot.phase != AdbRescuePhase.CHECKING && snapshot.phase != AdbRescuePhase.AWAITING_CONFIRMATION) {
+                outcomes += snapshot.phase
+            }
+        }
+
+        fun clear() {
+            outcomes.clear()
+            runtimeStarts = 0
+            restoreTriggers = 0
+        }
+    }
+
+    private fun heardFrom(setUp: () -> Unit, act: () -> Unit): Heard {
+        val heard = Heard()
+        core = AdbAccessCore(car, store, { it.run() }, false) { heard.hear(core.current) }
+        setUp()
+        heard.clear()
+        act()
+        return heard
+    }
+
+    /**
+     * Every outcome of a request reaches the listener once: the runtime starts once on an approval,
+     * the restore is told once of a refusal. Each used to be heard twice, from the outcome and again
+     * from the worker's release.
+     */
+    @Test
+    fun `every outcome reaches the listener once`() {
+        val approved = heardFrom({ car.approve(at = 5_000, tick = true) }) { core.foregroundStarted() }
+        assertEquals(listOf(AdbRescuePhase.TRUSTED), approved.outcomes)
+        assertEquals(1, approved.runtimeStarts)
+
+        val cases = mapOf<String, () -> Unit>(
+            "timeout" to {},
+            "switch off" to { car.meanwhile(at = car.elapsed + 5_000) { car.switch = AdbSystemSwitch.DISABLED } },
+            "transport lost" to { car.events += Event(car.elapsed + 6_000) { Wake.EOF } },
+            "left" to { car.meanwhile(at = car.elapsed + 7_000) { core.foregroundStopped(changingConfigurations = false) } },
+            "no box, cap spent" to {
+                val now = car.wallMs()
+                store.log = AdbAskLog(listOf(now - 2_000, now - 1_000), total = 2, lastAtMs = now - 1_000)
+                car.approve(at = car.elapsed + 5_000, tick = false)
+            },
+            "not sent" to { car.requestFails = IllegalStateException("odd") },
+        )
+        cases.forEach { (name, arrange) ->
+            car.trustedAt = null
+            car.switch = AdbSystemSwitch.ENABLED
+            car.requestFails = null
+            car.events.clear()
+            store.log = AdbAskLog()
+            val heard = heardFrom({ core.check(); arrange() }) { core.foregroundStarted() }
+            assertEquals(name, 1, heard.outcomes.size)
+            assertEquals(name, 1, heard.restoreTriggers)
+            assertEquals(name, 0, heard.runtimeStarts)
+        }
+    }
+
+    /**
+     * A look that times out while the prompt is on the screen is noise: the request stays held, and
+     * the approval that follows is still heard on its transport. Only trust found by a look, the
+     * switch, the transport itself or the time end a hold.
+     */
+    @Test
+    fun `a hold ends only on trust, the switch, its transport or the time, never on a noisy look`() {
+        core()
+        car.meanwhile(at = 4_000) { car.looksTimeOut = true }
+        car.meanwhile(at = 8_000) {
+            car.looksTimeOut = false
+            car.portOpen = false
+        }
+        car.meanwhile(at = 12_000) { car.portOpen = true }
+        car.approve(at = 20_000, tick = true)
+
+        core.foregroundStarted()
+
+        assertEquals(1, car.requests.size)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertFalse(published.any { it.phase == AdbRescuePhase.ERROR || it.phase == AdbRescuePhase.UNAVAILABLE })
+        assertTrue("the hold reached the approval", car.elapsed >= 20_000)
+    }
+
+    /** The car's «Отклонить» sends nothing to the transport: the ring turns to the end, as for no answer. */
+    @Test
+    fun `a denial behaves as the timeout`() {
+        core()
+        // The driver denies at 5 s: adbd says nothing to the transport.
+        car.meanwhile(at = 5_000) {}
+
+        core.foregroundStarted()
+
+        assertEquals(1, car.requests.size)
+        assertTrue(car.requests.single().closed)
+        assertTrue(car.elapsed >= AdbRescuePolicy.HOLD_MS)
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertEquals(AdbRescuePolicy.NO_ANSWER, core.current.lastFailure)
+        assertTrue("the control asks again", core.current.asked)
+        assertTrue(core.current.canAsk)
+    }
+
+    /** Two approvals without the box: the follow-up goes out once, then the gate keeps the box and its control. */
+    @Test
+    fun `two approvals in a row without the box give exactly one follow-up`() {
+        core()
+        car.approve(at = 5_000, tick = false)
+        car.approve(at = 15_000, tick = false)
+        car.approve(at = 40_000, tick = true)
+
+        core.foregroundStarted()
+
+        assertEquals(2, car.requests.size)
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertTrue(core.current.alwaysAllowMissed)
+        assertTrue(core.current.canAsk)
+        // The control still asks, and its approval with the box ends it.
+        car.events.clear()
+        car.approve(at = car.elapsed + 3_000, tick = true)
+        core.ask()
+        assertEquals(3, car.requests.size)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+    }
+
+    /** The follow-up is automatic, so the day's cap holds it back as it does an opening's. */
+    @Test
+    fun `the follow-up stays under the day's cap`() {
+        val now = car.wallMs()
+        store.log = AdbAskLog(listOf(now - 2_000, now - 1_000), total = 2, lastAtMs = now - 1_000)
+        core()
+        car.approve(at = 5_000, tick = false)
+
+        core.foregroundStarted()
+
+        assertEquals("the opening's, the third of the day, and no follow-up", 1, car.requests.size)
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertTrue(core.current.alwaysAllowMissed)
+    }
+
+    /**
+     * The framework says OK to adbd before it stores the key, and on a busy unit the store can come
+     * two seconds later. That is an approval with the box, not a missed one: no box on the gate and
+     * no second prompt.
+     */
+    @Test
+    fun `a key stored two seconds after the approval gives no follow-up`() {
+        core()
+        car.approve(at = 5_000, tick = true, persistLagMs = 2_000)
+
+        core.foregroundStarted()
+
+        assertEquals(1, car.requests.size)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertFalse(published.any { it.alwaysAllowMissed })
+    }
+
+    /** Leaving while the request is still being opened stops it before its key reaches the car. */
+    @Test
+    fun `leaving during the handshake sends nothing`() {
+        core()
+        car.duringHandshake = { core.foregroundStopped(changingConfigurations = false) }
+
+        core.foregroundStarted()
+
+        assertEquals(0, car.keysSent)
+        assertEquals(0, car.requests.size)
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertNull("leaving is not a failure", core.current.lastFailure)
+
+        car.duringHandshake = null
+        car.approve(at = car.elapsed + 3_000, tick = true)
+        core.foregroundStarted()
+        assertEquals(1, car.keysSent)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+    }
+
+    /**
+     * A configuration change whose screen never comes back - the activity finished mid-rotation - is
+     * leaving, a few seconds late: the request is closed, not held to its two minutes, and the next
+     * start is an opening of its own.
+     */
+    @Test
+    fun `a configuration-change stop never followed by a start ends the request and the opening`() {
+        core()
+        car.meanwhile(at = 4_000) { core.foregroundStopped(changingConfigurations = true) }
+
+        core.foregroundStarted()
+
+        assertEquals(1, car.requests.size)
+        assertTrue(car.requests.single().closed)
+        assertTrue(
+            "closed a few seconds after the stop",
+            car.elapsed < 4_000 + AdbRescuePolicy.RECREATE_MS + AdbRescuePolicy.LOOK_MS + 1_000,
+        )
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertNull(core.current.lastFailure)
+
+        // Nothing is sent from the background meanwhile.
+        core.check()
+        assertEquals(1, car.requests.size)
+
+        car.approve(at = car.elapsed + 3_000, tick = true)
+        core.foregroundStarted()
+        assertEquals("the next start asks for itself", 2, car.requests.size)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+    }
+
+    /** A listener that throws on the worker leaves no ring without a way out: ERROR, with its control. */
+    @Test
+    fun `a throwing listener releases the worker and ends in an error with its control`() {
+        var throwOn: AdbRescuePhase? = AdbRescuePhase.TRUSTED
+        core = AdbAccessCore(car, store, { it.run() }, false) {
+            published += core.current
+            if (core.current.phase == throwOn) {
+                throwOn = null
+                throw IllegalStateException("listener")
+            }
+        }
+        car.approve(at = 5_000, tick = true)
+
+        core.foregroundStarted()
+
+        assertEquals(AdbRescuePhase.ERROR, core.current.phase)
+        assertEquals("IllegalStateException", core.current.lastFailure)
+        assertTrue(car.requests.single().closed)
+        // Not busy: a look runs, and finds the trusted key.
+        val looks = car.looks
+        core.check()
+        assertEquals(looks + 1, car.looks)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+
+        // One that throws on the caller's thread, as the change is announced, still lets the work run.
+        car.trustedAt = null
+        throwOn = AdbRescuePhase.CHECKING
+        try {
+            core.check()
+        } catch (expected: IllegalStateException) {
+            // The caller hears it; the worker ran regardless.
+        }
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        core.check()
+        assertEquals(looks + 3, car.looks)
+    }
+
+    /**
+     * A head unit boots with its clock behind until it syncs. The requests of the real day are then
+     * in the clock's future: they still count, so a boot does not reset the cap. A clock that jumps
+     * forward past them frees it.
+     */
+    @Test
+    fun `the cap holds across a clock set back, and frees when the day has passed`() {
+        val real = car.wallMs()
+        store.log = AdbAskLog(listOf(real - 3_000, real - 2_000, real - 1_000), total = 3, lastAtMs = real - 1_000)
+        // Booted with the clock a year behind.
+        car.wallBase -= 365 * AdbRescuePolicy.DAY_MS
+        core()
+        assertEquals(3, core.requestsLastDay())
+
+        core.foregroundStarted()
+        assertEquals("the boot's clock does not reset the day's three", 0, car.requests.size)
+        assertEquals(3, store.log.times.size)
+
+        // The press is never stopped by the cap, and the future entries stay in the log.
+        core.ask()
+        assertEquals(1, car.requests.size)
+        assertEquals(4, store.log.times.size)
+        assertTrue(store.log.times.containsAll(listOf(real - 3_000, real - 2_000, real - 1_000)))
+
+        // The clock syncs; a day after the real requests the openings ask again.
+        core.foregroundStopped(changingConfigurations = false)
+        car.wallBase += 365 * AdbRescuePolicy.DAY_MS + AdbRescuePolicy.DAY_MS
+        assertEquals(0, core.requestsLastDay())
+        core.foregroundStarted()
+        assertEquals(2, car.requests.size)
+    }
+
+    @Test
+    fun `the log keeps its last ten times, whatever the clock says`() {
+        val now = car.wallMs()
+        val future = (1..12).map { now + it * 60_000L }
+        assertEquals(10, AdbRescuePolicy.keep(future, now).size)
+        assertEquals(now, AdbRescuePolicy.keep(future, now).last())
+        assertEquals(12, AdbRescuePolicy.recent(future, now).size)
+        assertEquals(listOf(now - 1_000), AdbRescuePolicy.recent(listOf(now - AdbRescuePolicy.DAY_MS - 1, now - 1_000), now))
     }
 }
