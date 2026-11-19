@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.report.ReportDocuments
 import dev.denza.apps.feature.diagnostics.report.ReportLayout
 import dev.denza.apps.feature.diagnostics.report.ReportOutcome
+import dev.denza.apps.feature.diagnostics.report.ReportPage
 import dev.denza.apps.feature.diagnostics.report.ReportPainter
 import dev.denza.apps.feature.diagnostics.report.ReportPaints
 import dev.denza.apps.feature.diagnostics.report.ReportSheet
@@ -30,6 +32,8 @@ import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /*
  * «Отчёт» (architecture, 7.4; `scanner.js` `report()`, board `scanner-report`): the report's first page
@@ -48,7 +52,15 @@ internal fun ReportPage(model: DiagnosticsModel, header: @Composable () -> Unit,
     val saving = state.outcome == ReportOutcome.Saving
     val context = LocalContext.current
     val paints = remember(context) { ReportPaints(context) }
-    val pages = remember(input, ticked, paints) { input?.let { ReportLayout(paints).lay(ReportDocuments.of(it, ticked)) }.orEmpty() }
+    // Laid out off the main thread, and again only when what the pages print changes - not at every build of the
+    // model, which moves the input's own moment four times a second. The layout measures with paints of its own:
+    // the drawing's are the main thread's.
+    val content = input?.content
+    val pages by produceState(emptyList<ReportPage>(), content, ticked, context) {
+        value = withContext(Dispatchers.Default) {
+            content?.let { ReportLayout(ReportPaints(context)).lay(ReportDocuments.of(it, ticked)) }.orEmpty()
+        }
+    }
     ScannerPage(footer = {
         ScanFooter(
             listOfNotNull(

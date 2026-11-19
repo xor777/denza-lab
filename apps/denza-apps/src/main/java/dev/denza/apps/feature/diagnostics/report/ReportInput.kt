@@ -54,7 +54,17 @@ internal data class ReportInput(
     val recording: ReportRecording? = null,
     /** What the journal adds; null while it is not connected. */
     val journal: ReportJournal? = null,
-)
+) {
+    /**
+     * What the pages print, without the moment the input was built - which no page prints and which every
+     * build of the model moves: the preview lays its pages out again only when this changes.
+     */
+    val content: ReportInput get() = copy(madeAt = CONTENT_MOMENT)
+
+    private companion object {
+        val CONTENT_MOMENT: ZonedDateTime = ZonedDateTime.ofInstant(java.time.Instant.EPOCH, java.time.ZoneOffset.UTC)
+    }
+}
 
 /** «68 из 68 блоков ответили · активных 0 · ожидающих 0 · в истории 18 записей · блоков с записями 6». */
 internal data class ReportSummary(

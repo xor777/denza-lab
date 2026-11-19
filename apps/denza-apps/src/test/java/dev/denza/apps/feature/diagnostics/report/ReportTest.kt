@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -409,6 +410,23 @@ class ReportTest {
         assertEquals(12 to 68, p.getInt("done") to p.getInt("of"))
         assertEquals(12, p.getJSONArray("modules").length())
         assertNull("not a finished scan to any reader", ScanJson.decode(p.toString()))
+    }
+
+    /**
+     * Two builds of the model a tick apart give two inputs that differ only in their own moment, which no page
+     * prints: the preview's key - their content - is one, so it lays the pages out once, not four times a second.
+     */
+    @Test
+    fun theModelsTickDoesNotChangeWhatThePagesPrint() {
+        val (_, scanned) = input()
+        val results = scanned.scan.reads.associate { it.request to ModuleResult(EcuCatalog.byRequest(it.request)!!, it) }
+        fun at(now: Long) = ReportInputs.of(scanned.model, results, scanned.scan.finishedAtMillis, car, SoftwareHistory(), now, ZoneOffset.UTC)
+        val a = at(Fixtures.EPOCH + 60_000)
+        val b = at(Fixtures.EPOCH + 60_250)
+        assertNotEquals(a, b)
+        assertEquals(a.content, b.content)
+        val all = ReportSection.entries.toSet()
+        assertEquals(ReportDocuments.of(a, all), ReportDocuments.of(a.content, all))
     }
 
     @Test
