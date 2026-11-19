@@ -71,7 +71,9 @@ ends.
   DiShare's log with no `exitAll` when no share ran. A refused start to a receiver that is not
   there, then `logcat -s DiShareApiServiceImpl`.
 - Switching «Поддержка трансляции» off with a share started from the stock dialog
-  (2026-11-19, `SimulcastStopPolicyTest` only): the share keeps running.
+  (2026-11-19, `SimulcastStopPolicyTest` only): the share keeps running. The same-app re-cast
+  inside the 1.5 s end debounce is a known limit
+  ([Switching support off](#switching-support-off-2026-11-19)).
 - The product's end of a share on the car: cast to the HUD, shift P→D, and the exit control
   and the tile's running state go within about two seconds; the stock exit control and a
   same-app re-cast to another screen must give `ended` and no `ended` respectively in the
@@ -282,6 +284,15 @@ Now the switch sends its own request, and `SimulcastStopPolicy.kt` decides (test
 with none, nothing is sent to DiShare and only our own target and exit control are cleared. The
 exit control keeps the fallback: it is on screen only while this process has a cast on record, so
 its press means "end the share I see".
+
+**Known limit (second review, 2026-11-19).** The bridge stays held for the 1.5 s end debounce after
+our share ends, and DiShare identifies a share by package
+(`reverse/dishare-jadx/sources/i/d/o/f/x.java`), removing the mirror client can end every share
+(the same file). By the owner's rule this narrow race is documented, not fixed:
+
+| Scenario | What the driver may see | Car check |
+|---|---|---|
+| Our share of an app ends; within 1.5 s the same app is cast again from the stock dialog; then «Поддержка трансляции» is switched off (finding 12) | The stock share just started can end with the switch, as if it were ours | End our share, re-cast the same app from the stock dialog within 1.5 s, switch support off: does the stock share keep running? `logcat -s DenzaDiShareBridge DiShareApiServiceImpl`. Also whether the firmware lets the stock hand-off land inside the debounce at all, and whether the virtual display is released |
 
 ## Probe commands
 
