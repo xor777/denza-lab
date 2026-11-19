@@ -30,7 +30,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
 | A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer; a screen that starts watching ends the backoff (`VehicleBackoff.wake`) | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
-| Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side. Since 2026-11-19 a side nobody observed opens nothing: without AVC's mode a head-unit card under choice `1` (or an unknown choice) takes its side from a fresh lamp sample or has none (`MirrorStockPip.side`) | code | 2026-11-19 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`). Since 2026-11-19 the owner's value is committed to disk before AVC is asked, kept through a reply that never came, and dropped only when AVC's answer shows the write did not land (`MirrorStockChoicePolicy.applyEnable`); before, a lost reply or a process death between the write and the save lost it for good. The new order is code, not run on the car | live | 2026-11-19 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | A monitor that cannot read the car for 4 s (the window poll's shell and the lamp feed both down) closes its camera through the lamps-off teardown, on its own thread, and the tile reads «Нет доступа» with the access check as its press (`MirrorObservationWatch.kt`, `MirrorDisplayReadiness.kt`). Before 2026-11-19 every ending of a camera was decided on a poll that succeeded, so a camera could stay on the cluster after the turn, under a lit tile. Since the second review of 2026-11-19 a read's freshness is recorded in the critical section of `transitionGate` that applies it, the deadline is judged on one clock sample taken under the same lock, and both belong to one monitor run (`MirrorTransitionGate.observe`, `checkDeadline`): the watchdog can no longer close a camera a poll has just kept, and a stopped monitor's late poll cannot refresh its successor's deadline. Code, not run on the car | code | 2026-11-19 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | `com.byd.avc/.AutoVideoService` (action `com.byd.action.AVCSERVICE`, no permission, no caller check) answers a Messenger: `what=35` gives the mode in `arg2` (`5095` left, `5096`/`5099` right, `5000` idle), `what=1011` replies `1012` with the choice (`0` left on the meter, `1` head unit, `2` full-screen, `3` off), `what=1013` writes it, `what=52` closes the PIP (read, not run); an app UID binds in 23 ms and gets answers in 6-11 ms on AVC's main thread, so it is asked once per transition, never polled | live | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
@@ -1740,9 +1740,22 @@ quarantine rules described above and in vehicle-data-findings.md:
   right card and for a left card when both images stay on the head unit (the
   two alerts have the same 720x450 geometry, so the geometry alone cannot name a
   side). When AVC does not answer, the old window signature is used alone.
+
+  > **Superseded 2026-11-19 (second review, finding 2):** "the old window
+  > signature is used alone" read the head-unit alert as the right card under
+  > every choice. With choice `1` in force (the one Mirrors write) a left turn
+  > builds the same 720x450 alert, so a missed 150 ms mode reply with no fresh
+  > lamp sample (the monitor starting, the feed recovering) opened the right
+  > camera on a left turn. Without AVC's mode the meter activity still names the
+  > left side, and the head-unit alert names the right side only under the stock
+  > default (`0`); under `1`, or a choice AVC never reported, only a fresh lamp
+  > sample names the side, and without one there is no side and no camera
+  > (`MirrorStockPip.side`, `SideCameraWindowDetectorTest`). No vendor call was
+  > added. Code; not run on the car.
 - **Show** side X when AVC's card of X is built, the lamps flash X (`2`/`3`
   left, `4`/`5` right, the stock's own reading), our runtime is idle and no
-  teardown is in flight. With the lamp feed down the card alone opens it.
+  teardown is in flight. With the lamp feed down the card alone opens it, as
+  long as AVC's mode named its side (2026-11-19).
 - **Close** at once when the lamps leave X (off, hazard, the other side: an
   event, not a poll), when AVC's card of X ends, or on a raw lever onset toward
   the other side (unchanged, the crash guard). The camera never outlives the

@@ -237,8 +237,10 @@ class SideCameraMonitorService : Service() {
             }
             timingPreviousReadStartedMs = readStartedMs
             if (!run.isCurrent()) return
-            val stockSide = observeStock(detection, now)
-            val mode = recordTurnSignalState(stockSide, now)
+            // The lamps first: without AVC's mode they are what names the side of a head-unit card.
+            val mode = readTurnSignalState(now)
+            val stockSide = observeStock(detection, now, MirrorLamp.of(mode).first)
+            recordTurnSignalShadow(mode, stockSide, now)
             // The transition and the read's freshness in one critical section: the deadline sees
             // both or neither.
             transitionGate.observe(run, now) { applyTransitionLocked(stockSide, now, mode) }
@@ -271,7 +273,7 @@ class SideCameraMonitorService : Service() {
      * The stock card a camera may take over. AVC is asked only while one of its cards is up or a
      * camera of ours is active: its Messenger runs on the thread that rebuilds the card.
      */
-    private fun observeStock(detection: SideCameraDetection, now: Long): MirrorSide? {
+    private fun observeStock(detection: SideCameraDetection, now: Long, lamp: MirrorLamp): MirrorSide? {
         // Only a turn card's own windows count: the reverse and full-screen views are AVC windows
         // too, and asking AVC ten times a second while it draws the reverse view is the worst time.
         val cardVisible = detection.meterPipWindow || detection.hostPipWindow
@@ -291,7 +293,7 @@ class SideCameraMonitorService : Service() {
         if (!cardVisible && !active) settleStockChoice(stock)
         val mode = if (cardVisible || active) stock?.mode() else AvcStockMode.IDLE
         lastStockMode = mode
-        val side = MirrorStockPip.side(detection, mode, stockChoice)
+        val side = MirrorStockPip.side(detection, mode, stockChoice, lamp)
         if (side != lastLoggedStockSide) {
             Log.i(
                 TAG,
@@ -360,21 +362,26 @@ class SideCameraMonitorService : Service() {
         AvcIdleRelease.release(this)
     }
 
-    /** One cached read feeds diagnostics and the lamps the reducer follows. */
-    private fun recordTurnSignalState(stockSide: MirrorSide?, now: Long): VehicleSignalState<TurnIndicatorMode> {
-        val state = runCatching {
+    /** One cached read feeds the stock card's side, the lamps the reducer follows and diagnostics. */
+    private fun readTurnSignalState(now: Long): VehicleSignalState<TurnIndicatorMode> =
+        runCatching {
             turnSignalLease?.read(VehicleSignalKeys.TurnIndicatorMode, now)
                 ?: MirrorTurnSignalDiagnostics.unavailable("listener not active")
         }.onFailure { error ->
             Log.w(TAG, "turn-signal observation failed", error)
         }.getOrElse { MirrorTurnSignalDiagnostics.unavailable(shortError(it)) }
+
+    private fun recordTurnSignalShadow(
+        state: VehicleSignalState<TurnIndicatorMode>,
+        stockSide: MirrorSide?,
+        now: Long,
+    ) {
         val snapshot = MirrorTurnSignalDiagnostics.record(state, stockSide, now)
         val status = "${snapshot.state}/${snapshot.windowSide}/${snapshot.agreement}"
         if (status != lastShadowStatus) {
             lastShadowStatus = status
             Log.i(TAG, "turn-signal shadow: ${snapshot.compact()}")
         }
-        return state
     }
 
     private fun onSwitchNotice(run: MirrorRun, notice: VehicleSignalEventNotice<TurnSwitchPhase>) {

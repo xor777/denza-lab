@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.mirrors
 
+import dev.denza.apps.feature.cluster.CameraRuntimePhase
+import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -101,14 +103,65 @@ class SideCameraWindowDetectorTest {
     }
 
     @Test
-    fun withoutAnAnswerFromAvcOnlyTheStockDefaultGeometryIsLeft() {
+    fun withoutAnAnswerFromAvcTheHeadUnitCardNamesASideOnlyUnderTheStockDefault() {
         val meter = SideCameraDetection(meterPipWindow = true, recognizedSide = MirrorSide.LEFT)
         val host = SideCameraDetection(hostPipWindow = true, recognizedSide = MirrorSide.RIGHT)
         val unknownToo = host.copy(unrecognizedCandidates = 1)
+        val onMeter = AvcTurnCameraChoice.PIP_LEFT_ON_METER
+        // The meter activity is only ever the left card.
         assertEquals(MirrorSide.LEFT, MirrorStockPip.side(meter, null, null))
-        assertEquals(MirrorSide.RIGHT, MirrorStockPip.side(host, null, null))
-        assertEquals(null, MirrorStockPip.side(unknownToo, null, null))
-        assertEquals(null, MirrorStockPip.side(SideCameraDetection(), null, null))
+        assertEquals(MirrorSide.LEFT, MirrorStockPip.side(meter, null, AvcTurnCameraChoice.PIP_ON_HEAD_UNIT))
+        // Under the stock default the head-unit alert is the right card.
+        assertEquals(MirrorSide.RIGHT, MirrorStockPip.side(host, null, onMeter))
+        // A choice AVC never told us may be `1`: the alert alone names no side.
+        assertEquals(null, MirrorStockPip.side(host, null, null))
+        assertEquals(MirrorSide.RIGHT, MirrorStockPip.side(host, null, null, MirrorLamp.RIGHT))
+        assertEquals(null, MirrorStockPip.side(unknownToo, null, onMeter, MirrorLamp.RIGHT))
+        assertEquals(null, MirrorStockPip.side(SideCameraDetection(), null, null, MirrorLamp.LEFT))
+    }
+
+    /**
+     * Second review of 2026-11-19, finding 2. Choice `1` is in force (Mirrors write it), a left turn
+     * builds the head-unit alert, AVC misses its 150 ms mode reply and the lamp feed has no fresh
+     * sample yet (the monitor starting, the feed recovering). The 720x450 alert is the left card
+     * as much as the right one, so nothing observed names a side: no side, no camera. Before, the
+     * geometry of the stock default was read alone and opened the right camera on a left turn.
+     */
+    @Test
+    fun aHeadUnitCardUnderChoiceOneWithNoModeAndNoLampNamesNoSide() {
+        val host = SideCameraDetection(hostPipWindow = true, recognizedSide = MirrorSide.RIGHT)
+        assertEquals(null, MirrorStockPip.side(host, null, AvcTurnCameraChoice.PIP_ON_HEAD_UNIT))
+    }
+
+    @Test
+    fun underChoiceOneWithoutAModeAFreshLampNamesTheSideAndOnlyThatSideOpens() {
+        val host = SideCameraDetection(hostPipWindow = true, recognizedSide = MirrorSide.RIGHT)
+        val onHeadUnit = AvcTurnCameraChoice.PIP_ON_HEAD_UNIT
+        val idle = CameraRuntimeSnapshot(CameraRuntimePhase.IDLE)
+
+        val unknown = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                stockSide = MirrorStockPip.side(host, null, onHeadUnit, MirrorLamp.UNKNOWN),
+                lamp = MirrorLamp.UNKNOWN,
+                lampObservedAtMs = -1L,
+                runtime = idle,
+                nowMs = 100L,
+            ),
+        )
+        assertEquals("no side observed, no renderer taken", MirrorTransitionCommand.None, unknown.command)
+
+        val left = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                stockSide = MirrorStockPip.side(host, null, onHeadUnit, MirrorLamp.LEFT),
+                lamp = MirrorLamp.LEFT,
+                lampObservedAtMs = 90L,
+                runtime = idle,
+                nowMs = 100L,
+            ),
+        )
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), left.command)
     }
 
     @Test
