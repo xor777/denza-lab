@@ -31,7 +31,7 @@ currently inaccessible vehicle.
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns); `Connecting` ends when the network changes. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back. **Superseded 2026-11-19:** a look that read the switch off outranks every restore state, and an attempt that inherits `Connecting` and ends early leaves it standing ([Known limits](#known-limits-2026-11-19)) | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
+| Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery. A comparison found two candidates for review: check the accessibility service before raising the network dialog, and poll for confirmation with fewer setting writes. No car acceptance yet | local tests/build and comparison, 2026-11-19 | [Autonomous restore](#autonomous-restore-implementation-2026-10-08), [Comparison](#recovery-path-comparison-2026-11-19) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
 | «Сервис → Восстановление ADB» says whether there is access, what the first look after the last boot found and what the restore did, from a per-boot record a later open-port check does not overwrite; «Технические сведения» has one «Восстановление ADB» section with every reading once | code, emulator boards; on the car since 2026-10-18 18:18, record written, first reading after a reboot pending | [The page after a boot](#the-page-after-a-boot-2026-10-18) |
 
@@ -54,6 +54,7 @@ currently inaccessible vehicle.
 - [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
   - [The page after a boot](#the-page-after-a-boot-2026-10-18)
   - [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19)
+  - [Recovery path comparison](#recovery-path-comparison-2026-11-19)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
 - [Local key storage](#local-key-storage-and-history-redaction-2026-10-13)
 - [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10)
@@ -1231,6 +1232,46 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   `wifi-lost` during an attempt starts a new connection: the attempt notes the connection count
   when it starts and sets the hold only if the count has not moved, so a drop and reconnect to the
   same router during a failing attempt is not held by that failure.
+
+### Recovery path comparison (2026-11-19)
+
+Static comparison of release 4.4.2 (`94eae05fc95c7cd88554e954dbca29d5c3f06cf9`)
+with Denza Apps `5dcb6080`. The comparison release and its main branch were at
+the same commit. Source and test cases were read. No build, vehicle test or
+product code change was performed.
+
+Both implementations check the classic channel first, can use a permission
+already retained from an authorized shell session to enable stock wireless
+debugging, and try the published TLS endpoint before local mDNS. They allow
+for the TLS connection to close when the listener restarts and check classic
+ADB afterwards. Denza Apps checks actual shell output and stops the port
+restore on a definite key refusal. The comparison implementation's dedicated
+restore check uses its existing client's connect result, which can reuse a
+socket that has not yet observed a remote close.
+
+| Difference in the comparison release | Relevance to Denza Apps |
+| --- | --- |
+| Before wireless debugging, a separate branch attempts to bring the classic listener back through Android's global ADB switch and vendor settings. If something changed, it makes three short checks. Failure proceeds to the wireless path. | Denza Apps treats a read of the Android ADB switch being off as a distinct state. The comparison tests use fakes for the setting writes. Field confirmations after the combined 4.4.0 changes do not identify the branch that worked. |
+| It checks whether the accessibility service is bound before raising the network confirmation dialog and allows up to 3 s for it to bind if preparation was needed. | Denza Apps prepares the service on the healthy classic path and after restoration. A service that became unavailable in between can be late for the first dialog. Record its health at the time of the dialog before drawing conclusions about this failure. |
+| A wave checks for confirmation over up to five minutes but keeps the same 10 min per-network write cooldown during polling, apart from an explicit settings request. This change followed reports of stacked network dialogs. | Denza Apps has the same bounded wave but can issue another settings write every 15 s while it runs. The network dialog is independent of the RSA authorization prompt. The comparison supports checking whether one settings write followed by reads is sufficient on the affected firmware. |
+| A tracking-service watchdog pings the helper every 30 polling ticks, limits restarts to one per minute and sends recovery hints after restart attempts. Wi-Fi availability and the edge into validated Wi-Fi also send hints. | The watchdog observes helper health. It gives a recovery trigger during idle use if that helper fails, while a healthy helper can coexist with a lost ADB channel. Denza Apps handles feature failures directly and keeps a separate input for Wi-Fi loss. |
+
+Two field replies after 4.4.0 reported recovery on DiLink 5.0 after earlier
+problems on firmware 2606 and 2608. These reports establish that the combined
+changes helped on those installations. They do not identify the recovery branch
+or establish cold-boot recovery without Wi-Fi.
+
+The recovered transport, trusted key and healthy feature runtime are three
+separate observations. The existing Denza checks for definite refusal, network
+changes, the per-network failure hold and actual shell output still apply. The
+comparison does not establish a way to renew a revoked key or a successful
+cold-boot restore on the reference vehicle.
+
+Evidence in the ignored capture `captures/adb-restore-comparison-20261119/`.
+Relevant points in the comparison source are `AdbRestoreManager.kt:304`, `:351`,
+`:429`, `:540`, `:580`, `TrackingService.kt:1466`, `:1747` and
+`AdbProtocolClient.kt:77`. The classic path and service order are covered by
+`AdbRestoreClassicFirstTest.kt` and `AdbRestoreServiceFirstTest.kt` respectively.
 
 ## Dipilot identity rescue (local review, 2026-10-08)
 
