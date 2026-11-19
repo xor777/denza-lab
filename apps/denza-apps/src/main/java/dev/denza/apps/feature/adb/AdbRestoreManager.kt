@@ -118,7 +118,11 @@ data class AdbRestoreSnapshot(
 
 /** Persistent wish, prior trust and the settings-write cooldown, separate from the process clock. */
 interface AdbRestoreStore {
-    var enabled: Boolean
+    /** The driver's switch; changed only through [saveEnabled]. */
+    val enabled: Boolean
+
+    /** The switch made durable: false, with [enabled] as it was, when it could not be. */
+    fun saveEnabled(enabled: Boolean): Boolean
     var trustedBefore: Boolean
     var lastWriteNetwork: String?
     var lastWriteAtMs: Long
@@ -279,9 +283,13 @@ class AdbRestoreManager(
         }
     }
 
-    fun setEnabled(enabled: Boolean) {
-        synchronized(control) {
-            store.enabled = enabled // durable before a mutation is allowed
+    /**
+     * The driver's switch. Durable before anything acts on it: a write the disk refused changes
+     * nothing, returns false, and the switch, which shows [snapshot], stays where it was.
+     */
+    fun setEnabled(enabled: Boolean): Boolean {
+        val saved = synchronized(control) {
+            if (!store.saveEnabled(enabled)) return@synchronized false
             forgetFailure()
             networkRestarts = 0
             if (!enabled) {
@@ -292,9 +300,12 @@ class AdbRestoreManager(
                 if (system.permissionHeld()) runCatching { system.writeAdbWifiEnabled(false) }
                 current = current.copy(enabled = false, state = AdbRestoreState.Disabled)
             } else current = current.copy(enabled = true)
+            true
         }
+        // Either way the switch reads the snapshot again: after a refused write, the setting kept.
         changed()
-        if (enabled) attemptIfNeeded(SWITCH)
+        if (saved && enabled) attemptIfNeeded(SWITCH)
+        return saved
     }
 
     fun recordAutoAllow(outcome: String) {

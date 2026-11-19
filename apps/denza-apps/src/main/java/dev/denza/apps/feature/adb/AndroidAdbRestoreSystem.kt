@@ -24,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -119,6 +120,11 @@ object AdbRestore {
     @Volatile private var app: Context? = null
     private var callback: ConnectivityManager.NetworkCallback? = null
 
+    /** The switch's writes: a synchronous commit, so never on the main thread, and in the order made. */
+    private val switchWrites = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "denza-adb-restore-switch").apply { isDaemon = true }
+    }
+
     @Synchronized fun initialize(context: Context) {
         if (manager != null) return
         val application = context.applicationContext
@@ -147,7 +153,7 @@ object AdbRestore {
     }
     fun trigger(trigger: String) { manager?.attemptIfNeeded(trigger) }
     fun snapshot(): AdbRestoreSnapshot = manager?.snapshot() ?: AdbRestoreSnapshot()
-    fun setEnabled(enabled: Boolean) { manager?.setEnabled(enabled) }
+    fun setEnabled(enabled: Boolean) { switchWrites.execute { manager?.setEnabled(enabled) } }
     fun recordAutoAllow(outcome: String) { manager?.recordAutoAllow(outcome) }
     @JvmStatic fun isEnabled(context: Context): Boolean = AdbRestorePreferences(context).enabled
     @JvmStatic fun onWifiDialog(service: android.accessibilityservice.AccessibilityService, event: android.view.accessibility.AccessibilityEvent) {

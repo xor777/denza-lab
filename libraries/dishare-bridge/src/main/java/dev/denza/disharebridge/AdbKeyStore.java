@@ -162,42 +162,126 @@ final class AdbKeyStore {
                     FileChannel lockChannel = lockAccess.getChannel();
                     FileLock ignored = lockChannel.lock()) {
                 AtomicFile keyFile = new AtomicFile(new File(storageDirectory, KEY_FILE_NAME));
-                if (keyFile.getBaseFile().isFile()) {
-                    try (FileInputStream input = keyFile.openRead()) {
-                        cachedKeyPair = readKeyPair(input);
-                        return cachedKeyPair;
-                    }
-                }
-
                 SharedPreferences prefs = context.getSharedPreferences(
                         PREFS_NAME, Context.MODE_PRIVATE);
-                String privateEncoded = prefs.getString(KEY_PRIVATE, null);
-                String publicEncoded = prefs.getString(KEY_PUBLIC, null);
-                if ((privateEncoded == null) != (publicEncoded == null)) {
-                    throw new GeneralSecurityException("Incomplete persisted ADB key pair");
-                }
-                if (privateEncoded != null) {
-                    cachedKeyPair = decodeLegacyKeyPair(privateEncoded, publicEncoded);
-                    writeKeyPair(keyFile, cachedKeyPair);
-                    return cachedKeyPair;
-                }
+                cachedKeyPair = load(new Copies() {
+                    @Override
+                    public KeyPair canonical() throws IOException, GeneralSecurityException {
+                        if (!keyFile.getBaseFile().isFile()) {
+                            return null;
+                        }
+                        try (FileInputStream input = keyFile.openRead()) {
+                            return readKeyPair(input);
+                        }
+                    }
 
-                KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-                generator.initialize(RSA_BITS);
-                KeyPair generated = generator.generateKeyPair();
-                writeKeyPair(keyFile, generated);
-                prefs.edit()
-                        .putString(KEY_PRIVATE, Base64.encodeToString(
-                                generated.getPrivate().getEncoded(), Base64.NO_WRAP))
-                        .putString(KEY_PUBLIC, Base64.encodeToString(
-                                generated.getPublic().getEncoded(), Base64.NO_WRAP))
-                        .commit();
-                cachedKeyPair = generated;
+                    @Override
+                    public KeyPair legacy() throws GeneralSecurityException {
+                        String privateEncoded = prefs.getString(KEY_PRIVATE, null);
+                        String publicEncoded = prefs.getString(KEY_PUBLIC, null);
+                        if ((privateEncoded == null) != (publicEncoded == null)) {
+                            throw new GeneralSecurityException("Incomplete persisted ADB key pair");
+                        }
+                        return privateEncoded == null
+                                ? null : decodeLegacyKeyPair(privateEncoded, publicEncoded);
+                    }
+
+                    @Override
+                    public void writeCanonical(KeyPair keyPair) throws GeneralSecurityException {
+                        writeKeyPair(keyFile, keyPair);
+                    }
+
+                    @Override
+                    public KeyPair generate() throws GeneralSecurityException {
+                        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+                        generator.initialize(RSA_BITS);
+                        KeyPair generated = generator.generateKeyPair();
+                        writeKeyPair(keyFile, generated);
+                        prefs.edit()
+                                .putString(KEY_PRIVATE, Base64.encodeToString(
+                                        generated.getPrivate().getEncoded(), Base64.NO_WRAP))
+                                .putString(KEY_PUBLIC, Base64.encodeToString(
+                                        generated.getPublic().getEncoded(), Base64.NO_WRAP))
+                                .commit();
+                        return generated;
+                    }
+                });
                 return cachedKeyPair;
             } catch (IOException error) {
                 throw new GeneralSecurityException("Unable to load the ADB key pair", error);
             }
         }
+    }
+
+    /** The two places this identity is kept, as {@link #load} reads them. */
+    interface Copies {
+        /** The canonical file's pair; null when there is no file. Throws when it is there and unreadable. */
+        KeyPair canonical() throws IOException, GeneralSecurityException;
+
+        /** The legacy preferences' pair; null when there are none. Throws when they are there and unreadable. */
+        KeyPair legacy() throws GeneralSecurityException;
+
+        /** Writes the canonical file, atomically. */
+        void writeCanonical(KeyPair keyPair) throws GeneralSecurityException;
+
+        /** A new identity, kept in both places. */
+        KeyPair generate() throws GeneralSecurityException;
+    }
+
+    /**
+     * The identity, from the first copy that holds it whole.
+     *
+     * <p>A canonical file that cannot be read, or whose halves do not belong together, falls back
+     * to the legacy copy, and the file is written again from it. A new key is made only when there
+     * is no copy at all - never because one could not be read: a new key is an identity the car has
+     * never trusted, and the one it trusts may still be on the disk.
+     */
+    static KeyPair load(Copies copies) throws GeneralSecurityException {
+        GeneralSecurityException damaged = null;
+        try {
+            KeyPair canonical = copies.canonical();
+            if (canonical != null) {
+                return whole(canonical);
+            }
+        } catch (IOException | GeneralSecurityException | RuntimeException error) {
+            damaged = new GeneralSecurityException("The ADB key file cannot be read", error);
+        }
+        KeyPair legacy;
+        try {
+            legacy = copies.legacy();
+            if (legacy != null) {
+                whole(legacy);
+            }
+        } catch (GeneralSecurityException | RuntimeException error) {
+            GeneralSecurityException none = new GeneralSecurityException("No intact copy of the ADB key", error);
+            if (damaged != null) {
+                none.addSuppressed(damaged);
+            }
+            throw none;
+        }
+        if (legacy == null) {
+            if (damaged != null) {
+                throw damaged;
+            }
+            return copies.generate();
+        }
+        try {
+            copies.writeCanonical(legacy);
+        } catch (GeneralSecurityException | RuntimeException notWritten) {
+            // The identity is whole in memory and in the legacy copy; the next load writes it again.
+        }
+        return legacy;
+    }
+
+    /** [pair], if its private half signs for its public half: one modulus. */
+    private static KeyPair whole(KeyPair pair) throws GeneralSecurityException {
+        if (!(pair.getPrivate() instanceof RSAPrivateKey)
+                || !(pair.getPublic() instanceof RSAPublicKey)
+                || !((RSAPrivateKey) pair.getPrivate()).getModulus()
+                        .equals(((RSAPublicKey) pair.getPublic()).getModulus())) {
+            throw new GeneralSecurityException("The ADB key's halves do not belong together");
+        }
+        return pair;
     }
 
     private static KeyPair decodeLegacyKeyPair(String privateEncoded, String publicEncoded)

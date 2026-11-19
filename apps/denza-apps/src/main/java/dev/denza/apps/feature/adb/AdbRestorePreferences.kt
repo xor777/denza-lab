@@ -2,43 +2,61 @@ package dev.denza.apps.feature.adb
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 
-/** No key material; all values are private to this APK and survive a process/reboot. */
+/**
+ * No key material; all values are private to this APK and survive a process/reboot.
+ *
+ * A write the disk refuses never throws: the restore's records are its own bookkeeping, and the
+ * one setting here that is the driver's - the switch - goes back to what the disk holds, so the
+ * switch shows what the next start will read.
+ */
 class AdbRestorePreferences(context: Context) : AdbRestoreStore {
     private val prefs = context.applicationContext.getSharedPreferences("adb_restore", Context.MODE_PRIVATE)
-    override var enabled: Boolean
-        get() = prefs.getBoolean("adb_restore_enabled", true)
-        set(value) = save { putBoolean("adb_restore_enabled", value) }
+    override val enabled: Boolean
+        get() = prefs.getBoolean(ENABLED, true)
     override var trustedBefore: Boolean
         get() = prefs.getBoolean("trusted_before", false)
-        set(value) = save { putBoolean("trusted_before", value) }
+        set(value) { save { putBoolean("trusted_before", value) } }
     override var lastWriteNetwork: String?
         get() = prefs.getString("last_write_network", null)
-        set(value) = save { putString("last_write_network", value) }
+        set(value) { save { putString("last_write_network", value) } }
     override var lastWriteAtMs: Long
         get() = prefs.getLong("last_write_at", 0)
-        set(value) = save { putLong("last_write_at", value) }
+        set(value) { save { putLong("last_write_at", value) } }
     override var lastOutcome: String?
         get() = prefs.getString("last_outcome", null)
-        set(value) = save { putString("last_outcome", value) }
+        set(value) { save { putString("last_outcome", value) } }
     override var lastOutcomeAtMs: Long
         get() = prefs.getLong("last_outcome_at", 0)
-        set(value) = save { putLong("last_outcome_at", value) }
+        set(value) { save { putLong("last_outcome_at", value) } }
     override var autoAllow: String?
         get() = prefs.getString("auto_allow", null)
-        set(value) = save { putString("auto_allow", value) }
+        set(value) { save { putString("auto_allow", value) } }
     override var boot: AdbBootRecord?
         get() = AdbBootRecord.decode(prefs.getString("boot_record", null))
-        set(value) = save { putString("boot_record", value?.encode()) }
+        set(value) { save { putString("boot_record", value?.encode()) } }
 
-    override fun recordWrite(network: String, atMs: Long) = save {
-        putString("last_write_network", network); putLong("last_write_at", atMs)
-    }
-    override fun recordOutcome(outcome: String, atMs: Long) = save {
-        putString("last_outcome", outcome); putLong("last_outcome_at", atMs)
+    override fun saveEnabled(enabled: Boolean): Boolean {
+        val prior = this.enabled
+        if (save { putBoolean(ENABLED, enabled) }) return true
+        // A failed commit has already changed the map in memory; the disk still holds the prior.
+        prefs.edit().putBoolean(ENABLED, prior).apply()
+        return false
     }
 
-    private fun save(write: SharedPreferences.Editor.() -> Unit) {
-        check(prefs.edit().apply(write).commit()) { "ADB restore preference was not saved" }
+    override fun recordWrite(network: String, atMs: Long) {
+        save { putString("last_write_network", network); putLong("last_write_at", atMs) }
+    }
+    override fun recordOutcome(outcome: String, atMs: Long) {
+        save { putString("last_outcome", outcome); putLong("last_outcome_at", atMs) }
+    }
+
+    private fun save(write: SharedPreferences.Editor.() -> Unit): Boolean =
+        prefs.edit().apply(write).commit().also { saved -> if (!saved) Log.w(TAG, "ADB restore preference was not saved") }
+
+    private companion object {
+        const val ENABLED = "adb_restore_enabled"
+        const val TAG = "DenzaAdbRestore"
     }
 }

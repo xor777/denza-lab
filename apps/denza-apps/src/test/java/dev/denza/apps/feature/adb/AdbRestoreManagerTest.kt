@@ -15,6 +15,13 @@ import java.io.EOFException
 class AdbRestoreManagerTest {
     private class Store : AdbRestoreStore {
         override var enabled = true
+        /** The disk refuses the next writes of the switch. */
+        var refuseSwitch = false
+        override fun saveEnabled(enabled: Boolean): Boolean {
+            if (refuseSwitch) return false
+            this.enabled = enabled
+            return true
+        }
         override var trustedBefore = true
         override var lastWriteNetwork: String? = null
         override var lastWriteAtMs = 0L
@@ -90,6 +97,30 @@ class AdbRestoreManagerTest {
         f.system.sdk = 29; f.manager.setEnabled(true); runCurrent()
         assertEquals(AdbRestoreState.Unsupported, f.manager.snapshot().state)
         assertEquals(0, f.system.probes)
+    }
+    /**
+     * Review finding 10: the switch's write was a commit on the main thread that threw when the
+     * disk refused it - the app crashed on a tap. A refused write now changes nothing: the switch,
+     * which shows the snapshot, stays where it was, and nothing acts on the setting it did not get.
+     */
+    @Test fun aSwitchTheDiskRefusedChangesNothing() = runTest {
+        val f = Fixture(this); f.system.wireless = true
+        var heard = 0
+        val manager = AdbRestoreManager(f.system, f.store, backgroundScope) { heard++ }
+        f.store.refuseSwitch = true
+
+        assertFalse(manager.setEnabled(false))
+
+        assertTrue(f.store.enabled)
+        assertTrue(manager.snapshot().enabled)
+        assertNotEquals(AdbRestoreState.Disabled, manager.snapshot().state)
+        assertTrue("wireless debugging left as it was", f.system.writes.isEmpty())
+        assertEquals("the switch reads the snapshot again", 1, heard)
+
+        f.store.refuseSwitch = false
+        assertTrue(manager.setEnabled(false))
+        assertEquals(AdbRestoreState.Disabled, manager.snapshot().state)
+        assertFalse(f.store.enabled)
     }
     @Test fun missingPermissionNeedsActivationWithoutEnablingWireless() = runTest {
         val f = Fixture(this); f.system.held = false
