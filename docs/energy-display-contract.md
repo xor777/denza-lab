@@ -660,6 +660,11 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   (until 2026-10-08 a 300 dp constant, under both panes' least box): a window
   too short for it scrolls the page rather than squeezing the strip, which
   `DashboardLayoutPolicyTest` holds. Content is never drawn past the pane.
+  The full screen's car row needs its 1184 dp: only the 1280 window resolves to
+  it, and at the policy's threshold between the two wider windows (1055) its
+  slots would collide - no window the car sends is there.
+  `StripGeometryTest.everyWindowTheCarHandsIsABoxThisFileHolds` lays the row out
+  at every measured window that resolves to it (2026-11-19).
 - The cluster's geometry is the Luminofor triptych (`LuminoforSpec.Cluster`,
   `ContourGeometry`), approved 2026-09-23: the battery and its five temperatures
   left, the hero on the axis, the engine and the trip - or the engine's block -

@@ -14,6 +14,8 @@ import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_FILLING
 import dev.denza.apps.feature.vehicle.TRIP_KM_SENTENCE
 import dev.denza.apps.feature.vehicle.WORD_FROM_CHARGER_SENTENCE
+import dev.denza.apps.ui.DashboardLayoutMode
+import dev.denza.apps.ui.DashboardLayoutPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -290,6 +292,63 @@ open class StripGeometryTest {
         assertEquals(at.power, there.power, 0f)
         assertEquals(at.engine, there.engine, 0f)
         assertEquals(at.temps, there.temps, 0f)
+    }
+
+    /**
+     * The widths this file holds are the widths the car hands the app, and no wider composition is
+     * reached by a narrower window.
+     *
+     * The tests above lay each composition out on its board box. That is only the car's layout if
+     * every measured window (`DashboardLayoutPolicy`: 416, 828, 1280) resolves to the composition
+     * whose box is its own strip, and if the one that resolves to the full screen's car row has the
+     * room that row needs - five slots and a gutter of at least 40, and a box tall enough for its
+     * chart at the shape `wholeScreenPanelHeight` gives it. The policy's threshold between the two
+     * wider windows is 1055 dp: a strip of 959 there would have neither, and no window the car sends
+     * is there. A fourth measured window that resolved to the full screen would have to pass here.
+     */
+    @Test
+    fun everyWindowTheCarHandsIsABoxThisFileHolds() {
+        val windows = listOf(
+            DashboardLayoutPolicy.NARROW_WIDTH_DP,
+            DashboardLayoutPolicy.MEDIUM_WIDTH_DP,
+            DashboardLayoutPolicy.WIDE_WIDTH_DP,
+        )
+        for (width in windows) {
+            val mode = DashboardLayoutPolicy.resolve(width)
+            assertEquals("$width: the window its mode was measured in", width, DashboardLayoutPolicy.windowWidth(mode))
+            val layout = DashboardLayoutPolicy.panel(mode)
+            val strip = width - 2f * DashboardLayoutPolicy.sideMargin(mode).value
+            assertEquals("$width: the strip is its board box", right(layout) - left(layout), strip, 0.5f)
+            if (layout != TripPanelLayout.WIDE) continue
+
+            val c = Head.Full.Car
+            val s = Head.Full.Strip
+            val model = widestCar()
+            val at = StripGeometry.CarPlacement()
+            val right = left(layout) + strip
+            StripGeometry.fullCar(model, left(layout), right, m, at)
+            assertApart(
+                "$width: full car",
+                listOf(
+                    reading("the volts", model.volts, at.volts, s.VALUE_SIZE, s.LABEL_SIZE),
+                    reading("the power", model.power, at.power, c.HERO_SIZE, s.LABEL_SIZE),
+                    reading("the engine", model.engine, at.engine, s.VALUE_SIZE, s.LABEL_SIZE),
+                    trip(model.tripCell, at.tripCell, at.tripRun, right),
+                ) + temperatures(model, at.temps, c.TEMP_PITCH, c.TEMP_SIZE),
+                left(layout),
+                right,
+            )
+            val gutter = StripGeometry.fullGutter(left(layout), right)
+            assertTrue("$width: a gutter of $gutter", gutter >= 40f)
+            val tall = DashboardLayoutPolicy.wholeScreenPanelHeight(strip).value
+            val least = StripGeometry.minimumHeight(layout)
+            assertTrue("$width: a strip $tall tall, under the composition's least $least", tall >= least)
+        }
+        assertEquals(
+            "one window is the full screen",
+            listOf(DashboardLayoutPolicy.WIDE_WIDTH_DP),
+            windows.filter { DashboardLayoutPolicy.resolve(it) == DashboardLayoutMode.WIDE },
+        )
     }
 
     @Test
