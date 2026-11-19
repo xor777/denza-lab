@@ -21,6 +21,7 @@ ends.
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state and stops as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`); `DiShareScreens.java` asks tx `0x4`. The bridge's tx `0xb` "close UI" had no caller and was removed on 2026-10-09: the product closes the dialog with the package-scoped `DIALOG_CLOSE` broadcast | code | 2026-10-09 | [Direct control service transaction map](#direct-control-service-transaction-map) |
 | DiShare tells the API client that started a share when it stops being the mirror client: `IDiShareApiClient` tx 1 `true` during the start, `false` 0.1 s after the `605` on P→D (`captures/hud-pd-20260924T132255Z/dishare.log`) | live | 2026-09-24 | [End of a share](#end-of-a-share) |
 | The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. The target lives in memory only (`SimulcastIntegration.java`). Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
+| A start that fails after DiShare created its API client (tx 1) removes that client (tx 7) before releasing the binding (`DiShareShareSession.takeSourceOwedOnFailure`); before 2026-11-19 each failed start left a registered source in DiShare's API service | code | 2026-11-19 | [End of a share](#end-of-a-share) |
 | Switching «Поддержка трансляции» off ends only a share this process started (`SimulcastStopPolicy.kt`); a share started from the stock dialog stays. Only the exit control keeps the fallback that reads DiShare's current session and stops it | code | 2026-11-19 | [Switching support off](#switching-support-off-2026-11-19) |
 | A start or exit is answered on screen only by the stock dialog closing and the exit control appearing or going; a refused start keeps the dialog and our row, and DiShare's reply is the «Последний исход» row of «Технические сведения», never a toast (`SimulcastOverlayService.java`, `SimulcastScreenDiagnostics.recordCastOutcome`) | code | 2026-10-09 | [End of a share](#end-of-a-share) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
@@ -63,6 +64,12 @@ ends.
 - A listed service that never binds (2026-11-19, `SimulcastCoordinatorTest` only): after an APK
   update, «Трансляция» reads «Нет доступа» about 10 s after a clean repair, and its press brings the
   service back.
+- A failed start on the car (2026-11-19, firmware reading only): whether DiShare's API service
+  stays alive after the failed start's unbind, and that the removal shows as `onClientRemoved` in
+  DiShare's log with no `exitAll` when no share ran. A refused start to a receiver that is not
+  there, then `logcat -s DiShareApiServiceImpl`.
+- Switching «Поддержка трансляции» off with a share started from the stock dialog
+  (2026-11-19, `SimulcastStopPolicyTest` only): the share keeps running.
   (hud-projection-findings.md).
 - The product's end of a share on the car: cast to the HUD, shift P→D, and the exit control
   and the tile's running state go within about two seconds; the stock exit control and a
@@ -234,6 +241,16 @@ What the product does (`DiShareShareSession.java`, tested in `DiShareShareSessio
   the 2026-09-24 run made 24 s after this kind of end), releases its bindings and reports
   `onEnded`. `SimulcastOverlayService.java` then does what its own stop does: clears the
   target, hides the exit control and refreshes the tile.
+- A start that fails after its client was created removes that client before it lets go of the
+  binding (since 2026-11-19; `DiShareShareSession.takeSourceOwedOnFailure`, tested in
+  `DiShareShareSessionTest`). In the firmware, creating a client (`onClientCreated`, `x`'s
+  constructor) registers a share source and links to our binder's death, and nothing but tx 7
+  or that death unregisters it (`x.j()` → `c(d)`); our `ApiClientBinder` lives as long as DiShare
+  holds it, so until then every refused or timed-out start left one client behind, and
+  `updateMirrorClient` picks the first client that supports the shared app, which could be an old
+  one. Tx 7 is the call stop and end already make. With no share of ours it only unregisters the
+  source; if the start did land and our client is the mirror client, `x.j()` runs `exitAll` and
+  ends that share - which has no exit control of ours, since the start was reported failed.
 - Nothing toasts (since 2026-10-09). A start DiShare refuses or times out leaves the stock dialog
   open with our row rebuilt - the working choice - and DiShare's reply goes to the «Последний
   исход» row of «Технические сведения» (`SimulcastScreenDiagnostics.recordCastOutcome`); a start,

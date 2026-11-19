@@ -143,6 +143,46 @@ public final class DiShareShareSessionTest {
         assertFalse(session.dishareLost());
     }
 
+    /**
+     * The client was created (API tx 1), then the receiver refused or the start timed out: the
+     * client's source has to be removed before the binding goes, exactly once.
+     */
+    @Test
+    public void aStartThatFailsAfterItsClientWasCreatedOwesItsRemoval() {
+        DiShareShareSession session = new DiShareShareSession();
+        session.starting();
+        session.sourceRegistered();
+        assertFalse("nothing is owed while the start still runs", session.takeSourceOwedOnFailure());
+        assertTrue(session.failed());
+
+        assertTrue(session.takeSourceOwedOnFailure());
+        assertFalse("removed once", session.takeSourceOwedOnFailure());
+    }
+
+    @Test
+    public void aStartThatFailsBeforeItsClientWasCreatedOwesNothing() {
+        DiShareShareSession session = new DiShareShareSession();
+        session.starting();
+        session.failed();
+
+        assertFalse(session.takeSourceOwedOnFailure());
+    }
+
+    @Test
+    public void aStartedShareRemovesItsClientOnItsOwnPath() {
+        DiShareShareSession session = new DiShareShareSession();
+        session.starting();
+        session.sourceRegistered();
+        assertTrue(session.started());
+        session.stopped();
+
+        assertFalse(session.takeSourceOwedOnFailure());
+
+        session.starting();
+        session.failed();
+        assertFalse("a new start forgets the old client", session.takeSourceOwedOnFailure());
+    }
+
     @Test
     public void aLateTimeoutAfterTheEndIsNotAFailure() {
         DiShareShareSession session = active();

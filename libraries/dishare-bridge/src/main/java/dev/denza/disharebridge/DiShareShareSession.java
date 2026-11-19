@@ -32,6 +32,7 @@ final class DiShareShareSession {
     private Phase phase = Phase.IDLE;
     private boolean mirroring;
     private boolean endPending;
+    private boolean sourceRegistered;
 
     Phase phase() {
         return phase;
@@ -41,6 +42,27 @@ final class DiShareShareSession {
         phase = Phase.STARTING;
         mirroring = false;
         endPending = false;
+        sourceRegistered = false;
+    }
+
+    /** DiShare's API service accepted our client (API tx 1): it now holds a source for it. */
+    void sourceRegistered() {
+        if (phase == Phase.STARTING) {
+            sourceRegistered = true;
+        }
+    }
+
+    /**
+     * A start that failed after its client was created owes DiShare that client's removal (API
+     * tx 7) before the binding is let go. Returns true once, only for a failed start; a running,
+     * stopped or ended share removes its client on its own path.
+     */
+    boolean takeSourceOwedOnFailure() {
+        if (phase != Phase.FAILED || !sourceRegistered) {
+            return false;
+        }
+        sourceRegistered = false;
+        return true;
     }
 
     /** The start transaction succeeded. Returns false when the session was no longer starting. */

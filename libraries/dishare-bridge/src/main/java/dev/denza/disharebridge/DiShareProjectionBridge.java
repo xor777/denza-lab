@@ -317,6 +317,7 @@ public final class DiShareProjectionBridge {
                 data.writeString(targetPackage);
             }
         });
+        session.sourceRegistered();
         transactApi(TX_SET_VIDEO_SIZE, new ParcelWriter() {
             @Override
             public void write(Parcel data) {
@@ -520,6 +521,18 @@ public final class DiShareProjectionBridge {
     private void fail(String message) {
         if (!session.failed()) {
             return;
+        }
+        // The client created for this start stays in DiShare's API service, keyed by our binder
+        // and holding a registered source, until it is removed or our process dies: a refused or
+        // timed-out start would leave one behind per attempt, and a later share of the same app
+        // could be matched to an old one. Removing it is the call stop and end make; with no share
+        // of ours it only unregisters the source (DiShareApiServiceImpl.onClientRemoved, x.j()).
+        if (session.takeSourceOwedOnFailure() && apiBinder() != null) {
+            try {
+                callRemoveClient();
+            } catch (RuntimeException e) {
+                log("remove client warning: " + shortError(e));
+            }
         }
         cleanup();
         log("failed " + message);
