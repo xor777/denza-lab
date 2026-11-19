@@ -5,6 +5,7 @@ import dev.denza.apps.feature.diagnostics.scan.Fixtures.row
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.session
 import dev.denza.apps.feature.diagnostics.ui.ScannerWords
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -394,6 +395,39 @@ class ReadsSessionTest {
         assertEquals(closed, bus.requests.size)
         // a block whose screen does not read Mode 06 has no tests
         assertNull(s.model.value.modules[0x7E5]?.tests)
+        s.stop()
+    }
+
+    /** The screen left while its tests are on the wire: the monitors not yet asked are not asked, the read is not kept. */
+    @Test
+    fun leavingTheScreenStopsItsTestsBetweenExchanges() = runTest {
+        val bus = carNow {
+            CarNow.scriptEcmIdent(this)
+            on(0x7E0, "020200").answer("4202000000")
+            on(0x7E0, "0600").answer("4600C0000000")
+            on(0x7E0, "0601").answer("4601010B01C200000384")
+            on(0x7E0, "0602").answer("4602810B03E800000384")
+        }
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        bus.delayMs = 100
+        s.setModuleOpen(0x7E0, true)
+        while ("7E0 0600" !in bus.requests) {
+            advanceTimeBy(10)
+            runCurrent()
+        }
+        s.setModuleOpen(0x7E0, false)
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertFalse("a monitor of the screen that left", "7E0 0602" in bus.requests)
+        // opened again: its own read, whole
+        val asked = bus.requests.size
+        s.setModuleOpen(0x7E0, true)
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertTrue(bus.requests.drop(asked).containsAll(listOf("7E0 0600", "7E0 0601", "7E0 0602")))
+        assertEquals(ReadState.READ, s.model.value.modules.getValue(0x7E0).tests!!.state)
         s.stop()
     }
 

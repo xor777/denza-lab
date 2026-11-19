@@ -388,6 +388,9 @@ internal class SessionReads {
     /** Per block and read: its data, null while it is asked and not answered. */
     private val obd = HashMap<Int, HashMap<ObdRead, ModuleRead?>>()
     private val obdData = HashMap<Int, Pair<FreezeFrameData, ObdTestsData>>()
+    /** Each open OBD block's opening, numbered: a read of an opening that has ended asks nothing more and keeps nothing. */
+    private val openings = HashMap<Int, Int>()
+    private var lastOpening = 0
 
     /**
      * A code's screen opened: the record of [result]'s memory it names - by [DtcRow.code] or the six raw digits -
@@ -420,9 +423,11 @@ internal class SessionReads {
     fun openModule(request: Int, open: Boolean) {
         if (request !in ObdReadProcedure.AT) return
         if (open) {
+            openings[request] = ++lastOpening
             obd[request] = HashMap(ObdRead.entries.associateWith { null })
             ObdRead.entries.forEach { obdQueue += request to it }
         } else {
+            openings -= request
             obdQueue.filter { it.first == request }.forEach { (r, what) ->
                 obdQueue.remove(r to what)
                 obd[r]?.remove(what)
@@ -446,7 +451,12 @@ internal class SessionReads {
 
     fun nextObd(): Pair<Int, ObdRead>? = obdQueue.firstOrNull()
 
-    fun obdRead(request: Int, what: ObdRead, read: ModuleRead) {
+    /** The block's current opening; null while its screen is closed. */
+    fun opening(request: Int): Int? = openings[request]
+
+    /** [read] of [what] for [opening]; dropped - the queue already let it go - when that opening has ended. */
+    fun obdRead(request: Int, what: ObdRead, opening: Int?, read: ModuleRead) {
+        if (opening == null || opening != openings[request]) return
         obdQueue.remove(request to what)
         obd.getOrPut(request) { HashMap() }[what] = read
         refreshObd(request)
@@ -474,5 +484,6 @@ internal class SessionReads {
         obdQueue.clear()
         obd.clear()
         obdData.clear()
+        openings.clear()
     }
 }

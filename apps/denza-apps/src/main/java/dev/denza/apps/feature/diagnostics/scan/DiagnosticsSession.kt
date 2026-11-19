@@ -219,11 +219,15 @@ internal class DiagnosticsSession(
         data class Stream(override val request: Int, val ask: DiagRequest) : Work
         data class Param(override val request: Int, val key: ParamKey.Pid, val ask: DiagRequest) : Work
         data class Code(override val request: Int, val work: SessionReads.CodeWork) : Work
-        data class Obd(override val request: Int, val what: ObdRead) : Work
+        /** [what] of the block's screen [opening] ([Reads.opening]). */
+        data class Obd(override val request: Int, val what: ObdRead, val opening: Int?) : Work
     }
 
     /** A unit of work ended early because the channel halted; nothing of it is kept. */
     private class Aborted : Exception()
+
+    /** A screen's read whose screen has gone: it asks nothing more, and nothing of it is kept. */
+    private class Abandoned : Exception()
 
     /** The section opened: the hub claim, the last scan, and an autoscan when that one is old or missing. */
     fun start() {
@@ -644,7 +648,7 @@ internal class DiagnosticsSession(
             // The page alone: nothing else, and nothing while paused or for a car signal.
             ?: param?.let { page -> paramWork(page) ?: return null }
             ?: identPending.firstOrNull()?.let { Work.Ident(it) }
-            ?: reads.nextObd()?.let { (request, what) -> Work.Obd(request, what) }
+            ?: reads.nextObd()?.let { (request, what) -> Work.Obd(request, what, reads.opening(request)) }
             ?: when {
                 shown != null -> stream(shown)?.next()?.let { Work.Stream(shown, it) } ?: return null
                 phase == ScanPhase.RUNNING && scanIndex < EcuCatalog.routed.size -> Work.Scan(EcuCatalog.routed[scanIndex].request!!, scanGeneration)
@@ -724,9 +728,18 @@ internal class DiagnosticsSession(
                 }
             }
             is Work.Obd -> {
-                val read = ObdReadProcedure.read(ecu, job.what, wallClock, ::ask)
+                // The opening's own read: once its screen has gone, the exchanges it had not made yet are not made.
+                val owned: suspend (DiagRequest) -> DiagReply = { r ->
+                    if (synchronized(lock) { reads.opening(job.request) } != job.opening) throw Abandoned()
+                    ask(r)
+                }
+                val read = try {
+                    ObdReadProcedure.read(ecu, job.what, wallClock, owned)
+                } catch (_: Abandoned) {
+                    return
+                }
                 synchronized(lock) {
-                    reads.obdRead(job.request, job.what, read)
+                    reads.obdRead(job.request, job.what, job.opening, read)
                     publish()
                 }
             }
