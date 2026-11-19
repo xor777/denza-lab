@@ -233,7 +233,11 @@ internal class ContourFrameBuilder {
             // nothing names an estimate the charger may never make.
             if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
             val minutes = t.chargeMinutesLeft ?: return
-            frame.consumption = figures.chargeLeft(minutes)
+            val left = figures.chargeLeft(minutes)
+            frame.consumption = left.first
+            frame.consumptionFirstUnit = left.firstUnit
+            frame.consumptionSecond = left.second
+            frame.consumptionSecondUnit = left.secondUnit
             frame.consumptionUnit = ContourReadout.UNIT_CHARGE_LEFT
             frame.consumptionTone = if (stage.engineRunning) ContourFrame.Tone.GREY else ContourFrame.Tone.INK
             return

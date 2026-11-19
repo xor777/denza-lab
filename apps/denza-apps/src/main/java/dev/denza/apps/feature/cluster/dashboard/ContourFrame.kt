@@ -162,6 +162,15 @@ internal class ContourFrame {
      */
     var consumptionHeld: String? = null
 
+    /**
+     * While the figure is the charge countdown, a duration as `AppDuration` prints one: the unit
+     * after the first figure, and a second figure and its unit when there are hours and minutes -
+     * «2 ч 15 мин» - before [consumptionUnit]'s «до полной». Null for the consumption.
+     */
+    var consumptionFirstUnit: String? = null
+    var consumptionSecond: String? = null
+    var consumptionSecondUnit: String? = null
+
     var consumptionUnit: String? = null
     var consumptionTone: Tone = Tone.INK
 
@@ -205,6 +214,9 @@ internal class ContourFrame {
         chartCount = 0
         consumption = null
         consumptionHeld = null
+        consumptionFirstUnit = null
+        consumptionSecond = null
+        consumptionSecondUnit = null
         consumptionUnit = null
         consumptionTone = Tone.INK
     }

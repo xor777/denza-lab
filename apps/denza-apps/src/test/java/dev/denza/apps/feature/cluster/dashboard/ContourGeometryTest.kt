@@ -291,18 +291,26 @@ open class ContourGeometryTest {
     @Test
     fun theTracesFigureAndUnitEndInsideThePetal() {
         val x = g.TRACE_FIGURE_X
-        // The widest figure the petal prints - a tenth on P over a hundred, a countdown of hours,
-        // a signed return - each behind the widest unit it can carry.
+        // The widest figure the petal prints - a tenth on P over a hundred, a signed return - each
+        // behind the widest unit it can carry, and the widest countdown: «99 ч 59 мин до полной».
         val cases = listOf(
             "123,4" to ContourReadout.UNIT_PER_100KM_FILLING,
             "-12,3" to ContourReadout.UNIT_PER_100KM_FILLING,
             "123,4" to ContourReadout.UNIT_PER_100KM,
-            ContourReadout.chargeLeft(ContourReadout.MAX_CHARGE_MINUTES) to ContourReadout.UNIT_CHARGE_LEFT,
         )
+        val left = ContourReadout.chargeLeft(ContourReadout.MAX_CHARGE_MINUTES)
+        val countdown = "$left ${ContourReadout.UNIT_CHARGE_LEFT}" to
+            figures(left.first, Trace.FIGURE_SIZE) + Trace.UNIT_GAP + JuraMeasure.width(left.firstUnit, Trace.UNIT_SIZE) +
+            Trace.PAIR_GAP + figures(left.second!!, Trace.FIGURE_SIZE) + Trace.UNIT_GAP +
+            JuraMeasure.width(left.secondUnit!!, Trace.UNIT_SIZE) + Trace.UNIT_GAP +
+            JuraMeasure.width(ContourReadout.UNIT_CHARGE_LEFT, Trace.UNIT_SIZE)
         val descender = Trace.ZERO + 0.25f * Trace.UNIT_SIZE
-        for ((figure, unit) in cases) {
-            val end = x + figures(figure, Trace.FIGURE_SIZE) + Trace.UNIT_GAP + JuraMeasure.width(unit, Trace.UNIT_SIZE)
-            assertTrue("«$figure $unit» ends at $end", end < g.petalRight(Trace.ZERO))
+        val runs = cases.map { (figure, unit) ->
+            "$figure $unit" to figures(figure, Trace.FIGURE_SIZE) + Trace.UNIT_GAP + JuraMeasure.width(unit, Trace.UNIT_SIZE)
+        } + countdown
+        for ((words, width) in runs) {
+            val end = x + width
+            assertTrue("«$words» ends at $end", end < g.petalRight(Trace.ZERO))
             assertTrue("and under its baseline too", end < g.petalRight(descender))
         }
         // And the trace itself stands inside the cut-out at its lowest corner.

@@ -150,7 +150,17 @@ open class DrawnWordsFitTest {
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("-12,3", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM),
-                inPetal(ContourReadout.chargeLeft(ContourReadout.MAX_CHARGE_MINUTES), ContourReadout.UNIT_CHARGE_LEFT),
+                // the widest countdown: hours and minutes, both two figures, and «до полной» after
+                ContourReadout.chargeLeft(ContourReadout.MAX_CHARGE_MINUTES).let { left ->
+                    cell(
+                        "the charge countdown", "$left ${ContourReadout.UNIT_CHARGE_LEFT}",
+                        figures(left.first, Trace.FIGURE_SIZE) + Trace.UNIT_GAP + jura.width(left.firstUnit, Trace.UNIT_SIZE) +
+                            Trace.PAIR_GAP + figures(left.second!!, Trace.FIGURE_SIZE) + Trace.UNIT_GAP +
+                            jura.width(left.secondUnit!!, Trace.UNIT_SIZE) + Trace.UNIT_GAP +
+                            jura.width(ContourReadout.UNIT_CHARGE_LEFT, Trace.UNIT_SIZE),
+                        petal,
+                    )
+                },
             ),
         )
     }

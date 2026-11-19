@@ -492,10 +492,23 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         val x = ContourGeometry.TRACE_FIGURE_X
         val figure = f.consumption
         val held = f.consumptionHeld
-        val width = when {
-            figure != null -> pen.figures(figure, x, Trace.ZERO, Trace.FIGURE_SIZE, toneLight(f.consumptionTone), 1f)
+        val light = toneLight(f.consumptionTone)
+        var width = when {
+            figure != null -> pen.figures(figure, x, Trace.ZERO, Trace.FIGURE_SIZE, light, 1f)
             held != null -> WideDigits.extent(held, Trace.FIGURE_SIZE)
             else -> 0f
+        }
+        // The charge countdown is a duration: «2 ч 15 мин до полной», each figure's unit after it.
+        val firstUnit = f.consumptionFirstUnit
+        if (figure != null && firstUnit != null) {
+            width += Trace.UNIT_GAP + pen.text(firstUnit, x + width + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)
+            val second = f.consumptionSecond
+            val secondUnit = f.consumptionSecondUnit
+            if (second != null && secondUnit != null) {
+                width += Trace.PAIR_GAP
+                width += pen.figures(second, x + width, Trace.ZERO, Trace.FIGURE_SIZE, light, 1f)
+                width += Trace.UNIT_GAP + pen.text(secondUnit, x + width + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)
+            }
         }
         val unit = f.consumptionUnit ?: return
         pen.text(unit, x + width + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)

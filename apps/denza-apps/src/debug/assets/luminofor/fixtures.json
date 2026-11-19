@@ -1644,7 +1644,7 @@
    "iceCaption": "ДВС ЗА ПОЕЗДКУ",
    "iceFigure": "6",
    "iceUnit": "мин",
-   "consumption": "2:15",
+   "consumption": "2",
    "consumptionUnit": "до полной",
    "chart": [
     13.56,
@@ -1778,7 +1778,10 @@
    "gaveCaption": "ЗАРЯД ОТ ДВС",
    "gaveKwh": "1,1",
    "regenCaption": "РЕКУПЕРАЦИЯ",
-   "regenKwh": "3,1"
+   "regenKwh": "3,1",
+   "consumptionFirstUnit": "ч",
+   "consumptionSecond": "15",
+   "consumptionSecondUnit": "мин"
   }
  ],
  "cluster-spread": [

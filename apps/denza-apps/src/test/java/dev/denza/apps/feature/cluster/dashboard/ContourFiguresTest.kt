@@ -99,8 +99,8 @@ class ContourFiguresTest {
         assertEquals("кВт·ч/100 км · за 1,2 км", unit)
         assertSame(unit, figures.perHundredKm(1.2))
         val left = figures.chargeLeft(135)
-        assertEquals("2:15", left)
+        assertEquals("2 ч 15 мин", left.toString())
         assertSame(left, figures.chargeLeft(135))
-        assertEquals("2:16", figures.chargeLeft(136))
+        assertEquals("2 ч 16 мин", figures.chargeLeft(136).toString())
     }
 }

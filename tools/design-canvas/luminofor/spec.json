@@ -113,7 +113,7 @@
       "glow": { "about": "Alpha at the centre is max x (|P| / span) ^ exponent, the span being the band's one fullKw, out of the pack and back into it alike. Dark through ordinary driving, lit as the band nears its end.", "max": 0.65, "exponent": 1.5, "radius": 442, "reachBelow": 63.9 }
     },
     "trace": {
-      "about": "Ten kilometres under the axis: zero on the figure's baseline, spending up to the contract's 60 over the figure's cap (0.71 x 52 = 36.92), returns down to its 20 over a descender of 13.",
+      "about": "Ten kilometres under the axis: zero on the figure's baseline, spending up to the contract's 60 over the figure's cap (0.71 x 52 = 36.92), returns down to its 20 over a descender of 13. While a gun is in, the charge countdown takes the figure's seat as AppDuration's figure-unit pairs, «2 ч 15 мин», each unit unitGap after its figure in the unit's own size and grey, the second pair pairGap after the first, «до полной» unitGap after the last unit; until 2026-11-19 it was one clock, «2:15».",
       "zero": 364,
       "top": 327.08,
       "drop": 377,
@@ -127,6 +127,7 @@
       "stroke": 1.5,
       "figureSize": 52,
       "unitGap": 10,
+      "pairGap": 14,
       "unitSize": 17
     },
     "engineCharge": { "about": "The charge the pack takes while the engine runs (energy contract §2.5): the block flush right in the right group. The line is the ten kilometres' silhouette in the return blue, its zero on the figures' baseline and its ceiling on their cap, from the block's left edge to the figure's seat; the figure and the run's time stand in the seat, column wide, at the right end. One point a second over the last points seconds; the ceiling is upTo kW, upToLow while the window's highest point is under lowBelow. Since 2026-11-19 the block leaves the engine's cell room for «8888 об/мин» and two gaps of the trace (width 296, column 128).", "width": 296, "column": 128, "upTo": 50, "upToLow": 25, "lowBelow": 20, "points": 120, "baseStroke": 0.8 },

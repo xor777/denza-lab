@@ -83,10 +83,12 @@
     park:   Object.assign({}, clusterBase, { power: 1, peak: 1, peakAge: 9, volts: '552', temps: temps([28, 31, 29, 31, 32]),
                                              consumption: '16,8', parked: true,
                                              gaveCaption: 'ЗАРЯД ОТ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1' }),
-    // on the charger: power is -|CHARGE_KW|, the petal's figure becomes the countdown
+    // on the charger: power is -|CHARGE_KW|, the petal's figure becomes the countdown, a duration
+    // as every duration in the app is printed (AppDuration): figure-unit pairs, never a clock
     charging: Object.assign({}, clusterBase, { power: -7, peak: -7, peakAge: 9, volts: '561', temps: temps([27, 26, 25, 25, 29]),
                                                parked: true, gaveCaption: 'ЗАРЯД ОТ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1',
-                                               consumption: '2:15', consumptionUnit: 'до полной' }),
+                                               consumption: '2', consumptionFirstUnit: 'ч', consumptionSecond: '15', consumptionSecondUnit: 'мин',
+                                               consumptionUnit: 'до полной' }),
     // the pack's cells drift apart: the spread appears under the battery, in its level's colour
     spread: Object.assign({}, clusterBase, { power: 31, peak: 38, peakAge: 1.2, volts: '547', temps: temps([34, 41, 39, 40, 46]),
                                              spread: { caption: 'РАЗБРОС ЯЧЕЕК', value: '32', unit: 'мВ', state: 'warning' } }),

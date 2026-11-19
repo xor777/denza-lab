@@ -158,6 +158,7 @@ class LuminoforSpecContractTest {
         n(t.TICK, "cluster", "trace", "tick")
         n(t.STROKE, "cluster", "trace", "stroke"); n(t.FIGURE_SIZE, "cluster", "trace", "figureSize")
         n(t.UNIT_GAP, "cluster", "trace", "unitGap"); n(t.UNIT_SIZE, "cluster", "trace", "unitSize")
+        n(t.PAIR_GAP, "cluster", "trace", "pairGap")
         val e = Cluster.EngineCharge
         n(e.WIDTH, "cluster", "engineCharge", "width"); n(e.COLUMN, "cluster", "engineCharge", "column")
         n(e.UP_TO, "cluster", "engineCharge", "upTo"); n(e.UP_TO_LOW, "cluster", "engineCharge", "upToLow")

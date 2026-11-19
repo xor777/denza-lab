@@ -1644,7 +1644,7 @@
    "iceCaption": "ENGINE THIS TRIP",
    "iceFigure": "6",
    "iceUnit": "min",
-   "consumption": "2:15",
+   "consumption": "2",
    "consumptionUnit": "to full",
    "chart": [
     13.56,
@@ -1778,7 +1778,10 @@
    "gaveCaption": "ENGINE CHARGE",
    "gaveKwh": "1.1",
    "regenCaption": "REGEN",
-   "regenKwh": "3.1"
+   "regenKwh": "3.1",
+   "consumptionFirstUnit": "h",
+   "consumptionSecond": "15",
+   "consumptionSecondUnit": "min"
   }
  ],
  "cluster-spread": [

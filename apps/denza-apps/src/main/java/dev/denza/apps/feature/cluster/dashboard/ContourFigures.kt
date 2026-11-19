@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 
 /**
@@ -67,10 +68,9 @@ internal class ContourFigures {
         SEAT_1,
         SEAT_2,
 
-        /** The petal's figure, its unit, and what replaces the figure while a gun is in. */
+        /** The petal's figure and its unit; the countdown that replaces them is [chargeLeft]'s own. */
         PETAL,
         PETAL_UNIT,
-        CHARGE_LEFT,
 
         /** And the run's time under it, «ЗА 1:22». */
         ENGINE_RUN,
@@ -116,12 +116,18 @@ internal class ContourFigures {
                 ContourReadout.perHundredKm(coveredKm, ConsumptionWindow.KM),
             )
 
-    /** What is left of a charge, in the petal's own seat. */
-    fun chargeLeft(minutes: Int): String {
-        val value = minutes.toDouble()
-        return hit(Slot.CHARGE_LEFT, value, false)
-            ?: keep(Slot.CHARGE_LEFT, value, false, ContourReadout.chargeLeft(minutes))
+    /**
+     * What is left of a charge, in the petal's own seat: figure-unit pairs rather than one string,
+     * so it is remembered whole by the minutes it was printed from.
+     */
+    fun chargeLeft(minutes: Int): AppDuration.Parts {
+        chargeParts?.let { if (chargeMinutes == minutes) return it }
+        chargeMinutes = minutes
+        return ContourReadout.chargeLeft(minutes).also { chargeParts = it }
     }
+
+    private var chargeMinutes = 0
+    private var chargeParts: AppDuration.Parts? = null
 
     /** The engine block's figure: a tenth of a kilowatt-hour, whole from ten ([ContourReadout.engineKwh]). */
     fun engineKwh(kwh: Double): String =

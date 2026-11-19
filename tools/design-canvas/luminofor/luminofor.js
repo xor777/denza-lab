@@ -392,8 +392,17 @@
     // a figure that stopped arriving leaves, and its unit stays where the last one put it; a minus
     // is the one signed figure on either screen and is blue, the trace's own blue (contract §2.2)
     const ink = f.consumption && /^[-−]/.test(f.consumption) ? BLUE : INK;
-    const fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, ink, 1, 'left')
+    let fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, ink, 1, 'left')
       : f.consumptionHeld ? numExtent(f.consumptionHeld, CT.figureSize) : 0;
+    // the charge countdown is a duration: «2 ч 15 мин до полной», each figure's unit after it
+    if (f.consumption && f.consumptionFirstUnit) {
+      fw += CT.unitGap + text(c, f.consumptionFirstUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
+      if (f.consumptionSecond) {
+        fw += CT.pairGap;
+        fw += num(c, f.consumptionSecond, fx + fw, zero, CT.figureSize, ink, 1, 'left');
+        fw += CT.unitGap + text(c, f.consumptionSecondUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
+      }
+    }
     if (f.consumptionUnit) text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
   }
 

@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,26 +41,25 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun aChargeIsAClockRatherThanAQuantity() {
-        assertEquals("2:15", ContourReadout.chargeLeft(135))
-        assertEquals("0:45", ContourReadout.chargeLeft(45))
-        assertEquals("0:00", ContourReadout.chargeLeft(-3))
-        assertEquals("9:59", ContourReadout.chargeLeft(599))
+    fun aChargeIsADurationLikeEveryOther() {
+        // AppDuration's figure-unit pairs, never a clock: «2:15» beside the sunset's «19:44» read
+        // as a time of day.
+        assertEquals("2 ч 15 мин", ContourReadout.chargeLeft(135).toString())
+        assertEquals("45 мин", ContourReadout.chargeLeft(45).toString())
+        assertEquals("1 ч 05 мин", ContourReadout.chargeLeft(65).toString())
+        assertEquals("12 ч 30 мин", ContourReadout.chargeLeft(12 * 60 + 30).toString())
+        for (minutes in listOf(0, 45, 59, 60, 135, 599, 600, 5_999)) {
+            assertEquals(AppDuration.of(minutes * 60L).toString(), ContourReadout.chargeLeft(minutes).toString())
+        }
     }
 
     @Test
-    fun anEstimateOfHoursIsStillAClock() {
-        // Until the Luminofor board ten hours and more were «12 ч», because the seat was a field of
-        // three digits and a mark. The board's figure is followed by its unit rather than boxed,
-        // and the wide figures have no «ч» to print, so a wall socket overnight reads «12:30».
-        assertEquals("10:00", ContourReadout.chargeLeft(600))
-        assertEquals("12:30", ContourReadout.chargeLeft(12 * 60 + 30))
-        // Both ids are gated to 0..99, so 99:59 is as far as an estimate can legally read.
-        assertEquals("99:59", ContourReadout.chargeLeft(9_999))
-        assertTrue(
-            "every character is one the wide figures draw",
-            ContourReadout.chargeLeft(9_999).all { it.isDigit() || it == ':' },
-        )
+    fun anEstimatePastTheGateIsABadReadAndIsClamped() {
+        // Both ids are gated to 0..99, so 99 ч 59 мин is as far as an estimate can legally read.
+        assertEquals("99 ч 59 мин", ContourReadout.chargeLeft(9_999).toString())
+        assertEquals(ContourReadout.chargeLeft(0).toString(), ContourReadout.chargeLeft(-3).toString())
+        val widest = ContourReadout.chargeLeft(ContourReadout.MAX_CHARGE_MINUTES)
+        assertTrue("every figure is one the wide figures draw", (widest.first + widest.second).all { it.isDigit() })
     }
 
     @Test

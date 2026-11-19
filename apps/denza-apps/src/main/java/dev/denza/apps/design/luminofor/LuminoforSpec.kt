@@ -170,6 +170,9 @@ object LuminoforSpec {
             const val STROKE: Float = 1.5f
             const val FIGURE_SIZE: Float = 52f
             const val UNIT_GAP: Float = 10f
+
+            /** Between the countdown's two figure-unit pairs, «2 ч» and «15 мин». */
+            const val PAIR_GAP: Float = 14f
             const val UNIT_SIZE: Float = 17f
         }
 

@@ -86,7 +86,11 @@ open class ContourFixturesContractTest {
         )
         val charging = fixture("cluster-charging")
         assertEquals(ContourReadout.UNIT_CHARGE_LEFT, charging["consumptionUnit"])
-        assertEquals(ContourReadout.chargeLeft(2 * 60 + 15), charging["consumption"])
+        val left = ContourReadout.chargeLeft(2 * 60 + 15)
+        assertEquals(left.first, charging["consumption"])
+        assertEquals(left.firstUnit, charging["consumptionFirstUnit"])
+        assertEquals(left.second, charging["consumptionSecond"])
+        assertEquals(left.secondUnit, charging["consumptionSecondUnit"])
         assertEquals(ContourReadout.consumption(16.8, parked = true), fixture("cluster-park")["consumption"])
         assertEquals(ContourReadout.consumption(17.0, parked = false), fixture("cluster-city")["consumption"])
     }

@@ -95,6 +95,9 @@ internal object ContourFixtures {
         frame.chartCount = floats(f.optJSONArray("chart"), frame.chart)
         frame.consumption = f.text("consumption")
         frame.consumptionHeld = f.text("consumptionHeld")
+        frame.consumptionFirstUnit = f.text("consumptionFirstUnit")
+        frame.consumptionSecond = f.text("consumptionSecond")
+        frame.consumptionSecondUnit = f.text("consumptionSecondUnit")
         frame.consumptionUnit = f.text("consumptionUnit")
         frame.consumptionTone =
             if (frame.consumption?.startsWith('-') == true) ContourFrame.Tone.BLUE else ContourFrame.Tone.INK

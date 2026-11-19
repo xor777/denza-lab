@@ -2,6 +2,7 @@ package dev.denza.apps.feature.cluster.dashboard
 
 import dev.denza.apps.R
 import dev.denza.apps.core.AppDecimal
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.core.AppText
 import java.util.Locale
 
@@ -208,20 +209,15 @@ internal object ContourReadout {
     }
 
     /**
-     * What is left of a charge, as the petal prints it: «2:15», and «12:30» once it is hours.
+     * What is left of a charge, as the petal prints it: «2 ч 15 мин», «45 мин».
      *
-     * A colon rather than a decimal, because this is a clock and not a quantity.
-     *
-     * **Always «ч:мм», through 99:59.** Until the Luminofor board an estimate of ten hours or more
-     * was «12 ч»: the seat reserved three digits and one mark, and a fifth glyph had nowhere to go.
-     * The board's figure is left-aligned with its unit following it, so a fifth glyph is room the
-     * petal has - and the wide figures have no «ч» to print. Anything past [MAX_CHARGE_MINUTES] is
-     * a bad read rather than a charge - both ids are gated to 0…99 - and is clamped.
+     * A duration, so it is [AppDuration]'s, the one rule every duration in the app is printed by:
+     * figure-unit pairs, never a clock. Until 2026-11-19 it was «2:15», which beside the sunset's
+     * «19:44» on the head unit read as a time of day. Anything past [MAX_CHARGE_MINUTES] is a bad
+     * read rather than a charge - both ids are gated to 0…99 - and is clamped.
      */
-    fun chargeLeft(minutes: Int): String {
-        val bounded = minutes.coerceIn(0, MAX_CHARGE_MINUTES)
-        return String.format(Locale.US, "%d:%02d", bounded / 60, bounded % 60)
-    }
+    fun chargeLeft(minutes: Int): AppDuration.Parts =
+        AppDuration.of(minutes.coerceIn(0, MAX_CHARGE_MINUTES) * 60L)
 
     // ---- the exceptions, which are the only colour on the shelves
 

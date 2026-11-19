@@ -529,7 +529,7 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | the trip | «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», under it «42 км» · «ЗАРЯД ОТ ДВС 0,8 кВт·ч» · «● РЕКУПЕРАЦИЯ 3,1 кВт·ч»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19), «42 км · ЗА ПОЕЗДКУ» and «0,8 кВт·ч ЗАРЯД ОТ ДВС» (until 2026-11-19) |
 | the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes |
 | the engine, stopped | an empty corner for the block's ten seconds, then «ДВС ЗА ПОЕЗДКУ» over «6 мин»; car page «ДВС за поездку» + «мин» | a block of zeros after its hold, «ДВС · мин за поездку» (until 2026-11-19) |
-| charging, the countdown | «2:15 до полной»; ten hours or more «12:30» (kept by the owner for now, 2026-09-23; see below) | a day count |
+| charging, the countdown | «2 ч 15 мин до полной», «45 мин до полной», «12 ч 30 мин до полной»: `AppDuration`'s figure-unit pairs (since 2026-11-19) | a day count, a clock - «2:15» (until 2026-11-19) |
 | the car page, closed | «Данные машины» over the state - «Нет доступа», «Нет связи», «Нет ответа» (2026-11-19; until then «Питание от машины» over the instruction) | a row of empty captions, an instruction, a «·» |
 
 **The stock countdown is hours and minutes, not a clock** (2026-09-23). The car's
@@ -542,6 +542,17 @@ car's form on the cluster too - «1 ч 57 мин до полной», and «12 �
 hours instead of a clock that reads as a time of day. The owner kept «2:15» and
 «12:30» for now; it is one formatter (`ContourFigures.chargeLeft`) and one board
 scene when it moves.
+
+> **Superseded 2026-11-19:** it moved. The countdown is `AppDuration`'s, the one
+> rule every duration in the app is printed by - under an hour «45 мин», otherwise
+> «2 ч 15 мин», the minutes two figures behind hours - and the petal draws it as the
+> strip draws a duration: each figure in the wide figures, its unit after it in the
+> petal unit's size and grey, the second pair `cluster.trace.pairGap` (14) after the
+> first, «до полной» after the last unit. `ContourReadout.chargeLeft` returns the
+> pairs and `ContourFigures.chargeLeft` remembers them by the minutes; the widest,
+> «99 ч 59 мин до полной», is held inside the petal by `ContourGeometryTest` and
+> `DrawnWordsFitTest`. A countdown of nought minutes prints «0 с», as `AppDuration`
+> prints any duration under a minute.
 
 The car page prints every one of these in sentence case (§2.1), the cluster in
 its capitals; the Luminofor cluster sets its captions in Jura and the car page
