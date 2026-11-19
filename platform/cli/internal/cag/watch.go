@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -166,13 +167,59 @@ func (app *App) watch(ctx context.Context) error {
 	defer lock.Close()
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, os.Interrupt)
 	defer stop()
-	watcher := &watcher{app: app, log: &stateLog{path: app.path(watchLogName)}, backoff: &reconnectBackoff{}}
-	watcher.log.state(fmt.Sprintf("watch started (pid %d)", os.Getpid()))
-	for !app.sleep(ctx, watcher.step(ctx)) {
+	// Each car polls independently: an offline vehicle's SSH timeout must not
+	// delay ADB recovery on another. The root worker preserves the old socket.
+	var workers sync.WaitGroup
+	active := map[string]<-chan struct{}{}
+	log := &stateLog{path: app.path(watchLogName)}
+	for {
+		dirs, err := app.carDirectories()
+		if err != nil {
+			log.state("cannot read cars: " + err.Error())
+		}
+		for _, dir := range dirs {
+			if done, exists := active[dir.configDir]; exists {
+				select {
+				case <-done:
+					delete(active, dir.configDir)
+				default:
+					continue
+				}
+			}
+			if dir.child && !fileNonempty(dir.path("device.json")) {
+				continue
+			}
+			done := make(chan struct{})
+			active[dir.configDir] = done
+			workers.Add(1)
+			go func(car *App) {
+				defer workers.Done()
+				defer close(done)
+				car.watchCar(ctx)
+			}(dir)
+		}
+		if app.sleep(ctx, watchPollInterval) {
+			break
+		}
 	}
-	watcher.closeOwnMaster()
-	watcher.log.state("watch stopped")
+	workers.Wait()
 	return nil
+}
+
+func (app *App) watchCar(ctx context.Context) {
+	w := &watcher{app: app, log: &stateLog{path: app.path(watchLogName)}, backoff: &reconnectBackoff{}}
+	w.log.state(fmt.Sprintf("watch started (pid %d)", os.Getpid()))
+	for !app.sleep(ctx, w.step(ctx)) {
+		if app.child && !fileNonempty(app.path("device.json")) {
+			break
+		}
+	}
+	lock, err := lockFile(app.path("action.lock"))
+	if err == nil {
+		w.closeOwnMaster()
+		lock.Close()
+	}
+	w.log.state("watch stopped")
 }
 
 type watcher struct {
@@ -188,6 +235,27 @@ type watcher struct {
 // step runs one poll and returns how long to wait before the next one.
 func (watcher *watcher) step(ctx context.Context) time.Duration {
 	app := watcher.app
+	lock, err := lockFile(app.path("action.lock"))
+	if err != nil {
+		watcher.log.state("error: " + firstLine(err))
+		return watchPollInterval
+	}
+	defer lock.Close()
+	if ctx.Err() != nil {
+		return watchPollInterval
+	}
+	settings, err := app.loadSettings()
+	if err != nil {
+		watcher.log.state("error: " + firstLine(err))
+		return watchPollInterval
+	}
+	if settings.Paused {
+		watcher.log.state("disconnected by user")
+		watcher.retryAt = time.Time{}
+		watcher.unanswered = 0
+		watcher.backoff.reset()
+		return watchPollInterval
+	}
 	obs, bundle, master, err := app.observe(ctx, watcher.retryAt)
 	if err != nil {
 		watcher.log.state("error: " + firstLine(err))

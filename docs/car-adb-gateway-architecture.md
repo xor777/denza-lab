@@ -1,7 +1,7 @@
 # Car ADB Gateway — Relay-Only Architecture
 
 Status: current design of the implementation in this repository, last checked
-2026-10-31. Bulk uploads through Moscow recovered after the owner's network
+2026-11-19. Bulk uploads through Moscow recovered after the owner's network
 disconnect/reconnect, but the cause of the earlier live-channel degradation
 remains open (see the 2026-10-31 investigation below). The relay moved from Vultr Amsterdam to VDSina Moscow,
 `212.193.11.249`, with its host keys and existing registrations preserved
@@ -19,6 +19,7 @@ wake from the car's sleep and the soak test are still ahead.
 
 | Current state | Evidence | Section |
 | --- | --- | --- |
+| One desktop CLI pairs with several vehicles, using a distinct key and local port for each. | Two loopback SSH fixtures and a live upgrade on the owner's Z9GT, 2026-11-19 | [Developer CLI](#6-developer-cli) |
 | CAG 0.1.1 restores local ADB after owner approval and keeps the existing computer grant. One stale system prompt needed operator intervention on this car. | Live head unit, relay shell and screenshot, 2026-11-19 | [ADB recovery after enrollment](#adb-recovery-after-enrollment) |
 
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
@@ -361,13 +362,14 @@ contains a space. Runtime dependencies are system OpenSSH and Android Platform
 Tools when an ADB command is executed.
 
 ```text
-cag pair <CODE>
-cag pair --new-key <CODE>
-cag connect [--port N]
-cag connect [--port N] -- adb ...
-cag connect [--port N] --watch
-cag status
-cag disconnect
+cag pair <CODE> [--name NAME]
+cag pair <CODE> --new-key [--name NAME]
+cag list
+cag connect [NAME] [--port N] [-- adb ...]
+cag connect --watch
+cag status [NAME]
+cag disconnect [NAME]
+cag unpair NAME
 cag service install [--port N] | uninstall | status
 ```
 
@@ -379,6 +381,15 @@ submitting the code again. `--new-key` keeps the replacement key staged until th
 vehicle confirms it; successful replacement leaves only relay pins and the
 current vehicle key in `known_hosts`.
 
+The original pairing stays in place. Every additional vehicle gets its own
+client key, host pins, socket and remembered port. The name defaults to the
+vehicle label and can be chosen at pairing (for example `--name "My Denza N9"`).
+Commands accept that quoted name or the device ID from `cag list`. A single
+paired car can be selected implicitly. `unpair` always requires an explicit
+selector and deletes that vehicle's local key and pairing. Enrollment and
+server-side revocation follow the existing vehicle and administrator workflows.
+[CAG-020](car-adb-gateway-decision-log.md#cag-020)
+
 `cag connect` keeps a ControlMaster tunnel in the background with a 30-second
 keepalive. The master's messages go to `tunnel.log` and the relay leg of each
 inner connection to `proxy.log`, both in the state directory, and their tails
@@ -386,7 +397,9 @@ appear in `cag` errors. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mod
 runs `adb connect`, and the serial is `127.0.0.1:N`.
 
 The local port is fixed, because tools address the car by its serial: 15555 by
-default, and `--port N` is remembered in `settings.json`. A port held by another
+default for the first pairing. Additional vehicles reserve the first available
+port starting at the original configured port. Each car remembers `--port N`
+in its own `settings.json`. A port held by another
 program is an error, never a reason to pick another one. The master's PID, from
 `-O check`, is kept in `master.pid`, and a process is treated as ours only when
 its command line is our ssh master with our socket. So a deleted socket or a
@@ -394,7 +407,10 @@ stale file never orphans a master and never makes our own listener look like
 somebody else's.
 
 `cag connect --watch` is the supervisor: one per config, held by `watch.lock`.
-It polls every 10 seconds, reconnects with jittered backoff from 1 to 10
+It polls each enabled vehicle independently every 10 seconds. Additional
+vehicles wait for their first `connect NAME`. An explicit `disconnect NAME`
+persists until the next `connect NAME`, including across computer restarts.
+The supervisor reconnects with jittered backoff from 1 to 10
 seconds, waits quietly while another program holds the port, and attaches the
 adb serial when it is not `device`. A master that stops answering gets two more
 polls before it is replaced. On SIGTERM the supervisor closes the masters it
@@ -412,6 +428,17 @@ it was freed, a second supervisor exited, a killed master was replaced in
 own master. The same day, on the owner's Mac, the LAN tunnel was stopped and the
 supervisor took port 5555 over in one poll; `adb -s 127.0.0.1:5555 shell` then
 reached the car through `adbgw.ru`.
+
+On 2026-11-19 two loopback vehicle fixtures accepted separate pairing keys.
+Two real OpenSSH masters served their respective vehicle on different ports.
+The supervisor restored a dropped second tunnel and respected a manual
+disconnect across its next poll. Forgetting that vehicle left the first
+reachable. The new CLI then ran an ADB shell on the owner's Z9GT on port
+5555, preserving the existing SSH master, ADB transport and pairing files.
+Only one physical vehicle was available. The already-running single-car
+LaunchAgent still owned the relay proxy's process group. Its binary was
+updated in place for the next login. Restarting that job during a live
+session would also terminate the proxy.
 
 ## 7. Residual Risks
 

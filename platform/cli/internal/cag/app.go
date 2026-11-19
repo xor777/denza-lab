@@ -156,6 +156,7 @@ func (runner systemRunner) Pipe(ctx context.Context, env map[string]string, stde
 type App struct {
 	runner     commandRunner
 	configDir  string
+	child      bool // This car has its own SSH identity under the main config.
 	executable string
 	stdout     io.Writer
 	// defaultPort is used when no port was chosen; tests replace it so they
@@ -230,30 +231,26 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "pair":
-		newKey := false
-		var code string
-		switch {
-		case len(args) == 2:
-			code = args[1]
-		case len(args) == 3 && args[1] == "--new-key":
-			newKey = true
-			code = args[2]
-		default:
-			return errors.New("usage: cag pair [--new-key] XXXX-XXXX")
+		return app.pairCar(ctx, args[1:])
+	case "list":
+		if len(args) != 1 {
+			return errors.New("usage: cag list")
 		}
-		return app.pair(ctx, code, newKey)
+		return app.listCars(ctx)
 	case "connect":
 		return app.connect(ctx, args[1:])
-	case "status":
-		if len(args) != 1 {
-			return errors.New("usage: cag status")
+	case "disconnect", "status", "unpair", "forget":
+		if len(args) > 2 || ((args[0] == "unpair" || args[0] == "forget") && len(args) != 2) {
+			return fmt.Errorf("usage: cag %s NAME", args[0])
 		}
-		return app.status(ctx)
-	case "disconnect":
-		if len(args) != 1 {
-			return errors.New("usage: cag disconnect")
+		name := ""
+		if len(args) == 2 {
+			name = args[1]
+			if name == "" {
+				return errors.New("car name is empty")
+			}
 		}
-		return app.disconnect(ctx)
+		return app.carCommand(ctx, args[0], name, connectOptions{})
 	case "service":
 		return app.service(ctx, args[1:])
 	case "__proxy":
@@ -280,13 +277,14 @@ func (app *App) Run(ctx context.Context, args []string) error {
 
 func (app *App) usage() {
 	fmt.Fprintln(app.stdout, `Usage:
-  cag pair XXXX-XXXX
-  cag pair --new-key XXXX-XXXX
-  cag connect [--port N]
-  cag connect [--port N] -- adb [arguments...]
-  cag connect [--port N] --watch
-  cag status
-  cag disconnect
+  cag pair CODE [--name NAME] [--new-key]
+  cag list
+  cag connect [NAME] [--port N] [-- adb arguments...]
+  cag connect --watch
+  cag status [NAME]
+  cag disconnect [NAME]
+  cag unpair NAME  (alias: forget; removes the pairing on this computer)
+  NAME is the name or device ID printed by cag list. Quote names with spaces.
   cag service install [--port N]
   cag service uninstall
   cag service status`)
@@ -435,7 +433,7 @@ func normalizeCode(value string) (string, error) {
 	return compact.String()[:4] + "-" + compact.String()[4:], nil
 }
 
-func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
+func (app *App) pair(ctx context.Context, rawCode string, newKey bool, beforeConfirm func(DeviceBundle) error) error {
 	code, err := normalizeCode(rawCode)
 	if err != nil {
 		return err
@@ -506,6 +504,9 @@ func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
 		return err
 	}
 
+	if err := beforeConfirm(*bundle); err != nil {
+		return err
+	}
 	temporaryKnownHosts := app.path(fmt.Sprintf(".pair-known-hosts-%d", os.Getpid()))
 	defer os.Remove(temporaryKnownHosts)
 	if err := app.writeKnownHostsForBundle(*bundle, temporaryKnownHosts); err != nil {
@@ -539,7 +540,6 @@ func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
 	if err := app.clearPendingPair(); err != nil {
 		return err
 	}
-	fmt.Fprintf(app.stdout, "Paired with %s.\n", bundle.DeviceLabel)
 	return nil
 }
 
@@ -557,6 +557,8 @@ func (app *App) savePendingPair(pending PendingPair) error {
 	}
 	return nil
 }
+
+var errOtherPairing = errors.New("another pairing is in progress; retry it with the same code")
 
 func (app *App) loadPendingPair(hash string) (*PendingPair, *DeviceBundle, []byte, error) {
 	raw, err := os.ReadFile(app.path("pending-pair.json"))
@@ -581,7 +583,7 @@ func (app *App) loadPendingPair(hash string) (*PendingPair, *DeviceBundle, []byt
 		return nil, nil, nil, nil
 	}
 	if pending.CodeHash != hash {
-		return nil, nil, nil, errors.New("another pairing is in progress; retry it with the same code")
+		return nil, nil, nil, errOtherPairing
 	}
 	bundleRaw, err := os.ReadFile(app.path("pending-device.json"))
 	if errors.Is(err, os.ErrNotExist) {
@@ -763,7 +765,11 @@ func (app *App) installBundleHostKey(bundle DeviceBundle) error {
 func innerAlias(deviceID string) string { return "cag-device-" + deviceID }
 
 func (app *App) proxyCommand(port int, identityName string) string {
-	return sshPercentEscape(shellQuote(app.executable) + " __proxy " + strconv.Itoa(port) + " " + identityName)
+	command := shellQuote(app.executable) + " __proxy " + strconv.Itoa(port) + " " + identityName
+	if app.child {
+		command = "env " + shellQuote("CAG_CONFIG_DIR="+app.configDir) + " " + command
+	}
+	return sshPercentEscape(command)
 }
 
 func shellQuote(value string) string {
@@ -897,13 +903,14 @@ func logDetail(label, text string) string {
 }
 
 type connectOptions struct {
+	name    string
 	port    int
 	watch   bool
 	adbArgs []string // nil without "-- adb"
 }
 
 func parseConnectArgs(args []string) (connectOptions, error) {
-	usage := errors.New("usage: cag connect [--port N] [--watch | -- adb ...]")
+	usage := errors.New("usage: cag connect [NAME] [--port N] [-- adb ...] or cag connect --watch")
 	var options connectOptions
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
@@ -931,6 +938,8 @@ func parseConnectArgs(args []string) (connectOptions, error) {
 				return options, err
 			}
 			options.port = port
+		case options.name == "" && validCarName(arg):
+			options.name = arg
 		default:
 			return options, usage
 		}
@@ -944,32 +953,32 @@ func (app *App) connect(ctx context.Context, args []string) error {
 		return err
 	}
 	if options.watch {
+		if options.name != "" {
+			return errors.New("cag connect --watch supervises all connected cars; use cag connect NAME to enable one")
+		}
 		if options.port != 0 {
-			if _, err := app.localPort(options.port); err != nil {
+			if err := app.setServicePort(options.port); err != nil {
 				return err
 			}
 		}
 		return app.watch(ctx)
 	}
-	bundle, err := app.loadBundle()
-	if err != nil {
-		return err
-	}
-	if err := app.ensureIdentity(ctx); err != nil {
-		return err
-	}
-	localPort, err := app.localPort(options.port)
-	if err != nil {
-		return err
-	}
-	if _, err := app.startTunnel(ctx, bundle, localPort); err != nil {
-		return err
-	}
+	return app.carCommand(ctx, "connect", options.name, options)
+}
+
+func (app *App) connectedCommand(ctx context.Context, bundle DeviceBundle, localPort int, options connectOptions) error {
 	serial := loopbackAddress(localPort)
 	if options.adbArgs == nil {
 		if bundle.EndpointMode == "smart" {
 			fmt.Fprintf(app.stdout, "Connected. ADB server: tcp:%s (smart).\n", serial)
 		} else {
+			if options.name != "" {
+				if state, missing := app.adbSerialState(ctx, serial); !missing && state != "device" {
+					if err := app.adbConnect(ctx, serial); err != nil {
+						return err
+					}
+				}
+			}
 			fmt.Fprintf(app.stdout, "Connected. Serial: %s (%s).\n", serial, bundle.EndpointMode)
 		}
 		return nil
@@ -985,11 +994,7 @@ func (app *App) connect(ctx context.Context, args []string) error {
 	return app.runner.Interactive(ctx, nil, "adb", append([]string{"-s", serial}, options.adbArgs...)...)
 }
 
-func (app *App) status(ctx context.Context) error {
-	bundle, err := app.loadBundle()
-	if err != nil {
-		return err
-	}
+func (app *App) status(ctx context.Context, bundle DeviceBundle, name string) error {
 	localPort, err := app.localPort(0)
 	if err != nil {
 		return err
@@ -1027,7 +1032,7 @@ func (app *App) status(ctx context.Context) error {
 			serialLine += " (" + adbState + ")"
 		}
 	}
-	fmt.Fprintf(app.stdout, "Car: %s\nState: %s\nADB: %s\n%s\n%s", bundle.DeviceLabel, state, bundle.EndpointMode, serialLine, portNote)
+	fmt.Fprintf(app.stdout, "Car: %s\nState: %s\nADB: %s\n%s\n%s", name, state, bundle.EndpointMode, serialLine, portNote)
 	return nil
 }
 

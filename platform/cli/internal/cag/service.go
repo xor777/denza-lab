@@ -140,7 +140,7 @@ func (app *App) service(ctx context.Context, args []string) error {
 	switch args[0] {
 	case "install":
 		options, err := parseConnectArgs(args[1:])
-		if err != nil || options.watch || options.adbArgs != nil {
+		if err != nil || options.name != "" || options.watch || options.adbArgs != nil {
 			return usage
 		}
 		return app.serviceInstall(ctx, options.port)
@@ -170,7 +170,12 @@ func (app *App) serviceInstall(ctx context.Context, requestedPort int) error {
 	if err := app.ensureConfig(); err != nil {
 		return err
 	}
-	port, err := app.localPort(requestedPort)
+	if requestedPort != 0 {
+		if err := app.setServicePort(requestedPort); err != nil {
+			return err
+		}
+	}
+	cars, err := app.cars()
 	if err != nil {
 		return err
 	}
@@ -208,12 +213,11 @@ func (app *App) serviceInstall(ctx context.Context, requestedPort int) error {
 			}
 		}
 	}
-	fmt.Fprintf(app.stdout, "Installed %s: cag connect --watch keeps %s up.\nLog: %s\n",
-		file, loopbackAddress(port), app.path(watchLogName))
+	fmt.Fprintf(app.stdout, "Installed %s. The service watches enabled cars.\n", file)
 	if adbPath == "" {
 		fmt.Fprintln(app.stdout, "adb was not found on PATH; the service keeps the tunnel but cannot run adb connect.")
 	}
-	if _, err := os.Stat(app.path("device.json")); err != nil {
+	if len(cars) == 0 {
 		fmt.Fprintln(app.stdout, "No car is paired yet; the service waits for: cag pair XXXX-XXXX")
 	}
 	return nil
@@ -264,16 +268,28 @@ func (app *App) serviceUninstall(ctx context.Context) error {
 	if app.goos == "linux" {
 		_, _ = app.runner.Run(ctx, nil, "systemctl", "--user", "daemon-reload")
 	}
-	// The stopped watch closes the tunnel it started; this also closes one
-	// whose socket is gone or that the watch had adopted.
-	closed, err := app.closeAnyMaster(ctx)
+	// Also close adopted tunnels and masters whose socket is gone.
+	lock, err := app.catalogLock()
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(app.stdout, "Uninstalled %s.\n", file)
-	if closed {
-		fmt.Fprintln(app.stdout, "Closed the tunnel.")
+	defer lock.Close()
+	dirs, err := app.carDirectories()
+	if err != nil {
+		return err
 	}
+	for _, dir := range dirs {
+		action, err := lockFile(dir.path("action.lock"))
+		if err != nil {
+			return err
+		}
+		_, err = dir.closeAnyMaster(ctx)
+		action.Close()
+		if err != nil {
+			return err
+		}
+	}
+	fmt.Fprintf(app.stdout, "Uninstalled %s.\n", file)
 	return nil
 }
 
@@ -286,12 +302,29 @@ func (app *App) serviceStatus(ctx context.Context) error {
 	if _, err := os.Stat(file); err == nil {
 		state = app.serviceState(ctx)
 	}
-	port, err := app.localPort(0)
+	lock, err := app.catalogLock()
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(app.stdout, "Service: %s\nFile: %s\nSerial: %s\n", state, file, loopbackAddress(port))
-	if last := lastLine(app.path(watchLogName)); last != "" {
+	defer lock.Close()
+	cars, err := app.cars()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(app.stdout, "Service: %s\nFile: %s\n", state, file)
+	if len(cars) > 1 {
+		return app.printCars(ctx, cars)
+	}
+	dir := app
+	if len(cars) == 1 {
+		dir = cars[0].app
+	}
+	port, err := dir.localPort(0)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(app.stdout, "Serial: %s\n", loopbackAddress(port))
+	if last := lastLine(dir.path(watchLogName)); last != "" {
 		fmt.Fprintf(app.stdout, "Last: %s\n", last)
 	}
 	return nil

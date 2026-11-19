@@ -20,7 +20,9 @@ const defaultLocalPort = 15555
 const settingsName = "settings.json"
 
 type Settings struct {
-	LocalPort int `json:"local_port,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Paused    bool   `json:"paused,omitempty"`
+	LocalPort int    `json:"local_port,omitempty"`
 }
 
 func (app *App) loadSettings() (Settings, error) {

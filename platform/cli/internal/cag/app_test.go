@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,6 +21,7 @@ const testInnerKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBERERERERERERERERERER
 type fakeRunner struct {
 	configDir        string
 	pairConfirmation bool
+	carsByCode       map[string]DeviceBundle
 	pairSubmits      int
 	sshCalls         []string
 	sshArgs          [][]string
@@ -111,7 +111,13 @@ func (procs *fakeProcesses) signalled() []string {
 // fakeMux answers ssh -O check and -O exit the way a master would.
 func (runner *fakeRunner) fakeMux(args []string) ([]byte, error) {
 	socket := argAfter(args, "-S")
-	pid := runner.masterPID
+	pid := 0
+	for _, proc := range runner.procs.List() {
+		if strings.Contains(proc.Command, " -S "+socket+" ") {
+			pid = proc.PID
+			break
+		}
+	}
 	if _, err := os.Stat(socket); err != nil || pid == 0 || !runner.procs.alive(pid) || pid == runner.unresponsivePID {
 		return nil, errors.New("Control socket connect(" + socket + "): No such file or directory")
 	}
@@ -179,12 +185,9 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 		if err := json.Unmarshal(payloadRaw, &payload); err != nil {
 			return nil, err
 		}
-		identityPublic := filepath.Join(runner.configDir, "identity.pub")
-		if staged, readErr := os.ReadFile(filepath.Join(runner.configDir, "identity.next.pub")); readErr == nil &&
-			strings.TrimSpace(string(staged)) == payload["public_key"] {
-			identityPublic = filepath.Join(runner.configDir, "identity.next.pub")
-		}
-		output, err := exec.CommandContext(ctx, "ssh-keygen", "-lf", identityPublic, "-E", "sha256").Output()
+		fpCmd := exec.CommandContext(ctx, "ssh-keygen", "-lf", "-", "-E", "sha256")
+		fpCmd.Stdin = strings.NewReader(payload["public_key"] + "\n")
+		output, err := fpCmd.Output()
 		if err != nil {
 			return nil, err
 		}
@@ -202,6 +205,10 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 			RelayDevicePort:   20_000,
 			RelayHost:         relayHost,
 			RelaySSHPort:      relaySSHPort,
+		}
+		if car, ok := runner.carsByCode[fields[1]]; ok {
+			bundle.DeviceID, bundle.DeviceLabel, bundle.RelayDevicePort = car.DeviceID, car.DeviceLabel, car.RelayDevicePort
+			bundle.EndpointMode = car.EndpointMode
 		}
 		raw, _ := json.Marshal(bundle)
 		return []byte("OK " + base64.RawURLEncoding.EncodeToString(raw) + "\n"), nil

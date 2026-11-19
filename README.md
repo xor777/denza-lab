@@ -224,6 +224,12 @@ Build/install instructions are in [`platform/cli/README.md`](platform/cli/README
    computer. If replacement fails or expires, the previous computer keeps its
    access.
 
+To pair a second vehicle, get its own pairing code and run, for example,
+`cag pair XXXX-XXXX --name "My Denza N9"`. Without `--name` the CLI uses the
+name supplied by the vehicle. `cag list` shows each name, ID, port and connection
+state. Use `cag connect "My Denza N9" -- adb shell` to target that vehicle while
+the first stays connected.
+
 ### 4. Use ADB remotely
 
 `cag` opens the protected tunnel and selects the correct smart-socket or raw-ADB
@@ -247,8 +253,10 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 
 ### 5. Disconnect safely
 
-- `cag disconnect` closes only this computer's local tunnel. It does not disable
-  remote access on the vehicle.
+- `cag disconnect "My Denza N9"` closes that local tunnel and pauses its
+  automatic reconnect until `cag connect "My Denza N9"`.
+- `cag unpair "My Denza N9"` removes its pairing and private key from this
+  computer. To pair it again, obtain a fresh pairing code at the vehicle.
 - **«Отключить удалённый доступ»** in the vehicle app closes current sessions,
   disables the relay grant, and keeps access disabled after reboot.
 - **«Включить удалённый доступ»** in the vehicle app re-enables it.
