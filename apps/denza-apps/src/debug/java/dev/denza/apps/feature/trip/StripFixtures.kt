@@ -160,6 +160,14 @@ object StripFixtures {
             into.setHint(o.getString("cap"))
             return
         }
+        // A duration is figure-unit pairs: «1 ч 42 мин» is [["1","ч"],["42","мин"]].
+        val parts = o.optJSONArray("parts")
+        if (parts != null) {
+            val one = parts.getJSONArray(0)
+            val two = if (parts.length() > 1) parts.getJSONArray(1) else null
+            into.setDuration(o.getString("cap"), one.getString(0), one.getString(1), two?.getString(0), two?.getString(1))
+            return
+        }
         into.set(
             caption = o.getString("cap"),
             figure = if (o.has("fig")) o.getString("fig") else null,
@@ -168,6 +176,7 @@ object StripFixtures {
             rateUp = true,
             dot = o.optBoolean("dot", false),
             blue = o.optString("col") == "blue",
+            rateUnit = if (o.has("rateUnit")) o.getString("rateUnit") else null,
         )
     }
 

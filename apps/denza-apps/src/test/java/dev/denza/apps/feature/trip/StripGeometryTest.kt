@@ -1,10 +1,10 @@
 package dev.denza.apps.feature.trip
 
 import dev.denza.apps.R
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.core.AppText
 import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.core.figure
-import dev.denza.apps.core.say
 import dev.denza.apps.design.luminofor.FontMeasure
 import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
@@ -42,18 +42,27 @@ open class StripGeometryTest {
     private fun left(layout: TripPanelLayout) = TripPanelRenderer.box(layout).left
     private fun right(layout: TripPanelLayout) = TripPanelRenderer.box(layout).right
 
-    /** A route with ten hours on it, a peak's altitude climbing fast, and the longer sun word. */
+    /**
+     * Two days on the road at the widest two figures of hours, four figures of kilometres under the
+     * longer road word, a peak's altitude climbing fast with its unit, and the longer sun word.
+     */
     internal fun widestSound(hint: Boolean = false) = StripModel().apply {
         title = "Midnight City"
         artist = "M83"
-        trip[0].set(StripReadings.REMAINING, "10:42", StripReadings.roadLabel(99_940.0))
+        val d = AppDuration.of(12L * 3600L + 5L * 60L)
+        trip[0].setDuration(longer(StripReadings.ON_THE_ROAD, StripReadings.REMAINING), d.first, d.firstUnit, d.second, d.secondUnit)
+        trip[1].set(longer(StripReadings.DISTANCE, StripReadings.TO_GO), StripReadings.roadFigure(1_284_000.0), StripReadings.KILOMETRES)
         if (hint) {
-            trip[1].setHint(BaseTripRenderer.LOCATION_HINT)
+            trip[2].setHint(BaseTripRenderer.LOCATION_HINT)
+            tripCount = 3
         } else {
-            trip[1].set(StripReadings.ALTITUDE, "8888", StripReadings.METRES, rate = figure("88,8"))
+            trip[2].set(
+                StripReadings.ALTITUDE, "8888", StripReadings.METRES, rate = figure("88,8"),
+                rateUnit = StripReadings.METRES_PER_SECOND,
+            )
+            trip[3].set(StripReadings.SUNRISE, "19:44")
+            tripCount = 4
         }
-        trip[2].set(StripReadings.SUNRISE, "19:44")
-        tripCount = 3
     }
 
     /**
@@ -107,19 +116,20 @@ open class StripGeometryTest {
     /**
      * How far a one-third row's reading reaches from the row's left edge, placed the way
      * `TripPanelRenderer.row` places it: the figure at the value column, the unit
-     * [StripGeometry.ROW_UNIT_GAP] past it, the rate's arrow [StripGeometry.ROW_RATE_OFFSET] past the
-     * figure and the rate [StripGeometry.ROW_ARROW_ROOM] past the arrow.
+     * [StripGeometry.ROW_UNIT_GAP] past it, a duration's second pair a pair's gap after that, the
+     * rate's arrow [StripGeometry.ROW_RATE_OFFSET] past the unit, the rate
+     * [StripGeometry.ROW_ARROW_ROOM] past the arrow and its unit [StripGeometry.ROW_RATE_UNIT_GAP]
+     * past the rate.
      */
     internal fun oneRowExtent(r: StripReading): Float {
         val s = Head.One.Sound
         val figure = r.figure ?: return m.sans(r.caption, s.LABEL_SIZE, false)
-        var ux = s.VALUE_X + WideDigits.width(figure, s.VALUE_SIZE)
-        var end = ux
-        r.unit?.let { end = ux + StripGeometry.ROW_UNIT_GAP + m.sans(it, StripGeometry.ROW_SMALL, false) }
-        r.rate?.let {
-            ux += StripGeometry.ROW_RATE_OFFSET + StripGeometry.ROW_ARROW_ROOM
-            end = max(end, ux + WideDigits.width(it, StripGeometry.ROW_SMALL))
-        }
+        fun unit(u: String?) = if (u == null) 0f else StripGeometry.ROW_UNIT_GAP + m.sans(u, StripGeometry.ROW_SMALL, false)
+        var ux = s.VALUE_X + WideDigits.width(figure, s.VALUE_SIZE) + unit(r.unit)
+        r.figure2?.let { ux += s.VALUE_SIZE * Head.Reading.PAIR_GAP_RATIO + WideDigits.width(it, s.VALUE_SIZE) + unit(r.unit2) }
+        val rate = r.rate ?: return ux
+        var end = ux + StripGeometry.ROW_RATE_OFFSET + StripGeometry.ROW_ARROW_ROOM + WideDigits.width(rate, StripGeometry.ROW_SMALL)
+        r.rateUnit?.let { end += StripGeometry.ROW_RATE_UNIT_GAP + m.sans(it, StripGeometry.ROW_SMALL, false) }
         return end
     }
 
@@ -131,7 +141,7 @@ open class StripGeometryTest {
         val s = Head.Full.Strip
         for (hint in listOf(false, true)) {
             val model = widestSound(hint)
-            val out = FloatArray(3)
+            val out = FloatArray(StripModel.TRIP_READINGS)
             val rowLeft = StripGeometry.fullTrip(model, right(layout), m, out)
             val spans = (0 until model.tripCount).map {
                 reading("reading $it", model.trip[it], out[it], s.VALUE_SIZE, s.LABEL_SIZE)
@@ -153,8 +163,8 @@ open class StripGeometryTest {
         val s = Head.Two.Sound
         for (hint in listOf(false, true)) {
             val model = widestSound(hint)
-            val out = FloatArray(3)
-            StripGeometry.twoTrip(model, left(layout), m, out)
+            val out = FloatArray(StripModel.TRIP_READINGS)
+            StripGeometry.twoTrip(model, left(layout), right(layout), m, out)
             val spans = (0 until model.tripCount).map {
                 reading("reading $it", model.trip[it], out[it], s.VALUE_SIZE, s.LABEL_SIZE)
             }
@@ -180,7 +190,7 @@ open class StripGeometryTest {
         }
         // Every caption the rows can carry, not only the widest scene's.
         for (word in listOf(
-            StripReadings.ON_THE_ROAD, StripReadings.REMAINING, StripReadings.ALTITUDE,
+            StripReadings.ON_THE_ROAD, StripReadings.REMAINING, StripReadings.DISTANCE, StripReadings.TO_GO, StripReadings.ALTITUDE,
             StripReadings.SUNSET, StripReadings.SUNRISE,
         )) {
             assertTrue("«$word» reaches the value column", m.sans(word, s.LABEL_SIZE, false) < s.VALUE_X)
@@ -406,12 +416,14 @@ open class StripGeometryTest {
     }
 
     /**
-     * The closed page's instruction, broken to the page's width at the title's size, stays above
-     * the dots - the longest instruction this app prints, at its narrowest.
+     * The closed page's state, broken to the page's width at the title's size, stays above the
+     * dots - the longest of the three it can say, at its narrowest.
      */
     @Test
-    fun theClosedPagesInstructionFitsUnderItsCaption() {
-        val message = say("ADB-ключ не подтверждён · откройте Denza Apps", AppText.s(R.string.vehicle_closed_authorization))
+    fun theClosedPagesStateFitsUnderItsCaption() {
+        val message = listOf(R.string.car_page_no_access, R.string.car_page_no_link, R.string.car_page_no_answer)
+            .map { AppText.s(it) }
+            .maxBy { m.sans(it, 1f, false) }
         for ((layout, value, size) in listOf(
             Triple(TripPanelLayout.WIDE, Head.Full.Strip.VALUE, Head.Full.Strip.TITLE_SIZE),
             Triple(TripPanelLayout.MEDIUM, Head.Two.Car.VALUE, Head.Two.Sound.TITLE_SIZE),
@@ -495,8 +507,13 @@ open class StripGeometryTest {
     }
 
     companion object {
-        /** A title keeps at least this much of the full screen beside the widest readings. */
-        const val TITLE_ROOM_FLOOR = 400f
+        /**
+         * A title keeps at least this much of the full screen beside the widest readings. Four
+         * readings since time and road parted - «12 ч 05 мин», «1284 км», a peak at 8888 м climbing
+         * 88,8 м/с, the sunrise - leave it 282 at their widest, where three left it 400: still a
+         * title and its artist whole, and on a usual trip a good deal more.
+         */
+        const val TITLE_ROOM_FLOOR = 280f
 
         /** The widest of the five glyphs (the pack's, with its terminal) and the tallest (a motor). */
         const val GLYPH_WIDTH = 24f

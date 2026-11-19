@@ -489,11 +489,15 @@
     if (it.hint) return labW(c, it.cap, lpx);
     return Math.max(runW(c, it, size), labW(c, it.cap, lpx));
   }
-  // The figure, its unit and the variometer's arrow and rate, without the caption.
+  // The figure, its unit and the variometer's arrow, rate and the rate's unit, without the caption.
+  // A duration is figure-unit pairs, «1 ч 42 мин», a unit's gap and then a pair's gap apart.
   function runW(c, it, size) {
+    const upx = Math.round(size * RD.unitRatio);
+    if (it.parts) return it.parts.reduce((w, p, i) => w + (i ? size * RD.pairGapRatio : 0) + numExtent(p[0], size) + size * RD.unitGapRatio + labW(c, p[1], upx), 0);
     let w = numExtent(it.fig, size);
-    if (it.unit) w += size * RD.unitGapRatio + labW(c, it.unit, Math.round(size * RD.unitRatio));
+    if (it.unit) w += size * RD.unitGapRatio + labW(c, it.unit, upx);
     if (it.rate) w += size * RD.rateGapRatio + 14 + numExtent(it.rate, Math.round(size * RD.rateRatio));
+    if (it.rateUnit) w += size * RD.rateUnitGapRatio + labW(c, it.rateUnit, upx);
     return w;
   }
   // A reading whose caption and run both end on `right` - the trip at the strip's right edge.
@@ -507,13 +511,24 @@
     else lab(c, it.cap, x, capY, lpx);
     const colour = col === 'blue' ? HUB : WHT;
     if (runX != null) x = runX;
+    const upx = Math.round(size * RD.unitRatio);
+    if (it.parts) {
+      it.parts.forEach((p, i) => {
+        if (i) x += size * RD.pairGapRatio;
+        x += num(c, p[0], x, valY, size, colour, 1, 'left') + size * RD.unitGapRatio;
+        x += text(c, p[1], x, valY, upx, colour, RD.unitAlpha, { font: ROBOTO, w: 400 });
+      });
+      return;
+    }
     let ux = x + num(c, it.fig, x, valY, size, colour, 1, 'left');
-    if (it.unit) ux += size * RD.unitGapRatio + text(c, it.unit, ux + size * RD.unitGapRatio, valY, Math.round(size * RD.unitRatio), colour, RD.unitAlpha, { font: ROBOTO, w: 400 });
+    if (it.unit) ux += size * RD.unitGapRatio + text(c, it.unit, ux + size * RD.unitGapRatio, valY, upx, colour, RD.unitAlpha, { font: ROBOTO, w: 400 });
     if (it.rate) {
       const ax = ux + size * RD.rateGapRatio, h = size * 0.34;
       const ar = new Path2D(); ar.moveTo(ax + 5, valY - 1); ar.lineTo(ax + 5, valY - h); ar.moveTo(ax, valY - h + 5); ar.lineTo(ax + 5, valY - h); ar.lineTo(ax + 10, valY - h + 5);
       beam(c, ar, 1.8, WHT, 0.9, 0);
-      num(c, it.rate, ax + 14, valY, Math.round(size * RD.rateRatio), WHT, 0.9, 'left');
+      const rw = num(c, it.rate, ax + 14, valY, Math.round(size * RD.rateRatio), WHT, 0.9, 'left');
+      // the climb's own unit, so «↑1,2» does not read as a second altitude; at the rate's light
+      if (it.rateUnit) text(c, it.rateUnit, ax + 14 + rw + size * RD.rateUnitGapRatio, valY, upx, WHT, 0.9 * RD.unitAlpha, { font: ROBOTO, w: 400 });
     }
   }
   // Nothing playing, no block. Paused, the same block at half its light, and the mark is the
@@ -666,10 +681,11 @@
     const p = new Path2D(); p.arc(cx, cy, (d - sw) / 2, -Math.PI / 2, -Math.PI / 2 + S.head.icon.ring.sweep * Math.PI / 180);
     beam(c, p, sw, HUB, 1, 0);
   }
-  // The car's page when the shell is closed to us: what the page would have shown, and under it
-  // the instruction in the page's title size, broken at its spaces to the strip's width.
+  // The car's page when the shell is closed to us: the caption names what the page shows, and the
+  // line under it, in the page's title size, says what the page has of it - a state the driver
+  // sees, never an instruction: «Нет доступа», «Нет связи», «Нет ответа».
   function closedPage(c, f, L, R, capY, valY, label, size) {
-    lab(c, 'Питание от машины', L, capY, label);
+    lab(c, 'Данные машины', L, capY, label);
     const lines = []; let line = '';
     String(f.message).split(' ').forEach(word => {
       const next = line ? line + ' ' + word : word;
@@ -729,7 +745,10 @@
       if (page === 'sound') {
         const s = P.sound;
         trackBlock(c, f, L, s.trackCaption + dy, s.trackValue + dy, s.titleSize, s.labelSize);
-        let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption + dy, s.value + dy, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
+        // the readings a gap apart, a closer one when long values would run them past the pane
+        const ws = f.trip.map(it => readingW(c, it, s.valueSize, s.labelSize));
+        const gap = Math.min(s.gap, (Wd - ws.reduce((a, b) => a + b, 0)) / Math.max(1, ws.length - 1));
+        let x = L; f.trip.forEach((it, k) => { reading(c, it, x, s.caption + dy, s.value + dy, s.valueSize, s.labelSize); x += ws[k] + gap; });
         spectrumField(c, f, L, s.spectrumTop + dy, Wd, s.floor, s.bars);
       } else if (f.unavailable) {
         closedPage(c, f, L, L + Wd, P.car.caption + dy, P.car.value + dy, P.sound.labelSize, P.sound.titleSize);
@@ -762,11 +781,21 @@
         lab(c, it.cap, L, y, s.labelSize, it.hint ? 0.6 : 0.85);
         if (it.hint) return;
         const vx = L + s.valueX;
-        const ux = vx + num(c, it.fig, vx, y, s.valueSize, WHT, 1, 'left');
-        if (it.unit) text(c, it.unit, ux + 6, y, 14, WHT, 0.9, { font: ROBOTO, w: 400 });
+        if (it.parts) {
+          let px = vx;
+          it.parts.forEach((p, i) => {
+            if (i) px += s.valueSize * RD.pairGapRatio;
+            px += num(c, p[0], px, y, s.valueSize, WHT, 1, 'left') + 6;
+            px += text(c, p[1], px, y, 14, WHT, 0.9, { font: ROBOTO, w: 400 });
+          });
+          return;
+        }
+        let ux = vx + num(c, it.fig, vx, y, s.valueSize, WHT, 1, 'left');
+        if (it.unit) ux += 6 + text(c, it.unit, ux + 6, y, 14, WHT, 0.9, { font: ROBOTO, w: 400 });
         if (it.rate) {
-          const ax = ux + 36, ar = new Path2D(); ar.moveTo(ax + 4, y - 1); ar.lineTo(ax + 4, y - 12); ar.moveTo(ax, y - 8); ar.lineTo(ax + 4, y - 12); ar.lineTo(ax + 8, y - 8);
-          beam(c, ar, 1.5, WHT, 0.9, 0); num(c, it.rate, ax + 12, y, 14, WHT, 0.9, 'left');
+          const ax = ux + 22, ar = new Path2D(); ar.moveTo(ax + 4, y - 1); ar.lineTo(ax + 4, y - 12); ar.moveTo(ax, y - 8); ar.lineTo(ax + 4, y - 12); ar.lineTo(ax + 8, y - 8);
+          beam(c, ar, 1.5, WHT, 0.9, 0); const rw = num(c, it.rate, ax + 12, y, 14, WHT, 0.9, 'left');
+          if (it.rateUnit) text(c, it.rateUnit, ax + 12 + rw + 4, y, 14, WHT, 0.9 * RD.unitAlpha, { font: ROBOTO, w: 400 });
         }
       });
       spectrumField(c, f, L, s.spectrumTop, Wd, s.floor, s.bars);

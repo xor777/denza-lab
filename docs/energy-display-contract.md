@@ -455,7 +455,7 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | the engine, live | «ДВС · об/мин» + rpm; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), a note on what the charge includes |
 | the engine, stopped | an empty corner for the block's ten seconds, then «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a block of zeros after its hold |
 | charging, the countdown | «2:15 до полной»; ten hours or more «12:30» (kept by the owner for now, 2026-09-23; see below) | a day count |
-| the car page, closed | «Питание от машины» over the instruction | a row of empty captions |
+| the car page, closed | «Данные машины» over the state - «Нет доступа», «Нет связи», «Нет ответа» (2026-11-19; until then «Питание от машины» over the instruction) | a row of empty captions, an instruction, a «·» |
 
 **The stock countdown is hours and minutes, not a clock** (2026-09-23). The car's
 own charging screen prints the estimate as two figure-unit pairs - «1 h 57 min»
@@ -509,8 +509,11 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   «за 3,7 км»;
 - **closed to us** (the shell cannot read the car): the cluster draws its
   skeleton and the reason in the ten kilometres' place; the car page says
-  «Питание от машины» on its caption line and the instruction under it, and
-  nothing else. `VehicleLink` declares it: at once for a missing ADB key, and
+  «Данные машины» on its caption line and under it what it has of the car -
+  «Нет доступа», «Нет связи» or «Нет ответа» (`VehiclePageRenderer.closedState`,
+  from the hub's reason) - and nothing else. Until 2026-11-19 it said «Питание от
+  машины» over the cluster's instruction, which on this page the ADB gate already
+  stands over; the cluster keeps the reason as written below. `VehicleLink` declares it: at once for a missing ADB key, and
   otherwise only once the reads have failed twice in a row and nothing has
   answered for two hot horizons (4 s); an answer opens it again. The reason is a
   state in the driver's words: «ADB-ключ не подтверждён · откройте Denza Apps»

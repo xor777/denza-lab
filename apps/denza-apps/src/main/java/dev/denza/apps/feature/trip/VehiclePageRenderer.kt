@@ -1,12 +1,15 @@
 package dev.denza.apps.feature.trip
 
 import android.graphics.Path
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.luminofor.LightPen
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.LuminoforSpec.HeadInk
 import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.ThermalGlyphs
+import dev.denza.apps.feature.vehicle.VehicleReadFailure
 import kotlin.math.max
 import kotlin.math.min
 
@@ -187,10 +190,11 @@ internal class VehiclePageRenderer {
     }
 
     /**
-     * The car closed to us: «Питание от машины» on the caption line and the instruction under it,
-     * where the readings would be, in Roboto at the page's title size, broken at its spaces to the
-     * page's width. Nothing else - the cluster's own unavailable scene is its skeleton and the
-     * message, and a row of empty captions under an instruction is a page pretending to be up.
+     * The car closed to us: «Данные машины» on the caption line and under it, where the readings
+     * would be, what the page has of them - «Нет доступа», «Нет связи», «Нет ответа» - in Roboto at
+     * the page's title size, broken at its spaces to the page's width should a language need it.
+     * A state, never an instruction, and nothing else: a row of empty captions under it would be a
+     * page pretending to be up.
      */
     private fun closed(ink: StripInk, layout: TripPanelLayout, model: StripModel, left: Float, right: Float) {
         val capY: Float
@@ -218,7 +222,7 @@ internal class VehiclePageRenderer {
             }
         }
         ink.label(VehiclePageWords.CLOSED, left, capY, label)
-        val lines = ink.wrap(wrapped, model.message, size, right - left)
+        val lines = ink.wrap(wrapped, closedState(model.message), size, right - left)
         for (index in lines.indices) {
             ink.label(lines[index], left, valY + index * size * MESSAGE_LEADING, size)
         }
@@ -232,8 +236,26 @@ internal class VehiclePageRenderer {
         const val GLYPH_DROP = 5f
         const val GLYPH_LEVEL = 0.9f
 
-        /** Between two lines of the closed page's instruction. */
+        /** Between two lines of the closed page's state, should it wrap. */
         const val MESSAGE_LEADING = 1.25f
+
+        /**
+         * What the page has of the car when the link is closed, said as a state under its caption:
+         * «Нет доступа» for the key, «Нет связи» for a shell that fails, «Нет ответа» for an answer
+         * of sentinels alone.
+         *
+         * Never the hub's sentence, which the cluster prints. That one says «откройте Denza Apps»,
+         * something to do on the driver's display; on this page the ADB gate already stands over it
+         * asking for the key, so it was an instruction nobody could follow. [message] is the hub's
+         * words for the failure ([VehicleReadFailure.message]); a scene's own state, which is none
+         * of them, is drawn as it is.
+         */
+        fun closedState(message: String): String = when (message) {
+            VehicleReadFailure.AUTHORIZATION.message -> AppText.s(R.string.car_page_no_access)
+            VehicleReadFailure.CHANNEL.message -> AppText.s(R.string.car_page_no_link)
+            VehicleReadFailure.NO_ANSWER.message -> AppText.s(R.string.car_page_no_answer)
+            else -> message
+        }
 
         private val CELLS = arrayOf(
             ThermalGlyphs.Cell.PACK,

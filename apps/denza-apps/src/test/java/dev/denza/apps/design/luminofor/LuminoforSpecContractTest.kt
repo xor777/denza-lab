@@ -257,6 +257,7 @@ class LuminoforSpecContractTest {
         n(r.UNIT_RATIO, "head", "reading", "unitRatio"); n(r.UNIT_GAP_RATIO, "head", "reading", "unitGapRatio")
         n(r.RATE_RATIO, "head", "reading", "rateRatio"); n(r.RATE_GAP_RATIO, "head", "reading", "rateGapRatio")
         n(r.UNIT_ALPHA, "head", "reading", "unitAlpha")
+        n(r.PAIR_GAP_RATIO, "head", "reading", "pairGapRatio"); n(r.RATE_UNIT_GAP_RATIO, "head", "reading", "rateUnitGapRatio")
         n(Head.Icon.STROKE, "head", "icon", "stroke"); n(Head.Icon.ON_GLOW, "head", "icon", "onGlow")
         n(Head.Icon.OFF_ALPHA, "head", "icon", "offAlpha")
         val ring = Head.Icon.Ring

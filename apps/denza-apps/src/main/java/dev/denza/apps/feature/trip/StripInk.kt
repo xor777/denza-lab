@@ -34,8 +34,9 @@ internal class StripInk(val pen: LightPen) {
      * The board's `reading()`: the caption on [capY] - behind the blue mark when the reading names
      * a source - and on [valY] the figure, its unit and, for the altitude, the arrow and the rate.
      *
-     * The unit takes the figure's colour at 0.9 and a size of 0.42 of it, 0.2 of it away; the
-     * arrow and the rate are white whichever way the road goes. A [StripReading.hint] is drawn
+     * The unit takes the figure's colour at 0.9 and a size of 0.42 of it, 0.2 of it away; a
+     * duration's second pair stands 0.3 of it after the first one's unit. The arrow, the rate and
+     * the rate's unit are white whichever way the road goes. A [StripReading.hint] is drawn
      * fainter. The run stands under the caption unless [runX] puts it elsewhere - the trip, whose
      * caption and run each end on the strip's right edge. A pack with no direction to name is white
      * like any calm figure (`main-car-neutral`):
@@ -54,20 +55,34 @@ internal class StripInk(val pen: LightPen) {
         val figure = r.figure ?: return
         val light: Light = if (r.blue) HeadInk.BLUE else HeadInk.WHITE
         var ux = runX + pen.figures(figure, runX, valY, size, light, 1f)
-        val unit = r.unit
-        if (unit != null) {
-            val gap = size * Head.Reading.UNIT_GAP_RATIO
-            ux += gap + pen.text(
-                unit, ux + gap, valY, StripGeometry.unitSize(size), light,
-                Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
-            )
+        ux += unit(r.unit, ux, valY, size, light)
+        val second = r.figure2
+        if (second != null) {
+            ux += size * Head.Reading.PAIR_GAP_RATIO
+            ux += pen.figures(second, ux, valY, size, light, 1f)
+            ux += unit(r.unit2, ux, valY, size, light)
         }
         val rate = r.rate ?: return
         val ax = ux + size * Head.Reading.RATE_GAP_RATIO
         variometer(ax, valY, size * ARROW_RISE, 5f, 5f, ARROW_STROKE, r.rateUp)
-        pen.figures(
-            rate, ax + StripGeometry.ARROW_ROOM, valY, StripGeometry.rateSize(size),
-            HeadInk.WHITE, RATE_INTENSITY,
+        val rx = ax + StripGeometry.ARROW_ROOM
+        val rw = pen.figures(rate, rx, valY, StripGeometry.rateSize(size), HeadInk.WHITE, RATE_INTENSITY)
+        // The climb's own unit, so «↑1,2» does not read as a second altitude: at the rate's light.
+        r.rateUnit?.let {
+            pen.text(
+                it, rx + rw + size * Head.Reading.RATE_UNIT_GAP_RATIO, valY, StripGeometry.unitSize(size),
+                HeadInk.WHITE, RATE_INTENSITY * Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
+            )
+        }
+    }
+
+    /** A figure's unit after [x], its gap included; the width it took, or nought with none. */
+    private fun unit(unit: String?, x: Float, valY: Float, size: Float, light: Light): Float {
+        if (unit == null) return 0f
+        val gap = size * Head.Reading.UNIT_GAP_RATIO
+        return gap + pen.text(
+            unit, x + gap, valY, StripGeometry.unitSize(size), light,
+            Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
         )
     }
 

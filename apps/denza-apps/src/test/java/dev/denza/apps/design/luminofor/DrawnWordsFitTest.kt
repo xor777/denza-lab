@@ -157,7 +157,7 @@ open class DrawnWordsFitTest {
     /** A reading from its left edge to where the next thing on its line starts. */
     private inner class Reading(val what: String, val r: StripReading, val x: Float, val size: Float, val label: Float) {
         val width get() = strip.readingExtent(r, size, label)
-        val text get() = listOfNotNull(r.caption, r.figure, r.unit).joinToString(" ")
+        val text get() = listOfNotNull(r.caption, r.figure, r.unit, r.figure2, r.unit2, r.rate, r.rateUnit).joinToString(" ")
     }
 
     /**
@@ -175,7 +175,7 @@ open class DrawnWordsFitTest {
     @Test
     fun theStripsReadingsFitTheirLine() {
         val cells = mutableListOf<Cell>()
-        val out = FloatArray(3)
+        val out = FloatArray(StripModel.TRIP_READINGS)
         for (hint in listOf(false, true)) {
             val sound = strip.widestSound(hint)
             val whole = Head.Full.Strip
@@ -185,7 +185,7 @@ open class DrawnWordsFitTest {
                 right(TripPanelLayout.WIDE),
             )
             val two = Head.Two.Sound
-            StripGeometry.twoTrip(sound, left(TripPanelLayout.MEDIUM), FontMeasure.Strip, out)
+            StripGeometry.twoTrip(sound, left(TripPanelLayout.MEDIUM), right(TripPanelLayout.MEDIUM), FontMeasure.Strip, out)
             cells += line(
                 "strip, two thirds", (0 until sound.tripCount).map { Reading("reading $it", sound.trip[it], out[it], two.VALUE_SIZE, two.LABEL_SIZE) },
                 right(TripPanelLayout.MEDIUM),
@@ -193,7 +193,7 @@ open class DrawnWordsFitTest {
             val width = right(TripPanelLayout.NARROW) - left(TripPanelLayout.NARROW)
             for (k in 0 until sound.tripCount) {
                 val r = sound.trip[k]
-                cells += Cell("strip, one third", "row $k", listOfNotNull(r.caption, r.figure, r.unit).joinToString(" "), strip.oneRowExtent(r), width)
+                cells += Cell("strip, one third", "row $k", listOfNotNull(r.caption, r.figure, r.unit, r.figure2, r.unit2, r.rate, r.rateUnit).joinToString(" "), strip.oneRowExtent(r), width)
             }
         }
         // A caption stops before its row's value column.

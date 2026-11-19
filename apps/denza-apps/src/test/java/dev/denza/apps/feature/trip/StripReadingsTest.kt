@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.core.AppText
+import dev.denza.apps.R
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
 import dev.denza.apps.feature.vehicle.EngineCharge
@@ -139,10 +141,18 @@ class StripReadingsTest {
     }
 
     @Test
-    fun aClosedCarIsItsInstructionAndNothingElse() {
-        val model = car(VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "ADB-ключ не подтверждён"))
+    fun aClosedCarIsItsStateAndNothingElse() {
+        val model = car(
+            VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = AppText.s(R.string.vehicle_closed_authorization)),
+        )
         assertTrue(model.closed)
-        assertEquals("ADB-ключ не подтверждён", model.message)
+        // The model keeps the hub's words, the cluster's; the page draws what it has of the car,
+        // in two words - no instruction, no «·».
+        assertEquals(AppText.s(R.string.vehicle_closed_authorization), model.message)
+        assertEquals("Нет доступа", VehiclePageRenderer.closedState(model.message))
+        assertEquals("Нет связи", VehiclePageRenderer.closedState(AppText.s(R.string.vehicle_closed_no_channel)))
+        assertEquals("Нет ответа", VehiclePageRenderer.closedState(AppText.s(R.string.vehicle_closed_no_answer)))
+        assertEquals("a scene's own state is drawn as it is", "Нет доступа", VehiclePageRenderer.closedState("Нет доступа"))
         val back = StripModel()
         val readings = StripReadings()
         readings.car(back, VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"))
@@ -198,9 +208,12 @@ class StripReadingsTest {
 
     @Test
     fun theRoadIsPrintedTheWayTheBoardPrintsIt() {
-        assertEquals("640 м", StripReadings.roadLabel(640.0))
-        assertEquals("12,8 км", StripReadings.roadLabel(12_840.0))
-        assertEquals("128 км", StripReadings.roadLabel(128_000.0))
+        assertEquals("640", StripReadings.roadFigure(640.0))
+        assertEquals("м", StripReadings.distanceUnit(640.0))
+        assertEquals("12,8", StripReadings.roadFigure(12_840.0))
+        assertEquals("км", StripReadings.distanceUnit(12_840.0))
+        assertEquals("128", StripReadings.roadFigure(128_000.0))
+        assertEquals("1284", StripReadings.roadFigure(1_284_000.0))
         assertEquals("1,2", StripReadings.tenths(12))
         assertEquals("-0,4", StripReadings.tenths(-4))
     }

@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.core.figure
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
@@ -106,13 +107,28 @@ open class StripBoardContractTest {
     fun theBoardsSoundWordsAreTheAppsWords() {
         @Suppress("UNCHECKED_CAST")
         val trip = scene("main-sound")["trip"] as List<Map<String, Any?>>
+        // Time and road are two readings, and a duration is figure-unit pairs, never a clock.
         assertEquals(StripReadings.ON_THE_ROAD, trip[0].str("cap"))
-        assertEquals(StripReadings.roadLabel(128_000.0), trip[0].str("unit"))
-        assertEquals(BaseTripRenderer.clockHm(1 * 3600L + 42 * 60L), trip[0].str("fig"))
-        assertEquals(StripReadings.ALTITUDE, trip[1].str("cap"))
-        assertEquals(StripReadings.METRES, trip[1].str("unit"))
-        assertEquals(StripReadings.tenths(12), trip[1].str("rate"))
-        assertEquals(StripReadings.SUNSET, trip[2].str("cap"))
+        val time = AppDuration.of(1 * 3600L + 42 * 60L)
+        assertEquals(
+            listOf(listOf(time.first, time.firstUnit), listOf(time.second, time.secondUnit)),
+            trip[0]["parts"],
+        )
+        assertEquals(StripReadings.DISTANCE, trip[1].str("cap"))
+        assertEquals(StripReadings.roadFigure(128_000.0), trip[1].str("fig"))
+        assertEquals(StripReadings.distanceUnit(128_000.0), trip[1].str("unit"))
+        assertEquals(StripReadings.ALTITUDE, trip[2].str("cap"))
+        assertEquals(StripReadings.METRES, trip[2].str("unit"))
+        assertEquals(StripReadings.tenths(12), trip[2].str("rate"))
+        assertEquals(StripReadings.METRES_PER_SECOND, trip[2].str("rateUnit"))
+        assertEquals(StripReadings.SUNSET, trip[3].str("cap"))
+        // A trip that has just begun: seconds, metres, and the hint where the altitude would be.
+        @Suppress("UNCHECKED_CAST")
+        val first = scene("main-first")["trip"] as List<Map<String, Any?>>
+        val start = AppDuration.of(40L)
+        assertEquals(listOf(listOf(start.first, start.firstUnit)), first[0]["parts"])
+        assertEquals(StripReadings.distanceUnit(0.0), first[1].str("unit"))
+        assertEquals(BaseTripRenderer.LOCATION_HINT, first[2].str("cap"))
         // Every scene carries the analyser at the full screen's count; the panes sample it.
         @Suppress("UNCHECKED_CAST")
         val spectrum = scene("one-sound")["spectrum"] as Map<String, List<Any?>>
@@ -175,6 +191,10 @@ open class StripBoardContractTest {
             "a one-third unit",
             "text(c, it.unit, ux + ${js(StripGeometry.ROW_UNIT_GAP)}, y, ${js(StripGeometry.ROW_SMALL)}, WHT, 0.9,",
         )
+        assertDrawn(
+            "a one-third duration's second pair",
+            "if (i) px += s.valueSize * RD.pairGapRatio;",
+        )
         assertDrawn("a one-third arrow's place", "const ax = ux + ${js(StripGeometry.ROW_RATE_OFFSET)}")
         val half = js(r.ROW_ARROW_HALF)
         assertDrawn(
@@ -185,7 +205,12 @@ open class StripBoardContractTest {
         assertDrawn(
             "a one-third rate",
             "beam(c, ar, ${js(r.ROW_ARROW_STROKE)}, WHT, 0.9, 0); " +
-                "num(c, it.rate, ax + ${js(StripGeometry.ROW_ARROW_ROOM)}, y, ${js(StripGeometry.ROW_SMALL)}, WHT, 0.9, 'left')",
+                "const rw = num(c, it.rate, ax + ${js(StripGeometry.ROW_ARROW_ROOM)}, y, ${js(StripGeometry.ROW_SMALL)}, WHT, 0.9, 'left')",
+        )
+        assertDrawn(
+            "a one-third rate's unit",
+            "text(c, it.rateUnit, ax + ${js(StripGeometry.ROW_ARROW_ROOM)} + rw + ${js(StripGeometry.ROW_RATE_UNIT_GAP)}, y, " +
+                "${js(StripGeometry.ROW_SMALL)}, WHT, 0.9 * RD.unitAlpha,",
         )
 
         val v = VehiclePageRenderer

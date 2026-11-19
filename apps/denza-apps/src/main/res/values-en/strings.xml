@@ -549,14 +549,19 @@
 
     <!-- The strip's sound page. One third: each caption stands left of a value column at 118 dp, in Roboto 14; English 47 to 79. -->
     <string name="strip_on_the_road">On the road</string>
+    <string name="strip_distance">Distance</string>
     <string name="strip_remaining">Remaining</string>
+    <string name="strip_to_go">To go</string>
     <string name="strip_altitude">Altitude</string>
     <string name="strip_sunset">Sunset</string>
     <string name="strip_sunrise">Sunrise</string>
     <string name="strip_unit_metres">m</string>
     <string name="strip_unit_kilometres">km</string>
-    <string name="strip_road_metres">%1$s m</string>
-    <string name="strip_road_kilometres">%1$s km</string>
+    <string name="strip_unit_metres_per_second">m/s</string>
+
+    <string name="duration_hours">h</string>
+    <string name="duration_minutes">min</string>
+    <string name="duration_seconds">s</string>
 
     <!-- One third: alone on its row, 130 of 392 in Roboto 14. -->
     <string name="strip_location_hint">No location access</string>
@@ -573,9 +578,12 @@
     <string name="car_page_unit_volt">V</string>
     <!-- «Расход». "Consumption" is 98 dp at this size against the Russian 55, so the shorter word. -->
     <string name="car_page_spend">Usage</string>
-    <string name="car_page_closed">Power from the car</string>
+    <string name="car_page_closed">Car data</string>
+    <string name="car_page_no_access">No access</string>
+    <string name="car_page_no_link">No link</string>
+    <string name="car_page_no_answer">No answer</string>
 
-    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; English 347. The car page wraps them. -->
+    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; English 347. -->
     <string name="vehicle_closed_authorization">ADB key not confirmed · open Denza Apps</string>
     <string name="vehicle_closed_no_channel">No link with the car</string>
     <string name="vehicle_closed_no_answer">Car not answering</string>

@@ -196,7 +196,7 @@
       "stripBox": [12, 182.6, 404, 668],
       "captionBar": 24,
       "chips": { "top": 36, "size": 55.3, "radius": 14, "icon": 26, "perRow": 6, "rowGap": 12 },
-      "sound": { "trackCaption": 204, "trackValue": 236, "titleSize": 26, "labelSize": 14, "rowsTop": 286, "rowPitch": 42, "valueX": 118, "valueSize": 30, "spectrumTop": 400, "floor": 636, "bars": 12 },
+      "sound": { "trackCaption": 204, "trackValue": 236, "titleSize": 26, "labelSize": 14, "rowsTop": 280, "rowPitch": 36, "valueX": 118, "valueSize": 30, "spectrumTop": 400, "floor": 636, "bars": 12 },
       "car": { "caption": 204, "value": 252, "heroSize": 44, "row2Caption": 292, "row2Value": 326, "row2Size": 28, "row2Gap": 40, "tempsCaption": 370, "tempsValue": 404, "tempPitch": 76, "tempSize": 26, "chartCaption": 446, "chartCaptionSize": 13, "chartTop": 458, "chartHeight": 150 },
       "dotsY": 660
     },
@@ -206,7 +206,7 @@
       "about": "The car page's cells, dp: each as wide as the widest it prints at the full screen's sizes - the volts' three figures, the power's longest sentence behind its mark, the engine's four figures of revolutions, the trip's «188,8 кВт·ч» - and the five temperatures their pitch four times and «150°». The full screen sets all five in a row with one gutter between them, the volts on the left margin and the trip ending on the right; the two-thirds pane sets the power, the engine and the trip so, with the temperatures under the engine. A cell stands at its slot's left edge, the trip at its right, so nothing moves when a reading or its sentence changes. The hero's caption stands above the line by the difference of the two figures' caps (heroCaption), so its figure keeps the others' baseline and its caption their distance.",
       "volts": 102, "power": 192, "engine": 184, "trip": 170
     },
-    "reading": { "unitRatio": 0.42, "unitGapRatio": 0.2, "rateRatio": 0.45, "rateGapRatio": 0.3, "unitAlpha": 0.9 },
+    "reading": { "unitRatio": 0.42, "unitGapRatio": 0.2, "pairGapRatio": 0.3, "rateRatio": 0.45, "rateGapRatio": 0.3, "rateUnitGapRatio": 0.12, "unitAlpha": 0.9 },
     "icon": { "stroke": 1.5, "onGlow": 0.35, "offAlpha": 0.42, "ring": { "size": 18, "chipSize": 10, "chipInset": 8, "sweep": 90 } },
     "spectrum": {
       "barWidth": 22.97,

@@ -144,7 +144,7 @@ class TripPanelRenderer {
             TripPanelLayout.MEDIUM -> {
                 val s = Head.Two.Sound
                 track(model, left, s.TRACK_CAPTION, s.TRACK_VALUE, s.TITLE_SIZE, s.LABEL_SIZE, right - left)
-                StripGeometry.twoTrip(model, left, ink.measure, tripX)
+                StripGeometry.twoTrip(model, left, right, ink.measure, tripX)
                 for (k in 0 until model.tripCount) {
                     ink.reading(model.trip[k], tripX[k], s.CAPTION, s.VALUE, s.VALUE_SIZE, s.LABEL_SIZE)
                 }
@@ -201,27 +201,42 @@ class TripPanelRenderer {
 
     /**
      * One row of the one-third pane: the caption at the left in white at 0.85, the figure at the
-     * row's value column, its unit six dp after it, and the altitude's arrow and rate a fixed 36
-     * past the figure - the board's own small arithmetic for a 30 dp figure.
+     * row's value column, its unit six dp after it - a duration's second pair a pair's gap after
+     * that - and the altitude's arrow 22 past the unit, its rate and the rate's unit: the board's
+     * own small arithmetic for a 30 dp figure.
      */
     private fun row(r: StripReading, left: Float, y: Float) {
         val s = Head.One.Sound
         ink.label(r.caption, left, y, s.LABEL_SIZE, if (r.hint) StripInk.HINT else ROW_LABEL)
         val figure = r.figure ?: return
         val vx = left + s.VALUE_X
-        val ux = vx + pen.figures(figure, vx, y, s.VALUE_SIZE, HeadInk.WHITE, 1f)
-        r.unit?.let {
-            pen.text(
-                it, ux + StripGeometry.ROW_UNIT_GAP, y, StripGeometry.ROW_SMALL, HeadInk.WHITE,
-                Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
-            )
+        var ux = vx + pen.figures(figure, vx, y, s.VALUE_SIZE, HeadInk.WHITE, 1f)
+        ux += rowUnit(r.unit, ux, y)
+        val second = r.figure2
+        if (second != null) {
+            ux += s.VALUE_SIZE * Head.Reading.PAIR_GAP_RATIO
+            ux += pen.figures(second, ux, y, s.VALUE_SIZE, HeadInk.WHITE, 1f)
+            ux += rowUnit(r.unit2, ux, y)
         }
         val rate = r.rate ?: return
         val ax = ux + StripGeometry.ROW_RATE_OFFSET
         ink.variometer(ax, y, ROW_ARROW_HEIGHT, ROW_ARROW_HALF, ROW_ARROW_HALF, ROW_ARROW_STROKE, r.rateUp)
-        pen.figures(
-            rate, ax + StripGeometry.ROW_ARROW_ROOM, y, StripGeometry.ROW_SMALL, HeadInk.WHITE,
-            StripInk.RATE_INTENSITY,
+        val rx = ax + StripGeometry.ROW_ARROW_ROOM
+        val rw = pen.figures(rate, rx, y, StripGeometry.ROW_SMALL, HeadInk.WHITE, StripInk.RATE_INTENSITY)
+        r.rateUnit?.let {
+            pen.text(
+                it, rx + rw + StripGeometry.ROW_RATE_UNIT_GAP, y, StripGeometry.ROW_SMALL, HeadInk.WHITE,
+                StripInk.RATE_INTENSITY * Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
+            )
+        }
+    }
+
+    /** A one-third row's unit, [StripGeometry.ROW_UNIT_GAP] after [x]: the width it took, gap and all. */
+    private fun rowUnit(unit: String?, x: Float, y: Float): Float {
+        if (unit == null) return 0f
+        return StripGeometry.ROW_UNIT_GAP + pen.text(
+            unit, x + StripGeometry.ROW_UNIT_GAP, y, StripGeometry.ROW_SMALL, HeadInk.WHITE,
+            Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
         )
     }
 

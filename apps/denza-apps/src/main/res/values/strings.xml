@@ -561,14 +561,22 @@
     <!-- The strip's sound page. On the one-third pane each caption stands left of a value column at
          118 dp, in Roboto 14: 42 to 68 today, the longest being strip_remaining. -->
     <string name="strip_on_the_road">В пути</string>
+    <string name="strip_distance">Пройдено</string>
     <string name="strip_remaining">Осталось</string>
+    <!-- With a route: the road still to drive, beside the time still to drive. -->
+    <string name="strip_to_go">До места</string>
     <string name="strip_altitude">Высота</string>
     <string name="strip_sunset">Закат</string>
     <string name="strip_sunrise">Рассвет</string>
     <string name="strip_unit_metres">м</string>
     <string name="strip_unit_kilometres">км</string>
-    <string name="strip_road_metres">%1$s м</string>
-    <string name="strip_road_kilometres">%1$s км</string>
+    <!-- The variometer's climb, after its figure: «↑1,2 м/с». -->
+    <string name="strip_unit_metres_per_second">м/с</string>
+
+    <!-- A duration, as figure-unit pairs and never a clock: «40 с», «42 мин», «1 ч 05 мин» (AppDuration). -->
+    <string name="duration_hours">ч</string>
+    <string name="duration_minutes">мин</string>
+    <string name="duration_seconds">с</string>
 
     <!-- Stands where the altitude would be, with no location access. One third: alone on its row, 189 of 392 in Roboto 14. StripGeometryTest holds it on every layout. -->
     <string name="strip_location_hint">Нет доступа к геолокации</string>
@@ -585,10 +593,15 @@
     <string name="car_page_volts">Напряжение</string>
     <string name="car_page_unit_volt">В</string>
     <string name="car_page_spend">Расход</string>
-    <string name="car_page_closed">Питание от машины</string>
+    <!-- The closed car page: what the page shows, and under it at the title size what it has of it -
+         a state, never an instruction, since the ADB gate over the page is already asking. -->
+    <string name="car_page_closed">Данные машины</string>
+    <string name="car_page_no_access">Нет доступа</string>
+    <string name="car_page_no_link">Нет связи</string>
+    <string name="car_page_no_answer">Нет ответа</string>
 
-    <!-- Why the car is closed to the panels, drawn on the cluster and on the car page. -->
-    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; 421 today. The car page wraps them. -->
+    <!-- Why the car is closed to the cluster. -->
+    <!-- The cluster centres these on the axis, on the petal's chord of 706 at size 17; 421 today. -->
     <string name="vehicle_closed_authorization">ADB-ключ не подтверждён · откройте Denza Apps</string>
     <string name="vehicle_closed_no_channel">Нет связи с машиной</string>
     <string name="vehicle_closed_no_answer">Машина не отвечает</string>

@@ -2438,14 +2438,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -2969,14 +2983,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -3500,14 +3528,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -4033,14 +4075,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -4573,8 +4629,17 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "0:00",
-     "unit": "0 m"
+     "parts": [
+      [
+       "40",
+       "s"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "0",
+     "unit": "m"
     },
     {
      "cap": "No location access",
@@ -5099,14 +5164,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -5630,14 +5709,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -6161,14 +6254,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -6694,14 +6801,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -6932,7 +7053,7 @@
    ],
    "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "unavailable": true,
-   "message": "ADB key not confirmed · open Denza Apps"
+   "message": "No access"
   }
  ],
  "two-first": [
@@ -7236,8 +7357,17 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "0:00",
-     "unit": "0 m"
+     "parts": [
+      [
+       "40",
+       "s"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "0",
+     "unit": "m"
     },
     {
      "cap": "No location access",
@@ -7761,14 +7891,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -7999,7 +8143,7 @@
    ],
    "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "unavailable": true,
-   "message": "ADB key not confirmed · open Denza Apps"
+   "message": "No access"
   }
  ],
  "two-sound": [
@@ -8294,14 +8438,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -8825,14 +8983,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -9356,14 +9528,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -9887,14 +10073,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -10417,14 +10617,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -11075,14 +11289,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -11661,14 +11889,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -12279,14 +12521,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -12905,14 +13161,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -13564,14 +13834,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -14223,14 +14507,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -14799,14 +15097,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -15419,14 +15731,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -15988,14 +16314,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -16580,14 +16920,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -17337,14 +17691,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -18109,14 +18477,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -18897,14 +19279,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -19608,14 +20004,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -20334,14 +20744,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -21068,14 +21492,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -21803,14 +22241,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -22592,14 +23044,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -23391,14 +23857,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -24191,14 +24671,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -24902,14 +25396,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -25618,14 +26126,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -26328,14 +26850,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -27033,14 +27569,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -27750,14 +28300,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -28461,14 +29025,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -29172,14 +29750,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -29888,14 +30480,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -30622,14 +31228,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -31478,14 +32098,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -32336,14 +32970,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -33096,14 +33744,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -33868,14 +34530,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -34442,14 +35118,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -35016,14 +35706,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -35585,14 +36289,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -36154,14 +36872,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -36724,14 +37456,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -37294,14 +38040,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -37886,14 +38646,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -38478,14 +39252,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -39072,14 +39860,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -39665,14 +40467,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -40261,14 +41077,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -40857,14 +41687,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -41515,14 +42359,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",

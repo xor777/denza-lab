@@ -121,9 +121,12 @@
   const head = {
     tiles: TILES,
     track: { artist: 'M83', title: 'Midnight City' },
+    // A duration is figure-unit pairs, never a clock: «40 с», «42 мин», «1 ч 42 мин». The road is its
+    // own reading, the climb carries its unit. «Закат» is a time of day and keeps its colon.
     trip: [
-      { cap: 'В пути', fig: '1:42', unit: '128 км' },
-      { cap: 'Высота', fig: '642', unit: 'м', rate: '1,2' },
+      { cap: 'В пути', parts: [['1', 'ч'], ['42', 'мин']] },
+      { cap: 'Пройдено', fig: '128', unit: 'км' },
+      { cap: 'Высота', fig: '642', unit: 'м', rate: '1,2', rateUnit: 'м/с' },
       { cap: 'Закат', fig: '19:44' }
     ],
     spectrum: { levels, crowns },
@@ -153,7 +156,7 @@
   // first run: no track, silence, the trip just started and no location access
   const headFirst = Object.assign({}, head, {
     tiles: TILES_FIRST, track: null, spectrum: silence,
-    trip: [{ cap: 'В пути', fig: '0:00', unit: '0 м' }, { cap: 'Нет доступа к геолокации', hint: true }]
+    trip: [{ cap: 'В пути', parts: [['40', 'с']] }, { cap: 'Пройдено', fig: '0', unit: 'м' }, { cap: 'Нет доступа к геолокации', hint: true }]
   });
   // the track paused: its block at half its light behind the pause's bars, and the analyser down
   const headPaused = Object.assign({}, head, { track: { artist: 'M83', title: 'Midnight City', playing: false }, spectrum: silence });
@@ -167,8 +170,10 @@
     volts: { cap: 'Напряжение', fig: '561', unit: 'В' },
     temps: temps([27, 26, 25, 25, 29])
   });
-  // the shell closed to us
-  const headClosed = Object.assign({}, head, { unavailable: true, message: 'ADB-ключ не подтверждён · откройте Denza Apps' });
+  // the shell closed to us: the page names what it shows and says what it has of it - «Нет доступа»
+  // for the key (the ADB gate is over this page asking for it), «Нет связи» for a shell that fails,
+  // «Нет ответа» for sentinels alone - a state, never an instruction
+  const headClosed = Object.assign({}, head, { unavailable: true, message: 'Нет доступа' });
 
   // A feature's settings over the dashboard it came from. `sheet` is what the panel draws, block by
   // block, in the words the app prints for the state the debug build's SheetFixtures builds from

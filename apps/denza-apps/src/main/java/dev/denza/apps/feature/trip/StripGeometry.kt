@@ -41,10 +41,14 @@ internal object StripGeometry {
     /** The arrow's own room before the rate, which the board writes as `ax + 14`. */
     const val ARROW_ROOM = 14f
 
-    /** And the one-third pane's smaller arrow, `ax + 12`, with the rate `ux + 36` past the figure. */
+    /**
+     * And the one-third pane's smaller arrow, `ax + 12`, with the arrow `ux + 22` past the unit and
+     * the rate's unit 4 past the rate.
+     */
     const val ROW_ARROW_ROOM = 12f
-    const val ROW_RATE_OFFSET = 36f
+    const val ROW_RATE_OFFSET = 22f
     const val ROW_UNIT_GAP = 6f
+    const val ROW_RATE_UNIT_GAP = 4f
     const val ROW_SMALL = 14f
 
     /** Where a caption starts behind the blue mark, which the board writes as `x + 14`. */
@@ -70,12 +74,20 @@ internal object StripGeometry {
     fun readingWidth(r: StripReading, size: Float, label: Float, m: Measure): Float =
         max(runWidth(r, size, m), m.sans(r.caption, label, false))
 
-    /** The figure, its unit and the variometer's arrow and rate, without the caption. */
+    /**
+     * The figure, its unit and the variometer's arrow, rate and the rate's unit, without the
+     * caption. A duration's second pair stands a pair's gap after the first one's unit.
+     */
     fun runWidth(r: StripReading, size: Float, m: Measure): Float {
         val figure = r.figure ?: return 0f
         var w = WideDigits.extent(figure, size)
         r.unit?.let { w += size * Head.Reading.UNIT_GAP_RATIO + m.sans(it, unitSize(size), false) }
+        r.figure2?.let { second ->
+            w += size * Head.Reading.PAIR_GAP_RATIO + WideDigits.extent(second, size)
+            r.unit2?.let { w += size * Head.Reading.UNIT_GAP_RATIO + m.sans(it, unitSize(size), false) }
+        }
         r.rate?.let { w += size * Head.Reading.RATE_GAP_RATIO + ARROW_ROOM + WideDigits.extent(it, rateSize(size)) }
+        r.rateUnit?.let { w += size * Head.Reading.RATE_UNIT_GAP_RATIO + m.sans(it, unitSize(size), false) }
         return w
     }
 
@@ -106,16 +118,27 @@ internal object StripGeometry {
     fun fullTitleRoom(left: Float, right: Float, rowLeft: Float, hasRow: Boolean): Float =
         (if (hasRow) rowLeft - Head.Full.Strip.READING_GAP else right) - left
 
-    /** The two-thirds pane's readings, in a row from the left; returns where the last one ends. */
-    fun twoTrip(model: StripModel, left: Float, m: Measure, out: FloatArray): Float {
+    /**
+     * The two-thirds pane's readings, in a row from the left [Head.Two.Sound.GAP] apart - closer,
+     * the same for every gap, when long values would run the row past [right]: the board's
+     * `Math.min(s.gap, (Wd - sum) / (n - 1))`. Returns where the last one ends.
+     */
+    fun twoTrip(model: StripModel, left: Float, right: Float, m: Measure, out: FloatArray): Float {
         val s = Head.Two.Sound
+        val n = model.tripCount
+        var sum = 0f
+        for (k in 0 until n) {
+            out[k] = readingWidth(model.trip[k], s.VALUE_SIZE, s.LABEL_SIZE, m)
+            sum += out[k]
+        }
+        val gap = minOf(s.GAP, (right - left - sum) / max(1, n - 1))
         var x = left
         var end = left
-        for (k in 0 until model.tripCount) {
+        for (k in 0 until n) {
+            val w = out[k]
             out[k] = x
-            val w = readingWidth(model.trip[k], s.VALUE_SIZE, s.LABEL_SIZE, m)
             end = x + w
-            x += w + s.GAP
+            x += w + gap
         }
         return end
     }

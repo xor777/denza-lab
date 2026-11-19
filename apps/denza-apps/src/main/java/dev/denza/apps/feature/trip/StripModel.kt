@@ -2,10 +2,11 @@ package dev.denza.apps.feature.trip
 
 /**
  * One reading as the strip prints it: a caption over a figure, the figure's unit small on its
- * baseline, and - for the altitude alone - the variometer's rate beside it.
+ * baseline, and - for the altitude alone - the variometer's rate and its unit beside it. A duration
+ * is two figure-unit pairs, «1 ч 42 мин»: [figure] and [unit], then [figure2] and [unit2].
  *
  * The Luminofor board's reading, field for field (`luminofor.js`, `reading()`): `cap`, `fig`,
- * `unit`, `rate`, `dot` and `col`. A reading is refreshed in place rather than rebuilt, because the
+ * `unit`, `parts`, `rate`, `rateUnit`, `dot` and `col`. A reading is refreshed in place rather than rebuilt, because the
  * strip reads thirty times a second over values that change once a second at most.
  *
  * **A figure that is not there takes its unit and its rate with it, and the caption stays.** That is
@@ -29,8 +30,19 @@ class StripReading {
     var unit: String? = null
         private set
 
+    /** A duration's second pair - «42» and «мин» of «1 ч 42 мин» - or null. */
+    var figure2: String? = null
+        private set
+
+    var unit2: String? = null
+        private set
+
     /** The variometer's rate in the small figures, or null; [rateUp] says which way it points. */
     var rate: String? = null
+        private set
+
+    /** The rate's own unit, «м/с», so the climb does not read as a second altitude. */
+    var rateUnit: String? = null
         private set
 
     var rateUp: Boolean = true
@@ -59,16 +71,27 @@ class StripReading {
         rateUp: Boolean = true,
         dot: Boolean = false,
         blue: Boolean = false,
+        rateUnit: String? = null,
     ) {
         present = true
         hint = false
         this.caption = caption
         this.figure = figure
         this.unit = if (figure == null) null else unit
+        this.figure2 = null
+        this.unit2 = null
         this.rate = if (figure == null) null else rate
+        this.rateUnit = if (this.rate == null) null else rateUnit
         this.rateUp = rateUp
         this.dot = dot
         this.blue = blue
+    }
+
+    /** A duration's pairs under [caption]: «40 с», «42 мин», «1 ч 05 мин». */
+    fun setDuration(caption: String, figure: String, unit: String, figure2: String?, unit2: String?) {
+        set(caption, figure, unit)
+        this.figure2 = figure2
+        this.unit2 = if (figure2 == null) null else unit2
     }
 
     fun setHint(text: String) {
@@ -82,7 +105,10 @@ class StripReading {
         caption = ""
         figure = null
         unit = null
+        figure2 = null
+        unit2 = null
         rate = null
+        rateUnit = null
         dot = false
         blue = false
     }
@@ -130,7 +156,7 @@ class StripModel {
     /** Whether it is playing now. A paused track is drawn fainter; see [TripPanelRenderer]. */
     var playing: Boolean = true
 
-    /** The trip's readings in order - time and road, altitude, the sun - of which [tripCount] are up. */
+    /** The trip's readings in order - time, road, altitude, the sun - of which [tripCount] are up. */
     val trip: Array<StripReading> = Array(TRIP_READINGS) { StripReading() }
 
     var tripCount: Int = 0
@@ -143,7 +169,7 @@ class StripModel {
 
     // ------------------------------------------------------------------------------ the car page
 
-    /** The shell is closed to us, and [message] says what to do about it. Nothing else is drawn. */
+    /** The shell is closed to us, and [message] says what the page has of the car. Nothing else is drawn. */
     var closed: Boolean = false
 
     var message: String = ""
@@ -174,7 +200,7 @@ class StripModel {
     companion object {
         /** The analyser's columns at full width; the panes sample 24 and 12 of them. */
         const val BANDS: Int = SpectrumSource.BAND_COUNT
-        const val TRIP_READINGS = 3
+        const val TRIP_READINGS = 4
         const val TEMPERATURES = 5
     }
 }

@@ -2,6 +2,7 @@ package dev.denza.apps.feature.trip
 
 import dev.denza.apps.R
 import dev.denza.apps.core.AppDecimal
+import dev.denza.apps.core.AppDuration
 import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
@@ -24,20 +25,21 @@ import kotlin.math.roundToInt
  * snapshot itself: the direction and its mark and colour, the power, the volts, the engine's cell,
  * the trip, the consumption and its window. This class places them and formats none of them
  * (`EnergySourceGuardTest` reads this file for a formatter). What it does format is the trip's own
- * clock, road and altitude, which are nobody else's.
+ * time, road and altitude, which are nobody else's - the time through [AppDuration], the one rule
+ * every duration on the screens follows.
  *
  * **Nothing here allocates in a frame that changed nothing.** Every printed number is remembered by
- * the value it was printed from, the way `ContourFigures` remembers the cluster's: the clock is
- * rebuilt once a second, the road once every hundred metres, a temperature when it moves a degree.
+ * the value it was printed from, the way `ContourFigures` remembers the cluster's: the time is
+ * rebuilt once a second for its first minute and once a minute after, the road once every hundred
+ * metres, a temperature when it moves a degree.
  */
 internal class StripReadings {
 
     private val readouts = EnergyReadouts()
 
-    private val elapsed = Printed()
-    private val roadText = Printed()
+    private val elapsed = PrintedDuration()
+    private val left = PrintedDuration()
     private val roadFigureText = Printed()
-    private val left = Printed()
     private val altitude = Printed()
     private val rate = Printed()
     private val temperatures = Array(StripModel.TEMPERATURES) { Printed() }
@@ -47,11 +49,13 @@ internal class StripReadings {
     /**
      * The track, the trip's readings and the analyser.
      *
-     * The readings are the strip's three: how long and how far (or, with a route, how much is
-     * left), how high and which way, and the next thing the sun does. The altitude and the sun need
-     * a fix and are absent without one; absent takes no room. Without location access at all the
-     * hint stands where the altitude would have, which is the place it has always had: it collides
-     * with nothing because nothing is there.
+     * The readings are the strip's four: how long, how far (or, with a route, how long and how far
+     * is left), how high and how fast it climbs, and the next thing the sun does. Each of the first
+     * two is a reading of its own with its own caption: the road was once the unit under the clock,
+     * and «1:42 128 км» read as one number. The altitude and the sun need a fix and are absent
+     * without one; absent takes no room. Without location access at all the hint stands where the
+     * altitude would have, which is the place it has always had: it collides with nothing because
+     * nothing is there.
      */
     fun sound(
         model: StripModel,
@@ -68,24 +72,11 @@ internal class StripReadings {
         if (engine.guiding) {
             val seconds = engine.remainingSeconds()
             val metres = engine.remainingMeters()
-            if (seconds >= 0) {
-                model.trip[k++].set(
-                    REMAINING,
-                    left.of(seconds / 60L) { BaseTripRenderer.clockHm(seconds.toLong()) },
-                    if (metres >= 0) road(metres.toDouble()) else null,
-                )
-            } else {
-                model.trip[k++].set(REMAINING, distanceFigure(metres.toDouble()), distanceUnit(metres.toDouble()))
-            }
+            if (seconds >= 0) duration(model.trip[k++], REMAINING, left.of(seconds.toLong()))
+            if (metres >= 0) road(model.trip[k++], TO_GO, metres.toDouble())
         } else {
-            val seconds = engine.elapsedSeconds
-            model.trip[k++].set(
-                ON_THE_ROAD,
-                elapsed.of(seconds.toLong()) {
-                    if (seconds >= 3600) BaseTripRenderer.clockHm(seconds.toLong()) else BaseTripRenderer.clockMs(seconds)
-                },
-                road(engine.distanceMeters()),
-            )
+            duration(model.trip[k++], ON_THE_ROAD, elapsed.of(engine.elapsedSeconds.toLong()))
+            road(model.trip[k++], DISTANCE, engine.distanceMeters())
         }
 
         if (engine.hasAltitude()) {
@@ -98,6 +89,7 @@ internal class StripReadings {
                 METRES,
                 rate = rate.of(climbTenths.toLong()) { tenths(climbTenths) },
                 rateUp = climb >= 0.0,
+                rateUnit = METRES_PER_SECOND,
             )
         } else if (locationHint) {
             model.trip[k++].setHint(BaseTripRenderer.LOCATION_HINT)
@@ -114,13 +106,14 @@ internal class StripReadings {
         model.crowns = meter.peaks
     }
 
-    /** «128 км», «12,8 км», «640 м»: the road as the unit under a clock, once per step of it. */
-    private fun road(metres: Double): String = roadText.of(roadKey(metres)) { roadLabel(metres) }
+    private fun duration(into: StripReading, caption: String, parts: AppDuration.Parts) =
+        into.setDuration(caption, parts.first, parts.firstUnit, parts.second, parts.secondUnit)
 
-    private fun distanceFigure(metres: Double): String =
-        roadFigureText.of(roadKey(metres)) { roadFigure(metres) }
+    /** «128 км», «12,8 км», «640 м»: the road as a reading of its own, rebuilt once per step of it. */
+    private fun road(into: StripReading, caption: String, metres: Double) =
+        into.set(caption, roadFigureText.of(roadKey(metres)) { roadFigure(metres) }, distanceUnit(metres))
 
-    /** One key per string [roadLabel] can print, so a memo is rebuilt only when the string moves. */
+    /** One key per figure [roadFigure] can print, so a memo is rebuilt only when the figure moves. */
     private fun roadKey(metres: Double): Long = when {
         metres < 1000.0 -> metres.roundToInt().toLong()
         metres < 100_000.0 -> 1_000_000L + (metres / 100.0).roundToInt()
@@ -136,7 +129,8 @@ internal class StripReadings {
      * The semantics are the page's own and unchanged: a figure that did not arrive is absent and
      * its caption stays; the engine's cell is there only while it has something to say; the chart
      * is the snapshot's own hundred points, a filling one anchored at the right; a closed shell is
-     * the instruction and nothing else.
+     * the hub's words for why, which the page draws as what it has of the car - «Нет доступа»
+     * ([VehiclePageRenderer.closedState]) - and nothing else.
      */
     fun car(model: StripModel, telemetry: VehicleTelemetry) {
         readouts.read(telemetry, telemetry.parked == true)
@@ -199,6 +193,20 @@ internal class StripReadings {
         model.spendNegative = readouts.consumptionNegative
     }
 
+    /** One printed duration, remembered by [AppDuration.key]: rebuilt only when it would read otherwise. */
+    private class PrintedDuration {
+        private var key = Long.MIN_VALUE
+        private var parts: AppDuration.Parts? = null
+
+        fun of(seconds: Long): AppDuration.Parts {
+            val now = AppDuration.key(seconds)
+            val held = parts
+            if (held != null && now == key) return held
+            key = now
+            return AppDuration.of(seconds).also { parts = it }
+        }
+    }
+
     /** One printed number, remembered by the value it was printed from. */
     private class Printed {
         var key = Long.MIN_VALUE
@@ -217,16 +225,15 @@ internal class StripReadings {
 
     companion object {
         val ON_THE_ROAD: String get() = AppText.s(R.string.strip_on_the_road)
+        val DISTANCE: String get() = AppText.s(R.string.strip_distance)
         val REMAINING: String get() = AppText.s(R.string.strip_remaining)
+        val TO_GO: String get() = AppText.s(R.string.strip_to_go)
         val ALTITUDE: String get() = AppText.s(R.string.strip_altitude)
         val SUNSET: String get() = AppText.s(R.string.strip_sunset)
         val SUNRISE: String get() = AppText.s(R.string.strip_sunrise)
         val METRES: String get() = AppText.s(R.string.strip_unit_metres)
         val KILOMETRES: String get() = AppText.s(R.string.strip_unit_kilometres)
-
-        /** The road with its unit: «640 м», «12,8 км», «128 км». */
-        fun roadLabel(metres: Double): String =
-            AppText.s(if (metres < 1000.0) R.string.strip_road_metres else R.string.strip_road_kilometres, roadFigure(metres))
+        val METRES_PER_SECOND: String get() = AppText.s(R.string.strip_unit_metres_per_second)
 
         /**
          * The road's figure: whole metres under a kilometre, a tenth of a kilometre under a hundred,

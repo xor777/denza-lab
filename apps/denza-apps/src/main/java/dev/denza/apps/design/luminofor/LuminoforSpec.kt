@@ -582,8 +582,8 @@ object LuminoforSpec {
                 const val TRACK_VALUE: Float = 236f
                 const val TITLE_SIZE: Float = 26f
                 const val LABEL_SIZE: Float = 14f
-                const val ROWS_TOP: Float = 286f
-                const val ROW_PITCH: Float = 42f
+                const val ROWS_TOP: Float = 280f
+                const val ROW_PITCH: Float = 36f
                 const val VALUE_X: Float = 118f
                 const val VALUE_SIZE: Float = 30f
                 const val SPECTRUM_TOP: Float = 400f
@@ -628,8 +628,14 @@ object LuminoforSpec {
         object Reading {
             const val UNIT_RATIO: Float = 0.42f
             const val UNIT_GAP_RATIO: Float = 0.2f
+
+            /** Between a duration's two pairs: «1 ч» and «42 мин». */
+            const val PAIR_GAP_RATIO: Float = 0.3f
             const val RATE_RATIO: Float = 0.45f
             const val RATE_GAP_RATIO: Float = 0.3f
+
+            /** Between the climb's rate and its unit, «1,2 м/с». */
+            const val RATE_UNIT_GAP_RATIO: Float = 0.12f
             const val UNIT_ALPHA: Float = 0.9f
         }
 
