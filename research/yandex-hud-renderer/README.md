@@ -2,6 +2,11 @@
 
 ## Stock-like prototype (2026-10-22)
 
+> **Changed 2026-11-19:** `stock-prototype` is now `build.py`'s default
+> (`tools/yandex_hud_build/identity.py` `RENDERER_PROFILE`, YandexHUD build 32);
+> `--renderer-profile current` builds the earlier map. Below, "the default" and
+> "omission of the option" mean `current` as it was until then.
+
 > **Superseded 2026-10-22 (evening):** drivers preferred our colours, route
 > and cursor; the profile now keeps the YandexHUD design and only the camera
 > is the stock HUD's, with the car point moved to (150,135) - see

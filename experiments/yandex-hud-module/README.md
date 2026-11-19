@@ -10,8 +10,9 @@ installation is separate from these build/test tools. Detailed evidence belongs 
 
 ## Runtime
 
-The optional `stock-prototype` renderer profile is selected with
-`build.py --renderer-profile stock-prototype`; see the
+The `stock-prototype` renderer profile, the car's since `29.8.1-YandexHUD.4`, is
+`build.py`'s default (`identity.py` `RENDERER_PROFILE`, since build 32);
+`--renderer-profile current` builds the earlier top-down map. See the
 [profile and its limits](../../research/yandex-hud-renderer/README.md#stock-like-prototype-2026-10-22).
 `HudMap` reads the theme's optional `camera` object; `HudModule` uses its fps
 for the active tick too. Themes without `camera` keep 2D, zero tilt and 10 fps.
@@ -361,7 +362,62 @@ polyline in forward order, within 0.1 m. Neither export runs on a car.
 The renderer's Node tests (`node --test research/yandex-hud-renderer/*.test.cjs`)
 cover the design and the theme contract, not native transport.
 
-## Current candidate (2026-11-02)
+## Current candidate (2026-11-19)
+
+**YandexHUD build 32, ARM64 debug, the car's renderer profile:**
+`captures/yandex-hud-32-20261119/build-32-arm64/YandexHUD-32-stock-prototype-arm64-debug.apk`,
+265,293,943 bytes, SHA-256
+`2608909a4973abc2e10e0343d6d53b49dc120439cd5c6abdf2f8797c8c985003`.
+Version `31.1.4-YandexHUD.32`, code `739735832`, the same local certificate
+(`df4100bd…9c6`). `build-report.json` says `"renderer_profile": "stock-prototype"`,
+and its `assets/denza-hud/theme.json` is byte-identical to the one in
+`29.8.1-YandexHUD.4`, which the car runs (SHA-256 `37ef8c5f…de97`, with
+`camera = {law: stock, maxFps: 5, policy: closeZoom 17 below 20 km/h, zoomOffset .5}`).
+`identity.py` now holds that profile as `RENDERER_PROFILE` and `build.py` takes it as
+the default; `--renderer-profile current` still builds the old top-down map.
+
+Against build 31 only three entries differ: the theme, the module dex (the
+`HudProtocol` summary words, Russian output unchanged) and the manifest's version
+code. Against the car's `.4`, beyond the Navigator base: the 29.8.1 input was
+universal, so `--abi arm64-v8a` removed 64 native entries there and nothing here;
+the dex are stored here (`7c857424`) and deflated in `.4`; minSdk 29 makes
+apksigner write v3 only (`.4`: v2 + v3); the module adds `ManeuverMeters` and the
+31.1.4 API changes in five module classes, and `HudProtocol`'s summary words in
+`hud-link`. Signer, ABI, account type, permission removal, stock artwork and the
+theme are the same.
+
+Checked on 2026-11-19 (evidence in `captures/yandex-hud-32-20261119/`):
+
+- Builder: 20,263 module, 152 AR, 2,126 CameraTest and 63 StockCameraTest
+  assertions; `check_merge.py` 197,741 values, nothing missing; `symbols.py`
+  11 classes and 108 methods, nothing missing; manifest and resource checks passed.
+- Emulator `denza_hu_claude` (API 35, 2560×1600): `acceptance-32-run5/` passed at
+  `--target-fps 5 --require-lanes --require-ar` on the build 31 route: 40
+  foreground and 60 background frames (5 fps), 56/60 unique PNGs, 27 background
+  lane packets, 32/49 AR packets within 0.006 m of the native route, reconnect,
+  triple clear, no wire errors. The module logs `camera action roadClass=9`: the
+  stock camera drives the map. Runs 1–4 there are invalid: the reinstall had
+  dropped the location grants, so hidden guidance stalled in rerouting.
+- Installed over `29.8.1-YandexHUD.4` with `install -r`: accepted, first-install
+  time and private files kept.
+- `install_check.py` passed. `account_check.py` cannot run on 31.1.4 as committed:
+  `test-account-access` hard-codes 29.8.1's resource id `0x7f1515b5` and Passport
+  classes `e0`/`t`. A local copy that finds the resource by name and calls 31.1.4's
+  `a0.b(Context, IReporterYandex)` / `q.a()` passed (`account-check-adapted/`):
+  type `com.yandex.passport.denza`, own account added and removed, foreign type
+  refused. No sign-in.
+- Host: with Denza Apps from `9f1267e3` on the same emulator the module logs
+  `host attached` / `HUD through the host`, Denza Apps `hosting MODULE` and
+  `YandexHUD brings its own source`; only Denza Apps binds the SOME/IP receiver,
+  which got map frames at 5 fps and road packets with no wire errors. Denza Apps
+  killed: `HUD by itself: no host`, own session; back within 5 s, own session
+  stopped without a clear. Denza Apps' own code reports `HudInstalls.navigator =
+  YANDEX_HUD`, `HudNavigatorBuild.drawsHud = true`, `HudHostGate.admit = MODULE`.
+
+Only the car can show the install over its 29.8.1 data, sign-in, the stock camera
+on the glass with 31.1.4's MapKit, and performance.
+
+### Build 31 (2026-11-02)
 
 **YandexHUD build 31, ARM64 debug:**
 `captures/yandex-hud-31.1.4-20261102/build-31-arm64-stored/YandexHUD-31-arm64-debug.apk`,
@@ -460,13 +516,22 @@ its module classes). It was built with the `current` renderer profile:
 `camera` block. The car runs `29.8.1-YandexHUD.4` (SHA-256 `34690516…67a2`),
 built with `stock-prototype`: the stock HUD camera, the close zoom when slow
 and our colours. A release of build 31 as built would not carry the map the car
-drives with; build it again with `--renderer-profile stock-prototype` first.
+drives with; build 32 is that build.
 
 Read from the APK on 2026-11-19: Navigator 31.1.4 no longer has the view id
 `navi_service_open_voice_search`, one of the two ids by which Denza Apps'
 `feature/alice` finds Navigator's voice button (`NavigatorVoiceControls.kt`);
-`guidance_open_voice_search` is still there. The effect on the steering wheel's
-voice key is not verified.
+`guidance_open_voice_search` is still there. The code takes whichever one is
+visible, so the route-guidance microphone works as before. The free map has no
+microphone of its own in 31.1.4: `ControlVoiceSearch` sits only in
+`navi_guidance_controls` (portrait and land), and the emulator's free map shows
+none, so there the voice key falls through to BYD's assistant. Every other id the
+feature uses (`speedview_guidance`, `navi_guidance_controls_touch_container`, the
+Alice containers) is present. On the car not verified.
+
+Two stale emulator tools found on 2026-11-19, not fixed: `artwork_test.py` no
+longer compiles (`StockHudArtTest` calls a `StockHudArt` constructor changed in
+`a12813bb`), and `account_check.py`'s probe is pinned to 29.8.1 (above).
 
 ## Earlier numbered candidates (2026-10-15)
 

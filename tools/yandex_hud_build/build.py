@@ -10,8 +10,8 @@ import re
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from identity import (APK, PIN, BASE_VERSION_CODE, BASE_VERSION_NAME, BUILD_NUMBER, LABEL, VERSION_CODE,
-                      VERSION_NAME)
+from identity import (APK, PIN, BASE_VERSION_CODE, BASE_VERSION_NAME, BUILD_NUMBER, LABEL, RENDERER_PROFILE,
+                      VERSION_CODE, VERSION_NAME)
 from manifest import LAUNCH_TARGET, QUERIED_PACKAGES, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
@@ -92,8 +92,9 @@ def main():
     parser.add_argument('--abi', choices=('universal', 'arm64-v8a'), default='universal',
                         help='Keep all architectures, or only ARM64 native libraries')
     parser.add_argument('--out', type=Path, required=True)
-    parser.add_argument('--renderer-profile', choices=('current', 'stock-prototype'), default='current',
-                        help='Opt-in map presentation; current keeps the existing owner design')
+    parser.add_argument('--renderer-profile', choices=('current', 'stock-prototype'), default=RENDERER_PROFILE,
+                        help='Map presentation; the default is the release profile in identity.py, '
+                             'current is the earlier top-down map')
     parser.add_argument('--jadx-jar', type=Path, default=Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar'))
     args = parser.parse_args()
     args.out = args.out.resolve()
