@@ -178,17 +178,16 @@ class AdbRestoreManager(
     /**
      * What is waiting to run. Hints that arrive during an attempt merge into one, and every flag is
      * merged with OR: the trigger kept is only the newest, so a decision keyed on it lost the screen
-     * coming on, or a dialog wave's retry, to a passive hint that came after it.
+     * coming on to a passive hint that came after it. (A dialog wave's retry was a flag too until
+     * 2026-11-19, for its shorter write interval; a retry now only reads, like any passive hint.)
      */
     private data class Request(
         val trigger: String,
-        val retry: Boolean = false,
         val force: Boolean = false,
         /** The screen came on: passes the failed-network hold, as the `Failed` gate promises. */
         val wake: Boolean = false,
     ) {
         fun merge(before: Request?): Request = if (before == null) this else copy(
-            retry = retry || before.retry,
             force = force || before.force,
             wake = wake || before.wake,
         )
@@ -418,14 +417,21 @@ class AdbRestoreManager(
     /** Under [control]. */
     private fun forgetFailure() { failedNetwork = null; failedAtElapsedMs = 0L }
 
+    /**
+     * Wireless debugging on, by one settings write per network and [WRITE_COOLDOWN_MS]; true when it
+     * is on. Every write raises one more «Allow wireless debugging on this network?» on top of the
+     * one already waiting, and an approval sets `adb_wifi_enabled=1` itself, so a dialog wave's retry
+     * only reads: within one wave there is one write. Until 2026-11-19 a retry wrote again every
+     * 15 s, stacking up to twenty dialogs in the wave's five minutes. A dialog the driver dismissed
+     * is raised again by a forcing request ([FORCING]) or by the first hint after the cooldown.
+     */
     private suspend fun enableWireless(gen: Long, network: AdbRestoreWifi, request: Request): Boolean {
         if (!valid(gen, network)) return false
         // Already enabled means the dialog was approved between retries, even on an exhausted wave.
         if (system.readAdbWifiEnabled()) return true
-        val cooldown = if (request.retry) WRITE_RETRY_INTERVAL_MS else WRITE_COOLDOWN_MS
         val suppress = synchronized(control) {
-            !request.force && (exhaustedNetwork == network.id ||
-                (store.lastWriteNetwork == network.id && system.nowMs() - store.lastWriteAtMs in 0 until cooldown))
+            !request.force && store.lastWriteNetwork == network.id &&
+                system.nowMs() - store.lastWriteAtMs in 0 until WRITE_COOLDOWN_MS
         }
         if (suppress) {
             publish(gen, AdbRestoreState.NeedsDialog, request)
@@ -435,6 +441,8 @@ class AdbRestoreManager(
         synchronized(control) {
             if (!valid(gen, network)) return false
             store.recordWrite(network.id, system.nowMs())
+            // A new dialog gets its own wave of reads, whatever became of the last one.
+            exhaustedNetwork = null
             system.writeAdbWifiEnabled(true)
         }
         delay(SETTINGS_SETTLE_MS)
@@ -564,14 +572,14 @@ class AdbRestoreManager(
                 if (remaining <= 0) break
                 delay(minOf(RETRY_DELAYS_MS[minOf(index++, RETRY_DELAYS_MS.lastIndex)], remaining))
                 if (system.elapsedMs() - started >= RETRY_BUDGET_MS) break
-                if (!abandoned(gen) && system.wifiNetwork()?.id == network) enqueue(Request(RETRY, retry = true))
+                if (!abandoned(gen) && system.wifiNetwork()?.id == network) enqueue(Request(RETRY))
             }
             synchronized(control) {
                 if (!abandoned(gen) && system.wifiNetwork()?.id == network) {
                     exhaustedNetwork = network
                     current = current.copy(retryBudgetExhausted = true)
                     // The wave's own retry goes; a hint merged into it stays, as the hint it was.
-                    pending = pending?.takeUnless { it.trigger == RETRY }?.copy(retry = false)
+                    pending = pending?.takeUnless { it.trigger == RETRY }
                 }
             }
             changed()
@@ -598,7 +606,7 @@ class AdbRestoreManager(
         const val WIFI_LOST = "wifi-lost"
         /** Wi-Fi came up or changed; also what an attempt cut short by a network change leaves queued. */
         const val WIFI = "wifi"
-        /** A dialog wave's next attempt. */
+        /** A dialog wave's next attempt: a read of the setting, never a write inside [WRITE_COOLDOWN_MS]. */
         const val RETRY = "retry"
         const val MIN_SDK = 30
         /** Restarts on a changed network in a row before the attempt is called `Failed`. */
@@ -606,9 +614,12 @@ class AdbRestoreManager(
         const val NETWORK_UNSETTLED = "network kept changing"
         const val SETTINGS_SETTLE_MS = 1_500L
         const val DISCOVERY_TIMEOUT_MS = 45_000L
+        /**
+         * Between two writes of `adb_wifi_enabled=1` on one network, for every request that does not
+         * force: a dialog wave's retries included, so one wave ([RETRY_BUDGET_MS]) raises one dialog.
+         */
         const val WRITE_COOLDOWN_MS = 600_000L
         const val FAILED_COOLDOWN_MS = 600_000L
-        const val WRITE_RETRY_INTERVAL_MS = 15_000L
         const val TCPIP_POLL_TIMEOUT_MS = 15_000L
         const val TCPIP_POLL_INTERVAL_MS = 1_000L
         const val RETRY_BUDGET_MS = 300_000L

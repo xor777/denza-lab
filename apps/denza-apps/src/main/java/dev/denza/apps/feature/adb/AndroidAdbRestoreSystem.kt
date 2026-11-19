@@ -97,7 +97,7 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
                 if (index == 2) throw failure
-                delay(AdbRestoreManager.WRITE_RETRY_INTERVAL_MS)
+                delay(REPAIR_RETRY_DELAY_MS)
             }
         }
     }
@@ -106,6 +106,14 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
         // exactly the enabled functions, without a second generic daemon or autostart owner.
         DenzaAppRepository.checkAdbAccess()
         DenzaRuntimeCoordinator.recover(app)
+    }
+
+    private companion object {
+        /**
+         * Between the shell repair's attempts. It shared the manager's 15 s settings-write interval
+         * until 2026-11-19, when that interval went: a dialog wave's retry no longer writes.
+         */
+        const val REPAIR_RETRY_DELAY_MS = 15_000L
     }
 }
 

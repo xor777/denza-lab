@@ -31,7 +31,7 @@ currently inaccessible vehicle.
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns); `Connecting` ends when the network changes. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back. **Superseded 2026-11-19:** a look that read the switch off outranks every restore state, and an attempt that inherits `Connecting` and ends early leaves it standing ([Known limits](#known-limits-2026-11-19)) | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery. A comparison found two candidates for review: check the accessibility service before raising the network dialog, and poll for confirmation with fewer setting writes. No car acceptance yet | local tests/build and comparison, 2026-11-19 | [Autonomous restore](#autonomous-restore-implementation-2026-10-08), [Comparison](#recovery-path-comparison-2026-11-19) |
+| Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery. A comparison found two candidates for review: check the accessibility service before raising the network dialog, and poll for confirmation with fewer setting writes. The second is implemented: a dialog wave writes once and its retries read, under the 10-minute cooldown (code and unit tests, not on a car). No car acceptance yet | local tests/build and comparison, 2026-11-19 | [Autonomous restore](#autonomous-restore-implementation-2026-10-08), [Comparison](#recovery-path-comparison-2026-11-19) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
 | «Сервис → Восстановление ADB» says whether there is access, what the first look after the last boot found and what the restore did, from a per-boot record a later open-port check does not overwrite; «Технические сведения» has one «Восстановление ADB» section with every reading once | code, emulator boards; on the car since 2026-10-18 18:18, record written, first reading after a reboot pending | [The page after a boot](#the-page-after-a-boot-2026-10-18) |
 
@@ -626,6 +626,10 @@ target firmware:
 13. With the app in front and the mirrors on, revoke the key (or close 5555); prove the gate comes
     up within about 10 s of the first refused call, with one prompt, and that the dashboard returns
     with one startup pass on approval.
+14. Reboot with the port closed after the boot, the restore on and Wi-Fi up. On a run where the
+    network dialog is not pressed, leave it unanswered for two minutes and count the
+    wireless-debugging dialogs raised (`WifiDebuggingActivity` starts in logcat, and what is on the
+    screen): expect one. Then open «Сервис» and prove it raises exactly one more.
 
 Until this gate passes, the diagnostics UI reports queue recovery as disabled. Local unit tests and
 an APK build prove only the state machine and packaging, not vehicle behaviour.
@@ -1025,6 +1029,22 @@ Settings writes within that wave have a 15-second interval; passive hints honor 
 new network, confirmed success or the explicit `settings` hint. The network/time and outcome/time
 pairs are stored atomically.
 
+> **Superseded 2026-11-19:** a wave's retry no longer writes. Every write raised one more network
+> dialog on top of the one waiting (about twenty in a wave), and an approval sets
+> `adb_wifi_enabled=1` by itself, which the retry reads. The 10-minute per-network cooldown now
+> holds for every request that does not force, retries included, so a wave has one write - the
+> attempt's - and reads after it. A forcing request (`settings`: «Сервис» opened; `switch`: the
+> restore's switch turned on; `gate`: the gate's or the recovery dialog's button) still writes at
+> once and starts its own wave. An exhausted network no longer waits for a new network: the first
+> hint after the cooldown writes once more, and that write gets a wave of reads. The trade: a dialog
+> the driver dismissed comes back only with a forcing request or after the cooldown, where it came
+> back within 15 s; and the 15 s rewrite was also what reached a dialog the accessibility service
+> missed - the rider presses on a window-state event, and a service bound after the dialog came up
+> sees none until the next dialog. The service is now made ready before the write
+> ([Recovery path comparison](#recovery-path-comparison-2026-11-19)); a bind later than that is a
+> known limit. `AdbRestoreManagerTest` holds one write per wave, an approval mid-wave, a forcing
+> request mid-wave and the write after the cooldown.
+
 The shared accessibility service (`SimulcastAccessibilityService`) hosts `WifiDebuggingDialogAutoAllow`
 through `WifiDebuggingDialogRider`, which it hands every window-state event. It accepts only the SystemUI
 `WifiDebuggingActivity` and the exact event window, follows the event source to its root, or uses
@@ -1233,6 +1253,10 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   when it starts and sets the hold only if the count has not moved, so a drop and reconnect to the
   same router during a failing attempt is not held by that failure.
 
+  > **Superseded 2026-11-19:** a dialog wave's `retry` is no longer a flag. It existed for the
+  > retry's 15 s write interval; a retry now only reads, under the same cooldown as any passive hint
+  > ([Autonomous restore](#autonomous-restore-implementation-2026-10-08)).
+
 ### Recovery path comparison (2026-11-19)
 
 Static comparison of release 4.4.2 (`94eae05fc95c7cd88554e954dbca29d5c3f06cf9`)
@@ -1249,12 +1273,12 @@ restore on a definite key refusal. The comparison implementation's dedicated
 restore check uses its existing client's connect result, which can reuse a
 socket that has not yet observed a remote close.
 
-| Difference in the comparison release | Relevance to Denza Apps |
-| --- | --- |
-| Before wireless debugging, a separate branch attempts to bring the classic listener back through Android's global ADB switch and vendor settings. If something changed, it makes three short checks. Failure proceeds to the wireless path. | Denza Apps treats a read of the Android ADB switch being off as a distinct state. The comparison tests use fakes for the setting writes. Field confirmations after the combined 4.4.0 changes do not identify the branch that worked. |
-| It checks whether the accessibility service is bound before raising the network confirmation dialog and allows up to 3 s for it to bind if preparation was needed. | Denza Apps prepares the service on the healthy classic path and after restoration. A service that became unavailable in between can be late for the first dialog. Record its health at the time of the dialog before drawing conclusions about this failure. |
-| A wave checks for confirmation over up to five minutes but keeps the same 10 min per-network write cooldown during polling, apart from an explicit settings request. This change followed reports of stacked network dialogs. | Denza Apps has the same bounded wave but can issue another settings write every 15 s while it runs. The network dialog is independent of the RSA authorization prompt. The comparison supports checking whether one settings write followed by reads is sufficient on the affected firmware. |
-| A tracking-service watchdog pings the helper every 30 polling ticks, limits restarts to one per minute and sends recovery hints after restart attempts. Wi-Fi availability and the edge into validated Wi-Fi also send hints. | The watchdog observes helper health. It gives a recovery trigger during idle use if that helper fails, while a healthy helper can coexist with a lost ADB channel. Denza Apps handles feature failures directly and keeps a separate input for Wi-Fi loss. |
+| Difference in the comparison release | Relevance to Denza Apps | In Denza Apps |
+| --- | --- | --- |
+| Before wireless debugging, a separate branch attempts to bring the classic listener back through Android's global ADB switch and vendor settings. If something changed, it makes three short checks. Failure proceeds to the wireless path. | Denza Apps treats a read of the Android ADB switch being off as a distinct state. The comparison tests use fakes for the setting writes. Field confirmations after the combined 4.4.0 changes do not identify the branch that worked. | Not adopted: a new kind of system write (Android's ADB switch, vendor properties) with no reading from this car of what it does |
+| It checks whether the accessibility service is bound before raising the network confirmation dialog and allows up to 3 s for it to bind if preparation was needed. | Denza Apps prepares the service on the healthy classic path and after restoration. A service that became unavailable in between can be late for the first dialog. Record its health at the time of the dialog before drawing conclusions about this failure. | Candidate |
+| A wave checks for confirmation over up to five minutes but keeps the same 10 min per-network write cooldown during polling, apart from an explicit settings request. This change followed reports of stacked network dialogs. | Denza Apps has the same bounded wave but can issue another settings write every 15 s while it runs. The network dialog is independent of the RSA authorization prompt. The comparison supports checking whether one settings write followed by reads is sufficient on the affected firmware. | Adopted 2026-11-19: a retry reads, one write per wave ([Autonomous restore](#autonomous-restore-implementation-2026-10-08)); code and unit tests, not on a car |
+| A tracking-service watchdog pings the helper every 30 polling ticks, limits restarts to one per minute and sends recovery hints after restart attempts. Wi-Fi availability and the edge into validated Wi-Fi also send hints. | The watchdog observes helper health. It gives a recovery trigger during idle use if that helper fails, while a healthy helper can coexist with a lost ADB channel. Denza Apps handles feature failures directly and keeps a separate input for Wi-Fi loss. | Not adopted: not applicable - Denza Apps has no resident helper of that kind to watch; features report a lost channel themselves |
 
 Two field replies after 4.4.0 reported recovery on DiLink 5.0 after earlier
 problems on firmware 2606 and 2608. These reports establish that the combined

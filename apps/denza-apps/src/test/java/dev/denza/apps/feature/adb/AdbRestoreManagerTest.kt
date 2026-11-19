@@ -57,7 +57,8 @@ class AdbRestoreManagerTest {
         override fun permissionHeld() = held
         override suspend fun selfGrant(abandoned: () -> Boolean) { assertFalse(abandoned()); grants++; held = true }
         override fun wifiNetwork() = wifi
-        override fun readAdbWifiEnabled() = wireless
+        var reads = 0
+        override fun readAdbWifiEnabled(): Boolean { reads++; return wireless }
         override fun writeAdbWifiEnabled(enabled: Boolean) {
             writes += elapsedMs() to enabled
             wireless = enabled && !revert
@@ -218,19 +219,73 @@ class AdbRestoreManagerTest {
         assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
         assertTrue(f.system.writes.isEmpty())
     }
-    @Test fun dialogWaveUsesShortCooldownAndStopsAtFiveMinutes() = runTest {
+    @Test fun dialogWaveStopsAtFiveMinutes() = runTest {
         val f = Fixture(this); f.system.revert = true
         val probeTimes = mutableListOf<Long>(); f.system.probe = { probeTimes += f.system.elapsedMs() }
         f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
         assertEquals(listOf(0L, 3_500L, 8_500L, 18_500L), probeTimes.take(4))
-        assertTrue(f.system.writes.size > 1)
-        assertTrue(f.system.writes.zipWithNext().all { (a, b) -> b.first - a.first >= 15_000 })
         assertTrue(f.manager.snapshot().retryBudgetExhausted)
         val before = f.system.writes.size
-        f.manager.attemptIfNeeded("screen-on"); advanceTimeBy(320_000); runCurrent()
+        f.manager.attemptIfNeeded("screen-on"); advanceTimeBy(250_000); runCurrent()
         assertEquals(before, f.system.writes.size)
         f.manager.attemptIfNeeded("settings"); runCurrent()
         assertEquals(before + 1, f.system.writes.size)
+    }
+
+    /**
+     * Every write raises one more network dialog on top of the one waiting. Until 2026-11-19 the
+     * wave's retries wrote every 15 s - about twenty dialogs in five minutes; now the wave's one
+     * write is the attempt's, and its retries read.
+     */
+    @Test fun aDialogWaveWritesOnceAndItsRetriesOnlyRead() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        var retries = 0; f.system.probe = { retries++ }
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
+        assertTrue("the wave ran its retries", retries > 10)
+        assertEquals(listOf(true), f.system.writes.map { it.second })
+        assertTrue("each retry read the setting", f.system.reads >= retries)
+        assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
+        assertTrue(f.manager.snapshot().retryBudgetExhausted)
+    }
+    @Test fun anApprovalMidWaveConnectsWithoutASecondWrite() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(25_000); runCurrent()
+        assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
+        // The dialog is approved: the system sets the setting itself, and the next retry reads it.
+        f.system.wireless = true
+        advanceTimeBy(10_000); runCurrent()
+        assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
+        assertEquals(listOf(true), f.system.writes.map { it.second })
+        assertEquals(listOf(37111), f.system.endpoints)
+    }
+    @Test fun aForcingRequestDuringTheWaveWritesAgain() = runTest {
+        for (trigger in listOf(AdbRestoreManager.GATE, AdbRestoreManager.SETTINGS)) {
+            val f = Fixture(this); f.system.revert = true
+            f.manager.attemptIfNeeded("startup"); advanceTimeBy(40_000); runCurrent()
+            assertEquals(trigger, 1, f.system.writes.size)
+            f.manager.attemptIfNeeded(trigger); runCurrent()
+            assertEquals(trigger, 2, f.system.writes.size)
+            // The forced write has its own wave, and that wave reads too.
+            advanceTimeBy(60_000); runCurrent()
+            assertEquals(trigger, 2, f.system.writes.size)
+            assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
+        }
+    }
+    @Test fun afterAnExhaustedWaveAndItsCooldownAPassiveHintWritesOnceMore() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
+        assertTrue(f.manager.snapshot().retryBudgetExhausted)
+        assertEquals(1, f.system.writes.size)
+        // Inside the cooldown of the wave's one write: nothing.
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        assertEquals(1, f.system.writes.size)
+        advanceTimeBy(AdbRestoreManager.WRITE_COOLDOWN_MS - 310_000); runCurrent()
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        assertEquals(2, f.system.writes.size)
+        assertEquals(AdbRestoreManager.WRITE_COOLDOWN_MS, f.system.writes[1].first - f.system.writes[0].first)
+        // One write, then its wave's reads.
+        advanceTimeBy(310_000); runCurrent()
+        assertEquals(2, f.system.writes.size)
     }
     @Test fun approvingDialogBetweenRetriesRestoresAndEndsWave() = runTest {
         val f = Fixture(this); f.system.revert = true
@@ -527,16 +582,16 @@ class AdbRestoreManagerTest {
         release.complete(Unit); runCurrent()
         assertEquals(2, f.system.discoveries)
     }
-    @Test fun aRetryMergedWithAPassiveHintKeepsItsShortCooldown() = runTest {
+    @Test fun aRetryMergedWithAPassiveHintStillOnlyReads() = runTest {
         val f = Fixture(this); f.system.revert = true
         f.manager.attemptIfNeeded("startup"); advanceTimeBy(9_000); runCurrent()
-        assertEquals(1, f.system.writes.size) // the retries at 3.5 and 8.5 s are inside the 15 s
+        assertEquals(1, f.system.writes.size)
         val release = CompletableDeferred<Unit>(); f.system.probe = { release.await() }
         f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent() // an attempt held at its probe
         advanceTimeBy(10_000); runCurrent() // the wave's retry at 18.5 s waits behind it
         f.manager.attemptIfNeeded("recovery") // and a passive hint merges into the retry
         release.complete(Unit); runCurrent()
-        assertEquals(2, f.system.writes.size)
+        assertEquals(1, f.system.writes.size)
     }
     @Test fun aNetworkChangeAfterConnectingStartsAgainOnTheNewOne() = runTest {
         val f = Fixture(this); f.system.restart = { if (f.system.wifi?.id == "next") f.system.live = true }
