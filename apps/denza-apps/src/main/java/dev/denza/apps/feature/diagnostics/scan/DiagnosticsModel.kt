@@ -700,6 +700,11 @@ internal data class DtcView(
     val availability: Int? = null,
     /** The status mask the memory was read with, «0D»; null before a read (the strip of «что запрошено» then says 0D). */
     val mask: Int? = null,
+    /**
+     * A UDS block with OBD (the ECM, the VCU): Mode 07's pending codes its memory does not hold, as «Сводка» and the
+     * system pages list them ([BlockRecords.of]); [records] stay the memory's own. Empty elsewhere.
+     */
+    val obdPending: List<DtcRow> = emptyList(),
 )
 
 internal data class AskRow(

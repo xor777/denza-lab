@@ -160,7 +160,8 @@ internal object ReportInputs {
         EcuCatalog.routed.flatMap { ecu ->
             val request = ecu.request!!
             val obdOnly = !ecu.uds && ecu.obd
-            model.modules[request]?.dtc?.records.orEmpty().map { r ->
+            // the scanner's records: the memory's, and an OBD block's Mode 07 codes the memory does not hold
+            model.modules[request]?.dtc?.let { it.records + it.obdPending }.orEmpty().map { r ->
                 val status = DtcStatus(r.status)
                 val kind = when {
                     // An OBD-only block's Mode 03 and 0A codes count as active, as its row does; Mode 07 is pending.

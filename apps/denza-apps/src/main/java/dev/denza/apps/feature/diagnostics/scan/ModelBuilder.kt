@@ -398,6 +398,11 @@ internal class ModelBuilder(
             // the strip of «что запрошено»: the block's own availability and the mask it was read with
             availability = r?.availability?.byte,
             mask = maskByte.takeIf { countReply != null || listReply != null },
+            obdPending = if (ecu.obd && r != null) {
+                BlockRecords.of(r).filter { it.status == null }.map { obdRow(it.code, ObdDtcMode.PENDING) }
+            } else {
+                emptyList()
+            },
         )
     }
 

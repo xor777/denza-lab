@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.report
 
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.bus.DiagReply
+import dev.denza.apps.feature.diagnostics.bus.FakeDiagnosticBus
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.scan.CarReadings
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
@@ -10,6 +11,7 @@ import dev.denza.apps.feature.diagnostics.scan.FakeCar
 import dev.denza.apps.feature.diagnostics.scan.Fixtures
 import dev.denza.apps.feature.diagnostics.scan.Figures
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.carNow
+import dev.denza.apps.feature.diagnostics.scan.Fixtures.rows
 import dev.denza.apps.feature.diagnostics.scan.MemoryStore
 import dev.denza.apps.feature.diagnostics.scan.ModuleResult
 import dev.denza.apps.feature.diagnostics.scan.ScanJson
@@ -56,10 +58,13 @@ class ReportTest {
     private class Scanned(val model: DiagnosticsModel, val scan: StoredScan)
 
     /** The autoscan of «машина сейчас», finished and saved, with the model it left. */
-    private fun scanned(writer: ReportWriter = ReportWriter.NONE): Pair<Scanned, DiagnosticsSession> = TestScope().run {
+    private fun scanned(
+        writer: ReportWriter = ReportWriter.NONE,
+        script: FakeDiagnosticBus.() -> Unit = {},
+    ): Pair<Scanned, DiagnosticsSession> = TestScope().run {
         val store = MemoryStore()
         val s = DiagnosticsSession(
-            buses = { carNow() },
+            buses = { carNow(before = script) },
             store = store,
             car = FakeCar(car),
             sinks = StreamSinks { null },
@@ -75,8 +80,13 @@ class ReportTest {
         result to s
     }
 
-    private fun input(journal: ReportJournal? = null, reads: ReportReads? = null, recording: ReportRecording? = null): Pair<ReportInput, Scanned> {
-        val (scanned, _) = scanned()
+    private fun input(
+        journal: ReportJournal? = null,
+        reads: ReportReads? = null,
+        recording: ReportRecording? = null,
+        script: FakeDiagnosticBus.() -> Unit = {},
+    ): Pair<ReportInput, Scanned> {
+        val (scanned, _) = scanned(script = script)
         val results = scanned.scan.reads.associate { it.request to ModuleResult(EcuCatalog.byRequest(it.request)!!, it) }
         val input = ReportInputs.of(
             scanned.model, results, scanned.scan.finishedAtMillis, car, SoftwareHistory(),
@@ -86,6 +96,20 @@ class ReportTest {
     }
 
     // ------------------------------------------------------------------ content
+
+    /**
+     * The ECM's memory empty and Mode 07 with P0420: the scanner lists the code as pending, and so does the report -
+     * a row, and one pending in its summary - not «Записей нет».
+     */
+    @Test
+    fun anObdBlocksModeSevenCodeIsInTheReportAsTheScannerListsIt() {
+        val (input, scanned) = input(script = { on(0x7E0, "07").answer("47010420") })
+        assertEquals("1", scanned.model.rows().first { it.request == 0x7E0 }.pending)
+        val ecm = input.codes.filter { it.address == "7E0" }
+        assertEquals(listOf("P0420"), ecm.map { it.code })
+        assertEquals(ReportCodeKind.PENDING, ecm.single().kind)
+        assertEquals(scanned.model.scan.pending, input.summary.pending)
+    }
 
     @Test
     fun theInputSaysWhatTheScanAndTheCarSay() {
