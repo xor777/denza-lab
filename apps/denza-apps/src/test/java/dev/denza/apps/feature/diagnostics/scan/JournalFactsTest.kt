@@ -193,6 +193,24 @@ class JournalFactsTest {
     }
 
     /**
+     * A scan stored before the head unit's clock was set (1970) and one after: the axis keeps at most a month's
+     * labels, sharing them out over the span, and every entry still falls in its place on it.
+     */
+    @Test
+    fun aClockSetRightDoesNotMakeDecadesOfLabels() {
+        val early = JournalFixtures.scan(at("1970-01-01T00:05:00Z"), listOf(JournalFixtures.rzcu()))
+        val now = JournalFixtures.scan(at("2026-10-20T19:31:29Z"), listOf(JournalFixtures.rzcu()))
+        val d = listOf(early, now).fold(JournalData()) { j, s -> j.with(s) }
+        val axis = JournalAxis(d, ScanClock(zone))
+        assertTrue(axis.days.size <= JournalAxis.MAX_LABELS)
+        assertEquals("01.01", axis.days.first())
+        assertTrue(axis.at(early.atMillis) < 0.01f)
+        assertTrue(axis.at(now.atMillis) in 0.95f..1f)
+        // a journal of five days keeps a label a day
+        assertEquals(6, JournalAxis(data, ScanClock(zone)).days.size)
+    }
+
+    /**
      * R_ZCU's C1170-09 read pending-only (`04`) under `0D`; the next scan's `0D` failed and `09` came back empty.
      * `09` does not ask for a pending-only record: the code is not gone, the comparison does not know, and
      * «Журнал · Коды» keeps it as it was last read. A later `0D` read without it is the one that says it went.

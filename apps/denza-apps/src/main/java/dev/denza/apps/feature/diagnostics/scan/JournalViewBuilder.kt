@@ -11,7 +11,8 @@ import java.time.LocalDate
 internal class JournalAxis(data: JournalData, private val clock: ScanClock) {
     private val first: LocalDate?
     val days: List<String>
-    private val count: Int
+    /** The axis's length in days: its labels times the days each stands for. */
+    private val count: Long
 
     init {
         val times = data.scans.map { it.atMillis } + data.cells.map { it.atMillis }
@@ -19,15 +20,21 @@ internal class JournalAxis(data: JournalData, private val clock: ScanClock) {
         val to = times.maxOrNull()?.let(clock::day)
         first = from
         val list = ArrayList<String>()
+        var length = 0L
         if (from != null && to != null) {
-            var d: LocalDate = from
-            while (!d.isAfter(to)) {
+            // A label a day up to a month; past it - a clock set right after entries dated 1970 - a label every
+            // [step] days, so the axis is never more than [MAX_LABELS] whatever the span.
+            val span = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1
+            val step = (span + MAX_LABELS - 1) / MAX_LABELS
+            val slots = (span + step - 1) / step
+            for (i in 0 until slots) {
+                val d = from.plusDays(i * step)
                 list += "%02d.%02d".format(d.dayOfMonth, d.monthValue)
-                d = d.plusDays(1)
             }
+            length = slots * step
         }
         days = list
-        count = list.size
+        count = length
     }
 
     /** [millis] on the axis, 0..1. */
@@ -43,6 +50,11 @@ internal class JournalAxis(data: JournalData, private val clock: ScanClock) {
     fun at(day: LocalDate): Float = first?.let {
         ((java.time.temporal.ChronoUnit.DAYS.between(it, day) + 0.5) / count).toFloat().coerceIn(0f, 1f)
     } ?: 0f
+
+    companion object {
+        /** A month of days, one label each; a longer journal shares its labels out. */
+        const val MAX_LABELS = 31L
+    }
 }
 
 /**
