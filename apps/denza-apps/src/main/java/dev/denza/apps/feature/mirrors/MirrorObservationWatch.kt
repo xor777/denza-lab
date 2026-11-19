@@ -10,6 +10,10 @@ package dev.denza.apps.feature.mirrors
  * own thread and, past [DEADLINE_MS], closes the camera the way the lamps going off close it and
  * tells the tile it cannot read the car.
  *
+ * One watch belongs to one monitor run and is touched only through [MirrorTransitionGate]: a read
+ * is recorded in the critical section that applies it, and the deadline is judged on a clock
+ * sampled under the same lock, so the watchdog never sees a transition without its freshness.
+ *
  * [DEADLINE_MS] holds one shell read that times out (2.5 s) plus the next poll, so a slow read
  * alone never closes a camera; it is twice AVC's own two-second tail, so the camera outlives the
  * stock card by a couple of seconds at most.

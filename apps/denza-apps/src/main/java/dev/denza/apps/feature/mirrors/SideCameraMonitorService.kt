@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class SideCameraMonitorService : Service() {
     private var executor: ScheduledExecutorService? = null
     private var deadlineExecutor: ScheduledExecutorService? = null
-    @Volatile private var observationWatch = MirrorObservationWatch(0L)
     private var signalExecutor: ExecutorService? = null
     private lateinit var adb: LocalAdbClient.PersistentShellSession
     private var turnSignalLease: VehicleSignalLease? = null
@@ -93,7 +92,8 @@ class SideCameraMonitorService : Service() {
 
     private fun startMonitor() {
         MirrorsSettings.setEnabled(this, true)
-        if (!transitionGate.start()) return
+        // The run every thread below carries: a stopped run's late callback finds it gone.
+        val run = transitionGate.start(SystemClock.elapsedRealtime()) ?: return
         lastShadowStatus = ""
         MirrorTurnSignalDiagnostics.reset(SystemClock.elapsedRealtime())
         val eventExecutor = Executors.newSingleThreadExecutor { runnable ->
@@ -125,8 +125,7 @@ class SideCameraMonitorService : Service() {
             turnSignalLease?.subscribeEvents(
                 VehicleSignalKeys.TurnSwitchPhase,
                 eventExecutor,
-                ::onSwitchNotice,
-            )
+            ) { notice -> onSwitchNotice(run, notice) }
         }.onFailure { error ->
             Log.w(TAG, "turn-switch events unavailable", error)
         }.getOrNull()
@@ -134,22 +133,20 @@ class SideCameraMonitorService : Service() {
             turnSignalLease?.subscribeEvents(
                 VehicleSignalKeys.TurnIndicatorMode,
                 eventExecutor,
-                ::onLampNotice,
-            )
+            ) { notice -> onLampNotice(run, notice) }
         }.onFailure { error ->
             Log.w(TAG, "turn-lamp events unavailable", error)
         }.getOrNull()
-        observationWatch = MirrorObservationWatch(SystemClock.elapsedRealtime())
         executor = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
             scheduler.execute(::grantOverlayPermission)
-            scheduler.scheduleWithFixedDelay(::poll, 0L, POLL_MS, TimeUnit.MILLISECONDS)
+            scheduler.scheduleWithFixedDelay({ poll(run) }, 0L, POLL_MS, TimeUnit.MILLISECONDS)
         }
         // Not the poll's thread: a shell read that blocks must not hold the deadline back.
         deadlineExecutor = Executors.newSingleThreadScheduledExecutor { runnable ->
             Thread(runnable, "denza-mirror-deadline").apply { isDaemon = true }
         }.also { scheduler ->
             scheduler.scheduleWithFixedDelay(
-                ::checkObservationDeadline,
+                { checkObservationDeadline(run) },
                 MirrorObservationWatch.CHECK_MS,
                 MirrorObservationWatch.CHECK_MS,
                 TimeUnit.MILLISECONDS,
@@ -213,8 +210,8 @@ class SideCameraMonitorService : Service() {
         }
     }
 
-    private fun poll() {
-        if (!transitionGate.isRunning) return
+    private fun poll(run: MirrorRun) {
+        if (!run.isCurrent()) return
         val displayId = resolveClusterDisplay(SystemClock.elapsedRealtime()) ?: return
 
         try {
@@ -239,18 +236,18 @@ class SideCameraMonitorService : Service() {
                 timingLastAmbiguous = ambiguous
             }
             timingPreviousReadStartedMs = readStartedMs
-            if (!transitionGate.isRunning) return
+            if (!run.isCurrent()) return
             val stockSide = observeStock(detection, now)
             val mode = recordTurnSignalState(stockSide, now)
-            applyTransition(stockSide, now, mode)
-            observationWatch.read(now)
+            // The transition and the read's freshness in one critical section: the deadline sees
+            // both or neither.
+            transitionGate.observe(run, now) { applyTransitionLocked(stockSide, now, mode) }
             releaseStaleClaimWhenIdle(detection)
         } catch (error: Exception) {
-            val watch = observationWatch
-            watch.failed(shortError(error))
+            val reason = shortError(error)
             // Past the deadline the status is the deadline's, written once (below).
-            if (!watch.lost(SystemClock.elapsedRealtime())) {
-                setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
+            transitionGate.readFailed(run, reason, SystemClock.elapsedRealtime()) {
+                setStatus(observedSideLocked(), "ADB monitor error: $reason")
             }
         }
     }
@@ -261,16 +258,12 @@ class SideCameraMonitorService : Service() {
      * preempt, the same skipped free when AVC has taken its renderer back - and the tile is told
      * the car cannot be read. A poll that reads the car again clears both.
      */
-    private fun checkObservationDeadline() {
+    private fun checkObservationDeadline(run: MirrorRun) {
         if (clusterDisplayId == null) return
-        val watch = observationWatch
-        if (!watch.lost(SystemClock.elapsedRealtime())) return
-        transitionGate.runIfRunning {
-            val now = SystemClock.elapsedRealtime()
-            // A poll may have read the car while this waited for the gate.
-            if (!watch.lost(now)) return@runIfRunning
-            teardownActiveCameraLocked("car not read", now, blockSide = null)
-            setStatus(null, "car not read: ${watch.lastError ?: "no answer"}", unreadable = true)
+        // One clock sample, taken under the gate the poll applies and records its reads under.
+        transitionGate.checkDeadline(run, SystemClock::elapsedRealtime) { lastError ->
+            teardownActiveCameraLocked("car not read", SystemClock.elapsedRealtime(), blockSide = null)
+            setStatus(null, "car not read: ${lastError ?: "no answer"}", unreadable = true)
         }
     }
 
@@ -384,12 +377,12 @@ class SideCameraMonitorService : Service() {
         return state
     }
 
-    private fun onSwitchNotice(notice: VehicleSignalEventNotice<TurnSwitchPhase>) {
-        if (!transitionGate.isRunning) return
+    private fun onSwitchNotice(run: MirrorRun, notice: VehicleSignalEventNotice<TurnSwitchPhase>) {
+        if (!run.isCurrent()) return
         when (notice) {
             is VehicleSignalEventNotice.Event -> {
                 val event = notice.event
-                transitionGate.runIfRunning {
+                transitionGate.runIf(run) {
                     val activeSide = MirrorSwitchPreemption.activeCameraSide(
                         transitionState,
                         ClusterSceneService.cameraRuntimeSnapshot(),
@@ -423,13 +416,13 @@ class SideCameraMonitorService : Service() {
      * hazard, the other side) our camera closes at once instead of waiting for AVC's two-second
      * tail: it never outlives the lamps, and never holds AVC's renderer into AVC's idle.
      */
-    private fun onLampNotice(notice: VehicleSignalEventNotice<TurnIndicatorMode>) {
-        if (!transitionGate.isRunning) return
+    private fun onLampNotice(run: MirrorRun, notice: VehicleSignalEventNotice<TurnIndicatorMode>) {
+        if (!run.isCurrent()) return
         val event = (notice as? VehicleSignalEventNotice.Event)?.event ?: return
         val (lamp, _) = MirrorLamp.of(
             VehicleSignalState.Fresh(event.value, event.observedAtElapsedMs, event.observedAtElapsedMs),
         )
-        transitionGate.runIfRunning {
+        transitionGate.runIf(run) {
             val activeSide = MirrorSwitchPreemption.activeCameraSide(
                 transitionState,
                 ClusterSceneService.cameraRuntimeSnapshot(),
@@ -510,14 +503,6 @@ class SideCameraMonitorService : Service() {
                 null
             }
         }
-    }
-
-    private fun applyTransition(
-        stockSide: MirrorSide?,
-        now: Long,
-        mode: VehicleSignalState<TurnIndicatorMode>,
-    ) {
-        transitionGate.runIfRunning { applyTransitionLocked(stockSide, now, mode) }
     }
 
     private fun applyTransitionLocked(
@@ -611,9 +596,9 @@ class SideCameraMonitorService : Service() {
         setStatus(side, details)
     }
 
-    private fun observedSide(): MirrorSide? = transitionGate.read {
+    /** Must run under [transitionGate]. */
+    private fun observedSideLocked(): MirrorSide? =
         transitionState.side.takeIf { transitionState.phase == MirrorTransitionPhase.SHOWING }
-    }
 
     /**
      * Records the status runtime recovery and the dashboard read, once per change, and marks the
