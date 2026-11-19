@@ -210,6 +210,28 @@ class CloudLinkCoreTest {
         assertEquals(listOf(RestoreProfile("triple_apn")), core.switchedOff(adaptedCellular))
     }
 
+    /**
+     * A car whose own cellular path carries the cloud, caught between two of its own APN states:
+     * APN1/APN3 idle, TCP 0, mobile internet up as the default network. Not one entry acts on it -
+     * mobile data is not the adapter's network.
+     */
+    @Test
+    fun mobileInternetAloneIsNeverActedOnAtAnyEntry() {
+        val mobile = CloudNetwork.usableOf(
+            CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "46001").kind,
+        )
+        val idle = stock.copy(apn1State = "disconnected", apn3State = "disconnected")
+        val core = CloudLinkCore()
+        assertEquals(emptyList<CloudStep>(), core.switchedOn(idle, network = mobile, nowMs = 0))
+        var at = 0L
+        while (at < 3 * 60 * 60_000L) {
+            at += 15_000
+            assertEquals(emptyList<CloudStep>(), core.reconcile(idle, network = mobile, nowMs = at))
+        }
+        assertEquals(emptyList<CloudStep>(), core.networkReturned(idle, nowMs = at + 1, network = mobile))
+        assertEquals(emptyList<CloudStep>(), CloudLinkCore().reconcile(idle, network = mobile, nowMs = SETTLE_MS))
+    }
+
     @Test
     fun theBackoffIsFiveMinutesDoublingToAnHour() {
         assertEquals(0L, CloudLinkCore.backoff(0))

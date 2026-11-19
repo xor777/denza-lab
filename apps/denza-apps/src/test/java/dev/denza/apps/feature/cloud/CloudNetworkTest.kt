@@ -8,9 +8,9 @@ import org.junit.Test
 /**
  * Which internet the cloud link translates for the stock client.
  *
- * Wi-Fi is proven (2026-09-23). Mobile data from a local SIM is built for owners to test and is not
- * proven on any car. The operator code does not establish private APN ownership;
- * actual stock APN state is guarded by the controller and its operations.
+ * Wi-Fi is proven (2026-09-23) and, since 2026-11-19, the only network the adapter acts on. Mobile
+ * data is still told apart for the report. The operator code does not establish private APN
+ * ownership; actual stock APN state is guarded by the controller and its operations.
  */
 class CloudNetworkTest {
 
@@ -21,8 +21,20 @@ class CloudNetworkTest {
         assertEquals(CloudNetworkKind.WIFI, kind(wifi = true, sim = "46013"))
     }
 
+    /**
+     * The cloud takes a Chinese ICCID on any transport, so a car with mobile internet either has its
+     * own working path or is refused whatever is announced: mobile data is read, never acted on.
+     */
     @Test
-    fun mobileDataFromALocalSimIsUsable() {
+    fun onlyWifiIsActedOn() {
+        assertTrue(CloudNetwork.usableOf(kind(wifi = true, sim = null)))
+        assertFalse(CloudNetwork.usableOf(kind(cellular = true, sim = "46001")))
+        assertFalse(CloudNetwork.usableOf(kind(cellular = true, sim = "25001")))
+        assertFalse(CloudNetwork.usableOf(kind(validated = false, wifi = true, sim = null)))
+    }
+
+    @Test
+    fun mobileDataIsToldApartForTheReport() {
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25001"))
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25099"))
         // Missing operator metadata does not invalidate an otherwise validated network.
@@ -30,7 +42,7 @@ class CloudNetworkTest {
     }
 
     @Test
-    fun operatorCodeCannotDisqualifyValidatedMobileInternet() {
+    fun operatorCodeDoesNotChangeWhatMobileInternetIs() {
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46013"))
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46000"))
         assertTrue(CloudNetwork.chineseSim("46011"))

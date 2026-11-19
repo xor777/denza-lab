@@ -27,15 +27,22 @@ internal sealed interface CloudStep {
  * **What the stock client needs from us.** `cloudmanager` owns identity, telemetry, timers and the
  * whole protocol; the only thing it lacks on this car is a network it believes in. Its gate opens on
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
- * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
- * any SIM, with actual stock APNs guarded separately) is «ready», internet that has stayed gone is «gone» - paired, because
- * a gate opened and never closed is a synthetic APN left standing (docs/telematics/cloud-tile.md,
- * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
+ * (`-5`). So the adapter translates: validated Wi-Fi as the default network ([CloudNetwork]) is
+ * «ready», Wi-Fi that has stayed gone is «gone» - paired, because a gate opened and never closed is
+ * a synthetic APN left standing (docs/telematics/cloud-tile.md, "Stock-client Wi-Fi adaptation").
+ * The `network` every entry takes is that Wi-Fi: mobile data reads as none, and a car on mobile
+ * internet alone is never switched or announced.
+ *
+ * > **Superseded 2026-11-19:** mobile data from any SIM used to count as usable internet. The cloud
+ * > takes the registration only from a Chinese ICCID, on any transport, so a car with mobile
+ * > internet either connects by its own cellular path and needs nothing from us, or is refused
+ * > whatever we announce; acting on it could only disturb a working car (docs/telematics/
+ * > cloud-tile.md, "Three ways to break a working car").
  *
  * **Why it may have to say «ready» again.** The stock `BYDMultiApnConnReceiver` sends `-5` itself on
  * any `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not connected, with no comparison against the
  * previous state - a cellular event that closes the gate the adapter opened. So a car that has
- * internet and is off the cloud is announced again. But a TCP of 0 does not say *why* - the
+ * Wi-Fi and is off the cloud is announced again. But a TCP of 0 does not say *why* - the
  * client may be in the middle of its own reconnect - so a repeat waits for the disconnection to
  * [settle][SETTLE_MS] and then for a [backoff] that doubles with every «ready» that did not bring
  * the connection back, up to an hour. Seeing the client connected clears it.
@@ -94,7 +101,7 @@ internal class CloudLinkCore {
 
     /**
      * A reading while the link is on: the periodic one, the stock client's status broadcast, a
-     * start of the service, usable internet coming back.
+     * start of the service, Wi-Fi coming back.
      */
     fun reconcile(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
         observe(car)
@@ -147,7 +154,7 @@ internal class CloudLinkCore {
     }
 
     /**
-     * Usable internet came back. If we closed the gate when it went, it is closed now and the
+     * Wi-Fi came back. If we closed the gate when it went, it is closed now and the
      * client is waiting for exactly this; if it was a flicker we never answered, the client's own
      * reconnect is already on it.
      */
@@ -160,9 +167,11 @@ internal class CloudLinkCore {
     }
 
     /**
-     * Usable internet has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Moving
-     * from Wi-Fi to mobile data is not a loss - the client's socket drops with the old network and
-     * its own reconnect, or the repeat after the settle, carries it onto the new one.
+     * Wi-Fi has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Mobile data
+     * taking over is a loss like any other: the adapter does not carry the client over it.
+     *
+     * > **Superseded 2026-11-19:** «moving from Wi-Fi to mobile data is not a loss» - it was not
+     * > while mobile data counted as usable internet; see the class KDoc.
      *
      * Said while the gate may be ours - including one a previous process opened, which is why
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside
@@ -228,7 +237,7 @@ internal class CloudLinkCore {
          */
         const val SETTLE_MS = 90_000L
 
-        /** How long usable internet must stay gone before the gate is closed. */
+        /** How long Wi-Fi must stay gone before the gate is closed. */
         const val NETWORK_LOSS_GRACE_MS = 30_000L
 
         private const val FIRST_BACKOFF_MS = 5 * 60_000L

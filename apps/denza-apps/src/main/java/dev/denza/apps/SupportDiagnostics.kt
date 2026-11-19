@@ -22,7 +22,6 @@ import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
-import dev.denza.apps.feature.cloud.CloudNetworkKind
 import dev.denza.apps.feature.media.MediaKeyRider
 import dev.denza.apps.feature.simulcast.SimulcastApps
 import dev.denza.apps.feature.simulcast.SimulcastCoordinator
@@ -156,7 +155,7 @@ object SupportDiagnostics {
         val tile = CloudLinkStatus.words(
             CloudLinkRuntime.snapshot(
                 enabled = enabled,
-                network = network.kind != CloudNetworkKind.NONE,
+                network = CloudNetwork.usableOf(network.kind),
                 pendingDisable = CloudLinkSettings.pendingDisable(context),
                 nowMs = SystemClock.elapsedRealtime(),
             ),

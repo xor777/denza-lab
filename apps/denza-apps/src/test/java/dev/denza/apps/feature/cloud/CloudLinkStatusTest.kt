@@ -58,4 +58,21 @@ class CloudLinkStatusTest {
         assertEquals("На связи", words(nowMs = 90_000L))
         assertEquals("Нет свежих данных", words(nowMs = 90_001L))
     }
+
+    /** On, no Wi-Fi, mobile internet up: the adapter waits for Wi-Fi and says so, not «no internet». */
+    @Test fun onWithMobileInternetOnlyReadsNoWifi() {
+        val mobile = CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "46001")
+        CloudLinkRuntime.car = CloudCarState("triple_apn", "triple_apn", false, connected = false)
+        CloudLinkRuntime.readAtMs = 90_000L
+        val snapshot = CloudLinkRuntime.snapshot(true, CloudNetwork.usableOf(mobile.kind), pendingDisable = false, nowMs = 94_000L)
+        assertEquals("Нет Wi-Fi", CloudLinkStatus.words(snapshot))
+    }
+
+    /** A client connected by the car's own cellular path is connected, whatever the adapter waits for. */
+    @Test fun aClientOnTheCarsOwnPathReadsConnected() {
+        CloudLinkRuntime.car = CloudCarState("triple_apn", "triple_apn", false, cellular = true, connected = true)
+        CloudLinkRuntime.readAtMs = 90_000L
+        val snapshot = CloudLinkRuntime.snapshot(true, network = false, pendingDisable = false, nowMs = 94_000L)
+        assertEquals("На связи", CloudLinkStatus.words(snapshot))
+    }
 }

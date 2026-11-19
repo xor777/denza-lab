@@ -21,6 +21,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [Automatic failures clear with the next working pass, 2026-10-08](#automatic-failures-clear-with-the-next-working-pass-2026-10-08)
   - [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09)
   - [The cloud takes a Chinese ICCID, 2026-10-09](#the-cloud-takes-a-chinese-iccid-2026-10-09)
+  - [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19)
   - [Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24](#build-59-confirmed-application-fixes-and-cache-refresh-investigation-2026-09-24)
   - [Offline identity preparation and command 211 reproduction, 2026-09-24](#offline-identity-preparation-and-command-211-reproduction-2026-09-24)
   - [R-SIM terminology and configurable ICCID, 2026-09-24](#r-sim-terminology-and-configurable-iccid-2026-09-24)
@@ -135,6 +136,7 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   **Only Wi-Fi is proven on a car.** Mobile data from a local SIM was added on
   2026-09-23 for owners with such a SIM to test (see below).
   > **Checked 2026-10-03:** still true on main. `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`) counts a validated Wi-Fi or cellular default network as usable. A Wi-Fi-only factory rule existed only in WIP commit 9cc0247e, which eed3a411 reverted (kept on branch `archive/cloudmanager-runtime`).
+  > **Superseded 2026-11-19:** the adapter acts only on validated Wi-Fi as the default network (`CloudNetwork.usableOf`); mobile data is read for the report and never acted on. The cloud takes the registration only from a Chinese ICCID, on any transport, so acting on mobile data never helped a car and could disturb one whose own path works — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 - **On**: when the car is not on `double_apn` with APN1 disabled, send the
   profile broadcast, wait 3 s and read the profile back. Then, with usable
   internet and TCP≠1, send one `4`.
@@ -144,6 +146,7 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   mobile data is not a loss: the client's socket drops with the old network,
   and its own reconnect, or the repeat after the 90 s settle, carries it
   over.
+  > **Superseded 2026-11-19:** Wi-Fi giving way to mobile data is a loss like any other; the adapter does not carry the client onto mobile data — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 - **Repeats**: the stock `BYDMultiApnConnReceiver` sends `-5` on any
   `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not CONNECTED. So a car on
   usable internet that reads TCP≠1 is told `4` again, once the disconnection
@@ -1056,6 +1059,9 @@ carry (`CloudFailure.report`, «<word>: <reason>»). The whole vocabulary:
 | «Выключено» | switched off |
 | «На связи» | TCP 1 - also when the adapter's last pass read the car and then failed at something else |
 | «Нет интернета» | on, no usable internet |
+
+> **Superseded 2026-11-19:** the row reads «Нет Wi-Fi» / "No Wi-Fi": on, no validated Wi-Fi, mobile data included; a client connected by the car's own path still reads «На связи» — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
+
 | «Подключается» | on, on internet, not connected yet |
 | «Не включилось» / «Не выключилось» | a press the car did not take, by its direction; a pending disable is «Не выключилось» |
 | «Нет свежих данных» | the car could not be read (a failed pass that never got its reading, or a reading older than 90 s) |
@@ -1105,7 +1111,10 @@ What this means for main:
   A Wi-Fi-only rule was committed the same day (`ea94cee3`) and reverted
   before it reached any car, once the rSIM report arrived: it would have cut
   exactly that setup.
-- **The panel says the condition, briefly.** The «Облако» note: the car goes
+  > **Superseded 2026-11-19:** the rule is Wi-Fi only. The same identity condition argues for it: a car whose modem presents an ICCID the cloud accepts has the car's own cellular path, and one that does not is refused on any transport. The rSIM report above is relayed, not captured, and records neither the transport nor whether the adapter or the car's own APN carried the session — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
+- **The panel says the condition, briefly.** (Superseded 2026-11-19: the
+  note is one sentence, «Через Wi-Fi приложение Denza на телефоне управляет
+  машиной.») The «Облако» note: the car goes
   to the cloud over Wi-Fi or mobile internet, the phone app then works as
   usual, status and control, and the link comes back if the modem sees a
   Chinese ICCID — from the factory eSIM or from an rSIM. At the owner's
@@ -1117,6 +1126,53 @@ What this means for main:
 
 The custom-SIM runtime that would present a different identity to the cloud
 stays on branch `archive/cloudmanager-runtime` and is not part of main.
+
+### Three ways to break a working car, 2026-11-19
+
+Code change, not yet on any car. The cause below is the code's, read from it;
+it has not been reproduced on a car.
+
+A car whose SIM adapter presents an ICCID the cloud accepts has a working
+path of its own: its stock client connects by itself over the cellular APN,
+and the adapter has nothing to add. On such a car, by the owner's report,
+switching the link on lost the cloud. Read against `CloudLinkCore`, the
+adapter had three ways to break a working car; each is now closed by a rule.
+
+**1. Mobile data triggered a profile change.** Usable internet was validated
+Wi-Fi *or* mobile data, and the only guard against the car's own cellular
+path was `stockApnBusy` — APN1 or APN3 connected or in transition at that
+instant. When both were momentarily idle with TCP 0 (a sleep/wake, a tunnel,
+the start-up), `reconcile` planned `UseWifiProfile` with no Wi-Fi anywhere,
+and `double_apn` disables APN1.
+
+*Rule: the adapter acts only on validated Wi-Fi as the default network*
+(`CloudNetwork.usableOf`). Mobile data is read for the report and never
+changes the profile or announces anything, at any entry (`switchedOn`,
+`reconcile`, `networkReturned`).
+
+Why mobile data never earned its place: the cloud takes the registration only
+from a Chinese ICCID, on any transport
+([The cloud takes a Chinese ICCID](#the-cloud-takes-a-chinese-iccid-2026-10-09)).
+A car with mobile internet of its own has it either from a SIM whose identity
+the cloud accepts — then the stock client connects by its own cellular path
+and needs nothing from us — or from one it refuses, and then a `4` over
+mobile data never produced a session: every fresh code 3 came from a local
+SIM, and no TCP 1 on mobile data has been recorded
+([Build-58 follow-up](#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24)).
+One record points the other way: the relayed report of 2026-10-09 that an
+rSIM over a local SIM works. It is not a capture, and it records neither the
+transport nor whether the adapter or the car's own APN carried the session;
+it is the case that reverted the first Wi-Fi-only rule (`ea94cee3`). A car of
+that kind that does need the adapter over mobile data would now read «Нет
+Wi-Fi»; a report from one is what would reopen the question.
+
+The tile follows: with the switch on, no Wi-Fi and the client not connected,
+it reads «Нет Wi-Fi» / "No Wi-Fi" (it was «Нет интернета», which a car on
+mobile internet would have shown while it had some). A client connected by
+the car's own path still reads «На связи». The panel's sentence is «Через
+Wi-Fi приложение Denza на телефоне управляет машиной.» / "Over Wi-Fi, the
+Denza app on the phone controls the car."; boards `sheet-cloud` and
+`one-sheet-cloud` carry it.
 
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 

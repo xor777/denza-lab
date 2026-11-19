@@ -605,7 +605,7 @@
     blocks: [
       { t: 'switch', title: 'Поддерживать связь с облаком', on: true },
       { t: 'switch', title: 'Держать Wi-Fi включённым', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
-      { t: 'note', text: 'Приложение Denza на телефоне управляет машиной.' }
+      { t: 'note', text: 'Через Wi-Fi приложение Denza на телефоне управляет машиной.' }
     ]
   }, { tile: 'CLOUD', cloud: true, wifi: false });
 

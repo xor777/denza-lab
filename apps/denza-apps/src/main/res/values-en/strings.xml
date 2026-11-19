@@ -89,7 +89,7 @@
     <string name="cloud_no_link">No link</string>
     <string name="cloud_off">Off</string>
     <string name="cloud_active">Connected</string>
-    <string name="cloud_no_internet">No internet</string>
+    <string name="cloud_no_wifi">No Wi-Fi</string>
     <string name="cloud_connecting">Connecting</string>
 
     <!-- Simulcast -->
@@ -250,7 +250,7 @@
     <string name="sheet_speakers_help">The speakers rise for music from any app.</string>
     <string name="sheet_speakers_auto">Automatic speaker control</string>
     <string name="sheet_speakers_raise">Raise</string>
-    <string name="sheet_cloud_help">The Denza app on the phone controls the car.</string>
+    <string name="sheet_cloud_help">Over Wi-Fi, the Denza app on the phone controls the car.</string>
     <string name="sheet_cloud_keep_link">Keep the cloud link up</string>
     <string name="sheet_cloud_keep_wifi">Keep Wi-Fi on</string>
     <string name="sheet_cloud_keep_wifi_cost">The battery may drain faster while parked</string>

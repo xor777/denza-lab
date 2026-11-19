@@ -90,7 +90,7 @@
     <string name="cloud_no_link">Нет связи</string>
     <string name="cloud_off">Выключено</string>
     <string name="cloud_active">На связи</string>
-    <string name="cloud_no_internet">Нет интернета</string>
+    <string name="cloud_no_wifi">Нет Wi-Fi</string>
     <string name="cloud_connecting">Подключается</string>
 
     <!-- Simulcast -->
@@ -267,7 +267,7 @@
     <string name="sheet_speakers_help">Динамики выезжают под музыку из любого приложения.</string>
     <string name="sheet_speakers_auto">Автоуправление динамиками</string>
     <string name="sheet_speakers_raise">Поднять</string>
-    <string name="sheet_cloud_help">Приложение Denza на телефоне управляет машиной.</string>
+    <string name="sheet_cloud_help">Через Wi-Fi приложение Denza на телефоне управляет машиной.</string>
     <string name="sheet_cloud_keep_link">Поддерживать связь с облаком</string>
     <string name="sheet_cloud_keep_wifi">Держать Wi-Fi включённым</string>
     <string name="sheet_cloud_keep_wifi_cost">На стоянке аккумулятор может разряжаться быстрее</string>
