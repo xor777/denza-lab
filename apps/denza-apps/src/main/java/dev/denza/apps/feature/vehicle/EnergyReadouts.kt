@@ -169,11 +169,16 @@ internal class EnergyReadouts {
 
         direction = when {
             telemetry.charging -> Direction.FROM_CHARGER
-            load == null || band == ContourFlow.NEUTRAL -> Direction.NEUTRAL
-            band == ContourFlow.OUT -> Direction.FROM_PACK
+            load == null -> Direction.NEUTRAL
             // The engine's run, not `GENERATION_KW`, which reads zero on the move: what comes into
-            // the pack while the engine runs is the engine's charge on both screens (contract §2.5).
-            telemetry.engineRunning == true -> Direction.FROM_ENGINE
+            // the pack while the engine runs is the engine's charge on both screens (contract §2.5),
+            // however small - the block counts every kilowatt of it. So this is asked before the
+            // neutral zone, which is about a direction nobody can name: the engine has named it.
+            // Until 2026-11-19 the zone came first, and a 4 kW charge from a running engine read
+            // «Батарея» on the car page while the cluster's block credited it to the run.
+            telemetry.engineRunning == true && -load >= ENGINE_CHARGE_KW -> Direction.FROM_ENGINE
+            band == ContourFlow.NEUTRAL -> Direction.NEUTRAL
+            band == ContourFlow.OUT -> Direction.FROM_PACK
             else -> Direction.TO_PACK
         }
         // A sentence that names a source is blue whatever the magnitude is. «В БАТАРЕЮ ОТ
@@ -341,6 +346,13 @@ internal class EnergyReadouts {
          * cluster's own hold.
          */
         val ENGINE_HOLD_SECONDS: Long = ContourScene.ENGINE_HOLD_SECONDS.toLong()
+
+        /**
+         * The least charge «В батарею от ДВС» names: what the whole-kilowatt figure under it prints
+         * as «1». Below it the figure says «0», and a source named over nothing is a pack with no
+         * direction - the neutral sentence, as with the engine off.
+         */
+        const val ENGINE_CHARGE_KW = 0.5
 
         /** The cluster's first seat, which is the trip's net: the slot the figure is memoised in. */
         private const val TRIP_SEAT = 0

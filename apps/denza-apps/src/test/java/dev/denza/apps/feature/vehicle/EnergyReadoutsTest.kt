@@ -102,6 +102,17 @@ open class EnergyReadoutsTest {
                 trace = trace(60, 8f),
                 trip = engineTrip,
             ),
+            // Inside the neutral zone: the car page names the engine, the cluster's hero stays white.
+            "engine charging lightly" to snapshot(
+                powerKw = -4.0,
+                values = mapOf(
+                    VehicleSignal.ENGINE_RUNNING to 3.0,
+                    VehicleSignal.ENGINE_RPM to 1650.0,
+                ),
+                buckets = electric,
+                trace = trace(60, 4f),
+                trip = engineTrip,
+            ),
             "engine running and charging nothing" to snapshot(
                 powerKw = 34.0,
                 values = mapOf(
@@ -570,6 +581,35 @@ open class EnergyReadoutsTest {
         assertEquals("a return with the engine off is a return", EnergyReadouts.WORD_TO_PACK, readouts.word)
         readouts.read(snapshot(powerKw = 34.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)), parked = false)
         assertEquals("out of the pack is out of the pack", EnergyReadouts.WORD_FROM_PACK, readouts.word)
+    }
+
+    /**
+     * However small the charge: the neutral zone is about a direction nobody can name, and a running
+     * engine names it. Entered from neutral, 4 kW into the pack is inside the zone's ±4.5 kW, and
+     * until 2026-11-19 the car page said «Батарея» there while the cluster's block counted the same
+     * kilowatts as the run's. A charge whose figure prints «0» names nothing, engine or not.
+     */
+    @Test
+    fun aSmallChargeFromARunningEngineStillNamesTheEngine() {
+        val running = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)
+        for (kw in listOf(-4.0, -2.0, -1.0, -0.5)) {
+            val readouts = EnergyReadouts()
+            readouts.read(snapshot(powerKw = 0.0, values = running), parked = false)
+            readouts.read(snapshot(powerKw = kw, values = running), parked = false)
+            assertEquals("$kw kW from neutral", EnergyReadouts.WORD_FROM_ENGINE, readouts.word)
+            assertTrue("$kw kW: the mark leads it", readouts.mark)
+            assertEquals("$kw kW: and it is blue", ContourFlow.BACK, readouts.flow)
+        }
+        for (kw in listOf(0.0, -0.3, 2.0)) {
+            val readouts = EnergyReadouts()
+            readouts.read(snapshot(powerKw = kw, values = running), parked = false)
+            assertEquals("$kw kW is no charge to name", EnergyReadouts.WORD_NEUTRAL, readouts.word)
+            assertFalse(readouts.mark)
+        }
+        // And the same small charge with the engine off is still a pack with no direction.
+        val off = EnergyReadouts()
+        off.read(snapshot(powerKw = -4.0, values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
+        assertEquals(EnergyReadouts.WORD_NEUTRAL, off.word)
     }
 
     /**

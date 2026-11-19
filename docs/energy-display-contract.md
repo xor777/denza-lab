@@ -46,6 +46,17 @@ The *direction* is a word and a colour, never a sign:
 | in, engine running (§2.5; until 2026-11-19 «engine generating», `G > 0`) | «● В БАТАРЕЮ ОТ ДВС» | `RETURN_INK` |
 | in, charger agreed (`VehicleTelemetry.charging`) | «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | `RETURN_INK` |
 
+**The engine's row outranks the first one** (since 2026-11-19): with the engine
+running, any charge the whole figure prints - from 0.5 kW into the pack
+(`EnergyReadouts.ENGINE_CHARGE_KW`) - is «● В БАТАРЕЮ ОТ ДВС» in `RETURN_INK`,
+inside the neutral zone too, because the engine's block counts every kilowatt of
+it (§2.5). A charge that prints «0» names nothing and stays «БАТАРЕЯ».
+
+> **Superseded 2026-11-19:** the first row held for a running engine as well, so
+> 4 kW into the pack from the engine, entered from neutral, read «Батарея» on the
+> car page while the cluster's block credited the same kilowatts to the run
+> (`EnergyReadoutsTest.aSmallChargeFromARunningEngineStillNamesTheEngine`).
+
 The figure is `|P|` rounded to a whole kilowatt. **The minus is never printed for
 power**, on either screen. The cluster already says direction with the band's
 side and the hero's colour; the car page says it with the word and the colour.
@@ -380,8 +391,9 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
   за поездку», over a bare figure. The block narrowed to 296 with a 128 column the
   same day, so «8888 об/мин» stands two trace gaps clear of its line.
 - **The car page** draws no chart. Its headline «● В БАТАРЕЮ ОТ ДВС» is printed
-  whenever the pack takes charge with the engine running - the block's condition.
-  Were it to gain the chart, the place is the trip cell's slot on the full
+  whenever the pack takes charge with the engine running - the block's condition -
+  inside the neutral zone too, from the first kilowatt its figure prints (§2.1,
+  since 2026-11-19). Were it to gain the chart, the place is the trip cell's slot on the full
   screen's second row, the same way the cluster gives the block the trip's group.
 - **Nothing about the engine is drawn on the band**, as before.
 
@@ -687,7 +699,7 @@ test.
   consumption figure and colour, window caption, the hundred points, the engine
   block's figure and time. Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** `EnergyReadoutsTest` runs one list of snapshots -
-  electric drive, return, engine charging, engine running and charging nothing,
+  electric drive, return, engine charging, engine charging lightly (inside the neutral zone), engine running and charging nothing,
   engine just stopped, engine stopped past the hold, engine ran yesterday, standing, charging, a charge the
   pack's own id reads as nothing, filling window, a road that gave back more, a
   seam in the record, a kilometre past 60, link lost, a dropped read - through
