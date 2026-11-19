@@ -54,8 +54,8 @@ class TripSensorHub(context: Context) : LocationListener {
 
     /**
      * The panel's audio capture. Process-scoped like the engine, but unlike the
-     * engine it holds a real system effect, so it is attached and released with
-     * the panel's visibility exactly as the sensors are.
+     * engine it holds a real system effect, so it is attached only while the sound
+     * page - the one page that draws it - is visible ([listen]).
      */
     val spectrum = SpectrumSource()
 
@@ -80,8 +80,15 @@ class TripSensorHub(context: Context) : LocationListener {
         hostContext = host
         ensureLocationAccess()
         park.start()
-        spectrum.start(appContext, this)
         nowPlaying.start(appContext)
+    }
+
+    /**
+     * Hold the audio capture while the sound page is up ([StripHolds]); the car page draws no
+     * analyser. Only while the hub runs: [stop] releases it whatever the page.
+     */
+    fun listen(value: Boolean) {
+        if (value && running) spectrum.start(appContext, this) else spectrum.stop(this)
     }
 
     fun stop() {

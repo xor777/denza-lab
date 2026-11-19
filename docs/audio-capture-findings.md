@@ -16,6 +16,7 @@ Updated 2026-11-19.
 | `Visualizer` on session 0 sees every app's output; `AudioPlaybackCapture` returns silence | live | 2026-08-14 | [Verdict](#verdict) |
 | `RECORD_AUDIO` is required to construct the effect (error -3 without it); the op recorded is `RECORD_AUDIO_OUTPUT` | live | 2026-08-14 | [Permissions](#permissions) |
 | The session-0 effect has one owner, and ours may not be it | live | 2026-08-27 | [The session-0 effect has exactly one owner](#the-session-0-effect-has-exactly-one-owner-2026-08-27) |
+| The strip holds the capture only while its sound page is visible; the car page holds none (`StripHolds`) | code | 2026-11-19 | [Product adoption](#product-adoption) |
 | Without the permission nothing is constructed or scheduled; the ADB heal's result or the panel's next resume attaches, with no restart (`SpectrumKeeper`) | code | 2026-11-19 | [Attaching can fail transiently](#attaching-can-fail-transiently--retry-it) |
 | With the permission a failing construction backs off 4, 8, 16, 32 s and then a minute; a quiet capture is rebuilt on the watchdog's 2 s | code | 2026-11-19 | [Attaching can fail transiently](#attaching-can-fail-transiently--retry-it) |
 | Apple Music's output path | open | - | [Not yet verified](#not-yet-verified) |
@@ -44,9 +45,11 @@ specific to the app that happens to be playing.
 
 The Denza Apps trip/spectrum panel uses this session-0 `Visualizer` path
 through `SpectrumSource`. The process-scoped source
-is reference-counted: the visible panel and the optional speaker-cover
+is reference-counted: the strip's sound page and the optional speaker-cover
 foreground service can share the one global effect without detaching each
-other. While the panel is visible, the same hub also reads the active media
+other. The strip holds it only while the sound page - the one page that draws
+the analyser - is visible; the car page holds no capture (`StripHolds`, since
+2026-11-19). While the panel is visible, on either page, the same hub also reads the active media
 session, standard Android GNSS, and validated Yandex guidance described in
 [vehicle-data-findings.md](vehicle-data-findings.md). Detaching the panel or
 pausing the Activity releases the visualizer and stops those inputs. The old
@@ -327,8 +330,8 @@ capture that has gone quiet.
 a fresh install, or a grant the ADB heal could not make, was an endless retry
 with a failed attach in the log each time - 1800 an hour with the strip open.
 Now an owner without `RECORD_AUDIO` constructs nothing and schedules nothing;
-the ADB heal's result attaches the moment it lands, and the panel's next resume
-(`TripSensorHub.start`) asks again, so a grant made in Settings attaches without
+the ADB heal's result attaches the moment it lands, and the sound page's next showing
+(`TripSensorHub.listen`) asks again, so a grant made in Settings attaches without
 a restart. With the permission, a failing construction waits 4, 8, 16, 32 s and
 then a minute between attempts, and the first success puts the watchdog back on
 its two seconds. The analyser draws its idle state throughout.

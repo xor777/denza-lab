@@ -31,6 +31,21 @@ enum class StripPage {
 }
 
 /**
+ * What the live strip holds for the page it is on, and nothing for the page it is not.
+ *
+ * The audio capture is the analyser's, and only the sound page draws the analyser: the car page used
+ * to keep the system effect and its FFT running for as long as it was up, for bars nobody saw. The
+ * vehicle hub's screen cadence is the car page's, and only while it is up (`VehicleWatcher.STRIP`).
+ * The GNSS fixes and the park feed belong to the trip clock and run on either page.
+ */
+internal data class StripHolds(val spectrum: Boolean, val vehicle: Boolean) {
+    companion object {
+        fun of(live: Boolean, page: StripPage): StripHolds =
+            StripHolds(spectrum = live && page == StripPage.SOUND, vehicle = live && page == StripPage.VEHICLE)
+    }
+}
+
+/**
  * Which page the strip comes back on.
  *
  * Remembered, because a page is a choice rather than a mood: somebody who swiped to the car's

@@ -214,12 +214,14 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         syncVehicle()
     }
 
-    /** The car is polled while its page is on screen, and not one moment longer. */
+    /**
+     * The car is polled while its page is on screen, and the audio is captured while the sound
+     * page is, and neither one moment longer ([StripHolds]).
+     */
     private fun syncVehicle() {
-        vehicle.setActive(
-            VehicleWatcher.STRIP,
-            attached && resumed && fixture == null && page == StripPage.VEHICLE,
-        )
+        val holds = StripHolds.of(attached && resumed && fixture == null, page)
+        vehicle.setActive(VehicleWatcher.STRIP, holds.vehicle)
+        hub.listen(holds.spectrum)
     }
 
     @SuppressLint("ClickableViewAccessibility")
