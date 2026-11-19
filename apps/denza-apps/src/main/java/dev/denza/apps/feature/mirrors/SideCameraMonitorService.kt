@@ -277,17 +277,21 @@ class SideCameraMonitorService : Service() {
     private fun settleStockChoice(stock: AvcStockClient?) {
         if (stockChoiceSettled) return
         val current = stockChoice ?: return
-        val step = MirrorStockChoicePolicy.onEnable(current, MirrorsSettings.stockChoiceBefore(this))
-        val write = step.write
-        if (write == null) {
-            stockChoiceSettled = true
-            return
-        }
-        val after = stock?.writeTurnCameraChoice(write) ?: return
-        Log.i(TAG, "stock turn camera choice $current -> $after (wanted $write)")
-        if (after == write) {
-            step.remember?.let { MirrorsSettings.setStockChoiceBefore(this, it) }
-            stockChoice = after
+        if (stock == null) return
+        val result = MirrorStockChoicePolicy.applyEnable(
+            current = current,
+            remembered = MirrorsSettings.stockChoiceBefore(this),
+            store = { MirrorsSettings.setStockChoiceBefore(this, it) },
+            write = stock::writeTurnCameraChoice,
+        )
+        when (result) {
+            MirrorStockChoicePolicy.EnableResult.Unchanged -> Unit
+            // The stored choice stays: the next poll with no card asks again.
+            MirrorStockChoicePolicy.EnableResult.NoAnswer -> return
+            is MirrorStockChoicePolicy.EnableResult.Answered -> {
+                Log.i(TAG, "stock turn camera choice $current -> ${result.after} (wanted ${result.wanted})")
+                if (result.after == result.wanted) stockChoice = result.after
+            }
         }
         // A car whose AVC keeps the old value has no PIP support: do not ask again this run.
         stockChoiceSettled = true

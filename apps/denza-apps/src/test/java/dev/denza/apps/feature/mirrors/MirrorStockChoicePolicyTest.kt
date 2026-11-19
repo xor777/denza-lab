@@ -21,6 +21,91 @@ class MirrorStockChoicePolicyTest {
     }
 
     @Test
+    fun theOwnersChoiceIsOnDiskBeforeAvcIsAskedToChangeIt() {
+        listOf(PIP_LEFT_ON_METER, FULL_SCREEN, OFF).forEach { owner ->
+            val events = mutableListOf<String>()
+            var stored: AvcTurnCameraChoice? = null
+            MirrorStockChoicePolicy.applyEnable(
+                current = owner,
+                remembered = null,
+                store = { stored = it; events += "store $it"; true },
+                write = { events += "write $it"; it },
+            )
+            assertEquals("from $owner", listOf("store $owner", "write $PIP_ON_HEAD_UNIT"), events)
+            assertEquals(owner, stored)
+        }
+    }
+
+    @Test
+    fun aLostReplyKeepsTheOwnersChoiceForTheNextStartAndTheSwitchOff() {
+        // AVC applies `1` but its reply times out (or the process dies inside the write).
+        var stored: AvcTurnCameraChoice? = null
+        val result = MirrorStockChoicePolicy.applyEnable(
+            current = OFF,
+            remembered = null,
+            store = { stored = it; true },
+            write = { null },
+        )
+        assertEquals(MirrorStockChoicePolicy.EnableResult.NoAnswer, result)
+        assertEquals(OFF, stored)
+
+        // The next monitor reads `1`: already right, and the memory stays.
+        assertEquals(
+            MirrorStockChoicePolicy.EnableResult.Unchanged,
+            MirrorStockChoicePolicy.applyEnable(
+                current = PIP_ON_HEAD_UNIT,
+                remembered = stored,
+                store = { stored = it; true },
+                write = { error("already right: AVC is not asked") },
+            ),
+        )
+        assertEquals(OFF, stored)
+        // Turning Mirrors off gives the owner's `OFF` back.
+        assertEquals(
+            Step(write = OFF, forget = true),
+            MirrorStockChoicePolicy.onDisable(PIP_ON_HEAD_UNIT, remembered = stored),
+        )
+    }
+
+    @Test
+    fun aProcessDyingInsideTheWriteStillLeavesTheOwnersChoiceStored() {
+        var stored: AvcTurnCameraChoice? = null
+        runCatching {
+            MirrorStockChoicePolicy.applyEnable(
+                current = PIP_LEFT_ON_METER,
+                remembered = null,
+                store = { stored = it; true },
+                write = { throw IllegalStateException("process killed") },
+            )
+        }
+        assertEquals(PIP_LEFT_ON_METER, stored)
+    }
+
+    @Test
+    fun aWriteAvcDidNotTakeLeavesNothingToGiveBack() {
+        var stored: AvcTurnCameraChoice? = null
+        val result = MirrorStockChoicePolicy.applyEnable(
+            current = OFF,
+            remembered = null,
+            store = { stored = it; true },
+            write = { OFF },
+        )
+        assertEquals(MirrorStockChoicePolicy.EnableResult.Answered(PIP_ON_HEAD_UNIT, OFF), result)
+        assertEquals("read-back proved the write did not land", null, stored)
+    }
+
+    @Test
+    fun aChoiceThatCannotBeStoredIsNeverWrittenOver() {
+        val result = MirrorStockChoicePolicy.applyEnable(
+            current = OFF,
+            remembered = null,
+            store = { false },
+            write = { error("AVC must not be asked without the owner's choice on disk") },
+        )
+        assertEquals(MirrorStockChoicePolicy.EnableResult.Unchanged, result)
+    }
+
+    @Test
     fun anAlreadyRightChoiceIsLeftAloneAndAnEarlierMemoryIsKept() {
         assertEquals(Step(), MirrorStockChoicePolicy.onEnable(PIP_ON_HEAD_UNIT, remembered = null))
         assertEquals(Step(), MirrorStockChoicePolicy.onEnable(PIP_ON_HEAD_UNIT, remembered = OFF))

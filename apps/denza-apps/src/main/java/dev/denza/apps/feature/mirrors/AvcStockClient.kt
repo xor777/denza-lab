@@ -52,6 +52,40 @@ object MirrorStockChoicePolicy {
     fun onEnable(current: AvcTurnCameraChoice, remembered: AvcTurnCameraChoice?): Step =
         if (current == WANTED) Step() else Step(write = WANTED, remember = remembered ?: current)
 
+    sealed interface EnableResult {
+        /** Already right, or the owner's choice could not be stored, so AVC was not asked. */
+        data object Unchanged : EnableResult
+
+        /** AVC answered; [after] is what it reports now. */
+        data class Answered(val wanted: AvcTurnCameraChoice, val after: AvcTurnCameraChoice) : EnableResult
+
+        /** No answer: the write may have landed. The stored choice stays; ask again later. */
+        data object NoAnswer : EnableResult
+    }
+
+    /**
+     * The enable step in an order that survives a lost reply and a dead process: the owner's
+     * choice is stored ([store], durable, false when it did not reach the disk) before AVC is
+     * asked to change it ([write]), and taken back only when AVC's answer proves the write did not
+     * land. Saving after the write lost it: a reply that timed out, or the process dying between
+     * the two, left `1` in AVC and nothing stored, and the next start read `1` as already right.
+     */
+    fun applyEnable(
+        current: AvcTurnCameraChoice,
+        remembered: AvcTurnCameraChoice?,
+        store: (AvcTurnCameraChoice?) -> Boolean,
+        write: (AvcTurnCameraChoice) -> AvcTurnCameraChoice?,
+    ): EnableResult {
+        val step = onEnable(current, remembered)
+        val wanted = step.write ?: return EnableResult.Unchanged
+        val storedNow = step.remember != remembered
+        if (storedNow && !store(step.remember)) return EnableResult.Unchanged
+        val after = write(wanted) ?: return EnableResult.NoAnswer
+        // AVC kept another value: nothing of ours to give back, so nothing of the owner's to keep.
+        if (after != wanted && storedNow) store(remembered)
+        return EnableResult.Answered(wanted, after)
+    }
+
     fun onDisable(current: AvcTurnCameraChoice, remembered: AvcTurnCameraChoice?): Step = when {
         remembered == null -> Step()
         current == WANTED && remembered != WANTED -> Step(write = remembered, forget = true)

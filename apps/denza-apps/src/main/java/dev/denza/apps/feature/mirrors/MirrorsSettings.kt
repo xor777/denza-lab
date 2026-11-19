@@ -64,12 +64,16 @@ object MirrorsSettings {
     fun stockChoiceBefore(context: Context): AvcTurnCameraChoice? =
         AvcTurnCameraChoice.fromWire(prefs(context).getInt(STOCK_CHOICE_BEFORE, -1))
 
-    @SuppressLint("UseKtx")
-    fun setStockChoiceBefore(context: Context, choice: AvcTurnCameraChoice?) {
+    /**
+     * Written to disk before it returns (true when it got there): the monitor stores the owner's
+     * choice before it asks AVC to change it, so a process that dies right after still has it.
+     * Never called on the main thread.
+     */
+    @SuppressLint("UseKtx", "ApplySharedPref")
+    fun setStockChoiceBefore(context: Context, choice: AvcTurnCameraChoice?): Boolean =
         prefs(context).edit().apply {
             if (choice == null) remove(STOCK_CHOICE_BEFORE) else putInt(STOCK_CHOICE_BEFORE, choice.wire)
-        }.apply()
-    }
+        }.commit()
 
     fun statusDetails(context: Context): String =
         prefs(context).getString(STATUS_DETAILS, "").orEmpty()
