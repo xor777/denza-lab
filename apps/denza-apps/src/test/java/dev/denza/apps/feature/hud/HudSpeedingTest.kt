@@ -121,4 +121,26 @@ class HudSpeedingTest {
         assertEquals(0f, speeding.level(), 0f)
         assertTrue(speeding.settled())
     }
+
+    @Test
+    fun anotherCameraStartsPlainEvenInsideTheOldOnesBand() {
+        // At 69 km/h a 50 camera is red; the next camera, 60, is over 68 and under 70: within its
+        // band but never entered. It is plain.
+        assertEquals(1f, follow(camera(50), 69.0, 0, 3_000), 0f)
+        val next = HudRadarWarning(3_050, true, HudRadarWarning.GPS_FIX, true, 2, 1, "Камера", 300, 60, 1, false, -1, "", "")
+        assertEquals(0f, follow(next, 69.0, 3_050, 6_000), 0f)
+        assertTrue(speeding.settled())
+    }
+
+    @Test
+    fun theSameCameraObservedAgainKeepsItsRed() {
+        assertEquals(1f, follow(camera(50, at = 0), 69.0, 0, 3_000), 0f)
+        assertEquals(1f, follow(camera(50, at = 3_000), 69.0, 3_050, 4_000), 0f)
+    }
+
+    @Test
+    fun aCameraWhoseLimitChangesStartsPlain() {
+        assertEquals(1f, follow(camera(50), 69.0, 0, 3_000), 0f)
+        assertEquals(0f, speeding.update(camera(60), 69.0, 3_050), 0f)
+    }
 }

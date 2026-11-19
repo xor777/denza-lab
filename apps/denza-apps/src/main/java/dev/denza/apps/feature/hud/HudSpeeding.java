@@ -32,13 +32,29 @@ final class HudSpeeding {
     private boolean fined;
     private float level;
     private long at = -1L;
+    /** The last camera {@link #update(HudRadarWarning, Double, long)} was given; null before any. */
+    private HudRadarWarning camera;
 
     /**
      * The red now for {@code camera} - the warning shown, null for none - and the wheels'
      * {@code kmh}, null when the car has not said or its reading went stale: no speed is no red.
+     * Another camera starts plain: the latch and the red were the previous one's, and at 69 km/h
+     * a 50 camera's red stayed on for a 60 camera the driver never went over by ten (2026-11-19).
      */
     float update(HudRadarWarning camera, Double kmh, long now) {
-        return camera == null ? update(0, null, now) : update(camera.limit, inUnit(kmh, camera.unit), now);
+        if (camera == null) {
+            return update(0, null, now);
+        }
+        if (this.camera != null && !sameCamera(this.camera, camera)) {
+            reset();
+        }
+        this.camera = camera;
+        return update(camera.limit, inUnit(kmh, camera.unit), now);
+    }
+
+    /** The same camera's warning: its object, its limit and its unit; a new observation of it is the same. */
+    static boolean sameCamera(HudRadarWarning a, HudRadarWarning b) {
+        return a.objectId == b.objectId && a.limit == b.limit && a.unit == b.unit;
     }
 
     /**
@@ -89,5 +105,6 @@ final class HudSpeeding {
         fined = false;
         level = 0f;
         at = -1L;
+        camera = null;
     }
 }

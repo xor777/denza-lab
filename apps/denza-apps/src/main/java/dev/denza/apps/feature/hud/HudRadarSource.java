@@ -38,6 +38,8 @@ final class HudRadarSource {
     private final HudSink sink;
     private final Renderer renderer;
     private HudRadarWarning last;
+    /** The last warning drawn in the lane window; its red is {@link #red}. */
+    private HudRadarWarning drawn;
     private float red;
 
     HudRadarSource(HudSink sink, Renderer renderer) {
@@ -53,6 +55,11 @@ final class HudRadarSource {
             return;
         }
         if (observation.active) {
+            // Another camera is drawn plain: the red was the previous one's (HudSpeeding.update).
+            if (drawn != null && !HudSpeeding.sameCamera(drawn, observation)) {
+                red = 0f;
+            }
+            drawn = observation;
             sink.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
                     .number(Road.LANE_COUNT, HudRadarPainter.LANE_CELLS)
                     .bytes(Road.LANES_PNG, renderer.lanes(observation, red).png())
@@ -90,6 +97,7 @@ final class HudRadarSource {
     /** The cameras went off: what was published is gone, and the next warning starts plain. */
     void forget() {
         last = null;
+        drawn = null;
         red = 0f;
     }
 

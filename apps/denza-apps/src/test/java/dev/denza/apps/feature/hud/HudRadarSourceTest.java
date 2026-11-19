@@ -122,4 +122,16 @@ public class HudRadarSourceTest {
         radar.publish(warning(now),now);
         assertEquals(0f,reds.get(reds.size()-1),0f);
     }
+    @Test public void anotherCameraIsDrawnPlainNotWithThePreviousOnesRed() {
+        now=1000; route();
+        radar.publish(warning(now),now);
+        radar.setRed(1f,now);
+        HudRadarWarning next=new HudRadarWarning(now,true,HudRadarWarning.GPS_FIX,true,2,1,"Камера",300,60,1,false,-1,"cam_type_1","cam_speed_box_red");
+        radar.publish(next,now=1100);
+        assertEquals(0f,reds.get(reds.size()-1),0f);
+        // The same camera observed again keeps its red.
+        radar.setRed(1f,now);
+        radar.publish(new HudRadarWarning(now=1200,true,HudRadarWarning.GPS_FIX,true,2,1,"Камера",250,60,1,false,-1,"cam_type_1","cam_speed_box_red"),now);
+        assertEquals(1f,reds.get(reds.size()-1),0f);
+    }
 }
