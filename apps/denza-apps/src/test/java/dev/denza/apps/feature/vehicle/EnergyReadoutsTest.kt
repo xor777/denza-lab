@@ -446,6 +446,40 @@ open class EnergyReadoutsTest {
     }
 
     /**
+     * A charge left standing: the reader stalls with the gun in. The charger's fields are cold and
+     * survive the hot horizon, and the car page rebuilt «7 кВт» under «В батарею от зарядки» from
+     * them after the cluster's power had gone. A dropped read carries the same cold fields.
+     */
+    @Test
+    fun aChargeLeftStandingLeavesBothScreensOnOneHorizonToo() {
+        val stamp = 50_000L
+        val standing = snapshot(
+            powerKw = 0.0,
+            values = mapOf(
+                VehicleSignal.CHARGE_GUN to 2.0,
+                VehicleSignal.CHARGE_KW to 7.0,
+                VehicleSignal.CHARGE_MINUTES to 35.0,
+            ),
+        ).copy(hotReadAtMillis = stamp)
+        for ((seconds, live) in listOf(0.5f to true, 2.1f to false, 30f to false)) {
+            val panel = ContourPanel()
+            panel.run(standing, 0.01f)
+            val frame = panel.run(standing, seconds, quiet = true)
+            val model = StripModel().also { StripReadings().car(it, standing, stamp + (seconds * 1000f).toLong()) }
+            assertEquals("$seconds s: the cluster's power", live, frame.heroFigure != null)
+            assertEquals("$seconds s: the car page's power", live, model.power.figure != null)
+            val caption = if (live) EnergyReadouts.WORD_FROM_CHARGER_SENTENCE else EnergyReadouts.WORD_NEUTRAL_SENTENCE
+            assertEquals("$seconds s: the caption", caption, model.power.caption)
+        }
+
+        val dropped = standing.withoutHot()
+        val readouts = EnergyReadouts()
+        readouts.read(dropped, parked = true)
+        assertNull("no figure from the cold fields", readouts.powerFigure)
+        assertEquals(EnergyReadouts.Direction.NEUTRAL, readouts.direction)
+    }
+
+    /**
      * The trip's cell, which the car page gained from the cluster's first seat: the same integral,
      * a tenth, under the cluster's own phrase in sentence case - and nothing at all until the car
      * has answered.

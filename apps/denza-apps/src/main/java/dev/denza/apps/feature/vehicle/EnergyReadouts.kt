@@ -169,8 +169,10 @@ internal class EnergyReadouts {
         powerFigure = load?.let { figures.whole(ContourFigures.Slot.POWER, abs(it)) }
 
         direction = when {
-            telemetry.charging -> Direction.FROM_CHARGER
+            // A live sentence over a live reading: with no pack power in the sweep the charger's
+            // cold fields are what is left of a charge, not news of one.
             load == null -> Direction.NEUTRAL
+            telemetry.charging -> Direction.FROM_CHARGER
             // The engine's run, not `GENERATION_KW`, which reads zero on the move: what comes into
             // the pack while the engine runs is the engine's charge on both screens (contract §2.5),
             // however small - the block counts every kilowatt of it. So this is asked before the
@@ -371,13 +373,19 @@ internal class EnergyReadouts {
          * that drew *that* while «В БАТАРЕЮ ОТ ЗАРЯДКИ» stood over it was two readings of one
          * event. The cluster substituted and the
          * car page did not, so the same charge was 7 kW on one screen and 0 on the other.
+         *
+         * **Only over a pack reading of this sweep.** The charger's fields are cold and outlive
+         * the hot ones - a dropped read and an expired snapshot both carry them - and a live
+         * figure rebuilt from them kept «7 кВт» under «В батарею от зарядки» on the car page after
+         * the cluster's power had gone (until 2026-11-19).
          */
         fun packKilowatts(t: VehicleTelemetry): Double? {
+            val pack = t.loadKw ?: return null
             if (t.charging) {
                 val charge = t.chargeKw
                 if (charge != null) return -abs(charge)
             }
-            return t.loadKw
+            return pack
         }
     }
 }

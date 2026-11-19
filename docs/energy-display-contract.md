@@ -85,7 +85,13 @@ charger delivers, on a car standing on a charger - the board electronics take
 their share first - so the two would otherwise be one event drawn twice: the cluster substituted and the car page printed the
 raw id, and the same charge was 7 kW on one screen and 0 on the other. The
 substitution is `EnergyReadouts.packKilowatts`, and it is the only place either
-screen decides what the pack is doing.
+screen decides what the pack is doing. **It is made only over a pack reading of
+the same sweep** (since 2026-11-19): the charger's fields are cold and outlive
+the hot ones, and an expired or dropped snapshot rebuilt «7 кВт» under «В
+батарею от зарядки» on the car page after the cluster's power had gone. With no
+pack reading there is no figure and the neutral caption, as for any other
+direction
+(`EnergyReadoutsTest.aChargeLeftStandingLeavesBothScreensOnOneHorizonToo`).
 
 *Corrected 2026-10-09:* this paragraph said the id reads «zero or a small load»
 on a charger. No recording shows a load: over both charges recorded on
