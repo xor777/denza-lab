@@ -9,12 +9,17 @@ currently inaccessible vehicle.
 | --- | --- | --- |
 | The startup gate and healthy one-shot request work on the reference DiLink 5.1 car (the one-shot button and its latch were replaced on 2026-11-19, see below) | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
 | Product queue recovery remains disabled pending vehicle acceptance | code | [Vehicle acceptance gate](#vehicle-acceptance-gate) |
-| A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
+| A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`). **Superseded 2026-11-19:** on a trusted key the check is a window of four looks over 10 s, and only definite answers across it leave `TRUSTED`; a feature's refused key or closed port starts that window by itself | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
 | The access row says a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» (the recovery dialog that said them too is gone since 2026-11-19) | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | A foreground opening on a refused key sends one request by itself, holds its socket up to 2 min and leaves the gate on the approval with no press; an approval without the box puts the car's own box on the gate and sends one follow-up; the app sends at most three requests by itself in 24 hours (every request counts, the gate's control is never stopped); the latch, **Я подтвердил — проверить**, **Разрешить новую попытку** and the recovery dialog are gone | code, unit tests and emulator (`ro.adb.secure=1`), 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
 | Review fixes of 2026-11-19: a noisy look no longer drops a held request; each outcome reaches the app once; a request on the car's screen outranks every restore state on the gate; the cap keeps request times dated ahead of the clock; one follow-up per opening, under the cap, and an approval counts as without the box only after 2.5 s; leaving during the handshake sends no key; a throw on the worker ends in `ERROR` with its control; the gate's title names the state when nothing is on the car | code, unit tests and emulator, 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
 | A departure about 40 ms after the dialog's activity starts, before it draws, leaves adbd's prompt pending with no dialog: every later request is skipped until an answer or an adbd restart | emulator (`ro.adb.secure=1`), 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
 | The prompt queue that hid the dialog on 2026-11-19 was held by a pending first prompt for another key, not by the app's repeats; holding the socket did not move it, one rejection did | live (Car ADB Gateway), 2026-11-19 | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
+| Second review of 2026-11-19: while the gate is up and the key is not trusted, a passive look repeats every 5 s whatever the gate shows, so trust that arrives by any route takes the gate down with no press; the 2-min hold looks once more at its end before it says nobody answered; the looks after an approval run from 0 to 10 s and one that fails is looked at again | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
+| One function, `AdbStartupGatePolicy.view`, decides what the gate and the «Сервис» access row show, in one order: a request on the car's screen, a switch read off, the restore's states, the phase (the table is normative). «Все функции работают» needs `TRUSTED`; the restore's report says the car refused the key only when a refusal was seen | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
+| An automatic request is decided and recorded in one place on one clock reading; the first start after 0.7.1 seeds the day's log from `last_attempt_at`, so the upgrade day sends no second prompt behind a 0.7.1 request still waiting; «Технические сведения» counts the keys that reached the car | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
+| A panel saved with the screen waits for the gate; one startup pass per recovery cycle; a feature's refused key or closed port starts one 10 s window of looks, and only definite answers across it leave `TRUSTED`; the restore's switch is written off the main thread and a refused write keeps the setting; a damaged key file falls back to the intact legacy copy; the restore repairs accessibility each time the shared health says it is gone | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
+| What the second review left as known limits, each with its car check | code reading, 2026-11-19 | [Known limits](#known-limits-2026-11-19) |
 | **ADB недоступен** gives the service-centre sentence to a car never trusted and to a switch read off; a car trusted before is told newer firmware closes ADB at start and access comes back over Wi-Fi only while the restore is on and able to act, and otherwise gets the switch reading alone | code and unit tests, 2026-11-19; not on a car | [Product behaviour](#product-behaviour) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot key material is supplied only from an ignored owner-local file; tracked sources contain no private key or public blob | build inputs, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
@@ -24,7 +29,7 @@ currently inaccessible vehicle.
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
 | The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns); `Connecting` ends when the network changes. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
+| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns); `Connecting` ends when the network changes. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back. **Superseded 2026-11-19:** a look that read the switch off outranks every restore state, and an attempt that inherits `Connecting` and ends early leaves it standing ([Known limits](#known-limits-2026-11-19)) | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -38,6 +43,8 @@ currently inaccessible vehicle.
 - [The second asker](#the-second-asker-adb-rescue-probe-built-and-run-2026-08-29)
 - [Stuck prompt queue](#stuck-prompt-queue)
 - [Holding the request, and the prompt queue](#holding-the-request-and-the-prompt-queue-2026-11-19)
+- [The access state and what shows it](#the-access-state-and-what-shows-it-2026-11-19)
+  - [Known limits](#known-limits-2026-11-19)
 - [Live result](#2026-08-18-live-result)
 - [Vehicle acceptance gate](#vehicle-acceptance-gate)
 - [The two states are not actually distinguished](#the-two-states-are-not-actually-distinguished-reported-2026-08-26)
@@ -97,6 +104,13 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   trusts the app gets the feature retried; one that does not leaves `TRUSTED`, and the startup gate
   comes up over the dashboard. The press never submits a key (since 2026-10-09; it used to retry
   the feature under the gate's words «Подтвердите запрос…» or «Включите отладку USB…»).
+
+  > **Superseded 2026-11-19:** one look no longer takes a trusted key away. On `TRUSTED` the check
+  > is four looks at 0, 2, 5 and 10 s (`AdbRescuePolicy.LOSS_LOOKS_MS`); any that gets in ends it
+  > with nothing changed, and only a window of definite answers - the key refused, nothing
+  > listening on 5555 - leaves `TRUSTED`. A feature's own client starts the same window when it is
+  > refused or finds the port closed (`LocalAdbClient.ChannelObserver`), so the press is no longer
+  > the only way the app learns of a loss.
   Outside this window, opening the app (and the accessibility service connecting) runs one passive
   check in every phase that is not `TRUSTED`, unless a check or the request is already in flight
   (`AdbStartupGatePolicy.entryAction`). Until 2026-10-08 only `UNKNOWN` was checked on opening, and
@@ -109,6 +123,12 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   when the phase is `AUTHORIZATION_REQUIRED`, the system switch, read again just before, is not
   off, nothing is held, this opening has not asked yet and fewer than three requests went out in
   the last 24 hours (`AdbAccessCore.autoAllowed`; the times persist in the `adb_rescue` prefs).
+
+  > **Superseded 2026-11-19:** the cap is no longer a check in the loop's pick. `AdbAccessCore.reserve`
+  > reads the clock once on the worker, decides the cap and writes the entry; a request whose key
+  > never reached the car is released and not counted. The first start after 0.7.1, which kept no
+  > log, seeds it from 0.7.1's `last_attempt_at` and `attempt_count`, and a 0.7.1 request still
+  > pending (`request_pending`) stops the first automatic request of the new release.
   Every request counts toward the three - the opening's, the follow-up and a press of the control
   - because each is a queue entry the car keeps; the cap stops only the first two. A time dated
   ahead of the clock counts as recent: a head unit that boots with its clock behind would
@@ -130,6 +150,11 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   reaches the queue. A configuration change keeps the request; one whose screen does not come back
   within 5 s counts as leaving. A denial sends nothing to the transport, so the ring turns until
   the timeout, which ends in `AUTHORIZATION_REQUIRED` with **Запросить снова**.
+
+  > **Superseded 2026-11-19:** at the timeout the hold looks once more before it says nobody
+  > answered, so an approval in its last seconds is not read as none; and while the gate is up the
+  > idle look goes on every 5 s, so a prompt approved with the box after the hold took the gate down
+  > by itself.
 - An approval whose passive looks still refuse the key at 0, 1 and 2.5 s was given without
   **Всегда разрешать отладку с этого компьютера**: only that box persists the key. The framework
   answers adbd before it posts the key's store to its own handler, so a store a second late is
@@ -138,6 +163,11 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   the firmware's `usb_debugging_always` in its language), and one follow-up request goes out at
   once - one per opening, and only under the day's three. Past that the gate keeps the box with
   **Доступ не выдан** and its control.
+
+  > **Superseded 2026-11-19:** the looks after an approval run at 0, 1, 2.5, 5 and 10 s
+  > (`AdbRescuePolicy.APPROVAL_LOOKS_MS`). A look that finds the key trusted ends them; a refusal
+  > from 2.5 s on is the missed box; a look that fails is looked at again, and a window none of
+  > whose looks answered leaves its last, from which the idle look goes on.
 - With no request out, nothing on the car is waiting to be confirmed, so the title is the state:
   **Доступ не выдан** over the switch reading (the glyph in orange) and one control. It reads
   **Запросить снова** once a request went out from this process and ended unanswered or denied,
@@ -157,6 +187,9 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   car's screen; that gate outranks every restore state, since the request follows the look that
   found the refusal on the same worker step and the restore may still be in a state from before
   it.
+
+  > **Superseded 2026-11-19:** the order is one function now, with a switch read off second, above
+  > every restore state; see [The access state](#the-access-state-and-what-shows-it-2026-11-19).
 - Every outcome reaches the app's listener once, so the runtime starts once on an approval and the
   restore hears a refusal once (until the review each was heard twice). Whatever throws on the
   worker - the car's adapter, the listener - releases it and ends in `ERROR`, whose gate has
@@ -174,6 +207,9 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
 - The key pair is stored in one atomic file protected by an OS file lock. The old
   `adb_auth` SharedPreferences pair is migrated without changing the identity. This prevents the
   main process and `:weather` process from racing to create different first-install keys.
+  Since 2026-11-19 a canonical file that cannot be read, or whose halves do not share a modulus,
+  falls back to an intact legacy pair and is written again from it (`AdbKeyStore.load`); a key is
+  made only when there is no copy at all.
 - «Сервис» keeps the same two controls under the access row: the gate's ask control, worded as
   on the gate (**Запросить доступ** or **Запросить снова**), while a request can go out, and
   **Проверить доступ**; both wait while a check or a request is under way. «Технические сведения»
@@ -456,6 +492,70 @@ connecting to the guest's own adbd on `127.0.0.1:5555`):
 - the **ADB недоступен** sentence for a car trusted before, on newer firmware that closes the port
   at start.
 
+## The access state and what shows it (2026-11-19)
+
+Status: code and unit tests, 2026-11-19, after the second review of the request flow; the emulator
+checks are listed at the end. Not on a car.
+
+**What the gate and the access row show (normative).** `AdbStartupGatePolicy.view` reads the
+access snapshot and the restore's and returns one `AdbAccessView`; the gate
+(`AdbStartupGatePolicy.overlay`) and the «Сервис» access row (`ServiceModel`) are both drawn from
+it, so they cannot disagree. The first row that holds wins:
+
+| Order | View | Holds when | Gate | «Сервис» access row |
+| --- | --- | --- | --- | --- |
+| 1 | `TRUSTED` | the phase is `TRUSTED` | none | «Все функции работают» if no tile is in trouble; no access controls |
+| 2 | `REQUEST_ON_SCREEN` | a request is out (`AWAITING_CONFIRMATION`) | **Подтвердите доступ к ADB**, the ring | waits; not counted as missing |
+| 3 | `SWITCH_OFF` | the phase shown (or re-checked) is `UNAVAILABLE`, `AUTHORIZATION_REQUIRED` or `ERROR` and the look read Android's switch off | **ADB недоступен**, the service sentence, the reading, **Проверить снова** | no access, with its controls |
+| 4 | `RESTORE_WIFI` | the restore is on and `WaitingWifi` | **Ожидание Wi-Fi** | no access |
+| 5 | `RESTORE_CONNECTING` | `Connecting`, or `Restored` over a closed port's phase | **Восстановление доступа**, the ring | no access |
+| 6 | `RESTORE_DIALOG` | `NeedsDialog` | **Подключение к сети** | no access |
+| 7 | `RESTORE_FAILED` | `Failed` | **Восстановление доступа**, **Проверить доступ** | no access |
+| 8 | `UNAVAILABLE` | the phase is `UNAVAILABLE` | **ADB недоступен**, **Проверить снова** | no access |
+| 9 | `NOT_GRANTED` | `AUTHORIZATION_REQUIRED` | **Доступ не выдан**, the ask control | no access |
+| 10 | `NOT_CONFIRMED` | `ERROR` | **Доступ не подтверждён**, **Проверить снова** | no access |
+| 11 | `FIRST_CHECK` | anything else: the process's first look | none, the invisible shield | waits |
+
+`AdbStartupGatePolicyTest` holds the full matrix - every phase under every restore state, with the
+switch on, off and unread. The restore's report separates its two `NeedsActivation` cases: a
+refusal it saw («машина не доверяет приложению») and a closed port without the permission or the
+earlier trust («порт закрыт, восстановление невозможно»), whose status reads «Доступа нет. Через
+Wi-Fi его не вернуть».
+
+**How trust is seen.** A key the car trusts is found by any of: the CNXN on a held request; a
+look during the hold (every 3 s) or at its end; the looks after an approval (0, 1, 2.5, 5, 10 s);
+the idle look, every 5 s while a screen is in front and the key is not trusted, whatever the gate
+shows (`AdbRescuePolicy.IDLE_LOOK_MS`), stopped with the screen; a feature's own client that got in
+(`AdbRescueCoordinator.channelReached`, one look); the autoload window (0, 4, 8, 16, 32 s); and a
+press. Each reaches the app through one listener, which starts the runtime once per recovery cycle
+(`RuntimePasses`): a cycle runs one startup pass, whoever starts it.
+
+**How a loss is seen.** A feature's client that is refused or finds 5555 closed
+(`LocalAdbClient.ChannelObserver.lost`; a timeout is not heard) asks for one verification, however
+many say it at once: four looks at 0, 2, 5 and 10 s (`AdbRescuePolicy.LOSS_LOOKS_MS`). It leaves
+`TRUSTED` only when none got in and every one was definite, through the same listener as any
+other change, so the gate, the restore and the access row follow. A loss changes no setting and
+sends no key in the background; in front of the screen the opening's one request follows it, under
+the day's three.
+
+**Behind the gate.** A panel or chooser saved with the screen and brought back after the process
+died waits for the gate to drop (`DashboardWindows.shown`); a panel opened from «Сервис» while the
+gate is up stands.
+
+### Known limits (2026-11-19)
+
+Left as they are after the second review: each needs a rare combination or the car to settle.
+
+| Scenario | What the driver may see | Car check |
+| --- | --- | --- |
+| Access goes while the app runs and nothing uses ADB at that moment | the dashboard stays as it was until a feature next calls or a tile is pressed; tiles that call by themselves, Mirrors among them, read «Нет доступа» on their own, and the gate follows about 10 s after the first refused call. Features are not paused: each keeps its own failure until the startup pass after access returns | revoke the key (or close 5555) with the app in front and the mirrors on; time the gate |
+| Access goes while the app is in front | the car's prompt comes up by itself after the gate: the opening's one request, under the day's three | the same run; count prompts |
+| A restore restarted by a network change ends early because the network changed again (finding 5) | «Восстановление доступа» with the ring until the next hint: the screen coming on, Wi-Fi, «Сервис» through «Что такое ADB» | roam between access points of one Wi-Fi during a restore |
+| The opening's request goes out without window focus or with the display going off (finding 6) | a prompt raised under another window or a dark screen waits unseen until answered or the 2-min hold ends; later requests wait behind it | open the app with a system dialog over it, and as the screen turns off; `dumpsys window` for focus |
+| The canonical key file and the legacy copy are both damaged | every ADB call fails («Нет доступа», the gate); no new key is made, since the old one may still be readable | none; read-only on the car |
+| The accessibility service never binds after the restore's repair | each restore attempt that needs the Wi-Fi dialog repairs again, taking both Denza services down for about 3 s | after an update, with the restore needing the dialog |
+| The idle look every 5 s while the gate is up | nothing; one passive connection to adbd each time, never offering the key | that the looks leave the restore and other ADB clients alone |
+
 ## 2026-08-18 live result
 
 On the target DiLink 5.1 firmware:
@@ -504,6 +604,14 @@ target firmware:
    whether the queue is left pending (`prompt currently pending, skipping` on the next request).
 10. Reboot and open the app before the clock is set; record the clock and prove the cap counts the
     day's earlier requests.
+11. With a request on the screen, approve with the box at about 1:59 of the hold and prove the gate
+    leaves with no press; approve an earlier prompt with the box after its hold ended and prove the
+    idle look takes the gate down by itself.
+12. Upgrade from 0.7.1 the day 0.7.1 sent a request still on the screen; prove the first opening of
+    the new release sends none, and the next one does.
+13. With the app in front and the mirrors on, revoke the key (or close 5555); prove the gate comes
+    up within about 10 s of the first refused call, with one prompt, and that the dashboard returns
+    with one startup pass on approval.
 
 Until this gate passes, the diagnostics UI reports queue recovery as disabled. Local unit tests and
 an APK build prove only the state machine and packaging, not vehicle behaviour.
@@ -1069,6 +1177,10 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   phase's gate. `WaitingWifi`, `NeedsDialog` and `Failed` still outrank the phase. The only blocked
   state without a gate is the first passive check of a process (`AdbStartupGatePolicyTest`, which
   walks every phase under every restore state, under a restore switched off and with none).
+
+  > **Superseded 2026-11-19:** a look that read Android's switch off outranks every restore state:
+  > the restore cannot open a port the switch keeps shut, and its ring hid the one sentence that
+  > helps. The order is [The access state](#the-access-state-and-what-shows-it-2026-11-19)'s table.
 - `Connecting` ends. An attempt that has published it and stops because the network changed (the id
   is the BSSID, so roaming between access points of one Wi-Fi is a change) or went away publishes
   `WaitingWifi` without Wi-Fi, and otherwise queues a fresh attempt on the new network. Before,
@@ -1076,6 +1188,11 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   restarts in a row, with no attempt run to `Restored` or `Failed` between, end in `Failed` (`network
   kept changing`, held on the network seen last), so an id that never settles gets the gate with its
   button; a finished attempt, `wifi-lost`, the switch or a forcing request starts the count again.
+
+  > **Superseded 2026-11-19:** not in every case. The attempt a network change restarts inherits
+  > `Connecting`; if it ends early in its own settings write because the network changed again, only
+  > its predecessor's exit cleared the state, so it stands until the next hint
+  > ([Known limits](#known-limits-2026-11-19), review finding 5).
 - A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
   check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
   `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the
