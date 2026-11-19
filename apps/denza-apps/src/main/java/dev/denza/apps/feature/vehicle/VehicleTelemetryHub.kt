@@ -371,7 +371,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     }
                 } else {
                     link.answered(now)
-                    snapshot = VehicleAnsweredSweep.snapshot(merged, log, ledger, charge)
+                    snapshot = VehicleAnsweredSweep.snapshot(merged, log, ledger, charge, readAtMillis = now)
                 }
 
                 // Last, and out of the same map the panel is now reading: a recording of what the
@@ -791,6 +791,8 @@ internal object VehicleAnsweredSweep {
         log: ConsumptionLog,
         ledger: TripEnergyLedger,
         charge: EngineCharge,
+        /** When the sweep was read ([VehicleTelemetry.hotReadAtMillis]). */
+        readAtMillis: Long = 0L,
     ): VehicleTelemetry = VehicleTelemetry(
         access = VehicleAccess.READY,
         values = values,
@@ -798,6 +800,7 @@ internal object VehicleAnsweredSweep {
         chart = ConsumptionChart.of(log.buckets),
         engineCharge = charge.snapshot(),
         trip = ledger.trip,
+        hotReadAtMillis = readAtMillis,
     )
 }
 

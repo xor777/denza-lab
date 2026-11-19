@@ -60,6 +60,19 @@ class VehicleAnsweredSweepTest {
         assertFalse("three quarters of a second is not the cost of the tick", bucket.known)
     }
 
+    /** A snapshot says when its readings were read; one that carries none says nothing. */
+    @Test
+    fun anAnsweredSnapshotCarriesTheTimeOfItsSweep() {
+        val values = VehicleAnsweredSweep.feed(
+            mapOf(VehicleSignal.POWER_KW to 12.0), emptyMap(), 5_000L, 0.0, log, ledger, charge,
+        )
+        assertEquals(5_000L, VehicleAnsweredSweep.snapshot(values, log, ledger, charge, readAtMillis = 5_000L).hotReadAtMillis)
+        val dropped = VehicleDroppedRead.snapshot(
+            VehicleAccess.READY, emptyMap(), emptyList(), ConsumptionChartSnapshot.EMPTY, EngineChargeSnapshot.EMPTY, TripEnergy(),
+        )
+        assertEquals(0L, dropped.hotReadAtMillis)
+    }
+
     /**
      * The chart is the log's whole retention and the figure is the window's.
      *

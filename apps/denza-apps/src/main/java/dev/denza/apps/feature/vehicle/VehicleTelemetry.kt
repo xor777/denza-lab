@@ -55,6 +55,17 @@ internal data class VehicleTelemetry(
      * the cluster's figures down on their own horizons.
      */
     val dropped: Boolean = false,
+    /**
+     * When the sweep whose hot readings are in [values] was read: `SystemClock.elapsedRealtime()`
+     * on the hub's thread, just after the reply was decoded. Zero when the snapshot carries no hot
+     * reading of its own - starting, a dropped read, a closed link.
+     *
+     * A snapshot is published only when a sweep ends, so a reader that blocks - a helper starting,
+     * a shell timing out - leaves the last one standing with nothing in it to say how old it is.
+     * The Contour ages its readings on its own clock; a screen that reads each snapshot as it comes
+     * needs this to apply the same horizon ([VehiclePoll.HOT]).
+     */
+    val hotReadAtMillis: Long = 0L,
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]
