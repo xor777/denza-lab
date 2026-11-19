@@ -51,12 +51,36 @@ internal class CloudLinkTrace(saved: String = "") {
     }
 }
 
+/**
+ * When the report in Downloads is rewritten: when what it says changed, or every [REFRESH_MS] to
+ * move its clock lines. Until 2026-11-19 it compared the whole text, export time included, so every
+ * 15-second pass of an idle, disconnected client rewrote it with both histories in it - up to
+ * ~120 MiB an awake hour at the histories' caps.
+ */
+internal class CloudReportWrites(private val refreshMs: Long = REFRESH_MS) {
+    private var lastContent: String? = null
+    private var lastWrittenAtMs = 0L
+
+    /** [content] is the report without its clock-derived lines. */
+    fun due(content: String, nowMs: Long): Boolean =
+        content != lastContent || nowMs - lastWrittenAtMs >= refreshMs
+
+    fun written(content: String, nowMs: Long) {
+        lastContent = content
+        lastWrittenAtMs = nowMs
+    }
+
+    companion object {
+        const val REFRESH_MS = 15 * 60_000L
+    }
+}
+
 /** Used only on the cloud controller's worker. Export failure never changes cloud operation. */
 internal object CloudLinkDiagnostics {
     const val REPORT_PATH = "Download/Denza Apps/denza-cloud-report.txt"
     private var trace: CloudLinkTrace? = null
     private var lastState: String? = null
-    private var lastExport: String? = null
+    private val reportWrites = CloudReportWrites()
     private var nativeTrace: CloudLinkTrace? = null
     private var nativeCursor: CloudNativeCursor? = null
     private var nativeSummary = "status=NOT_COLLECTED"
@@ -150,9 +174,8 @@ internal object CloudLinkDiagnostics {
             }
             digest.digest().joinToString("") { "%02x".format(it) }
         }.getOrDefault("UNKNOWN")
-        val body = buildString {
-            appendLine("Denza Apps ${BuildConfig.VERSION_NAME} build ${BuildConfig.VERSION_CODE}")
-            appendLine("Report format: 3; exported UTC: ${Instant.now()}")
+        // What the report says, without the fields that move with the clock alone.
+        val content = buildString {
             appendLine("APK SHA-256: $apkSha256")
             appendLine("Firmware: ${Build.FINGERPRINT}")
             appendLine("Model: ${Build.MODEL}")
@@ -163,17 +186,24 @@ internal object CloudLinkDiagnostics {
                     "setting=${failures.setting} " +
                     "readFailure=${CloudLinkRuntime.readFailure}",
             )
-            appendLine("readAgeMs=${CloudLinkRuntime.readAtMs?.let { SystemClock.elapsedRealtime() - it }}")
             appendLine("adapter=${CloudLinkRuntime.adapter}")
             appendLine("Latest controlled state: $lastState")
             appendLine("Network path: ${networkPath(context)}")
-            appendLine("Native capture UTC: $nativeCapturedAt $nativeSummary")
+            appendLine("Native summary: $nativeSummary")
             appendLine("History (UTC):")
             appendLine(trace?.text().orEmpty())
             appendLine("Native events (UTC, retained log; events may predate the latest attempt):")
             appendLine(nativeTrace?.text().orEmpty())
         }
-        if (body == lastExport) return
+        val nowMs = SystemClock.elapsedRealtime()
+        if (!reportWrites.due(content, nowMs)) return
+        val body = buildString {
+            appendLine("Denza Apps ${BuildConfig.VERSION_NAME} build ${BuildConfig.VERSION_CODE}")
+            appendLine("Report format: 3; exported UTC: ${Instant.now()}")
+            appendLine("readAgeMs=${CloudLinkRuntime.readAtMs?.let { nowMs - it }}")
+            appendLine("Native capture UTC: $nativeCapturedAt")
+            append(content)
+        }
         val prefs = context.getSharedPreferences("cloud_link_report", Context.MODE_PRIVATE)
         runCatching {
             val resolver = context.contentResolver
@@ -185,7 +215,7 @@ internal object CloudLinkDiagnostics {
             })?.also { prefs.edit().putString("uri", it.toString()).apply() }
             checkNotNull(uri)
             checkNotNull(resolver.openOutputStream(uri, "wt")).use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            lastExport = body
+            reportWrites.written(content, nowMs)
             exportStatus = REPORT_PATH
         }.onFailure {
             // If the owner deleted the file, recreate our report on the next observation.

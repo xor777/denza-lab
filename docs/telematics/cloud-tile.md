@@ -500,6 +500,12 @@ in the installed app with varied pauses. Wi-Fi changes remained excluded.
   It never exports native payloads, VIN, tokens, key material or arbitrary shell
   output. Export failures are isolated from cloud operation and shown in the
   technical page. A never-used cloud feature does not create a Downloads report.
+  > **Superseded 2026-11-19 (when it is written):** the export compared the
+  > whole report, its export time included, so it rewrote the file on every
+  > pass, every 15 s while the client was disconnected. It now compares the
+  > report without its clock lines (export time, `readAgeMs`, native capture
+  > time, moved to the header; the native summary has its own line) and writes
+  > on a change, or every 15 minutes (`CloudReportWrites`).
 
 The ordinary-SIM eligibility policy and native cellular guard were **not**
 relaxed. The forum photos instead exposed a common profile mismatch. These
