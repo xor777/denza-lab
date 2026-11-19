@@ -290,6 +290,12 @@ internal class VehicleTelemetryHub(context: Context) {
                 val readStartedAt = SystemClock.elapsedRealtime()
                 var resident = false
                 val output = try {
+                    // A shell reader left by a failed helper start gives way to another start in
+                    // time; the swap closes it first and falls back to a new one on its own.
+                    reader?.let { current ->
+                        reader = null
+                        reader = readers.current(current)
+                    }
                     val session = reader ?: readers.open().also { reader = it }
                     resident = session.resident
                     session.read(batch, if (includeCold) COLD_TIMEOUT_MS else HOT_TIMEOUT_MS)

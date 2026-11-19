@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.platform.shell.ShellProxyClasspath
@@ -60,13 +61,107 @@ internal class ResidentVehicleReader(private val session: LocalAdbClient.Residen
  * in turn, which on a working car is a sleep or a lost link, and the helper is tried again after
  * it. A helper that answered and was then lost met the same thing the shell would have, and is
  * opened again. Called from the poll loop's thread only.
+ *
+ * A shell reader on a working car can live for hours, and one helper start that failed for a
+ * passing reason - the first after a boot, a slow staging - kept the shell's 83 processes a second
+ * all that time. So the shell reader is also given up [retryDelayMs] after the failed start, while
+ * it still answers, for one more helper start: five minutes after the first failure, then twice as
+ * long after each failure in a row, up to an hour, so a car where the helper never comes up pays
+ * its start's wait rarely. A helper that answers clears the count. [clock] is
+ * `SystemClock.elapsedRealtime` on the car.
  */
-internal class VehicleReaderChoice {
+internal class VehicleReaderChoice(private val clock: () -> Long) {
     var preferResident = true
         private set
 
+    /** Helper starts in a row that ended without answering a batch. */
+    var failedStarts = 0
+        private set
+
+    private var retryAt = 0L
+
     fun ended(resident: Boolean, answered: Boolean) {
-        preferResident = !resident || answered
+        when {
+            !resident -> preferResident = true
+            answered -> {
+                preferResident = true
+                failedStarts = 0
+            }
+            else -> {
+                preferResident = false
+                failedStarts += 1
+                retryAt = clock() + retryDelayMs(failedStarts)
+            }
+        }
+    }
+
+    /** Whether a shell reader opened because a helper failed has lived long enough to try one again. */
+    fun retryDue(): Boolean = !preferResident && clock() >= retryAt
+
+    companion object {
+        const val RETRY_FIRST_MS = 5 * 60_000L
+        const val RETRY_MAX_MS = 60 * 60_000L
+
+        fun retryDelayMs(failedStarts: Int): Long =
+            (RETRY_FIRST_MS shl (failedStarts - 1).coerceIn(0, 8)).coerceAtMost(RETRY_MAX_MS)
+    }
+}
+
+/**
+ * Opens, swaps and closes readers as [VehicleReaderChoice] says; the readers themselves are handed
+ * in, so the whole of it runs on the JVM. [startResident] closes what it opened and throws when the
+ * helper does not come up.
+ */
+internal class VehicleReaderSwitch(
+    private val choice: VehicleReaderChoice,
+    private val startResident: () -> VehicleReader,
+    private val openShell: () -> VehicleReader,
+    private val log: (String) -> Unit = {},
+    private val warn: (String) -> Unit = {},
+) {
+    /**
+     * The next reader. A helper that does not come up is counted as one that never answered, and
+     * the failure goes to the hub like any failed read: the hub's backoff, then the shell's reader.
+     */
+    fun open(): VehicleReader = if (choice.preferResident) start() else openShell()
+
+    /**
+     * [reader], or a helper in its place when [VehicleReaderChoice.retryDue]. The shell reader is
+     * closed before the helper starts, so there is never a second reader, and a helper that does
+     * not come up this time hands the read straight to a new shell reader: the try costs the poll
+     * loop the helper's start, as any helper start does, and no dropped read or backoff after it.
+     */
+    fun current(reader: VehicleReader): VehicleReader {
+        if (reader.resident || !choice.retryDue()) return reader
+        log("Trying the resident reader again after ${choice.failedStarts} failed start(s)")
+        ended(reader)
+        return try {
+            start()
+        } catch (error: Exception) {
+            log("The resident reader did not come up again (${error.javaClass.simpleName}); " +
+                "next try in ${VehicleReaderChoice.retryDelayMs(choice.failedStarts) / 60_000} min")
+            openShell()
+        }
+    }
+
+    /** Closes [reader] and lets the next [open] know how it went. */
+    fun ended(reader: VehicleReader) {
+        reader.runCatching { close() }
+        record(reader.resident, reader.answered)
+    }
+
+    private fun start(): VehicleReader = try {
+        startResident()
+    } catch (error: Exception) {
+        record(resident = true, answered = false)
+        throw error
+    }
+
+    private fun record(resident: Boolean, answered: Boolean) {
+        choice.ended(resident, answered)
+        if (resident && !answered) {
+            warn("Помощник чтения не ответил ни разу, следующее чтение - через оболочку")
+        }
     }
 }
 
@@ -74,7 +169,13 @@ internal class VehicleReaderChoice {
 internal class VehicleReaders(context: Context) {
     private val app = context.applicationContext
     private val client get() = DenzaLocalAdb.client(app)
-    private val choice = VehicleReaderChoice()
+    private val switch = VehicleReaderSwitch(
+        VehicleReaderChoice(SystemClock::elapsedRealtime),
+        startResident = ::startResident,
+        openShell = { ShellVehicleReader(client.openPersistentShell()) },
+        log = { Log.i(TAG, it) },
+        warn = { Log.w(TAG, it) },
+    )
 
     /**
      * The jar is staged once per process on a shell of its own; a car that will not take it starts
@@ -90,13 +191,17 @@ internal class VehicleReaders(context: Context) {
         log = { Log.i(TAG, it) },
     )
 
-    /**
-     * The next reader. A helper that does not come up is closed and counted as one that never
-     * answered, and the failure goes to the hub like any failed read: the hub's backoff, then the
-     * shell's reader.
-     */
-    fun open(): VehicleReader {
-        if (!choice.preferResident) return ShellVehicleReader(client.openPersistentShell())
+    /** The next reader ([VehicleReaderSwitch.open]). */
+    fun open(): VehicleReader = switch.open()
+
+    /** [reader], or the helper retried in its place ([VehicleReaderSwitch.current]). */
+    fun current(reader: VehicleReader): VehicleReader = switch.current(reader)
+
+    /** Closes [reader] and lets the next [open] know how it went. */
+    fun ended(reader: VehicleReader) = switch.ended(reader)
+
+    /** A helper that answers start; one that does not is closed, and the error thrown. */
+    private fun startResident(): VehicleReader {
         val id = nonce()
         val session = client.openResidentSession(id)
         val reader = ResidentVehicleReader(session)
@@ -106,20 +211,11 @@ internal class VehicleReaders(context: Context) {
             session.start(launchCommand(entry, app.applicationInfo.sourceDir, id), READY_TIMEOUT_MS)
         } catch (error: Exception) {
             classpath.forget()
-            ended(reader)
+            reader.runCatching { close() }
             throw error
         }
         Log.i(TAG, "Чтение машины через резидентного помощника")
         return reader
-    }
-
-    /** Closes [reader] and lets the next [open] know how it went. */
-    fun ended(reader: VehicleReader) {
-        reader.runCatching { close() }
-        choice.ended(reader.resident, reader.answered)
-        if (reader.resident && !choice.preferResident) {
-            Log.w(TAG, "Помощник чтения не ответил ни разу, следующее чтение - через оболочку")
-        }
     }
 
     internal companion object {

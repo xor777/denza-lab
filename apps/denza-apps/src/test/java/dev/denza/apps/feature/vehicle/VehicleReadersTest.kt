@@ -4,6 +4,8 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -84,7 +86,7 @@ class VehicleReadersTest {
 
     @Test
     fun aHelperThatNeverAnsweredHandsTheNextReadToTheShell() {
-        val choice = VehicleReaderChoice()
+        val choice = VehicleReaderChoice { 0L }
         assertTrue(choice.preferResident)
 
         choice.ended(resident = true, answered = false)
@@ -100,6 +102,128 @@ class VehicleReadersTest {
         choice.ended(resident = true, answered = false)
         choice.ended(resident = false, answered = false)
         assertTrue(choice.preferResident)
+    }
+
+    /**
+     * One failed helper start puts the hub on the shell; the shell reader keeps answering, and five
+     * minutes later it gives way to another helper start, which is used when it comes up.
+     */
+    @Test
+    fun aShellReaderLeftByAFailedStartGivesWayToTheHelperAfterTheInterval() {
+        val car = FakeCar(helperStarts = mutableListOf(false, true))
+        val switch = car.switch()
+
+        assertThrows(IllegalStateException::class.java) { switch.open() }
+        val shell = switch.open()
+        assertFalse(shell.resident)
+        shell.read(emptyList(), 0)
+
+        car.now = VehicleReaderChoice.RETRY_FIRST_MS - 1
+        assertSame("no try before the interval", shell, switch.current(shell))
+        assertEquals(listOf("helper", "shell"), car.opened)
+
+        car.now = VehicleReaderChoice.RETRY_FIRST_MS
+        val helper = switch.current(shell)
+        assertTrue(helper.resident)
+        assertTrue("the shell is closed before the helper starts", car.closedBeforeNextOpen(shell as FakeCar.FakeReader))
+        assertEquals(listOf("helper", "shell", "helper"), car.opened)
+        assertEquals(1, car.liveReaders())
+
+        // Once there, the helper stays: no further swap whatever the clock says.
+        helper.read(emptyList(), 0)
+        car.now += 10 * VehicleReaderChoice.RETRY_MAX_MS
+        assertSame(helper, switch.current(helper))
+    }
+
+    /**
+     * A helper that never comes up costs its start rarely: each failure in a row doubles the wait,
+     * up to an hour, and a failed retry hands the read to a new shell reader rather than throwing.
+     */
+    @Test
+    fun repeatedFailedStartsBackOffAndKeepTheShellReading() {
+        val car = FakeCar(helperStarts = MutableList(8) { false })
+        val switch = car.switch()
+
+        assertThrows(IllegalStateException::class.java) { switch.open() }
+        var reader = switch.open().also { it.read(emptyList(), 0) }
+
+        val waits = mutableListOf<Long>()
+        var triedAt = 0L
+        repeat(6) {
+            val starts = car.opened.count { it == "helper" }
+            while (car.opened.count { it == "helper" } == starts) {
+                car.now += 60_000L
+                reader = switch.current(reader)
+                assertFalse("a failed retry reads through the shell", reader.resident)
+                assertEquals(1, car.liveReaders())
+            }
+            waits += car.now - triedAt
+            triedAt = car.now
+        }
+        assertEquals(
+            listOf(5L, 10L, 20L, 40L, 60L, 60L).map { it * 60_000L },
+            waits,
+        )
+    }
+
+    /** A helper that answers clears the count; the shell ending - a sleep - is still followed by a helper. */
+    @Test
+    fun anAnsweringHelperStartsTheBackoffOverAndASleepStillTriesTheHelper() {
+        val choice = VehicleReaderChoice { 0L }
+        repeat(3) { choice.ended(resident = true, answered = false) }
+        assertEquals(3, choice.failedStarts)
+        assertFalse(choice.preferResident)
+
+        choice.ended(resident = false, answered = true)
+        assertTrue("the shell ended: the helper is next, as before", choice.preferResident)
+        assertFalse(choice.retryDue())
+        assertEquals("but its failures are still counted", 3, choice.failedStarts)
+
+        choice.ended(resident = true, answered = true)
+        assertEquals(0, choice.failedStarts)
+        choice.ended(resident = true, answered = false)
+        assertEquals(VehicleReaderChoice.RETRY_FIRST_MS, VehicleReaderChoice.retryDelayMs(choice.failedStarts))
+    }
+
+    /** Readers that record their opening and closing; a helper comes up as [helperStarts] says. */
+    private class FakeCar(private val helperStarts: MutableList<Boolean>) {
+        var now = 0L
+        val opened = mutableListOf<String>()
+        private val events = mutableListOf<Pair<String, FakeReader>>()
+
+        fun switch() = VehicleReaderSwitch(
+            VehicleReaderChoice { now },
+            startResident = {
+                val reader = FakeReader(resident = true).also { opened += "helper"; events += "open" to it }
+                if (!helperStarts.removeAt(0)) {
+                    reader.close()
+                    throw IllegalStateException("the helper did not come up")
+                }
+                reader
+            },
+            openShell = { FakeReader(resident = false).also { opened += "shell"; events += "open" to it } },
+        )
+
+        fun liveReaders(): Int = events.count { it.first == "open" } - events.count { it.first == "close" }
+
+        fun closedBeforeNextOpen(reader: FakeReader): Boolean {
+            val closedAt = events.indexOf("close" to reader)
+            val openedAt = events.indexOf("open" to reader)
+            val nextOpen = events.withIndex().firstOrNull { it.index > openedAt && it.value.first == "open" }
+            return closedAt >= 0 && nextOpen != null && closedAt < nextOpen.index
+        }
+
+        inner class FakeReader(override val resident: Boolean) : VehicleReader {
+            override var answered = false
+            private var closed = false
+
+            override fun read(batch: List<VehicleSignal>, timeoutMs: Int): String = "".also { answered = true }
+
+            override fun close() {
+                if (!closed) events += "close" to this
+                closed = true
+            }
+        }
     }
 
     /** The cycle the owner drove with - the shell's batch and the interval - whichever reader answers. */

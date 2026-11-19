@@ -12,7 +12,7 @@ Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit,
 | Claim | Status | Since | Section |
 |---|---|---|---|
 | A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`); Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [High-level DiCar service](#high-level-dicar-service); [autoservice FID protocol](#autoservice-fid-protocol) |
-| The telemetry batch is read by one resident shell-UID helper (`VehicleReadMain`, transacts `5`/`7` only, same text as `service call`) instead of a `service call` process per value, at the same ~250 ms cycle; a helper that never answers falls back to the shell batch. Replaces "no long-lived `app_process` proxy". Parked A/B: 83 → 33 processes a second, the app's shells 47% → 10% of one core, `autoservice` unchanged | live, parked | 2026-11-02 | [Resident reader](#resident-reader-2026-11-02) |
+| The telemetry batch is read by one resident shell-UID helper (`VehicleReadMain`, transacts `5`/`7` only, same text as `service call`) instead of a `service call` process per value, at the same ~250 ms cycle; a helper that never answers falls back to the shell batch, and is tried again 5 minutes later, then after twice as long per failure in a row up to an hour. Replaces "no long-lived `app_process` proxy". Parked A/B: 83 → 33 processes a second, the app's shells 47% → 10% of one core, `autoservice` unchanged | live, parked | 2026-11-02 | [Resident reader](#resident-reader-2026-11-02) |
 | Sentinels: `−10013` wrong transact (retry the other one), `−10011` no data on this generation, `0xbf800000` invalid float; max-range placeholders are dropped by a per-unit range gate | live | 2026-08-22 | [Sentinels — do not display](#sentinels--do-not-display) |
 | Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; native scalar reads use only `5`/`7`, never `6` (`VehicleSignals.kt`, `VehicleTransact`); the separate DTC transport uses the qualified SDK buffer API | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
@@ -623,7 +623,13 @@ calls. `VehicleSweepCadence.waitMs` makes a resident sweep wait out the shell's
 
 **Fallback.** A helper that ends without answering a single batch hands the next
 read to the chained `service call` batch (`VehicleReaderChoice`); after that shell
-reader ends - a sleep, a lost link - the helper is tried again. If the jar cannot be
+reader ends - a sleep, a lost link - the helper is tried again. Until 2026-11-19
+nothing else ended it, so one failed start kept the shell batch's processes for
+hours; now the hub also gives the shell reader up for one more helper start
+(`VehicleReaderSwitch.current`) 5 minutes after the failed start, then 10, 20, 40
+and 60 minutes after each further failure in a row. The shell reader is closed first, a
+start that fails again goes straight back to a new shell reader with no dropped read,
+and a helper that answers resets the count. If the jar cannot be
 staged, the helper starts from the APK (`ShellProxyClasspath`).
 
 Status: **run on the parked car 2026-11-02**. The helper, started by hand, answered 20
