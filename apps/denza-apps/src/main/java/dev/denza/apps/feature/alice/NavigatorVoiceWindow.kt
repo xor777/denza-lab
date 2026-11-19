@@ -84,15 +84,23 @@ internal class NavigatorVoiceWindow(
                 try {
                     val selected = NavigatorVoiceControls.findUnique(
                         find = { id -> root.findAccessibilityNodeInfosByViewId(id).also(matches::addAll) },
-                        usable = ::usable,
+                        usable = ::clickable,
+                        mapButtonForIcon = { icon ->
+                            if (isMapVoiceIcon(icon)) {
+                                icon.parent?.also(matches::add)?.takeIf {
+                                    it.windowId == expectedWindow && isMapVoiceButton(it)
+                                }
+                            } else null
+                        },
                     )
-                    if (selected == null) note("control unavailable=target-count found=${matches.size} usable=${matches.count(::usable)}")
+                    if (selected == null) note("control unavailable=target-count found=${matches.size} usable=${matches.count(::clickable)}")
                     selected?.let(AccessibilityNodeInfo::obtain)
                 } finally { matches.forEach { it.recycle() } }
             } finally { root.recycle() }
         } ?: return false
         return try {
-            if (!target.refresh() || !usable(target)) {
+            if (!target.refresh() || target.windowId != expectedWindow || !clickable(target) ||
+                !isVoiceButton(target)) {
                 note("control unavailable=target-changed")
                 false
             } else if (visibleNavigator() != expectedWindow) {
@@ -103,7 +111,8 @@ internal class NavigatorVoiceWindow(
                 // region can cover this visible control's center (944 inside 780..956).
                 // Keep touch-point occlusion checks for the reveal gesture only.
                 target.performAction(AccessibilityNodeInfo.ACTION_CLICK).also {
-                    note("control action accepted=$it view=${target.viewIdResourceName}")
+                    val view = target.viewIdResourceName ?: "parent of ${NavigatorVoiceControls.MAP_VOICE_ICON_ID}"
+                    note("control action accepted=$it view=$view")
                 }
             }
         } finally { target.recycle() }
@@ -119,6 +128,9 @@ internal class NavigatorVoiceWindow(
                 if (root.packageName?.toString() != PACKAGE || !root.isVisibleToUser) return@withVisibleWindow null
                 // Missing is distinct from an ambiguous, disabled or rejected microphone.
                 if (NavigatorVoiceControls.viewIds.any { hasNodes(root, it) }) return@withVisibleWindow null
+                if (hasNodes(root, NavigatorVoiceControls.MAP_VOICE_ICON_ID) { it.isVisibleToUser }) {
+                    return@withVisibleWindow null
+                }
                 if (hasNodes(root, "$PACKAGE:id/alice_oknyx") ||
                     hasChildren(root, "$PACKAGE:id/maps_activity_alice_container") ||
                     hasChildren(root, "$PACKAGE:id/maps_activity_modal_container") ||
@@ -158,9 +170,13 @@ internal class NavigatorVoiceWindow(
         } finally { nodes.forEach { it.recycle() } }
     }
 
-    private fun hasNodes(root: AccessibilityNodeInfo, id: String): Boolean {
+    private fun hasNodes(
+        root: AccessibilityNodeInfo,
+        id: String,
+        predicate: (AccessibilityNodeInfo) -> Boolean = { true },
+    ): Boolean {
         val nodes = root.findAccessibilityNodeInfosByViewId(id)
-        return try { nodes.isNotEmpty() } finally { nodes.forEach { it.recycle() } }
+        return try { nodes.any(predicate) } finally { nodes.forEach { it.recycle() } }
     }
 
     private fun hasChildren(root: AccessibilityNodeInfo, id: String): Boolean {
@@ -190,9 +206,26 @@ internal class NavigatorVoiceWindow(
         refreshPending = false
     }
 
-    private fun usable(node: AccessibilityNodeInfo): Boolean =
-        node.packageName?.toString() == PACKAGE && node.viewIdResourceName in NavigatorVoiceControls.viewIds &&
-            node.isVisibleToUser && node.isEnabled && node.isClickable
+    private fun visibleEnabled(node: AccessibilityNodeInfo): Boolean =
+        node.packageName?.toString() == PACKAGE && node.isVisibleToUser && node.isEnabled
+
+    private fun clickable(node: AccessibilityNodeInfo): Boolean = visibleEnabled(node) && node.isClickable
+
+    private fun isMapVoiceIcon(node: AccessibilityNodeInfo): Boolean =
+        node.viewIdResourceName == NavigatorVoiceControls.MAP_VOICE_ICON_ID && visibleEnabled(node)
+
+    private fun isMapVoiceButton(node: AccessibilityNodeInfo): Boolean =
+        NavigatorVoiceControls.isMapVoiceButton(node.viewIdResourceName, node.className)
+
+    private fun isVoiceButton(node: AccessibilityNodeInfo): Boolean {
+        if (node.viewIdResourceName in NavigatorVoiceControls.viewIds) return true
+        if (!isMapVoiceButton(node)) return false
+        // The anonymous button still needs to own the known icon after refresh.
+        return (0 until node.childCount).any { index ->
+            val child = node.getChild(index) ?: return@any false
+            try { isMapVoiceIcon(child) } finally { child.recycle() }
+        }
+    }
 
     private fun note(message: String) { runCatching { report(message) } }
 
