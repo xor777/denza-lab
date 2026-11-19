@@ -195,3 +195,40 @@ internal class TripJournal(
         private const val MAX_ODOMETER_KM = OdometerGate.MAX_ODOMETER_KM
     }
 }
+
+/**
+ * When the hub makes the trip durable: every [intervalMs], and **at once when the trip ends**.
+ *
+ * The interval is the size of the hole an ignition cut leaves in the figure, and ten seconds of
+ * driving is under a hundredth of a kilowatt-hour. The end of a trip is not a figure, it is a
+ * boundary: P arms the ledger ([TripRecord.armed]) and the next movement starts a new trip. A
+ * driver who selected P and switched off inside those ten seconds left a record with the boundary
+ * missing, and the next drive restored the finished trip as open and was added to it. So the first
+ * record that says armed is written on the sweep that made it, whatever the interval says.
+ *
+ * A failed boundary write is retried by the periodic checkpoint, which writes any record that
+ * differs from the one on disk ([TripJournal.save]), and not on every sweep: a full disk under a
+ * parked car costs one attempt per interval.
+ */
+internal class TripCheckpoint(private val intervalMs: Long = INTERVAL_MS) {
+
+    private var savedAt = 0L
+
+    /** Whether the current P has had its checkpoint; the next movement clears it. */
+    private var boundaryTried = false
+
+    /** Whether [record] is to be written on the sweep at [nowMillis] (`elapsedRealtime`). */
+    fun due(record: TripRecord, nowMillis: Long): Boolean =
+        (record.armed && !boundaryTried) || nowMillis - savedAt >= intervalMs
+
+    /** [record] was handed to the journal at [nowMillis], whether or not the write succeeded. */
+    fun attempted(record: TripRecord, nowMillis: Long) {
+        savedAt = nowMillis
+        boundaryTried = record.armed
+    }
+
+    companion object {
+        /** How often an open trip is made durable. */
+        const val INTERVAL_MS = 10_000L
+    }
+}

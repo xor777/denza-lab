@@ -90,7 +90,7 @@ internal class VehicleTelemetryHub(context: Context) {
         Log.w(TAG, "Журнал поездки сброшен: $why")
     }
     private val ledger = TripEnergyLedger()
-    private var tripSavedAt = 0L
+    private val tripCheckpoint = TripCheckpoint()
 
     /**
      * Kept in memory only. The consumption journal survives a restart because it is about the road;
@@ -229,17 +229,16 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     /**
-     * Persist the trip, at most every [TRIP_SAVE_MS].
+     * Persist the trip every ten seconds, and at once on the sweep that ends it ([TripCheckpoint]).
      *
-     * The interval is the size of the hole an ignition cut leaves in the figure, and ten seconds of
-     * driving is under a hundredth of a kilowatt-hour. It costs one small `fsync` and it is a
-     * rename, so a cut write leaves the previous record rather than half of this one. An unchanged
-     * record - a car standing in P - is not written at all ([TripJournal.save]).
+     * It costs one small `fsync` and it is a rename, so a cut write leaves the previous record
+     * rather than half of this one. An unchanged record - a car standing in P - is not written at
+     * all ([TripJournal.save]).
      */
     private fun saveTrip(now: Long) {
-        if (now - tripSavedAt < TRIP_SAVE_MS) return
         val record = ledger.record() ?: return
-        tripSavedAt = now
+        if (!tripCheckpoint.due(record, now)) return
+        tripCheckpoint.attempted(record, now)
         persistTrip(record)
     }
 
@@ -447,9 +446,6 @@ internal class VehicleTelemetryHub(context: Context) {
          * that now exists to have none. A line of thirty-six bytes per hundred metres is nothing.
          */
         const val FLUSH_EVERY = 1
-
-        /** How often the trip record is made durable. See [saveTrip]. */
-        const val TRIP_SAVE_MS = 10_000L
 
         const val TAG = "DenzaVehicle"
 

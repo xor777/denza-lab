@@ -214,6 +214,56 @@ class TripJournalTest {
         assertFalse(known.energy.opened)
     }
 
+    /**
+     * P, and the power cut a few seconds later. The checkpoint ran every ten seconds, so the last
+     * record on disk was the open trip; the drive after the restart restored it as open and added
+     * itself to the previous one. The record that says P is written on the sweep that read it.
+     */
+    @Test
+    fun aParkTheIgnitionCutSecondsLaterIsOnDiskAndTheNextDriveIsANewTrip() {
+        val ledger = TripEnergyLedger(maxGapSeconds = 7200.0)
+        val checkpoint = TripCheckpoint()
+        val journal = journal()
+        fun sweep(atMs: Long, odometerKm: Double, powerKw: Double, parked: Boolean, seconds: Double) {
+            ledger.sample(odometerKm, powerKw, false, parked, seconds)
+            val record = ledger.record() ?: return
+            if (!checkpoint.due(record, atMs)) return
+            checkpoint.attempted(record, atMs)
+            journal.save(record)
+        }
+        sweep(100_000L, 1000.0, 0.0, false, 1.0)
+        sweep(101_000L, 1000.1, 10.0, false, 3600.0)
+        // The periodic checkpoint writes the open trip.
+        sweep(111_000L, 1000.2, 10.0, false, 3600.0)
+        // The car stops and the driver selects P two seconds later.
+        sweep(113_000L, 1000.2, 0.0, true, 1.0)
+
+        // The ignition is cut. The next process restores what is on disk.
+        val restored = TripEnergyLedger(maxGapSeconds = 7200.0)
+        assertTrue(restored.restore(journal().load()!!, 1000.2))
+        restored.sample(1000.2, 0.0, false, false, 1.0)
+        restored.sample(1000.3, 4.0, false, false, 3600.0)
+
+        assertEquals("the next drive is its own trip", 4.0, restored.trip.netKwh, 1e-9)
+        assertEquals(0.1, restored.trip.kilometres, 1e-6)
+    }
+
+    @Test
+    fun theTripIsCheckpointedEveryTenSecondsAndAParkOnlyOnce() {
+        val checkpoint = TripCheckpoint()
+        val open = record
+        val parked = record.copy(armed = true)
+        assertTrue(checkpoint.due(open, 20_000L))
+        checkpoint.attempted(open, 20_000L)
+        assertFalse(checkpoint.due(open, 29_999L))
+        assertTrue("P is written at once", checkpoint.due(parked, 21_000L))
+        checkpoint.attempted(parked, 21_000L)
+        assertFalse("and once, not on every sweep it stands", checkpoint.due(parked, 22_000L))
+        assertTrue("the periodic checkpoint still runs", checkpoint.due(parked, 31_000L))
+        checkpoint.attempted(open, 31_000L)
+        assertTrue("the next P is a boundary again", checkpoint.due(parked, 32_000L))
+    }
+
     @Test
     fun aNegativeNetIsAnAnswerBecauseADescentIsOne() {
         // A trip that ended lower than it started really can hand the pack more than it took.
