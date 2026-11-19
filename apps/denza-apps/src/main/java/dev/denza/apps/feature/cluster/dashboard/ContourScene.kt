@@ -171,6 +171,12 @@ internal class ContourScene {
     private var engineOffFor = Float.MAX_VALUE
 
     /**
+     * Whether [engineOffFor] has a start: the flag seen up, or the model's own stop time taken by a
+     * panel opened after the stop (`EngineChargeSnapshot.stoppedSeconds`).
+     */
+    private var engineStopKnown = false
+
+    /**
      * Whether the last packet said P, for the frames a dropped read stands in for it.
      *
      * A dropped read carries no hot value, the selector included, and a panel that read P off it
@@ -213,7 +219,20 @@ internal class ContourScene {
                 seen[value.ordinal] = true
                 reading(telemetry, value)?.let { last[value.ordinal] = it }
             }
-            if (telemetry.engineRunning == true) engineOffFor = 0f
+            if (telemetry.engineRunning == true) {
+                engineOffFor = 0f
+                engineStopKnown = true
+            } else if (!engineStopKnown) {
+                // A panel opened after the stop never saw the flag up. The hold is the run's, not
+                // the view's: the model says how long ago its run stopped, and the clock starts
+                // there, so reopening the Contour inside the ten seconds keeps the block for what
+                // is left of them. Taken once, so a whole-second figure cannot pull the clock back.
+                val run = telemetry.engineCharge
+                if (!run.isEmpty && !run.running) {
+                    engineOffFor = run.stoppedSeconds.toFloat()
+                    engineStopKnown = true
+                }
+            }
         }
 
         chargeDwell = if (telemetry.charging && telemetry.access == VehicleAccess.READY) {

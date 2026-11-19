@@ -365,7 +365,10 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
   without a charge (a hard pull draws a line on zero and «0,0»); it holds ten
   seconds after the flag drops - hysteresis against a dropped read - and then
   leaves, the trip comes back with «ЗАРЯД ОТ ДВС 0,4 кВт·ч» on its detail line.
-  A link gone quiet takes it on the packet's age, like every reading.
+  A link gone quiet takes it on the packet's age, like every reading. The ten
+  seconds are the run's, not the view's (since 2026-11-19): a Contour opened
+  inside them takes the stop from the model (`EngineChargeSnapshot.stoppedSeconds`)
+  and keeps the block for what is left; until then a reopened panel dropped it.
 - **The engine's cell** beside it: «ДВС» over «1650 об/мин» while the engine
   runs, empty through the ten-second hold - the block's figure and time are the
   run's, and the trip's minutes beside them would be a second answer - and «ДВС ЗА

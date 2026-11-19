@@ -317,6 +317,37 @@ class ContourSceneTest {
     }
 
     @Test
+    fun aPanelOpenedDuringTheHoldKeepsTheBlockUntilTheRunsOwnTenSeconds() {
+        // A run of twenty seconds, stopped, and the hub has seen four seconds since.
+        val trace = EngineCharge()
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, loadKw = -14.0, dtSeconds = 1.0) }
+        repeat(5) { trace.sample((20 + it) * 1_000L, engineRunning = false, loadKw = 34.0, dtSeconds = 1.0) }
+        val stopped = ready(
+            values = mapOf(VehicleSignal.POWER_KW to 34.0, VehicleSignal.ENGINE_RUNNING to 0.0),
+            trace = trace,
+        )
+        assertEquals(5L, stopped.engineCharge.stoppedSeconds)
+
+        // The Contour is opened now: a new scene, which never saw the flag up. The hold is the
+        // run's, not the view's, so the block is there for what is left of its ten seconds.
+        val scene = ContourScene()
+        run(scene, stopped, 1f)
+        assertTrue("opened five seconds after the stop, the block is up", scene.stage.engineBlock)
+        run(scene, stopped, 3f)
+        assertTrue("nine seconds after the stop it still is", scene.stage.engineBlock)
+        run(scene, stopped, 2f)
+        assertFalse("and past ten it goes", scene.stage.engineBlock)
+
+        // A run that stopped long ago puts nothing up in a panel opened later.
+        val old = EngineCharge()
+        repeat(20) { old.sample(it * 1_000L, engineRunning = true, loadKw = -14.0, dtSeconds = 1.0) }
+        repeat(60) { old.sample((20 + it) * 1_000L, engineRunning = false, loadKw = 34.0, dtSeconds = 1.0) }
+        val later = ContourScene()
+        run(later, ready(values = mapOf(VehicleSignal.POWER_KW to 34.0, VehicleSignal.ENGINE_RUNNING to 0.0), trace = old), 1f)
+        assertFalse(later.stage.engineBlock)
+    }
+
+    @Test
     fun theBlockHoldsTenSecondsAfterTheFlagDropsAndThenGoes() {
         val trace = EngineCharge()
         repeat(20) { trace.sample(it * 1_000L, engineRunning = true, loadKw = -14.0, dtSeconds = 1.0) }
