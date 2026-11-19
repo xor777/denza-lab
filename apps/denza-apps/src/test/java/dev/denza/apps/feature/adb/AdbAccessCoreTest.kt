@@ -74,15 +74,24 @@ class AdbAccessCoreTest {
 
         val trusted: Boolean get() = trustedAt?.let { elapsed >= it } == true
 
+        /** How long a look takes, by when it starts: the car's answer is read as it starts. */
+        var lookMs: (Long) -> Long = { 20L }
+
+        /** The next this many looks time out, whatever the key's state. */
+        var failLooks = 0
+
         override fun passiveCheck(): AdbCheckResult {
             looks++
-            elapsed += 20
-            return when {
-                looksTimeOut -> AdbCheckResult(AdbCheckOutcome.ERROR, "SocketTimeoutException")
+            val failing = looksTimeOut || failLooks > 0
+            if (failLooks > 0) failLooks--
+            val result = when {
+                failing -> AdbCheckResult(AdbCheckOutcome.ERROR, "SocketTimeoutException")
                 !portOpen -> AdbCheckResult(AdbCheckOutcome.UNAVAILABLE, "ConnectException")
                 trusted -> AdbCheckResult(AdbCheckOutcome.TRUSTED)
                 else -> AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
             }
+            elapsed += lookMs(elapsed)
+            return result
         }
 
         override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
@@ -153,9 +162,38 @@ class AdbAccessCoreTest {
     private val published = mutableListOf<AdbRescueSnapshot>()
     private lateinit var core: AdbAccessCore
 
+    /** The idle looks the core armed: when each is due, on the car's clock. */
+    private val timers = mutableListOf<Pair<Long, Runnable>>()
+    private val timer: (Long, Runnable) -> Unit = { delayMs, task -> timers += (car.elapsed + delayMs) to task }
+
     private fun core(trustedBefore: Boolean = false): AdbAccessCore {
-        core = AdbAccessCore(car, store, { it.run() }, trustedBefore) { published += core.current }
+        core = AdbAccessCore(car, store, { it.run() }, timer, trustedBefore) { published += core.current }
         return core
+    }
+
+    /**
+     * [ms] pass with the worker idle: the armed looks fire and the car's own events happen, in the
+     * order they are due. A look that leads to a request runs it to its end, past [ms] if it must.
+     */
+    private fun idle(ms: Long) {
+        val end = car.elapsed + ms
+        while (true) {
+            val nextTimer = timers.filter { it.first <= end }.minByOrNull { it.first }
+            val nextEvent = car.events.filter { it.meanwhile && it.at <= end }.minByOrNull { it.at }
+            if (nextTimer == null && nextEvent == null) {
+                car.elapsed = maxOf(car.elapsed, end)
+                return
+            }
+            if (nextEvent != null && (nextTimer == null || nextEvent.at <= nextTimer.first)) {
+                car.events.remove(nextEvent)
+                car.elapsed = maxOf(car.elapsed, nextEvent.at)
+                nextEvent.run(null)
+            } else {
+                timers.remove(nextTimer!!)
+                car.elapsed = maxOf(car.elapsed, nextTimer.first)
+                nextTimer.second.run()
+            }
+        }
     }
 
     /** The phases the listener heard, each change once. */
@@ -570,15 +608,21 @@ class AdbAccessCoreTest {
     }
 
     @Test
-    fun `a look's caller hears its answer once`() {
+    fun `a look's caller hears its answer once, also when it asked during a request`() {
         core()
         var heard = 0
         core.check { heard++ }
         core.check { heard++ }
         assertEquals(2, heard)
-        car.meanwhile(at = 1_000) { core.check { heard++ } }
+        var heardInBlock = -1
+        car.meanwhile(at = 1_000) {
+            core.check { heard++ }
+            heardInBlock = heard
+        }
         core.foregroundStarted()
-        assertEquals("a look asked for during a request is not run, and not answered", 2, heard)
+        assertEquals("not beside the request", 2, heardInBlock)
+        assertEquals("after it, once", 3, heard)
+        assertEquals(1, car.requests.size)
     }
 
     /** A listener that counts what the app does on each change: the runtime on TRUSTED, the restore otherwise. */
@@ -607,7 +651,7 @@ class AdbAccessCoreTest {
 
     private fun heardFrom(setUp: () -> Unit, act: () -> Unit): Heard {
         val heard = Heard()
-        core = AdbAccessCore(car, store, { it.run() }, false) { heard.hear(core.current) }
+        core = AdbAccessCore(car, store, { it.run() }, timer, false) { heard.hear(core.current) }
         setUp()
         heard.clear()
         act()
@@ -801,7 +845,7 @@ class AdbAccessCoreTest {
     @Test
     fun `a throwing listener releases the worker and ends in an error with its control`() {
         var throwOn: AdbRescuePhase? = AdbRescuePhase.TRUSTED
-        core = AdbAccessCore(car, store, { it.run() }, false) {
+        core = AdbAccessCore(car, store, { it.run() }, timer, false) {
             published += core.current
             if (core.current.phase == throwOn) {
                 throwOn = null
@@ -821,17 +865,20 @@ class AdbAccessCoreTest {
         assertEquals(looks + 1, car.looks)
         assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
 
-        // One that throws on the caller's thread, as the change is announced, still lets the work run.
+        // One that throws on the caller's thread, as a press's ring is announced, still lets the work run.
         car.trustedAt = null
+        core.foregroundStopped(changingConfigurations = false)
+        core.check()
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
         throwOn = AdbRescuePhase.CHECKING
         try {
-            core.check()
+            core.check(shown = true)
         } catch (expected: IllegalStateException) {
             // The caller hears it; the worker ran regardless.
         }
         assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
         core.check()
-        assertEquals(looks + 3, car.looks)
+        assertEquals(looks + 4, car.looks)
     }
 
     /**
@@ -874,5 +921,217 @@ class AdbAccessCoreTest {
         assertEquals(now, AdbRescuePolicy.keep(future, now).last())
         assertEquals(12, AdbRescuePolicy.recent(future, now).size)
         assertEquals(listOf(now - 1_000), AdbRescuePolicy.recent(listOf(now - AdbRescuePolicy.DAY_MS - 1, now - 1_000), now))
+    }
+
+    // Invariant A: the gate cannot outlive access.
+
+    /** Review finding 3: the first look after an approval with the box timed out; the next would have found the key. */
+    @Test
+    fun `a look after the approval that does not answer is looked at again`() {
+        core()
+        car.events += Event(5_000) {
+            car.trustedAt = car.elapsed
+            car.failLooks = 1
+            Wake.APPROVED
+        }
+
+        core.foregroundStarted()
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertFalse(published.any { it.phase == AdbRescuePhase.ERROR })
+        assertEquals(1, car.requests.size)
+    }
+
+    /** Every look after the approval times out: their failure is published, and the next idle look finds the key. */
+    @Test
+    fun `an approval whose looks never answer is not a missed box, and the idle look ends the gate`() {
+        core()
+        car.events += Event(5_000) {
+            car.trustedAt = car.elapsed
+            car.failLooks = AdbRescuePolicy.APPROVAL_LOOKS_MS.size
+            Wake.APPROVED
+        }
+
+        core.foregroundStarted()
+
+        assertEquals(AdbRescuePhase.ERROR, core.current.phase)
+        assertFalse(core.current.alwaysAllowMissed)
+        assertEquals(1, car.requests.size)
+
+        idle(AdbRescuePolicy.IDLE_LOOK_MS)
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertEquals("no second request", 1, car.requests.size)
+    }
+
+    /** Review finding 4: the hold's last look straddles its deadline and the approval lands meanwhile. */
+    @Test
+    fun `an approval in the last moment of the hold is read before the hold says nobody answered`() {
+        core()
+        // The hold opens at 20 ms and looks every three seconds; the one at its deadline, 120.02 s, takes 1.5 s.
+        car.lookMs = { at -> if (at in 119_000L..120_100L) 1_500L else 20L }
+        car.trustedAt = 120_200
+        car.events += Event(120_200) { Wake.APPROVED }
+
+        core.foregroundStarted()
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertEquals(1, car.requests.size)
+    }
+
+    /** An earlier prompt approved with the box half a second before the deadline, between two looks. */
+    @Test
+    fun `trust that arrives just before the deadline is found by the last look`() {
+        core()
+        car.meanwhile(at = AdbRescuePolicy.HOLD_MS - 300) { car.trustedAt = car.elapsed }
+
+        core.foregroundStarted()
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertEquals(1, car.requests.size)
+    }
+
+    /**
+     * The hold ran out; the prompt stayed on the car's screen and the driver ticked the box a minute
+     * later. Nothing is listening on a transport any more: the idle look finds it, without a press.
+     */
+    @Test
+    fun `a prompt approved with the box after the hold took the gate down by itself`() {
+        core()
+        core.foregroundStarted()
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertEquals(AdbRescuePolicy.NO_ANSWER, core.current.lastFailure)
+
+        car.meanwhile(at = car.elapsed + 60_000) { car.trustedAt = car.elapsed }
+        idle(60_000 + AdbRescuePolicy.IDLE_LOOK_MS)
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertEquals(1, car.requests.size)
+        assertEquals(1, car.keysSent)
+    }
+
+    /** The idle look runs whatever the gate shows: a closed port, an unexpected answer, a refusal. */
+    @Test
+    fun `every gate that is up looks again until the key is trusted`() {
+        val gates = mapOf<String, () -> Unit>(
+            "closed port" to { car.portOpen = false },
+            "no answer" to { car.looksTimeOut = true },
+            "switch off" to { car.switch = AdbSystemSwitch.DISABLED },
+        )
+        gates.forEach { (name, arrange) ->
+            car.portOpen = true
+            car.looksTimeOut = false
+            car.switch = AdbSystemSwitch.ENABLED
+            car.trustedAt = null
+            timers.clear()
+            core()
+            arrange()
+            core.foregroundStarted()
+            assertTrue(name, core.current.phase != AdbRescuePhase.TRUSTED)
+            idle(5 * AdbRescuePolicy.IDLE_LOOK_MS)
+            assertTrue(name, core.current.phase != AdbRescuePhase.TRUSTED)
+
+            car.portOpen = true
+            car.looksTimeOut = false
+            car.switch = AdbSystemSwitch.ENABLED
+            car.trustedAt = car.elapsed
+            idle(AdbRescuePolicy.IDLE_LOOK_MS)
+            assertEquals(name, AdbRescuePhase.TRUSTED, core.current.phase)
+            core.foregroundStopped(changingConfigurations = false)
+        }
+    }
+
+    @Test
+    fun `the idle look is passive, foreground only, and stops with the screen`() {
+        core()
+        val start = car.elapsed
+        core.foregroundStarted()
+        val keys = car.keysSent
+        val looks = car.looks
+        idle(10 * 60_000L)
+        assertEquals("the opening's one request, nothing more", keys, car.keysSent)
+        val idleLooks = car.looks - looks
+        val minutes = (car.elapsed - start) / 60_000.0
+        assertTrue("about one every ${AdbRescuePolicy.IDLE_LOOK_MS} ms: $idleLooks in $minutes min", idleLooks in 90..130)
+
+        core.foregroundStopped(changingConfigurations = false)
+        val stoppedAt = car.looks
+        idle(10 * 60_000L)
+        assertEquals("nothing looks behind a stopped screen", stoppedAt, car.looks)
+    }
+
+    @Test
+    fun `a trusted key is not looked at while idle`() {
+        car.trustedAt = 0
+        core()
+        core.foregroundStarted()
+        val looks = car.looks
+        idle(10 * 60_000L)
+        assertEquals(looks, car.looks)
+    }
+
+    /**
+     * Any run of looks, answers, timeouts, departures and presses that ends with the car trusting
+     * the key while a screen is in front leaves the gate gone - and never offers the key more than
+     * the cap and the presses allow.
+     */
+    @Test
+    fun `whatever happens, trust in front of the screen ends the gate, and the cap holds`() {
+        val seeds = 400
+        repeat(seeds) { seed ->
+            val random = java.util.Random(seed.toLong())
+            car.elapsed = 0
+            car.trustedAt = null
+            car.portOpen = true
+            car.looksTimeOut = false
+            car.failLooks = 0
+            car.switch = AdbSystemSwitch.ENABLED
+            car.events.clear()
+            car.requests.clear()
+            car.keysSent = 0
+            store.log = AdbAskLog()
+            timers.clear()
+            published.clear()
+            core()
+            var presses = 0
+            var inFront = false
+            repeat(12) {
+                val at = car.elapsed + random.nextInt(150_000)
+                when (random.nextInt(9)) {
+                    0 -> car.approve(at, tick = false)
+                    1 -> car.events += Event(at) { Wake.EOF }
+                    2 -> car.meanwhile(at) { car.portOpen = !car.portOpen }
+                    3 -> car.meanwhile(at) { car.looksTimeOut = !car.looksTimeOut }
+                    4 -> car.meanwhile(at) { car.failLooks = 1 + random.nextInt(4) }
+                    5 -> car.meanwhile(at) {
+                        if (inFront) core.foregroundStopped(changingConfigurations = random.nextBoolean())
+                        inFront = false
+                    }
+                    6 -> car.meanwhile(at) {
+                        if (!inFront) core.foregroundStarted()
+                        inFront = true
+                    }
+                    7 -> car.meanwhile(at) {
+                        if (core.current.canAsk) presses++
+                        core.ask()
+                    }
+                    else -> car.meanwhile(at) { core.check(shown = random.nextBoolean()) }
+                }
+            }
+            core.foregroundStarted()
+            inFront = true
+            idle(random.nextInt(600_000).toLong())
+            // The car comes back and trusts the key; a screen is in front.
+            car.events.removeAll { it.meanwhile }
+            car.portOpen = true
+            car.looksTimeOut = false
+            car.failLooks = 0
+            car.trustedAt = car.elapsed
+            if (!inFront) core.foregroundStarted()
+            idle(AdbRescuePolicy.HOLD_MS + 30_000)
+
+            assertEquals("seed $seed", AdbRescuePhase.TRUSTED, core.current.phase)
+            assertTrue("seed $seed: ${car.keysSent} keys, $presses presses", car.keysSent <= AdbRescuePolicy.DAILY_ASKS + presses)
+            assertTrue("seed $seed: one request at a time", maxOpen <= 1)
+        }
     }
 }

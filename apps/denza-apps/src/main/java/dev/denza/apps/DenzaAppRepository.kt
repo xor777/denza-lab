@@ -1035,14 +1035,13 @@ object DenzaAppRepository {
      */
     fun checkAdbAccessByUser() {
         AdbRestore.trigger(AdbRestoreManager.GATE)
-        checkAdbAccess()
+        AdbRescueCoordinator.checkAccess(shown = true)
     }
 
     /**
      * A tile's press on a failed channel: the passive check, and [onTrusted] on the main thread if
      * the car still trusts this app. If it does not, the phase leaves TRUSTED and the startup gate
-     * comes up over the dashboard - the choice the driver has. A check already running answers for
-     * this press too, without it.
+     * comes up over the dashboard - the choice the driver has.
      */
     fun checkAdbAccessThen(onTrusted: () -> Unit) {
         AdbRescueCoordinator.checkAccess {

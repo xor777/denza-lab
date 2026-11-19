@@ -86,42 +86,57 @@ internal interface AdbAskStore {
     fun save(log: AdbAskLog): Boolean
 }
 
+private typealias Change = (AdbRescueSnapshot) -> AdbRescueSnapshot
+
 /**
  * Who may offer the key to the car, when, and how a request is held until the driver answers.
  *
- * One worker runs everything that talks to adbd, so there is never more than one request
- * outstanding and never a check beside it. A request is sent only from a foreground opening of the
- * app, or from a press: background work - autoload, the screen waking, a feature's channel, the
- * restore - only ever looks passively.
+ * One loop on one worker runs everything that talks to adbd, so there is never more than one
+ * request outstanding and never a check beside it. Callers only say what they want - a look, a
+ * request, an opening - and the loop picks the next job from what is wanted and what the phase
+ * is. A request is sent only from a foreground opening of the app, or from a press: background
+ * work - autoload, the screen waking, a feature's channel, the restore - only ever looks passively.
  *
  * - Every request is recorded before it is sent and counts toward [AdbRescuePolicy.DAILY_ASKS].
  *   The cap stops the automatic ones - an opening's own, and the one follow-up an opening may send
  *   after an approval without the box - and never a press of the gate's or the panel's control.
  * - The request is held up to [AdbRescuePolicy.HOLD_MS]. adbd answers an approval on the transport
  *   that asked; a passive look every [AdbRescuePolicy.LOOK_MS] notices an approval of an earlier
- *   request of the same key, whose transport is gone. Only that approval or the switch going off
- *   ends the hold early: a look that times out is noise, not an answer.
- * - An approval whose next connections are still refused was given without «always allow»: the
- *   gate shows that box, and the next request goes out at once - once an opening.
+ *   request of the same key, whose transport is gone, and one more look at the deadline notices
+ *   the approval that came in its last seconds. A look that times out is noise, not an answer.
+ * - An approval is followed by looks over [AdbRescuePolicy.APPROVAL_LOOKS_MS]. A look that does
+ *   not answer is looked at again; only a refusal from [AdbRescuePolicy.MISSED_BOX_FROM_MS] on is
+ *   an approval without «always allow»: the gate shows that box, and the next request goes out at
+ *   once - once an opening.
+ * - While a screen is in front and the key is not trusted, a passive look repeats every
+ *   [AdbRescuePolicy.IDLE_LOOK_MS], whatever the gate shows: trust that arrives by any route - an
+ *   earlier prompt approved with the box, the port coming back - takes the gate down by itself.
+ *   It stops when the screen does.
  * - Leaving the foreground, the switch going off, the time running out and the car answering all
  *   close the transport; leaving during the handshake stops it before the key is written. A
  *   configuration change is not leaving.
- * - Every outcome reaches the listener once, and the worker is released whatever throws.
+ * - The listener hears each change of [current] once, and the worker is released whatever throws.
  */
 internal class AdbAccessCore(
     private val system: AdbAccessSystem,
     private val store: AdbAskStore,
     private val worker: (Runnable) -> Unit,
+    /** Runs a task on the worker after a delay: the idle look's clock. */
+    private val timer: (Long, Runnable) -> Unit,
     trustedBefore: Boolean,
     private val listener: () -> Unit,
 ) {
     private val lock = Any()
 
+    /** What the listener has heard: [state] as of the last announcement. */
     @Volatile
     var current: AdbRescueSnapshot
         private set
 
-    /** A check or a request is on the worker. */
+    /** The loop's own reading, ahead of [current] between a job's steps. */
+    private var state: AdbRescueSnapshot
+
+    /** The loop is on the worker. */
     private var busy = false
     private var held: AdbHeldRequest? = null
 
@@ -138,46 +153,58 @@ internal class AdbAccessCore(
     private var askedIn = -1
     private var followedIn = -1
 
+    /** The opening an approval without the box left a follow-up request due in. */
+    private var followUpIn = -1
+
+    /** What callers want of the loop; each is taken when the loop picks it. */
+    private var askWanted = false
+    private var lookWanted = false
+    private var pressed = false
+    private val afters = mutableListOf<() -> Unit>()
+
+    /** The idle look armed last; any older one finds itself stale and does nothing. */
+    private var idleTicket = 0
+
     init {
         val log = store.load()
-        current = AdbRescueSnapshot(attemptCount = log.total, lastAttemptAtMillis = log.lastAtMs, trustedBefore = trustedBefore)
+        state = AdbRescueSnapshot(attemptCount = log.total, lastAttemptAtMillis = log.lastAtMs, trustedBefore = trustedBefore)
+        current = state
     }
 
     /** Requests recorded in the last 24 hours, counted now: the technical page's. */
     fun requestsLastDay(): Int = AdbRescuePolicy.recent(store.load().times, system.wallMs()).size
 
     /**
-     * A passive look; [after] runs once it has answered. A look or a request in flight is not
-     * doubled - and then [after] is dropped, not queued: every caller passes one that only acts
-     * on a settled phase, and the work in flight settles it and notifies the listener anyway.
+     * A passive look; [after] runs once the loop has nothing left to do, so it always sees a
+     * settled phase. Looks asked for while one is in flight are one more look, never dropped.
+     * [shown] is a press: the gate turns its ring for it.
      */
-    fun check(after: (() -> Unit)? = null) {
+    fun check(shown: Boolean = false, after: (() -> Unit)? = null) {
         synchronized(lock) {
-            // [after] is dropped here, not queued (see above): harmless, and known.
-            if (busy) return
-            busy = true
-            current = AdbRescuePolicy.checking(current)
+            lookWanted = true
+            after?.let { afters += it }
+            if (shown && state.phase != AdbRescuePhase.TRUSTED && state.phase != AdbRescuePhase.AWAITING_CONFIRMATION) {
+                pressed = true
+                state = AdbRescuePolicy.checking(state)
+            }
         }
-        announceThen { look(after) }
+        announceThenPump()
     }
 
     /** The gate's control: one request now, whatever the cap, while nothing else is out. */
     fun ask() {
         synchronized(lock) {
-            if (busy || !current.canAsk) return
-            busy = true
-            askedIn = openings
-            current = AdbRescuePolicy.asking(current)
+            if (!state.canAsk || held != null || opening != null) return
+            askWanted = true
         }
-        announceThen { release(askChain()) }
+        pump()
     }
 
     /**
-     * The app came to the front. A new opening owns one request of its own: sent at once on a
-     * refused key, or after the look this starts, or after whatever is on the worker ends.
+     * The app came to the front. A new opening owns one request of its own on a refused key, and
+     * looks at every other phase but TRUSTED.
      */
     fun foregroundStarted() {
-        val looks: Boolean
         synchronized(lock) {
             // A second screen of the same opening, or the one a configuration change recreated.
             if (++started > 1) return
@@ -188,25 +215,16 @@ internal class AdbAccessCore(
             keepOpening = false
             foreground = true
             openings++
-            if (busy) return
-            // A refused key the opening may ask for is asked for at once: the request's own handshake
-            // is the look. One it may not ask for - the day's three spent - is looked at, since an
-            // earlier prompt approved with the box while the app was away trusts it with nobody
-            // watching, and a look costs no prompt.
-            val asks = current.phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && autoAllowed()
-            looks = !asks && current.phase in LOOKED_AT_ON_OPENING
-            if (!looks && !asks) return
-            busy = true
-            if (looks) current = AdbRescuePolicy.checking(current) else startAuto()
+            if (state.phase != AdbRescuePhase.TRUSTED) lookWanted = true
         }
-        announceThen { if (looks) look(null) else release(askChain()) }
+        pump()
     }
 
     /**
      * The app left the front. A request in flight is closed - the driver cannot answer a prompt
      * they are not looking at, and the next opening asks again - and one still being opened is
-     * stopped before its key is written. A configuration change keeps both the opening and the
-     * request: a rotation never sends a second one.
+     * stopped before its key is written. The idle look stops. A configuration change keeps both the
+     * opening and the request: a rotation never sends a second one.
      */
     fun foregroundStopped(changingConfigurations: Boolean) {
         val closing: AdbHeldRequest?
@@ -221,6 +239,7 @@ internal class AdbAccessCore(
             }
             keepOpening = false
             foreground = false
+            idleTicket++
             if (!busy) return
             stopped = true
             closing = held
@@ -230,31 +249,130 @@ internal class AdbAccessCore(
         closing?.close()
     }
 
-    /** Under [lock]: an automatic request is due for this opening and the day's cap allows it. */
-    private fun autoAllowed(): Boolean = inFront() && askedIn != openings && underCap()
-
     /** Under [lock]: a screen is in front, or a configuration change is still bringing one back. */
     private fun inFront(): Boolean = foreground && !(keepOpening && keepExpired())
 
     private fun underCap(): Boolean =
         AdbRescuePolicy.recent(store.load().times, system.wallMs()).size < AdbRescuePolicy.DAILY_ASKS
 
-    /** Under [lock]: the opening's request is spent, and the gate turns to the ring at once. */
-    private fun startAuto() {
-        askedIn = openings
-        current = AdbRescuePolicy.asking(current)
+    /** The change made on the caller's thread reaches the listener, and the loop runs even if the listener throws. */
+    private fun announceThenPump() {
+        try {
+            announce()
+        } finally {
+            pump()
+        }
+    }
+
+    /** [state] reaches the listener if it is not what the listener heard last. */
+    private fun announce() {
+        val changed = synchronized(lock) {
+            if (state == current) {
+                false
+            } else {
+                current = state
+                true
+            }
+        }
+        if (changed) listener()
+    }
+
+    /** Starts the loop unless it runs: a running loop picks up whatever was just wanted. */
+    private fun pump() {
+        synchronized(lock) {
+            if (busy) return
+            busy = true
+        }
+        worker(Runnable { guarded { loop() } })
+    }
+
+    private enum class Job { ASK_AUTO, ASK_PRESSED, LOOK }
+
+    /**
+     * Under [lock]: the next job, in the order the gate needs them. A request the opening is owed
+     * comes first - its own handshake is the look - then a press, then a look.
+     */
+    private fun pick(): Job? {
+        stopped = false
+        if (state.canAsk && inFront()) {
+            if (askedIn != openings && underCap()) {
+                askedIn = openings
+                lookWanted = false
+                return Job.ASK_AUTO
+            }
+            if (followUpIn == openings && underCap()) {
+                followUpIn = -1
+                lookWanted = false
+                return Job.ASK_AUTO
+            }
+        }
+        if (askWanted) {
+            askWanted = false
+            if (state.canAsk) {
+                // A press is this opening's request: the opening sends none of its own after it.
+                askedIn = openings
+                lookWanted = false
+                return Job.ASK_PRESSED
+            }
+        }
+        if (lookWanted) {
+            lookWanted = false
+            if (state.phase == AdbRescuePhase.UNKNOWN || pressed) state = AdbRescuePolicy.checking(state)
+            pressed = false
+            return Job.LOOK
+        }
+        return null
     }
 
     /**
-     * The change made under the lock reaches the listener, and [body] goes to the worker even if
-     * the listener throws: a worker never scheduled would leave [busy] set for good.
+     * The worker's loop: apply a job's outcome and pick the next in one step, so a refusal that
+     * leads straight to a request is one change of the gate - the ring - and never the idle gate
+     * for a frame first. A request announces itself when it is sent.
      */
-    private fun announceThen(body: () -> Unit) {
-        try {
-            listener()
-        } finally {
-            worker(Runnable { guarded(body) })
+    private fun loop() {
+        var change: Change? = null
+        while (true) {
+            var then: List<() -> Unit> = emptyList()
+            val job = synchronized(lock) {
+                change?.let { state = it(state) }
+                held = null
+                opening = null
+                pick().also {
+                    if (it == null) {
+                        busy = false
+                        then = afters.toList()
+                        afters.clear()
+                    }
+                }
+            }
+            if (job != Job.ASK_AUTO && job != Job.ASK_PRESSED) announce()
+            if (job == null) {
+                then.forEach { it() }
+                armIdle()
+                return
+            }
+            change = when (job) {
+                Job.ASK_AUTO, Job.ASK_PRESSED -> askOnce()
+                Job.LOOK -> classify(system.passiveCheck())
+            }
         }
+    }
+
+    /** The next idle look, while a screen is in front of a key that is not trusted. */
+    private fun armIdle() {
+        val ticket = synchronized(lock) {
+            if (busy || !inFront() || state.phase == AdbRescuePhase.TRUSTED) return
+            ++idleTicket
+        }
+        timer(AdbRescuePolicy.IDLE_LOOK_MS, Runnable { idleLook(ticket) })
+    }
+
+    private fun idleLook(ticket: Int) {
+        synchronized(lock) {
+            if (ticket != idleTicket || !inFront() || state.phase == AdbRescuePhase.TRUSTED) return
+            lookWanted = true
+        }
+        pump()
     }
 
     /**
@@ -272,93 +390,42 @@ internal class AdbAccessCore(
                 opening = null
                 stopped = false
                 busy = false
-                current = AdbRescuePolicy.afterCheck(current, AdbCheckOutcome.ERROR, current.systemSwitch,
+                state = AdbRescuePolicy.afterCheck(state, AdbCheckOutcome.ERROR, state.systemSwitch,
                     AdbRescuePolicy.failureLabel(error))
             }
             runCatching { closing?.close() }
             // The listener may be what threw; the snapshot is right either way.
-            runCatching { listener() }
+            runCatching { announce() }
+            runCatching { armIdle() }
         }
     }
 
-    /** On the worker: a passive look, and the opening's own request straight after a refusal. */
-    private fun look(after: (() -> Unit)?) {
-        release(classify(system.passiveCheck()), after)
-    }
-
-    /**
-     * The worker is done: free it, or start the opening's own request if it is still due. [change]
-     * lands in the same step as that decision and both reach the listener in one call, so a
-     * refusal followed by the request is one change of the gate - the ring - and never the idle
-     * gate for a frame first. The listener then misses that refusal; the gate is what has to be
-     * right, and [AdbStartupGatePolicy.overlay] puts the request's gate above every restore state.
-     */
-    private fun release(change: (AdbRescueSnapshot) -> AdbRescueSnapshot, after: (() -> Unit)? = null) {
-        var pending: ((AdbRescueSnapshot) -> AdbRescueSnapshot)? = change
-        var then = after
-        while (true) {
-            val auto = synchronized(lock) {
-                pending?.let { current = it(current) }
-                pending = null
-                held = null
-                opening = null
-                stopped = false
-                if (current.phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && autoAllowed()) {
-                    startAuto()
-                    true
-                } else {
-                    busy = false
-                    false
-                }
-            }
-            listener()
-            then?.invoke()
-            then = null
-            if (!auto) return
-            pending = askChain()
-        }
-    }
-
-    /** A request, and the follow-up if one is due: the last one's outcome. */
-    private fun askChain(): (AdbRescueSnapshot) -> AdbRescueSnapshot {
-        var next: Next = askOnce()
-        while (next is Next.FollowUp) next = askOnce()
-        return (next as Next.Done).change
-    }
-
-    private sealed interface Next {
-        class Done(val change: (AdbRescueSnapshot) -> AdbRescueSnapshot) : Next
-        data object FollowUp : Next
-    }
-
-    private fun done(change: (AdbRescueSnapshot) -> AdbRescueSnapshot) = Next.Done(change)
-
-    /** One request, from the switch reading to its end: its outcome, or the follow-up. */
-    private fun askOnce(): Next {
-        if (leaving()) return done { AdbRescuePolicy.refused(it) }
+    /** One request, from the switch reading to its end: its outcome. */
+    private fun askOnce(): Change {
+        if (leaving()) return { AdbRescuePolicy.refused(it) }
         // Re-read at the moment of sending: a request is a queue entry the car keeps whatever
         // happens to this app, and one that can never be drawn is only a stuck queue.
         val switch = system.systemSwitch()
-        if (switch == AdbSystemSwitch.DISABLED) return done { AdbRescuePolicy.systemSwitchOff(it) }
+        if (switch == AdbSystemSwitch.DISABLED) return { AdbRescuePolicy.systemSwitchOff(it) }
         val now = system.wallMs()
         val before = store.load()
         val log = AdbAskLog(AdbRescuePolicy.keep(before.times, now), before.total + 1, now)
         if (!store.save(log)) {
-            return done { AdbRescuePolicy.refused(it).copy(lastFailure = AdbRescuePolicy.NOT_RECORDED) }
+            return { AdbRescuePolicy.refused(it).copy(lastFailure = AdbRescuePolicy.NOT_RECORDED) }
         }
         val cancel = AdbRequestCancel()
         val leftAlready = synchronized(lock) {
             if (!stopped) opening = cancel
             stopped
         }
-        if (leftAlready) return done { AdbRescuePolicy.refused(it) }
+        if (leftAlready) return { AdbRescuePolicy.refused(it) }
         publish { AdbRescuePolicy.sent(it, switch, log) }
         val request = try {
             system.openRequest(cancel)
         } catch (error: Exception) {
             // Left during the handshake: the opening was stopped, and that is not a failure.
-            if (leaving() || cancel.isCancelled) return done { AdbRescuePolicy.refused(it) }
-            return done(classify(system.requestFailure(error)))
+            if (leaving() || cancel.isCancelled) return { AdbRescuePolicy.refused(it) }
+            return classify(system.requestFailure(error))
         }
         val leaving = synchronized(lock) {
             opening = null
@@ -367,11 +434,11 @@ internal class AdbAccessCore(
         }
         if (leaving) {
             request.close()
-            return done { AdbRescuePolicy.refused(it) }
+            return { AdbRescuePolicy.refused(it) }
         }
         if (request.alreadyTrusted) {
             request.close()
-            return done(classify(AdbCheckResult(AdbCheckOutcome.TRUSTED)))
+            return classify(AdbCheckResult(AdbCheckOutcome.TRUSTED))
         }
         val ending = try {
             hold(request)
@@ -381,20 +448,18 @@ internal class AdbAccessCore(
         }
         return when (ending) {
             Ending.Approved -> afterApproval()
-            is Ending.Trusted -> done(classify(ending.look))
-            Ending.SwitchOff -> done { AdbRescuePolicy.systemSwitchOff(it) }
-            Ending.TimedOut -> done { AdbRescuePolicy.refused(it).copy(lastFailure = AdbRescuePolicy.NO_ANSWER) }
-            Ending.Left -> done { AdbRescuePolicy.refused(it) }
+            is Ending.Trusted -> classify(ending.look)
+            Ending.SwitchOff -> { snapshot -> AdbRescuePolicy.systemSwitchOff(snapshot) }
+            Ending.TimedOut -> { snapshot -> AdbRescuePolicy.refused(snapshot).copy(lastFailure = AdbRescuePolicy.NO_ANSWER) }
+            Ending.Left -> { snapshot -> AdbRescuePolicy.refused(snapshot) }
             is Ending.Lost -> {
                 val look = system.passiveCheck()
-                done(
-                    classify(
-                        if (look.outcome == AdbCheckOutcome.AUTHORIZATION_REQUIRED) {
-                            AdbCheckResult(look.outcome, AdbRescuePolicy.failureLabel(ending.error))
-                        } else {
-                            look
-                        },
-                    ),
+                classify(
+                    if (look.outcome == AdbCheckOutcome.AUTHORIZATION_REQUIRED) {
+                        AdbCheckResult(look.outcome, AdbRescuePolicy.failureLabel(ending.error))
+                    } else {
+                        look
+                    },
                 )
             }
         }
@@ -404,7 +469,8 @@ internal class AdbAccessCore(
      * The request's transport is held until the driver's answer arrives on it, an approval of an
      * earlier request is found by a look, the switch goes off, adbd closes it, the app leaves or
      * the time runs out. A look that does not find the key trusted - refused, or a timeout of its
-     * own - changes nothing: the prompt may still be on the screen.
+     * own - changes nothing: the prompt may still be on the screen. At the deadline the transport
+     * is read once more and the key looked at once more before the hold says nobody answered.
      */
     private fun hold(request: AdbHeldRequest): Ending {
         val deadline = system.elapsedMs() + AdbRescuePolicy.HOLD_MS
@@ -412,7 +478,7 @@ internal class AdbAccessCore(
         while (true) {
             if (leaving()) return Ending.Left
             val now = system.elapsedMs()
-            if (now >= deadline) return Ending.TimedOut
+            if (now >= deadline) return lastLook(request)
             val wait = (minOf(nextLook, deadline) - now).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
             val approved = try {
                 request.awaitApproval(wait)
@@ -429,29 +495,47 @@ internal class AdbAccessCore(
         }
     }
 
+    /** The deadline: an answer already on the transport, or trust a look finds, before «no answer». */
+    private fun lastLook(request: AdbHeldRequest): Ending {
+        val approved = try {
+            request.awaitApproval(1)
+        } catch (error: IOException) {
+            return if (leaving()) Ending.Left else Ending.Lost(error)
+        }
+        if (approved) return Ending.Approved
+        val look = system.passiveCheck()
+        return if (look.outcome == AdbCheckOutcome.TRUSTED) Ending.Trusted(look) else Ending.TimedOut
+    }
+
     /**
      * adbd let the asking transport in. Only «always allow» makes the key trusted on the next
-     * connection, and the framework stores it after the dialog's answer - late on a busy unit - so
-     * the looks run until [AdbRescuePolicy.APPROVAL_LOOKS_MS]' last before the box counts as missed.
+     * connection, and the framework stores it after the dialog's answer - late on a busy unit. A look
+     * that finds it trusted ends this; a look that does not answer is looked at again; a refusal
+     * means the box was missed only from [AdbRescuePolicy.MISSED_BOX_FROM_MS] on. A window whose
+     * looks never answer leaves the last of them, and the idle looks go on from there.
      */
-    private fun afterApproval(): Next {
+    private fun afterApproval(): Change {
         val start = system.elapsedMs()
+        var last = AdbCheckResult(AdbCheckOutcome.ERROR)
         for (at in AdbRescuePolicy.APPROVAL_LOOKS_MS) {
             val wait = start + at - system.elapsedMs()
             if (wait > 0) system.sleep(wait)
-            val result = system.passiveCheck()
-            if (result.outcome != AdbCheckOutcome.AUTHORIZATION_REQUIRED) return done(classify(result))
-        }
-        val again = synchronized(lock) {
-            val due = inFront() && !stopped && followedIn != openings && underCap()
-            if (due) {
-                followedIn = openings
-                current = AdbRescuePolicy.asking(AdbRescuePolicy.refused(current).copy(alwaysAllowMissed = true))
+            val look = system.passiveCheck()
+            if (look.outcome == AdbCheckOutcome.TRUSTED) return classify(look)
+            if (look.outcome == AdbCheckOutcome.AUTHORIZATION_REQUIRED && at >= AdbRescuePolicy.MISSED_BOX_FROM_MS) {
+                synchronized(lock) {
+                    // The follow-up is the loop's to send, once an opening, if a screen is still in front.
+                    if (followedIn != openings) {
+                        followedIn = openings
+                        followUpIn = openings
+                    }
+                }
+                val switch = system.systemSwitch()
+                return { AdbRescuePolicy.afterCheck(it, look.outcome, switch, look.failure).copy(alwaysAllowMissed = true) }
             }
-            due
+            last = look
         }
-        // The follow-up's own «sent» is what the listener hears next; an outcome is heard once.
-        return if (again) Next.FollowUp else done { AdbRescuePolicy.refused(it).copy(alwaysAllowMissed = true) }
+        return classify(last)
     }
 
     /**
@@ -473,16 +557,16 @@ internal class AdbAccessCore(
     private fun keepExpired(): Boolean = system.elapsedMs() - keptAtMs > AdbRescuePolicy.RECREATE_MS
 
     /** A look's answer as a change, classified with a switch reading taken after it. */
-    private fun classify(look: AdbCheckResult): (AdbRescueSnapshot) -> AdbRescueSnapshot {
+    private fun classify(look: AdbCheckResult): Change {
         if (look.outcome == AdbCheckOutcome.TRUSTED) system.recordTrusted()
         val switch = system.systemSwitch()
         return { AdbRescuePolicy.afterCheck(it, look.outcome, switch, look.failure) }
     }
 
     /** A step the gate shows while the worker goes on: the request recorded and on its way. */
-    private fun publish(change: (AdbRescueSnapshot) -> AdbRescueSnapshot) {
-        synchronized(lock) { current = change(current) }
-        listener()
+    private fun publish(change: Change) {
+        synchronized(lock) { state = change(state) }
+        announce()
     }
 
     private sealed interface Ending {
@@ -492,15 +576,5 @@ internal class AdbAccessCore(
         data object TimedOut : Ending
         data object Left : Ending
         class Lost(val error: IOException) : Ending
-    }
-
-    private companion object {
-        /** The phases an opening looks at again, when it does not ask. */
-        val LOOKED_AT_ON_OPENING = setOf(
-            AdbRescuePhase.UNKNOWN,
-            AdbRescuePhase.UNAVAILABLE,
-            AdbRescuePhase.ERROR,
-            AdbRescuePhase.AUTHORIZATION_REQUIRED,
-        )
     }
 }

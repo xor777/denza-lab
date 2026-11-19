@@ -8,7 +8,8 @@ import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.AppText
 import dev.denza.disharebridge.LocalAdbClient
-import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 enum class AdbRescuePhase {
     UNKNOWN,
@@ -93,12 +94,21 @@ internal object AdbRescuePolicy {
     const val RECREATE_MS = 5_000L
 
     /**
-     * When the looks after an approval run, from the approval: it counts as given without «always
-     * allow» only if the last still finds the key refused. The framework answers adbd before it
+     * When the looks after an approval run, from the approval. The framework answers adbd before it
      * stores the key, on its own handler; a store that lands after a second is not unusual on a
      * busy unit, and taking it for a missed box sends the driver a prompt they already answered.
+     * A look that does not answer at all is looked at again at the next moment.
      */
-    val APPROVAL_LOOKS_MS = listOf(0L, 1_000L, 2_500L)
+    val APPROVAL_LOOKS_MS = listOf(0L, 1_000L, 2_500L, 5_000L, 10_000L)
+
+    /** From when after an approval a refused key means the box was not ticked. */
+    const val MISSED_BOX_FROM_MS = 2_500L
+
+    /**
+     * How often a screen in front of a key that is not trusted looks again: trust that arrives by
+     * any route takes the gate down without a press. Passive, so it costs no prompt.
+     */
+    const val IDLE_LOOK_MS = 5_000L
 
     /** Report words: the technical page's «Последний сбой». */
     const val NO_ANSWER = "нет ответа за 2 мин"
@@ -268,7 +278,10 @@ object AdbRescueCoordinator {
     const val QUEUE_RECOVERY_STATUS =
         "очистка системной очереди отключена до проверки на машине"
 
-    private val executor = Executors.newSingleThreadExecutor()
+    /** The worker and the idle look's clock: one thread, so a timer never runs beside a job. */
+    private val executor = ScheduledThreadPoolExecutor(1) { runnable ->
+        Thread(runnable, "denza-adb-access").apply { isDaemon = true }
+    }
 
     @Volatile
     private var core: AdbAccessCore? = null
@@ -282,6 +295,7 @@ object AdbRescueCoordinator {
             system = AndroidAdbAccessSystem(app),
             store = PreferencesAskStore(app),
             worker = { executor.execute(it) },
+            timer = { delayMs, task -> executor.schedule(task, delayMs, TimeUnit.MILLISECONDS) },
             trustedBefore = AdbRestorePreferences(app).trustedBefore,
             listener = onChanged,
         )
@@ -292,9 +306,12 @@ object AdbRescueCoordinator {
     /** Requests recorded in the 24 hours before now: counted at the moment of reading. */
     fun requestsLastDay(): Int = core?.requestsLastDay() ?: 0
 
-    /** A passive look: never a prompt. [after] runs once it has answered. */
-    fun checkAccess(after: (() -> Unit)? = null) {
-        core?.check(after)
+    /**
+     * A passive look: never a prompt. [after] runs once the look has answered and nothing else is
+     * left to do. [shown] is a press, whose gate turns its ring.
+     */
+    fun checkAccess(shown: Boolean = false, after: (() -> Unit)? = null) {
+        core?.check(shown, after)
     }
 
     /** The gate's control: one request now. */
