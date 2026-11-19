@@ -66,6 +66,12 @@ internal data class VehicleTelemetry(
      * needs this to apply the same horizon ([VehiclePoll.HOT]).
      */
     val hotReadAtMillis: Long = 0L,
+    /**
+     * When that sweep's read started (`elapsedRealtime`, before the batch went to the car); zero
+     * with [hotReadAtMillis]. A hot id may be answered anywhere in a batch that runs for seconds
+     * with its cold ids, so this, not [hotReadAtMillis], bounds how old a hot reading can be.
+     */
+    val hotReadStartedAtMillis: Long = 0L,
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]

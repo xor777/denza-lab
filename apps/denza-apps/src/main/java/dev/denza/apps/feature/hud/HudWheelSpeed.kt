@@ -22,21 +22,20 @@ internal class HudWheelSpeed(context: Context) {
         hub.setActive(VehicleWatcher.HUD_CAMERA, on)
     }
 
-    /** km/h; null when the car did not answer the last sweep or its answer is older than [STALE_MS]. */
+    /** km/h; null when the car did not answer the last sweep or its read began a horizon ago. */
     fun kmh(now: Long): Double? = kmh(hub.snapshot, now)
 
     companion object {
-        /** The Contour's horizon for a reading that stopped coming (`ContourScene.STALE_SECONDS`). */
-        const val STALE_MS = 2_000L
-
         /**
-         * [snapshot]'s speed at [now] (`elapsedRealtime`), by the age of the sweep that read it.
-         * Until 2026-11-19 the age counted from when this reader first saw the snapshot, so the
-         * first camera stamped a hub's retained 80 km/h, already seconds old, as fresh.
+         * [snapshot]'s speed at [now] (`elapsedRealtime`), aged on the Contour's horizon
+         * ([VehicleTelemetry.HOT_HORIZON_MS]) from when its sweep's read started: the wheels may
+         * have answered at the start of a batch that ran seconds with its cold ids. Until
+         * 2026-11-19 the age counted from when this reader first saw the snapshot, then from the
+         * batch's end; both let an 80 km/h read before braking pass as now.
          */
         fun kmh(snapshot: VehicleTelemetry, now: Long): Double? {
-            val at = snapshot.hotReadAtMillis
-            if (at <= 0L || now - at > STALE_MS) return null
+            val at = snapshot.hotReadStartedAtMillis
+            if (at <= 0L || now - at >= VehicleTelemetry.HOT_HORIZON_MS) return null
             return snapshot[VehicleSignal.VEHICLE_SPEED]
         }
     }
