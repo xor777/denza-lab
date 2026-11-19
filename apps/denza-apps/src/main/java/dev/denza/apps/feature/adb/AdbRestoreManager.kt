@@ -375,8 +375,13 @@ class AdbRestoreManager(
             }
             return
         }
-        if (!enableWireless(gen, network, request)) return
-        if (!valid(gen, network)) return
+        if (!enableWireless(gen, network, request) || !valid(gen, network)) {
+            // `Connecting` may be up already - published while the dialog's service was made ready,
+            // or left by the attempt before - and only a network change ends here with no final
+            // state of its own: the same exit as after the TLS request.
+            leaveConnecting(gen)
+            return
+        }
         publish(gen, AdbRestoreState.Connecting, request)
         connect(gen, network)
         leaveConnecting(gen)
@@ -464,7 +469,7 @@ class AdbRestoreManager(
             synchronized(control) { current = current.copy(retryBudgetExhausted = exhaustedNetwork == network.id) }
             return false
         }
-        readyDialogService(gen)
+        readyDialogService(gen, request)
         synchronized(control) {
             if (!valid(gen, network)) return false
             store.recordWrite(network.id, system.nowMs())
@@ -489,14 +494,24 @@ class AdbRestoreManager(
      * rewrite takes both Denza services down for about three seconds); any other is listed in this
      * process and then waited for. Never fatal: the write follows whatever came of it, and the
      * reading is kept for «Технические сведения».
+     *
+     * When something is to be done, it takes up to about seven seconds (the transaction's pauses
+     * and the wait), so `Connecting` is published first: the gate shows the restore at work rather
+     * than the state before it. `Connecting` is what this is - the restore under way towards the
+     * port - and every exit after it publishes a final state: the write reverted is `NeedsDialog`,
+     * the write held is `Connecting` proper, a changed network goes through [leaveConnecting], an
+     * abandoned attempt leaves what the switch put there. A bound service publishes nothing early.
      */
-    private suspend fun readyDialogService(gen: Long) {
+    private suspend fun readyDialogService(gen: Long, request: Request) {
         val found = system.dialogService()
+        if (found == AdbDialogService.BOUND) return recordDialogService(gen, "bound")
+        if (found == AdbDialogService.MISSING && !system.permissionHeld()) {
+            return recordDialogService(gen, "missing, no permission")
+        }
+        publish(gen, AdbRestoreState.Connecting, request)
         val step = when (found) {
-            AdbDialogService.BOUND -> return recordDialogService(gen, "bound")
-            AdbDialogService.BINDING -> "binding"
+            AdbDialogService.BOUND, AdbDialogService.BINDING -> "binding"
             AdbDialogService.MISSING -> {
-                if (!system.permissionHeld()) return recordDialogService(gen, "missing, no permission")
                 try {
                     system.enableDialogService { abandoned(gen) }
                     "enabled"

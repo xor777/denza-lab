@@ -62,7 +62,7 @@ class AdbRestoreManagerTest {
         override fun readAdbWifiEnabled(): Boolean { reads++; return wireless }
         override fun writeAdbWifiEnabled(enabled: Boolean) {
             writes += elapsedMs() to enabled
-            if (enabled) steps += "write@${elapsedMs()}"
+            if (enabled) { steps += "write@${elapsedMs()}"; onWrite?.invoke() }
             wireless = enabled && !revert
         }
         /** The dialog's service, and when it binds by the elapsed clock (null: never). */
@@ -71,6 +71,7 @@ class AdbRestoreManagerTest {
         /** After an in-process enable the service binds this much later; null: it never does. */
         var bindAfterEnableMs: Long? = 1_000L
         var enable: (suspend () -> Unit)? = null
+        var onWrite: (() -> Unit)? = null
         var enables = 0
         /** The order of the enable and the dialog's write, each with its elapsed time. */
         val steps = mutableListOf<String>()
@@ -98,7 +99,15 @@ class AdbRestoreManagerTest {
     private class Fixture(scope: TestScope, held: AdbBootRecord? = null, boots: Int? = 5) {
         val system = System(scope).also { it.boots = boots }
         val store = Store().also { it.boot = held }
-        val manager = AdbRestoreManager(system, store, scope.backgroundScope)
+        /** Every state the manager published, in order, as its listener heard them. */
+        val states = mutableListOf<AdbRestoreState>()
+        lateinit var manager: AdbRestoreManager
+        init {
+            manager = AdbRestoreManager(system, store, scope.backgroundScope) {
+                val state = manager.snapshot().state
+                if (states.lastOrNull() != state) states += state
+            }
+        }
     }
     private fun TestScope.settle() { advanceTimeBy(1_501); runCurrent() }
 
@@ -387,6 +396,76 @@ class AdbRestoreManagerTest {
         assertEquals(1, f.system.enables)
         assertTrue("no dialog raised", f.system.writes.none { it.second })
         assertEquals(AdbRestoreState.Disabled, f.manager.snapshot().state)
+    }
+
+    // While the service is made ready the gate shows the restore at work, and never for good.
+
+    @Test fun aServiceNotReadyPublishesTheRestoreBeforeTheEnable() = runTest {
+        val f = Fixture(this); f.system.revert = true; f.system.service = AdbDialogService.MISSING
+        var atEnable: AdbRestoreState? = null
+        f.system.enable = { atEnable = f.manager.snapshot().state }
+        f.manager.attemptIfNeeded("process-start"); advanceTimeBy(5_000); runCurrent()
+        assertEquals(AdbRestoreState.Connecting, atEnable)
+        // The reverted write ends it.
+        assertEquals(listOf(AdbRestoreState.Connecting, AdbRestoreState.NeedsDialog), f.states)
+    }
+    @Test fun aServiceOnItsWayPublishesTheRestoreDuringTheWait() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.system.service = AdbDialogService.BINDING; f.system.bindsAtMs = 2_000L
+        f.manager.attemptIfNeeded("process-start"); advanceTimeBy(1_000); runCurrent()
+        assertEquals(AdbRestoreState.Connecting, f.manager.snapshot().state)
+        assertTrue(f.system.writes.isEmpty())
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
+    }
+    @Test fun aBoundServicePublishesNothingEarly() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        var atWrite: AdbRestoreState? = null
+        f.system.onWrite = { atWrite = f.manager.snapshot().state }
+        f.manager.attemptIfNeeded("process-start"); settle()
+        assertEquals(AdbRestoreState.NotNeeded, atWrite)
+        assertFalse(AdbRestoreState.Connecting in f.states)
+        assertEquals(AdbRestoreState.NeedsDialog, f.states.last())
+        assertEquals(listOf("write@0"), f.system.steps)
+    }
+    @Test fun everyExitAfterTheEarlyPublishEndsInAFinalState() = runTest {
+        // The enable throws, or the bind never comes: the write is reverted - NeedsDialog.
+        for (setup in listOf<(System) -> Unit>(
+            { it.enable = { throw IllegalStateException() } },
+            { it.bindAfterEnableMs = null },
+        )) {
+            val f = Fixture(this); f.system.revert = true; f.system.service = AdbDialogService.MISSING
+            setup(f.system)
+            f.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+            assertEquals(listOf(AdbRestoreState.Connecting, AdbRestoreState.NeedsDialog), f.states)
+        }
+        // The write holds: Connecting proper, then the restore's own end.
+        val held = Fixture(this); held.system.service = AdbDialogService.MISSING
+        held.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertTrue(held.manager.snapshot().state is AdbRestoreState.Restored)
+        // Abandoned: what the switch put there.
+        val off = Fixture(this); off.system.service = AdbDialogService.MISSING
+        off.system.enable = { off.manager.setEnabled(false) }
+        off.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertEquals(AdbRestoreState.Disabled, off.manager.snapshot().state)
+        // Wi-Fi gone during the wait: WaitingWifi, not the ring.
+        val lost = Fixture(this); lost.system.service = AdbDialogService.MISSING; lost.system.bindAfterEnableMs = null
+        lost.system.enable = { lost.system.wifi = null }
+        lost.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertEquals(AdbRestoreState.WaitingWifi, lost.manager.snapshot().state)
+        assertTrue(lost.system.writes.isEmpty())
+        // Another network during the wait: the attempt starts again there and gets to its own end.
+        val moved = Fixture(this); moved.system.service = AdbDialogService.MISSING
+        moved.system.enable = { if (moved.system.enables == 1) moved.system.wifi = AdbRestoreWifi("next", "wifi") }
+        moved.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertTrue(moved.manager.snapshot().state is AdbRestoreState.Restored)
+        assertEquals("next", moved.store.lastWriteNetwork)
+    }
+    @Test fun aSuppressedWriteNeverShowsTheRing() = runTest {
+        val f = Fixture(this); f.system.service = AdbDialogService.MISSING
+        f.store.lastWriteNetwork = "router"; f.store.lastWriteAtMs = f.system.nowMs()
+        f.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertEquals(listOf(AdbRestoreState.NeedsDialog), f.states)
     }
     @Test fun approvingDialogBetweenRetriesRestoresAndEndsWave() = runTest {
         val f = Fixture(this); f.system.revert = true

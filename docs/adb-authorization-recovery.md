@@ -564,7 +564,7 @@ Left as they are after the second review: each needs a rare combination or the c
 | --- | --- | --- |
 | Access goes while the app runs and nothing uses ADB at that moment | the dashboard stays as it was until a feature next calls or a tile is pressed; tiles that call by themselves, Mirrors among them, read «Нет доступа» on their own, and the gate follows about 10 s after the first refused call. Features are not paused: each keeps its own failure until the startup pass after access returns | revoke the key (or close 5555) with the app in front and the mirrors on; time the gate |
 | Access goes while the app is in front | the car's prompt comes up by itself after the gate: the opening's one request, under the day's three | the same run; count prompts |
-| A restore restarted by a network change ends early because the network changed again (finding 5) | «Восстановление доступа» with the ring until the next hint: the screen coming on, Wi-Fi, «Сервис» through «Что такое ADB» | roam between access points of one Wi-Fi during a restore |
+| A restore restarted by a network change ends early because the network changed again (finding 5). **Superseded 2026-11-19:** an attempt stopped in its settings write by a network change leaves through `leaveConnecting` - `WaitingWifi`, another attempt, or `Failed` after three - so the ring no longer stands | «Восстановление доступа» with the ring until the next hint: the screen coming on, Wi-Fi, «Сервис» through «Что такое ADB» (until 2026-11-19) | roam between access points of one Wi-Fi during a restore |
 | The opening's request goes out without window focus or with the display going off (finding 6) | a prompt raised under another window or a dark screen waits unseen until answered or the 2-min hold ends; later requests wait behind it | open the app with a system dialog over it, and as the screen turns off; `dumpsys window` for focus |
 | The canonical key file and the legacy copy are both damaged | every ADB call fails («Нет доступа», the gate); no new key is made, since the old one may still be readable | none; read-only on the car |
 | The accessibility service never binds after the restore's repair | each restore attempt that needs the Wi-Fi dialog repairs again, taking both Denza services down for about 3 s (since 2026-11-19 also in-process before each dialog write, at most one per network in 10 minutes) | after an update, with the restore needing the dialog |
@@ -1071,6 +1071,19 @@ grace and a second of margin), polled every 100 ms. Nothing here is fatal: an en
 a service that does not bind leaves the write to go ahead, and an attempt abandoned meanwhile writes
 nothing.
 
+When something is to be done (an enable, a wait, or both: up to about 7 s with the split on), the
+manager publishes `Connecting` first, so the gate shows «Восстановление доступа» with the ring rather
+than the state before it; a bound service publishes nothing early and costs no time. `Connecting` is
+honest here - the restore is under way towards the port - and the alternatives are not: `NeedsDialog`
+names a dialog not yet raised, and a new state would be a new row in the gate's normative order for
+seconds of screen time. Its other meanings hold: the boot record reads «восстанавливается» and then
+the outcome, and the dialog wave starts as before, after the write's `NeedsDialog`. Every exit after
+it publishes a final state: the write reverted is `NeedsDialog`, the write held is `Connecting`
+proper and the restore's own end, a network that changed or went away leaves through
+`leaveConnecting` (`WaitingWifi`, another attempt, or `Failed` after three), and an abandoned
+attempt leaves what the switch put there. A suppressed write never gets here
+(`AdbRestoreManagerTest`, the early-publish tests).
+
 The in-process enable is the shell repair's transaction (`DenzaAccessibilityRepairController`) over
 another boundary: `SecureAccessibilityServiceList` writes `Settings.Secure` where
 `AccessibilityServiceSettings` sends `settings put`. So it keeps the shell's properties: every other
@@ -1288,6 +1301,12 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   > `Connecting`; if it ends early in its own settings write because the network changed again, only
   > its predecessor's exit cleared the state, so it stands until the next hint
   > ([Known limits](#known-limits-2026-11-19), review finding 5).
+
+  > **Superseded 2026-11-19, later the same day:** an attempt that stops in its settings write
+  > because the network changed now leaves through the same exit as after the TLS request
+  > (`leaveConnecting`), so an inherited `Connecting` ends there too. It was needed for the
+  > `Connecting` published while the dialog's service is made ready
+  > ([The dialog's service before the write](#autonomous-restore-implementation-2026-10-08)).
 - A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
   check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
   `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the
