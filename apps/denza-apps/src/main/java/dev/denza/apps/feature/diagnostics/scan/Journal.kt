@@ -64,6 +64,11 @@ internal data class JournalModule(
     val medianMs: Int?,
     /** PID 01's MIL at an OBD module; null elsewhere. */
     val mil: Boolean?,
+    /**
+     * The OBD code lists that came back whole - `03`, `07`, `0A`, as [JournalRecord.source] names them: only these
+     * say an OBD code is not there. Null where none came back, or not known: an entry of an earlier build.
+     */
+    val obdRead: Set<String>? = null,
 )
 
 /** The car's quantities at the end of a scan, as the section read them without the diagnostic channel. */
@@ -397,6 +402,8 @@ internal object JournalJson {
         m.f195?.let { put("f195", it) }
         m.medianMs?.let { put("medianMs", it) }
         m.mil?.let { put("mil", it) }
+        // «03070A»: two digits a list; none written where none came back - read back as not known, which says the same.
+        m.obdRead?.takeIf { it.isNotEmpty() }?.let { put("obd", it.sorted().joinToString("")) }
     }
 
     private fun module(o: JSONObject): JournalModule {
@@ -415,6 +422,7 @@ internal object JournalJson {
             f195 = o.string("f195"),
             medianMs = o.int("medianMs"),
             mil = if (o.has("mil")) o.getBoolean("mil") else null,
+            obdRead = o.string("obd")?.chunked(2)?.toSet(),
         )
     }
 

@@ -66,6 +66,8 @@ internal object JournalEntries {
             f195 = f195?.takeIf { v -> v.isNotEmpty() && v.any { it != '0' } },
             medianMs = medianMs(result.read.replies),
             mil = result.mil,
+            obdRead = ScanRequests.OBD_LISTS.filter { (mode, _) -> result.obdLists[mode] is Polled.Got }.map { it.second }.toSet()
+                .takeIf { it.isNotEmpty() },
         )
     }
 

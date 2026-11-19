@@ -167,8 +167,10 @@ internal object JournalFacts {
         val last = holding.last()
         val module = last.module(key.address)!!
         val record = module.records.first { it.code == key.code }
-        val readSince = upTo.filter { it.atMillis >= first.atMillis && it.module(key.address)?.let { m -> covers(m, record) } == true }
-            .map { it.atMillis }.toSet()
+        // A scan that held it read it, whatever the mask asked; one that did not hold it, only where it would have listed it.
+        val readSince = upTo.filter { s ->
+            s.atMillis >= first.atMillis && s.module(key.address)?.let { m -> holds(m, key.code) || covers(m, record) } == true
+        }.map { it.atMillis }.toSet()
         val before = previousReading(upTo, scan, key.address)
         return JournalCodeLife(
             key = key,
@@ -178,7 +180,7 @@ internal object JournalFacts {
             firstOdometerKm = first.odometerKm,
             lastAtMillis = last.atMillis,
             seenAt = holding.map { it.atMillis },
-            seenIn = holding.count { it.atMillis in readSince },
+            seenIn = holding.size,
             readIn = readSince.size,
             isNew = scan.module(key.address)?.let { holds(it, key.code) } == true &&
                 before != null && before.module(key.address)!!.let { !holds(it, key.code) && covers(it, record) },
@@ -210,13 +212,15 @@ internal object JournalFacts {
     private fun holds(m: JournalModule, code: String) = m.records.any { it.code == code }
 
     /**
-     * Whether [reading] would have listed [record] were it still held as it was: the memory read whole and - for a
-     * UDS record - under a request mask that takes one of its status bits. A pending-only code (`04`) read under
-     * `09`, after a `0D` read failed, is neither held nor gone there: that reading did not ask for it.
+     * Whether [reading] would have listed [record] were it still held as it was: for a UDS record the memory read
+     * whole under a request mask that takes one of its status bits - a pending-only code (`04`) read under `09`,
+     * after a `0D` read failed, is neither held nor gone there: that reading did not ask for it; for an OBD code
+     * (no status byte) its own list - `03`, `07`, `0A` - come back whole, which an entry of an earlier build does
+     * not say ([JournalModule.obdRead] null).
      */
     fun covers(reading: JournalModule, record: JournalRecord): Boolean {
+        val status = record.status ?: return reading.obdRead?.contains(record.source) == true
         if (!reading.memoryRead) return false
-        val status = record.status ?: return true
         val mask = reading.requestMask ?: return true
         return (status and mask) != 0
     }

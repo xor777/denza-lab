@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.feature.diagnostics.bus.DiagReply
+import dev.denza.apps.feature.diagnostics.protocol.hexBytes
 import dev.denza.apps.feature.diagnostics.scan.JournalFixtures.at
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -240,6 +242,42 @@ class JournalFactsTest {
 
         val abc = ab.with(c)
         assertNull(JournalViewBuilder.codeRows(abc, ScanClock(zone)).single().mark)
+        assertEquals(listOf(key), JournalFacts.compare(a, c).gone.map { it.key })
+    }
+
+    /** A record the block sent outside the mask asked (status 50 under 0D) is a sighting: «В СКАНАХ» counts it. */
+    @Test
+    fun aRecordOutsideTheMaskAskedIsCountedAsSeen() {
+        fun x(uds: String, answer: String) = Triple(uds, answer, 20)
+        val outside = JournalFixtures.result(0x747, x("19010D", "5901FF000001"), x("19020D", "5902FF51700950"))
+        val data = JournalData().with(JournalFixtures.scan(at("2026-10-20T19:31:29Z"), listOf(outside)))
+        val life = JournalFacts.life(data, key(0x747, "C1170-09"))!!
+        assertEquals(1 to 1, life.seenIn to life.readIn)
+        assertEquals("1 из 1", JournalViewBuilder.codeRows(data, ScanClock(zone)).single().seen)
+    }
+
+    /**
+     * ECM's Mode 07 holds P0420; the next scan reads the UDS memory whole and its `07` runs out of time: the code is
+     * neither gone nor «ушёл». A third scan whose `07` came back without it says it went.
+     */
+    @Test
+    fun aModeSevenReadThatDidNotComeBackDoesNotSayItsCodeWent() {
+        val ecm = JournalFixtures.ecm()
+        fun with07(reply: (DiagReply) -> DiagReply) =
+            ModuleResult(ecm.ecu, ecm.read.copy(replies = ecm.read.replies.map { r -> if (r.request.uds.contentEquals(hexBytes("07"))) reply(r) else r }))
+        val held = with07 { r -> DiagReply.Answer(r.request, hexBytes("47010420"), 1, 0, 12, 0) }
+        val lost = with07 { r -> DiagReply.NoReply(r.request, 0, 0, 4_000, 0) }
+        val a = JournalFixtures.scan(at("2026-10-20T19:31:29Z"), listOf(held))
+        val b = JournalFixtures.scan(at("2026-10-21T08:05:00Z"), listOf(lost))
+        assertTrue(b.module(0x7E0)!!.memoryRead)
+        val key = key(0x7E0, "P0420")
+
+        val ab = listOf(a, b).fold(JournalData()) { d, s -> d.with(s) }
+        assertTrue(JournalFacts.gone(ab).isEmpty())
+        assertTrue(JournalFacts.compare(a, b).gone.isEmpty())
+        assertEquals("есть", JournalViewBuilder.codeRows(ab, ScanClock(zone)).single { it.code == "P0420" }.now)
+
+        val c = JournalFixtures.scan(at("2026-10-22T07:55:00Z"), listOf(ecm))
         assertEquals(listOf(key), JournalFacts.compare(a, c).gone.map { it.key })
     }
 }
