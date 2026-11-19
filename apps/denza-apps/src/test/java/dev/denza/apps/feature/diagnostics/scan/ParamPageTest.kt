@@ -345,6 +345,31 @@ class ParamPageTest {
         s.stop()
     }
 
+    /**
+     * The hub drops a hot signal without a new sweep - access lost, or the value past its horizon: the page
+     * ends it with one gap and no value now, never the last number for as long as the page stands.
+     */
+    @Test
+    fun aHotSignalTheHubDropsWithoutANewSweepEndsInOneGap() = runTest {
+        val bus = ecm()
+        val car = FakeCar()
+        val s = session(bus, car)
+        s.start()
+        advanceTimeBy(300)
+        car.readings = FakeCar.parked(sweep = 10, extra = mapOf(VehicleSignal.ENGINE_RPM to 1250.0)).copy(atNanos = 10 * 250_000_000L)
+        s.setParam(ParamKey.Signal(VehicleSignal.ENGINE_RPM.name))
+        advanceTimeBy(250)
+        assertEquals("1 250", s.model.value.param!!.value)
+        // the same sweep, the value gone
+        car.readings = FakeCar.parked(sweep = 10).copy(atNanos = 11 * 250_000_000L)
+        advanceTimeBy(250)
+        advanceTimeBy(250)
+        val p = s.model.value.param!!
+        assertEquals("one gap, not one a tick", listOf(1250f, null), p.samples.map { it.value })
+        assertEquals("—", p.value)
+        s.stop()
+    }
+
     // ------------------------------------------------------------------ the keys on the rows
 
     @Test

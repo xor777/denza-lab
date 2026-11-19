@@ -1010,14 +1010,12 @@ internal class DiagnosticsSession(
         }
     }
 
-    /** A car signal's page takes the hub's new sweep or the focused GET's readings. Under [lock]. */
+    /** A car signal's page takes the hub as [HubSampler] has it, or the focused GET's readings. Under [lock]. */
     private fun paramTick(r: CarReadings?, focused: List<SignalReading>) {
         val page = param?.takeIf { it.spec.key is ParamKey.Signal && !it.paused } ?: return
         val hub = page.spec.hub
         if (hub != null) {
-            if (r == null || r.sweep == 0L || r.sweep == page.trace.lastSweep) return
-            page.trace.lastSweep = r.sweep
-            page.trace.put(r.atNanos, r.hub[hub])
+            r?.let { page.trace.take(it, hub) }
         } else {
             focused.forEach { page.trace.put(it.atNanos, it.value) }
         }

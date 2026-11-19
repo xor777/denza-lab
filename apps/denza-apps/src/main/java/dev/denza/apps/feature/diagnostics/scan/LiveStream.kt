@@ -43,7 +43,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
     private var tableCursor = 0
     private var tableTurn = false
     private val latencies = ArrayDeque<Int>()
-    private var lastSweep = -1L
+    private val hub = HubSampler<CarRow>(zeroIsSweep = false)
 
     init {
         repack()
@@ -112,29 +112,15 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         return lines
     }
 
-    /** One sample of each fast car signal per new hub sweep; returns its CSV lines. */
+    /** The fast car signals sampled as [HubSampler] has it; returns their CSV lines. */
     fun carTick(readings: CarReadings): List<String> {
-        if (car.isEmpty()) return emptyList()
-        if (readings.sweep == lastSweep || readings.sweep == 0L) {
-            // A signal the feed no longer holds - the car lost, or past its horizon - ends without a new sweep: one gap.
-            return car.mapNotNull { (row, s) ->
-                if (row !in carHeld || readings.hub[row.signal] != null) return@mapNotNull null
-                carHeld -= row
-                s.putCar(readings.atNanos, null, row)
-                "${readings.atNanos},autoservice,${row.signal.name},,"
-            }
+        val lines = ArrayList<String>()
+        hub.take(readings, car.keys, { readings.hub[it.signal] }) { row, v ->
+            car.getValue(row).putCar(readings.atNanos, v, row)
+            lines += "${readings.atNanos},autoservice,${row.signal.name},,${v?.let { plainNumber(it) } ?: ""}"
         }
-        lastSweep = readings.sweep
-        return car.map { (row, s) ->
-            val v = readings.hub[row.signal]
-            s.putCar(readings.atNanos, v, row)
-            if (v != null) carHeld += row else carHeld -= row
-            "${readings.atNanos},autoservice,${row.signal.name},,${v?.let { plainNumber(it) } ?: ""}"
-        }
+        return lines
     }
-
-    /** The car rows whose last point is a value. */
-    private val carHeld = HashSet<CarRow>()
 
     /** «Сбросить мин/макс», and what opening the tab does. */
     fun resetMinMax() {

@@ -255,9 +255,9 @@ internal class SystemLive(val system: CarSystem) {
         readings.associateWith { r -> LiveSeries(initial = NA).also { it.decimals = r.decimals } }
     /** A state's last code, for its alert. */
     private val codes = HashMap<StreamReading, Double?>()
-    private var lastSweep: Long? = null
-    /** The hub's rows whose last point is a value: the ones a lost or stale hub must end. */
-    private val hubHeld = HashSet<StreamReading>()
+    /** The rows of a hub signal or a figure computed from the hub, sampled as [HubSampler] has it. */
+    private val hubRows = readings.filter { it.calc != null || it.hub != null }
+    private val hub = HubSampler<StreamReading>(zeroIsSweep = true)
     private var lastBatch: Long? = null
     private var batchGone = false
     private var held = CarReadings()
@@ -274,7 +274,7 @@ internal class SystemLive(val system: CarSystem) {
     fun show() {
         paused = false
         series.values.forEach { it.clearMinMax() }
-        lastSweep = null
+        hub.restart()
         lastBatch = null
         batchGone = false
     }
@@ -294,15 +294,8 @@ internal class SystemLive(val system: CarSystem) {
     fun take(car: CarReadings) {
         if (paused) return
         held = car
-        if (car.sweep != lastSweep) {
-            lastSweep = car.sweep
-            series.forEach { (r, s) -> hubValue(r, car)?.let { put(r, s, car.atNanos, it.value) } }
-        } else {
-            // A value the feed no longer holds - the car lost, or past its horizon - ends without a new sweep:
-            // one gap, and «н/д» from then on, never the last value held.
-            series.forEach { (r, s) ->
-                if (r in hubHeld && hubValue(r, car)?.value == null) put(r, s, car.atNanos, null)
-            }
+        hub.take(car, hubRows, { r -> if (r.calc != null) r.calc.invoke(car.hub) else r.hub?.let(car.hub::get) }) { r, v ->
+            put(r, series.getValue(r), car.atNanos, v)
         }
         if (car.extrasFresh) {
             if (car.extrasAtNanos != lastBatch) {
@@ -317,20 +310,8 @@ internal class SystemLive(val system: CarSystem) {
         }
     }
 
-    /** A hub row's value in [car] - a hub signal, or a figure computed from the hub - boxed; null for a GET's row. */
-    private fun hubValue(r: StreamReading, car: CarReadings): Held? = when {
-        r.calc != null -> Held(r.calc.invoke(car.hub))
-        r.hub != null -> Held(car.hub[r.hub])
-        else -> null
-    }
-
-    private class Held(val value: Double?)
-
     /** A state says its word, a count its number; a reading takes a point, a gap where nothing came. */
     private fun put(r: StreamReading, s: LiveSeries, at: Long, raw: Double?) {
-        if (r.extra == null) {
-            if (raw != null) hubHeld += r else hubHeld -= r
-        }
         val words = r.words
         val v = raw?.times(r.factor)
         when {

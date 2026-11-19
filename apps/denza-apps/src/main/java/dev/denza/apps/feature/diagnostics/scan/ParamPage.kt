@@ -135,8 +135,12 @@ internal class ParamTrace(val spec: ParamSpec) {
     private var value = NOT_READ
     private var current: Double? = null
 
-    /** The hub sweep last sampled, for a hub signal. */
-    var lastSweep = -1L
+    private val hub = HubSampler<VehicleSignal>(zeroIsSweep = false)
+
+    /** A hub signal's page: [signal] in [car], sampled as [HubSampler] has it. */
+    fun take(car: CarReadings, signal: VehicleSignal) {
+        hub.take(car, listOf(signal), { car.hub[it] }) { _, v -> put(car.atNanos, v) }
+    }
 
     /** The page's PID reply; returns its CSV line, the stream's form. */
     fun accept(reply: DiagReply): List<String> {
