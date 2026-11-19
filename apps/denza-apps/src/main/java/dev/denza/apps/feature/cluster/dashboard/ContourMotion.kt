@@ -121,6 +121,10 @@ internal class ContourMotion {
     private var figureValue = 0
     private var figureAge = 0f
 
+    /** The reading the hero's glyph is checking for stillness, and how long it has stood. */
+    private var steadyReading = 0f
+    private var steadyFor = 0f
+
     private var flowState = ContourFlow.NEUTRAL
 
     /** The smoothed pack power the band's length and the hero's colour are taken from. */
@@ -186,11 +190,13 @@ internal class ContourMotion {
                 peakHeldFor = 0f
                 figureValue = abs(band.value).roundToInt()
                 figureAge = 0f
+                steadyReading = powerKw
+                steadyFor = 0f
             } else {
                 band.step(target, dt)
                 glow.step(target, dt)
                 holdPeak(band.value, dt)
-                writeFigure(band.value, dt)
+                writeFigure(band.value, powerKw, dt)
             }
             flowState = flowOf(band.value, flowState)
         }
@@ -253,10 +259,23 @@ internal class ContourMotion {
      * enough - a 2 Hz figure with no hysteresis still alternates 33 and 34 on the boundary, and
      * hysteresis at frame rate is a number moving faster than anybody can read it.
      */
-    private fun writeFigure(value: Float, dt: Float) {
+    private fun writeFigure(value: Float, reading: Float, dt: Float) {
         figureAge += dt
+        if (abs(reading - steadyReading) > STEADY_KW) {
+            steadyReading = reading
+            steadyFor = 0f
+        } else {
+            steadyFor += dt
+        }
         if (figureAge < FIGURE_INTERVAL_S) return
         figureAge = 0f
+        // A reading that has stood still is not on a boundary it could flicker across: the glyph
+        // prints its ordinary rounding, the car page's. The hysteresis below kept 2.6 kW of steady
+        // AC printed as 2 while the car page printed 3, for as long as the charge lasted.
+        if (steadyFor >= SETTLED_S) {
+            figureValue = abs(reading).roundToInt()
+            return
+        }
         // Ordinary rounding turns over half a kilowatt from the printed integer; the hysteresis is
         // the other half, so the reading has to be a whole kilowatt away before the glyph changes.
         val magnitude = abs(value)
@@ -313,6 +332,15 @@ internal class ContourMotion {
 
         /** And never for less than this past the rounding boundary it is sitting on. */
         const val FIGURE_HYSTERESIS_KW = 0.5f
+
+        /**
+         * A reading that has moved less than this for [SETTLED_S] has settled, and the hero prints
+         * its ordinary rounding - what the car page prints for the same reading
+         * (`docs/energy-display-contract.md` §1). A wall charge reads the same tenth sweep after
+         * sweep; driving never stands this still, so the hysteresis still has the boundary there.
+         */
+        const val STEADY_KW = 0.05f
+        const val SETTLED_S = 1f
 
         /** The peak stays where it landed for this long before it starts coming back. */
         const val PEAK_HOLD_S = 3f

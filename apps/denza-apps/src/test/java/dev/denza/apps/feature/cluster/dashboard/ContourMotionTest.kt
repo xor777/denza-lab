@@ -225,12 +225,35 @@ class ContourMotionTest {
         run(motion, 33f, 2f)
         assertEquals(33, motion.figure)
 
-        // 33.6 rounds to 34 and is only 0.6 from what is printed, which is inside the hysteresis.
-        run(motion, 33.6f, 4f)
-        assertEquals(33, motion.figure)
+        // A reading swinging across 33.5 four times a second rounds to 33 and 34 by turns, and is
+        // never a whole kilowatt from what is printed: the glyph holds.
+        repeat(16) { sweep ->
+            run(motion, if (sweep % 2 == 0) 33.4f else 33.8f, 0.25f)
+            assertEquals("sweep $sweep", 33, motion.figure)
+        }
         // 34.2 is more than a whole kilowatt away, and the glyph turns over.
         run(motion, 34.2f, 4f)
         assertEquals(34, motion.figure)
+    }
+
+    /**
+     * A steady wall charge read 2.4 kW and then settled at 2.6. The car page printed 3; the hero
+     * stayed on 2, inside its own hysteresis, for as long as the charge lasted. A reading that has
+     * stood still prints the ordinary rounding.
+     */
+    @Test
+    fun aSettledReadingPrintsTheOrdinaryRoundingOnTheOtherSideOfTheBoundary() {
+        val motion = ContourMotion()
+        run(motion, -2.4f, 2f)
+        assertEquals(2, motion.figure)
+
+        run(motion, -2.6f, 0.5f)
+        assertEquals("not before it has settled", 2, motion.figure)
+        run(motion, -2.6f, 1.5f)
+        assertEquals(3, motion.figure)
+
+        run(motion, -2.4f, 2f)
+        assertEquals("and back", 2, motion.figure)
     }
 
     @Test

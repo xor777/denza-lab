@@ -516,6 +516,29 @@ open class EnergyReadoutsTest {
     }
 
     /**
+     * One cluster, a charge that moves across a rounding boundary and settles: 2.4 kW, then 2.6. The
+     * comparison above builds a new panel per snapshot and never crosses a boundary inside one; on
+     * the car the hero held 2 against the car page's 3 for the rest of the charge.
+     */
+    @Test
+    fun aSettledChargeOnTheOtherSideOfARoundingBoundaryIsOneFigureOnBothScreens() {
+        fun charge(kw: Double) = snapshot(
+            powerKw = 0.0,
+            values = mapOf(
+                VehicleSignal.CHARGE_GUN to 2.0,
+                VehicleSignal.CHARGE_KW to kw,
+                VehicleSignal.CHARGE_MINUTES to 35.0,
+            ),
+        )
+        val panel = ContourPanel()
+        for (kw in listOf(2.4, 2.6, 2.4)) {
+            val frame = panel.run(charge(kw), SETTLED)
+            val model = StripModel().also { StripReadings().car(it, charge(kw), NOW) }
+            assertEquals("$kw kW", model.power.figure, frame.heroFigure)
+        }
+    }
+
+    /**
      * And a sentence that names a source is blue, whatever the magnitude behind it is.
      *
      * A wall charge is two kilowatts, which is inside the neutral zone, so «В БАТАРЕЮ ОТ ЗАРЯДКИ»

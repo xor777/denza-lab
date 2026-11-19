@@ -63,6 +63,15 @@ side and the hero's colour; the car page says it with the word and the colour.
 The car page printed «В БАТАРЕЮ» over «−25 кВт» because the word and the sign
 were decided in two places; there is one place now.
 
+The cluster's hero is rewritten at most four times a second and holds its glyph
+until the followed reading is a whole kilowatt away, so a reading swinging
+across a rounding boundary does not flicker. **A reading that has stood within
+0.05 kW for a second prints the ordinary rounding**, the car page's
+(`ContourMotion.STEADY_KW`, `SETTLED_S`; since 2026-11-19): a wall charge that
+settled from 2.4 to 2.6 kW printed 2 on the cluster and 3 on the car page for
+the rest of the charge
+(`EnergyReadoutsTest.aSettledChargeOnTheOtherSideOfARoundingBoundaryIsOneFigureOnBothScreens`).
+
 **The band has one scale both ways** (since 2026-11-19): equal power is equal
 length whether it flows out of the pack or into it, on the square root, full at
 300 kW (`ContourGeometry.reach`, `spec.json` → `cluster.band.fullKw`); past 300 kW
