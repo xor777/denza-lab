@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import android.content.SharedPreferences
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -350,7 +351,9 @@ class SplitStoreTest {
 
     @Test
     fun aRejectedCommitReportsFailureAndChangesNothing() {
-        // §7.8: отказ записи - это отказ операции, а не половина состояния
+        // §7.8: отказ записи - это отказ операции, а не половина состояния. Ревью 2026-11-19
+        // (находка 6): настоящий редактор кладёт значения в память процесса ДО записи на диск, и
+        // отвергнутый снимок оставался виден следующим чтениям, хотя на диске его нет.
         val preferences = InMemorySharedPreferences()
         val store = PreferencesSplitStateStore(preferences)
         store.commit(SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)))
@@ -360,11 +363,55 @@ class SplitStoreTest {
         val committed = store.commit(SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Closed)))
 
         assertFalse(committed)
-        assertEquals(before, preferences.snapshot())
+        assertEquals("память процесса - та, что на диске", before, preferences.snapshot())
+        assertEquals("а на диске отвергнутого нет", before, preferences.disk())
         assertEquals(
             SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)),
             store.load(),
         )
+    }
+
+    @Test
+    fun aRejectedCommitOverA071SnapshotKeepsTheV2KeyReadable() {
+        // Ревью 2026-11-19 (находка 6): первая запись v3 удаляет ключ v2. Если она не легла на диск,
+        // ни этот процесс, ни прямой читатель тумблера не видят ни v3, ни пропажи v2.
+        val v071 = "2|1|0|A:$NAVI|A:$MUSIC"
+        val preferences = InMemorySharedPreferences(mapOf(STATE_V2 to v071))
+        val store = PreferencesSplitStateStore(preferences)
+        val loaded = store.load()
+
+        preferences.accept = false
+        assertFalse(store.commit(loaded.copy(enabled = false)))
+
+        assertEquals(mapOf<String, Any>(STATE_V2 to v071), preferences.snapshot())
+        assertEquals(loaded, PreferencesSplitStateStore(preferences).load())
+        assertTrue("тумблер по-прежнему включён", PreferencesSplitStateStore(preferences).load().enabled)
+    }
+
+    @Test
+    fun aReaderOnAnotherThreadNeverSeesASnapshotWhileItIsBeingRejected() {
+        // Ревью 2026-11-19 (находка 6): снимок публикуется только после того, как он лёг на диск.
+        // Читатель с другого потока (`SplitScreenSettings.isEnabled`) посреди отвергнутой записи
+        // видит прежний снимок, а не отвергнутый.
+        val preferences = InMemorySharedPreferences()
+        val store = PreferencesSplitStateStore(preferences)
+        val kept = SplitDurable(enabled = true, slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker))
+        store.commit(kept)
+        val seen = AtomicReference<SplitDurable>()
+        var reader: Thread? = null
+        preferences.accept = false
+        preferences.whileWriting = {
+            preferences.whileWriting = null
+            reader = Thread { seen.set(PreferencesSplitStateStore(preferences).load()) }.apply {
+                start()
+                join(READER_GRACE_MS)
+            }
+        }
+
+        assertFalse(store.commit(SplitDurable()))
+        reader!!.join(READER_GRACE_MS * 10)
+
+        assertEquals(kept, seen.get())
     }
 
     private fun roundTrip(snapshot: SplitDurable): SplitDurable {
@@ -384,20 +431,34 @@ class SplitStoreTest {
     /**
      * A preferences file a test can read back byte for byte.
      *
-     * `commit()` is the only way in, and it either swaps the whole map or changes nothing, which is
-     * what "atomic" has to mean for a snapshot. `apply()` throws: a store that fires and forgets
-     * cannot report a failed write, and the contract requires it to.
+     * `commit()` is the only way in, and it behaves as Android's editor does: the whole map in the
+     * process memory is swapped first, and only then is the file written - which [accept] can
+     * refuse, leaving [disk] as it was and the process memory holding the refused values
+     * (`SharedPreferencesImpl.commitToMemory` before `writeToFile`; ревью 2026-11-19, находка 6).
+     * [whileWriting] runs between the two. `apply()` throws: a store that fires and forgets cannot
+     * report a failed write, and the contract requires it to.
      */
     private class InMemorySharedPreferences(
         initial: Map<String, Any> = emptyMap(),
     ) : SharedPreferences {
 
+        @Volatile
         private var values: Map<String, Any> = initial.toMap()
+
+        @Volatile
+        private var file: Map<String, Any> = initial.toMap()
 
         var commits: Int = 0
         var accept: Boolean = true
 
+        @Volatile
+        var whileWriting: (() -> Unit)? = null
+
+        /** What this process reads. */
         fun snapshot(): Map<String, Any> = values
+
+        /** What the next process reads. */
+        fun disk(): Map<String, Any> = file
 
         override fun getAll(): MutableMap<String, *> = values.toMutableMap()
 
@@ -488,11 +549,13 @@ class SplitStoreTest {
 
             override fun commit(): Boolean {
                 commits += 1
-                if (!accept) return false
                 val next = values.toMutableMap()
                 staged.forEach { edit -> edit(next) }
                 values = next.toMap()
                 staged.clear()
+                whileWriting?.invoke()
+                if (!accept) return false
+                file = values
                 return true
             }
 
@@ -515,5 +578,7 @@ class SplitStoreTest {
         const val STATE_V2 = "split_state_v2"
 
         const val LAST_PRIMARY = "picker_last_primary_package_v1"
+
+        const val READER_GRACE_MS = 200L
     }
 }

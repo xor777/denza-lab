@@ -81,12 +81,25 @@ internal interface SplitStateStore {
  * The keys of the generations before 2026-08-23 were converted by a one-shot migration on the first
  * load of every build from then on; every release since 0.6.0-alpha carried it, and it was removed on
  * 2026-10-09. Those keys are never read.
+ *
+ * ### A snapshot is published only once it is on disk
+ *
+ * Android's editor puts the new values into the process's map *before* it writes the file, and a
+ * failed write leaves them there: the file keeps the old snapshot, and every reader in this process
+ * would see the refused one - the `v3` value and the `v2` key it removed included - until the process
+ * dies (ревью 2026-11-19, находка 6). So a refused [commit] puts back what both keys held before it,
+ * by a second edit; whatever becomes of that edit's own write, the map is the file again, because the
+ * failed write left the file alone. [load] and [commit] take one process-wide lock, so a load on
+ * another thread - [SplitScreenSettings.isEnabled] reads through here - never sees the refused
+ * snapshot in between.
  */
 internal class PreferencesSplitStateStore(
     private val preferences: SharedPreferences,
 ) : SplitStateStore {
 
-    override fun load(): SplitDurable {
+    override fun load(): SplitDurable = synchronized(PUBLICATION) { read() }
+
+    private fun read(): SplitDurable {
         val current = string(KEY_STATE)
         val older = decodeV2(string(KEY_STATE_V2))
         if (current == null) return older ?: SAFE_DEFAULT
@@ -95,8 +108,34 @@ internal class PreferencesSplitStateStore(
         return older?.copy(memory = decoded.memory) ?: decoded
     }
 
-    override fun commit(next: SplitDurable): Boolean =
-        preferences.edit().putString(KEY_STATE, encode(next)).remove(KEY_STATE_V2).commit()
+    override fun commit(next: SplitDurable): Boolean = synchronized(PUBLICATION) {
+        val before = SNAPSHOT_KEYS.associateWith(::raw)
+        if (preferences.edit().putString(KEY_STATE, encode(next)).remove(KEY_STATE_V2).commit()) {
+            return@synchronized true
+        }
+        val restore = preferences.edit()
+        before.forEach { (key, value) -> restore.put(key, value) }
+        // Its result is not the question: memory is put back whatever the file does, and the file
+        // still holds what the failed write found there.
+        restore.commit()
+        false
+    }
+
+    /** Whatever the key holds, of whatever type, so that a refused commit can put it back as it was. */
+    private fun raw(key: String): Any? = runCatching { preferences.all[key] }.getOrNull()
+
+    private fun SharedPreferences.Editor.put(key: String, value: Any?) {
+        when (value) {
+            null -> remove(key)
+            is String -> putString(key, value)
+            is Boolean -> putBoolean(key, value)
+            is Int -> putInt(key, value)
+            is Long -> putLong(key, value)
+            is Float -> putFloat(key, value)
+            is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
+            else -> remove(key)
+        }
+    }
 
     /** A value of another type is corruption too, and corruption never throws out of the store. */
     private fun string(key: String): String? =
@@ -107,6 +146,11 @@ internal class PreferencesSplitStateStore(
 
         /** The snapshot before the pair memory; read while no `v3` exists, removed by a commit. */
         const val KEY_STATE_V2 = "split_state_v2"
+
+        private val SNAPSHOT_KEYS = listOf(KEY_STATE, KEY_STATE_V2)
+
+        /** One per process: every store over the split preferences publishes through it. */
+        private val PUBLICATION = Any()
 
         private const val VERSION = "3"
         private const val VERSION_V2 = "2"
