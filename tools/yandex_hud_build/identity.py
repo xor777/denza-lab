@@ -7,7 +7,8 @@ build 30 was the first 31.1.4 rebase. Build 31 replaces its defective split merg
 which omitted every resource value supplied by config.xxhdpi.
 Build 31 was built with the `current` renderer profile and never distributed; build 32
 carries the car's profile, RENDERER_PROFILE below. Build 33 carries the fixes of the
-2026-11-19 pre-release review (docs/hud-output-architecture.md, section 14).
+2026-11-19 pre-release review (docs/hud-output-architecture.md, section 14); build 34 those
+of its second round (section 14.2).
 """
 
 # The base: the reviewed upstream APK, its own version and where it lives. A new Navigator
@@ -25,7 +26,7 @@ BASE_VERSION_CODE = 739735800
 SIGNER_SHA256 = 'df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6'
 
 LABEL = 'YandexHUD'
-BUILD_NUMBER = 33
+BUILD_NUMBER = 34
 # The map the car drives with since 29.8.1-YandexHUD.4: the stock HUD camera, the close zoom
 # when slow, our colours. build.py's default, so a release cannot fall back to `current`.
 RENDERER_PROFILE = 'stock-prototype'

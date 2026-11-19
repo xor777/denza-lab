@@ -374,6 +374,60 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-11-19)
 
+**YandexHUD build 34, ARM64 debug, the car's renderer profile:**
+`captures/yandex-hud-34-20261119/build-34-arm64/YandexHUD-34-stock-prototype-arm64-debug.apk`,
+265,293,943 bytes, SHA-256
+`44e1aaab91b783be10097de8174da0f07cdfdf6b3227559b93f1eedca72c1440`.
+Version `31.1.4-YandexHUD.34`, code `739735834`, the same certificate
+(`df4100bd…9c6`, now checked by `build.py`), the same base and
+`"renderer_profile": "stock-prototype"`. Against build 33 only
+`AndroidManifest.xml` (version) and the module dex `classes17.dex` differ
+(`diff-against-33.txt`).
+
+It carries the module side of the review's second round
+([architecture, section 14.2](../../docs/hud-output-architecture.md#hud-out-review-round-2)):
+a held manoeuvre keeps only its shape (icon, exit, stock id, metres) and no
+totals, road name or limit of an older frame; the metre counter keys a
+manoeuvre by its route id, so a held finish never caps the next route; a clear
+the receiver refuses is sent again on a new binding (hud-link). Host protocol,
+roles and fields are unchanged, so it attaches to Denza Apps 0.7.1 as build 33
+did; the host side of the round (the sign switch, the wheel speed's age, the
+passenger chooser) needs a new Denza Apps.
+
+Checked on 2026-11-19 (evidence in `captures/yandex-hud-34-20261119/`):
+
+- Builder: 20,277 module, 186 hold (`HoldTest`, new), 152 AR, 2,126 CameraTest
+  and 63 StockCameraTest assertions; manifest and resource checks passed; the
+  signer check passed. The base and its merge are build 32's, so
+  `check_merge.py` and `symbols.py` were not repeated.
+- Fresh hidden emulator AVD (API 35 Google APIs, 2560×1600, port 5680, host
+  GPU; deleted afterwards). `install -r` over `29.8.1-YandexHUD.4` (`34690516…`)
+  and, on a second install, over build 33: both accepted, same app id,
+  first-install time and private marker file kept (`upgrade-*.txt`).
+- `acceptance-34-run1/` passed at `--target-fps 5 --require-lanes --require-ar`:
+  41 foreground and 60 background frames, 43/57 unique PNGs, 49 background lane
+  packets, AR within 0.006 m of the native route, geometry built once,
+  reconnect, background-disable clear, cancellation (active session, 3 black
+  frames, inactive road packet, stop, process alive).
+- Through the host: Denza Apps debug from this tree
+  (`denza-apps-debug-99927ba3.apk`, SHA-256 `36a1184c…74f4`), «Повороты» and
+  «Карта» on. `acceptance-34-host-run1/` passed: `host attached` / `HUD through
+  the host` / `hosting MODULE`, only Denza Apps binds the receiver, 38
+  foreground and 60 background frames, the receiver's restart re-bound by the
+  host, the background-off and cancellation clears sent by the host. Build 33's
+  one-off clear on going to the background (`host-run3`) did not recur.
+- `install_check.py` passed. `artwork_test.py` and `account_check.py` were not
+  run: resources, the account type and the artwork code are build 33's.
+- The first Navigator start on the fresh AVD hit ANRs with the main thread in
+  WebView's cookie store, before any module code
+  (`first-start-anr-webview-setCookie.txt`); none after the first load.
+
+Only the car can show the round's car checks
+([architecture, section 11](../../docs/hud-output-architecture.md#hud-out-trip), items 18–21),
+the install over its 29.8.1 data and performance.
+
+### Build 33 (2026-11-19)
+
 **YandexHUD build 33, ARM64 debug, the car's renderer profile:**
 `captures/yandex-hud-33-20261119/build-33-arm64/YandexHUD-33-stock-prototype-arm64-debug.apk`,
 265,293,943 bytes, SHA-256
