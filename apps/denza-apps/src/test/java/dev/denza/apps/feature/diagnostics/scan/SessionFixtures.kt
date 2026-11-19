@@ -28,6 +28,8 @@ internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     /** A page's own GETs asked for or not, in order. */
     val pageLog = mutableListOf<Pair<ExtraPage, Boolean>>()
     override fun page(page: ExtraPage, shown: Boolean) { pageLog += page to shown }
+    var refreshed = 0
+    override fun refresh() { refreshed++ }
 
     companion object {
         fun parked(sweep: Long = 1, extra: Map<VehicleSignal, Double> = emptyMap()) = CarReadings(

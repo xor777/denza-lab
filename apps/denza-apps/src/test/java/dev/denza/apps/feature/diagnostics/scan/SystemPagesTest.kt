@@ -492,4 +492,33 @@ class SystemPagesTest {
         assertEquals("0/68", model.rail.first().mark)
         assertTrue(model.systemPages.isEmpty())
     }
+
+    /**
+     * The readings' pages say the moment their own batch came in, never the memory read's; «Обновить» on them asks
+     * that batch again and asks no block anything. A batch gone stale has no moment to say.
+     */
+    @Test
+    fun theReadingsPagesSayTheirBatchsMomentAndRefreshAsksOnlyThatBatch() = runTest {
+        val batch = 1_760_988_689_000L // 2026-10-20 19:31:29 UTC
+        val car = FakeCar(parked.copy(extrasAtMillis = batch))
+        val bus = carNow()
+        val s = session(bus, car = car)
+        s.start()
+        runCurrent()
+        val page = s.model.value.page(CarSystem.HV)
+        assertEquals("снимок 19:31:29", page.snapshot)
+        assertFalse(page.dtcFootnote.endsWith("19:31:29"))
+
+        val asked = bus.requests.size
+        s.refreshReadings()
+        runCurrent()
+        assertEquals(1, car.refreshed)
+        assertEquals(asked, bus.requests.size)
+
+        car.readings = parked.copy(extrasAtMillis = batch, extrasFresh = false)
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertNull(s.model.value.page(CarSystem.HV).snapshot)
+        s.stop()
+    }
 }

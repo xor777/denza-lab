@@ -253,6 +253,8 @@ internal data class SystemPage(
     val dtcFootnote: String,
     /** «Состояние»; null for a system without one (other blocks). */
     val scheme: Scheme?,
+    /** «снимок 19:31:29»: when the readings on its pages were taken - the `autoservice` batch; null while none counts. */
+    val snapshot: String? = null,
 )
 
 /**
@@ -1060,6 +1062,20 @@ internal interface DiagnosticsActions {
      * Nothing while the block's screen is not open or its tests are already being read.
      */
     fun rereadTests(request: Int) {}
+
+    /**
+     * «Прочитать снова» on «Идентификация»: the block's identification read once more, alone - nothing else of
+     * the opening is asked again - and shown in place of the last one when it is in. Nothing while the block's
+     * screen is not open or its identification is already queued.
+     */
+    fun rereadIdent(request: Int) {}
+
+    /**
+     * «Обновить» on a page of readings - a system's «Состояние», «Флаги GB/T 32960»: the `autoservice` batch
+     * of the page in front goes at once, and the page's snapshot is that batch's (architecture, 6). Nothing is
+     * asked of the blocks.
+     */
+    fun refreshReadings() {}
 
     /** «Журнал» shown or left: [DiagnosticsModel.journal] is built only while it is (7.3). */
     fun setJournalVisible(visible: Boolean) {}

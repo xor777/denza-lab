@@ -95,6 +95,7 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
             extrasFresh = batch.values.isNotEmpty() && batch.fresh(now).isNotEmpty(),
             extrasAtNanos = batch.atElapsed * 1_000_000L,
             extrasTookMs = batch.tookMs,
+            extrasAtMillis = batch.atMillis,
         )
     }
 
@@ -108,6 +109,8 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
     override fun focused(): List<SignalReading> = extras.drain()
 
     override fun page(page: ExtraPage, shown: Boolean) = extras.show(page, shown)
+
+    override fun refresh() = extras.refresh()
 }
 
 /** The one persistent shell of [ExtrasPoller]. */
@@ -195,6 +198,11 @@ internal class ExtrasPoller(
             if (next == pages) return
             pages = next
         }
+        wake.trySend(Unit)
+    }
+
+    /** The next round at once - a batch, or the focused GET - rather than at the end of its wait. */
+    fun refresh() {
         wake.trySend(Unit)
     }
 

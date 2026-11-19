@@ -209,6 +209,8 @@ internal object SystemPagesBuilder {
             dtc = blocks.flatMap { dtcRows(i, it) },
             dtcFootnote = footnote(i, blocks),
             scheme = scheme(i, system, ecmStream),
+            // the readings' own moment: the batch they came in, while it counts; never a memory's read
+            snapshot = car.takeIf { it.extrasFresh && it.extrasAtMillis > 0 }?.let { "снимок ${i.clock.seconds(it.extrasAtMillis)}" },
         )
     }
 

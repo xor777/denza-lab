@@ -28,6 +28,8 @@ internal data class CarReadings(
     val extrasAtNanos: Long = 0,
     /** How long that batch took, ms; null when not measured. */
     val extrasTookMs: Long? = null,
+    /** When that batch's answer was in, on the wall clock: a page's «снимок». */
+    val extrasAtMillis: Long = 0,
 ) {
     val parked: Boolean? get() = hub[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 }
     val speedKmh: Double? get() = hub[VehicleSignal.VEHICLE_SPEED]
@@ -78,6 +80,9 @@ internal interface CarFeed {
      * its GETs too ([DiagnosticExtra.pages]), from the next round on; no other page reads them.
      */
     fun page(page: ExtraPage, shown: Boolean) {}
+
+    /** «Обновить» on a page of readings: the next batch at once, not at the end of its wait. */
+    fun refresh() {}
 }
 
 /**

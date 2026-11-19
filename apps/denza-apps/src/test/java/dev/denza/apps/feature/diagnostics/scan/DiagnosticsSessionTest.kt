@@ -543,4 +543,35 @@ class DiagnosticsSessionTest {
         assertTrue("every block of the saved scan read after it began", saved.reads.all { it.atMillis > again })
         s.stop()
     }
+
+    /**
+     * «Прочитать снова» on «Идентификация» reads the identification again - the screen's close-and-open asked
+     * nothing of it, the identification being held - and only it; a block whose screen is not open is not asked.
+     */
+    @Test
+    fun readingTheIdentificationAgainAsksTheBlockItsIdentificationOnce() = runTest {
+        val bus = carNow()
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        val opened = bus.requests.size
+        s.setModuleOpen(0x7E3, true)
+        runCurrent()
+        val prefix = Figures.address(0x7E3) + " 22"
+        val ident = bus.requests.drop(opened).filter { it.startsWith(prefix) }
+        assertTrue(ident.isNotEmpty())
+        val asked = bus.requests.size
+
+        s.rereadIdent(0x7E3)
+        runCurrent()
+        val again = bus.requests.drop(asked)
+        assertEquals(ident, again.filter { it.startsWith(prefix) })
+        assertTrue(again.all { it.startsWith(Figures.address(0x7E3) + " ") })
+
+        val before = bus.requests.size
+        s.rereadIdent(0x7E6)
+        runCurrent()
+        assertEquals(before, bus.requests.size)
+        s.stop()
+    }
 }

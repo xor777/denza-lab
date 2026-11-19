@@ -927,6 +927,12 @@ internal object ScannerFixtures {
                 CarSystem.CABIN -> groups.first { it.id == "salon" }.rows.filter { it.request != CPD }
                 else -> BLOCKS.getValue(system).mapNotNull { req -> rows.firstOrNull { it.request == req } }
             }
+            val footnote = when (system) {
+                CarSystem.ENGINE -> ""
+                // the board's own moment: the parked sweep was read at 07:36:12
+                CarSystem.CABIN -> "19 01 09 · 19 02 09 · " + f.getJSONObject("footer").getJSONArray("notes").getJSONArray(0).getString(0)
+                else -> CODES
+            }
             SystemPage(
                 system = system,
                 aside = block.getString("aside"),
@@ -937,13 +943,10 @@ internal object ScannerFixtures {
                 },
                 blocks = blocks.map(::opened),
                 dtc = if (system == CarSystem.BODY) bodyCodes(fixture(all, "scanner-sys-body")) else emptyList(),
-                dtcFootnote = when (system) {
-                    CarSystem.ENGINE -> ""
-                    // the board's own moment: the parked sweep was read at 07:36:12
-                    CarSystem.CABIN -> "19 01 09 · 19 02 09 · " + f.getJSONObject("footer").getJSONArray("notes").getJSONArray(0).getString(0)
-                    else -> CODES
-                },
+                dtcFootnote = footnote,
                 scheme = scheme(system, f, rows),
+                // the boards draw the readings' moment and the memory's as one
+                snapshot = ScannerWords.snapshot(footnote),
             )
         }
     }

@@ -215,8 +215,9 @@ internal fun SystemPageScreen(
     val read = { requests.forEach(actions::readModule) }
     val codes = FooterButton("Прочитать DTC", true) { read() }
     val codesNotes = listOfNotNull(page.dtcFootnote.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) })
-    val refresh = listOf(FooterButton("Обновить", true) { read() })
-    val snapshot = listOfNotNull(ScannerWords.snapshot(page.dtcFootnote)?.let { FooterNote.Words(it, mono = true) })
+    // the readings' pages: «Обновить» asks their batch again, and the snapshot is that batch's - never a memory's read
+    val refresh = listOf(FooterButton("Обновить", true, onClick = actions::refreshReadings))
+    val snapshot = listOfNotNull(page.snapshot?.let { FooterNote.Words(it, mono = true) })
     val running = obd?.live?.running ?: (stream?.paused == false)
     val pause = FooterButton(if (running) "Пауза" else "Продолжить", true) {
         if (ecm != null) actions.setLiveVisible(ecm.request, !running) else actions.setSystemLivePaused(system, running)

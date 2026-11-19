@@ -304,6 +304,14 @@ internal class DiagnosticsSession(
         }
     }
 
+    override fun rereadIdent(request: Int) = act {
+        if (request !in open || request in identPending) return@act
+        identPending += request
+        retryStopped()
+    }
+
+    override fun refreshReadings() = car.refresh()
+
     override fun rereadTests(request: Int) = act {
         if (request in open && reads.rereadTests(request)) retryStopped()
     }

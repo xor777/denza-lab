@@ -123,7 +123,7 @@ internal fun ModulePage(
     val back = FooterButton(backLabel, false, onClick = onBack)
     val footer: @Composable () -> Unit = {
         when {
-            ident -> IdentFooter(back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }
+            ident -> IdentFooter(back) { actions.rereadIdent(module.request) }
             tests != null -> ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { actions.rereadTests(module.request) }), emptyList())
             live -> {
                 val pause = FooterButton(if (stream!!.running) "Пауза" else "Продолжить", true) { actions.setLiveVisible(module.request, !stream.running) }
