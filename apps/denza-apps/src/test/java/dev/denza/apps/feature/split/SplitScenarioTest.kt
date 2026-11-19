@@ -2119,6 +2119,39 @@ class SplitScenarioTest {
     }
 
     /**
+     * Ревью 2026-11-19, находка 4: выбранное приложение встало в панель и ушло из неё (упало,
+     * закрылось само) до финального чтения. Под ним снова наш пикер, и сцена доказуема целиком -
+     * но жильца в выбранной панели в ней нет. До правки операция всё равно записывала его в слот
+     * (`settleOccupant` после сцены) и докладывала успех, а следующее открытие запускало
+     * упавшее приложение заново. Выбор, которого финальное чтение не подтвердило, не выбор
+     * (инвариант 9): слот прежний, пикер рабочий.
+     */
+    @Test
+    fun aChosenAppThatLeavesBeforeTheReadBackIsNotCommitted() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        var chosenGone = false
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR)) { line ->
+            if (line.contains("read-back начат") && !chosenGone) {
+                chosenGone = true
+                car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+            }
+        }
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val commitsBefore = car.store.commits
+
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
+        car.barrier()
+
+        assertTrue("приложение действительно ушло до чтения", chosenGone)
+        assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+        assertEquals("неподтверждённый выбор не записан", PICKER_PAIR, car.store.load().slots)
+        assertEquals(commitsBefore, car.store.commits)
+        assertEquals(PICKER_PAIR, core.currentState().slots)
+    }
+
+    /**
      * Правка W4 (волна 7, контракт 1.5.3, live v22 b3): тап по собственному хабу в широком
      * пикере. Прошивка кладёт split-способный собственный пакет по СВОИМ правилам стороны -
      * окно встаёт в другую панель, и это успех тапа, а не ошибка: слот пишется по фактической

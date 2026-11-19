@@ -1326,6 +1326,19 @@ internal class SelectOperation(
         val read = work.split(op).readOwnedSelection(SPLIT_PICKER_COMPONENT_SET)
         mark(op, "read-back: ${read.reason}")
         val settled = read.scene ?: return false
+        // The choice is the application the read finds in its pane - not the placement seconds
+        // ago. An application that reached the pane and left it before this read (it crashed, it
+        // closed itself) leaves a proven scene with its picker on top: committing the placement
+        // would write a pane occupant nobody sees, report success and relaunch the failed choice
+        // on the next open (ревью 2026-11-19, находка 4). It is a refusal, and the unwind leaves
+        // the picker as the user sees it (invariant 9, 1.5.7). The read is matched by package,
+        // the slot's own unit, and not by task: the firmware may fold the task it started into
+        // the one the application already had and bring that one over (1.5.3,
+        // `choosingTheNeighboursApplicationRecordsNoIntermediatePair`).
+        if (settled[chosen.pane]?.appPackageName != chosen.packageName) {
+            mark(op, "read-back: the chosen app is not in its pane")
+            return false
+        }
         // A neighbour that lost its application is judged by the one rule of invariant 14: the
         // read is on the screen (area 3, or the survivor's 1/2), but a tap seconds ago proves
         // nothing about a neighbour killed under a cover in between ([departureProven]). The one
