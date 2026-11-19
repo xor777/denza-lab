@@ -199,22 +199,36 @@ class ContourReadoutTest {
         // The seventh pass, in four strings. A number integrated over an interval that does not say
         // which interval is read against the interval the reader brought.
         assertTrue(ContourReadout.UNIT_PER_100KM.endsWith("за 10 км"))
-        assertTrue(ContourReadout.TITLE_ENGINE_MINUTES.endsWith("за поездку"))
+        assertTrue(ContourReadout.TITLE_ENGINE_MINUTES.endsWith("ЗА ПОЕЗДКУ"))
         assertTrue(ContourReadout.CAPTION_TRIP.endsWith("ЗА ПОЕЗДКУ"))
-        // And the kilometres lead the phrase, so the odometer's reserve is a margin rather than a
-        // gap after a separator.
-        assertTrue(ContourReadout.CAPTION_TRIP.startsWith("·"))
+    }
+
+    @Test
+    fun aCaptionIsANameOnly() {
+        // 2026-11-19: a caption names what the figure is, in one case and one tracking; the unit
+        // stands beside the figure, so no caption carries a separator or a unit.
+        val captions = listOf(
+            ContourReadout.TITLE_VOLTS, ContourReadout.TITLE_ENGINE_RPM, ContourReadout.TITLE_ENGINE_MINUTES,
+            ContourReadout.CAPTION_TRIP, ContourReadout.CAPTION_REGEN, ContourReadout.CAPTION_ENGINE_CHARGE,
+            ContourReadout.CAPTION_SPREAD,
+        )
+        for (caption in captions) {
+            assertEquals(caption, caption.uppercase(), caption)
+            assertFalse(caption, caption.contains("·"))
+        }
+        for (unit in listOf(ContourReadout.UNIT_VOLT, ContourReadout.UNIT_KM, ContourReadout.UNIT_KWH)) {
+            assertFalse(unit, captions.any { it.split(' ').contains(unit) })
+        }
     }
 
     @Test
     fun unitsAreCaseSensitiveAndHeadingsAreNot() {
-        // «БАТАРЕЯ · В», «ДВС · об/мин», «кВт·ч», «км»: a tracked capital is a heading, a unit is
+        // «В», «об/мин», «кВт·ч», «км»: a tracked capital is a heading, a unit is
         // not one, and a tracked heading does not get to rewrite ГОСТ 8.417.
         assertEquals("кВт", ContourReadout.UNIT_KW)
         assertEquals("кВт·ч", ContourReadout.UNIT_KWH)
         assertEquals("км", ContourReadout.UNIT_KM)
         assertEquals("мВ", ContourReadout.UNIT_MILLIVOLT)
-        assertTrue(ContourReadout.TITLE_PACK.endsWith(" В"))
-        assertTrue(ContourReadout.TITLE_ENGINE_RPM.endsWith("об/мин"))
+        assertEquals("В", ContourReadout.UNIT_VOLT)
     }
 }

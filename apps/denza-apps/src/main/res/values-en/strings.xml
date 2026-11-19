@@ -492,21 +492,22 @@
 
     <!-- The Contour on the driver's display, drawn in Jura in fixed places. The budgets are the ones in
          values/strings.xml; "English" is the width of this text, from the same fonts and sizes. -->
-    <!-- Budget 167 to the first temperature glyph; English 115. -->
-    <string name="contour_title_pack">BATTERY · V</string>
-    <!-- Revolutions: budget 175 to the engine block, English 121; the minutes (201) never stand beside the block. The trip caption shares the line. -->
-    <string name="contour_title_engine_rpm">ENGINE · rpm</string>
-    <string name="contour_title_engine_minutes">ENGINE · min this trip</string>
+    <!-- Budget 135 to the first temperature glyph; English 81. -->
+    <string name="contour_title_volts">VOLTAGE</string>
+    <string name="contour_unit_volt">V</string>
+    <!-- The car page's words in capitals; the unit stands beside the figure. The minutes (162) never stand beside the block. -->
+    <string name="contour_title_engine_rpm">ENGINE</string>
+    <string name="contour_title_engine_minutes">ENGINE THIS TRIP</string>
     <!-- Budget 440 beside its figure; English 104. -->
     <string name="contour_caption_spread">CELL SPREAD</string>
-    <!-- Flush right on the engine heading's line: heading and caption share 506; English 374 at 999 km. -->
-    <string name="contour_trip_km">%1$s km · THIS TRIP</string>
-    <string name="contour_trip_alone">THIS TRIP</string>
-    <!-- This and contour_engine_charge share the park line: 506 with figures and units. -->
+    <!-- Flush right on the engine heading's line; its road «42 km» opens the detail line under the figure. -->
+    <string name="contour_trip">THIS TRIP</string>
+    <string name="contour_unit_km">km</string>
+    <!-- This and contour_engine_charge share the park line with the road, each as caption, figure, unit. -->
     <string name="contour_caption_regen">REGEN</string>
     <!-- The engine block's caption over its line and the trip's detail after it: one meaning, one wording. -->
     <string name="contour_engine_charge">ENGINE CHARGE</string>
-    <!-- The run's time under the block's figure, in the figure's seat: 136. -->
+    <!-- The run's time under the block's figure, in the figure's seat: 128. -->
     <string name="contour_engine_run">IN %1$s</string>
     <!-- Beside the hero at size 34: 79 of room; English 46. -->
     <string name="contour_unit_kw">kW</string>

@@ -90,8 +90,10 @@ internal class ContourFrame {
 
     // ---- the left group
 
+    /** «НАПРЯЖЕНИЕ», a name; [voltsUnit] «В» stands beside [volts] and leaves with it. */
     var batteryCaption: String? = null
     var volts: String? = null
+    var voltsUnit: String? = null
     val temps: Array<Temperature> = Array(CELLS) { Temperature() }
 
     /** The cell spread, only while it is out of line: «РАЗБРОС ЯЧЕЕК 32 мВ» under the battery. */
@@ -102,9 +104,13 @@ internal class ContourFrame {
 
     // ---- the right group
 
-    /** The engine's cell at the group's left edge: «ДВС · об/мин» or «ДВС · мин за поездку». */
+    /**
+     * The engine's cell at the group's left edge: «ДВС» over «1518 об/мин», or «ДВС ЗА ПОЕЗДКУ» over
+     * «6 мин». The unit stands beside the figure and leaves with it.
+     */
     var iceCaption: String? = null
     var iceFigure: String? = null
+    var iceUnit: String? = null
 
     /**
      * The engine runs, or stopped less than ten seconds ago: its block stands where the trip is,
@@ -125,12 +131,18 @@ internal class ContourFrame {
     /** «ЗА 2:51», under it. */
     var engineRun: String? = null
 
-    /** «42 км · ЗА ПОЕЗДКУ», or null while the trip has not answered: then the shelf is empty. */
+    /** «ЗА ПОЕЗДКУ», or null while the trip has not answered: then the shelf is empty. */
     var tripCaption: String? = null
     var tripKwh: String? = null
     var tripUnit: String = ContourReadout.UNIT_KWH
 
-    /** The detail line under the trip, right to left: «0,8 кВт·ч ЗАРЯД ОТ ДВС», then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». */
+    /** The trip's road, «42» before its «км», at the margin of the detail line; null while stale. */
+    var tripKm: String? = null
+
+    /**
+     * The rest of the detail line, right to left after the road: «ЗАРЯД ОТ ДВС 0,8 кВт·ч», then
+     * «● РЕКУПЕРАЦИЯ 3,1 кВт·ч» - each caption, figure, unit, as they read.
+     */
     var gaveCaption: String? = null
     var gaveKwh: String? = null
     var regenCaption: String? = null
@@ -168,6 +180,7 @@ internal class ContourFrame {
         peakAge = 0f
         batteryCaption = null
         volts = null
+        voltsUnit = null
         temps.forEach { it.clear() }
         spreadCaption = null
         spreadValue = null
@@ -175,6 +188,7 @@ internal class ContourFrame {
         spreadLevel = ContourReadout.Level.NORMAL
         iceCaption = null
         iceFigure = null
+        iceUnit = null
         engineBlock = false
         chargeCount = 0
         engineCaption = null
@@ -183,6 +197,7 @@ internal class ContourFrame {
         tripCaption = null
         tripKwh = null
         tripUnit = ContourReadout.UNIT_KWH
+        tripKm = null
         gaveCaption = null
         gaveKwh = null
         regenCaption = null

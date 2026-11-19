@@ -13,8 +13,8 @@ import dev.denza.apps.core.say
  */
 internal fun EnergyReadouts.Companion.sentence(caps: String): String =
     caps.lowercase()
-        .replaceFirstChar { it.uppercaseChar() }
         .replace(ABBREVIATION.lowercase(), ABBREVIATION)
+        .replaceFirstChar { it.uppercaseChar() }
 
 private const val ABBREVIATION = "ДВС"
 

@@ -161,7 +161,7 @@ class ContourSceneTest {
 
         assertTrue("the panel is not in a state about it", scene.fresh(ContourValue.POWER))
         assertFalse("the figure went", scene.fresh(ContourValue.VOLTS))
-        assertTrue("«БАТАРЕЯ · В» stayed", scene.known(ContourValue.VOLTS))
+        assertTrue("«НАПРЯЖЕНИЕ» stayed", scene.known(ContourValue.VOLTS))
     }
 
     @Test

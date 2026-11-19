@@ -252,7 +252,7 @@ this section.
 `OdometerGate`, recuperation `∫max(0, −P) dt` only with the engine off, the
 engine's charge `∫max(0, −P) dt` while it runs, its minutes. A trip quantity a
 fresh packet does not carry did not happen this trip, and its caption goes with
-it (`ContourValue.ledger`). Seat order on P: «ЗА ПОЕЗДКУ» at the edge, then
+it (`ContourValue.ledger`). Seat order on P: the road «42 км» at the edge, then
 «ЗАРЯД ОТ ДВС», then «● РЕКУПЕРАЦИЯ» at the far end, packed from the edge.
 
 **The engine's charge is what the pack took while the engine ran** (since
@@ -288,13 +288,20 @@ in P after it. A car that answers its pack and not its odometer has no trip,
 which is not a trip of nothing; the screens are to read this flag before they
 print a trip figure.
 
-On the Luminofor cluster the trip is the right group's figure - «42 км · ЗА
-ПОЕЗДКУ» over «9,3 кВт·ч» - and «ЗАРЯД ОТ ДВС» and «РЕКУПЕРАЦИЯ» stand on the
-detail line under it, «0,8 кВт·ч ЗАРЯД ОТ ДВС» whenever the ledger carries the
-engine's charge and «РЕКУПЕРАЦИЯ» on P. While the engine's block stands (§2.5)
-the trip gives it the right group and comes back when the block leaves. The car
-page carries the same trip in its own cell, flush right on the full screen: «42
-км · за поездку» over «9,3 кВт·ч».
+On the Luminofor cluster the trip is the right group's figure - «ЗА ПОЕЗДКУ»
+over «9,3 кВт·ч» - and the detail line under it reads right to left from the
+edge, every reading caption, figure, unit: the road «42 км» (no caption: it is the
+trip's own), «ЗАРЯД ОТ ДВС 0,8 кВт·ч» whenever the ledger carries the engine's
+charge, and «● РЕКУПЕРАЦИЯ 3,1 кВт·ч» on P. A stale road leaves with the trip's
+figure. While the engine's block stands (§2.5) the trip gives it the right group
+and comes back when the block leaves. The car page carries the same trip in its
+own cell, flush right on the full screen: «42 км · за поездку» over «9,3 кВт·ч»;
+`EnergyReadoutsTest` holds its caption to the cluster's road and name.
+
+> **Superseded 2026-11-19:** the cluster's caption was the phrase «42 км · ЗА
+> ПОЕЗДКУ» and the detail line read figure, unit, caption («0,8 кВт·ч ЗАРЯД ОТ
+> ДВС»). A caption is a name only now, in one case and one tracking (0.08), with
+> the unit beside the figure; the road moved under the figure as its own reading.
 
 ### 2.5 The engine
 
@@ -355,13 +362,18 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
 - **Lifetime**: on the cluster while the engine runs, moving and parked, with or
   without a charge (a hard pull draws a line on zero and «0,0»); it holds ten
   seconds after the flag drops - hysteresis against a dropped read - and then
-  leaves, the trip comes back with «0,4 кВт·ч ЗАРЯД ОТ ДВС» on its detail line.
+  leaves, the trip comes back with «ЗАРЯД ОТ ДВС 0,4 кВт·ч» on its detail line.
   A link gone quiet takes it on the packet's age, like every reading.
-- **The engine's cell** beside it: «ДВС · об/мин» while the engine runs, empty
-  through the ten-second hold - the block's figure and time are the run's, and
-  the trip's minutes beside them would be a second answer - and «ДВС · мин за
-  поездку» after it, for two minutes after a stop (`EngineChargeSnapshot.
-  stoppedRecently`). One rule on both screens (`EnergyReadouts.readEngineCell`).
+- **The engine's cell** beside it: «ДВС» over «1650 об/мин» while the engine
+  runs, empty through the ten-second hold - the block's figure and time are the
+  run's, and the trip's minutes beside them would be a second answer - and «ДВС ЗА
+  ПОЕЗДКУ» over «6 мин» after it, for two minutes after a stop
+  (`EngineChargeSnapshot.stoppedRecently`). The unit stands beside the figure and
+  leaves with it; the car page writes the same name in sentence case («ДВС», «ДВС
+  за поездку»). One rule on both screens (`EnergyReadouts.readEngineCell`). Until
+  2026-11-19 the cluster's caption carried the unit, «ДВС · об/мин» and «ДВС · мин
+  за поездку», over a bare figure. The block narrowed to 296 with a 128 column the
+  same day, so «8888 об/мин» stands two trace gaps clear of its line.
 - **The car page** draws no chart. Its headline «● В БАТАРЕЮ ОТ ДВС» is printed
   whenever the pack takes charge with the engine running - the block's condition.
   Were it to gain the chart, the place is the trip cell's slot on the full
@@ -513,9 +525,10 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | --- | --- | --- |
 | direction of `P` | «ИЗ БАТАРЕИ» · «В БАТАРЕЮ» · «● В БАТАРЕЮ ОТ ДВС» · «● В БАТАРЕЮ ОТ ЗАРЯДКИ» · «БАТАРЕЯ» | a sign |
 | the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «Расход 16,9 кВт·ч/100 км · за 10 км» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
-| the trip | «42 км · ЗА ПОЕЗДКУ» · «0,8 кВт·ч ЗАРЯД ОТ ДВС» · «РЕКУПЕРАЦИЯ»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19) |
-| the engine, live | «ДВС · об/мин» + rpm; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), a note on what the charge includes |
-| the engine, stopped | an empty corner for the block's ten seconds, then «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a block of zeros after its hold |
+| the pack's volts | «НАПРЯЖЕНИЕ» over «412 В»; car page «Напряжение» + «В» | «БАТАРЕЯ · В» (until 2026-11-19), a unit in a caption |
+| the trip | «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», under it «42 км» · «ЗАРЯД ОТ ДВС 0,8 кВт·ч» · «● РЕКУПЕРАЦИЯ 3,1 кВт·ч»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19), «42 км · ЗА ПОЕЗДКУ» and «0,8 кВт·ч ЗАРЯД ОТ ДВС» (until 2026-11-19) |
+| the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes |
+| the engine, stopped | an empty corner for the block's ten seconds, then «ДВС ЗА ПОЕЗДКУ» over «6 мин»; car page «ДВС за поездку» + «мин» | a block of zeros after its hold, «ДВС · мин за поездку» (until 2026-11-19) |
 | charging, the countdown | «2:15 до полной»; ten hours or more «12:30» (kept by the owner for now, 2026-09-23; see below) | a day count |
 | the car page, closed | «Данные машины» over the state - «Нет доступа», «Нет связи», «Нет ответа» (2026-11-19; until then «Питание от машины» over the instruction) | a row of empty captions, an instruction, a «·» |
 
@@ -533,6 +546,13 @@ scene when it moves.
 The car page prints every one of these in sentence case (§2.1), the cluster in
 its capitals; the Luminofor cluster sets its captions in Jura and the car page
 its words in Roboto, as the stock screens do.
+
+**A caption is a name only** (since 2026-11-19): what the figure is, in capitals,
+tracked 0.08 wherever it stands (`spec.json` → `cluster.grid.captionTrack`,
+`cellCaptionTrack`, `detailTrack`, one value); the unit stands small beside the
+figure and leaves with it; every detail reading is caption, figure, unit.
+`ContourReadoutTest.aCaptionIsANameOnly` and `ContourGeometryTest.everyCaptionHasOneTracking`
+hold it.
 
 The blue mark «●» means *into the pack* and nothing else. `RETURN` colour means
 energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
@@ -622,8 +642,8 @@ block is on five boards drawn from two recorded drives, as `EngineCharge`
 replays them (`VehicleLogReplayTest` holds the numbers): `cluster-engine`
 charging on the move (2026-09-24 18:40:04, «0,2» «ЗА 0:41»), `-kickdown` at
 226 kW out fifteen seconds into the same run, `-stopped` four seconds after the
-19:25 stop with the corner empty, `-gone` past the hold with «0,4 кВт·ч ЗАРЯД ОТ
-ДВС» under the trip, and `-parked`, forced charge in P on 2026-09-18 on the lower
+19:25 stop with the corner empty, `-gone` past the hold with «ЗАРЯД ОТ ДВС 0,4
+кВт·ч» under the trip, and `-parked`, forced charge in P on 2026-09-18 on the lower
 ceiling.
 
 What follows describes the boards they replaced and stays as their record.

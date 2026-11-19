@@ -109,12 +109,12 @@ object LuminoforSpec {
             const val FIGURE_SIZE: Float = 52f
             const val TEMP_SIZE: Float = 34f
             const val CAPTION_SIZE: Float = 17f
-            const val CAPTION_TRACK: Float = 0.12f
+            const val CAPTION_TRACK: Float = 0.08f
             const val CELL_CAPTION_TRACK: Float = 0.08f
             const val UNIT_SIZE: Float = 17f
             const val UNIT_GAP: Float = 8f
             const val DETAIL_SIZE: Float = 15f
-            const val DETAIL_TRACK: Float = 0.06f
+            const val DETAIL_TRACK: Float = 0.08f
             const val DETAIL_DROP: Float = 30f
         }
 
@@ -174,8 +174,8 @@ object LuminoforSpec {
 
         /** The engine's charge into the pack: `cluster.engineCharge`. */
         object EngineCharge {
-            const val WIDTH: Float = 330f
-            const val COLUMN: Float = 136f
+            const val WIDTH: Float = 296f
+            const val COLUMN: Float = 128f
             const val UP_TO: Float = 50f
             const val UP_TO_LOW: Float = 25f
             const val LOW_BELOW: Float = 20f

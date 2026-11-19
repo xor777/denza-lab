@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.cluster.dashboard.ContourScene
@@ -156,7 +158,7 @@ class VehicleLogReplayTest {
         assertEquals(EnergyReadouts.EngineCell.MINUTES, readouts.engineCell)
         assertEquals("the trip's engine minutes", board["iceFigure"], readouts.engineCellFigure)
         assertEquals("the trip", board["tripKwh"], readouts.tripFigure)
-        assertEquals("its road", (board["tripCaption"] as String).lowercase(), readouts.tripCaption.lowercase())
+        assertEquals("its road", AppText.s(R.string.energy_trip_km, board["tripKm"] as String), readouts.tripCaption)
     }
 
     private fun moment(file: File, until: String, board: String, running: Boolean) {

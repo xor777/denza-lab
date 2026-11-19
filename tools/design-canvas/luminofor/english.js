@@ -22,8 +22,20 @@
   const exact = new Map(EN.exact);
   const drawn = new Map(EN.drawn);
   const templates = EN.templates.map(t => Object.assign({}, t, { re: new RegExp('^' + t.re + '$', 's') }));
+  const shared = new Map(Object.entries(EN.shared || {}));
   const memo = new Map();
   const stays = new Set();
+
+  /**
+   * One Russian text with an English in two cases: «ДВС» is ENGINE as a cluster caption (a scene's
+   * `…Caption`) and Engine on the car page. The scene's own key says which; null for any other text.
+   */
+  function cased(s, key) {
+    const options = shared.get(s);
+    if (!options) return null;
+    const caps = /Caption$/.test(key);
+    return options.find(o => (o === o.toUpperCase()) === caps) ?? null;
+  }
 
   const decimal = s => (FIGURE.test(s) ? s.replace(',', '.') : s);
 
@@ -89,7 +101,7 @@
     if (v && typeof v === 'object' && bilingual(v)) return v.en;
     if (v && typeof v === 'object') {
       const out = {};
-      Object.keys(v).forEach(k => { out[k] = walk(v[k]); });
+      Object.keys(v).forEach(k => { out[k] = (typeof v[k] === 'string' && cased(v[k], k)) || walk(v[k]); });
       // The language row says which language is on: the board is in English, so English is.
       if (v.t === 'segmented' && v.labels.includes('English')) out.selected = v.labels.indexOf('English');
       return out;

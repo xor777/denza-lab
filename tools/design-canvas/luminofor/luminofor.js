@@ -432,8 +432,12 @@
     const base = CG.baseline;
 
     // left group: the battery; the five glyphs are the temperatures' captions
+    // one rule on the cluster: a caption is a name, the unit stands small beside its figure
     text(c, f.batteryCaption, GL, CG.caption, CG.captionSize, GREY, 1, { track: CG.captionTrack });
-    if (f.volts) num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
+    if (f.volts) {
+      const vw = num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
+      if (f.voltsUnit) text(c, f.voltsUnit, GL + vw + CG.unitGap, base, CG.unitSize, GREY, 1);
+    }
     // the pitch holds the widest reading (−40° to 150°) three tracking steps clear of the next; the
     // row ends on the group's edge at two figures, so the pack's glyph keeps its distance from the
     // caption on the line it now shares
@@ -474,16 +478,24 @@
         num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
         text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
       }
-      // the trip's detail: «ЗАРЯД ОТ ДВС» whenever the pack took something with the engine running
-      // this trip, recuperation on P; one line under the trip, in the fixture's order
-      const parts = [];
-      if (f.gaveKwh) parts.push({ text: f.gaveCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.gaveKwh, after: 0 });
-      if (f.gaveKwh && f.regenKwh) parts.push({ gap: 28 });
-      if (f.regenKwh) parts.push({ text: f.regenCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.regenKwh, after: 6 }, { dot: true });
+      // the trip's detail, right to left off the margin: its road «42 км», then «ЗАРЯД ОТ ДВС»
+      // whenever the pack took something with the engine running this trip, then recuperation on P -
+      // each read as caption, figure, unit, as «РАЗБРОС ЯЧЕЕК 32 мВ» reads
+      const parts = [], reading = (cap, fig, unit) => {
+        if (parts.length) parts.push({ gap: 28 });
+        parts.push({ text: unit, after: 6 }, { num: fig, after: cap ? 7 : 0 });
+        if (cap) parts.push({ text: cap, track: CG.detailTrack, after: 0 });
+      };
+      if (f.tripKm) reading(null, f.tripKm, f.tripKmUnit);
+      if (f.gaveKwh) reading(f.gaveCaption, f.gaveKwh, f.tripUnit);
+      if (f.regenKwh) { reading(f.regenCaption, f.regenKwh, f.tripUnit); parts.push({ gap: 6 }, { dot: true }); }
       if (parts.length) runLeft(c, RE, base + CG.detailDrop, parts);
     }
     text(c, f.iceCaption, HR, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
-    if (f.iceFigure) num(c, f.iceFigure, HR, base, CG.figureSize, INK, 1, 'left');
+    if (f.iceFigure) {
+      const iw = num(c, f.iceFigure, HR, base, CG.figureSize, INK, 1, 'left');
+      if (f.iceUnit) text(c, f.iceUnit, HR + iw + CG.unitGap, base, CG.unitSize, GREY, 1);
+    }
 
     trace(c, f);
   }

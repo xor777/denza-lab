@@ -288,7 +288,11 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         f.batteryCaption?.let {
             pen.text(it, left, Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CAPTION_TRACK)
         }
-        f.volts?.let { pen.figures(it, left, base, Grid.FIGURE_SIZE, ClusterInk.INK, 1f) }
+        // A caption is a name; the unit stands small beside its figure.
+        f.volts?.let { volts ->
+            val w = pen.figures(volts, left, base, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+            f.voltsUnit?.let { pen.text(it, left + w + Grid.UNIT_GAP, base, Grid.UNIT_SIZE, ClusterInk.GREY, 1f) }
+        }
 
         for (index in 0 until ContourFrame.CELLS) {
             val cell = f.temps[index]
@@ -342,8 +346,10 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
                 track = Grid.CELL_CAPTION_TRACK,
             )
         }
-        f.iceFigure?.let {
-            pen.figures(it, ContourGeometry.GROUP_RIGHT_START, Grid.BASELINE, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+        f.iceFigure?.let { figure ->
+            val x = ContourGeometry.GROUP_RIGHT_START
+            val w = pen.figures(figure, x, Grid.BASELINE, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+            f.iceUnit?.let { pen.text(it, x + w + Grid.UNIT_GAP, Grid.BASELINE, Grid.UNIT_SIZE, ClusterInk.GREY, 1f) }
         }
     }
 
@@ -364,43 +370,47 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     }
 
     /**
-     * The detail line under the trip, laid right to left off the margin: «0,8 кВт·ч ЗАРЯД ОТ ДВС», then
-     * twenty-eight units, then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». A seat that does not exist this trip
-     * takes no room, so what is there is packed against the edge; a figure gone stale takes its
-     * unit with it and leaves the words.
+     * The detail line under the trip, laid right to left off the margin: the road «42 км», then
+     * twenty-eight units, «ЗАРЯД ОТ ДВС 0,8 кВт·ч», twenty-eight, «● РЕКУПЕРАЦИЯ 3,1 кВт·ч» - each
+     * reading as caption, figure, unit, as «РАЗБРОС ЯЧЕЕК 32 мВ» does. A seat that does not exist
+     * this trip takes no room, so what is there is packed against the edge; a figure gone stale
+     * takes its unit with it and leaves the words.
      */
     private fun runLeft(f: ContourFrame) {
         val y = ContourGeometry.DETAIL_BASELINE
         var x = ContourGeometry.GROUP_RIGHT_END
         var pair = false
+        f.tripKm?.let { km ->
+            x = detailPart(null, km, ContourReadout.UNIT_KM, x, y)
+            pair = true
+        }
         f.gaveCaption?.let { caption ->
-            x = detailPart(caption, f.gaveKwh, f.tripUnit, x, y, ContourGeometry.DETAIL_AFTER_UNIT, 0f)
+            if (pair) x -= ContourGeometry.DETAIL_PAIR_GAP
+            x = detailPart(caption, f.gaveKwh, f.tripUnit, x, y)
             pair = true
         }
         val regen = f.regenCaption ?: return
         if (pair) x -= ContourGeometry.DETAIL_PAIR_GAP
-        x = detailPart(regen, f.regenKwh, f.tripUnit, x, y, ContourGeometry.DETAIL_AFTER_UNIT, ContourGeometry.DETAIL_AFTER_FIGURE)
+        x = detailPart(regen, f.regenKwh, f.tripUnit, x, y) - ContourGeometry.DETAIL_BEFORE_DOT
         path.rewind()
         path.addCircle(x - ContourGeometry.DOT_DX, y - ContourGeometry.DOT_DY, ContourGeometry.DOT_RADIUS, Path.Direction.CW)
         pen.glowFill(path, ClusterInk.BLUE, ContourGeometry.DOT_INTENSITY, ContourGeometry.DOT_BLUR)
     }
 
-    /** One caption, its unit and its figure, right to left from [right]; returns where it ended. */
-    private fun detailPart(
-        caption: String,
-        figure: String?,
-        unit: String,
-        right: Float,
-        y: Float,
-        afterUnit: Float,
-        afterFigure: Float,
-    ): Float {
+    /**
+     * One reading of the detail line - its caption, its figure, its unit - laid right to left from
+     * [right]; returns where it ended. No caption for the road, whose name is the trip's own.
+     */
+    private fun detailPart(caption: String?, figure: String?, unit: String, right: Float, y: Float): Float {
         var x = right
-        x -= pen.text(caption, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, track = Grid.DETAIL_TRACK, align = Align.RIGHT)
-        if (figure == null) return x - afterFigure
-        x -= ContourGeometry.DETAIL_AFTER_CAPTION
-        x -= pen.text(unit, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, align = Align.RIGHT) + afterUnit
-        x -= pen.figures(figure, x, y, ContourGeometry.DETAIL_FIGURE, ClusterInk.INK, 1f, Align.RIGHT) + afterFigure
+        if (figure != null) {
+            x -= pen.text(unit, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, align = Align.RIGHT) + ContourGeometry.DETAIL_UNIT_GAP
+            x -= pen.figures(figure, x, y, ContourGeometry.DETAIL_FIGURE, ClusterInk.INK, 1f, Align.RIGHT)
+            if (caption != null) x -= ContourGeometry.DETAIL_CAPTION_GAP
+        }
+        if (caption != null) {
+            x -= pen.text(caption, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, track = Grid.DETAIL_TRACK, align = Align.RIGHT)
+        }
         return x
     }
 

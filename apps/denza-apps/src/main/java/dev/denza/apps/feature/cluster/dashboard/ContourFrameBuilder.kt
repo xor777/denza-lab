@@ -30,17 +30,13 @@ import kotlin.math.min
  * ### Nothing is formatted here either
  *
  * Every string is a memoised one: the figures come out of [ContourFigures] and `EnergyReadouts`,
- * and the phrase built around a figure - «42 км · ЗА ПОЕЗДКУ» - is rebuilt only when the figure's
- * own string changes, which [ContourFigures] makes an identity test.
+ * and every word around a figure is a word alone - since 2026-11-19 no caption carries one.
  * A steady panel allocates nothing in a frame.
  */
 internal class ContourFrameBuilder {
 
     private val readouts = EnergyReadouts()
     private val figures = ContourFigures()
-
-    private var odometerFor: String? = null
-    private var tripCaption: String = ""
 
     /** The consumption figure last printed, for [ContourFrame.consumptionHeld]. */
     private var heldConsumption: String? = null
@@ -89,8 +85,11 @@ internal class ContourFrameBuilder {
     }
 
     private fun left(frame: ContourFrame, t: VehicleTelemetry, scene: ContourScene) {
-        if (scene.known(ContourValue.VOLTS)) frame.batteryCaption = ContourReadout.TITLE_PACK
-        if (scene.fresh(ContourValue.VOLTS)) frame.volts = readouts.voltsFigure
+        if (scene.known(ContourValue.VOLTS)) frame.batteryCaption = ContourReadout.TITLE_VOLTS
+        if (scene.fresh(ContourValue.VOLTS)) {
+            frame.volts = readouts.voltsFigure
+            if (frame.volts != null) frame.voltsUnit = ContourReadout.UNIT_VOLT
+        }
 
         cell(
             frame,
@@ -160,13 +159,17 @@ internal class ContourFrameBuilder {
                 // freshness gate is still the scene's.
                 if (scene.fresh(ContourValue.RPM) && motion.rpmReady) {
                     frame.iceFigure = figures.whole(ContourFigures.Slot.RPM, motion.rpm.toDouble())
+                    frame.iceUnit = readouts.engineCellUnit
                 }
             }
             // Not beside the block: while it holds after a stop the block's own figure and time
             // are the run's, and the trip's minutes beside them would be a second answer.
             EnergyReadouts.EngineCell.MINUTES -> if (!stage.engineBlock) {
                 frame.iceCaption = readouts.engineCellTitle
-                if (scene.fresh(ContourValue.ENGINE_MINUTES)) frame.iceFigure = readouts.engineCellFigure
+                if (scene.fresh(ContourValue.ENGINE_MINUTES)) {
+                    frame.iceFigure = readouts.engineCellFigure
+                    if (frame.iceFigure != null) frame.iceUnit = readouts.engineCellUnit
+                }
             }
         }
 
@@ -177,11 +180,10 @@ internal class ContourFrameBuilder {
         if (!scene.known(ContourValue.TRIP_NET)) return
 
         val trip = t.trip
-        // The separator belongs to the kilometres in front of it, so it leaves with them.
-        frame.tripCaption = if (scene.fresh(ContourValue.TRIP_KM)) {
-            tripCaption(figures.whole(ContourFigures.Slot.ODOMETER, trip.kilometres))
-        } else {
-            ContourReadout.CAPTION_TRIP_ALONE
+        // A name over the figure; the road is its own reading on the detail line and leaves alone.
+        frame.tripCaption = ContourReadout.CAPTION_TRIP
+        if (scene.fresh(ContourValue.TRIP_KM)) {
+            frame.tripKm = figures.whole(ContourFigures.Slot.ODOMETER, trip.kilometres)
         }
         if (scene.fresh(ContourValue.TRIP_NET)) frame.tripKwh = figures.seat(0, trip.netKwh)
 
@@ -255,15 +257,6 @@ internal class ContourFrameBuilder {
             readouts.consumptionNegative -> ContourFrame.Tone.BLUE
             else -> ContourFrame.Tone.INK
         }
-    }
-
-    /** «42 км · ЗА ПОЕЗДКУ», rebuilt when the odometer's own string does. */
-    private fun tripCaption(odometer: String): String {
-        if (odometer !== odometerFor) {
-            odometerFor = odometer
-            tripCaption = ContourReadout.tripKm(odometer)
-        }
-        return tripCaption
     }
 
     private companion object {

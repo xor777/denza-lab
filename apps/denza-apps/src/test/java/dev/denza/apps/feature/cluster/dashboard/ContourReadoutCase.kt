@@ -9,14 +9,6 @@ import dev.denza.apps.core.AppText
  * phrases back together out of them, cut from the app's own strings so that each stays one record.
  */
 
-/** The unit inside [ContourReadout.tripKm]. */
-internal val ContourReadout.UNIT_KM: String
-    get() = tripKm("").trim().substringBefore(" ")
-
-/** The tail of [ContourReadout.tripKm], «· ЗА ПОЕЗДКУ». */
-internal val ContourReadout.CAPTION_TRIP: String
-    get() = tripKm("").substringAfter(UNIT_KM).trim()
-
 /**
  * The petal's unit with the window full, which is what the board prints.
  *

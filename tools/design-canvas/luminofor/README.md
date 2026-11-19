@@ -270,7 +270,7 @@ one did:
   > ten runs dimmer toward the past, the end dot - from a zero on the figures' baseline up to their
   > cap, 0…50 kW or 0…25 while the window stays under 20, a point a second over two minutes.
   > «ЗАРЯД ОТ ДВС» over the chart from its left end; the run's figure in the column after it
-  > (`column` 136), the run's time under it. A younger run grows from the right at the full pitch.
+  > (`column` 128 since 2026-11-19, 136 before), the run's time under it. A younger run grows from the right at the full pitch.
 - every chart, on both screens, is one monotone cubic through its points (Fritsch-Carlson, since
   2026-11-19, `monotoneCurve()` here and `MonotoneCurve` in the app): it passes through every point
   and never leaves the band of two neighbours, so a flat run stays flat and a curve does not cross

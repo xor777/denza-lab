@@ -23,6 +23,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
 | The band has one scale both ways since 2026-11-19: equal power is equal length out of the pack or into it, on the square root, full at 300 kW, a clip tick past it (until then 100 kW back). The zero's glow is `0.65·(|P| / 300)^1.5` on both sides, radius 442 and `reachBelow` 63.9 (curve since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW, 83 at 200 kW and 153 at 300 kW; 14 kW back is now under 2 and 80 kW back 23 (they were 9 and 119). Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. The one scale is not on the car yet | live | 2026-11-19 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26), [One scale both ways](#one-scale-both-ways-2026-11-19) |
+| A Contour caption is a name only since 2026-11-19: one case, tracking 0.08 everywhere, the unit small beside its figure, each detail reading caption, figure, unit - «НАПРЯЖЕНИЕ» over «412 В», «ДВС» over «1650 об/мин», «ЗА ПОЕЗДКУ» over «9,3 кВт·ч» with «42 км» under it, «ЗАРЯД ОТ ДВС 0,8 кВт·ч»; the engine's block narrowed to 296. Not on the car yet | code | 2026-11-19 | [A caption is a name](#a-caption-is-a-name-2026-11-19), [energy contract §3](energy-display-contract.md#3-words) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22). `GENERATION_KW` is above zero only during forced generation in P: on the 2026-09-24 drive the engine charged the pack on the move with it at `0` (refutes "the engine's charge into the pack", 2026-11-19). Since 2026-11-19 the engine's block reads the pack's own charge, `max(0, −P)` while `ENGINE_RUNNING` is up (`EngineCharge.kt`): «ЗАРЯД ОТ ДВС» over two minutes of it, the run's kWh and time beside it, up while the engine runs, moving or parked, and 10 s after; not yet on the car | code | 2026-11-19 | [energy contract §2.5](energy-display-contract.md#25-the-engine), [Generation reads zero on the move](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
@@ -520,10 +521,10 @@ glance, by somebody who has never seen it and has no legend?**
 | the hero | instantaneous pack power in kilowatts, on the axis, at 88 with its unit at 34 - the one figure read on the move and the one place a unit has to be readable |
 | the band | that same reading as a bar across the whole clear width, zero in the middle, a square root over 300 kW out and 100 kW back (`ContourGeometry.reach`; one 300 kW scale both ways since 2026-11-19, [One scale both ways](#one-scale-both-ways-2026-11-19)), with a peak hold |
 | the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
-| the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
-| the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
+| the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52. **Superseded 2026-11-19:** «НАПРЯЖЕНИЕ» over «412 В», the unit beside the figure ([A caption is a name](#a-caption-is-a-name-2026-11-19)) |
+| the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip. **Superseded 2026-11-19:** «ДВС» over «1650 об/мин», «ДВС ЗА ПОЕЗДКУ» over «6 мин» |
 | the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
-| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P. It keeps the shelf whenever the engine's box does not, which is every state except an engine that is running **and giving** (since 2026-11-19: «ЗАРЯД ОТ ДВС», and the shelf goes to the engine's block whenever the engine runs) |
+| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P. It keeps the shelf whenever the engine's box does not, which is every state except an engine that is running **and giving** (since 2026-11-19: «ЗАРЯД ОТ ДВС», and the shelf goes to the engine's block whenever the engine runs). **Superseded 2026-11-19:** «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», and under it «42 км», «ЗАРЯД ОТ ДВС 0,8 кВт·ч», «● РЕКУПЕРАЦИЯ 3,1 кВт·ч» |
 | the engine's box | only while `ENGINE_RUNNING` is up and `GENERATION_KW` was above zero somewhere in the window: what the engine is giving, as twenty-four five-second steps linear to 30 kW in the history's own grey, under one sentence - «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», no dot. It leaves ten seconds after the flag drops. **Superseded 2026-11-19:** the engine's block - the pack's charge while the engine runs, a curve a second over two minutes in blue, «ЗАРЯД ОТ ДВС», the run's kWh and time ([contract §2.5](energy-display-contract.md#25-the-engine)) |
 | the petal | the last ten kilometres of consumption, as **a line through a hundred points** on the odometer's own 100 m grid, each the mean of the kilometre ending at it, standing on the figure's own baseline, linear 0…60 up and 0…20 back down with one tick over each run it cuts, holes where the log had no energy - «кВт·ч/100 км · за 10 км», or a countdown to full while a gun is in |
 | the band | nothing about the engine is drawn on it. Both drawings that were - a seam behind the tip, a line under the body - were claims about what `GENERATION_KW` means in motion, and no recording supports either |
@@ -562,6 +563,37 @@ at rest, and on a motorway there is no rest: the board electronics pull a kilowa
 or two permanently, so after half an hour the reference has aged into the pack's
 own discharge and «просадка 14 В» is ten per cent of the state of charge wearing a
 unit it does not have.
+
+#### A caption is a name (2026-11-19)
+
+The captions had grown three grammars: «БАТАРЕЯ · В» named a thing and then its
+unit, «ДВС · об/мин» a thing and its unit, «42 км · ЗА ПОЕЗДКУ» a figure and then
+a name, and the detail line read figure, unit, name («0,8 кВт·ч ЗАРЯД ОТ ДВС»). They
+were tracked 0.12, 0.08 and 0.06 depending on where they stood. The owner
+approved one rule from the board, and the code and the board moved together:
+
+| | until 2026-11-19 | now |
+| --- | --- | --- |
+| the volts | «БАТАРЕЯ · В» over «412» | «НАПРЯЖЕНИЕ» over «412 В» |
+| the engine, running | «ДВС · об/мин» over «1650» | «ДВС» over «1650 об/мин» |
+| the engine, stopped | «ДВС · мин за поездку» over «6» | «ДВС ЗА ПОЕЗДКУ» over «6 мин» |
+| the trip | «42 км · ЗА ПОЕЗДКУ» over «9,3 кВт·ч» | «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», «42 км» under it |
+| the detail line | «0,8 кВт·ч ЗАРЯД ОТ ДВС» | «ЗАРЯД ОТ ДВС 0,8 кВт·ч» |
+| tracking | 0.12 · 0.08 · 0.06 | 0.08 everywhere |
+
+English: VOLTAGE, V; ENGINE, ENGINE THIS TRIP; THIS TRIP, km. A unit is small,
+grey and beside its figure, and leaves with it when the figure goes stale. The road
+is the first reading of the detail line and has no caption, since it is the trip's
+own. Four-digit revolutions with «об/мин» beside them ran into the engine's block,
+so the block narrowed from 330 to 296 and its figure column from 136 to 128
+(`spec.json` → `cluster.engineCharge`); «ЗАРЯД ОТ ДВС» and ENGINE CHARGE still fit
+over its 152-unit chart. The widest park line - a four-digit road and both seats
+past ten - is 535 units against the group's 506, so it runs into the air before
+the group and stops more than a pair's gap short of the hero's «кВт»
+(`ContourGeometryTest.theRightGroupsWidestPrintStaysInsideIt`, `DrawnWordsFitTest`).
+The car page already wrote the engine's and the volts' words this way; its trip
+caption «42 км · за поездку» stays, and `EnergyReadoutsTest` holds it to the
+cluster's road and name.
 
 ### The temperature row is five glyphs and one word
 

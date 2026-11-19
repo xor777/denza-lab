@@ -19,11 +19,15 @@ import java.util.Locale
  * and `ContourFixturesContractTest` holds the two records together: a word on the board that the
  * app does not print, or the other way round, fails there. Changing a caption is a design change.
  *
- * Two rules the words follow. **Units are case-sensitive**: «БАТАРЕЯ · В», «ДВС · об/мин»,
- * «кВт·ч», «км». A tracked capital is a heading, a unit is not one, and a tracked heading does not
- * get to rewrite ГОСТ 8.417. And **a figure names the window it is true over** - «за 10 км» on the
- * petal, «за поездку» on the engine's minutes - because a number integrated over an interval that
- * does not say which interval is read against the interval the reader brought.
+ * Three rules the words follow. **A caption is a name and nothing else** (since 2026-11-19): one
+ * case, capitals, at one tracking, and the unit stands small beside its figure - «НАПРЯЖЕНИЕ» over
+ * «549 В», «ДВС» over «1518 об/мин», and a line under a figure reads caption, figure, unit:
+ * «ЗАРЯД ОТ ДВС 0,4 кВт·ч». Until then units rode in the captions («БАТАРЕЯ · В», «ДВС · об/мин»,
+ * «42 км · ЗА ПОЕЗДКУ»). **Units are case-sensitive**: «кВт·ч», «км», «об/мин». A tracked capital
+ * is a heading, a unit is not one, and a tracked heading does not get to rewrite ГОСТ 8.417. And **a
+ * figure names the window it is true over** - «за 10 км» on the petal, «за поездку» on the
+ * engine's minutes - because a number integrated over an interval that does not say which interval
+ * is read against the interval the reader brought.
  *
  * Everything takes plain numbers rather than a telemetry snapshot, so a test states the case it
  * means instead of assembling a car around it.
@@ -36,14 +40,17 @@ internal object ContourReadout {
 
     // ---- the words
 
-    val TITLE_PACK: String get() = AppText.s(R.string.contour_title_pack)
+    /** «НАПРЯЖЕНИЕ», as the car page says «Напряжение», over the volts and their «В». */
+    val TITLE_VOLTS: String get() = AppText.s(R.string.contour_title_volts)
+
+    /** The engine's cell over its revolutions: the car page's «ДВС» in capitals. */
     val TITLE_ENGINE_RPM: String get() = AppText.s(R.string.contour_title_engine_rpm)
 
     /**
      * The sleeping engine's heading, and the window is in it.
      *
-     * «ДВС · мин» alone was six minutes of *something*: this stop, this hour, this trip, the
-     * odometer. The aperture leaves 250.1 units at this baseline and the words take 224.9.
+     * «ДВС» over «6 мин» alone was six minutes of *something*: this stop, this hour, this trip, the
+     * odometer. It never stands beside the engine's block.
      */
     val TITLE_ENGINE_MINUTES: String get() = AppText.s(R.string.contour_title_engine_minutes)
 
@@ -58,19 +65,11 @@ internal object ContourReadout {
     val CAPTION_SPREAD: String get() = AppText.s(R.string.contour_caption_spread)
 
     /**
-     * The odometer's figure, its unit and what they are the road of, as one sentence.
-     *
-     * Rebuilt only when the figure's own string changes: `ContourFrameBuilder`.
+     * The trip's caption, a name alone. Its road is a reading of its own - «42 км» at the margin of
+     * the detail line under the figure - and leaves alone when the odometer goes stale. Until
+     * 2026-11-19 the road was in the caption, «42 км · ЗА ПОЕЗДКУ».
      */
-    fun tripKm(figure: String): String = AppText.s(R.string.contour_trip_km, figure)
-
-    /**
-     * And what is left of it when the odometer has gone stale.
-     *
-     * The separator belongs to the figure in front of it, so it leaves with it: a «·» standing at
-     * the head of a cell is a phrase missing its first half rather than a caption.
-     */
-    val CAPTION_TRIP_ALONE: String get() = AppText.s(R.string.contour_trip_alone)
+    val CAPTION_TRIP: String get() = AppText.s(R.string.contour_trip)
 
     /** Drawn after a blue marker dot, which is what says the same thing «ВЕРНУЛА» would have. */
     val CAPTION_REGEN: String get() = AppText.s(R.string.contour_caption_regen)
@@ -107,6 +106,8 @@ internal object ContourReadout {
 
     val UNIT_KW: String get() = AppText.s(R.string.contour_unit_kw)
     val UNIT_KWH: String get() = AppText.s(R.string.contour_unit_kwh)
+    val UNIT_VOLT: String get() = AppText.s(R.string.contour_unit_volt)
+    val UNIT_KM: String get() = AppText.s(R.string.contour_unit_km)
     val UNIT_MILLIVOLT: String get() = AppText.s(R.string.contour_unit_millivolt)
     const val DEGREE = "°"
 

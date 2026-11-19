@@ -84,7 +84,8 @@ def english_table():
     """Russian to English by key, for english.js. A key either file lacks is not in the table.
 
     Two keys can share one Russian text and differ in English: the first key in the file wins, and
-    `shared` lists them for `--stays`; no two do today. The words `luminofor.js` writes inline are the
+    `shared` lists them for `--stays`. One pair does today, «ДВС», ENGINE on the cluster and Engine on
+    the car page, and english.js picks between the two by case from the scene's key. The words `luminofor.js` writes inline are the
     glass picture's, and `drawn` holds their own keys, so a word on the glass takes its `hud_glass_*`
     English even if another key shares its Russian. Only the picture's readings have such keys - the
     speed's unit, the turn's distance, the lane's metres; its parts are named with the rows' own words,

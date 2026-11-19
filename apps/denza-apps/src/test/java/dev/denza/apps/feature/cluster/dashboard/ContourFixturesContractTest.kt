@@ -5,7 +5,9 @@ import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -38,7 +40,9 @@ open class ContourFixturesContractTest {
         // The waking and the closed panel print no captions at all: ContourFrameBuilderTest holds
         // those two to their boards. Every other scene prints the same five.
         boards.map { it to fixture(it) }.filter { it.second["batteryCaption"] != null }.forEach { (id, f) ->
-            assertEquals(id, ContourReadout.TITLE_PACK, f["batteryCaption"])
+            assertEquals(id, ContourReadout.TITLE_VOLTS, f["batteryCaption"])
+            // The unit beside the volts leaves with them.
+            assertEquals(id, f["volts"]?.let { ContourReadout.UNIT_VOLT }, f["voltsUnit"])
             assertEquals(id, ContourReadout.UNIT_KWH, f["tripUnit"])
             // Beside the engine's block in the seconds it holds after a stop the cell is empty.
             val heldEmpty = f["engineBlock"] == true && f["iceFigure"] == null
@@ -47,14 +51,21 @@ open class ContourFixturesContractTest {
                 f["iceCaption"] in setOf(ContourReadout.TITLE_ENGINE_MINUTES, ContourReadout.TITLE_ENGINE_RPM) ||
                     heldEmpty && f["iceCaption"].let { it == null || it == "" },
             )
-            // A stale trip loses its kilometres and the separator with them; the recorded drives'
-            // scenes have their own kilometres.
+            // The engine's unit stands beside its figure, the one its name calls for.
+            val iceUnit = when (f["iceCaption"]) {
+                ContourReadout.TITLE_ENGINE_RPM -> EnergyReadouts.ENGINE_RPM_UNIT
+                ContourReadout.TITLE_ENGINE_MINUTES -> EnergyReadouts.ENGINE_MINUTES_UNIT
+                else -> null
+            }
+            assertEquals(id, f["iceFigure"]?.let { iceUnit }, f["iceUnit"])
+            // The trip's caption is its name alone; a stale trip loses its kilometres from the
+            // line under it, and the recorded drives' scenes have their own.
+            assertEquals(id, ContourReadout.CAPTION_TRIP, f["tripCaption"])
             if (f["tripKwh"] == null) {
-                assertEquals(id, ContourReadout.CAPTION_TRIP_ALONE, f["tripCaption"])
+                assertNull(id, f["tripKm"])
             } else {
-                val km = (f["tripCaption"] as String).substringBefore(' ')
+                val km = f["tripKm"] as String
                 assertTrue("$id: «$km»", km.toIntOrNull() != null)
-                assertEquals(id, "$km ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}", f["tripCaption"])
             }
             if (f["gaveKwh"] != null) assertEquals(id, ContourReadout.CAPTION_ENGINE_CHARGE, f["gaveCaption"])
             if (f["parked"] == true && f["regenKwh"] != null) {

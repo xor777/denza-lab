@@ -14,12 +14,11 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet.Glass as G
 import dev.denza.apps.feature.cluster.dashboard.ContourGeometry
-import dev.denza.apps.feature.cluster.dashboard.CAPTION_TRIP
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
-import dev.denza.apps.feature.cluster.dashboard.UNIT_KM
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_FILLING
 import dev.denza.apps.feature.split.SplitCrewScene
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.trip.StripGeometry
 import dev.denza.apps.feature.trip.StripGeometryMeasuredTest
 import dev.denza.apps.feature.trip.StripModel
@@ -94,17 +93,27 @@ open class DrawnWordsFitTest {
             g.SPREAD_UNIT_GAP + jura.width(ContourReadout.UNIT_MILLIVOLT, Grid.DETAIL_SIZE)
         val headingMinutes = caption(ContourReadout.TITLE_ENGINE_MINUTES)
         val headingRpm = caption(ContourReadout.TITLE_ENGINE_RPM)
-        val engineReach = max(start + headingMinutes, start + figures("8888", Grid.FIGURE_SIZE))
+        val rpmUnit = jura.width(EnergyReadouts.ENGINE_RPM_UNIT, Grid.UNIT_SIZE)
+        val minutesUnit = jura.width(EnergyReadouts.ENGINE_MINUTES_UNIT, Grid.UNIT_SIZE)
+        val rpmReading = figures("8888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP + rpmUnit
+        val minutesReading = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP + minutesUnit
+        val engineReach = start + maxOf(headingMinutes, rpmReading, minutesReading)
         val unitKwh = jura.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
-        val trip = "999 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
+        val voltsReading = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP + jura.width(ContourReadout.UNIT_VOLT, Grid.UNIT_SIZE)
         val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
         // a tenth up to 9,9 and whole from ten: the widest of either
         val chargeFigure = max(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP + unitKwh
-        val park = detail(ContourReadout.CAPTION_ENGINE_CHARGE) + g.DETAIL_AFTER_CAPTION +
-            jura.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) + g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
-            g.DETAIL_PAIR_GAP + detail(ContourReadout.CAPTION_REGEN) + g.DETAIL_AFTER_CAPTION +
-            jura.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) + g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
-            g.DETAIL_AFTER_FIGURE + g.DOT_ADVANCE
+        // each reading of the detail line is caption, figure, unit; the road has no caption
+        fun reading(caption: String?, figure: String, unit: String) =
+            (caption?.let { detail(it) + g.DETAIL_CAPTION_GAP } ?: 0f) + figures(figure, g.DETAIL_FIGURE) +
+                g.DETAIL_UNIT_GAP + jura.width(unit, Grid.DETAIL_SIZE)
+        val park = reading(null, "9999", ContourReadout.UNIT_KM) + g.DETAIL_PAIR_GAP +
+            reading(ContourReadout.CAPTION_ENGINE_CHARGE, "99,9", ContourReadout.UNIT_KWH) + g.DETAIL_PAIR_GAP +
+            reading(ContourReadout.CAPTION_REGEN, "99,9", ContourReadout.UNIT_KWH) + g.DETAIL_BEFORE_DOT + g.DOT_ADVANCE
+        // At its widest the line runs into the air before the group, never closer to the hero's
+        // unit than a pair's gap.
+        val heroUnit = jura.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE)
+        val heroEnd = g.heroFieldRight(heroUnit) + Grid.HERO_UNIT_GAP + heroUnit
         val petal = g.petalRight(Trace.ZERO) - g.TRACE_FIGURE_X
         fun inPetal(number: String, unit: String) = cell(
             "the trace's figure and unit", "$number $unit",
@@ -113,22 +122,31 @@ open class DrawnWordsFitTest {
 
         fit(
             listOf(
-                cell("the pack's caption", ContourReadout.TITLE_PACK, jura.width(ContourReadout.TITLE_PACK, Grid.CAPTION_SIZE, Grid.CAPTION_TRACK), g.tempX(0) - left),
+                cell("the volts' caption", ContourReadout.TITLE_VOLTS, caption(ContourReadout.TITLE_VOLTS), g.tempX(0) - left),
+                cell("the volts and their unit", "888 ${ContourReadout.UNIT_VOLT}", voltsReading, g.tempX(0) - left),
                 cell("the spread's line", "${ContourReadout.CAPTION_SPREAD} 999 ${ContourReadout.UNIT_MILLIVOLT}", spreadLine, end - left),
                 cell(
                     "the hero's unit", ContourReadout.UNIT_KW, jura.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE),
                     2 * min(g.AXIS - end, start - g.AXIS) - g.HERO_FIELD - Grid.HERO_UNIT_GAP,
                 ),
                 cell("the engine's heading", ContourReadout.TITLE_ENGINE_RPM, headingRpm, g.BLOCK_LEFT - start),
+                // beside the block, two of the trace's gaps clear of its line
+                cell(
+                    "the engine's revolutions", "8888 ${EnergyReadouts.ENGINE_RPM_UNIT}", rpmReading,
+                    g.BLOCK_LEFT - 2 * Trace.GAP_FROM_AXIS - start,
+                ),
                 // never beside the block: in its hold the corner is empty
                 cell("the sleeping engine's heading", ContourReadout.TITLE_ENGINE_MINUTES, headingMinutes, right - start),
-                cell("the trip's caption", trip, caption(trip), right - engineReach),
+                cell("the trip's caption", ContourReadout.CAPTION_TRIP, caption(ContourReadout.CAPTION_TRIP), right - engineReach),
                 cell("the trip's unit", ContourReadout.UNIT_KWH, g.tripPayload(figures("99,9", Grid.FIGURE_SIZE), unitKwh), right - engineReach),
                 // over the chart, from its left end to its right: the caption never reaches the figure
                 cell("the engine block's caption", ContourReadout.CAPTION_ENGINE_CHARGE, caption(ContourReadout.CAPTION_ENGINE_CHARGE), g.CHARGE_RIGHT - g.CHARGE_LEFT),
                 cell("the engine block's figure", "9,9 ${ContourReadout.UNIT_KWH}", chargeFigure, right - g.CHARGE_FIGURE_X),
                 cell("the engine block's run", run, jura.width(run, Grid.DETAIL_SIZE, track), right - g.CHARGE_FIGURE_X),
-                cell("the park line", "${ContourReadout.CAPTION_ENGINE_CHARGE} ${ContourReadout.CAPTION_REGEN}", park, right - start),
+                cell(
+                    "the park line", "9999 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_ENGINE_CHARGE} ${ContourReadout.CAPTION_REGEN}",
+                    park, right - heroEnd - g.DETAIL_PAIR_GAP,
+                ),
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("-12,3", ContourReadout.UNIT_PER_100KM_FILLING),
                 inPetal("123,4", ContourReadout.UNIT_PER_100KM),

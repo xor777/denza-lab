@@ -509,21 +509,26 @@
     <!-- The Contour on the driver's display. Drawn in Jura in fixed places, and a budget below is in the
          board's units against the width today, from ContourGeometryTest's JuraMeasure at the widest
          figures that line can print. -->
-    <!-- Budget 167 to the first temperature glyph; 112 today. -->
-    <string name="contour_title_pack">БАТАРЕЯ · В</string>
-    <!-- Revolutions: budget 175 to the engine block, 117 today; the minutes (202) never stand beside the block. The trip caption shares the line. -->
-    <string name="contour_title_engine_rpm">ДВС · об/мин</string>
-    <string name="contour_title_engine_minutes">ДВС · мин за поездку</string>
+    <!-- A caption is a name only, in capitals at one tracking; the unit stands small beside its figure.
+         The voltage: budget 135 to the first temperature glyph, 119 today. -->
+    <string name="contour_title_volts">НАПРЯЖЕНИЕ</string>
+    <string name="contour_unit_volt">В</string>
+    <!-- The engine's cell, the car page's words in capitals; its unit is energy_engine_*_unit, beside the
+         figure. Revolutions: «8888 об/мин» ends 20 short of the engine block, which wants 16. The minutes (148) never
+         stand beside the block. The trip caption shares the line. -->
+    <string name="contour_title_engine_rpm">ДВС</string>
+    <string name="contour_title_engine_minutes">ДВС ЗА ПОЕЗДКУ</string>
     <!-- Budget 440 beside its figure; 121 today. -->
     <string name="contour_caption_spread">РАЗБРОС ЯЧЕЕК</string>
-    <!-- Flush right on the engine heading's line: 304 from the longer heading to the margin; 190 today at 999 km. -->
-    <string name="contour_trip_km">%1$s км · ЗА ПОЕЗДКУ</string>
-    <string name="contour_trip_alone">ЗА ПОЕЗДКУ</string>
-    <!-- This and contour_engine_charge share the park line: 506 with figures and units. -->
+    <!-- Flush right on the engine heading's line. Its road is a reading of its own, «42 км», at the
+         margin of the detail line under the trip's figure. -->
+    <string name="contour_trip">ЗА ПОЕЗДКУ</string>
+    <string name="contour_unit_km">км</string>
+    <!-- This and contour_engine_charge share the park line with the road, each as caption, figure, unit. -->
     <string name="contour_caption_regen">РЕКУПЕРАЦИЯ</string>
     <!-- The engine block's caption over its line and the trip's detail after it: one meaning, one wording. -->
     <string name="contour_engine_charge">ЗАРЯД ОТ ДВС</string>
-    <!-- The run's time under the block's figure, in the figure's seat: 136. -->
+    <!-- The run's time under the block's figure, in the figure's seat: 128. -->
     <string name="contour_engine_run">ЗА %1$s</string>
     <!-- Beside the hero, the pair centred on the axis: 79 of room on the right at size 34; 56 today. -->
     <string name="contour_unit_kw">кВт</string>

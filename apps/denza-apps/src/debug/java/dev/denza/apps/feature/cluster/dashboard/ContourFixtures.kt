@@ -54,6 +54,7 @@ internal object ContourFixtures {
         // the left group
         frame.batteryCaption = f.text("batteryCaption")
         frame.volts = f.text("volts")
+        frame.voltsUnit = f.text("voltsUnit")
         f.optJSONArray("temps")?.let { temps ->
             for (index in 0 until minOf(temps.length(), ContourFrame.CELLS)) {
                 val cell = temps.getJSONObject(index)
@@ -72,6 +73,7 @@ internal object ContourFixtures {
         // the right group
         frame.iceCaption = f.text("iceCaption")
         frame.iceFigure = f.text("iceFigure")
+        frame.iceUnit = f.text("iceUnit")
         if (f.optBoolean("engineBlock", false)) {
             frame.engineBlock = true
             frame.chargeCount = floats(f.optJSONArray("chargeLine"), frame.charge)
@@ -81,6 +83,7 @@ internal object ContourFixtures {
         }
         frame.tripCaption = f.text("tripCaption")
         frame.tripKwh = f.text("tripKwh")
+        frame.tripKm = f.text("tripKm")
         f.text("tripUnit")?.let { frame.tripUnit = it }
         // What the fixture carries is what is printed: «ЗАРЯД ОТ ДВС» on the move too, as the app has it.
         frame.gaveCaption = f.text("gaveCaption")

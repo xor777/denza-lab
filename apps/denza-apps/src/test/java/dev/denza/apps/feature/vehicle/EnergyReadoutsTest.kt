@@ -6,9 +6,9 @@ import dev.denza.apps.core.say
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourFrame
 import dev.denza.apps.feature.cluster.dashboard.ContourPanel
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
-import dev.denza.apps.feature.cluster.dashboard.CAPTION_TRIP
-import dev.denza.apps.feature.cluster.dashboard.UNIT_KM
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_PREFIX
 import dev.denza.apps.feature.trip.StripModel
@@ -190,24 +190,29 @@ open class EnergyReadoutsTest {
             if (!model.power.dot) assertEquals("$name: into the pack", frame.into, model.power.blue)
             assertEquals("$name: the volts", frame.volts, model.volts.figure)
 
-            // The engine's cell: one heading laid out two ways - «ДВС · об/мин» on the cluster, «ДВС»
-            // over «… об/мин» on the car page - and one reading. ENGINE on the one is Engine on the other.
+            // The unit beside the volts is the car page's.
+            if (frame.volts != null) assertEquals("$name: the volts' unit", frame.voltsUnit, model.volts.unit)
+
+            // The engine's cell: one name in two cases - «ДВС» on the cluster and on the car page,
+            // ENGINE on the one and Engine on the other - and one reading with one unit beside it.
             assertEquals("$name: whether the engine has a cell", frame.iceCaption != null, model.engine.present)
             frame.iceCaption?.let { heading ->
-                assertEquals(
-                    "$name: the engine's heading",
-                    words(heading).map(EnergyReadouts::headingWord).sorted(),
-                    (words(model.engine.caption) + words(model.engine.unit.orEmpty())).sorted(),
-                )
+                assertEquals("$name: the engine's name", EnergyReadouts.sentence(heading), model.engine.caption)
                 assertEquals("$name: its reading", frame.iceFigure, model.engine.figure)
+                if (frame.iceFigure != null) assertEquals("$name: its unit", frame.iceUnit, model.engine.unit)
             }
 
             // The trip, wherever the cluster has not given its seat to the engine's block: one
-            // figure, and one phrase in two cases.
+            // figure, and one road - the cluster's «42 км» under the figure, the car page's
+            // «42 км · за поездку» over it.
             if (!frame.engineBlock) {
                 assertEquals("$name: whether there is a trip", frame.tripCaption != null, model.tripCell.present)
                 assertEquals("$name: the trip", frame.tripKwh, model.tripCell.figure)
-                assertEquals("$name: its road", frame.tripCaption?.lowercase(), model.tripCell.caption.takeIf { model.tripCell.present }?.lowercase())
+                if (model.tripCell.present) {
+                    val road = frame.tripKm?.let { AppText.s(R.string.energy_trip_km, it) } ?: EnergyReadouts.TRIP_ALONE_SENTENCE
+                    assertEquals("$name: its road", road, model.tripCell.caption)
+                    assertEquals("$name: its name", EnergyReadouts.sentence(frame.tripCaption!!), EnergyReadouts.TRIP_ALONE_SENTENCE)
+                }
             }
 
             // The figure over the chart and the road it is over, in the seat the charge countdown
@@ -348,12 +353,12 @@ open class EnergyReadoutsTest {
             ),
         )
 
-        // The engine's cell: «ДВС · об/мин» on the cluster, «ДВС» over «… об/мин» on the car page.
+        // The engine's cell: «ДВС» over «… об/мин» on both screens, the cluster in capitals.
         readouts.read(
             snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1650.0)),
             parked = false,
         )
-        assertEquals(say("ДВС · об/мин", "ENGINE · rpm"), readouts.engineCellTitle)
+        assertEquals(say("ДВС", "ENGINE"), readouts.engineCellTitle)
         assertEquals(say("ДВС", "Engine"), readouts.engineCellCaption)
         assertEquals(say("об/мин", "rpm"), readouts.engineCellUnit)
         assertEquals("1650", readouts.engineCellFigure)
@@ -365,7 +370,7 @@ open class EnergyReadoutsTest {
             ),
             parked = false,
         )
-        assertEquals(say("ДВС · мин за поездку", "ENGINE · min this trip"), readouts.engineCellTitle)
+        assertEquals(say("ДВС ЗА ПОЕЗДКУ", "ENGINE THIS TRIP"), readouts.engineCellTitle)
         assertEquals(say("ДВС за поездку", "Engine this trip"), readouts.engineCellCaption)
         assertEquals(say("мин", "min"), readouts.engineCellUnit)
         readouts.read(snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
@@ -385,8 +390,8 @@ open class EnergyReadoutsTest {
         assertEquals(figure("9,3"), readouts.tripFigure)
         assertEquals(say("42 км · за поездку", "42 km · this trip"), readouts.tripCaption)
         assertEquals(
-            "the cluster's phrase, one case down",
-            ("42 " + ContourReadout.UNIT_KM + " " + ContourReadout.CAPTION_TRIP).lowercase(),
+            "the cluster's two pieces, one case down",
+            ("42 " + ContourReadout.UNIT_KM + " · " + ContourReadout.CAPTION_TRIP).lowercase(),
             readouts.tripCaption.lowercase(),
         )
 
@@ -394,7 +399,7 @@ open class EnergyReadoutsTest {
         readouts.read(snapshot(trip = TripEnergy(netKwh = 0.4)), parked = false)
         assertEquals(figure("0,4"), readouts.tripFigure)
         assertEquals(say("За поездку", "This trip"), readouts.tripCaption)
-        assertEquals(EnergyReadouts.sentence(ContourReadout.CAPTION_TRIP_ALONE), readouts.tripCaption)
+        assertEquals(EnergyReadouts.sentence(ContourReadout.CAPTION_TRIP), readouts.tripCaption)
 
         // A car that has not answered has no trip to print, rather than a trip of nothing.
         readouts.read(VehicleTelemetry(), parked = false)

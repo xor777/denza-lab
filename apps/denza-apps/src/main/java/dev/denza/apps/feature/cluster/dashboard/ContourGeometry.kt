@@ -25,7 +25,7 @@ import kotlin.math.sqrt
  * ### The board's own literals
  *
  * spec.json carries the grid; a handful of numbers are written inline in `luminofor.js` instead -
- * the detail line's 19-unit figures and its 7/6/28 gaps, the blue dot, the trace's end dot, the
+ * the detail line's 19-unit figures and its 7/6/6/28 gaps, the blue dot, the trace's end dot, the
  * hot cell's pool of light, the beam's minimum lengths. They are named below with the line they
  * come from, rather than added to the spec: the spec is the owner's record and these are the
  * drawing code's.
@@ -127,7 +127,7 @@ internal object ContourGeometry {
     /**
      * The first temperature cell: the five end flush with the group's edge at two digits and «°»,
      * as they always did. Anchored at [TEMPERATURE_WIDEST] instead, the pack's glyph would stand
-     * seven units from «БАТАРЕЯ · В» on the line the two share; so a reading past a hundred in the
+     * on «НАПРЯЖЕНИЕ» on the line the two share; so a reading past a hundred in the
      * last cell reaches 16 units past the edge, into the air before the hero's field.
      */
     val TEMPS_LEFT: Float =
@@ -165,13 +165,16 @@ internal object ContourGeometry {
     fun tripPayload(figureWidth: Float, unitWidth: Float): Float =
         figureWidth + Grid.UNIT_GAP + unitWidth
 
-    /** The detail line's figures, and the gaps `runLeft` leaves after a caption, a unit and a figure. */
+    /**
+     * The detail line's figures, and the gaps `runLeft` leaves in a reading: caption, seven, the
+     * figure, six, the unit - and six from the recuperation's caption to its blue mark.
+     */
     const val DETAIL_FIGURE: Float = 19f
-    const val DETAIL_AFTER_CAPTION: Float = 7f
-    const val DETAIL_AFTER_UNIT: Float = 6f
-    const val DETAIL_AFTER_FIGURE: Float = 6f
+    const val DETAIL_CAPTION_GAP: Float = 7f
+    const val DETAIL_UNIT_GAP: Float = 6f
+    const val DETAIL_BEFORE_DOT: Float = 6f
 
-    /** Between «ЗАРЯД ОТ ДВС»'s figure and «РЕКУПЕРАЦИЯ». */
+    /** Between two readings of the line: the road and «ЗАРЯД ОТ ДВС», that and «РЕКУПЕРАЦИЯ». */
     const val DETAIL_PAIR_GAP: Float = 28f
 
     /** The blue mark in front of the recuperation: centred 4 left and 5 up, and it takes ten. */

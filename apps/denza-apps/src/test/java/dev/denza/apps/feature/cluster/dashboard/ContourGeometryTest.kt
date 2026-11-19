@@ -12,6 +12,7 @@ import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionChart
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.vehicle.EngineCharge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -168,10 +169,11 @@ open class ContourGeometryTest {
         val left = g.GROUP_LEFT
         val end = g.GROUP_LEFT_END
         val firstCell = g.tempX(0)
-        // «БАТАРЕЯ · В» and three-digit volts both end before the first glyph starts.
-        val caption = JuraMeasure.width(ContourReadout.TITLE_PACK, Grid.CAPTION_SIZE, Grid.CAPTION_TRACK)
+        // «НАПРЯЖЕНИЕ» and three-digit volts with their «В» both end before the first glyph starts.
+        val caption = JuraMeasure.width(ContourReadout.TITLE_VOLTS, Grid.CAPTION_SIZE, Grid.CAPTION_TRACK)
         assertTrue("the caption ends at ${left + caption}, the glyphs start at $firstCell", left + caption < firstCell)
-        val volts = figures("888", Grid.FIGURE_SIZE)
+        val volts = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP +
+            JuraMeasure.width(ContourReadout.UNIT_VOLT, Grid.UNIT_SIZE)
         assertTrue("three-digit volts end at ${left + volts}", left + volts < firstCell)
         // Five two-digit temperatures end on the group's edge, as they always did. The widest the
         // row prints, −40° to 150° - a one hangs, so «150°» reaches no further than «−40°» - stands
@@ -224,30 +226,33 @@ open class ContourGeometryTest {
         val end = g.GROUP_RIGHT_END
         val track = Grid.CELL_CAPTION_TRACK
         // The engine's cell at the group's left edge, at its widest: the sleeping engine's heading
-        // and four-digit revolutions.
+        // and four-digit revolutions with their unit beside them.
         val iceCaption = start + JuraMeasure.width(ContourReadout.TITLE_ENGINE_MINUTES, Grid.CAPTION_SIZE, track)
-        val iceFigure = start + figures("8888", Grid.FIGURE_SIZE)
+        val iceFigure = start + figures("8888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP +
+            JuraMeasure.width(EnergyReadouts.ENGINE_RPM_UNIT, Grid.UNIT_SIZE)
 
         // The trip flush right, at the widest its two lines get.
         val unit = JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
-        for (km in listOf("42", "999")) {
-            val caption = "$km ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
-            val payload = g.tripPayload(figures("99,9", Grid.FIGURE_SIZE), unit)
-            val captionWidth = JuraMeasure.width(caption, Grid.CAPTION_SIZE, track)
-            val tripLeft = g.tripCaptionLeft(captionWidth)
-            val figureLeft = g.tripFigureLeft(payload)
-            assertTrue("«$caption» starts at $tripLeft, inside the group", tripLeft > start)
-            assertTrue("and clear of the engine's heading at $iceCaption", tripLeft > iceCaption)
-            assertTrue("and the figure of its revolutions at $iceFigure", figureLeft > iceFigure)
-            assertEquals("the caption ends on the margin", end, tripLeft + captionWidth, 1e-3f)
-            assertEquals("and so does the payload", end, figureLeft + payload, 1e-3f)
-        }
+        val caption = ContourReadout.CAPTION_TRIP
+        val payload = g.tripPayload(figures("99,9", Grid.FIGURE_SIZE), unit)
+        val captionWidth = JuraMeasure.width(caption, Grid.CAPTION_SIZE, track)
+        val tripLeft = g.tripCaptionLeft(captionWidth)
+        val figureLeft = g.tripFigureLeft(payload)
+        assertTrue("«$caption» starts at $tripLeft, inside the group", tripLeft > start)
+        assertTrue("and clear of the engine's heading at $iceCaption", tripLeft > iceCaption)
+        assertTrue("and the figure of its revolutions at $iceFigure", figureLeft > iceFigure)
+        assertEquals("the caption ends on the margin", end, tripLeft + captionWidth, 1e-3f)
+        assertEquals("and so does the payload", end, figureLeft + payload, 1e-3f)
 
         // The engine's block in the trip's place: clear of the engine's cell - revolutions, since the
-        // minutes are never beside it - its caption over the chart, its figure and its run's time in
-        // the column after it.
+        // minutes are never beside it - by two of the trace's gaps, its caption over the chart, its
+        // figure and its run's time in the column after it.
         val rpmCaption = start + JuraMeasure.width(ContourReadout.TITLE_ENGINE_RPM, Grid.CAPTION_SIZE, track)
-        assertTrue("the block starts at ${g.BLOCK_LEFT}", g.BLOCK_LEFT > rpmCaption && g.BLOCK_LEFT > iceFigure)
+        assertTrue("the block starts at ${g.BLOCK_LEFT}", g.BLOCK_LEFT > rpmCaption)
+        assertTrue(
+            "«8888 об/мин» ends at $iceFigure, the block starts at ${g.BLOCK_LEFT}",
+            iceFigure + 2 * Trace.GAP_FROM_AXIS <= g.BLOCK_LEFT,
+        )
         assertTrue(g.CHARGE_LEFT + JuraMeasure.width(ContourReadout.CAPTION_ENGINE_CHARGE, Grid.CAPTION_SIZE, track) < g.CHARGE_RIGHT)
         val kwh = maxOf(figures("9,9", Grid.FIGURE_SIZE), figures("99", Grid.FIGURE_SIZE)) + Grid.UNIT_GAP +
             JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.UNIT_SIZE)
@@ -255,15 +260,31 @@ open class ContourGeometryTest {
         val run = ContourReadout.engineRun(ContourReadout.MAX_WINDOW_SECONDS)
         assertTrue(g.CHARGE_FIGURE_X + JuraMeasure.width(run, Grid.DETAIL_SIZE, track) < end)
 
-        // The park line, right to left, with both seats and three-digit figures in them.
-        val detail = JuraMeasure.width(ContourReadout.CAPTION_ENGINE_CHARGE, Grid.DETAIL_SIZE, Grid.DETAIL_TRACK) +
-            g.DETAIL_AFTER_CAPTION + JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) +
-            g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) +
-            g.DETAIL_PAIR_GAP +
-            JuraMeasure.width(ContourReadout.CAPTION_REGEN, Grid.DETAIL_SIZE, Grid.DETAIL_TRACK) +
-            g.DETAIL_AFTER_CAPTION + JuraMeasure.width(ContourReadout.UNIT_KWH, Grid.DETAIL_SIZE) +
-            g.DETAIL_AFTER_UNIT + figures("99,9", g.DETAIL_FIGURE) + g.DETAIL_AFTER_FIGURE + g.DOT_ADVANCE
-        assertTrue("the park line reaches ${end - detail}", end - detail > start)
+        // The park line, right to left, each reading caption, figure, unit: the road, the engine's
+        // charge and the recuperation. With a two-digit road and both seats under ten it stays in
+        // the group; at its widest - a four-digit road and both seats past ten - it runs into the
+        // air before the group and stops a pair's gap short of the hero's «кВт».
+        fun reading(caption: String?, figure: String, unit: String) =
+            (caption?.let { JuraMeasure.width(it, Grid.DETAIL_SIZE, Grid.DETAIL_TRACK) + g.DETAIL_CAPTION_GAP } ?: 0f) +
+                figures(figure, g.DETAIL_FIGURE) + g.DETAIL_UNIT_GAP + JuraMeasure.width(unit, Grid.DETAIL_SIZE)
+        fun line(km: String, kwh: String) =
+            reading(null, km, ContourReadout.UNIT_KM) + g.DETAIL_PAIR_GAP +
+                reading(ContourReadout.CAPTION_ENGINE_CHARGE, kwh, ContourReadout.UNIT_KWH) + g.DETAIL_PAIR_GAP +
+                reading(ContourReadout.CAPTION_REGEN, kwh, ContourReadout.UNIT_KWH) + g.DETAIL_BEFORE_DOT + g.DOT_ADVANCE
+        val usual = line("42", "9,9")
+        assertTrue("the usual park line reaches ${end - usual}", end - usual > start)
+        val heroUnit = JuraMeasure.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE)
+        val heroEnd = g.heroFieldRight(heroUnit) + Grid.HERO_UNIT_GAP + heroUnit
+        val widest = line("9999", "99,9")
+        assertTrue("the widest reaches ${end - widest}, «кВт» ends at $heroEnd", end - widest >= heroEnd + g.DETAIL_PAIR_GAP)
+    }
+
+    @Test
+    fun everyCaptionHasOneTracking() {
+        // The pack's, the cells' and the detail line's captions were 0.12, 0.08 and 0.06 apart.
+        assertEquals(0.08f, Grid.CAPTION_TRACK, 0f)
+        assertEquals(Grid.CAPTION_TRACK, Grid.CELL_CAPTION_TRACK, 0f)
+        assertEquals(Grid.CAPTION_TRACK, Grid.DETAIL_TRACK, 0f)
     }
 
     @Test

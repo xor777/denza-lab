@@ -103,7 +103,7 @@ internal class EnergyReadouts {
     var engineCell: EngineCell = EngineCell.NONE
         private set
 
-    /** Its heading in the cluster's case, and empty where there is no cell. */
+    /** Its name in the cluster's case, with no unit in it, and empty where there is no cell. */
     var engineCellTitle: String = ""
         private set
 
@@ -135,7 +135,8 @@ internal class EnergyReadouts {
 
     /**
      * Its caption, which names the road it is over: «42 км · за поездку», and «За поездку» alone
-     * while the odometer has nothing to say - the cluster's own two phrases in sentence case.
+     * while the odometer has nothing to say. The cluster says the same in two places: «ЗА ПОЕЗДКУ»
+     * over the figure and «42 км» as the first reading under it.
      */
     var tripCaption: String = TRIP_ALONE_SENTENCE
         private set
@@ -322,10 +323,10 @@ internal class EnergyReadouts {
          * The engine's two headings as the car page lays a reading out: the words over the figure
          * and the unit beside it.
          *
-         * The cluster writes one line, «ДВС · об/мин» and «ДВС · мин за поездку», because it has a
-         * caption and a figure and no unit slot; the strip has the slot, so the unit moves into it
-         * and the rest of the heading stays up - «ДВС» over «1650 об/мин», «ДВС за поездку» over
-         * «6 мин». `StripBoardContractTest` holds these to the board.
+         * Both screens lay it out the same way since 2026-11-19: the name over the figure and the
+         * unit beside it - «ДВС» over «1650 об/мин», «ДВС за поездку» over «6 мин» - the cluster in
+         * its capitals ([ContourReadout.TITLE_ENGINE_RPM]). `StripBoardContractTest` holds these to
+         * the board.
          */
         val ENGINE_RPM_CAPTION: String get() = AppText.s(R.string.energy_engine_rpm_caption)
         val ENGINE_RPM_UNIT: String get() = AppText.s(R.string.energy_engine_rpm_unit)

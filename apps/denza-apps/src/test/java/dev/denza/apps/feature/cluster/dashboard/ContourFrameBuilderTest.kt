@@ -120,6 +120,7 @@ open class ContourFrameBuilderTest {
 
         assertEquals(board["batteryCaption"], frame.batteryCaption)
         assertEquals(board["volts"], frame.volts)
+        assertEquals(board["voltsUnit"], frame.voltsUnit)
         val temps = board["temps"] as List<*>
         frame.temps.forEachIndexed { index, cell ->
             val expected = temps[index] as Map<*, *>
@@ -131,8 +132,10 @@ open class ContourFrameBuilderTest {
 
         assertEquals(board["iceCaption"], frame.iceCaption)
         assertEquals(board["iceFigure"], frame.iceFigure)
+        assertEquals(board["iceUnit"], frame.iceUnit)
         assertFalse(frame.engineBlock)
         assertEquals(board["tripCaption"], frame.tripCaption)
+        assertEquals(board["tripKm"], frame.tripKm)
         assertEquals(board["tripKwh"], frame.tripKwh)
         assertEquals(board["tripUnit"], frame.tripUnit)
         assertNull("the engine gave nothing this trip", frame.gaveCaption)
@@ -178,6 +181,7 @@ open class ContourFrameBuilderTest {
         assertEquals(board["regenKwh"], parked.regenKwh)
         assertEquals("a tenth on P", board["consumption"], parked.consumption)
         assertEquals(board["tripCaption"], parked.tripCaption)
+        assertEquals(board["tripKm"], parked.tripKm)
 
         // On the move the recuperation leaves and the engine's charge stays: the seats are the
         // contract's, «ЗАРЯД ОТ ДВС» on both and «● РЕКУПЕРАЦИЯ» on P alone (§2.4).
@@ -207,6 +211,7 @@ open class ContourFrameBuilderTest {
         assertEquals(board["engineRun"], frame.engineRun)
         assertEquals(board["iceCaption"], frame.iceCaption)
         assertEquals(board["iceFigure"], frame.iceFigure)
+        assertEquals(board["iceUnit"], frame.iceUnit)
         assertEquals("a point a second, the filling one too", 41, frame.chargeCount)
         assertEquals("the newest point is the last ten seconds' mean", 16f, frame.charge[40], 1e-3f)
         assertNull("the block stands where the trip was", frame.tripCaption)
@@ -243,6 +248,7 @@ open class ContourFrameBuilderTest {
         assertNull("the trip is not beside it", held.gaveCaption)
         assertNull("an empty corner", held.iceCaption)
         assertNull(held.iceFigure)
+        assertNull(held.iceUnit)
 
         // Past the hold: the trip is back and its detail says what the engine charged this trip.
         val gone = panel.run(
@@ -255,8 +261,10 @@ open class ContourFrameBuilderTest {
         assertEquals(board["gaveKwh"], gone.gaveKwh)
         assertEquals(board["iceCaption"], gone.iceCaption)
         assertEquals(board["iceFigure"], gone.iceFigure)
+        assertEquals(board["iceUnit"], gone.iceUnit)
         assertEquals(board["tripKwh"], gone.tripKwh)
         assertEquals(board["tripCaption"], gone.tripCaption)
+        assertEquals(board["tripKm"], gone.tripKm)
     }
 
     @Test
@@ -350,6 +358,7 @@ open class ContourFrameBuilderTest {
         assertTrue("its unit stays", frame.heroUnit)
         assertNull(board["volts"])
         assertNull(frame.volts)
+        assertNull("the unit leaves with its figure", frame.voltsUnit)
         assertEquals(board["batteryCaption"], frame.batteryCaption)
         val temps = board["temps"] as List<*>
         assertEquals(temps.size, frame.temps.size)
@@ -357,7 +366,9 @@ open class ContourFrameBuilderTest {
         assertTrue(frame.temps.all { it.shown && it.value == null })
         assertNull(board["tripKwh"])
         assertNull(frame.tripKwh)
-        assertEquals("the kilometres leave with the separator", board["tripCaption"], frame.tripCaption)
+        assertEquals(board["tripCaption"], frame.tripCaption)
+        assertNull("the kilometres leave with the energy", board["tripKm"])
+        assertNull(frame.tripKm)
         assertEquals(board["tripUnit"], frame.tripUnit)
         assertEquals(board["iceCaption"], frame.iceCaption)
         assertNull(board["consumption"])
@@ -397,12 +408,12 @@ open class ContourFrameBuilderTest {
         )
         val first = panel.run(t, 1f)
         val strings = listOf(
-            first.heroFigure, first.volts, first.temps[0].value, first.iceFigure, first.tripCaption,
+            first.heroFigure, first.volts, first.temps[0].value, first.iceFigure, first.tripKm,
             first.tripKwh, first.gaveKwh, first.consumption, first.consumptionUnit,
         )
         val second = panel.builder.build(panel.frame, t, panel.motion, panel.scene, panel.clock)
         val again = listOf(
-            second.heroFigure, second.volts, second.temps[0].value, second.iceFigure, second.tripCaption,
+            second.heroFigure, second.volts, second.temps[0].value, second.iceFigure, second.tripKm,
             second.tripKwh, second.gaveKwh, second.consumption, second.consumptionUnit,
         )
         strings.zip(again).forEach { (a, b) -> assertSame(a, b) }
