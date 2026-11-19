@@ -75,6 +75,52 @@ class VehicleBackoffTest {
         assertEquals(VehicleBackoff.FIRST_MS, currentTime - started)
     }
 
+    /**
+     * The hub's sentinel-only branch. A shell that answers every id with a sentinel answered, and
+     * the loop used to reset the backoff on the reply and ask again at its cadence for as long as
+     * the bus slept. The wait follows what the sweep decoded: a quiet bus is polled at the cadence
+     * for the link's horizon, and backed off from after it.
+     */
+    @Test
+    fun anAnsweringShellOverASilentBusIsBackedOffFrom() {
+        val batch = VehicleSignal.HOT + VehicleSignal.EVENT
+        // Every hot id `-10011`, and the cluster's warning slot answering from its cache.
+        val sentinels = batch.indices.joinToString("\n") { index ->
+            val word = if (batch[index] == VehicleSignal.TEXT_WARNING) "00000000" else "ffffd8e5"
+            "@@$index\nResult: Parcel(00000000 $word)"
+        }
+        val parsed = AutoserviceShell.parse(sentinels, batch)
+        assertTrue("the slot answered", VehicleSignal.TEXT_WARNING in parsed)
+        assertFalse("but nothing about the car did", VehicleQuietBus.fresh(parsed))
+
+        val quiet = VehicleQuietBus()
+        var now = 0L
+        var backedOff = false
+        while (now < 60_000L && !backedOff) {
+            backedOff = quiet.backOff(VehicleQuietBus.fresh(parsed), now)
+            if (!backedOff) now += VehicleSweepCadence.HOT_INTERVAL_MS + VehicleSweepCadence.SHELL_BATCH_MS
+        }
+        assertTrue("a sleeping bus is backed off from", backedOff)
+        assertTrue("after the link's horizon, not before: $now", now >= VehicleLink.CLOSE_AFTER_MS)
+        assertTrue("and every quiet sweep after it", quiet.backOff(false, now + 4_000L))
+
+        // A reading of the car ends it.
+        assertTrue(VehicleQuietBus.fresh(mapOf(VehicleSignal.POWER_KW to 12.0)))
+        assertFalse(quiet.backOff(true, now + 8_000L))
+        assertFalse("and the next quiet sweep is a blip again", quiet.backOff(false, now + 8_250L))
+    }
+
+    @Test
+    fun aQuietBusWaitsNoLongerThanTheGapTheIntegralsAccept() = runTest {
+        val backoff = VehicleBackoff()
+        val waits = List(4) {
+            val before = currentTime
+            backoff.await(VehicleQuietBus.MAX_WAIT_MS)
+            currentTime - before
+        }
+        assertEquals(listOf(4_000L, 8_000L, 8_000L, 8_000L), waits)
+    }
+
     @Test
     fun anAnswerStartsTheBackoffOver() = runTest {
         val backoff = VehicleBackoff()

@@ -287,6 +287,7 @@ internal class VehicleTelemetryHub(context: Context) {
         backoff.reset()
         val cold = LinkedHashMap<VehicleSignal, Double>()
         val link = VehicleLink()
+        val quiet = VehicleQuietBus()
         // A loop that has just started has never looked at the marker, and the minute between
         // checks would be a lie about a process that came up a moment ago.
         capture.recheck()
@@ -332,7 +333,6 @@ internal class VehicleTelemetryHub(context: Context) {
                     continue
                 }
 
-                backoff.reset()
                 val readMs = SystemClock.elapsedRealtime() - readStartedAt
                 val parsed = AutoserviceShell.parse(output, batch)
                 val slot = parsed[VehicleSignal.TEXT_WARNING]
@@ -380,7 +380,17 @@ internal class VehicleTelemetryHub(context: Context) {
                 // row a second, whatever this cadence is.
                 capture.sample(if (slot == null) merged else merged + (VehicleSignal.TEXT_WARNING to slot))
 
-                delay(VehicleSweepCadence.waitMs(sweepMs, readMs, resident))
+                // The wait is decided by what this sweep decoded, not by whether a reply came: a
+                // shell that answers every id with a sentinel answered, and used to be polled at
+                // the full cadence for as long as the bus stayed asleep.
+                if (VehicleQuietBus.fresh(parsed)) backoff.reset()
+                if (quiet.backOff(VehicleQuietBus.fresh(parsed), now)) {
+                    // The wait and the sweep after it are time nobody watched, as after a failure.
+                    clock.interrupted()
+                    backoff.await(VehicleQuietBus.MAX_WAIT_MS)
+                } else {
+                    delay(VehicleSweepCadence.waitMs(sweepMs, readMs, resident))
+                }
             }
         } finally {
             flush()
@@ -539,9 +549,12 @@ internal class VehicleBackoff {
     var nextMs: Long = FIRST_MS
         private set
 
-    /** Waits out [nextMs], or less if somebody starts watching; whether it was cut short. */
-    suspend fun await(): Boolean {
-        val woken = withTimeoutOrNull(nextMs) { wakes.receive() } != null
+    /**
+     * Waits out [nextMs] - or [capMs] if that is shorter - or less if somebody starts watching;
+     * whether it was cut short.
+     */
+    suspend fun await(capMs: Long = MAX_MS): Boolean {
+        val woken = withTimeoutOrNull(minOf(nextMs, capMs)) { wakes.receive() } != null
         nextMs = if (woken) FIRST_MS else (nextMs * 2).coerceAtMost(MAX_MS)
         return woken
     }
@@ -641,6 +654,50 @@ internal class VehicleLink {
         val CLOSE_AFTER_MS: Long = (VehiclePoll.HOT.staleSeconds * 2 * 1000).toLong()
 
         private const val NEVER = Long.MIN_VALUE
+    }
+}
+
+/**
+ * When a shell that answers, but answers nothing, is backed off from.
+ *
+ * `docs/energy-display-contract.md` §2.7 promises that unavailable answers back off. A read that
+ * threw did; a reply in which every id was a sentinel - a car whose bus has gone to sleep under a
+ * head unit that has not - reset the backoff because a reply had come, and the loop asked again at
+ * its cadence for as long as the bus slept: four batches a second with a screen up, one a second
+ * for the ledger, a `service call` process per id on the shell's reader.
+ *
+ * So the wait follows **fresh decoded telemetry**: this sweep's own readings, not the cold values
+ * carried from an earlier sweep and not the warning slot, which answers from the cluster's cache.
+ * A quiet sweep is still polled at the cadence for [VehicleLink.CLOSE_AFTER_MS] - a blip on a
+ * live bus costs nothing - and past that the loop waits out the backoff after every quiet sweep.
+ *
+ * The wait is capped at [MAX_WAIT_MS], under the minute a thrown read can reach: a sleeping bus
+ * wakes when the car is switched on, and the road from then until the next sweep is road the log
+ * and the ledger never see. Eight seconds is the longest interval either would integrate anyway
+ * ([OdometerGate.MAX_GAP_SECONDS]), and against a sweep a second it is still an eighth of the cost.
+ */
+internal class VehicleQuietBus {
+
+    private var quietSince = NEVER
+
+    /** Whether the loop waits out the backoff after this sweep rather than its cadence. */
+    fun backOff(fresh: Boolean, nowMillis: Long): Boolean {
+        if (fresh) {
+            quietSince = NEVER
+            return false
+        }
+        if (quietSince == NEVER) quietSince = nowMillis
+        return nowMillis - quietSince >= VehicleLink.CLOSE_AFTER_MS
+    }
+
+    companion object {
+        val MAX_WAIT_MS: Long = (OdometerGate.MAX_GAP_SECONDS * 1000).toLong()
+
+        private const val NEVER = Long.MIN_VALUE
+
+        /** Whether this sweep decoded a reading of the car: anything but the warning slot. */
+        fun fresh(parsed: Map<VehicleSignal, Double>): Boolean =
+            parsed.keys.any { it !in VehicleSignal.EVENT }
     }
 }
 
