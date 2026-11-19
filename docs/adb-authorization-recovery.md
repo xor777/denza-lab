@@ -882,7 +882,10 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
 - `Connecting` ends. An attempt that has published it and stops because the network changed (the id
   is the BSSID, so roaming between access points of one Wi-Fi is a change) or went away publishes
   `WaitingWifi` without Wi-Fi, and otherwise queues a fresh attempt on the new network. Before,
-  with no hint coinciding, the state stayed `Connecting` and the ring turned for good.
+  with no hint coinciding, the state stayed `Connecting` and the ring turned for good. Three such
+  restarts in a row, with no attempt run to `Restored` or `Failed` between, end in `Failed` (`network
+  kept changing`, held on the network seen last), so an id that never settles gets the gate with its
+  button; a finished attempt, `wifi-lost`, the switch or a forcing request starts the count again.
 - A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
   check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
   `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the

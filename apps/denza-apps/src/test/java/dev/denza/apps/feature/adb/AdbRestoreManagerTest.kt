@@ -517,6 +517,24 @@ class AdbRestoreManagerTest {
         assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
         assertEquals(listOf(37111, 37111), f.system.endpoints)
     }
+    @Test fun aNetworkThatNeverSettlesEndsFailedNotInAnEndlessRing() = runTest {
+        val f = Fixture(this); val a = AdbRestoreWifi("a", "wifi"); val b = AdbRestoreWifi("b", "wifi")
+        f.system.wifi = a
+        // Every attempt sees the id change under it: A, B, A, B...
+        f.system.restart = { delay(1_000); f.system.wifi = if (f.system.wifi == a) b else a }
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(60_000); runCurrent()
+        val state = f.manager.snapshot().state
+        assertEquals(AdbRestoreManager.NETWORK_UNSETTLED, (state as AdbRestoreState.Failed).reason)
+        // The first attempt and three restarts, no more.
+        val bounded = 1 + AdbRestoreManager.MAX_NETWORK_RESTARTS
+        assertEquals(bounded, f.system.endpoints.size)
+        // Held on the network seen last, like any failure.
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); advanceTimeBy(10_000); runCurrent()
+        assertEquals(bounded, f.system.endpoints.size)
+        // A press starts again, with the count from zero.
+        f.manager.attemptIfNeeded(AdbRestoreManager.GATE); advanceTimeBy(60_000); runCurrent()
+        assertEquals(2 * bounded, f.system.endpoints.size)
+    }
     @Test fun wifiGoneAfterConnectingWaitsForWifi() = runTest {
         val f = Fixture(this); f.system.restart = { }
         f.manager.attemptIfNeeded("startup"); settle()

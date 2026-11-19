@@ -197,6 +197,12 @@ class AdbRestoreManager(
      */
     private var connection = 0L
     private var attemptConnection = 0L
+    /**
+     * Attempts restarted in a row by [leaveConnecting] because the network changed, with none run to
+     * its own end since. A network id that never settles (two Wi-Fi networks listed in an unstable
+     * order, a flapping mesh) would otherwise chain attempts at probe speed with the ring up for good.
+     */
+    private var networkRestarts = 0
     private var pending: Request? = null
     private var active: Job? = null
     private var wave: Job? = null
@@ -263,7 +269,7 @@ class AdbRestoreManager(
             }
             // Wi-Fi gone: whatever comes up next is a new connection, even to the same router.
             if (request.trigger == WIFI_LOST) connection++
-            if (request.force || request.trigger == WIFI_LOST) forgetFailure()
+            if (request.force || request.trigger == WIFI_LOST) { forgetFailure(); networkRestarts = 0 }
             pending = request.merge(pending)
             signal.trySend(Unit)
         }
@@ -273,6 +279,7 @@ class AdbRestoreManager(
         synchronized(control) {
             store.enabled = enabled // durable before a mutation is allowed
             forgetFailure()
+            networkRestarts = 0
             if (!enabled) {
                 generation++
                 pending = null
@@ -366,15 +373,21 @@ class AdbRestoreManager(
      * An attempt that published `Connecting` and stopped because the network changed or went away.
      * The network id is the BSSID, so roaming between access points changes it, and with no hint
      * coinciding the state stayed `Connecting` and the gate's ring turned for good. Without Wi-Fi it
-     * is `WaitingWifi`; on another network a fresh attempt starts there at once.
+     * is `WaitingWifi`; on another network a fresh attempt starts there at once, up to
+     * [MAX_NETWORK_RESTARTS] in a row. After that it is `Failed`, held on the network seen last like
+     * any failure, so the gate has its button instead of a ring that never stops.
      */
     private fun leaveConnecting(gen: Long) {
-        val noWifi = synchronized(control) {
+        val next = synchronized(control) {
             if (abandoned(gen) || current.state != AdbRestoreState.Connecting) return
-            system.wifiNetwork() == null
+            when {
+                system.wifiNetwork() == null -> AdbRestoreState.WaitingWifi
+                networkRestarts >= MAX_NETWORK_RESTARTS ->
+                    AdbRestoreState.Failed(NETWORK_UNSETTLED, system.nowMs())
+                else -> { networkRestarts++; null }
+            }
         }
-        if (noWifi) publish(gen, AdbRestoreState.WaitingWifi)
-        else enqueue(Request(WIFI))
+        if (next != null) publish(gen, next) else enqueue(Request(WIFI))
     }
 
     /**
@@ -459,6 +472,8 @@ class AdbRestoreManager(
             if (state == AdbRestoreState.NotNeeded || state is AdbRestoreState.Restored) {
                 exhaustedNetwork = null
             }
+            // An attempt that ran to its own end: the network held still long enough.
+            if (state is AdbRestoreState.Restored || state is AdbRestoreState.Failed) networkRestarts = 0
             when (state) {
                 // Only on the connection the attempt started on: after a `wifi-lost` it is a new one.
                 is AdbRestoreState.Failed -> current.wifi?.id?.takeIf { attemptConnection == connection }
@@ -571,6 +586,9 @@ class AdbRestoreManager(
         /** A dialog wave's next attempt. */
         const val RETRY = "retry"
         const val MIN_SDK = 30
+        /** Restarts on a changed network in a row before the attempt is called `Failed`. */
+        const val MAX_NETWORK_RESTARTS = 3
+        const val NETWORK_UNSETTLED = "network kept changing"
         const val SETTINGS_SETTLE_MS = 1_500L
         const val DISCOVERY_TIMEOUT_MS = 45_000L
         const val WRITE_COOLDOWN_MS = 600_000L
