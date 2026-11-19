@@ -22,7 +22,7 @@ how Denza Apps picks the language of its own words.
 | The «Язык системы» tile reads `Locale.getDefault()` and opens the picker; it sets nothing (`feature/locale/SystemLanguage.kt`) | code | 2026-09-18 | [Denza Apps](#denza-apps) |
 | The app's own words resolve through one holder per process, installed in `Application.attachBaseContext` in the stored language, Russian when nothing is stored (`core/AppText.kt`) | code | 2026-11-06 | [The holder](#the-holder) |
 | A row in «Сервис» chooses Russian or English. `AppLanguageSwitch` writes with `commit()`, ends `:picker`, relaunches `MainActivity` and ends the main process; a failed write or the language already running does nothing. It checks nothing else, by the owner's decision ([Decisions for the owner](#decisions-for-the-owner)). No car or emulator has run it | code | 2026-11-07 | [The language switch](#the-language-switch) |
-| What a restart costs each surface, traced from the code: the Contour and a share do not come back by themselves, Mirrors has a gap, and the picker bases go with `:picker` while the remembered slots stay | code | 2026-11-06 | [What a restart costs](#what-a-restart-costs) |
+| What a restart costs each surface, traced from the code: the Contour and a share do not come back by themselves, Mirrors has a gap, and the picker bases go with `:picker` while the remembered slots stay, with no exception: a pane re-adopted on its picker keeps its app and awaits its restoration (re-traced 2026-11-19) | code | 2026-11-19 | [What a restart costs](#what-a-restart-costs) |
 | `CyrillicLiteralGuardTest` holds every file's Cyrillic literals to a list, forbids reading a string resource directly outside `AppText`, and bars the files of external text from `AppText` and `R.string` | code | 2026-11-06 | [The guard](#the-guard) |
 | Extracted to `strings.xml` so far: `core/FeatureWords`, `feature/network`, `fse`, `mirrors`, `navigation`, `cloud`, `simulcast`, `split`, `speaker`, `weather`, `defaultapps`, `adb` and `warning`, the root package, the status and notification words of `feature/hud`, the Compose text of `ui/` with the speakers' tile and panel, and the drawn text of the Contour, the strip, `HudGlassPicture.kt`, `HudRadarBadge.java` and `SimulcastDialogOverlay.java`, the words of `feature/cluster`, the route summary the capture sends to the stock HUD, and the chrome of «Сервис → Диагностика» (`diag_*`: the rail, the tabs, the titles, the scan button, the link). Drivers' words still in the code: the rest of `feature/diagnostics` - the ECU catalog, code descriptions, schemes, tables and report, counted file by file - and the YandexHUD module's default words, `HudProtocol.SummaryWords.RUSSIAN` | code | 2026-11-19 | [The app's own language](#the-apps-own-language) |
 | `res/values-en/strings.xml` holds an English copy of every string, a draft awaiting the owner's approval. The app shows it once a driver chooses English in «Сервис». `StringParityTest` holds the keys, placeholders, plural forms and firmware marks to `values/` | code | 2026-11-06 | [The English text](#the-english-text) |
@@ -339,25 +339,38 @@ read here, since the corpus is not on this Mac. Nothing in this table has run.
 | Trip figures | `TripEnergyLedger.restore` reads the journal back, as after a sleep | read |
 | An operation in flight | An open, a selection or a transfer dies unfinished, like one a sleep interrupts (`SplitWorkJournal`) | read |
 
-**The split.** The remembered slots survive a restart by this trace, with one narrow exception:
+**The split.** The remembered slots survive a restart by this trace, with no exception (traced again
+2026-11-19 against invariant 14 of `split-screen-product-contract.md`, in force since 2026-11-11):
 
 - `SplitCoordinatorCore.ready` loads the slots from the store with `scene = null`. `settleByExistence`
   returns `NOTHING` while `scene` is null, so a vanished task cannot be read as «Очистить всё» in a process
   that has adopted nothing.
-- `SplitFact.SceneEndedSettled`, the fact that turns `App` slots into `Picker`, needs the scene's apps dead
-  under cover on two reads with a pause between them. In the old process `:picker` dies moments before the
-  main process, and that process's reconcile cannot finish in the gap. A pair with live apps reads as
-  «база утрачена», which ends nothing.
+- `SplitFact.SceneEndedSettled` ends the scene and keeps every slot (contract 1.7.5, ред. 2026-11-11):
+  a scene that ends under cover, after a sleep or by «Очистить всё» takes no choice with it.
+
+  > **Superseded 2026-11-19:** this bullet said that `SceneEndedSettled` turns `App` slots into
+  > `Picker`, and that only the timing of the old process's death kept it from doing so across a
+  > restart. That was the automaton before 2026-11-11. Since then the fact changes no slot, whatever
+  > the timing.
+
 - `adoptOwnedScene` needs our picker base in both roots and refuses otherwise, which leaves the slots as
   stored. With both bases gone, every reconcile of the new process stops there. The gate duty of К 1.11
   runs first, as after any start.
-- The exception is an adoption that succeeds. `BuildSceneSucceeded` writes what it read into the slots, so
-  a pane whose top task reads as our picker turns its `App` into `Picker` on disk, and a hint with a pair
-  remembered may ask for that (`adoptable`). On a covered world it takes both roots topped by our bases,
-  and on a visible one a base on show. A restart reaches this only if the bases outlive `:picker`, and only
-  in a pane whose app has gone, or in the pane of a relaunched `MainActivity` that lost its place. The language
-  switch adds nothing here, since any process start has this path. Whether it explains the «two pickers» the
-  owner reported is not known.
+- An adoption that succeeds keeps the slots too. A process that remembers no scene has seen nothing leave
+  it, so a pane whose top task reads as our picker keeps its `App` in the slot and is a restore still
+  owed: `BuildSceneSucceeded` carries it in `owed`, live state that never reaches the snapshot, and no
+  pair is made the last one while a pane is owed (contract 1.14.2, «К 1.14»). On the screen that pane is
+  a picker awaiting its restoration, ready to choose from: the next «Разделить экран» starts the
+  remembered app in it, and a choice made there replaces it like any choice (contract 1.3.5, 1.3.11).
+  A restart reaches this only if the bases outlive `:picker`, as after any process start; the language
+  switch adds nothing here.
+
+  > **Superseded 2026-11-19:** this bullet said that a successful adoption writes what it read into
+  > the slots, so that a pane topped by our picker turned its `App` into `Picker` on disk, and asked
+  > whether that explained the «two pickers» the owner reported. Since 2026-11-11 the adoption proves
+  > slots against the stored ones (`SplitCoordinatorCore.provenSlots`) and only an application seen to
+  > leave a visible scene frees a pane; since 2026-11-19 the pane left on its picker is named owed.
+  > Neither path writes `Picker` over a remembered app, so it is not the explanation.
 
 The bases are the cost. `split-screen-findings.md`, "A caption swipe closes the whole pane once our picker
 is gone", records one on the car: an install killed `:picker` with «proc died without state saved», both
@@ -403,7 +416,7 @@ One session owns the car. Write down the expected action at each step first
 
 1. Reset: split acceptance baseline (`split-screen-findings.md`, "Acceptance reset"), the app's
    `app_language` file absent, Disable self-start off after the install, record `am stack list`,
-   `service call activity_task 30`, `split_state_v2`, the crash buffer.
+   `service call activity_task 30`, `split_state_v3` (`split_state_v2` before 2026-11-11), the crash buffer.
 2. With nothing stored, check the words are Russian with the car's locale on `en-US`, if the car stands there.
 3. Tap «Русский». Expected: no line changes, same pids.
 4. Parked, split off, Mirrors off: tap «English». Expected: the `DenzaLanguage` line saying the write succeeded, `:picker` and main
@@ -414,9 +427,11 @@ One session owns the car. Write down the expected action at each step first
 6. Parked, Contour on the cluster: switch. Expected: stock instruments, tile off.
 7. Parked, HUD hints on with a route: switch. Read the glass and `dumpsys media_projection`.
 8. Split with a live pair, covered by the hub: switch. Expected: the same tasks alive with sound
-   uninterrupted, `split_state_v2` slots unchanged, nothing launched. Then «Разделить экран» restores the
+   uninterrupted, `split_state_v3` slots unchanged, nothing launched. Then «Разделить экран» restores the
    same pair without restarting them.
 9. Hub in one pane, a picker in the other: switch, and record what the firmware does with the empty root.
+   Expected of the app: the slots in `split_state_v3` unchanged. If a pane comes back on our picker over a
+   remembered app, it stays a picker ready to choose from, and «Разделить экран» starts that app in it.
 10. Parked, HUD hints on, ordinary Yandex with a route, app in English. Expected: «5.6 km» or «12 km» and «21 min»
     or «1 h 5 min» in the two summary lines, whole and uncut, with «350 m» near the end of a route. If Latin
     does not draw or is cut, set `HudSummaryWords.SEND_ENGLISH_TO_GLASS` to false and rebuild: English mode then
