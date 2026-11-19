@@ -18771,7 +18771,7 @@
       "items": [
        {
         "t": "button",
-        "text": "Ask again"
+        "text": "Ask for access"
        },
        {
         "t": "button",
@@ -34815,8 +34815,7 @@
      ]
     ],
     "tone": "attention",
-    "title": "Confirm ADB access",
-    "message": "Access not granted",
+    "title": "Access not granted",
     "details": "ADB debugging is on in the car's system",
     "primary": "Ask again",
     "quiet": [
@@ -34827,7 +34826,8 @@
    },
    "state": {
     "gate": "AUTHORIZATION_REQUIRED",
-    "systemSwitch": "ENABLED"
+    "systemSwitch": "ENABLED",
+    "asked": true
    }
   }
  ],
@@ -35399,8 +35399,7 @@
      ]
     ],
     "tone": "attention",
-    "title": "Confirm ADB access",
-    "message": "Access not granted",
+    "title": "Access not granted",
     "details": "ADB debugging is on in the car's system",
     "primary": "Ask again",
     "quiet": [
@@ -35411,7 +35410,8 @@
    },
    "state": {
     "gate": "AUTHORIZATION_REQUIRED",
-    "systemSwitch": "ENABLED"
+    "systemSwitch": "ENABLED",
+    "asked": true
    }
   }
  ],
@@ -37692,7 +37692,8 @@
    "state": {
     "gate": "UNAVAILABLE",
     "systemSwitch": "ENABLED",
-    "trustedBefore": true
+    "trustedBefore": true,
+    "restore": "NotNeeded"
    }
   }
  ],

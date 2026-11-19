@@ -25,6 +25,7 @@ import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
+import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.diagnostics.DiagnosticsCar
 import dev.denza.apps.feature.network.TrafficMonitorSnapshot
@@ -279,7 +280,7 @@ private fun ServiceMain(
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(BUTTON_GAP.dp)) {
             if (adb.canAsk) {
                 DenzaPrimaryButton(
-                    text = AppText.s(R.string.adb_gate_ask_again),
+                    text = AdbStartupGatePolicy.askLabel(adb),
                     onClick = onAskForAdbAccess,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !model.accessBusy,

@@ -409,6 +409,7 @@
     <string name="adb_gate_awaiting_message">Разрешите системный запрос на экране автомобиля</string>
     <string name="adb_gate_not_granted">Доступ не выдан</string>
     <string name="adb_gate_ask_again">Запросить снова</string>
+    <string name="adb_gate_ask">Запросить доступ</string>
     <string name="adb_gate_closed_at_start">Новые прошивки закрывают ADB при запуске машины. Доступ возвращается через Wi-Fi</string>
     <string name="adb_access_not_confirmed">Доступ не подтверждён</string>
     <string name="adb_gate_error_message">Машина не ответила на проверку</string>

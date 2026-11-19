@@ -139,6 +139,7 @@ internal object SheetFixtures {
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),
             trustedBefore = s.optBoolean("trustedBefore"),
             alwaysAllowMissed = s.optBoolean("alwaysAllowMissed"),
+            asked = s.optBoolean("asked"),
         )
         AdbStartupOverlay(
             model = AdbStartupGatePolicy.overlay(
@@ -146,6 +147,7 @@ internal object SheetFixtures {
                 when (s.optString("restore")) {
                     "WaitingWifi" -> AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi)
                     "Connecting" -> AdbRestoreSnapshot(state = AdbRestoreState.Connecting)
+                    "NotNeeded" -> AdbRestoreSnapshot(state = AdbRestoreState.NotNeeded)
                     else -> null
                 },
                 carLocale = if (AppText.language == AppLanguage.ENGLISH) Locale.ENGLISH else Locale("ru"),

@@ -392,6 +392,7 @@
     <string name="adb_gate_awaiting_message">Allow the system request on the car\'s screen</string>
     <string name="adb_gate_not_granted">Access not granted</string>
     <string name="adb_gate_ask_again">Ask again</string>
+    <string name="adb_gate_ask">Ask for access</string>
     <string name="adb_gate_closed_at_start">Newer firmware closes ADB when the car starts. Access comes back over Wi-Fi</string>
     <string name="adb_access_not_confirmed">Access not confirmed</string>
     <string name="adb_gate_error_message">The car did not answer the check</string>

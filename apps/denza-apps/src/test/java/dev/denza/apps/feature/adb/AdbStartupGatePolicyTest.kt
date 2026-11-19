@@ -89,24 +89,50 @@ class AdbStartupGatePolicyTest {
         assertEquals("Проверить снова", never.primaryLabel)
     }
 
-    /** A car that trusted this app before: the firmware closed the port at start-up. */
+    /**
+     * A car that trusted this app before, its switch not off, with a restore that can act: the
+     * firmware closed the port at start-up and Wi-Fi brings it back. That sentence is said only
+     * there; it is a promise, and where nothing will keep it the gate says what it read instead.
+     */
     @Test
-    fun `a car that trusted this app before is told the port closed at start, not sent to service`() {
-        AdbSystemSwitch.entries.forEach { switch ->
-            val model = AdbStartupGatePolicy.overlay(
-                AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = switch, trustedBefore = true),
-            )
+    fun `a car that trusted this app before is told the port closed at start only where the restore can reopen it`() {
+        val closedAtStart = "Новые прошивки закрывают ADB при запуске машины. Доступ возвращается через Wi-Fi"
+        val able = AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.NotNeeded)
+        val unable = listOf(
+            null,
+            AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.Disabled),
+            AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.NotNeeded),
+            AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.Unsupported),
+            AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.NeedsActivation),
+        )
+        listOf(AdbSystemSwitch.ENABLED, AdbSystemSwitch.UNKNOWN).forEach { switch ->
+            val snapshot = AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = switch, trustedBefore = true)
+            val model = AdbStartupGatePolicy.overlay(snapshot, able)
             assertEquals("ADB недоступен", model.title)
-            assertEquals("Новые прошивки закрывают ADB при запуске машины. Доступ возвращается через Wi-Fi", model.message)
-            assertFalse(model.message.contains("сервис", ignoreCase = true))
+            assertEquals(closedAtStart, model.message)
             assertEquals(AdbRescuePolicy.switchReading(switch), model.details)
             assertEquals(AdbStartupPrimaryAction.CHECK_ACCESS, model.primaryAction)
+            // And the check the button runs keeps those words.
+            assertEquals(closedAtStart, AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(snapshot), able).message)
+            unable.forEach { restore ->
+                val quiet = AdbStartupGatePolicy.overlay(snapshot, restore)
+                assertEquals("$switch under $restore", "", quiet.message)
+                assertEquals(AdbRescuePolicy.switchReading(switch), quiet.details)
+                assertEquals(AdbStartupPrimaryAction.CHECK_ACCESS, quiet.primaryAction)
+            }
         }
-        // And the check the button runs keeps those words.
-        val checking = AdbRescuePolicy.checking(
-            AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, trustedBefore = true),
-        )
-        assertFalse(AdbStartupGatePolicy.overlay(checking).message.contains("сервис", ignoreCase = true))
+        // A switch read off is the answer, whatever the car trusted before and the restore can do.
+        (unable + able).forEach { restore ->
+            val off = AdbStartupGatePolicy.overlay(
+                AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = AdbSystemSwitch.DISABLED, trustedBefore = true),
+                restore,
+            )
+            assertEquals("$restore", AdbStartupGatePolicy.SERVICE_INSTRUCTION, off.message)
+            assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL, off.details)
+        }
+        // A car never trusted is the service's, with the restore able or not.
+        assertEquals(AdbStartupGatePolicy.SERVICE_INSTRUCTION, AdbStartupGatePolicy.overlay(
+            AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = AdbSystemSwitch.ENABLED), able).message)
     }
 
     @Test
@@ -123,21 +149,35 @@ class AdbStartupGatePolicyTest {
         assertEquals(AdbStartupEntryAction.CHECK_ACCESS, AdbStartupGatePolicy.entryAction(checked.phase))
     }
 
-    /** No request out: the opening's went unanswered or the day's are spent. One control asks now. */
+    /**
+     * No request out, so nothing on the car to confirm: the title is the state, and one control asks
+     * now - «Запросить доступ» while none went out from this process (the day's spent at the
+     * opening), «Запросить снова» after one ended unanswered or denied.
+     */
     @Test
-    fun `a refused key with nothing out offers one control that asks`() {
+    fun `a refused key with nothing out names the state and offers one control that asks`() {
         val checked = AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.AUTHORIZATION_REQUIRED, AdbSystemSwitch.ENABLED)
-        val model = AdbStartupGatePolicy.overlay(checked)
+        val first = AdbStartupGatePolicy.overlay(checked)
 
-        assertEquals("Подтвердите доступ к ADB", model.title)
-        assertEquals("Доступ не выдан", model.message)
-        assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL, model.details)
-        assertEquals("Запросить снова", model.primaryLabel)
-        assertEquals(AdbStartupPrimaryAction.ASK, model.primaryAction)
-        assertTrue(model.attention)
-        assertFalse(model.busy)
-        assertNull(model.checkbox)
+        assertEquals("Доступ не выдан", first.title)
+        assertEquals("", first.message)
+        assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL, first.details)
+        assertEquals("Запросить доступ", first.primaryLabel)
+        assertEquals(AdbStartupPrimaryAction.ASK, first.primaryAction)
+        assertTrue(first.attention)
+        assertFalse(first.busy)
+        assertNull(first.checkbox)
         assertTrue(checked.canAsk)
+
+        val sent = AdbRescuePolicy.sent(checked, AdbSystemSwitch.ENABLED, AdbAskLog(listOf(1L), 1, 1L))
+        val unanswered = AdbStartupGatePolicy.overlay(AdbRescuePolicy.refused(sent).copy(lastFailure = AdbRescuePolicy.NO_ANSWER))
+        assertEquals("Доступ не выдан", unanswered.title)
+        assertEquals("Запросить снова", unanswered.primaryLabel)
+        assertEquals("Запросить снова", AdbStartupGatePolicy.askLabel(AdbRescuePolicy.refused(sent)))
+        assertEquals("Запросить доступ", AdbStartupGatePolicy.askLabel(checked))
+        // A trusted key starts the count of «again» over.
+        val trusted = AdbRescuePolicy.afterCheck(sent, AdbCheckOutcome.TRUSTED, AdbSystemSwitch.ENABLED)
+        assertFalse(trusted.asked)
     }
 
     /** A request is held: the ring, the instruction, and nothing to press but the explanation. */
@@ -166,8 +206,10 @@ class AdbStartupGatePolicyTest {
             assertEquals("Всегда разрешать отладку с этого компьютера", model.checkbox)
             assertEquals("", model.message)
             assertNull(model.details)
-            assertEquals("Подтвердите доступ к ADB", model.title)
         }
+        // A request on the screen is confirmed; with none out, the title is the state.
+        assertEquals("Подтвердите доступ к ADB", waiting.title)
+        assertEquals("Доступ не выдан", idle.title)
         assertTrue(waiting.busy)
         assertNull(waiting.primaryLabel)
         assertEquals(AdbStartupPrimaryAction.ASK, idle.primaryAction)
@@ -303,7 +345,8 @@ class AdbStartupGatePolicyTest {
 
     @Test
     fun `a restore under way has the working gate, not nothing`() {
-        AdbRescuePhase.entries.filter { it != AdbRescuePhase.TRUSTED }.forEach { phase ->
+        // A request on the car's screen is the one phase above it (below).
+        AdbRescuePhase.entries.filter { it != AdbRescuePhase.TRUSTED && it != AdbRescuePhase.AWAITING_CONFIRMATION }.forEach { phase ->
             val model = AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = phase),
                 AdbRestoreSnapshot(state = AdbRestoreState.Connecting))
             assertTrue(phase.name, model.visible)
@@ -332,6 +375,33 @@ class AdbStartupGatePolicyTest {
         // A request on the car's screen is that phase's gate, never the restore's ring.
         val awaiting = AdbRescuePolicy.asking(AdbRescuePolicy.refused(start))
         assertEquals(AdbStartupGatePolicy.overlay(awaiting), AdbStartupGatePolicy.overlay(awaiting, restored))
+    }
+
+    /**
+     * The request follows the look that found the refusal on the same worker step, so the restore
+     * may still be in a state from before it - failed, waiting for Wi-Fi or the network dialog,
+     * connecting, restored. None of them may cover the car's prompt.
+     */
+    @Test
+    fun `a request on the car's screen outranks every restore state`() {
+        val refused = AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.AUTHORIZATION_REQUIRED, AdbSystemSwitch.ENABLED)
+        listOf(false, true).forEach { missed ->
+            val awaiting = AdbRescuePolicy.asking(refused.copy(alwaysAllowMissed = missed))
+            val own = AdbStartupGatePolicy.overlay(awaiting)
+            assertTrue(own.busy)
+            listOf(
+                AdbRestoreState.Failed("mDNS timeout", 1L),
+                AdbRestoreState.WaitingWifi,
+                AdbRestoreState.NeedsDialog,
+                AdbRestoreState.Connecting,
+                AdbRestoreState.Restored(1L),
+                AdbRestoreState.NeedsActivation,
+                AdbRestoreState.NotNeeded,
+            ).forEach { state ->
+                assertEquals("$state, missed $missed", own,
+                    AdbStartupGatePolicy.overlay(awaiting, AdbRestoreSnapshot(enabled = true, state = state)))
+            }
+        }
     }
 
     @Test

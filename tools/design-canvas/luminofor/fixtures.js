@@ -498,7 +498,7 @@
         { t: 'group', rows: [{ title: 'Доступ к машине', summary: 'Нужно разрешение ADB для Denza Apps', tone: 'broken' }] },
         { t: 'note', text: 'Отладка по ADB включена в системе автомобиля' },
         { t: 'stack', gap: 12, items: [
-          { t: 'button', text: 'Запросить снова' },
+          { t: 'button', text: 'Запросить доступ' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
         SVC_LANGUAGE,
@@ -529,18 +529,18 @@
       Object.assign({}, svcState, { page: 'journal' }))
   };
 
-  // the ADB gate with no request out - the opening's own went unanswered, or the day's three are
-  // spent: the service's glyph in orange because the next step is the driver's, the state, the
-  // switch, and the one control that sends a request now
+  // the ADB gate with no request out - the opening's own went unanswered or was denied: nothing on
+  // the car waits to be confirmed, so the title is the state; the service's glyph in orange because
+  // the next step is the driver's, the switch, and the one control that sends a request now («Запросить
+  // доступ» where none went out yet, as on `sheet-service-access`)
   const gate = Object.assign({}, head, {
     modal: {
-      icon: TILES[11].icon, tone: 'attention', title: 'Подтвердите доступ к ADB',
-      message: 'Доступ не выдан',
+      icon: TILES[11].icon, tone: 'attention', title: 'Доступ не выдан',
       details: 'Отладка по ADB включена в системе автомобиля',
       primary: 'Запросить снова',
       quiet: [{ text: 'Что такое ADB' }]
     },
-    state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
+    state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED', asked: true }
   });
   // a request on the car's screen, its transport held: the tiles' working ring in the glyph's place
   // and no button - the gate leaves by itself on the approval
@@ -564,7 +564,8 @@
     },
     state: { gate: 'AWAITING_CONFIRMATION', systemSwitch: 'ENABLED', alwaysAllowMissed: true }
   });
-  // a car that trusted the app before and stopped answering: newer firmware closing the port at start
+  // a car that trusted the app before and stopped answering, its switch on and the restore able to
+  // act: newer firmware closing the port at start (with the restore off or unable, no sentence)
   const closedGate = Object.assign({}, head, {
     modal: {
       icon: TILES[11].icon, tone: 'idle', title: 'ADB недоступен',
@@ -573,7 +574,7 @@
       primary: 'Проверить снова',
       quiet: [{ text: 'Что такое ADB' }]
     },
-    state: { gate: 'UNAVAILABLE', systemSwitch: 'ENABLED', trustedBefore: true }
+    state: { gate: 'UNAVAILABLE', systemSwitch: 'ENABLED', trustedBefore: true, restore: 'NotNeeded' }
   });
   const wifiGate = Object.assign({}, head, {
     modal: {
