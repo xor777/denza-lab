@@ -18,7 +18,8 @@ Russia, and what the «Погода» tile reads back.
 | The «Погода» tile switches the adapter; on by default, off cancels the alarm and nothing is fetched (`WeatherAdapterState`, `WeatherAdapterService`) | code | 2026-08-26 | [Product implementation](#product-implementation) |
 | Switching off also stops a run already under way: it writes, announces, records and re-arms nothing more (`WeatherRefreshFence`, `WeatherRefresh`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
 | The tile's temperature is the one in the widget's record, recorded with the success time only after the provider kept it and the widget was told (`NativeWeather`, `WeatherAdapterState.recordDelivery`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
-| Every app start registers an alarm, so a reboot that discarded it is repaired (`WeatherAlarmPlan`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
+| Every app start registers an alarm, so a reboot that discarded it is repaired (`WeatherAlarmPlan`); since the second review "every start" includes one whose local ADB is not trusted: the weather start runs ahead of the ADB gate (`DenzaAppRepository.startWithoutAdb`) | code | 2026-11-19 | [The second review](#the-second-review-2026-11-19) |
+| Known limits: a run already past its last switch check can still write once after switch-off; a process killed between the provider's delete and insert leaves the widget empty; a 0.7.1 record can show a temperature the widget never got until the first delivery of the new build | code | 2026-11-19 | [The second review](#the-second-review-2026-11-19) |
 | The cached forecast skips MET only between its save and its expiry; a clock set back sends the run to MET (`WeatherForecastCachePolicy.canServeWithoutRequest`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
 | The service runs in the app's own process, and the tile follows each run (`WeatherFeature.refresh`, `WeatherAdapterState.observe`; `DenzaAppRepository.refreshWeather` until 2026-10-09) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | "The adapter runs in a short-lived `:weather` process": it did until 2026-10-06, and sharing preferences with the main process left the tile on the process start's temperature | refuted | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
@@ -36,6 +37,8 @@ Russia, and what the «Погода» tile reads back.
   does the runtime start come up, is the weather alarm registered
   (`dumpsys alarm | grep -A3 WEATHER_REFRESH_ALARM`), and when does the first run land? The
   foreground start of `WeatherAdapterService` from the alarm must be admitted each time.
+  Repeat the full reboot with the app's ADB key revoked: the alarm must still stand. A registered
+  alarm is not a delivery; the provider row's `servertime` and the widget redrawing are.
 - Switch weather off while a run waits on MET (airplane-slow network): the log says
   `refresh withdrawn`, the provider row keeps its previous `servertime`, and no
   `WEATHER_REFRESH_ALARM` is left in `dumpsys alarm`.
@@ -51,6 +54,7 @@ Russia, and what the «Погода» tile reads back.
   for the service and the dashboard.
 - [Four holes in the run](#four-holes-in-the-run-2026-11-19) — switch-off mid-run, the tile's
   temperature, a quick reboot, a clock set back.
+- [The second review](#the-second-review-2026-11-19) — the alarm without ADB, and the known limits.
 - [Boundaries](#boundaries) — what is not guaranteed.
 
 ## Problem
@@ -233,12 +237,39 @@ otherwise a full interval, or a prompt run if the last success is stale or lies 
 Registering the same pending intent again replaces it, so this costs nothing when the alarm did
 stand. `WeatherAlarmPlanTest` holds it.
 
+> **Superseded 2026-11-19 (second review):** "every start" above meant every run of the ADB-gated
+> startup pass. A reboot whose local ADB never became trusted ran no such pass and registered no
+> alarm. The weather start now runs ahead of the gate; see
+> [The second review](#the-second-review-2026-11-19).
+
 **A clock set back.** The cache was used without a request while `now < expires`. With the clock
 set back, every expiry is in the future, and a forecast of any age went out as this run's. Now the
 cache is used without a request only while `saved <= now < expires`
 (`WeatherForecastCachePolicy.canServeWithoutRequest`); a save in the future sends the run to MET
 with `If-Modified-Since`, and a 304 moves the save time to now.
 `WeatherForecastCachePolicyTest.aClockSetBackSendsTheRunToMetInsteadOfTheCache` holds it.
+
+## The second review (2026-11-19)
+
+Found by a second outside review of the code; one fixed, three kept as known limits by the owner's
+rule that narrow races and rare failure combinations are documented, not fixed.
+
+**The alarm without ADB (fixed).** `weather.start` - the alarm, the record's observer, the tile's
+read - ran only in the startup pass that waits for local ADB to be trusted. Nothing in it needs
+ADB: the alarm is the app's own, and the forecast goes to the stock provider under the app's UID.
+A reboot with the app's key no longer trusted left Weather with no alarm until the driver opened
+the stock weather app. Now `DenzaAppRepository.startWithoutAdb` starts it on every entry - a
+process start and each attempt of the autoload cycle - before the gate is asked
+(`WeatherProcessContractTest.weatherStartsAheadOfTheAdbGate`). The one step that does need ADB,
+removing the lab spike's proxy, no longer fails a run: without ADB it waits for the next one.
+
+**Known limits.**
+
+| Scenario | What the driver may see | Car check |
+|---|---|---|
+| Weather switched off in the 350 ms a run waits for the stock service's observer, after the run's last switch check (finding 1) | The widget gets one forecast written just after the switch went off; nothing announces it, the tile says off, no alarm follows | Switch off right after `refresh started` in the log; read the row's `servertime` against the press |
+| The process killed between the provider's delete and its insert - the language switch in «Сервис» restarts the app (finding 7) | The stock widget shows no weather until the next run writes the row; a head unit with no location permission whose only coordinates were that row cannot resolve a location until another source gives one | Switch the language right after `refresh started`; query the provider for `_id=0` after the restart |
+| An install over 0.7.1 whose last run fetched a temperature the provider then refused (finding 8) | The tile shows that temperature while the widget shows the older one, until the first delivery of the new build (ten minutes, or longer while the provider keeps refusing) | Install over 0.7.1; compare the tile and the widget before the first run of the new build |
 
 ## Boundaries
 

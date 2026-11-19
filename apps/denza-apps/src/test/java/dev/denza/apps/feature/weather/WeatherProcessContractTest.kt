@@ -38,7 +38,7 @@ class WeatherProcessContractTest {
     @Test
     fun theRuntimeObservesTheRecordSoTheTileFollowsEveryRun() {
         val repository = File("src/main/java/dev/denza/apps/DenzaAppRepository.kt").readText()
-        val runtime = repository.between("runtimeStep(\"weather initialize\")", "runtimeStep(")
+        val runtime = repository.between("runtimeStep(\"weather initialize\")", "\n")
         assertTrue(
             "the runtime start must start the weather feature",
             "weather.start(" in runtime,
@@ -49,5 +49,28 @@ class WeatherProcessContractTest {
             "the weather feature's start must observe the record so the tile follows each run",
             "WeatherAdapterState.observe" in start,
         )
+    }
+
+    /**
+     * Round-2 finding 9. The alarm is registered with the app's own UID and the forecast goes to
+     * the stock provider the same way; nothing in [WeatherFeature.start] needs local ADB. Until
+     * 2026-11-19 it ran only in the ADB-gated startup pass, so a reboot with the app's key no
+     * longer trusted left Weather with no alarm at all. Both ordinary entries - a process start
+     * and each attempt of the autoload cycle - start it before the gate is consulted.
+     */
+    @Test
+    fun weatherStartsAheadOfTheAdbGate() {
+        val repository = File("src/main/java/dev/denza/apps/DenzaAppRepository.kt").readText()
+        val gated = repository.between("private fun startAdbRuntime(", "\n    }\n")
+        assertFalse("weather.start sits in the ADB-gated pass", "weather.start(" in gated)
+        val ungated = repository.between("private fun startWithoutAdb(", "\n    }\n")
+        assertTrue("the ungated start must start the weather feature", "weather.start(" in ungated)
+        listOf("private fun initializeAdbGate(", "fun recoverAutostart(").forEach { entry ->
+            val beforeTheGate = repository.between(entry, "when (")
+            assertTrue(
+                "$entry must start the work that needs no ADB before it asks the gate",
+                "startWithoutAdb(" in beforeTheGate,
+            )
+        }
     }
 }

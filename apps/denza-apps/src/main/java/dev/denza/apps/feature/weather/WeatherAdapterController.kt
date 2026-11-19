@@ -32,7 +32,10 @@ internal class WeatherAdapterController(context: Context) {
     }
 
     private fun prepare(): PreparedWeather {
-        cleanupLegacyOwnedProxy()
+        // The only step that needs local ADB, and no part of the forecast (the fetch never uses a
+        // proxy): without ADB it waits for the next run instead of failing this one.
+        runCatching { cleanupLegacyOwnedProxy() }
+            .onFailure { Log.w(TAG, "legacy proxy cleanup deferred", it) }
         val coordinates = WeatherLocationSource(appContext).resolve()
         val locationLabel = AndroidWeatherGeocoder(appContext).resolve(
             coordinates.latitude,

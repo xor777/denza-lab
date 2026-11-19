@@ -382,6 +382,7 @@ object DenzaAppRepository {
         appContext = app
         AdbRescueCoordinator.initialize(app) { onAdbRescueChanged(app) }
         AdbRestore.initialize(app)
+        startWithoutAdb(app)
         when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
             AdbAutostartRetryAction.CHECK_ACCESS -> {
                 refresh("autostart")
@@ -1101,6 +1102,7 @@ object DenzaAppRepository {
         AdbRestore.initialize(context)
         // The three roles are an ordinary ContentResolver read; they owe the ADB phase nothing.
         defaultApps.refresh()
+        startWithoutAdb(app)
         when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
             // A passive look in every unsettled phase: it never submits the key, so an approval
             // that landed while the process was dead is found here rather than never.
@@ -1122,6 +1124,16 @@ object DenzaAppRepository {
             AdbRestore.trigger("recovery")
         }
         runtimeStep("ADB state refresh") { invalidate(StateSlice.ADB_ACCESS, "adb access") }
+    }
+
+    /**
+     * The work of a start that needs no local ADB, done whatever the gate says, on every entry
+     * (each step is idempotent). Weather's alarm is registered with the app's own UID and its
+     * forecast reaches the stock provider the same way; until 2026-11-19 it waited in the gated
+     * pass, so a reboot with the app's key no longer trusted left Weather with no alarm.
+     */
+    private fun startWithoutAdb(app: Context) {
+        runtimeStep("weather initialize") { weather.start(app) }
     }
 
     /** One pass at a time; it ends the autoload cycle that was running when it began. */
@@ -1146,7 +1158,6 @@ object DenzaAppRepository {
                     invalidate(StateSlice.NAVIGATION, "navigation")
                 }
             }
-            runtimeStep("weather initialize") { weather.start(app) }
             runtimeStep("dashboard refresh") { refresh("runtime start") }
             runtimeStep("default apps refresh") { defaultApps.refresh() }
             runtimeStep("steering wheel reconcile") {
