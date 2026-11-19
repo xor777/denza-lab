@@ -105,6 +105,44 @@ class VehicleReadersTest {
     }
 
     /**
+     * A helper that came up and said `READY`, and then could not ask `autoservice` for anything -
+     * no service from its `ServiceManager`, every transaction refused - prints each call's marker
+     * alone. It used to count as a helper that answered, so the hub kept it for the whole drive with
+     * nothing in any sweep and never tried the shell's batch. It is a helper that never answered.
+     */
+    @Test
+    fun aHelperThatCannotAskAutoserviceHandsTheNextReadToTheShell() {
+        val batch = VehicleSignal.HOT
+        val markersOnly = batch.indices.joinToString("\n") { "@@$it" }
+        var closed = false
+        val helper = ResidentVehicleReader({ _, _ -> markersOnly }, { closed = true })
+        val choice = VehicleReaderChoice { 0L }
+        val switch = VehicleReaderSwitch(choice, startResident = { helper }, openShell = { helper })
+
+        val reader = switch.open()
+        assertThrows(VehicleHelperSilent::class.java) { reader.read(batch, 0) }
+        assertFalse(reader.answered)
+        switch.ended(reader)
+
+        assertTrue(closed)
+        assertFalse("the next reader is the shell's", choice.preferResident)
+    }
+
+    /** A batch of the bus's own sentinels is the bus answering, and the helper that asked it works. */
+    @Test
+    fun aBatchOfVendorSentinelsIsAnAnswer() {
+        val batch = VehicleSignal.HOT
+        val sentinels = batch.indices.joinToString("\n") { index ->
+            "@@$index\n" + VehicleReadMain.parcel(intArrayOf(0, 0xFFFFD8E5.toInt()))
+        }
+        val helper = ResidentVehicleReader({ _, _ -> sentinels }, {})
+
+        assertEquals(sentinels, helper.read(batch, 0))
+        assertTrue(helper.answered)
+        assertTrue("and nothing in it is a reading", AutoserviceShell.parse(sentinels, batch).isEmpty())
+    }
+
+    /**
      * One failed helper start puts the hub on the shell; the shell reader keeps answering, and five
      * minutes later it gives way to another helper start, which is used when it comes up.
      */

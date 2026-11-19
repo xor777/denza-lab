@@ -6,6 +6,7 @@ import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.platform.shell.ShellProxyClasspath
 import dev.denza.apps.platform.shell.ShellProxyJar
+import dev.denza.apps.platform.shell.ServiceCallParcel
 import dev.denza.apps.platform.shell.ShellProxyStager
 import dev.denza.apps.platform.shell.classpathAssignment
 import dev.denza.disharebridge.LocalAdbClient
@@ -40,17 +41,50 @@ internal class ShellVehicleReader(private val shell: LocalAdbClient.PersistentSh
     override fun close() = shell.close()
 }
 
-/** The batch as one line to [VehicleReadMain], which asks `autoservice` over its own binder. */
-internal class ResidentVehicleReader(private val session: LocalAdbClient.ResidentSession) : VehicleReader {
+/**
+ * The batch as one line to [VehicleReadMain], which asks `autoservice` over its own binder.
+ *
+ * ### A helper that answers with nothing has not answered
+ *
+ * The helper prints a call's `Result: Parcel(...)` whenever `autoservice` replied - a vendor
+ * sentinel included, which is the bus's own answer - and the call's marker alone when it could not
+ * ask: no `autoservice` from its `ServiceManager`, a transaction refused, a binder that threw. A
+ * helper that came up, said `READY` and then failed every call in that way was counted as one that
+ * answered, so the hub kept it for the whole drive with nothing in any sweep, and the shell batch -
+ * whose `service call` may well work on a firmware where the helper's Java path does not - was
+ * never tried. So a batch in which not one call has a parcel is a failure of the helper, thrown
+ * like any failed read: before any batch has answered it hands the next read to the shell
+ * ([VehicleReaderChoice]); after one has, the helper is started again first.
+ *
+ * Read from the text the helper already prints, so the line protocol is unchanged and a jar staged
+ * on the car by an earlier build is spoken to exactly as before.
+ */
+internal class ResidentVehicleReader(
+    private val request: (String, Int) -> String,
+    private val closeSession: () -> Unit,
+) : VehicleReader {
+
+    constructor(session: LocalAdbClient.ResidentSession) : this(session::request, session::close)
+
     override val resident = true
     override var answered = false
         private set
 
-    override fun read(batch: List<VehicleSignal>, timeoutMs: Int): String =
-        session.request(VehicleReaders.request(batch), timeoutMs).also { answered = true }
+    override fun read(batch: List<VehicleSignal>, timeoutMs: Int): String {
+        val output = request(VehicleReaders.request(batch), timeoutMs)
+        if (batch.isNotEmpty() && ServiceCallParcel.words(output) == null) {
+            throw VehicleHelperSilent(batch.size)
+        }
+        answered = true
+        return output
+    }
 
-    override fun close() = session.close()
+    override fun close() = closeSession()
 }
+
+/** The helper answered a batch of [calls] without one parcel: it could not ask `autoservice`. */
+internal class VehicleHelperSilent(calls: Int) :
+    IllegalStateException("the resident helper answered none of $calls calls")
 
 /**
  * Which reader the hub opens next.
