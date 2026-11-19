@@ -16,7 +16,10 @@ internal sealed interface CloudStep {
     /** Do not restore a profile or re-enable against the TCP being torn down. */
     data object WaitDisconnected : CloudStep
 
-    /** Give the car back the profile it ships with. */
+    /**
+     * Give the car back [profile]: the one it was on before the adapter wrote its own
+     * ([CloudProfileMemory]), or the build's for a request that remembers none.
+     */
     data class RestoreProfile(val profile: String) : CloudStep
 }
 
@@ -47,10 +50,21 @@ internal sealed interface CloudStep {
  * [settle][SETTLE_MS] and then for a [backoff] that doubles with every «ready» that did not bring
  * the connection back, up to an hour. Seeing the client connected clears it.
  *
+ * **The profile is given back.** Before the adapter's first profile write the controller commits
+ * the profile the car was on ([CloudProfileMemory]); the switch-off gives that one back, not the
+ * build's, and so does Wi-Fi that has stayed gone for [PROFILE_HOLD_MS]: after the paired `-5` and
+ * the disconnect, the car is on its own profile and its own cellular path again. Wi-Fi coming back
+ * switches it over again by the ordinary path.
+ *
  * **What it never does on its own.** It says nothing when switched off: an app that was never
  * asked to hold the link, or was installed with the switch off, leaves the car's connection
  * exactly as it found it. Taking the link over is the driver's explicit «on»; «off» is the
- * driver's explicit off, and is the only path that sends `-5` and restores the stock profile.
+ * driver's explicit off.
+ *
+ * > **Superseded 2026-11-19:** «off is the only path that sends `-5` and restores the stock
+ * > profile» - Wi-Fi that stays gone sends `-5` (it always did) and, past the hold, gives back the
+ * > remembered profile; off gives back the remembered profile rather than the build's
+ * > (docs/telematics/cloud-tile.md, "Three ways to break a working car").
  */
 internal class CloudLinkCore {
 
@@ -78,6 +92,7 @@ internal class CloudLinkCore {
     private var cloudPid: String? = null
     private var networkLostAtMs: Long? = null
     private var lastGoneAttemptAtMs: Long? = null
+    private var lastRestoreAtMs: Long? = null
 
     /** What the service report prints of the adapter's clocks; nothing decides on these. */
     val lastReadyAt: Long? get() = lastReadyAtMs
@@ -92,27 +107,38 @@ internal class CloudLinkCore {
      * Everything the repeat rules hold back is waived: the press is the reason. What is left is the
      * reading - a client already connected is not told again.
      */
-    fun switchedOn(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
+    fun switchedOn(
+        car: CloudCarState,
+        network: Boolean,
+        nowMs: Long,
+        memory: CloudProfileMemory = CloudProfileMemory.Clear,
+    ): List<CloudStep> {
         gate = Gate.CLOSED
         attempts = 0
         lastReadyAtMs = null
-        return reconcile(car, network, nowMs)
+        return reconcile(car, network, nowMs, memory)
     }
 
     /**
      * A reading while the link is on: the periodic one, the stock client's status broadcast, a
      * start of the service, Wi-Fi coming back.
      */
-    fun reconcile(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
+    fun reconcile(
+        car: CloudCarState,
+        network: Boolean,
+        nowMs: Long,
+        memory: CloudProfileMemory = CloudProfileMemory.Clear,
+    ): List<CloudStep> {
         observe(car)
         // Also runs at startup and after a failed close: an edge callback is only a hint.
         if (!network) {
             val lostAt = networkLostAtMs ?: nowMs.also { networkLostAtMs = it }
-            if (nowMs - lostAt >= NETWORK_LOSS_GRACE_MS) return networkGone(car, nowMs)
+            if (nowMs - lostAt >= NETWORK_LOSS_GRACE_MS) return networkGone(car, nowMs, memory)
             return emptyList()
         }
         networkLostAtMs = null
         lastGoneAttemptAtMs = null
+        lastRestoreAtMs = null
         if (car.connected == true) return emptyList()
         if (car.stockApnBusy) {
             if (disconnectedSinceMs == null) disconnectedSinceMs = nowMs
@@ -158,12 +184,17 @@ internal class CloudLinkCore {
      * client is waiting for exactly this; if it was a flicker we never answered, the client's own
      * reconnect is already on it.
      */
-    fun networkReturned(car: CloudCarState, nowMs: Long, network: Boolean = true): List<CloudStep> {
+    fun networkReturned(
+        car: CloudCarState,
+        nowMs: Long,
+        network: Boolean = true,
+        memory: CloudProfileMemory = CloudProfileMemory.Clear,
+    ): List<CloudStep> {
         if (network && gate == Gate.CLOSED) {
             attempts = 0
             lastReadyAtMs = null
         }
-        return reconcile(car, network = network, nowMs = nowMs)
+        return reconcile(car, network = network, nowMs = nowMs, memory = memory)
     }
 
     /**
@@ -176,27 +207,48 @@ internal class CloudLinkCore {
      * Said while the gate may be ours - including one a previous process opened, which is why
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside
      * it the gate is not a synthetic APN of ours to close.
+     *
+     * Once Wi-Fi has stayed gone for [PROFILE_HOLD_MS] the profile owed in [memory] goes back too,
+     * as the switch-off gives it: the gate closed first, the disconnect waited for, then the
+     * profile - and not while the car's own APN1/APN3 is up or in transition. A restore that did
+     * not take is tried again after another hold; the memory keeps it owed until a read confirms.
      */
-    fun networkGone(car: CloudCarState, nowMs: Long = 0): List<CloudStep> =
-        if (gate == Gate.CLOSED || car.cellular || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
-            emptyList()
-        } else if (lastGoneAttemptAtMs?.let { nowMs - it < NETWORK_LOSS_GRACE_MS } == true) {
-            emptyList()
-        } else {
+    fun networkGone(
+        car: CloudCarState,
+        nowMs: Long = 0,
+        memory: CloudProfileMemory = CloudProfileMemory.Clear,
+    ): List<CloudStep> = buildList {
+        // The caller saw the loss last at least the grace: the hold is measured from the loss.
+        val lostAt = networkLostAtMs ?: (nowMs - NETWORK_LOSS_GRACE_MS).also { networkLostAtMs = it }
+        if (gate != Gate.CLOSED && !car.cellular && car.profile == CloudLinkProtocol.WIFI_PROFILE &&
+            lastGoneAttemptAtMs?.let { nowMs - it < NETWORK_LOSS_GRACE_MS } != true
+        ) {
             lastGoneAttemptAtMs = nowMs
-            listOf(CloudStep.AnnounceGone)
+            add(CloudStep.AnnounceGone)
         }
+        val restore = memory.restoreTo(car) ?: return@buildList
+        // The car's own APN up or on its way: its path is not ours to rewrite under it.
+        if (car.stockApnBusy) return@buildList
+        // The pair first: never a profile under a gate that may still be open.
+        if (gate != Gate.CLOSED && CloudStep.AnnounceGone !in this) return@buildList
+        if (nowMs - lostAt < PROFILE_HOLD_MS) return@buildList
+        if (lastRestoreAtMs?.let { nowMs - it < PROFILE_HOLD_MS } == true) return@buildList
+        lastRestoreAtMs = nowMs
+        add(CloudStep.WaitDisconnected)
+        add(CloudStep.RestoreProfile(restore))
+    }
 
     /**
      * The driver switched the link off: close the gate while the profile still honours it, then
-     * give the car its own profile back. Each half only when the reading says it is needed.
+     * give the car back the profile it was on ([CloudProfileMemory.restoreTo]). Each half only when
+     * the reading says it is needed.
      */
-    fun switchedOff(car: CloudCarState): List<CloudStep> = buildList {
+    fun switchedOff(car: CloudCarState, memory: CloudProfileMemory): List<CloudStep> = buildList {
         if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) {
             add(CloudStep.AnnounceGone)
             add(CloudStep.WaitDisconnected)
         }
-        if (!car.onStockProfile) add(CloudStep.RestoreProfile(car.stockProfile))
+        memory.restoreTo(car)?.let { add(CloudStep.RestoreProfile(it)) }
     }
 
     /** The car took a «ready». */
@@ -239,6 +291,20 @@ internal class CloudLinkCore {
 
         /** How long Wi-Fi must stay gone before the gate is closed. */
         const val NETWORK_LOSS_GRACE_MS = 30_000L
+
+        /**
+         * How long Wi-Fi must stay gone, counted from the loss, before the remembered profile is
+         * given back; and the least time between two such writes.
+         *
+         * Five minutes. The edge of Wi-Fi coverage - backing out of a garage, a gate or a barrier
+         * at the drive, a stop at the curb - comes and goes over a minute or two, and each restore
+         * is followed, when Wi-Fi validates again, by the adapter's profile: two profile writes,
+         * APN1 up and down, and a fresh login. Five minutes is longer than any of that and than
+         * the 90 s settle, so a flicker writes nothing. The cost of the wait is bounded: the gate
+         * is already closed at 30 s, so a car that has really left is without the cloud for the
+         * first five minutes of the drive, after which its own cellular path is back.
+         */
+        const val PROFILE_HOLD_MS = 5 * 60_000L
 
         private const val FIRST_BACKOFF_MS = 5 * 60_000L
         private const val MAX_BACKOFF_MS = 60 * 60_000L

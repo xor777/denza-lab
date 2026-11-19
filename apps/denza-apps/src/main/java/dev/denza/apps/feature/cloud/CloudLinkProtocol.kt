@@ -260,6 +260,9 @@ data class CloudCarState(
 
     /** Whether the car is on the profile it ships with, APN1 as that profile leaves it. */
     val onStockProfile: Boolean
-        get() = profile == stockProfile &&
-            apn1Disabled == (stockProfile == CloudLinkProtocol.WIFI_PROFILE)
+        get() = on(stockProfile)
+
+    /** Whether the car is on [profile], APN1 as that profile leaves it. */
+    fun on(profile: String): Boolean =
+        this.profile == profile && apn1Disabled == (profile == CloudLinkProtocol.WIFI_PROFILE)
 }

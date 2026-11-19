@@ -41,12 +41,13 @@ object CloudLinkController {
             CloudLinkRuntime.registrationFailure = null
             CloudLinkRuntime.registrationNotBeforeEpochMs = System.currentTimeMillis()
             CloudLinkSettings.save(app, CloudLinkSettings.request(app).request(enabled))
-            record(app, "request enabled=$enabled pendingDisable=${CloudLinkSettings.pendingDisable(app)}")
+            record(app, "request enabled=$enabled pendingDisable=${CloudLinkSettings.pendingDisable(app)} " +
+                "remembered=${CloudLinkSettings.request(app).remembered.label}")
             // Start recovery before touching the car; keep it alive even when the desired state is off.
             CloudLinkService.reconcile(app)
             check(finishDisable(app, force = true)) { "Выключение не завершено" }
             if (enabled) {
-                attempt(app, core.switchedOn(read(app), CloudNetwork.usable(app), now()))
+                attempt(app, core.switchedOn(read(app), CloudNetwork.usable(app), now(), remembered(app)))
             }
         }
     }
@@ -125,14 +126,16 @@ object CloudLinkController {
             val car = read(app)
             readTheCar = true
             val network = CloudNetwork.usable(app)
+            val memory = remembered(app)
             val steps = when {
-                returned -> core.networkReturned(car, now(), network)
-                lost && !network -> core.networkGone(car, now())
-                else -> core.reconcile(car, network, now())
+                returned -> core.networkReturned(car, now(), network, memory)
+                lost && !network -> core.networkGone(car, now(), memory)
+                else -> core.reconcile(car, network, now(), memory)
             }
             if (steps.isNotEmpty()) {
-                record(app, "$reason steps=$steps")
-                attempt(app, steps, lossOnly = !network && CloudStep.AnnounceGone in steps)
+                record(app, "$reason steps=$steps remembered=${memory.label}")
+                // Planned without Wi-Fi, they are the loss's: a Wi-Fi that came back cancels them.
+                attempt(app, steps, lossOnly = !network)
             }
             // A pass that read the car and did what it planned answers any pass that failed
             // before it - with nothing to send as much as with something.
@@ -162,7 +165,7 @@ object CloudLinkController {
         // Journal the teardown obligation before -5; keep it if the process dies or the
         // profile is changed by somebody else while TCP is still being torn down.
         CloudLinkSettings.save(app, closing)
-        val steps = core.switchedOff(car).toMutableList()
+        val steps = core.switchedOff(car, closing.remembered).toMutableList()
         if (closing.awaitingTcpDown && !car.cellular && CloudStep.WaitDisconnected !in steps) {
             steps.add(0, CloudStep.WaitDisconnected)
         }
@@ -213,7 +216,11 @@ object CloudLinkController {
     private fun operations(app: Context) = CloudLinkOperations(
         core, { read(app) }, { shell(app, it) }, { CloudNetwork.usable(app) },
         ::now, Thread::sleep, { record(app, it) },
+        { remembered(app) },
+        { CloudLinkSettings.save(app, CloudLinkSettings.request(app).copy(remembered = it)) },
     )
+
+    private fun remembered(app: Context): CloudProfileMemory = CloudLinkSettings.request(app).remembered
 
     private fun read(app: Context): CloudCarState {
         try {

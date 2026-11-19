@@ -163,9 +163,11 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   stock receiver's own test, the adapter sends no profile, no `4` and no `-5`.
   Explicit off still restores the build profile. This matters for other cars
   with a working SIM, not this one.
+  > **Superseded 2026-11-19:** off restores the remembered profile, not the build's; with the car's own APN up the adapter also writes nothing on Wi-Fi loss — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 - **Explicit off**: `-5` if on `double_apn`, 1 s, then the build profile
   (`ro.build.byd.apn_type`, `triple_apn` here), read back. This is the only
   path that restores the profile.
+  > **Superseded 2026-11-19:** off gives back the profile the car was on before the adapter's first write, remembered durably before that write, and Wi-Fi that stays gone gives it back too, after a 5 min hold; the build's profile stands in only for a request saved by 0.7.1 or an earlier build — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 - `com.byd.tcp.cloud.server.status` is registered as a hint to re-read, never
   as a trigger. Its delivery to an ordinary app is still unproven.
 - **Readings**: on every event; 5, 15, 30 and 60 s after a `4`; then every 60 s
@@ -221,6 +223,7 @@ Edge cases the code does not close, known and accepted for the first live run:
 - **Other builds.** Off restores `ro.build.byd.apn_type` when it is
   `triple_apn` or `double_apn`, and otherwise `triple_apn`, this car's
   profile. Only this car's build is proven.
+  > **Superseded 2026-11-19:** off restores the remembered profile; the build's only for a request that remembers none — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 
 #### Mobile data from a local SIM (built 2026-09-23; forum attempts 2026-09-24)
 
@@ -1173,6 +1176,49 @@ the car's own path still reads «На связи». The panel's sentence is «Ч
 Wi-Fi приложение Denza на телефоне управляет машиной.» / "Over Wi-Fi, the
 Denza app on the phone controls the car."; boards `sheet-cloud` and
 `one-sheet-cloud` carry it.
+
+**2. The profile was not given back when Wi-Fi went.** A car put on
+`double_apn` at home and driven away was sent the paired `-5`, and nothing
+more: the profile stayed until the driver switched the link off, so the car's
+own cellular path (APN1, which `double_apn` disables) need never come back.
+
+*Rule: Wi-Fi that has stayed gone gives the profile back.* After the 30 s
+grace and the paired `-5`, once Wi-Fi has been gone for
+`PROFILE_HOLD_MS` = 5 min counted from the loss, the adapter waits for the
+disconnect as the switch-off does and restores the remembered profile, read
+back. It does not while the car's own APN1/APN3 is up or in transition: a
+path that works is not rewritten under it. A restore the car did not take is
+tried again after another hold, and the memory keeps it owed until a read
+confirms the car on it. When Wi-Fi validates again, the ordinary path
+switches the car over again, unless the client is already connected by the
+car's own path, in which case nothing is sent.
+
+The hold is 5 min because the edge of coverage — backing out of a garage, a
+gate or a barrier at the drive, a stop at the curb — comes and goes over a
+minute or two, and each restore followed by Wi-Fi coming back costs two
+profile writes, APN1 down and up and a fresh login. Five minutes is longer
+than that and than the 90 s settle, so a flicker writes no profile at all.
+The cost of the wait is bounded: the gate is already closed at 30 s, so a car
+that really left is without the cloud for the first five minutes of the
+drive, after which its own path is back.
+
+**3. Switch-off restored the build's profile, not the car's.** Off restored
+`ro.build.byd.apn_type`, whatever profile the car had been on before the
+adapter changed it.
+
+*Rule: the profile is remembered and given back.* Before the adapter's first
+profile write the controller commits, in `SharedPreferences` `cloud_link`
+(`remembered_profile`, written with `commit()` in the same discipline as the
+request itself), the profile the car was actually on — and with it that the
+write is ours (`CloudProfileMemory.Owed`). Off restores that profile, and so
+does the Wi-Fi-loss path. A fresh on starts with nothing owed (`Clear`):
+switched on and never written, off writes no profile. A remembered profile
+equal to the adapter's own (`double_apn`) writes nothing. Only `double_apn`
+and `triple_apn` are ever written; any other stored value owes nothing. A
+request saved by 0.7.1 or an earlier build of this release has no
+`remembered_profile` (`Legacy`): it falls back to the build's profile
+exactly as before, on off and on the Wi-Fi-loss path alike, until the first
+restore or off clears it.
 
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 

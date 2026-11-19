@@ -225,7 +225,7 @@ class CloudLinkProtocolTest {
         assertNull(CloudLinkProtocol.readFailure(car))
         assertTrue(car.cellular)
         assertTrue(CloudLinkCore().switchedOn(car, network = true, nowMs = 0).isEmpty())
-        assertTrue(CloudLinkCore().switchedOff(car).none { it == CloudStep.AnnounceGone })
+        assertTrue(CloudLinkCore().switchedOff(car, CloudProfileMemory.Legacy).none { it == CloudStep.AnnounceGone })
     }
 
     @Test

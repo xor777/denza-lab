@@ -396,7 +396,7 @@ private val REPORT = allow(
     "feature/adb/AdbRestoreReport.kt" to 45,
     "feature/cloud/CloudLinkController.kt" to 3,
     "feature/cloud/CloudLinkDiagnostics.kt" to 2,
-    "feature/cloud/CloudLinkOperations.kt" to 10,
+    "feature/cloud/CloudLinkOperations.kt" to 11,
     "feature/cloud/CloudLinkProtocol.kt" to 8,
     "feature/cloud/CloudLinkReport.kt" to 35,
     "feature/cloud/CloudLinkRequest.kt" to 1,

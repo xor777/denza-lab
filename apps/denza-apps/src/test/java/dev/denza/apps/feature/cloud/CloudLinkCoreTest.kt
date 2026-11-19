@@ -163,13 +163,13 @@ class CloudLinkCoreTest {
     @Test
     fun switchingOffClosesTheGateAndRestoresTheCarsProfile() {
         val core = CloudLinkCore()
-        assertEquals(listOf(AnnounceGone, WaitDisconnected, RestoreProfile("triple_apn")), core.switchedOff(online))
+        assertEquals(listOf(AnnounceGone, WaitDisconnected, RestoreProfile("triple_apn")), core.switchedOff(online, CloudProfileMemory.Legacy))
         // Already stock: nothing to say.
-        assertEquals(emptyList<CloudStep>(), core.switchedOff(stock))
+        assertEquals(emptyList<CloudStep>(), core.switchedOff(stock, CloudProfileMemory.Legacy))
         // Stock profile left with APN1 disabled is not stock: put it back.
         assertEquals(
             listOf(RestoreProfile("triple_apn")),
-            core.switchedOff(stock.copy(apn1Disabled = true)),
+            core.switchedOff(stock.copy(apn1Disabled = true), CloudProfileMemory.Legacy),
         )
     }
 
@@ -207,7 +207,7 @@ class CloudLinkCoreTest {
         val adaptedCellular = adapted.copy(cellular = true)
         assertEquals(emptyList<CloudStep>(), core.networkGone(adaptedCellular))
         // Off still gives the car its profile back, without closing the gate under a live APN3.
-        assertEquals(listOf(RestoreProfile("triple_apn")), core.switchedOff(adaptedCellular))
+        assertEquals(listOf(RestoreProfile("triple_apn")), core.switchedOff(adaptedCellular, CloudProfileMemory.Legacy))
     }
 
     /**

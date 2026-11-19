@@ -29,12 +29,18 @@ object CloudLinkSettings {
     private const val PENDING_DISABLE = "pending_disable"
     private const val AWAITING_TCP_DOWN = "awaiting_tcp_down"
 
+    /** The profile owed back ([CloudProfileMemory]); absent in a request saved by 0.7.1. */
+    private const val REMEMBERED_PROFILE = "remembered_profile"
+
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, false)
 
     internal fun request(context: Context): CloudLinkRequest =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let {
-            CloudLinkRequest(it.getBoolean(ENABLED, false), it.getBoolean(PENDING_DISABLE, false), it.getBoolean(AWAITING_TCP_DOWN, false))
+            CloudLinkRequest(
+                it.getBoolean(ENABLED, false), it.getBoolean(PENDING_DISABLE, false), it.getBoolean(AWAITING_TCP_DOWN, false),
+                CloudProfileMemory.read(it.getString(REMEMBERED_PROFILE, null)),
+            )
         }
 
     fun needsService(context: Context): Boolean = request(context).needsService
@@ -45,7 +51,11 @@ object CloudLinkSettings {
         check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(ENABLED, request.enabled)
             .putBoolean(AWAITING_TCP_DOWN, request.awaitingTcpDown)
-            .putBoolean(PENDING_DISABLE, request.pendingDisable).commit()) { "Не удалось сохранить запрос" }
+            .putBoolean(PENDING_DISABLE, request.pendingDisable)
+            .apply {
+                val stored = CloudProfileMemory.stored(request.remembered)
+                if (stored == null) remove(REMEMBERED_PROFILE) else putString(REMEMBERED_PROFILE, stored)
+            }.commit()) { "Не удалось сохранить запрос" }
     }
 }
 

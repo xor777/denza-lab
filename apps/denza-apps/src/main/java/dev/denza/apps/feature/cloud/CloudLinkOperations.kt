@@ -1,6 +1,11 @@
 package dev.denza.apps.feature.cloud
 
-/** Ordered, bounded operations with readback. The shell/clock are the only device boundaries. */
+/**
+ * Ordered, bounded operations with readback. The shell/clock are the only device boundaries.
+ *
+ * [memory] and [remember] are the durable [CloudProfileMemory]: what the adapter owes is committed
+ * before its profile write, and let go only after a read confirms the car back on it.
+ */
 internal class CloudLinkOperations(
     private val core: CloudLinkCore,
     private val read: () -> CloudCarState,
@@ -9,10 +14,12 @@ internal class CloudLinkOperations(
     private val now: () -> Long,
     private val pause: (Long) -> Unit,
     private val record: (String) -> Unit,
+    private val memory: () -> CloudProfileMemory,
+    private val remember: (CloudProfileMemory) -> Unit,
 ) {
     fun run(steps: List<CloudStep>, lossOnly: Boolean = false) {
         for (step in steps) {
-            record("begin $step")
+            record("begin $step remembered=${memory().label}")
             when (step) {
                 CloudStep.UseWifiProfile -> {
                     val before = read()
@@ -21,9 +28,21 @@ internal class CloudLinkOperations(
                         continue
                     }
                     check(network()) { "Интернет пропал перед подключением" }
+                    // Commit what the car was on, and that the write is ours, before the write.
+                    val owed = memory().beforeWrite(before)
+                    check(owed is CloudProfileMemory.Owed) { "Профиль не прочитан перед записью" }
+                    if (owed != memory()) remember(owed)
                     profile(CloudLinkProtocol.WIFI_PROFILE) { it.wifiProfile }
                 }
-                is CloudStep.RestoreProfile -> profile(step.profile) { it.onStockProfile }
+                is CloudStep.RestoreProfile -> {
+                    if (lossOnly && network()) {
+                        record("skip RestoreProfile: network returned")
+                        continue
+                    }
+                    profile(step.profile) { it.on(step.profile) }
+                    // Read back on it: nothing is owed any more.
+                    remember(CloudProfileMemory.Clear)
+                }
                 CloudStep.AnnounceReady -> {
                     val before = read()
                     if (before.stockApnBusy || before.connected == true) {
@@ -53,6 +72,10 @@ internal class CloudLinkOperations(
                     core.goneSent()
                 }
                 CloudStep.WaitDisconnected -> {
+                    if (lossOnly && network()) {
+                        record("skip WaitDisconnected: network returned")
+                        continue
+                    }
                     var car = read()
                     repeat(3) {
                         if (car.connected == false || car.cellular) return@repeat
@@ -62,7 +85,7 @@ internal class CloudLinkOperations(
                     check(car.connected == false || car.cellular) { "Ожидается отключение TCP" }
                 }
             }
-            record("done $step")
+            record("done $step remembered=${memory().label}")
         }
     }
 

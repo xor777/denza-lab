@@ -82,6 +82,7 @@ class CloudLinkRecoveryTest {
         var reply = "Result: Parcel(NULL)"
         var afterNotify: (() -> Unit)? = null
         var afterPause: (() -> Unit)? = null
+        var memory: CloudProfileMemory = CloudProfileMemory.Clear
         val writes = mutableListOf<String>()
         val operations = CloudLinkOperations(core, { car }, { cmd ->
             writes += cmd
@@ -89,7 +90,7 @@ class CloudLinkRecoveryTest {
                 car = if (cmd.endsWith("double_apn")) adapted else stock
                 "Broadcast completed: result=0"
             } else { afterNotify?.invoke(); reply }
-        }, { online }, { 0L }, { afterPause?.invoke() }, {})
+        }, { online }, { 0L }, { afterPause?.invoke() }, {}, { memory }, { memory = it })
     }
 
     @Test fun stockApnAppearingAfterPlanningCannotBeDisabledByProfileWrite() {
@@ -111,12 +112,12 @@ class CloudLinkRecoveryTest {
     @Test fun disableWaitsForTcpBeforeRestoringTheProfile() {
         val b = Boundary()
         b.car = adapted.copy(connected = true)
-        val steps = b.core.switchedOff(b.car)
+        val steps = b.core.switchedOff(b.car, CloudProfileMemory.Legacy)
         assertThrows(IllegalStateException::class.java) { b.operations.run(steps) }
         assertEquals(listOf(CloudLinkProtocol.notifyCommand(-5)), b.writes)
         // Later observation confirms teardown. Retry can now finish both operations.
         b.car = adapted
-        b.operations.run(b.core.switchedOff(b.car))
+        b.operations.run(b.core.switchedOff(b.car, CloudProfileMemory.Legacy))
         assertTrue(b.car.onStockProfile)
     }
 
