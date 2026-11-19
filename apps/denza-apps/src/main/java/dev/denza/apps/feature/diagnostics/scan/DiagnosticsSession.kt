@@ -141,6 +141,8 @@ internal class DiagnosticsSession(
     private var link = LinkState.IDLE
     private var phase = ScanPhase.NEVER
     private var scanIndex = 0
+    /** Bumped by every scan begun: the read of an earlier one that comes back after it is dropped. */
+    private var scanGeneration = 0
     private val results = HashMap<Int, ModuleResult>()
     private var finishedAt: Long? = null
     private var notice: String? = null
@@ -212,7 +214,8 @@ internal class DiagnosticsSession(
         val request: Int
         data class Read(override val request: Int) : Work
         data class Ident(override val request: Int) : Work
-        data class Scan(override val request: Int) : Work
+        /** One block of the autoscan [generation]: a scan begun again since owns nothing of what it brings. */
+        data class Scan(override val request: Int, val generation: Int) : Work
         data class Stream(override val request: Int, val ask: DiagRequest) : Work
         data class Param(override val request: Int, val key: ParamKey.Pid, val ask: DiagRequest) : Work
         data class Code(override val request: Int, val work: SessionReads.CodeWork) : Work
@@ -636,7 +639,7 @@ internal class DiagnosticsSession(
             ?: reads.nextObd()?.let { (request, what) -> Work.Obd(request, what) }
             ?: when {
                 shown != null -> stream(shown)?.next()?.let { Work.Stream(shown, it) } ?: return null
-                phase == ScanPhase.RUNNING && scanIndex < EcuCatalog.routed.size -> Work.Scan(EcuCatalog.routed[scanIndex].request!!)
+                phase == ScanPhase.RUNNING && scanIndex < EcuCatalog.routed.size -> Work.Scan(EcuCatalog.routed[scanIndex].request!!, scanGeneration)
                 else -> return null
             }
         if (readings.parkedStill == false) {
@@ -679,6 +682,8 @@ internal class DiagnosticsSession(
                 }
                 var entry: JournalScan? = null
                 val (save, learned) = synchronized(lock) {
+                    // A block of a scan begun again while it was read: the new scan reads it itself.
+                    if (job is Work.Scan && job.generation != scanGeneration) return
                     val result = ModuleResult(ecu, read)
                     results[job.request] = result
                     reads.masks.learn(result)
@@ -913,6 +918,7 @@ internal class DiagnosticsSession(
     }
 
     private fun beginScan() {
+        scanGeneration++
         results.clear()
         scanIndex = 0
         finishedAt = null

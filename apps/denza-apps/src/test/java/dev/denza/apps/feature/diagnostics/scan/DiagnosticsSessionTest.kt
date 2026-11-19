@@ -509,4 +509,38 @@ class DiagnosticsSessionTest {
             }
         }
     }
+
+    /**
+     * «Опрос…» pressed while a block of the autoscan is on the wire: the read that comes back belongs to the scan
+     * that was dropped, so the new scan starts at the catalog's first block and is complete only when it read
+     * every block itself.
+     */
+    @Test
+    fun aScanBegunAgainWhileABlockIsReadStartsAtTheFirstBlock() = runTest {
+        val bus = carNow()
+        bus.delayMs = 100
+        val store = MemoryStore()
+        val s = session(bus, store = store)
+        s.start()
+        runCurrent()
+        val first = EcuCatalog.routed[0].request!!
+        val second = EcuCatalog.routed[1].request!!
+        while (s.model.value.row(second).status != ModuleStatus.POLLING) {
+            advanceTimeBy(10)
+            runCurrent()
+        }
+        val asked = bus.requests.size
+        val again = Fixtures.EPOCH + testScheduler.currentTime
+        s.rescan()
+        advanceTimeBy(600_000)
+        runCurrent()
+
+        assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
+        val prefix = Figures.address(first) + " "
+        assertTrue("the first block is read again", bus.requests.drop(asked).any { it.startsWith(prefix) })
+        val saved = store.saved.last()
+        assertEquals(EcuCatalog.routed.map { it.request }, saved.reads.map { it.request })
+        assertTrue("every block of the saved scan read after it began", saved.reads.all { it.atMillis > again })
+        s.stop()
+    }
 }
