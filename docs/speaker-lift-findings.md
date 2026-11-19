@@ -15,7 +15,7 @@ restart (below).
 
 ## Current state
 
-Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the N9, what Denza Apps writes to make it happen, and which levers are dead.
+Updated 2026-11-19. What raises the Devialet speaker covers on the Z9GT and the N9, what Denza Apps writes to make it happen, and which levers are dead.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the 
 | That report raises the covers on both cars, with no audio and the auto-lift setting untouched: live on the Z9GT (2026-09-03) and on the N9 (2026-09-04) | live | 2026-09-04 | [Verified on the N9](#verified-on-the-n9) |
 | The report is one-way: `2` (PAUSED) does not retract. The car lowers the covers itself at power-off and after an idle (about 30 min on the N9, hours on the Z9GT); there is no "close now" | live | 2026-09-03 | [The report is one-way](#the-report-is-one-way-and-that-settles-the-product-shape) |
 | The app never reads or writes `AUDIO_RLSA_STATE_SET` (`0x16300025`) or its echo `0x35A000DA`; `SpeakerCoverFlagContractTest` fails the build if the speaker package names either | code | 2026-09-04 | [The rule](#the-rule) |
-| With the switch on it reports when a player the car does not speak for starts playing, or when such a player from the eager list comes to the foreground; «Поднять» always reports (`SpeakerCoverPolicy.kt`, `SpeakerCoverApps.kt`); a playback report is sent again once after 1.2 s, and the same player not again for 60 s (`SpeakerCoverService.kt`) | code | 2026-09-04 | [The product, in one screen](#the-product-in-one-screen-1) |
+| With the switch on it reports when a player the car does not speak for starts playing, or when such a player from the eager list comes to the foreground; «Поднять» always reports (`SpeakerCoverPolicy.kt`, `SpeakerCoverApps.kt`); a playback report is sent again once after 1.2 s, and the same player not again for 60 s (`SpeakerCoverService.kt`); since 2026-11-19 each automatic send asks the switch again just before it leaves (`SpeakerCoverPolicy.send`, [Switched off means silent](#switched-off-means-silent-at-the-moment-of-sending-2026-11-19)) | code | 2026-09-04 | [The product, in one screen](#the-product-in-one-screen-1) |
 | Sessions come from the process's one `MediaSessionHub`; a read of the active list that changes nothing about it (same sessions, order and states) names nobody. This firmware pushes the list on every session created or destroyed, active or not (`MediaSessionService.destroySessionLocked`), so a paused background player dying used to re-report what played once the 60 s guard ran out (`SpeakerMediaSessionObserver.kt`) | code | 2026-10-09 | [The product, in one screen](#the-product-in-one-screen-1) |
 | The car reports by itself for `MediaTaskManager`'s whitelist (`com.byd.mediacenter`, `com.byd.videoplay*`, QQ Music, NetEase, Ximalaya, `bubei.tingshu.hd`) and filter (`android`, telecom, Bluetooth); the app's copy is `SpeakerCoverReporting.kt`, to re-read after a firmware update | code | 2026-09-03 | [Who the app reports for](#who-the-app-reports-for) |
 | Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
@@ -55,6 +55,7 @@ Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the 
 - No live acceptance of the shipped v2 service is recorded here: one owner drive opening Yandex with the switch on, and one «Поднять» after an idle retract.
 - The repair of an on-but-unbound observer (2026-10-09) is held by `SpeakerObserverAccessTest`, not yet seen on the car: one start of the speaker service with the accessibility service listed but not bound, and Yandex opened after it.
 - The tile's press on a running service (2026-11-19): with the notification listener revoked while the switch is on, the tile reads «Нет доступа»; one press grants it again and the tile goes READY without switching the feature off and on.
+- Switch-off while a report waits (2026-11-19): switch off within a second of music starting in an app the car does not speak for; the log shows `report withheld`, or one report and no repeat ([Switched off means silent](#switched-off-means-silent-at-the-moment-of-sending-2026-11-19)).
 
 ## Contents
 - [Verdict](#verdict) — the 2026-08-22..25 summary table; the normative part is the v2 contract
@@ -2005,6 +2006,22 @@ system has created an instance that has not connected yet, the repair waits up t
 setting) and rewrites nothing if it connects. A service the firmware left crashed after a sleep has
 no instance on its way (split-screen-findings.md, "Every sleep of the car force-stops the product"),
 so a wake is repaired at once, as before. `AccessibilityRepairTest` holds the wait.
+
+### Switched off means silent, at the moment of sending (2026-11-19)
+
+Found by the second outside review of the code; not seen on the car. A trigger is admitted on the
+main thread and sent later on the service's worker: a first report queued behind another, or the
+repeat after its 1.2 s pause. Switching the automation off writes the preference at once, but the
+worker hears of it only when Android destroys the service, so until 2026-11-19 a queued report or
+the repeat could tell the car «playing» after the switch went off. Now each automatic send asks the
+policy again, with the switch as it is then, immediately before the shell command goes out
+(`SpeakerCoverPolicy.send`); a withheld send logs `report withheld`. «Поднять» is not automation
+and is sent whatever the switch says. `SpeakerCoverSendTest` holds it.
+
+Known limit: the report is one shell command of about a second. A switch-off that lands after the
+check, while the command is connecting or on the wire, cannot recall it: the car hears one more
+report. Car check: switch off within a second of music starting in an app the car does not speak
+for; the log shows `report withheld` or one report and no repeat.
 
 ### Still open
 

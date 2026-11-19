@@ -175,22 +175,24 @@ class SpeakerCoverService : Service() {
         inFlight += 1
         publishReporting()
         executor.execute {
-            val result = runCatching { SpeakerCoverTransport.report(applicationContext) }
-            if (trigger is SpeakerCoverTrigger.Playback && result.isSuccess) {
-                runCatching {
-                    Thread.sleep(CAR_OVERWRITE_WINDOW_MS)
-                    SpeakerCoverTransport.report(applicationContext)
-                }
-            }
+            // Each send asks the switch again as it leaves (finding 11 of the second review).
+            val result = SpeakerCoverPolicy.send(
+                trigger = trigger,
+                featureEnabled = { SpeakerCoverSettings.isEnabled(applicationContext) },
+                report = { SpeakerCoverTransport.report(applicationContext) },
+                pause = { ms -> Thread.sleep(ms) },
+                repeatAfterMs = CAR_OVERWRITE_WINDOW_MS,
+            )
             handler.post { finish(trigger, result, stopWhenOff) }
         }
     }
 
-    private fun finish(trigger: SpeakerCoverTrigger, result: Result<Unit>, stopWhenOff: Boolean) {
+    private fun finish(trigger: SpeakerCoverTrigger, result: Result<Unit>?, stopWhenOff: Boolean) {
         if (destroyed) return
+        if (result == null) Log.i(TAG, "report withheld: switched off trigger=$trigger")
         result
-            .onSuccess { Log.i(TAG, "reported trigger=$trigger") }
-            .onFailure { failure -> Log.w(TAG, "report failed trigger=$trigger", failure) }
+            ?.onSuccess { Log.i(TAG, "reported trigger=$trigger") }
+            ?.onFailure { failure -> Log.w(TAG, "report failed trigger=$trigger", failure) }
         inFlight -= 1
         publishReporting()
         // Re-read rather than remembered: the switch may have gone on while the button's report was

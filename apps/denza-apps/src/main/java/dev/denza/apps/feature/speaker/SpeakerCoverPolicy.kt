@@ -39,4 +39,32 @@ object SpeakerCoverPolicy {
         // car, not to the feature, and a driver reaching for them has not asked about a setting.
         SpeakerCoverTrigger.RaisePressed -> true
     }
+
+    /**
+     * Say it on the worker, and for playback say it again once after [repeatAfterMs]. Null when
+     * nothing was said.
+     *
+     * Every send asks [reports] again just before it leaves, with the switch as it is then: the
+     * trigger was admitted earlier, on another thread, and a report queued behind another or the
+     * repeat after its pause can reach the car after the driver switched the automation off (the
+     * preference changes at once; the service hears of it only when Android destroys it). The
+     * button passes whatever the switch says.
+     */
+    fun send(
+        trigger: SpeakerCoverTrigger,
+        featureEnabled: () -> Boolean,
+        report: () -> Unit,
+        pause: (Long) -> Unit,
+        repeatAfterMs: Long,
+    ): Result<Unit>? {
+        if (!reports(trigger, featureEnabled())) return null
+        val result = runCatching(report)
+        if (trigger is SpeakerCoverTrigger.Playback && result.isSuccess) {
+            runCatching {
+                pause(repeatAfterMs)
+                if (reports(trigger, featureEnabled())) report()
+            }
+        }
+        return result
+    }
 }
