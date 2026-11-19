@@ -11,7 +11,6 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.content.res.ResourcesCompat
 import dev.denza.apps.R
-import dev.denza.apps.feature.diagnostics.scan.CsvStreamSinks
 import java.io.File
 import java.io.OutputStream
 
@@ -99,13 +98,7 @@ internal object ReportPdf {
  */
 internal class DownloadsReportWriter(private val context: Context, private val recordings: File) : ReportWriter {
 
-    override fun lastRecording(): ReportRecording? {
-        // The last written, not the last by name: two recordings of one second, or a clock set back, name them out of order.
-        val file = CsvStreamSinks.recordings(recordings).lastOrNull() ?: return null
-        val summary = file.bufferedReader().useLines { StreamCsv.summary(it.drop(1)) }
-        if (summary.signals == 0) return null
-        return ReportRecording(file.absolutePath, summary.durationMs, summary.signals)
-    }
+    override fun lastRecording(): ReportRecording? = StreamCsv.latest(recordings)
 
     override fun write(bundle: ReportBundle): ReportOutcome.Saved {
         val resolver = context.contentResolver

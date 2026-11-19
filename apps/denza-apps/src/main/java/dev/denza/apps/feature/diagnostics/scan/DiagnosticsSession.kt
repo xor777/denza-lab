@@ -158,6 +158,8 @@ internal class DiagnosticsSession(
     /** When [recording] began on the wall clock; the last one's block and length while its tab stands. */
     private var recordingSince: Long? = null
     private var recorded: Pair<Int, Long>? = null
+    /** The open recording has taken a line: only then is there a file for its tab and the report. */
+    private var recordingLines = false
     private var readings = CarReadings()
     private var param: ParamState? = null
     /** «Ячейки»: the assembled pages while the tab shows, its subscription (none while paused), and whether that ended. */
@@ -379,17 +381,21 @@ internal class DiagnosticsSession(
             val now = wallClock()
             recording = sinks.open(now)?.let { request to it }
             recordingSince = now.takeIf { recording != null }
+            recordingLines = false
             recorded = null
         } else if (recording?.first == request) {
             endRecording(request)
         }
     }
 
-    /** The recording of [request] ends: its length stays on its tab, the report looks for it. Under [lock]. */
+    /**
+     * The recording of [request] ends: its length stays on its tab, the report looks for it. One that took no
+     * line leaves no file, and its tab says nothing of it. Under [lock].
+     */
     private fun endRecording(request: Int) {
         recording?.second?.close()
         recording = null
-        recorded = recordingSince?.let { request to (wallClock() - it).coerceAtLeast(0L) }
+        recorded = recordingSince?.takeIf { recordingLines }?.let { request to (wallClock() - it).coerceAtLeast(0L) }
         recordingSince = null
         scope?.launch { lookRecording() }
     }
@@ -400,7 +406,11 @@ internal class DiagnosticsSession(
      */
     private fun record(request: Int, lines: List<String>) {
         val sink = recording?.takeIf { it.first == request }?.second ?: return
-        if (sink.write(lines)) return
+        if (lines.isEmpty()) return
+        if (sink.write(lines)) {
+            recordingLines = true
+            return
+        }
         log("diagnostics: the recording of ${Figures.address(request)} ended by itself")
         endRecording(request)
     }

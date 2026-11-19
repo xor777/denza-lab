@@ -1,8 +1,10 @@
 package dev.denza.apps.feature.diagnostics.report
 
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
+import dev.denza.apps.feature.diagnostics.scan.CsvStreamSinks
 import dev.denza.apps.feature.diagnostics.scan.ScanJson
 import dev.denza.apps.feature.diagnostics.scan.StoredScan
+import java.io.File
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import org.json.JSONArray
@@ -230,5 +232,14 @@ internal object StreamCsv {
         val f = first
         val l = last
         return Summary(if (f != null && l != null) (l - f) / 1_000_000L else null, signals.size)
+    }
+
+    /**
+     * What the report copies: the newest recording in [dir] that holds a signal, searched back past any that holds
+     * none or cannot be read - so a header-only file never hides the recordings before it; null where none does.
+     */
+    fun latest(dir: File): ReportRecording? = CsvStreamSinks.recordings(dir).asReversed().firstNotNullOfOrNull { file ->
+        val s = runCatching { file.bufferedReader().useLines { summary(it.drop(1)) } }.getOrNull()
+        s?.takeIf { it.signals > 0 }?.let { ReportRecording(file.absolutePath, it.durationMs, it.signals) }
     }
 }

@@ -31,7 +31,8 @@ internal fun interface StreamSinks {
  * Each recording is a new file: a name already taken - two recordings in one second, a clock set back -
  * gets `-2`, `-3`, … and an existing file is never opened again. A recording ends by itself at
  * [maxBytes], and at the first write the storage refuses; [keep] recordings are kept, the oldest
- * going as a new one starts.
+ * going once a new one holds its first line. A recording closed before its first line leaves no
+ * file and has deleted none.
  */
 internal class CsvStreamSinks(
     private val dir: File,
@@ -43,27 +44,45 @@ internal class CsvStreamSinks(
 
     override fun open(atMillis: Long): StreamSink? = runCatching {
         dir.mkdirs()
-        prune()
         val base = "stream-${stamp.format(Instant.ofEpochMilli(atMillis).atZone(zone))}"
         val file = generateSequence(1) { it + 1 }.take(MAX_SUFFIX)
             .map { n -> File(dir, if (n == 1) "$base.csv" else "$base-$n.csv") }
             .firstOrNull { it.createNewFile() } ?: return@runCatching null
-        CsvSink(FileOutputStream(file, true).bufferedWriter(), maxBytes).also { it.write(listOf(HEADER)) }
+        CsvSink(file, FileOutputStream(file, true).bufferedWriter(), maxBytes) { prune(file) }.also { it.header() }
     }.getOrNull()
 
-    /** The oldest recordings beyond [keep] - 1 go, so the new one makes [keep]. */
-    private fun prune() {
-        val all = recordings(dir)
-        all.dropLast((keep - 1).coerceAtLeast(0)).forEach { it.delete() }
+    /** The oldest recordings beyond [keep] go, [current] - the one that has just taken its first line - one of them. */
+    private fun prune(current: File) {
+        recordings(dir).filter { it != current }.dropLast((keep - 1).coerceAtLeast(0)).forEach { it.delete() }
     }
 
-    private class CsvSink(private val out: Writer, private val maxBytes: Long) : StreamSink {
+    /** One recording's file; [firstLine] runs once, after its first line is written. */
+    private class CsvSink(
+        private val file: File,
+        private val out: Writer,
+        private val maxBytes: Long,
+        private val firstLine: () -> Unit,
+    ) : StreamSink {
         private var ended = false
         private var bytes = 0L
+        private var sampled = false
+
+        fun header() {
+            put(listOf(HEADER))
+        }
 
         override fun write(lines: List<String>): Boolean {
             if (ended) return false
             if (lines.isEmpty()) return true
+            if (!put(lines)) return false
+            if (!sampled) {
+                sampled = true
+                runCatching(firstLine)
+            }
+            return true
+        }
+
+        private fun put(lines: List<String>): Boolean {
             val size = lines.sumOf { it.length + 1L }
             if (bytes + size > maxBytes) {
                 ended = true
@@ -79,6 +98,8 @@ internal class CsvStreamSinks(
 
         override fun close() {
             runCatching { out.close() }
+            // A recording that never took a line is no recording: nothing for the report to find.
+            if (!sampled) runCatching { file.delete() }
         }
     }
 
