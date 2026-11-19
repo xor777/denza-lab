@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.report
 
+import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.scan.ScanJson
 import dev.denza.apps.feature.diagnostics.scan.StoredScan
 import java.time.ZonedDateTime
@@ -183,7 +184,22 @@ internal object ReportJson {
             put("durationMs", input.exchanges.durationMs ?: JSONObject.NULL)
             put("services", JSONArray(input.exchanges.services))
         })
-        root.put("scan", scan?.let { JSONObject(ScanJson.encode(it)) } ?: JSONObject.NULL)
+        // A finished scan in `last-scan.json`'s own format; one not finished as what it is - its replies so far, how
+        // many of how many, and no completion time, so nothing reads it as a finished scan.
+        val done = input.scanDone
+        if (done == null) {
+            root.put("scan", scan?.let { JSONObject(ScanJson.encode(it)) } ?: JSONObject.NULL)
+        } else {
+            root.put("scan", JSONObject.NULL)
+            root.put("partialScan", scan?.let { s ->
+                JSONObject(ScanJson.encode(s)).apply {
+                    remove("finishedAtMillis")
+                    put("finished", false)
+                    put("done", done)
+                    put("of", EcuCatalog.routed.size)
+                }
+            } ?: JSONObject.NULL)
+        }
         input.journal?.excerptJson?.let { text ->
             runCatching { JSONTokener(text).nextValue() }.getOrNull()?.takeIf { it is JSONObject || it is JSONArray }?.let { root.put("journal", it) }
         }

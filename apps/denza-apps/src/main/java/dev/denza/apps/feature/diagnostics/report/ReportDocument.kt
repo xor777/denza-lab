@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.report
 
+import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.scan.Figures
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -123,7 +124,9 @@ internal object ReportDocuments {
             input.odometerKm?.let { "пробег ${Figures.number(it, 1)} км" },
         ).joinToString(" · ")
         val meta = listOfNotNull(
-            input.scanAt?.let { "скан ${DATE_TIME.format(it)}" } ?: "скана нет",
+            input.scanAt?.let { "скан ${DATE_TIME.format(it)}" }
+                ?: input.scanDone?.let { "скан не завершён · $it из ${EcuCatalog.routed.size}" }
+                ?: "скана нет",
             when (input.parked) { true -> "стоянка P"; false -> "не P"; null -> null },
             input.lowVoltage?.let { "12 В ${Figures.number(it, 1)} В" },
             "только чтение",

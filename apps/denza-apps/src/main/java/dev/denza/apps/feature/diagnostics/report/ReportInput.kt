@@ -31,8 +31,10 @@ internal data class ReportInput(
     /** Blocks that gave different VINs, each with its own; empty where they agree or one gave none. */
     val vinSources: List<ReportVinSource> = emptyList(),
     val odometerKm: Double?,
-    /** When the shown scan finished; null before any scan. */
+    /** When the shown scan finished; null before any scan, and while it has not finished. */
     val scanAt: ZonedDateTime?,
+    /** A scan not finished - under way, or stopped partway: how many of its blocks were read; null for a finished one. */
+    val scanDone: Int? = null,
     /** When the report was put together. */
     val madeAt: ZonedDateTime,
     /** P by the hub: true, false, or null not known. */

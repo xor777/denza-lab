@@ -53,6 +53,7 @@ internal object ReportInputs {
             vinSources = reads?.vinSources.orEmpty(),
             odometerKm = car.hub[VehicleSignal.ODOMETER_KM],
             scanAt = finishedAtMillis?.let { Instant.ofEpochMilli(it).atZone(zone) },
+            scanDone = results.size.takeIf { finishedAtMillis == null && it > 0 },
             madeAt = Instant.ofEpochMilli(nowMillis).atZone(zone),
             parked = car.parked,
             lowVoltage = car.extra(DiagnosticExtra.LV),

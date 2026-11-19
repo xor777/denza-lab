@@ -385,6 +385,32 @@ class ReportTest {
         assertNull(ReportBundles.of(recorded, setOf(ReportSection.CODES), null).stream)
     }
 
+    /**
+     * A scan not finished - the report opened while it runs, or after it stopped partway: the PDF says so and how far
+     * it got, and the JSON carries its replies so far without a completion time, which no reader takes for a finished scan.
+     */
+    @Test
+    fun anUnfinishedScanIsExportedAsWhatItIs() {
+        val (_, scanned) = input()
+        val reads = scanned.scan.reads.take(12)
+        val results = reads.associate { it.request to ModuleResult(EcuCatalog.byRequest(it.request)!!, it) }
+        val input = ReportInputs.of(scanned.model, results, null, car, SoftwareHistory(), Fixtures.EPOCH + 60_000, ZoneOffset.UTC)
+        assertNull(input.scanAt)
+        assertEquals(12, input.scanDone)
+        val meta = (ReportDocuments.of(input, ReportSection.entries.toSet()).pieces.first() as ReportPiece.Head).lines[1].first
+        assertTrue(meta, meta.startsWith("скан не завершён · 12 из 68"))
+
+        val partial = StoredScan(Fixtures.EPOCH + 60_000, reads)
+        val json = JSONObject(ReportJson.encode(input, setOf(ReportSection.RAW), partial))
+        assertTrue(json.isNull("scan"))
+        val p = json.getJSONObject("partialScan")
+        assertFalse(p.has("finishedAtMillis"))
+        assertFalse(p.getBoolean("finished"))
+        assertEquals(12 to 68, p.getInt("done") to p.getInt("of"))
+        assertEquals(12, p.getJSONArray("modules").length())
+        assertNull("not a finished scan to any reader", ScanJson.decode(p.toString()))
+    }
+
     @Test
     fun aRecordingIsMeasuredFromItsLines() {
         val lines = sequenceOf(
