@@ -133,4 +133,85 @@ class MirrorStockChoicePolicyTest {
             MirrorStockChoicePolicy.onDisable(PIP_ON_HEAD_UNIT, remembered = null),
         )
     }
+
+    /** The restore worker's world: AVC's answers in order, the switch, the stored choice. */
+    private class GiveBackWorld(
+        var remembered: AvcTurnCameraChoice? = PIP_LEFT_ON_METER,
+        reads: List<AvcTurnCameraChoice?>,
+        writes: List<AvcTurnCameraChoice?> = emptyList(),
+    ) {
+        val reads = ArrayDeque(reads)
+        val writes = ArrayDeque(writes)
+        var mirrorsOn = false
+        val events = mutableListOf<String>()
+        var onPause: () -> Unit = {}
+
+        fun run(): MirrorStockChoicePolicy.GiveBack = MirrorStockChoicePolicy.giveBack(
+            remembered = { remembered },
+            mirrorsOn = { mirrorsOn },
+            read = { reads.removeFirstOrNull().also { events += "read $it" } },
+            write = { choice ->
+                events += "write $choice"
+                if (writes.isEmpty()) choice else writes.removeFirst()
+            },
+            forget = { remembered = null; events += "forget" },
+            pause = { ms -> events += "pause $ms"; onPause() },
+        )
+    }
+
+    /**
+     * Round-2 finding 6: the owner had the meter card, Mirrors set `1`, and the switch-off's first
+     * choice read gets no answer (AVC restarting). Before 2026-11-19 the worker gave up there and
+     * nothing tried again while Mirrors stayed off, so the car kept `1`.
+     */
+    @Test
+    fun aSwitchOffWhoseFirstReadGetsNoAnswerStillGivesTheOwnersChoiceBack() {
+        val world = GiveBackWorld(reads = listOf(null, null, PIP_ON_HEAD_UNIT))
+
+        assertEquals(MirrorStockChoicePolicy.GiveBack.GIVEN_BACK, world.run())
+        assertEquals(
+            listOf("read null", "pause 500", "read null", "pause 1000", "read $PIP_ON_HEAD_UNIT",
+                "write $PIP_LEFT_ON_METER", "forget"),
+            world.events,
+        )
+        assertEquals(null, world.remembered)
+    }
+
+    @Test
+    fun aWriteAvcDoesNotConfirmIsTriedAgainAndTheChoiceIsKeptUntilItIs() {
+        val world = GiveBackWorld(
+            reads = listOf(PIP_ON_HEAD_UNIT, PIP_ON_HEAD_UNIT),
+            writes = listOf(null),
+        )
+
+        assertEquals(MirrorStockChoicePolicy.GiveBack.GIVEN_BACK, world.run())
+        assertEquals(
+            listOf("read $PIP_ON_HEAD_UNIT", "write $PIP_LEFT_ON_METER", "pause 500",
+                "read $PIP_ON_HEAD_UNIT", "write $PIP_LEFT_ON_METER", "forget"),
+            world.events,
+        )
+    }
+
+    @Test
+    fun anAvcThatNeverAnswersIsLeftAfterTheLastPauseWithTheChoiceStillStored() {
+        val world = GiveBackWorld(reads = List(10) { null })
+
+        assertEquals(MirrorStockChoicePolicy.GiveBack.NO_ANSWER, world.run())
+        assertEquals(
+            "one attempt, then one after each pause",
+            MirrorStockChoicePolicy.GIVE_BACK_BACKOFF_MS.size + 1,
+            world.events.count { it == "read null" },
+        )
+        assertEquals("the next switch-off tries again", PIP_LEFT_ON_METER, world.remembered)
+    }
+
+    @Test
+    fun mirrorsTurnedBackOnDuringAPauseEndTheGiveBackWithNothingWritten() {
+        val world = GiveBackWorld(reads = listOf(null, PIP_ON_HEAD_UNIT))
+        world.onPause = { world.mirrorsOn = true }
+
+        assertEquals(MirrorStockChoicePolicy.GiveBack.MIRRORS_ON, world.run())
+        assertEquals(listOf("read null", "pause 500"), world.events)
+        assertEquals("the new monitor owns the choice", PIP_LEFT_ON_METER, world.remembered)
+    }
 }

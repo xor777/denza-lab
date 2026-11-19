@@ -185,6 +185,8 @@ class SideCameraMonitorService : Service() {
                 Thread({
                     try {
                         restoreStockChoice(stock)
+                    } catch (error: InterruptedException) {
+                        Log.w(TAG, "stock turn camera give-back interrupted", error)
                     } finally {
                         stock.close()
                     }
@@ -333,19 +335,25 @@ class SideCameraMonitorService : Service() {
         stockChoiceSettled = true
     }
 
-    /** The owner turned Mirrors off: give back the stock choice they had, if we changed it. */
+    /**
+     * The owner turned Mirrors off: give back the stock choice they had, if we changed it, trying
+     * again for about 15 s when AVC does not answer ([MirrorStockChoicePolicy.giveBack]). A switch
+     * turned back on meanwhile ends it: the new monitor owns the choice then.
+     */
     private fun restoreStockChoice(stock: AvcStockClient) {
-        val remembered = MirrorsSettings.stockChoiceBefore(this) ?: return
-        val current = stock.turnCameraChoice() ?: return
-        val step = MirrorStockChoicePolicy.onDisable(current, remembered)
-        step.write?.let { choice ->
-            // Turned back on meanwhile: the new monitor owns the choice now.
-            if (MirrorsSettings.isEnabled(this)) return
-            val after = stock.writeTurnCameraChoice(choice)
-            Log.i(TAG, "stock turn camera choice given back: $current -> $after (had $choice)")
-            if (after != choice) return
-        }
-        if (step.forget) MirrorsSettings.setStockChoiceBefore(this, null)
+        val outcome = MirrorStockChoicePolicy.giveBack(
+            remembered = { MirrorsSettings.stockChoiceBefore(this) },
+            mirrorsOn = { MirrorsSettings.isEnabled(this) },
+            read = { stock.turnCameraChoice() },
+            write = { choice ->
+                stock.writeTurnCameraChoice(choice).also { after ->
+                    Log.i(TAG, "stock turn camera choice given back: $choice -> $after")
+                }
+            },
+            forget = { MirrorsSettings.setStockChoiceBefore(this, null) },
+            pause = { ms -> Thread.sleep(ms) },
+        )
+        Log.i(TAG, "stock turn camera give-back: $outcome")
     }
 
     /**

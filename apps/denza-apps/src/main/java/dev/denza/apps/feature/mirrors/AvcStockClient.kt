@@ -91,6 +91,46 @@ object MirrorStockChoicePolicy {
         current == WANTED && remembered != WANTED -> Step(write = remembered, forget = true)
         else -> Step(forget = true)
     }
+
+    enum class GiveBack { NOTHING_OWED, GIVEN_BACK, MIRRORS_ON, NO_ANSWER }
+
+    /** The pauses before each attempt after the first: about 15 s of trying in all. */
+    val GIVE_BACK_BACKOFF_MS = listOf(500L, 1_000L, 2_000L, 4_000L, 8_000L)
+
+    /**
+     * The switch-off's give-back, on the restore worker. Until 2026-11-19 it was one attempt: a
+     * choice read AVC did not answer in 150 ms (AVC restarting, a busy main thread) ended it, the
+     * client closed, and a process start with Mirrors off starts no monitor, so the car kept `1`
+     * until the next on/off. Now an attempt AVC does not answer, or whose write it does not
+     * confirm, is tried again after each of [backoffMs]. Every attempt reads the stored choice and
+     * the switch again, and a switch turned back on ends it: the new monitor owns the choice. Past
+     * the last pause the stored choice stays and the next switch-off tries again.
+     */
+    fun giveBack(
+        remembered: () -> AvcTurnCameraChoice?,
+        mirrorsOn: () -> Boolean,
+        read: () -> AvcTurnCameraChoice?,
+        write: (AvcTurnCameraChoice) -> AvcTurnCameraChoice?,
+        forget: () -> Unit,
+        pause: (Long) -> Unit,
+        backoffMs: List<Long> = GIVE_BACK_BACKOFF_MS,
+    ): GiveBack {
+        for (attempt in 0..backoffMs.size) {
+            if (attempt > 0) pause(backoffMs[attempt - 1])
+            if (mirrorsOn()) return GiveBack.MIRRORS_ON
+            val owed = remembered() ?: return GiveBack.NOTHING_OWED
+            val current = read() ?: continue
+            val step = onDisable(current, owed)
+            val choice = step.write
+            if (choice != null) {
+                if (mirrorsOn()) return GiveBack.MIRRORS_ON
+                if (write(choice) != choice) continue
+            }
+            if (step.forget) forget()
+            return GiveBack.GIVEN_BACK
+        }
+        return GiveBack.NO_ANSWER
+    }
 }
 
 /** The stock AVC mode ids that matter here (`com.byd.avc.util.Event`). */
