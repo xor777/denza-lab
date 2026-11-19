@@ -82,6 +82,11 @@ public final class HudOutput implements HudSink {
         compositor.setLimitListener(listener);
     }
 
+    /** Who hears navigation open and close, on {@code handler}'s thread. */
+    public void setNavigationListener(HudCompositor.NavigationListener listener) {
+        compositor.setNavigationListener(listener);
+    }
+
     /**
      * Another writer takes the HUD over - the host, when this is a source that drew by itself:
      * this output drops what it was showing and stops its session without the clear.

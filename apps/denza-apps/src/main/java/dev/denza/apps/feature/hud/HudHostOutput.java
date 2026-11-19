@@ -34,24 +34,19 @@ import dev.denza.hudlink.HudSource;
  * follows the road limit's winner ({@link HudComposition#roadLimitKmh}) with or without
  * navigation (stage 5).
  *
- * <p>While HUD Speed warns of a camera with a limit, the car's speed from its wheels is read at a
- * screen's cadence and the warning turns red at a fine's speed ({@link HudSpeeding}), over a
- * moment. The map stays as it is (owner, 2026-11-02).
+ * <p>While HUD Speed warns of a camera with a limit on a route, the car's speed from its wheels is
+ * read at a screen's cadence and the warning turns red at a fine's speed ({@link HudSpeeding}),
+ * over a moment ({@link HudRadarHost}). The map stays as it is (owner, 2026-11-02).
  */
 final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
-    /** How often the red follows the speed; the card reaches the HUD at most every HudSession.ROAD_MIN_INTERVAL_MS. */
-    private static final long RED_TICK_MS = 83L;
     private static HudHostOutput instance;
 
     private final Context context;
     private final HudOutput output;
     private final Sink sink = new Sink();
-    private final HudRadarSource radar;
+    private final HudRadarHost cameras;
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final HudSpeeding speeding = new HudSpeeding();
-    private final Runnable redTick = this::followSpeed;
-    private HudWheelSpeed wheels;
     private HudHostEndpoint endpoint;
     private HudNativeSpeedLimitRunner sign;
     private Integer limit;
@@ -73,7 +68,7 @@ final class HudHostOutput {
             followSign();
         });
         HudRadarArt art = new HudRadarArt(context);
-        radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
+        HudRadarSource radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
             @Override
             public HudImage lanes(HudRadarWarning warning, float red) {
                 return HudRadarPainter.lanes(warning, art, red);
@@ -84,6 +79,31 @@ final class HudHostOutput {
                 return HudRadarPainter.gps(level, art);
             }
         });
+        cameras = new HudRadarHost(radar, () -> {
+            HudWheelSpeed wheels = new HudWheelSpeed(context);
+            return new HudRadarHost.Wheels() {
+                @Override
+                public void watch(boolean on) {
+                    wheels.watch(on);
+                }
+
+                @Override
+                public Double kmh(long now) {
+                    return wheels.kmh(now);
+                }
+            };
+        }, new HudRadarHost.Timer() {
+            @Override
+            public void postDelayed(Runnable task, long delayMs) {
+                main.postDelayed(task, delayMs);
+            }
+
+            @Override
+            public void remove(Runnable task) {
+                main.removeCallbacks(task);
+            }
+        }, SystemClock::elapsedRealtime);
+        output.setNavigationListener(cameras::onNavigation);
     }
 
     /** Where this process's sources publish. */
@@ -99,19 +119,25 @@ final class HudHostOutput {
                     new HudHostEndpoint.Listener() {
                         @Override
                         public void onAttached(HudSource source, int uid) {
+                            // A radar attach replaces whatever the previous one left, red included.
+                            if (source == HudSource.RADAR) {
+                                cameras.forget();
+                            }
                             HudHostRuntime.INSTANCE.onAttached(source);
                         }
 
                         @Override
                         public void onDetached(HudSource source, int uid) {
+                            if (source == HudSource.RADAR) {
+                                cameras.forget();
+                            }
                             HudHostRuntime.INSTANCE.onDetached(source);
                         }
 
                         @Override
                         public void onRadar(HudRadarWarning warning) {
-                            if (camerasShown()) {
-                                radar.publish(warning, SystemClock.elapsedRealtime());
-                                followSpeed();
+                            if (panel().camerasShown()) {
+                                cameras.onRadar(warning);
                             }
                         }
                     },
@@ -125,76 +151,24 @@ final class HudHostOutput {
      * it lets through comes with each source's next publication.
      */
     void onSettingsChanged() {
-        HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
-        if (!settings.isEnabled(context)) {
-            output.withdraw(HudSource.MODULE);
-        } else if (!settings.isMapEnabled(context)) {
-            output.withdraw(HudSource.MODULE, HudRole.MAP);
-            output.withdraw(HudSource.MODULE, HudRole.MAP_MARKS);
-        }
-        if (!settings.isSignEnabled(context)) {
-            for (HudSource source : HudSource.values()) {
-                output.withdraw(source, HudRole.ROAD_LIMIT);
-            }
-        }
-        if (!camerasShown()) {
-            output.withdraw(HudSource.RADAR);
-            stopRed();
+        HudPanelFilter panel = panel();
+        panel.withdrawHeldBack(output);
+        if (!panel.camerasShown()) {
+            cameras.forget();
         }
         followSign();
     }
 
-    /**
-     * The red after the speed: while a camera with a limit is ahead, and after it until the red
-     * has gone. Main thread.
-     */
-    private void followSpeed() {
-        main.removeCallbacks(redTick);
-        long now = SystemClock.elapsedRealtime();
-        HudRadarWarning camera = radar.current(now);
-        int limit = camera == null ? 0 : camera.limit;
-        if (limit <= 0 && speeding.settled()) {
-            stopRed();
-            return;
-        }
-        if (wheels == null) {
-            wheels = new HudWheelSpeed(context);
-        }
-        wheels.watch(limit > 0);
-        radar.setRed(speeding.update(camera, wheels.kmh(now), now), now);
-        if (limit > 0 || !speeding.settled()) {
-            main.postDelayed(redTick, RED_TICK_MS);
-        } else {
-            wheels.watch(false);
-        }
-    }
-
-    /** No red, and no fast reading of the speed for it. */
-    private void stopRed() {
-        main.removeCallbacks(redTick);
-        speeding.reset();
-        radar.forget();
-        if (wheels != null) {
-            wheels.watch(false);
-        }
+    /** The HUD panel's switches as they stand. */
+    private HudPanelFilter panel() {
+        HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
+        return new HudPanelFilter(settings.isEnabled(context), settings.isMapEnabled(context),
+                settings.isSignEnabled(context), settings.areCamerasEnabled(context));
     }
 
     /** What the panel lets through from {@code source} for {@code role}. */
     private boolean admits(HudSource source, HudRole role) {
-        HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
-        if (role == HudRole.ROAD_LIMIT && !settings.isSignEnabled(context)) {
-            return false;
-        }
-        if (source == HudSource.MODULE) {
-            return settings.isEnabled(context)
-                    && (settings.isMapEnabled(context) || (role != HudRole.MAP && role != HudRole.MAP_MARKS));
-        }
-        return source != HudSource.RADAR || camerasShown();
-    }
-
-    private boolean camerasShown() {
-        return HudGuidanceSettings.INSTANCE.isEnabled(context)
-                && HudGuidanceSettings.INSTANCE.areCamerasEnabled(context);
+        return panel().admits(source, role);
     }
 
     /**

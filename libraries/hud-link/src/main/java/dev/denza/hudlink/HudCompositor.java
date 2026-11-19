@@ -33,8 +33,16 @@ public final class HudCompositor implements HudSink {
         void onFrame(HudWindow window, byte[] png);
     }
 
+    /** Whether the composition is in {@link HudMode#NAVIGATION}; on the pump's thread. */
+    public interface NavigationListener {
+        /** Navigation opened ({@code true}) or closed. */
+        void onNavigation(boolean on);
+    }
+
     private LimitListener limitListener;
     private Integer limit;
+    private NavigationListener navigationListener;
+    private boolean navigating;
     private FrameListener frameListener;
     private byte[] picture;
     private final HudScene scene = new HudScene();
@@ -90,6 +98,7 @@ public final class HudCompositor implements HudSink {
         if (frameListener != null) {
             frameListener.onFrame(HudWindow.MAP, null);
         }
+        navigation(false);
         session.handOver();
     }
 
@@ -98,6 +107,18 @@ public final class HudCompositor implements HudSink {
         limitListener = listener;
         if (listener != null) {
             listener.onLimit(limit);
+        }
+    }
+
+    /**
+     * Who hears navigation open and close: whether anything of ours can reach the glass at all.
+     * Told the current state at once. The host keeps work that only the glass would see - HUD
+     * Speed's red and its fast reading of the wheels - to while it is open.
+     */
+    public void setNavigationListener(NavigationListener listener) {
+        navigationListener = listener;
+        if (listener != null) {
+            listener.onNavigation(navigating);
         }
     }
 
@@ -142,7 +163,18 @@ public final class HudCompositor implements HudSink {
                 limitListener.onLimit(kmh);
             }
         }
+        navigation(now.mode == HudMode.NAVIGATION);
         return Math.min(session.pump(), now.nextChange);
+    }
+
+    private void navigation(boolean on) {
+        if (on == navigating) {
+            return;
+        }
+        navigating = on;
+        if (navigationListener != null) {
+            navigationListener.onNavigation(on);
+        }
     }
 
     /** The PNG of what the window shows; null when it shows nothing. */

@@ -168,6 +168,19 @@ public final class HudCompositorTest {
         return image;
     }
 
+    @Test
+    public void navigationIsHeardOpeningAndClosingAndARadarAloneNeverOpensIt() {
+        List<Boolean> heard = new ArrayList<>();
+        compositor.setNavigationListener(heard::add);
+        compositor.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder().number(Road.LANE_COUNT, 3).build(), LONG);
+        connect();
+        compositor.fields(HudSource.CAPTURE, HudRole.MANEUVER, maneuver(250), 2_000);
+        changed();
+        runUntil(3_000);
+
+        assertEquals(Arrays.asList(false, true, false), heard);
+    }
+
     /** The session binds on the first pump and the service answers at once. */
     private void connect() {
         changed();
