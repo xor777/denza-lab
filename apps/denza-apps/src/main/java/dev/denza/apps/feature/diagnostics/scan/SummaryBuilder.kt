@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.ecu.Ecu
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
@@ -78,13 +80,13 @@ internal object SummaryBuilder {
     fun rail(i: V4Inputs): List<RailLine> {
         val catalogued = EcuCatalog.all.size
         val silent = i.s.results.values.count { !it.answered }
-        return listOf(RailLine(RailPlace.Summary, "Сводка", markCount(i, i.s.results.keys))) +
-            RailLine(RailPlace.Blocks, "Блоки", null,
+        return listOf(RailLine(RailPlace.Summary, AppText.s(R.string.diag_summary), markCount(i, i.s.results.keys))) +
+            RailLine(RailPlace.Blocks, AppText.s(R.string.diag_blocks), null,
                 plain = if (silent == 0) "$catalogued" else "${catalogued - silent}/$catalogued", plainLit = silent > 0) +
             SystemPagesBuilder.SHOWN.map { system ->
                 RailLine(RailPlace.System(system), system.railName, markCount(i, SystemPagesBuilder.MEMBERS.getValue(system)))
             } +
-            RailLine(RailPlace.Journal, "Журнал", null)
+            RailLine(RailPlace.Journal, AppText.s(R.string.diag_journal), null)
     }
 
     /** The worst mark over [requests]' blocks and the sum of their records; null where there is nothing. */

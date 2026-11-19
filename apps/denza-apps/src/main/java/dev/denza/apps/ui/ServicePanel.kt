@@ -26,6 +26,7 @@ import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
+import dev.denza.apps.feature.diagnostics.DiagnosticsCar
 import dev.denza.apps.feature.network.TrafficMonitorSnapshot
 import dev.denza.apps.feature.network.TrafficMonitorText
 import dev.denza.apps.feature.warning.WarningText
@@ -135,7 +136,8 @@ internal data class ServiceModel(
  * [firstPage] opens it on a page - the debug build's boards of the pages - [firstPageAtEnd] scrolled
  * to that page's end (the board of the technical page's split section), and [version] is the
  * foot's words, the build's own unless a board says otherwise. [nowMs] is the clock the restore's
- * times are said from («сегодня в 08:11»), a board's own on a board.
+ * times are said from («сегодня в 08:11»), a board's own on a board. [autoType] is the car's model,
+ * read as the panel opens ([DiagnosticsCar]), a board's own on a board.
  */
 @Composable
 internal fun ServicePanel(
@@ -156,8 +158,10 @@ internal fun ServicePanel(
     trafficMonitorFixture: TrafficMonitorSnapshot? = null,
     warningsFixture: WarningsView? = null,
     onSelectLanguage: (AppLanguage) -> Unit = {},
+    autoType: () -> String? = DiagnosticsCar::autoType,
 ) {
     LaunchedEffect(Unit) { onOpenService() }
+    val diagnostics = remember { DiagnosticsCar.offered(autoType()) }
     val warnings = warningsFixture ?: rememberWarnings()
     var page by rememberSaveable { mutableStateOf(firstPage) }
     val back = { page = page.parent }
@@ -190,6 +194,7 @@ internal fun ServicePanel(
                     nowMs = nowMs,
                     warnings = warnings,
                     onSelectLanguage = onSelectLanguage,
+                    diagnostics = diagnostics,
                 )
             }
             ServicePage.SCREEN -> {
@@ -235,6 +240,7 @@ private fun ServiceMain(
     nowMs: () -> Long,
     warnings: WarningsView,
     onSelectLanguage: (AppLanguage) -> Unit,
+    diagnostics: Boolean,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
     val adb = state.adbRescue
@@ -281,10 +287,9 @@ private fun ServiceMain(
         }
     }
     LanguageRow(onSelectLanguage)
-    // The diagnostic section is parked outside a `-Pdiagnostics` build (build.gradle.kts) until the
-    // owner accepts it on the car (docs/vehicle-diagnostics-architecture.md, 1).
+    // The diagnostic section only on the car its catalog was made for (DiagnosticsCar).
     val pages = listOfNotNull(
-        ServicePage.DIAGNOSTICS.takeIf { BuildConfig.DIAGNOSTICS },
+        ServicePage.DIAGNOSTICS.takeIf { diagnostics },
         ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.WARNINGS, ServicePage.SCREEN,
         ServicePage.TECHNICAL,
     )

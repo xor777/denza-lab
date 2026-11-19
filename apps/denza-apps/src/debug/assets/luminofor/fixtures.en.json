@@ -16422,6 +16422,11 @@
       "rows": [
        {
         "kind": "choice",
+        "title": "Diagnostics",
+        "summary": "Auto-scan of modules, fault codes, live data"
+       },
+       {
+        "kind": "choice",
         "title": "ADB recovery",
         "summary": "Not needed after the reboot"
        },
@@ -16457,6 +16462,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -17192,6 +17198,11 @@
       "rows": [
        {
         "kind": "choice",
+        "title": "Diagnostics",
+        "summary": "Auto-scan of modules, fault codes, live data"
+       },
+       {
+        "kind": "choice",
         "title": "ADB recovery",
         "summary": "Not needed after the reboot"
        },
@@ -17227,6 +17238,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -17971,6 +17983,11 @@
       "rows": [
        {
         "kind": "choice",
+        "title": "Diagnostics",
+        "summary": "Auto-scan of modules, fault codes, live data"
+       },
+       {
+        "kind": "choice",
         "title": "ADB recovery",
         "summary": "Cannot bring access back",
         "tone": "broken"
@@ -18007,6 +18024,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -18725,6 +18743,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -19450,6 +19469,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -20175,6 +20195,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -20909,6 +20930,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -21705,6 +21727,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -22498,6 +22521,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": false,
@@ -23297,6 +23321,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -24008,6 +24033,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -24722,6 +24748,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -25432,6 +25459,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -26136,6 +26164,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -26851,6 +26880,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -27562,6 +27592,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -28272,6 +28303,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -28986,6 +29018,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -29716,6 +29749,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -30579,6 +30613,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -31435,6 +31470,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -32195,6 +32231,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,
@@ -32930,6 +32967,11 @@
       "rows": [
        {
         "kind": "choice",
+        "title": "Diagnostics",
+        "summary": "Auto-scan of modules, fault codes, live data"
+       },
+       {
+        "kind": "choice",
         "title": "ADB recovery",
         "summary": "Not needed after the reboot"
        },
@@ -32965,6 +33007,7 @@
    },
    "state": {
     "tile": "SERVICE",
+    "autoType": "170",
     "warnings": {
      "now": "21.10 14:02:11",
      "enabled": true,

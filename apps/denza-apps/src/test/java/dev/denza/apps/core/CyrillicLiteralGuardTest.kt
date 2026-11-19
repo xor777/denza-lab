@@ -20,7 +20,7 @@ class CyrillicLiteralGuardTest {
     @Test
     fun everyCyrillicLiteralIsOnTheList() {
         val found = scanned.filterValues { it.literals.isNotEmpty() }.mapValues { it.value.literals }
-        assertEquals(emptyList<String>(), violations(found, ALLOWED, PARKED))
+        assertEquals(emptyList<String>(), violations(found, ALLOWED))
     }
 
     @Test
@@ -293,12 +293,6 @@ private fun allow(reason: Reason, vararg files: Pair<String, Int>): Map<String, 
     files.associate { (file, max) -> file to Allowed(max, reason) }
 
 /**
- * Parked until the owner accepts the section on the car (docs/vehicle-diagnostics-architecture.md,
- * 1), so it has no per-file counts, except `scan/BlockRecords.kt`, which is on [EXTERNAL].
- */
-private const val PARKED = "feature/diagnostics/"
-
-/**
  * DO NOT EXTRACT. These files match text another program or the research data wrote, which is
  * Russian whatever language this app speaks; a translated pattern would stop recognising it. The
  * guard fails if their code touches [AppText] or `R.string`.
@@ -330,6 +324,63 @@ private val EXTERNAL = allow(
 private val PENDING = allow(
     Reason.PENDING,
     "libraries/hud-link/src/main/java/dev/denza/hudlink/HudProtocol.java" to 4,
+)
+
+/**
+ * «Сервис → Диагностика», the scanner, Russian but for its chrome (the rail, the tabs, the titles,
+ * the scan button and the link, in `strings.xml` as `diag_*`). The 68 blocks' names of the catalog,
+ * the code descriptions, the schemes', tables' and report's words stay Russian until each file's
+ * words move; the section is offered only on the Z9GT (`DiagnosticsCar`).
+ */
+private val SCANNER = allow(
+    Reason.PENDING,
+    "feature/diagnostics/ecu/EcuCatalog.kt" to 171,
+    "feature/diagnostics/protocol/Dtc.kt" to 95,
+    "feature/diagnostics/protocol/Identification.kt" to 5,
+    "feature/diagnostics/protocol/Nrc.kt" to 15,
+    "feature/diagnostics/protocol/Obd.kt" to 118,
+    "feature/diagnostics/protocol/ObdTests.kt" to 53,
+    "feature/diagnostics/protocol/OemDtcIndex.kt" to 3,
+    "feature/diagnostics/protocol/Quality.kt" to 9,
+    "feature/diagnostics/report/ReportDocument.kt" to 77,
+    "feature/diagnostics/report/ReportInput.kt" to 10,
+    "feature/diagnostics/report/ReportInputs.kt" to 39,
+    "feature/diagnostics/scan/CarStates.kt" to 73,
+    "feature/diagnostics/scan/CodeBuilder.kt" to 70,
+    "feature/diagnostics/scan/DiagnosticsModel.kt" to 2,
+    "feature/diagnostics/scan/DiagnosticsSession.kt" to 7,
+    "feature/diagnostics/scan/GbFlags.kt" to 21,
+    "feature/diagnostics/scan/Graphs.kt" to 5,
+    "feature/diagnostics/scan/HealthBuilder.kt" to 32,
+    "feature/diagnostics/scan/JournalFacts.kt" to 9,
+    "feature/diagnostics/scan/JournalViewBuilder.kt" to 29,
+    "feature/diagnostics/scan/LiveStream.kt" to 22,
+    "feature/diagnostics/scan/ModelBuilder.kt" to 134,
+    "feature/diagnostics/scan/PackCells.kt" to 19,
+    "feature/diagnostics/scan/ParamPage.kt" to 7,
+    "feature/diagnostics/scan/Reads.kt" to 8,
+    "feature/diagnostics/scan/ScanText.kt" to 4,
+    "feature/diagnostics/scan/SummaryBuilder.kt" to 61,
+    "feature/diagnostics/scan/SystemLive.kt" to 121,
+    "feature/diagnostics/scan/SystemPagesBuilder.kt" to 176,
+    "feature/diagnostics/scan/SystemsBuilder.kt" to 134,
+    "feature/diagnostics/scan/TestsBuilder.kt" to 19,
+    "feature/diagnostics/ui/BlocksScreens.kt" to 7,
+    "feature/diagnostics/ui/CodeScreen.kt" to 9,
+    "feature/diagnostics/ui/DiagnosticsScreen.kt" to 4,
+    "feature/diagnostics/ui/GraphsScreen.kt" to 4,
+    "feature/diagnostics/ui/HealthScreen.kt" to 7,
+    "feature/diagnostics/ui/JournalScreen.kt" to 27,
+    "feature/diagnostics/ui/ModuleScreens.kt" to 50,
+    "feature/diagnostics/ui/ParamScreen.kt" to 14,
+    "feature/diagnostics/ui/RailScreens.kt" to 16,
+    "feature/diagnostics/ui/ReportScreen.kt" to 6,
+    "feature/diagnostics/ui/ScannerChrome.kt" to 1,
+    "feature/diagnostics/ui/ScannerWords.kt" to 65,
+    "feature/diagnostics/ui/SchemeScreens.kt" to 9,
+    "feature/diagnostics/ui/SummaryScreen.kt" to 4,
+    "feature/diagnostics/ui/SystemTables.kt" to 8,
+    "feature/diagnostics/ui/TestsScreen.kt" to 2,
 )
 
 private val REPORT = allow(
@@ -401,15 +452,16 @@ private val TABLE = allow(
     "feature/locale/SystemLanguage.kt" to 4,
 )
 
-private val ALLOWED: Map<String, Allowed> = EXTERNAL + PENDING + REPORT + LOG + TABLE
+private val ALLOWED: Map<String, Allowed> = EXTERNAL + PENDING + SCANNER + REPORT + LOG + TABLE
 
 internal fun violations(
     found: Map<String, List<CyrillicLiteral>>,
     allowed: Map<String, Allowed>,
-    parked: String,
+    /** A directory whose literals are not counted yet, but for its files on [allowed]; none today. */
+    parked: String? = null,
 ): List<String> {
     val problems = mutableListOf<String>()
-    found.toSortedMap().filterKeys { !it.startsWith(parked) || it in allowed }.forEach { (file, literals) ->
+    found.toSortedMap().filterKeys { parked == null || !it.startsWith(parked) || it in allowed }.forEach { (file, literals) ->
         val entry = allowed[file]
         val shown = literals.joinToString("; ", limit = 8) { "${it.line}: ${it.text}" }
         when {

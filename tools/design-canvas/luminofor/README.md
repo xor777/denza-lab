@@ -62,7 +62,7 @@ byte as it did.
 What stays as it is in an English render:
 
 - sample data: track and artist names, addresses, screen sizes;
-- the scanner's boards, whose words have no keys while `feature/diagnostics` is parked, and `digits`, which has no words;
+- the scanner's boards, whose words are Russian literals but for the chrome (`diag_*`), and `digits`, which has no words;
 - the board's own furniture, the hatching's «ШТАТНЫЕ ПРИБОРЫ» and «ШТАТНАЯ ПОЛОСА»;
 - the technical pages' literal report lines (`sheet-service-technical`, `-split`, `-journal`) and the car's own
   warning names (`sheet-service-warnings*`), which the code does not take from a resource;
@@ -93,7 +93,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-hud-no-navigator` | no Yandex: only the speed on the glass, every line saying what it waits for |
 | `sheet-hud-yandexhud-alone` | a YandexHUD built before the host: it draws turns and map itself, the sign is the one switch |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
-| `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car; each has the language row above its pages |
+| `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car; each has the language row above its pages, and the pages lead with «Диагностика», which the panel has on the Z9GT alone (`autoType: '170'`, `DiagnosticsCar`) |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
 | `sheet-service-mobile`, `-off`, `-unknown`, `-absent`, `-failed`, `-busy`, `one-sheet-service-mobile`, `-off` | «Мобильный интернет»: the actual stock traffic-monitor package state, one disable button and a verified result or error; unknown/absent has no mutation action, already disabled/busy makes the button inactive |
 | `sheet-service-warnings`, `-off`, `one-sheet-service-warnings` | «Предупреждения машины»: the cluster's warning slot as the app records it - since when, the switch, every code with its last sighting and how often under the car's name, «Экспортировать» and «Очистить», the newest events to the second; recording, switched off, and the car not answering in the one-third pane (orange). `WarningBoardContractTest` holds every word to `WarningText` |

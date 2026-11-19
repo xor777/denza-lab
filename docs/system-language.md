@@ -10,7 +10,7 @@ override. That override is gone from the product — see
 
 ## Current state
 
-Updated 2026-11-07. Which languages the car can speak, how a choice is applied, and
+Updated 2026-11-19. Which languages the car can speak, how a choice is applied, and
 how Denza Apps picks the language of its own words.
 
 | Claim | Status | Since | Section |
@@ -24,7 +24,7 @@ how Denza Apps picks the language of its own words.
 | A row in «Сервис» chooses Russian or English. `AppLanguageSwitch` writes with `commit()`, ends `:picker`, relaunches `MainActivity` and ends the main process; a failed write or the language already running does nothing. It checks nothing else, by the owner's decision ([Decisions for the owner](#decisions-for-the-owner)). No car or emulator has run it | code | 2026-11-07 | [The language switch](#the-language-switch) |
 | What a restart costs each surface, traced from the code: the Contour and a share do not come back by themselves, Mirrors has a gap, and the picker bases go with `:picker` while the remembered slots stay | code | 2026-11-06 | [What a restart costs](#what-a-restart-costs) |
 | `CyrillicLiteralGuardTest` holds every file's Cyrillic literals to a list, forbids reading a string resource directly outside `AppText`, and bars the files of external text from `AppText` and `R.string` | code | 2026-11-06 | [The guard](#the-guard) |
-| Extracted to `strings.xml` so far: `core/FeatureWords`, `feature/network`, `fse`, `mirrors`, `navigation`, `cloud`, `simulcast`, `split`, `speaker`, `weather`, `defaultapps`, `adb` and `warning`, the root package, the status and notification words of `feature/hud`, the Compose text of `ui/` with the speakers' tile and panel, and the drawn text of the Contour, the strip, `HudGlassPicture.kt`, `HudRadarBadge.java` and `SimulcastDialogOverlay.java`, the words of `feature/cluster`, and the route summary the capture sends to the stock HUD. Drivers' words still in the code: `feature/diagnostics`, which is parked, and the YandexHUD module's default words, `HudProtocol.SummaryWords.RUSSIAN` | code | 2026-11-06 | [The app's own language](#the-apps-own-language) |
+| Extracted to `strings.xml` so far: `core/FeatureWords`, `feature/network`, `fse`, `mirrors`, `navigation`, `cloud`, `simulcast`, `split`, `speaker`, `weather`, `defaultapps`, `adb` and `warning`, the root package, the status and notification words of `feature/hud`, the Compose text of `ui/` with the speakers' tile and panel, and the drawn text of the Contour, the strip, `HudGlassPicture.kt`, `HudRadarBadge.java` and `SimulcastDialogOverlay.java`, the words of `feature/cluster`, the route summary the capture sends to the stock HUD, and the chrome of «Сервис → Диагностика» (`diag_*`: the rail, the tabs, the titles, the scan button, the link). Drivers' words still in the code: the rest of `feature/diagnostics` - the ECU catalog, code descriptions, schemes, tables and report, counted file by file - and the YandexHUD module's default words, `HudProtocol.SummaryWords.RUSSIAN` | code | 2026-11-19 | [The app's own language](#the-apps-own-language) |
 | `res/values-en/strings.xml` holds an English copy of every string, a draft awaiting the owner's approval. The app shows it once a driver chooses English in «Сервис». `StringParityTest` holds the keys, placeholders, plural forms and firmware marks to `values/` | code | 2026-11-06 | [The English text](#the-english-text) |
 | A word read on every frame reaches `Resources` once per process, and a steady frame of the Contour or the car page formats nothing (`DrawnWordsCostTest`, on the JVM). What that costs on the head unit has not been timed | code | 2026-11-06 | [Words on a draw loop](#words-on-a-draw-loop) |
 | The contract tests run in Russian and in English, and `DrawnWordsFitTest` measures every word drawn in a fixed cell in the font files, in both | code | 2026-11-06 | [What is tested in English](#what-is-tested-in-english) |
@@ -481,7 +481,7 @@ extracted so far. Each of these used to:
 - `VehicleTelemetryHub` remembers the `VehicleReadFailure`. `ContourScene` still compares its `message`,
   but only to know whether the text to draw has changed.
 
-`feature/diagnostics` keeps its own comparisons on its words until it is unparked.
+`feature/diagnostics` keeps its own comparisons on its words while most of them are still Russian literals.
 
 ### Words that leave the app or get stored
 
@@ -582,9 +582,9 @@ Each file holding Cyrillic literals has an entry with its exact count and one of
 | `pending` | A driver's word still to extract. A file holding both counts them together. |
 
 A new file or a higher count fails. A lower count fails too until the entry comes down, because the
-room left behind would otherwise take the next literal. `feature/diagnostics` is one parked directory
-with no counts, except `scan/BlockRecords.kt`, which is listed as external with its one literal. Comments
-never count.
+room left behind would otherwise take the next literal. Since «Сервис → Диагностика» ships (2026-11-19),
+`feature/diagnostics` is counted file by file like the rest (`SCANNER`, pending), except `scan/BlockRecords.kt`,
+which is listed as external with its one literal. Comments never count.
 
 The code of the four external files (`HudCaptureSource.java`, `HudGuidanceModels.kt`,
 `YandexNotificationGuidance.kt`, `BlockRecords.kt`) may not name `AppText`, `R.string` or `R.plurals`, and each carries a comment saying

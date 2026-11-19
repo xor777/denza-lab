@@ -274,8 +274,10 @@
     { t: 'note', text: 'Приложение перезапустится, чтобы сменить язык.' }
   ] };
   // the restore's row says what it did after the last boot, in its colour when it needs somebody.
-  // «Диагностика» is parked: its row exists only in a `-Pdiagnostics` build, not here.
+  // «Диагностика» leads on the Z9GT, the one car its catalog knows (`autoType` below); elsewhere
+  // the panel has no such row.
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
+    { kind: 'choice', title: 'Диагностика', summary: 'Автоскан блоков, коды неисправностей, потоковые данные' },
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
     { kind: 'choice', title: 'Предупреждения машины', summary: 'Последнее: 13F · сегодня, 14:01' },
@@ -378,7 +380,7 @@
   const WARN = { now: '21.10 14:02:11', enabled: true, since: '19.10 08:02:10', linked: true, lostAt: '',
     sightings: [['13F', '19.10 08:05:40', '21.10 14:01:22', 14], ['7D', '20.10 08:40:02', '20.10 19:12:24', 2]],
     events: WARN_EVENTS, names: WARN_NAMES };
-  const svcState = { tile: 'SERVICE', warnings: WARN, adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
+  const svcState = { tile: 'SERVICE', autoType: '170', warnings: WARN, adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
     cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: APP.version, build: APP.build, technical: SVC_TECHNICAL,
     // every scene of the panel carries the journal, so the debug build's row opens the page
     journal: SVC_JOURNAL };

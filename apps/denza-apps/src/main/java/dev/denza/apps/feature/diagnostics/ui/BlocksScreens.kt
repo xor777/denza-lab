@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,11 +44,11 @@ internal fun BlocksPage(
     val groups = view?.groups ?: ScannerWords.groups(model.groups.flatMap { it.rows }.map { ScannerWords.blockRow(model, it) })
     RailPage(frame, footer = {
         ScanFooter(
-            listOf(FooterButton(ScannerWords.scanButton(model.scan), true, onClick = actions::rescan), FooterButton("Отчёт", false, onClick = onReport)),
+            listOf(FooterButton(ScannerWords.scanButton(model.scan), true, onClick = actions::rescan), FooterButton(AppText.s(R.string.diag_report), false, onClick = onReport)),
             listOfNotNull(view?.footnote?.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) }),
         )
     }) {
-        BlockHead("Блоки", view?.aside.orEmpty(), view?.line.orEmpty())
+        BlockHead(AppText.s(R.string.diag_blocks), view?.aside.orEmpty(), view?.line.orEmpty())
         val filters = view?.filters.orEmpty()
         if (filters.isNotEmpty()) {
             ScanTabs(filters.map { it.second }, filters.indexOfFirst { it.first == filter }.coerceAtLeast(0), { onFilter(filters[it].first) })

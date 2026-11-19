@@ -2880,6 +2880,7 @@ behind `-Pdiagnostics`. These findings have not been promoted into the UI.
 
 > **Superseded 2026-10-20:** the packaged two-address reader and its window are removed; the scanner's
 > catalog covers 68 addresses behind the same `-Pdiagnostics` row ([vehicle-diagnostics-architecture.md](vehicle-diagnostics-architecture.md)).
+> Since 2026-11-19 there is no `-Pdiagnostics`: the row is in every build, on a car with `AutoType` 170 only.
 
 ### Complete factory map and remaining powertrain DTC (2026-10-20)
 

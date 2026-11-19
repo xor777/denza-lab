@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
+import dev.denza.apps.feature.diagnostics.DiagnosticsCar
 import dev.denza.apps.feature.diagnostics.DiagnosticExtras
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.bus.ResidentDiagnosticBus
@@ -207,9 +208,9 @@ internal class ExtrasPoller(
             val ok = try {
                 val s = shell ?: open().also { opened ->
                     val profile = opened.shell("getprop persist.sys.AutoType").trim()
-                    if (profile != "170") {
+                    if (profile != DiagnosticsCar.AUTO_TYPE) {
                         opened.close()
-                        throw IllegalStateException("profile $profile, readings are qualified for 170")
+                        throw IllegalStateException("profile $profile, readings are qualified for ${DiagnosticsCar.AUTO_TYPE}")
                     }
                     shell = opened
                 }

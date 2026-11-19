@@ -99,6 +99,8 @@ internal object SheetFixtures {
                     )
                 } ?: TrafficMonitorSnapshot(),
                 warningsFixture = s.optJSONObject("warnings")?.let(WarningsFixture::view),
+                // The board's car, never the emulator's: «Диагностика» stands only on the Z9GT.
+                autoType = { s.optString("autoType").ifBlank { null } },
             )
             return
         }

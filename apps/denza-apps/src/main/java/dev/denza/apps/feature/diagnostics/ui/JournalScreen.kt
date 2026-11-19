@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,7 +80,7 @@ internal fun JournalPage(
             emptyList(),
         )
     }) {
-        BlockHead("Журнал", view?.aside.orEmpty(), view?.line.orEmpty(), counters = view?.counters.orEmpty().map { it.counter() })
+        BlockHead(AppText.s(R.string.diag_journal), view?.aside.orEmpty(), view?.line.orEmpty(), counters = view?.counters.orEmpty().map { it.counter() })
         ScanTabs(JOURNAL_TABS, tab, onTab)
         if (view == null) return@RailPage
         when (tab) {

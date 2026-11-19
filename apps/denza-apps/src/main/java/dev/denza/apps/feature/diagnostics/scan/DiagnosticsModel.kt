@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import androidx.annotation.StringRes
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.report.ReportSection
@@ -145,19 +148,23 @@ internal data class ParamStats(
  * the page's head. A block may stand in two systems - the BMS in the HV system and the pack, the
  * PTC in the HV system and the climate - and counts in both.
  */
-internal enum class CarSystem(val railName: String, val title: String) {
-    HV("ВВ-система", "Высоковольтная система"),
-    PACK("Тяговая батарея", "Тяговая батарея"),
-    DRIVES("Электропривод", "Электропривод"),
-    ENGINE("Двигатель", "Двигатель"),
-    CHASSIS("Шасси", "Шасси"),
-    SAFETY("Безопасность", "Безопасность"),
-    ADAS("Ассистенты", "Ассистенты"),
-    BODY("Кузов", "Кузов"),
-    CABIN("Салон", "Салон"),
-    CLIMATE("Климат", "Климат"),
-    LV("Сеть 12 В", "Сеть 12 В"),
-    OTHER("Прочие блоки", "Прочие блоки"),
+internal enum class CarSystem(@StringRes private val rail: Int, @StringRes private val head: Int = rail) {
+    HV(R.string.diag_system_hv_rail, R.string.diag_system_hv),
+    PACK(R.string.diag_system_pack),
+    DRIVES(R.string.diag_system_drives),
+    ENGINE(R.string.diag_system_engine),
+    CHASSIS(R.string.diag_system_chassis),
+    SAFETY(R.string.diag_system_safety),
+    ADAS(R.string.diag_system_adas),
+    BODY(R.string.diag_system_body),
+    CABIN(R.string.diag_system_cabin),
+    CLIMATE(R.string.diag_system_climate),
+    LV(R.string.diag_system_lv),
+    OTHER(R.string.diag_system_other),
+    ;
+
+    val railName: String get() = AppText.s(rail)
+    val title: String get() = AppText.s(head)
 }
 
 /** A line of the rail: «Автоскан» ([system] null) or a system, its mark only where there are codes. */
@@ -172,23 +179,27 @@ internal data class RailItem(
 internal enum class RailTone { NONE, COUNT, HISTORY, ACTIVE }
 
 /** A system's tabs; which ones it has is [SystemPage.tabs]. */
-internal enum class SystemTab(val label: String) {
+internal enum class SystemTab(private val words: Int?, private val plain: String = "") {
     /** The scheme, [SystemPage.scheme]. */
-    STATE("Состояние"),
+    STATE(R.string.diag_tab_state),
     /** A system's readings as a stream ([SystemsView.live]) or the engine's (ECM's [ObdView.live]). */
-    LIVE("Потоковые данные"),
+    LIVE(R.string.diag_tab_live),
     /** The drives' or the driver-assistance blocks side by side ([SystemsView.drives], [SystemsView.adas]). */
-    COMPARE("Сравнение"),
+    COMPARE(R.string.diag_tab_compare),
     /** The pack's cells and probes, [DiagnosticsModel.packCells]. */
-    CELLS("Ячейки"),
+    CELLS(R.string.diag_tab_cells),
     /** The pack's GB/T 32960 general alarm flags, [SystemsView.gbFlags]; their GETs are read only while it is in front. */
-    GB_FLAGS("Флаги GB/T 32960"),
+    GB_FLAGS(R.string.diag_tab_gb_flags),
     /** Every record of the system's blocks, [SystemPage.dtc]. */
-    DTC("DTC"),
+    DTC(null, "DTC"),
     /** The engine's: ECM's own DTC lists and readiness, as its block screen has them. */
-    DTC_READINESS("DTC и готовность"),
+    DTC_READINESS(R.string.diag_tab_dtc_readiness),
     /** The system's blocks as the autoscan's rows; a row opens the block. */
-    BLOCKS("Блоки"),
+    BLOCKS(R.string.diag_blocks),
+    ;
+
+    /** The tab's words; «DTC» is the same in every language. */
+    val label: String get() = words?.let(AppText::s) ?: plain
 }
 
 /**

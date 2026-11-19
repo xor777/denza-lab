@@ -93,7 +93,7 @@
     return v;
   }
 
-  /** Every board but the scanner's: `feature/diagnostics` is parked and its words have no keys. */
+  /** Every board but the scanner's: only its chrome has keys (`diag_*`), the rest of its words are Russian literals. */
   function boards(all) {
     const out = {};
     Object.keys(all).forEach(id => { if (!id.startsWith('scanner')) out[id] = walk(all[id]); });

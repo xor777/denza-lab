@@ -111,6 +111,10 @@ def english_table():
     for key, text in ru.items():
         if key not in en or ru[key] == en[key]:
             continue
+        # The scanner's chrome: its boards are not drawn in English, and its plain words («Состояние»)
+        # are elsewhere the technical report's literal lines, which stay Russian.
+        if key.startswith('diag_'):
+            continue
         if not mark.search(text):
             if text in exact and exact[text] != en[key]:
                 shared.setdefault(text, [exact[text]]).append(en[key])
@@ -207,7 +211,7 @@ def page(body_script, lang=RU):
 
 
 def board_page(bid, bare=False, lang=RU):
-    # The scanner's boards have no English: their words are in `feature/diagnostics`, which is parked.
+    # The scanner's boards have no English: only its chrome has keys (`diag_*`), the rest is Russian literals.
     lang = RU if bid.startswith('scanner') else lang
     install = 'LUMINOFOR_EN.install();' if lang == EN else ''
     return page("""

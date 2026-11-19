@@ -160,10 +160,6 @@ android {
         // can tell builds apart during acceptance; it never drives the version.
         versionCode = 79
         versionName = "0.7.1"
-        // «Сервис → Диагностика» is parked until the owner accepts it on the car: its code builds,
-        // and the row appears only in a build asked for with `-Pdiagnostics`
-        // (docs/vehicle-diagnostics-architecture.md, 1).
-        buildConfigField("boolean", "DIAGNOSTICS", providers.gradleProperty("diagnostics").isPresent.toString())
     }
 
     buildFeatures {

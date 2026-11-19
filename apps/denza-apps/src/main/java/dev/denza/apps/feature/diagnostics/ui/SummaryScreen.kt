@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,7 +49,7 @@ internal fun SummaryPage(
             listOf(
                 FooterButton(ScannerWords.scanButton(model.scan), true, onClick = actions::rescan),
                 FooterButton("Сравнить с прошлым", false, onClick = onCompare),
-                FooterButton("Отчёт", false, onClick = onReport),
+                FooterButton(AppText.s(R.string.diag_report), false, onClick = onReport),
             ),
             listOfNotNull(view?.footnote?.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) }),
         )

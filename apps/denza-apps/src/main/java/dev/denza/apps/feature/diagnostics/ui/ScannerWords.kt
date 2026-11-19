@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.diagnostics.report.ReportInput
 import dev.denza.apps.feature.diagnostics.report.ReportNames
 import dev.denza.apps.feature.diagnostics.report.ReportOutcome
@@ -107,13 +109,13 @@ internal object ScannerWords {
     data class Link(val text: String, val dot: Int)
 
     fun link(state: LinkState): Link = when (state) {
-        LinkState.OK -> Link("Связь OK", Ink.BLUE)
-        LinkState.IDLE -> Link("Связь не открыта", Ink.FAINT)
-        LinkState.CONNECTING -> Link("Подключение", Ink.FAINT)
-        LinkState.NO_ACCESS -> Link("Нет доступа ADB", Ink.ORANGE)
-        LinkState.BUSY -> Link("Канал занят", Ink.ORANGE)
-        LinkState.NOT_PARKED -> Link("Только на стоянке", Ink.ORANGE)
-        LinkState.LOST -> Link("Связь потеряна", Ink.ORANGE)
+        LinkState.OK -> Link(AppText.s(R.string.diag_link_ok), Ink.BLUE)
+        LinkState.IDLE -> Link(AppText.s(R.string.diag_link_idle), Ink.FAINT)
+        LinkState.CONNECTING -> Link(AppText.s(R.string.diag_link_connecting), Ink.FAINT)
+        LinkState.NO_ACCESS -> Link(AppText.s(R.string.diag_link_no_access), Ink.ORANGE)
+        LinkState.BUSY -> Link(AppText.s(R.string.diag_link_busy), Ink.ORANGE)
+        LinkState.NOT_PARKED -> Link(AppText.s(R.string.diag_link_not_parked), Ink.ORANGE)
+        LinkState.LOST -> Link(AppText.s(R.string.diag_link_lost), Ink.ORANGE)
     }
 
     fun mil(state: MilState): String = when (state) {
@@ -195,20 +197,20 @@ internal object ScannerWords {
      * the catalog and «Журнал», without a mark.
      */
     fun railLines(model: DiagnosticsModel): List<RailLine> = model.railLines.ifEmpty {
-        listOf(RailLine(RailPlace.Summary, "Сводка", null), RailLine(RailPlace.Blocks, "Блоки", null)) +
+        listOf(RailLine(RailPlace.Summary, AppText.s(R.string.diag_summary), null), RailLine(RailPlace.Blocks, AppText.s(R.string.diag_blocks), null)) +
             CarSystem.entries.filter { it != CarSystem.OTHER }.map { RailLine(RailPlace.System(it), it.railName, null) } +
-            RailLine(RailPlace.Journal, "Журнал", null)
+            RailLine(RailPlace.Journal, AppText.s(R.string.diag_journal), null)
     }
 
     /** A system's tab by its words: the pack's first is «Здоровье» since 7.3. */
     fun tabLabel(system: CarSystem, tab: SystemTab): String =
-        if (system == CarSystem.PACK && tab == SystemTab.STATE) "Здоровье" else tab.label
+        if (system == CarSystem.PACK && tab == SystemTab.STATE) AppText.s(R.string.diag_tab_health) else tab.label
 
     /** «Опросить снова», or what the running scan is doing instead. */
     fun scanButton(scan: ScanSummary): String = when (scan.phase) {
-        ScanPhase.RUNNING -> "Опрос… ${scan.done}/${scan.total}"
-        ScanPhase.PAUSED -> "Продолжить опрос"
-        else -> "Опросить снова"
+        ScanPhase.RUNNING -> AppText.s(R.string.diag_scan_running, scan.done, scan.total)
+        ScanPhase.PAUSED -> AppText.s(R.string.diag_scan_resume)
+        else -> AppText.s(R.string.diag_scan_again)
     }
 
     /** «Сводка» before its first scan: the head says what the scan is doing. */
@@ -219,7 +221,7 @@ internal object ScannerWords {
     }
 
     /** The live data's two views at the tabs' right end: «Таблица», «Графики · 4» with how many are ticked. */
-    fun views(picked: Int): List<String> = listOf("Таблица", "Графики · $picked")
+    fun views(picked: Int): List<String> = listOf(AppText.s(R.string.diag_view_table), AppText.s(R.string.diag_view_graphs, picked))
 
     /** «запись 0:42»: a recording under way, minutes and seconds; the footer puts the red dot before it. */
     fun recording(ms: Long): String = "запись " + minutes(ms)

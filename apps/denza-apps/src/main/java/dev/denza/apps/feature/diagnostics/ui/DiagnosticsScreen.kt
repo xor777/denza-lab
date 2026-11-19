@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ui
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,10 +73,10 @@ internal val JOURNAL_TABS = listOf("Хронология", "Сравнение",
  * not a step: switching it changes the top screen in place.
  */
 internal object ScannerStack {
-    const val BACK_TO_SUMMARY = "‹ Сводка"
+    val BACK_TO_SUMMARY: String get() = "‹ " + AppText.s(R.string.diag_summary)
 
     /** A parameter's page always goes back to the live data it was opened from. */
-    const val BACK_TO_LIVE = "‹ Потоковые данные"
+    val BACK_TO_LIVE: String get() = "‹ " + AppText.s(R.string.diag_tab_live)
 
     val START: List<ScannerRoute> = listOf(ScannerRoute.Summary)
 
@@ -146,14 +148,14 @@ internal object ScannerStack {
 
     /** The name of a screen in the crumbs and on «‹ …». */
     fun title(route: ScannerRoute, moduleName: (Int) -> String?): String = when (route) {
-        ScannerRoute.Summary -> "Сводка"
-        is ScannerRoute.Blocks -> "Блоки"
-        is ScannerRoute.Journal -> "Журнал"
+        ScannerRoute.Summary -> AppText.s(R.string.diag_summary)
+        is ScannerRoute.Blocks -> AppText.s(R.string.diag_blocks)
+        is ScannerRoute.Journal -> AppText.s(R.string.diag_journal)
         is ScannerRoute.System -> route.system.railName
-        is ScannerRoute.Module -> moduleName(route.request) ?: "Блок"
+        is ScannerRoute.Module -> moduleName(route.request) ?: AppText.s(R.string.diag_block)
         is ScannerRoute.Param -> BACK_TO_LIVE.removePrefix("‹ ")
         is ScannerRoute.Code -> route.code
-        ScannerRoute.Report -> "Отчёт"
+        ScannerRoute.Report -> AppText.s(R.string.diag_report)
     }
 
     fun backLabel(stack: List<ScannerRoute>, moduleName: (Int) -> String?): String = when {
