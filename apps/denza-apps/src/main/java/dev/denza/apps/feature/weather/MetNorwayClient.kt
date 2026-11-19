@@ -14,6 +14,24 @@ import java.util.Locale
 import kotlin.math.abs
 
 internal object WeatherForecastCachePolicy {
+    /**
+     * Whether the cached forecast may be used without asking MET at all.
+     *
+     * Only between the moment it was saved and the expiry MET gave it. Until 2026-11-19 only the
+     * expiry was compared, and a clock set back - a boot with an earlier date, a manual change -
+     * put every expiry in the future, so a forecast of any age went out as this run's. A save in
+     * the future means the clock went back since; the run asks MET again (a 304 costs nothing).
+     */
+    fun canServeWithoutRequest(
+        cachedForecastAvailable: Boolean,
+        savedAtMillis: Long,
+        expiresAtMillis: Long,
+        nowMillis: Long,
+    ): Boolean = cachedForecastAvailable &&
+        savedAtMillis > 0L &&
+        nowMillis >= savedAtMillis &&
+        nowMillis < expiresAtMillis
+
     fun canServeAfterNetworkFailure(
         cachedForecastAvailable: Boolean,
         savedAtMillis: Long,
@@ -33,14 +51,15 @@ internal class MetNorwayClient(context: Context) {
 
         val now = System.currentTimeMillis()
         val cached = readCache(latitude, longitude)
-        if (cached != null && now < preferences.getLong(KEY_EXPIRES_AT, 0L)) {
-            return cached
+        val savedAt = preferences.getLong(KEY_SAVED_AT, 0L)
+        val expiresAt = preferences.getLong(KEY_EXPIRES_AT, 0L)
+        if (WeatherForecastCachePolicy.canServeWithoutRequest(cached != null, savedAt, expiresAt, now)) {
+            return requireNotNull(cached)
         }
 
         return try {
             request(latitude, longitude, cached, now)
         } catch (failure: Exception) {
-            val savedAt = preferences.getLong(KEY_SAVED_AT, 0L)
             if (WeatherForecastCachePolicy.canServeAfterNetworkFailure(cached != null, savedAt, now)) {
                 Log.i(TAG, "MET request failed; using bounded stale cache", failure)
                 requireNotNull(cached)
@@ -93,7 +112,10 @@ internal class MetNorwayClient(context: Context) {
                 }
                 HttpURLConnection.HTTP_NOT_MODIFIED -> {
                     requireNotNull(cached) { "MET returned 304 without a local cache" }
+                    // MET confirmed the cache is current as of now: after a clock set back, the
+                    // save time moves back with it, and the next run can use the cache again.
                     preferences.edit()
+                        .putLong(KEY_SAVED_AT, now)
                         .putLong(KEY_EXPIRES_AT, responseExpiry(connection, now))
                         .apply()
                     cached
