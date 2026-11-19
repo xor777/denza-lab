@@ -26,8 +26,10 @@ internal enum class ReportSection(val title: String) {
 internal data class ReportInput(
     /** «Denza Z9 GT DM». */
     val car: String,
-    /** `22 F190` or OBD `09 02` where read; null otherwise, printed «—». */
+    /** `22 F190` or OBD `09 02` where read and agreed; null otherwise, printed «—». */
     val vin: String?,
+    /** Blocks that gave different VINs, each with its own; empty where they agree or one gave none. */
+    val vinSources: List<ReportVinSource> = emptyList(),
     val odometerKm: Double?,
     /** When the shown scan finished; null before any scan. */
     val scanAt: ZonedDateTime?,
@@ -224,9 +226,15 @@ internal data class ReportJournal(
     val excerptJson: String? = null,
 )
 
+/** One block's VIN: «VCU 7E2», «22 F190», the 17 characters. */
+internal data class ReportVinSource(val module: String, val service: String, val vin: String)
+
 /** What the further reads add (VIN, the engine's freeze frame); their wave fills it (7.4). */
 internal data class ReportReads(
+    /** The car's VIN, where every block that gave one gave the same. */
     val vin: String? = null,
+    /** Where the blocks gave different VINs: each one, and then [vin] is null. */
+    val vinSources: List<ReportVinSource> = emptyList(),
     /** Mode 02 frame 0 of the ECM, in the order read. */
     val engineFreezeFrame: List<ReportField>? = null,
     /** Mode 06 of the ECM where its screen read it. */

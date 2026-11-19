@@ -50,6 +50,7 @@ internal object ReportInputs {
         return ReportInput(
             car = CAR,
             vin = reads?.vin?.takeIf { it.isNotBlank() },
+            vinSources = reads?.vinSources.orEmpty(),
             odometerKm = car.hub[VehicleSignal.ODOMETER_KM],
             scanAt = finishedAtMillis?.let { Instant.ofEpochMilli(it).atZone(zone) },
             madeAt = Instant.ofEpochMilli(nowMillis).atZone(zone),

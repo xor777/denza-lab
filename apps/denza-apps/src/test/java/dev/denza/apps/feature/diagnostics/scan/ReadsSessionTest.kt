@@ -193,7 +193,23 @@ class ReadsSessionTest {
         runCurrent()
         val v = s.model.value.scan.vin!!
         assertTrue(v.mismatch)
-        assertEquals(vin, v.vin)
+        // no one VIN for the car: each block keeps its own, and the report says both and that they differ
+        assertNull(v.vin)
+        assertEquals(listOf(vin, other), v.sources.map { it.vin })
+        val reads = ReportFeeds.reads(s.model.value)!!
+        assertNull(reads.vin)
+        assertEquals(listOf("VCU 7E2" to vin, "ECM 7E0" to other), reads.vinSources.map { it.module to it.vin })
+        val input = dev.denza.apps.feature.diagnostics.report.ReportInputs.of(
+            s.model.value, emptyMap(), null, FakeCar.parked(), SoftwareHistory(), Fixtures.EPOCH,
+            java.time.ZoneOffset.UTC, null, null, reads,
+        )
+        val head = (dev.denza.apps.feature.diagnostics.report.ReportDocuments.of(input, emptySet()).pieces.first()
+            as dev.denza.apps.feature.diagnostics.report.ReportPiece.Head).lines[0].first
+        assertTrue(head, head.contains("VIN $vin (VCU 7E2) ≠ $other (ECM 7E0)"))
+        val json = org.json.JSONObject(dev.denza.apps.feature.diagnostics.report.ReportJson.encode(input, emptySet(), null))
+        assertTrue(json.isNull("vin"))
+        assertTrue(json.getBoolean("vinMismatch"))
+        assertEquals(2, json.getJSONArray("vinSources").length())
 
         // Unanswered, refused, unwritten: no VIN, and no mismatch to claim.
         val quiet = carNow {

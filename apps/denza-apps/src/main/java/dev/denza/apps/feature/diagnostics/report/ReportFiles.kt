@@ -73,6 +73,12 @@ internal object ReportJson {
         root.put("kind", KIND)
         root.put("car", input.car)
         root.put("vin", input.vin ?: JSONObject.NULL)
+        if (input.vinSources.isNotEmpty()) {
+            root.put("vinMismatch", true)
+            root.put("vinSources", org.json.JSONArray(input.vinSources.map { s ->
+                JSONObject().put("module", s.module).put("service", s.service).put("vin", s.vin)
+            }))
+        }
         root.put("odometerKm", input.odometerKm ?: JSONObject.NULL)
         root.put("scanAt", input.scanAt?.toOffsetDateTime()?.toString() ?: JSONObject.NULL)
         root.put("madeAt", input.madeAt.toOffsetDateTime().toString())

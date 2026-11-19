@@ -118,7 +118,8 @@ internal object ReportDocuments {
     private fun head(input: ReportInput): ReportPiece.Head {
         val car = listOfNotNull(
             input.car,
-            "VIN ${input.vin ?: "—"}",
+            // blocks that disagree: each one's VIN by its block, none of them the car's
+            "VIN " + (input.vin ?: input.vinSources.takeIf { it.isNotEmpty() }?.joinToString(" ≠ ") { "${it.vin} (${it.module})" } ?: "—"),
             input.odometerKm?.let { "пробег ${Figures.number(it, 1)} км" },
         ).joinToString(" · ")
         val meta = listOfNotNull(

@@ -362,7 +362,9 @@ internal object VinReads {
         }
         if (sources.isEmpty()) return null
         val vins = sources.mapNotNull { it.vin }
-        return VinData(vin = vins.firstOrNull(), mismatch = vins.distinct().size > 1, sources = sources)
+        // Two blocks that disagree give the car no one VIN: each source keeps its own, and none is the car's.
+        val mismatch = vins.distinct().size > 1
+        return VinData(vin = vins.firstOrNull()?.takeIf { !mismatch }, mismatch = mismatch, sources = sources)
     }
 
     /** VCU first: its `22 F190` is the block's own record of the car; ECM's `09 02` is the legislated one. */

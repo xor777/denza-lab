@@ -7,6 +7,7 @@ import dev.denza.apps.feature.diagnostics.report.ReportReads
 import dev.denza.apps.feature.diagnostics.report.ReportTestRow
 import dev.denza.apps.feature.diagnostics.report.ReportTestMonitor
 import dev.denza.apps.feature.diagnostics.report.ReportTests
+import dev.denza.apps.feature.diagnostics.report.ReportVinSource
 import java.time.Instant
 import org.json.JSONArray
 import org.json.JSONObject
@@ -60,11 +61,14 @@ internal object ReportFeeds {
     /** The VIN and ECM's freeze frame where they were read; null with neither. */
     fun reads(model: DiagnosticsModel): ReportReads? {
         val vin = model.scan.vin?.vin?.takeIf { it.isNotBlank() }
+        // Where the blocks disagree there is no one VIN: the report says each block's, and that they differ.
+        val vinSources = model.scan.vin?.takeIf { it.mismatch }?.sources.orEmpty()
+            .mapNotNull { s -> s.vin?.let { ReportVinSource(s.module, s.service, it) } }
         val frame = model.modules[ECM]?.obd?.freezeFrame?.takeIf { it.outcome == ReadOutcome.READ }
             ?.values?.map { ReportField(it.name, it.value) }?.takeIf { it.isNotEmpty() }
         val tests = model.modules[ECM]?.tests?.let(::tests)
-        if (vin == null && frame == null && tests == null) return null
-        return ReportReads(vin = vin, engineFreezeFrame = frame, engineTests = tests)
+        if (vin == null && vinSources.isEmpty() && frame == null && tests == null) return null
+        return ReportReads(vin = vin, vinSources = vinSources, engineFreezeFrame = frame, engineTests = tests)
     }
 
     /** «Тесты» as read ([TestsView]) for the report; null before a read that listed monitors. */
