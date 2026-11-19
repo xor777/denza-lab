@@ -51,7 +51,9 @@ public final class ModuleTest {
         List<Object> lanes = java.util.Collections.emptyList();
         List<Manoeuvre> manoeuvres = java.util.Collections.emptyList();
     }
-    public static class Route { public Position getRoutePosition() { return new Position(1000); } }
+    /** A route as far as the module reads it without a hint: its id. */
+    public static class Bare { public String getRouteId() { return id; } String id = "route"; Bare() { } Bare(String id) { this.id = id; } }
+    public static class Route extends Bare { public Position getRoutePosition() { return new Position(1000); } }
     public static class Navigation { public Automotive getGuidance() { return automotive; } final Automotive automotive = new Automotive(); }
     public static class Point { public double getLatitude() { return 55.7; } }
     public static class Location {
@@ -81,7 +83,7 @@ public final class ModuleTest {
         public Double getNextLaneSignDistance() { return laneDistance; }
         Double laneDistance;
         Classified location;
-        Object route = new Object();
+        Object route = new Bare();
         final Config config = new Config(); final Navigation navigation = new Navigation();
     }
     public static class LaneSign {
@@ -108,7 +110,7 @@ public final class ModuleTest {
         check(source.read(guidance,true,4).active(),"background preference cannot suppress visible navigation");
         guidance.route=null;
         check(!source.read(guidance,true,5).active(),"preview without an active route must stay off");
-        guidance.route=new Object();guidance.navigation.automotive.status="ROUTE_FINISHED";
+        guidance.route=new Bare();guidance.navigation.automotive.status="ROUTE_FINISHED";
         check(!source.read(guidance,true,6).active(),"finished route must stay off");
         guidance.navigation.automotive.status="ROUTE_LOST";
         check(source.read(guidance,true,7).mode.equals("waiting"),"no fix yet draws nothing, even while rebuilding");
@@ -116,7 +118,7 @@ public final class ModuleTest {
         check(source.read(guidance,true,8).mode.equals("waiting")&&!source.read(guidance,true,8).drawMap(),"no fix yet draws nothing");
         guidance.route=null;
         check(!source.read(guidance,true,9).active(),"cancellation stays off");
-        guidance.route=new Object();guidance.location=new Classified();
+        guidance.route=new Bare();guidance.location=new Classified();
         NavigatorSource.Frame held=source.read(guidance,true,100);
         check(held.drawMap()&&held.mode.equals("guidance")&&held.staleMs==0,"fresh guidance draws the map");
         check(held.speed==5,"a fresh fix carries its speed for the camera");
@@ -134,6 +136,18 @@ public final class ModuleTest {
         guidance.navigation.automotive.status="ROUTE_LOST";
         held=source.read(guidance,true,30400);
         check(held.mode.equals("rerouting")&&held.drawMap()&&held.hint==null&&held.lanes.isEmpty(),"rebuilding keeps the map, without hint or lanes");
+        // A position is a segment index of one route's line: a new route id before its first fix
+        // has no position, so neither the map nor AR place the car on the new line by the old index.
+        guidance.navigation.automotive.status="ON_ROUTE";guidance.location.accuracy="FINE";
+        Object before=held.position;
+        check(before!=null&&held.routeId.equals("route"),"the held position belongs to its route");
+        guidance.route=new Bare("rebuilt");
+        held=source.read(guidance,true,30500);
+        check(held.mode.equals("guidance")&&held.routeId.equals("rebuilt")&&held.position==null&&held.point!=null,"a new route keeps the car's fix but not the old route's position");
+        guidance.location.location.stamp++;
+        held=source.read(guidance,true,30600);
+        check(held.position!=null&&held.position!=before,"the new route's first fix brings its own position");
+        guidance.route=new Bare();guidance.location.location.stamp++;source.read(guidance,true,30700);
         guidance.navigation.automotive.status="ON_ROUTE";
         check(NavigatorSource.speedLimit(16.666f)==60 && NavigatorSource.speedLimit(27.78f)==100,"road-event limits are m/s, shown in km/h");
         check(NavigatorSource.speedLimit(null)==0 && NavigatorSource.speedLimit(0f)==0 && NavigatorSource.speedLimit(Float.NaN)==0,"no limit, no number");
@@ -353,9 +367,15 @@ public final class ModuleTest {
         check(hold.apply(frame,0)==frame.hint&&hold.holding==null,"a manoeuvre ahead goes out as it is");
         NavigatorSource.Frame rebuild=new NavigatorSource.Frame();rebuild.mode="rerouting";
         NavigatorSource.Hint held=hold.apply(rebuild,29000);
-        check(held!=null&&"right".equals(held.icon)&&held.distance==250&&held.speedLimit==60&&"rerouting".equals(hold.holding),"rerouting repeats the last manoeuvre");
+        // The limit is not held: field 11 goes into the car's own speed-limit assistance, and a
+        // rebuild after a missed turn is usually another road (until 2026-11-19 the old 60 rode on).
+        check(held!=null&&"right".equals(held.icon)&&held.distance==250&&held.speedLimit==0&&Double.isNaN(held.limitValue)&&held.limitText==null
+                &&"rerouting".equals(hold.holding),"rerouting repeats the last manoeuvre, never its limit");
         Map<Integer,Object> road=fields(HudWire.road(true,held,new byte[]{7,7}));
-        check(road.get(9).equals(250L)&&road.get(28).equals(2L)&&text(road,10).equals("Тверская"),"so the block keeps its arrow, metres and street, not the HUD's Chinese");
+        check(road.get(9).equals(250L)&&road.get(28).equals(2L)&&text(road,10).equals("Тверская")&&!road.containsKey(11),"so the block keeps its arrow, metres and street, not the HUD's Chinese, and no limit");
+        check(!ModuleFields.of(held,new byte[]{7},0,null,null).containsKey(HudRole.ROAD_LIMIT),"a held manoeuvre withdraws the road limit");
+        NavigatorSource.Frame unread=new NavigatorSource.Frame();unread.mode="guidance";
+        check(hold.apply(unread,29500).speedLimit==0&&"unread".equals(hold.holding),"an unread hint holds no limit either");
         check(hold.apply(rebuild,31000)==null&&hold.holding==null,"not past the lost-position hold");
         NavigatorSource.Hint none=new NavigatorSource.Hint();none.remainingMeters=900;none.remainingSeconds=120;none.speedLimit=40;
         NavigatorSource.Frame empty=new NavigatorSource.Frame();empty.mode="guidance";empty.hint=none;
@@ -366,6 +386,34 @@ public final class ModuleTest {
         NavigatorSource.Frame lost=new NavigatorSource.Frame();lost.mode="lost";lost.hint=frame.hint;
         check(hold.apply(lost,44000)==frame.hint,"a held position keeps its own hint");
         check(hold.apply(new NavigatorSource.Frame(),45000)==null&&hold.apply(rebuild,45100)==null,"a new route starts from nothing");
+        hints();
+    }
+    /**
+     * What the engine publishes frame by frame (HudModule calls ManeuverHints on every tick, off
+     * frames included): a new route, or one after guidance went off, starts its metres afresh.
+     */
+    private static void hints() {
+        ManeuverHints hints=new ManeuverHints();
+        check(hints.apply(guided("a",0,20),0).distance==20,"the old route's finish 20 m away");
+        check(hints.apply(new NavigatorSource.Frame(),100)==null,"guidance off publishes nothing");
+        check(hints.apply(guided("b",0,350),200).distance==400,"a new route's finish shows its own 400 m, not the old 20 (2026-11-19)");
+        check(hints.apply(guided("b",0,330),300).distance==300&&hints.apply(guided("b",0,360),400).distance==300,"within one route the finish still only counts down");
+        check(hints.apply(guided("c",0,520),500).distance==500,"a rebuilt route's finish starts from its own distance");
+        // Off between routes resets the hold too: the next route's rebuild repeats nothing of the old.
+        hints.apply(guided("c",400,250),600);
+        hints.apply(new NavigatorSource.Frame(),700);
+        NavigatorSource.Frame rebuild=new NavigatorSource.Frame();rebuild.mode="rerouting";rebuild.routeId="d";
+        check(hints.apply(rebuild,800)==null&&hints.hold.holding==null,"after guidance off nothing is held into the next route");
+        // A rebuild within guidance keeps the arrow, its metres and street, without the old limit.
+        hints.apply(guided("d",400,250),900);
+        NavigatorSource.Hint held=hints.apply(rebuild,1000);
+        check(held!=null&&held.distance==250&&held.speedLimit==0,"a rebuild holds the manoeuvre and drops its limit");
+    }
+    private static NavigatorSource.Frame guided(String route,int at,int distance) {
+        NavigatorSource.Frame frame=new NavigatorSource.Frame();
+        frame.mode="guidance";frame.routeId=route;frame.hint=withManoeuvre();frame.hint.at=at;frame.hint.distance=distance;
+        if(at==0){frame.hint.icon="finish";frame.hint.stockId=48;}
+        return frame;
     }
     /** One icon a place, the nearest two places, each beside the route and off the cursor. */
     private static void placement() {

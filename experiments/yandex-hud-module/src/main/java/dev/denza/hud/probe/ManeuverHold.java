@@ -4,8 +4,11 @@ package dev.denza.hud.probe;
  * Keeps the HUD's manoeuvre block filled through a gap in the guidance. The module's route opens
  * navigation by itself ({@code HudRole.opensNavigation}), and a block left without a manoeuvre is
  * one the HUD fills with its own Chinese labels; drivers saw them while Navigator rebuilt the route
- * (2026-10-21). So a frame without a manoeuvre ahead repeats the last one shown, with the route
- * totals and the limit of the frame when it has them:
+ * (2026-10-21). So a frame without a manoeuvre ahead repeats the last one shown: its arrow, street
+ * and metres, with the route totals of the frame when it has them. The speed limit is never held:
+ * only a limit the frame itself read goes out, because the host writes field 11 into the car's own
+ * speed-limit assistance, and a rebuild after a missed turn usually means another road
+ * (2026-11-19):
  *
  * <ul>
  * <li>while the route is rebuilt or the hint cannot be read, up to {@link #REBUILD_MS} - the time a
@@ -14,7 +17,8 @@ package dev.denza.hud.probe;
  *     blink of the windshield, short enough that a turn already taken is not shown down a long
  *     straight.
  * </ul>
- * No route, no hold: the next route starts from nothing.
+ * No route, no hold: the next route starts from nothing ({@link #reset}, from {@code ManeuverHints}
+ * on every frame without a route).
  */
 final class ManeuverHold {
     static final long REBUILD_MS = NavigatorSource.DIM_AFTER_MS;
@@ -44,7 +48,13 @@ final class ManeuverHold {
         return repeat(last, current);
     }
 
-    /** {@code manoeuvre}'s block with {@code now}'s totals and limit when there are any. */
+    /** Guidance went off: nothing of this route is repeated into the next. */
+    void reset() {
+        last = null;
+        holding = null;
+    }
+
+    /** {@code manoeuvre}'s block with {@code now}'s totals when there are any, and only {@code now}'s limit. */
     private static NavigatorSource.Hint repeat(NavigatorSource.Hint manoeuvre, NavigatorSource.Hint now) {
         NavigatorSource.Hint hint = new NavigatorSource.Hint();
         hint.icon = manoeuvre.icon;
@@ -59,9 +69,11 @@ final class ManeuverHold {
         NavigatorSource.Hint totals = now != null ? now : manoeuvre;
         hint.remainingMeters = totals.remainingMeters;
         hint.remainingSeconds = totals.remainingSeconds;
-        hint.speedLimit = totals.speedLimit;
-        hint.limitValue = totals.limitValue;
-        hint.limitText = totals.limitText;
+        if (now != null) {
+            hint.speedLimit = now.speedLimit;
+            hint.limitValue = now.limitValue;
+            hint.limitText = now.limitText;
+        }
         return hint;
     }
 }

@@ -19,6 +19,8 @@ final class HudArSource {
         try {
             NavigatorSource.Hint hint = frame.hint;
             if (hint == null || !HudAr.supported(hint.action)) return null;
+            // No position on this route yet (NavigatorSource keeps a position to its own route).
+            if (frame.position == null) return null;
             Object location = frame.location;
             HudAr.Pose pose = HudAr.Pose.read(point(frame.point), (Double) api.call(location, "getHeading"),
                     (Double) api.call(location, "getSpeed"), (Double) api.call(location, "getAccuracy"),

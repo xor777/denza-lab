@@ -11,7 +11,9 @@ package dev.denza.hud.probe;
  * wanders across a step's middle would show 250, 300, 250, and the HUD's AR scene starts over
  * whenever field 9 grows (docs/instrument-display-findings.md, the AR arrow's scene machine).
  * The map's zoom and the AR geometry keep the exact distance; only what the HUD prints is rounded.
- * The wire's 11 m floor comes after this ({@code ModuleFields}).
+ * The wire's 11 m floor comes after this ({@code ModuleFields}). The place alone does not tell
+ * routes apart (every finish is at 0), so a new route or guidance off starts over ({@link #reset},
+ * from {@code ManeuverHints}).
  */
 final class ManeuverMeters {
     /** A manoeuvre is the same one while its place on the route moves by no more than this. */
@@ -19,6 +21,12 @@ final class ManeuverMeters {
 
     private int at = -1;
     private int shown;
+
+    /** A new route or guidance off: the next manoeuvre starts from its own distance. */
+    void reset() {
+        at = -1;
+        shown = 0;
+    }
 
     /** {@code hint}'s distance as the HUD shows it, written back into it; nothing without a manoeuvre. */
     void apply(NavigatorSource.Hint hint) {

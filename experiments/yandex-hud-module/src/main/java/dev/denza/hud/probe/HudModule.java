@@ -80,8 +80,7 @@ public final class HudModule {
         HudImage mapImage;
         StockHudArt stockArt;
         /** The manoeuvre block through a gap in the guidance, so the HUD never fills it in Chinese. */
-        final ManeuverHold hold = new ManeuverHold();
-        final ManeuverMeters meters = new ManeuverMeters();
+        final ManeuverHints hints = new ManeuverHints();
         boolean busy, wasActive;
         String mode = "off", hintKey, outputKey = "", arFailure;
         long frames, lastStats, nextAttempt;
@@ -117,7 +116,7 @@ public final class HudModule {
                 JSONObject override = busy ? null : emulator.theme(now);
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
-                String nextOutputKey = frame.mode + (frame.drawMap() ? ":" + api.call(frame.route, "getRouteId") : "");
+                String nextOutputKey = frame.mode + (frame.drawMap() ? ":" + frame.routeId : "");
                 if (!nextOutputKey.equals(outputKey)) {
                     outputKey = nextOutputKey;
                     epoch.incrementAndGet(); // Invalidate a queued old route, including rerouting/location loss.
@@ -133,6 +132,9 @@ public final class HudModule {
                     epoch.incrementAndGet();
                     if (!wasActive) worker.post(this::clearOutput);
                 }
+                // Every frame, the ones skipped below and the ones without a route included: the
+                // hold and the metres start over when guidance goes off or the route changes.
+                final NavigatorSource.Hint hint = hints.apply(frame, now);
                 if (busy || now < nextAttempt) return;
                 if (!frame.active()) { releaseDrawing(); return; }
                 if (painter == null) painter = new HudPainter(context, theme);
@@ -153,8 +155,6 @@ public final class HudModule {
                     maxMainMicros = Math.max(maxMainMicros, elapsed);
                 }
                 // Immutable semantic snapshot; stock artwork and PNG work belong to the output worker.
-                final NavigatorSource.Hint hint = hold.apply(frame, now);
-                meters.apply(hint);
                 final HudAr.Frame ar = arSource.read(frame, now, System.currentTimeMillis());
                 final int arBuilds = arSource.geometryBuilds;
                 if (ar != null) emulator.route(frame.route);
@@ -212,11 +212,11 @@ public final class HudModule {
         private void logHint(NavigatorSource.Hint hint) {
             String key = hint == null ? "none" : hint.iconKey() + ":" + hint.stockId + ":" + hint.speedLimit;
             if (source.hintFailure != null) key = "failed:" + source.hintFailure;
-            if (hold.holding != null) key += ":held:" + hold.holding;
+            if (hints.hold.holding != null) key += ":held:" + hints.hold.holding;
             if (key.equals(hintKey)) return;
             hintKey = key;
             if (source.hintFailure != null) Log.w(TAG, "hint unavailable: " + source.hintFailure);
-            if (hold.holding != null) Log.i(TAG, "hint held (" + hold.holding + "): " + hint.iconKey() + " in=" + hint.distance + "m");
+            if (hints.hold.holding != null) Log.i(TAG, "hint held (" + hints.hold.holding + "): " + hint.iconKey() + " in=" + hint.distance + "m");
             else if (hint != null && source.hintFailure == null) Log.i(TAG, "hint " + hint.iconKey() + " stock=" + hint.stockId + " in=" + hint.distance
                     + "m road=" + (hint.road.isEmpty() ? "-" : "set") + " remain=" + hint.remainingMeters + "m/" + hint.remainingSeconds
                     + "s limit=" + hint.speedLimit + " raw=" + hint.limitValue + "/" + hint.limitText);

@@ -40,6 +40,8 @@ final class NavigatorSource {
         String mode = "off";
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield, location;
+        /** The route's id once guidance has one (every mode but off); position belongs to it or is null. */
+        String routeId;
         double heading, latitude, cameraDistance = Double.NaN;
         /** The fix's speed in m/s, NaN when the fix has none. */
         double speed = Double.NaN;
@@ -62,6 +64,8 @@ final class NavigatorSource {
     private long lastChanged;
     // The last good fix, held through a gap: satellites drop out under bridges and between towers.
     private Object heldLocation, heldPoint, heldPosition;
+    /** The route the held position was read on: a position is a segment index of one route's line. */
+    private String heldRoute;
     private double heldHeading, heldLatitude, heldSpeed = Double.NaN;
     private boolean held;
     NavigatorSource(Reflect api) { this.api = api; }
@@ -85,6 +89,7 @@ final class NavigatorSource {
         String status = String.valueOf(api.call(automotive, "getRouteStatus"));
         if (status.equals("ROUTE_FINISHED")) { forget(); return frame; }
         boolean rerouting = status.equals("NOT_ON_ROUTE") || status.equals("ROUTE_LOST");
+        frame.routeId = String.valueOf(api.call(frame.route, "getRouteId"));
         Object classified = api.call(guidance, "getLocation");
         Object location = classified == null ? null : api.call(classified, "getLocation");
         String accuracy = classified == null ? "NONE" : String.valueOf(api.call(classified, "getLocationClass"));
@@ -93,7 +98,7 @@ final class NavigatorSource {
             String stamp = String.valueOf(api.call(location, "getAbsoluteTimestamp"));
             if (!stamp.equals(lastStamp)) {
                 lastStamp = stamp; lastChanged = now; held = true;
-                heldLocation = location; heldPosition = position;
+                heldLocation = location; heldPosition = position; heldRoute = frame.routeId;
                 heldPoint = api.call(location, "getPosition");
                 heldLatitude = (Double) api.call(heldPoint, "getLatitude");
                 Double heading = (Double) api.call(location, "getHeading");
@@ -112,7 +117,9 @@ final class NavigatorSource {
         frame.heading = heldHeading;
         // A fix held through a gap says nothing of the car now.
         frame.speed = frame.staleMs == 0 ? heldSpeed : Double.NaN;
-        frame.position = heldPosition;
+        // A new route before its first fix: the old route's segment index means nothing on the new
+        // line. The map dims its line and AR waits (HudMap, HudArSource) until a fix on this route.
+        frame.position = frame.routeId.equals(heldRoute) ? heldPosition : null;
         if (rerouting) { frame.mode = "rerouting"; return frame; }
         frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";
         Object next = api.call(guidance, "getNextManeuver");
@@ -152,6 +159,7 @@ final class NavigatorSource {
     private void forget() {
         lastStamp = null; held = false;
         heldLocation = heldPoint = heldPosition = null;
+        heldRoute = null;
     }
 
     private Hint hint(Object route, Object automotive, Object windshield) {
