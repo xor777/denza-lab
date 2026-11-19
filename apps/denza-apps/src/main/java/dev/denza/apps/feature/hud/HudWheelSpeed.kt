@@ -13,8 +13,6 @@ import dev.denza.apps.feature.vehicle.VehicleWatcher
  */
 internal class HudWheelSpeed(context: Context) {
     private val hub = VehicleSession.hub(context)
-    private var seen: VehicleTelemetry? = null
-    private var seenAt = 0L
     private var watching = false
 
     /** A camera is ahead, or no longer is. */
@@ -24,18 +22,22 @@ internal class HudWheelSpeed(context: Context) {
         hub.setActive(VehicleWatcher.HUD_CAMERA, on)
     }
 
-    /** km/h; null when the car did not answer the last sweep or no sweep came for [STALE_MS]. */
-    fun kmh(now: Long): Double? {
-        val snapshot = hub.snapshot
-        if (snapshot !== seen) {
-            seen = snapshot
-            seenAt = now
-        }
-        return if (now - seenAt > STALE_MS) null else snapshot[VehicleSignal.VEHICLE_SPEED]
-    }
+    /** km/h; null when the car did not answer the last sweep or its answer is older than [STALE_MS]. */
+    fun kmh(now: Long): Double? = kmh(hub.snapshot, now)
 
     companion object {
         /** The Contour's horizon for a reading that stopped coming (`ContourScene.STALE_SECONDS`). */
         const val STALE_MS = 2_000L
+
+        /**
+         * [snapshot]'s speed at [now] (`elapsedRealtime`), by the age of the sweep that read it.
+         * Until 2026-11-19 the age counted from when this reader first saw the snapshot, so the
+         * first camera stamped a hub's retained 80 km/h, already seconds old, as fresh.
+         */
+        fun kmh(snapshot: VehicleTelemetry, now: Long): Double? {
+            val at = snapshot.hotReadAtMillis
+            if (at <= 0L || now - at > STALE_MS) return null
+            return snapshot[VehicleSignal.VEHICLE_SPEED]
+        }
     }
 }
