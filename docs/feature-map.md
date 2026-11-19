@@ -291,12 +291,12 @@ One door to what is wrong right now, the app's access to the car, the instrument
 
 ### Driver's-display instruments (the Contour)
 
-- **What it is:** this app's own instruments on the driver's display, the Contour drawn as Luminofor; one of the «Экран водителя» choices («Приборы», `NavigationAppChoices.instruments`).
+- **What it is:** this app's own instruments on the driver's display, the Contour drawn as Luminofor; one of the «Экран водителя» choices («Приборы», `NavigationAppChoices.instruments`). While the engine runs, and ten seconds after, the right group is the engine's block «ЗАРЯД ОТ ДВС»: the pack's charge over two minutes, the run's kWh and time (`EngineCharge`, contract §2.5).
 - **Entry points:** `NavigationCoordinator` → `ClusterSceneService.showDashboard` (manifest-declared service) adds a `ClusterDashboardView`; each frame `ContourFrameBuilder.build` fills a `ContourFrame` from `VehicleTelemetryHub` (claimed as `VehicleWatcher.CLUSTER`) and `ClusterDashboardRenderer.draw` paints it with `ClusterDashboardLayout`, `ContourGeometry`, `ContourReadout`, `ContourScene`, `ContourMotion`. The energy log is recorded regardless, from `VehicleSession.record` in `DenzaAppsApplication`.
 - **Surface:** `feature/cluster/dashboard/`, `feature/vehicle/`.
 - **Docs:** `docs/energy-display-contract.md` (normative), `tools/design-canvas/luminofor/README.md` (normative), `docs/instrument-display-findings.md`, `docs/vehicle-data-findings.md`.
-- **Luminofor:** fixtures `cluster-city`, `cluster-launch`, `cluster-regen`, `cluster-engine`, `cluster-hot`, `cluster-park`, `cluster-charging`, `cluster-spread`, `cluster-filling`, `cluster-stale`, `cluster-waking`, `cluster-unavailable`; drawn by `drawCluster` in `tools/design-canvas/luminofor/luminofor.js`; debug mapping `ContourFixtures`.
-- **Tests:** `ContourFrameBuilderTest`, `ContourGeometryTest`, `ContourFixturesContractTest`, `ContourSceneTest`, `ContourReadoutTest`, `ClusterDashboardLayoutTest`, `EnergyReadoutsTest`, `VehicleLogReplayTest`.
+- **Luminofor:** fixtures `cluster-city`, `cluster-launch`, `cluster-regen`, `cluster-engine`, `cluster-engine-kickdown`, `cluster-engine-stopped`, `cluster-engine-gone`, `cluster-engine-parked`, `cluster-hot`, `cluster-park`, `cluster-charging`, `cluster-spread`, `cluster-filling`, `cluster-stale`, `cluster-waking`, `cluster-unavailable`; drawn by `drawCluster` in `tools/design-canvas/luminofor/luminofor.js`; debug mapping `ContourFixtures`.
+- **Tests:** `ContourFrameBuilderTest`, `ContourGeometryTest`, `ContourFixturesContractTest`, `ContourSceneTest`, `ContourReadoutTest`, `ClusterDashboardLayoutTest`, `EnergyReadoutsTest`, `EngineChargeTest`, `MonotoneCurveTest`, `VehicleLogReplayTest`.
 
 ### Local-ADB startup gate and explainer
 

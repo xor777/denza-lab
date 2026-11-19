@@ -43,7 +43,7 @@ The *direction* is a word and a colour, never a sign:
 | below 3 kW (`ContourMotion.NEUTRAL_KW`, with its 3 kW hysteresis) | «БАТАРЕЯ» | `MUTED` |
 | P ≥ 3, out | «ИЗ БАТАРЕИ» | `INK` |
 | P ≤ −3, in | «В БАТАРЕЮ» | `RETURN_INK` |
-| in, engine generating (§2.5) | «● В БАТАРЕЮ ОТ ДВС» | `RETURN_INK` |
+| in, engine running (§2.5; until 2026-11-19 «engine generating», `G > 0`) | «● В БАТАРЕЮ ОТ ДВС» | `RETURN_INK` |
 | in, charger agreed (`VehicleTelemetry.charging`) | «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | `RETURN_INK` |
 
 The figure is `|P|` rounded to a whole kilowatt. **The minus is never printed for
@@ -206,9 +206,10 @@ by the plan board, before the Luminofor panel).
 
 **Form: a line.** The fourth board's steps («он как бы дискретный ступеньками»)
 were chosen when a step was a closed bucket and a step said so; a trailing mean is
-a continuous function of the road, and a line is what says that. The engine's box
-keeps its steps: its slots are closed five-second buckets and it is not this
-chart.
+a continuous function of the road, and a line is what says that. Until 2026-11-19
+the engine's box kept its steps, its slots being closed five-second buckets; the
+engine's block that replaced it is a trailing mean too and is drawn by the same
+`Silhouette` (§2.5).
 
 **Where.** On the cluster left of the axis beside its figure, zero on the
 figure's baseline, 37 units up and 13 down (`LuminoforSpec.Cluster.Trace`,
@@ -240,18 +241,31 @@ this section.
 
 ### 2.4 The trip
 
-Unchanged in definition (`TripEnergyLedger`): net `∫P dt` over the trip, road
-from the odometer under one `OdometerGate`, recuperation only with the engine
-off, the engine's share `∫G dt` while it runs, its minutes. A trip quantity a
+`TripEnergyLedger`: net `∫P dt` over the trip, road from the odometer under one
+`OdometerGate`, recuperation `∫max(0, −P) dt` only with the engine off, the
+engine's charge `∫max(0, −P) dt` while it runs, its minutes. A trip quantity a
 fresh packet does not carry did not happen this trip, and its caption goes with
 it (`ContourValue.ledger`). Seat order on P: «ЗА ПОЕЗДКУ» at the edge, then
-«ДАЛ ДВС», then «● РЕКУПЕРАЦИЯ» at the far end, packed from the edge.
+«ЗАРЯД ОТ ДВС», then «● РЕКУПЕРАЦИЯ» at the far end, packed from the edge.
+
+**The engine's charge is what the pack took while the engine ran** (since
+2026-11-19), the same integral as the engine block's figure (§2.5). It counts
+regeneration during an engine run too: braking with the engine turning puts
+energy into the pack, and the pack cannot tell the two apart. Recuperation is
+counted with the engine off only, so nothing is counted twice.
+
+> **Superseded 2026-11-19:** the engine's share was `∫G dt` while it ran, under
+> «ДАЛ ДВС». `G` reads zero on the move while the engine charges the pack, so the
+> seat stayed at zero on every drive; it is the pack's own charge now, under
+> «ЗАРЯД ОТ ДВС» — see [§2.5](#25-the-engine).
 
 On the Luminofor cluster the trip is the right group's figure - «42 км · ЗА
-ПОЕЗДКУ» over «9,3 кВт·ч» - and «ДАЛ ДВС» and «РЕКУПЕРАЦИЯ» stand on the detail
-line under it, «ДАЛ ДВС» whenever the ledger carries the engine's share and
-«РЕКУПЕРАЦИЯ» on P. The car page carries the same trip in its own cell, flush
-right on the full screen: «42 км · за поездку» over «9,3 кВт·ч».
+ПОЕЗДКУ» over «9,3 кВт·ч» - and «ЗАРЯД ОТ ДВС» and «РЕКУПЕРАЦИЯ» stand on the
+detail line under it, «0,8 кВт·ч ЗАРЯД ОТ ДВС» whenever the ledger carries the
+engine's charge and «РЕКУПЕРАЦИЯ» on P. While the engine's block stands (§2.5)
+the trip gives it the right group and comes back when the block leaves. The car
+page carries the same trip in its own cell, flush right on the full screen: «42
+км · за поездку» over «9,3 кВт·ч».
 
 ### 2.5 The engine
 
@@ -267,7 +281,55 @@ being the pack's charge from the engine (zero while the engine drives the wheels
 or feeds the motor) and inconsistent with it being the generator's output. Until
 the recording says which:
 
-> **Superseded 2026-11-19:** neither reading holds on the move. On the 2026-09-24 drive the engine ran decoupled from the wheels and charged the pack (about 0.82 kWh in while it ran) with `G` and its state at `0` on every row; `G` is above zero only during forced generation standing in P — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19). With the signal as it is, the box below and the figure in its sentence appear only during forced generation in P and never on the move; the car page's «ОТ ДВС» likewise; the trip's «ДАЛ ДВС» (§2.4) stays at zero, because the ledger takes nothing in P; and the engine's charge on the move counts neither as recuperation nor as the engine's. What the box does on the move is an open decision (§8). The rules below stand as written until it is made.
+> **Superseded 2026-11-19:** neither reading holds on the move. On the 2026-09-24 drive the engine ran decoupled from the wheels and charged the pack (about 0.82 kWh in while it ran) with `G` and its state at `0` on every row; `G` is above zero only during forced generation standing in P — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19). So the engine's figures stopped reading `G` the same day: [the engine's block](#the-engines-block-since-2026-11-19) below.
+
+#### The engine's block (since 2026-11-19)
+
+**What it shows: the charge the engine gives the battery.** The quantity is the
+pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and not
+`G`. Regeneration during an engine run is inside it, as in the trip's figure
+(§2.4); the screens say nothing about that.
+
+- **A run** starts when the flag goes up and ends when it reads down; a flag
+  that did not answer neither ends nor counts toward one. A run that starts again
+  within ten seconds of its stop is the same run. It carries the energy it put
+  into the pack and the seconds the engine ran, integrated sweep by sweep on the
+  ledger's own intervals (`EngineCharge`), so the block's figure and the trip's
+  «ЗАРЯД ОТ ДВС» are one integral.
+- **The chart**: a sample a second (the mean of that second's sweeps; a second no
+  sweep landed in keeps the newest reading for up to `MAX_GAP_SECONDS`), each
+  drawn point the trailing mean of the last ten samples - the ten kilometres'
+  rule and constant (`ConsumptionChart.SMOOTH_STEPS`) - over the run's last two
+  minutes, a point a second. A younger run fills from the right edge at the full
+  window's pitch. Drawn by `Silhouette` in the return blue, one monotone curve
+  and its field, zero on the figures' baseline and upward only.
+- **The scale** is 0…50 kW, or 0…25 kW while the window's highest point is under
+  20 (`EngineCharge.ceilingKw`, the board computes the same); a point past it lies
+  along the ceiling with the chart's tick. The engine's ordinary standing charge
+  is 8 kW, a third of the lower box.
+- **The figure** is the run's kilowatt-hours, a tenth («0,4»; whole from ten,
+  where the column runs out), at the chart's right end on the figures' baseline,
+  with the run's time under it: «ЗА 2:52». The caption «ЗАРЯД ОТ ДВС» stands over
+  the chart from its left edge.
+- **Lifetime**: on the cluster while the engine runs, moving and parked, with or
+  without a charge (a hard pull draws a line on zero and «0,0»); it holds ten
+  seconds after the flag drops - hysteresis against a dropped read - and then
+  leaves, the trip comes back with «0,4 кВт·ч ЗАРЯД ОТ ДВС» on its detail line.
+  A link gone quiet takes it on the packet's age, like every reading.
+- **The engine's cell** beside it: «ДВС · об/мин» while the engine runs, empty
+  through the ten-second hold - the block's figure and time are the run's, and
+  the trip's minutes beside them would be a second answer - and «ДВС · мин за
+  поездку» after it, for two minutes after a stop (`EngineChargeSnapshot.
+  stoppedRecently`). One rule on both screens (`EnergyReadouts.readEngineCell`).
+- **The car page** draws no chart. Its headline «● В БАТАРЕЮ ОТ ДВС» is printed
+  whenever the pack takes charge with the engine running - the block's condition.
+  Were it to gain the chart, the place is the trip cell's slot on the full
+  screen's second row, the same way the cluster gives the block the trip's group.
+- **Nothing about the engine is drawn on the band**, as before.
+
+#### Before 2026-11-19
+
+> **Superseded 2026-11-19:** everything in this subsection — the box, its sentence, its ink colour and its `G > 0` condition — is replaced by [the engine's block](#the-engines-block-since-2026-11-19) above.
 
 - the engine's box on the cluster exists **only while the flag is up** and only
   if `G` was above zero somewhere in its window. A running engine that gives the
@@ -389,9 +451,9 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | --- | --- | --- |
 | direction of `P` | «ИЗ БАТАРЕИ» · «В БАТАРЕЮ» · «● В БАТАРЕЮ ОТ ДВС» · «● В БАТАРЕЮ ОТ ЗАРЯДКИ» · «БАТАРЕЯ» | a sign |
 | the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «Расход 16,9 кВт·ч/100 км · за 10 км» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
-| the trip | «42 км · ЗА ПОЕЗДКУ» · «ДАЛ ДВС» · «РЕКУПЕРАЦИЯ»; car page «42 км · за поездку» | a zero, a caption over nothing |
-| the engine, live | «ДВС · об/мин» + rpm; box «ДВС ДАЁТ 8 кВт» over «ПОСЛЕДНИЕ 1:22»; car page «ДВС» + rpm | «В БАТАРЕЮ» on the box, a dot on the box, «ГЕНЕРАЦИЯ», «ОБОРОТЫ» |
-| the engine, stopped | «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a box of zeros |
+| the trip | «42 км · ЗА ПОЕЗДКУ» · «0,8 кВт·ч ЗАРЯД ОТ ДВС» · «РЕКУПЕРАЦИЯ»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19) |
+| the engine, live | «ДВС · об/мин» + rpm; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2:52»; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), a note on what the charge includes |
+| the engine, stopped | an empty corner for the block's ten seconds, then «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a block of zeros after its hold |
 | charging, the countdown | «2:15 до полной»; ten hours or more «12:30» (kept by the owner for now, 2026-09-23; see below) | a day count |
 | the car page, closed | «Питание от машины» over the instruction | a row of empty captions |
 
@@ -435,10 +497,11 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 - **standing on P**: the same, plus the tenth on the consumption figure and the
   third seat; the chart does not leave - ten kilometres of road are still ten
   kilometres of road when the car stops;
-- **engine giving**: the cluster's box replaces the trip's cells while the flag
-  is up and `G > 0`; the car page's headline gains «ОТ ДВС» while the pack takes
-  charge. Since 2026-11-19 known to happen only during forced generation in P,
-  because `G` reads zero on the move (§2.5);
+- **engine running**: the cluster's block replaces the trip's cells while the
+  flag is up and for ten seconds after, moving or parked (§2.5); the car page's
+  headline gains «ОТ ДВС» while the pack takes charge with the engine running.
+  (Until 2026-11-19 the box wanted `G > 0`, which on this firmware happens only
+  during forced generation in P);
 - **charging**: the cluster's petal figure becomes the countdown; the car page's
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
@@ -471,7 +534,7 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   `DashboardLayoutPolicyTest` holds. Content is never drawn past the pane.
 - The cluster's geometry is the Luminofor triptych (`LuminoforSpec.Cluster`,
   `ContourGeometry`), approved 2026-09-23: the battery and its five temperatures
-  left, the hero on the axis, the engine and the trip - or the engine's box -
+  left, the hero on the axis, the engine and the trip - or the engine's block -
   right, one beam along the axis at 296 units, and under it the ten kilometres
   left of the axis beside their figure, zero on the figure's baseline at 364.
   `ContourPlan` was the petal's plan and went with the petal.
@@ -489,7 +552,14 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 debug build draws the same scenes (`LuminoforFixtureActivity`) and
 `compare.py` lays its screenshot over the board. The `cluster-launch` and
 `cluster-regen` scenes each carry a run past a ceiling, so the tick is on a
-board; `cluster-filling` is thirty-seven points under «за 3,7 км».
+board; `cluster-filling` is thirty-seven points under «за 3,7 км». The engine's
+block is on five boards drawn from two recorded drives, as `EngineCharge`
+replays them (`VehicleLogReplayTest` holds the numbers): `cluster-engine`
+charging on the move (2026-09-24 18:40:04, «0,2» «ЗА 0:41»), `-kickdown` at
+226 kW out fifteen seconds into the same run, `-stopped` four seconds after the
+19:25 stop with the corner empty, `-gone` past the hold with «0,4 кВт·ч ЗАРЯД ОТ
+ДВС» under the trip, and `-parked`, forced charge in P on 2026-09-18 on the lower
+ceiling.
 
 What follows describes the boards they replaced and stays as their record.
 `tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` were the
@@ -513,11 +583,11 @@ test.
 
 - **One source.** `EnergyReadouts` turns a `VehicleTelemetry` into every energy
   string and chart both screens draw: direction word, power figure and colour,
-  consumption figure and colour, window caption, the hundred points, the engine's
-  sentence. Both renderers call it and format nothing themselves.
+  consumption figure and colour, window caption, the hundred points, the engine
+  block's figure and time. Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** `EnergyReadoutsTest` runs one list of snapshots -
-  electric drive, return, engine giving, engine running and giving nothing,
-  engine just stopped, engine ran yesterday, standing, charging, a charge the
+  electric drive, return, engine charging, engine running and charging nothing,
+  engine just stopped, engine stopped past the hold, engine ran yesterday, standing, charging, a charge the
   pack's own id reads as nothing, filling window, a road that gave back more, a
   seam in the record, a kilometre past 60, link lost, a dropped read - through
   the cluster as it draws (scene, followers, `ContourFrameBuilder`) and through
@@ -525,7 +595,7 @@ test.
   power, the volts, the engine's cell, the trip, the consumption with its window
   and its minus, and the hundred points. Where they differ by design it says so
   and compares nothing: the cluster's countdown takes the consumption's seat
-  while charging, its consumption is grey while the engine runs, its engine box
+  while charging, its consumption is grey while the engine runs, its engine block
   takes the trip's place, and the car page's sentence that names a source is
   blue whatever its magnitude while the cluster's hero keeps the band's colour.
   A second test holds the list to reaching every one of those readings at least
@@ -553,10 +623,13 @@ test.
   reading bucket and equals the road the unit names, every reading is one
   odometer tick, the figure equals energy over known road, every point equals
   the trailing ten readings computed a second time, no point is ever a `NaN`,
-  and the engine's box is never up with the flag down.
-  It replays the three newest drives and the newest one the engine gave in, and a
-  drive the engine gave in has to raise the box at least once, or the last
-  invariant would hold over nothing. With no drive on the machine it is skipped,
+  and the engine's block is never up with the flag down past its hold.
+  It replays the three newest drives and the newest one the engine ran in, and a
+  drive the engine ran in has to raise the block at least once, or the last
+  invariant would hold over nothing (until 2026-11-19: «gave in», by `G`). A
+  second test replays the two drives the engine block's boards are drawn from to
+  those rows and holds each board's chart, figure, time and ceiling, and the
+  trip's detail past the hold, to what the replay prints. With no drive on the machine it is skipped,
   not passed; the drives are inputs of the test task, so a new one reruns it.
 - **The boards.** `LuminoforSpecContractTest` holds every number in
   `spec.json` to `LuminoforSpec`; `StripBoardContractTest` holds the board's
@@ -581,7 +654,7 @@ test.
 | --- | --- |
 | whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | a recorded stop at a charger known to be DC (the owner does not recall what the 2026-09-22 stop was, asked 2026-10-09) |
 | the stock zones' true edges | the grid photograph |
-| what the engine box, «ДАЛ ДВС» and «ОТ ДВС» do on the move, where `GENERATION_KW` reads zero while the engine charges the pack (2026-11-19, §2.5) | the owner's decision; a reading of generator power on the move would widen the choices ([findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19)) |
+| ~~what the engine box, «ДАЛ ДВС» and «ОТ ДВС» do on the move, where `GENERATION_KW` reads zero while the engine charges the pack~~ | closed 2026-11-19: the block, the trip's «ЗАРЯД ОТ ДВС» and «ОТ ДВС» read the pack's charge while the engine runs (§2.4, §2.5). Not yet seen on the car |
 
 **Closed by the first recorded drive, 2026-09-22** -
 `captures/vehicle-log/vehicle-20260922-172447-car.csv`, written on the car by a
@@ -608,8 +681,8 @@ starting the engine on purpose. It started three times, every time in motion:
 **`GENERATION_KW` is the engine's charge into the pack, not the generator's
 output.** Each start came with a demand past 220 kW and the engine drove the
 wheels beside the pack; not one sample of 186 had the id or its state off zero.
-So §2.5's box is right as drawn: it stands only while the engine is charging, and
-a running engine that drives the wheels shows its revolutions in the corner and
+So §2.5's box was right as drawn: it stood only while the engine was charging,
+and a running engine that drove the wheels showed its revolutions in the corner and
 nothing on the shelf.
 
 > **Superseded 2026-11-19:** the same 186 rows show the engine charging the pack, not only driving the wheels: `P` ran −51…+291 kW (median +13), 84 rows were at −3 kW or below, 44 of them with the accelerator pressed and the brake off, about 0.82 kWh went in, and the revolutions wandered 23…150 per km/h on set-points near 1350–1500 rpm, which is the series mode. `GENERATION_KW` and its state read `0` throughout. So the id is not the engine's charge into the pack on the move; it is above zero only during forced generation in P, and the box does not stand while the engine charges on the move — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19). What it gives the wheels has no reading on this firmware -

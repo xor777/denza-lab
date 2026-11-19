@@ -76,7 +76,8 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 
 | boards | |
 | --- | --- |
-| `cluster-city`, `-launch`, `-regen`, `-engine`, `-hot` | the panel on the move: out, hard out with a run cut at 60, back with a run cut at −20, the engine giving, a hot inverter |
+| `cluster-city`, `-launch`, `-regen`, `-hot` | the panel on the move: out, hard out with a run cut at 60, back with a run cut at −20, a hot inverter |
+| `cluster-engine`, `-engine-kickdown`, `-engine-stopped`, `-engine-gone`, `-engine-parked` | the engine's block at five moments of two recorded drives (energy contract §2.5, numbers held by `VehicleLogReplayTest`): charging on the move, a kickdown fifteen seconds into the run, four seconds after the stop with the corner empty, past the hold with «ЗАРЯД ОТ ДВС» on the trip's detail line, forced charge in P on the 25 kW ceiling |
 | `cluster-park`, `-charging` | on P: the trip's detail line; the countdown in the figure's place |
 | `cluster-spread`, `-filling`, `-unavailable` | the cells drifting apart; 37 points under «за 3,7 км»; no access |
 | `cluster-stale`, `-waking` | the link lost - figures gone, captions and the ten kilometres kept; the first seconds, the axis alone |
@@ -241,7 +242,7 @@ fallback, and baselines Android snaps to whole pixels. On 2026-09-24 the report 
 split's section compared at 0.93 % and the journal at 1.16 %, the technical report's first screen
 still at 1.05 %.
 
-## The chart and the engine's box
+## The chart and the engine's block
 
 The approved page drew the ten kilometres in steps, with the cluster's ceilings at 30 and 10, and
 the engine's box in blue. The energy contract had closed all three the other way (§2.3, §2.5), and
@@ -256,6 +257,18 @@ one did:
 - the engine's box in the history's colours - an ink line, a faint ink field, the sentence grey -
   because blue on the panel means «into the pack» and what the engine's id means in motion is
   still open;
+
+  > **Superseded 2026-11-19:** the box is gone. The engine's block (`engineBlock()`, spec
+  > `cluster.engineCharge`) is what the pack took while the engine ran, so it *is* «into the pack»
+  > and is blue: the same `silhouette()` as the ten kilometres - one monotone curve, its field,
+  > ten runs dimmer toward the past, the end dot - from a zero on the figures' baseline up to their
+  > cap, 0…50 kW or 0…25 while the window stays under 20, a point a second over two minutes.
+  > «ЗАРЯД ОТ ДВС» over the chart from its left end; the run's figure in the column after it
+  > (`column` 136), the run's time under it. A younger run grows from the right at the full pitch.
+- every chart, on both screens, is one monotone cubic through its points (Fritsch-Carlson, since
+  2026-11-19, `monotoneCurve()` here and `MonotoneCurve` in the app): it passes through every point
+  and never leaves the band of two neighbours, so a flat run stays flat and a curve does not cross
+  zero between two points on one side of it;
 - the car page has no «60» / «−20» gutter: the approved page did not draw one.
 
 ## Vehicle diagnostics, the first window
