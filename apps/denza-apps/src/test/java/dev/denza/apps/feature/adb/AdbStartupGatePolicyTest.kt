@@ -476,12 +476,108 @@ class AdbStartupGatePolicyTest {
             assertNull(outcome.name, AdbRescuePolicy.afterCheck(checking, outcome, AdbSystemSwitch.ENABLED).recheckOf)
         }
         assertNull(AdbRescuePolicy.systemSwitchOff(checking).recheckOf)
-        assertNull(AdbRescuePolicy.resetAttempt(checking).recheckOf)
         assertNull(AdbRescuePolicy.requesting(checking, 1L, AdbSystemSwitch.ENABLED).recheckOf)
-        // The first check of a process, and a check after a reset, have no gate to keep.
+        AdbCheckOutcome.entries.forEach { outcome ->
+            val after = AdbRescuePolicy.afterCheck(checking, outcome, AdbSystemSwitch.ENABLED)
+            assertNull(outcome.name, after.recheckMessage); assertNull(outcome.name, after.recheckDetails)
+        }
+        // The first check of a process has no gate to keep. A check after a reset keeps the gate the
+        // reset was pressed on (`a reset keeps the gate it was pressed on`).
         assertNull(AdbRescuePolicy.checking(AdbRescuePolicy.initial(false, 0, 0L)).recheckOf)
         assertNull(AdbRescuePolicy.checking(AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED)).recheckOf)
         assertFalse(AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(AdbRescuePolicy.initial(false, 0, 0L))).visible)
+    }
+
+    /**
+     * The walk above with no restore to outrank the phase: switched off, or not there at all. Every
+     * blocked state after the first check has a gate with the explainer's door - a reset and the
+     * check after it included.
+     */
+    @Test
+    fun `a blocked dashboard has a gate with the restore off or absent`() {
+        val standing = listOf(
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.ERROR,
+        )
+        val snapshots = AdbRescuePhase.entries.filter { it != AdbRescuePhase.TRUSTED }
+            .map { AdbRescueSnapshot(phase = it) } +
+            standing.map { AdbRescuePolicy.checking(AdbRescueSnapshot(phase = it)) } +
+            standing.map { AdbRescuePolicy.resetAttempt(AdbRescueSnapshot(phase = it, requestPending = true)) } +
+            standing.map { AdbRescuePolicy.checking(AdbRescuePolicy.resetAttempt(AdbRescueSnapshot(phase = it, requestPending = true))) }
+        val restores = listOf(null, AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.Disabled))
+        snapshots.forEach { snapshot ->
+            val firstCheck = snapshot.recheckOf == null &&
+                (snapshot.phase == AdbRescuePhase.UNKNOWN || snapshot.phase == AdbRescuePhase.CHECKING)
+            restores.forEach { restore ->
+                val model = AdbStartupGatePolicy.overlay(snapshot, restore)
+                val name = "${snapshot.phase} (re-check of ${snapshot.recheckOf}) under $restore"
+                assertEquals(name, !firstCheck, model.visible)
+                if (model.visible) assertTrue(name, model.explainerAvailable)
+            }
+        }
+        // The resets are not first checks: each of them is a gate in that walk.
+        assertTrue(snapshots.filter { it.phase == AdbRescuePhase.UNKNOWN }.any { it.recheckOf != null })
+    }
+
+    @Test
+    fun `a reset keeps the gate it was pressed on`() {
+        listOf(
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.ERROR,
+        ).forEach { phase ->
+            val standing = AdbRescueSnapshot(phase = phase, requestPending = true)
+            assertTrue(phase.name, standing.canResetAttempt)
+            val gate = AdbStartupGatePolicy.overlay(standing)
+            val reset = AdbRescuePolicy.resetAttempt(standing)
+            // What the reset does to the latch is unchanged: released, and nothing to request until
+            // a check has said the key is refused.
+            assertEquals(AdbRescuePhase.UNKNOWN, reset.phase)
+            assertFalse(reset.requestPending)
+            assertFalse(reset.canRequest)
+            assertFalse(reset.settled.canRequest)
+            assertFalse(reset.settled.canResetAttempt)
+            // The gate stays, and stays through the check that follows, with the ring.
+            assertEquals(phase, reset.recheckOf)
+            assertEquals(gate, AdbStartupGatePolicy.overlay(reset))
+            val checking = AdbRescuePolicy.checking(reset)
+            assertEquals(phase, checking.recheckOf)
+            assertEquals(gate.copy(busy = true), AdbStartupGatePolicy.overlay(checking))
+            // The recovery dialog says what the reset did, through the check.
+            assertEquals("Новая попытка разрешена вручную", checking.settled.message)
+            assertEquals("Сначала проверьте доступ", checking.settled.details)
+            // And the check's answer is the gate from then on, the request offered on a refusal.
+            val refused = AdbRescuePolicy.afterCheck(checking, AdbCheckOutcome.AUTHORIZATION_REQUIRED, AdbSystemSwitch.ENABLED)
+            assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, refused.phase)
+            assertTrue(refused.canRequest)
+            assertNull(refused.recheckOf)
+        }
+    }
+
+    @Test
+    fun `a re-check keeps the recovery dialog's words`() {
+        val start = AdbRescuePolicy.initial(false, 0, 0L)
+        listOf(
+            AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.UNAVAILABLE, AdbSystemSwitch.ENABLED),
+            AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.AUTHORIZATION_REQUIRED, AdbSystemSwitch.ENABLED),
+            AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.ERROR, AdbSystemSwitch.UNKNOWN),
+            AdbRescuePolicy.initial(true, 1, 42L),
+        ).forEach { standing ->
+            val checking = AdbRescuePolicy.checking(standing)
+            // The access row on «Сервис» says a check is running; the dialog keeps the gate's words.
+            assertEquals("Проверяю доступ…", checking.message)
+            assertEquals(standing.phase.name, standing.message, checking.settled.message)
+            assertEquals(standing.phase.name, standing.details, checking.settled.details)
+            assertEquals(standing.canRequest, checking.settled.canRequest)
+            assertEquals(standing.canResetAttempt, checking.settled.canResetAttempt)
+            // Pressed again during the check: the same words.
+            assertEquals(standing.message, AdbRescuePolicy.checking(checking).settled.message)
+            assertEquals(standing.details, AdbRescuePolicy.checking(checking).settled.details)
+        }
+        // Outside a re-check the snapshot is what it shows.
+        assertEquals(start, start.settled)
     }
 
     @Test

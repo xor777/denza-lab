@@ -403,8 +403,15 @@ internal fun AdbStartupOverlay(
         // The stock dialog's actions: the one it exists for across the card, the quiet ones under it
         // side by side at equal widths - or, in a pane, each on a line of its own, primary first,
         // because a card 384 dp wide has room for one button per line and no room for two.
+        // Inactive while the ring turns, as the recovery dialog's are: a press during a re-check was
+        // absorbed by the check and still sent the restore another forcing hint.
         model.primaryLabel?.let { label ->
-            DenzaPrimaryButton(text = label, onClick = onPrimaryAction, modifier = Modifier.fillMaxWidth())
+            DenzaPrimaryButton(
+                text = label,
+                onClick = onPrimaryAction,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !model.busy,
+            )
         }
         val quiet = listOfNotNull<@Composable (Modifier) -> Unit>(
             if (model.primaryLabel != null && model.recoveryAvailable) {
@@ -468,16 +475,17 @@ private fun AdbRecoveryDialog(
 ) {
     val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
-    // A re-check keeps the gate up, and with it this window: its buttons stay where they are and
-    // stop answering, rather than leaving for the check's seconds and coming back.
-    val settled = state.adbRescue.recheckOf?.let { state.adbRescue.copy(phase = it) } ?: state.adbRescue
+    // A re-check keeps the gate up, and with it this window: its words and buttons stay where they
+    // are and the buttons stop answering, rather than «Проверяю доступ…» resizing it for the check's
+    // seconds. The access row on «Сервис» is the place that says a check is running.
+    val settled = state.adbRescue.settled
     DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
         Text(AppText.s(R.string.adb_recovery_title), style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
         Text(
-            state.adbRescue.message,
+            settled.message,
             style = SheetInk.style(Sheet.Modal.TEXT_SIZE, 400, SheetInk.white(Sheet.Modal.TEXT_ALPHA), Sheet.Note.LEADING),
         )
-        state.adbRescue.details?.let { details ->
+        settled.details?.let { details ->
             DenzaNote(details)
         }
         DenzaSecondaryButton(

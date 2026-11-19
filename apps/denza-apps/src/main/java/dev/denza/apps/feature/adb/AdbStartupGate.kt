@@ -119,9 +119,13 @@ object AdbStartupGatePolicy {
         val recheckOf = snapshot.recheckOf
         if (snapshot.phase == AdbRescuePhase.CHECKING && recheckOf != null) {
             // A check of a gate that is up: the same gate, the ring in place of its glyph and nothing
-            // else changed, so the card neither leaves nor resizes. A press during the check is
-            // absorbed by the coordinator's single flight.
+            // else changed, so the card neither leaves nor resizes. The button stops answering while
+            // the ring turns: a press would only send the restore another forcing hint.
             return phaseGate(recheckOf, snapshot).copy(busy = true)
+        }
+        if (snapshot.phase == AdbRescuePhase.UNKNOWN && recheckOf != null) {
+            // The latch just released, with its check about to start: the gate it was pressed on.
+            return phaseGate(recheckOf, snapshot)
         }
         return phaseGate(snapshot.phase, snapshot)
     }

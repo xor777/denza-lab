@@ -41,9 +41,29 @@ data class AdbRescueSnapshot(
      * phase had a gate up. Null at every other time, and during the first check, which has no gate.
      * The gate stays as it was through the check, with the ring in place of its glyph; taking it
      * down for the check's seconds and putting it back was a flash on every press.
+     *
+     * Also set while [phase] is UNKNOWN right after «Разрешить новую попытку»: the reset is followed
+     * by a check at once, and the gate it was pressed on stays up through both.
      */
     val recheckOf: AdbRescuePhase? = null,
+    /**
+     * The words of the gate in [recheckOf], for the recovery dialog: [message] is «Проверяю доступ…»
+     * during the check, and printing it there resized the dialog on every press. Null with [recheckOf].
+     */
+    val recheckMessage: String? = null,
+    val recheckDetails: String? = null,
 ) {
+    /**
+     * This snapshot as the gate and its recovery dialog show it: during a re-check, the phase and the
+     * words the check is looking at again, so neither the buttons nor the text move until it answers.
+     */
+    val settled: AdbRescueSnapshot
+        get() {
+            val phase = recheckOf ?: return this
+            return if (recheckMessage == null) copy(phase = phase)
+            else copy(phase = phase, message = recheckMessage, details = recheckDetails)
+        }
+
     // The single request is also a slot in Android's prompt queue. Never offer to spend it where
     // the system has already said no prompt can be drawn.
     val canRequest: Boolean
@@ -115,6 +135,8 @@ internal object AdbRescuePolicy {
     fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNAVAILABLE,
         recheckOf = null,
+        recheckMessage = null,
+        recheckDetails = null,
         message = NO_LINK,
         details = SYSTEM_SWITCH_OFF_DETAIL,
         systemSwitch = AdbSystemSwitch.DISABLED,
@@ -140,16 +162,32 @@ internal object AdbRescuePolicy {
         )
     }
 
-    fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
-        phase = AdbRescuePhase.CHECKING,
-        message = AppText.s(R.string.adb_checking),
-        details = null,
-        recheckOf = when (previous.phase) {
-            in STANDING_GATES -> previous.phase
-            AdbRescuePhase.CHECKING -> previous.recheckOf
-            else -> null
-        },
-    )
+    fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot {
+        // A gate that is up is looked at again with its words kept; a check pressed again during a
+        // check, or the check that follows a reset, keeps what is already kept.
+        val standing = previous.phase in STANDING_GATES
+        val carried = previous.phase == AdbRescuePhase.CHECKING || previous.phase == AdbRescuePhase.UNKNOWN
+        return previous.copy(
+            phase = AdbRescuePhase.CHECKING,
+            message = AppText.s(R.string.adb_checking),
+            details = null,
+            recheckOf = when {
+                standing -> previous.phase
+                carried -> previous.recheckOf
+                else -> null
+            },
+            recheckMessage = when {
+                standing -> previous.message
+                carried -> previous.recheckMessage
+                else -> null
+            },
+            recheckDetails = when {
+                standing -> previous.details
+                carried -> previous.recheckDetails
+                else -> null
+            },
+        )
+    }
 
     /** The phases whose gate stays up while a check looks again. */
     private val STANDING_GATES = setOf(
@@ -165,7 +203,8 @@ internal object AdbRescuePolicy {
         systemSwitch: AdbSystemSwitch,
         failure: String? = null,
     ): AdbRescueSnapshot {
-        val base = previous.copy(systemSwitch = systemSwitch, recheckOf = null)
+        val base = previous.copy(systemSwitch = systemSwitch, recheckOf = null, recheckMessage = null,
+            recheckDetails = null)
         return when (outcome) {
             // A completed handshake outranks the flag: whatever the switch says, this key is
             // trusted and the transport works.
@@ -222,6 +261,8 @@ internal object AdbRescuePolicy {
         message = AppText.s(R.string.adb_requesting),
         details = AppText.s(R.string.adb_requesting_details),
         recheckOf = null,
+        recheckMessage = null,
+        recheckDetails = null,
         requestPending = true,
         attemptCount = previous.attemptCount + 1,
         lastAttemptAtMillis = attemptAtMillis,
@@ -259,13 +300,26 @@ internal object AdbRescuePolicy {
         )
     }
 
-    fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
-        phase = AdbRescuePhase.UNKNOWN,
-        recheckOf = null,
-        message = AppText.s(R.string.adb_new_attempt_allowed),
-        details = AppText.s(R.string.adb_check_first),
-        requestPending = false,
-    )
+    /**
+     * The latch released: UNKNOWN, so nothing can be requested until a check has said the key is
+     * refused, and the check follows at once. The gate the reset was pressed on stays up through it
+     * as a re-check of that phase ([AdbRescueSnapshot.recheckOf]). Without it UNKNOWN had no gate: the
+     * card left, the recovery dialog closed with it, and the check that followed had nothing to keep.
+     */
+    fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot {
+        val message = AppText.s(R.string.adb_new_attempt_allowed)
+        val details = AppText.s(R.string.adb_check_first)
+        val gate = previous.phase.takeIf { it in STANDING_GATES }
+        return previous.copy(
+            phase = AdbRescuePhase.UNKNOWN,
+            recheckOf = gate,
+            recheckMessage = message.takeIf { gate != null },
+            recheckDetails = details.takeIf { gate != null },
+            message = message,
+            details = details,
+            requestPending = false,
+        )
+    }
 }
 
 /** Single owner for passive trust checks and explicit one-shot authorization. */

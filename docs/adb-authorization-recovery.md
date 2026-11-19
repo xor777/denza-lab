@@ -19,7 +19,7 @@ currently inaccessible vehicle.
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
 | The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
+| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns). A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -875,11 +875,18 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   port's (`UNKNOWN`, `CHECKING`, `UNAVAILABLE`, `ERROR`), so «ADB недоступен» does not flash between
   the restore and the check that says `TRUSTED`; over a phase that wants the driver it is that
   phase's gate. `WaitingWifi`, `NeedsDialog` and `Failed` still outrank the phase. The only blocked
-  state without a gate is the first passive check of a process (`AdbStartupGatePolicyTest`).
+  state without a gate is the first passive check of a process (`AdbStartupGatePolicyTest`, which
+  walks every phase under every restore state, under a restore switched off and with none).
 - A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
   check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
   `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the
-  glyph. The recovery dialog stays open through the check with its buttons in place and inactive.
+  glyph, and its button does not answer while the ring turns (a press used to send the restore
+  another forcing `gate` hint). The recovery dialog stays open through the check with its words
+  (`recheckMessage`, `recheckDetails`) and buttons in place and the buttons inactive; «Проверяю
+  доступ…» is the access row's on «Сервис». «Разрешить новую попытку» is a re-check too: the phase
+  goes to `UNKNOWN`, so nothing can be requested before a check says the key is refused, and
+  `recheckOf` keeps the gate it was pressed on through the reset and the check that follows. It
+  used to take the gate down, and the recovery dialog with it.
 - A restore that failed on a network is not restarted by passive hints on that network
   (`AdbRestoreManager.FAILED_COOLDOWN_MS`, 10 minutes, in memory only: a new process gets one fresh
   attempt). The classic probe still runs on every hint, so a port that opens by itself is

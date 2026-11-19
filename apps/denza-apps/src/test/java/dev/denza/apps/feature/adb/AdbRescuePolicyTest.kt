@@ -125,6 +125,9 @@ class AdbRescuePolicyTest {
         assertEquals(AdbRescuePhase.UNKNOWN, reset.phase)
         assertFalse(reset.requestPending)
         assertFalse(reset.canRequest)
+        // UNKNOWN still means "check before requesting"; the gate it was pressed on stays as a
+        // re-check of that phase, so the dashboard behind is not left without one.
+        assertEquals(AdbRescuePhase.AWAITING_CONFIRMATION, reset.recheckOf)
     }
 
     @Test
