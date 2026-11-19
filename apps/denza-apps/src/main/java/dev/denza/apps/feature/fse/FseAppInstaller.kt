@@ -181,12 +181,12 @@ object FseAppInstaller {
             .map { candidate ->
                 val source = File(candidate.applicationInfo.sourceDir.orEmpty())
                 val splitCount = candidate.applicationInfo.splitSourceDirs?.size ?: 0
-                val reason = when {
-                    splitCount > 0 -> AppText.s(R.string.fse_unavailable_split)
-                    candidate.applicationInfo.sourceDir.isNullOrBlank() -> AppText.s(R.string.fse_unavailable_apk_not_found)
-                    !source.isFile -> AppText.s(R.string.fse_unavailable_apk_unreadable)
-                    else -> ""
-                }
+                val reason = unavailableReason(
+                    splitCount = splitCount,
+                    sourceDir = candidate.applicationInfo.sourceDir,
+                    readable = source.isFile,
+                    minSdk = candidate.applicationInfo.minSdkVersion,
+                )?.let(AppText::s).orEmpty()
                 FseInstallApp(
                     packageName = candidate.packageName,
                     label = candidate.label,
@@ -200,6 +200,23 @@ object FseAppInstaller {
                 compareByDescending<FseInstallApp> { it.installable }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
             )
+    }
+
+    /**
+     * The passenger screen's API level: Android 12L, `ro.build.version.sdk=32` in its system image
+     * (docs/fse-app-installation.md, "What the passenger screen is"). Its PackageInstaller refuses
+     * an APK that asks for more, after the copy (review 2026-11-19, round 2, finding 9).
+     */
+    const val FSE_SDK = 32
+
+    /** Why an installed application cannot go to the passenger screen; null when it can. */
+    @StringRes
+    internal fun unavailableReason(splitCount: Int, sourceDir: String?, readable: Boolean, minSdk: Int): Int? = when {
+        splitCount > 0 -> R.string.fse_unavailable_split
+        sourceDir.isNullOrBlank() -> R.string.fse_unavailable_apk_not_found
+        !readable -> R.string.fse_unavailable_apk_unreadable
+        minSdk > FSE_SDK -> R.string.fse_unavailable_newer_android
+        else -> null
     }
 
     fun install(

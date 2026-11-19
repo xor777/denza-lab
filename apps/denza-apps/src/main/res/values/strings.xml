@@ -54,6 +54,7 @@
     <string name="fse_unavailable_split">Split APK пока не поддерживается</string>
     <string name="fse_unavailable_apk_not_found">APK не найден</string>
     <string name="fse_unavailable_apk_unreadable">APK недоступен</string>
+    <string name="fse_unavailable_newer_android">Не ставится на Android 12</string>
 
     <!-- Mirrors -->
     <string name="mirrors_screen_not_found">Экран не найден</string>

@@ -52,6 +52,11 @@ screen's own Android, and what the product does with the answer.
 The passenger screen in the tested Z9GT runs its own Android 12 system, called
 FSE. It talks to the DiLink 5.1 / Android 13 IVI over an internal network.
 
+Its API level is 32 (Android 12L: `ro.build.version.sdk=32` in the FSE system
+image, `SQ3A` in the fingerprint below). An APK whose `minSdkVersion` is higher
+cannot be installed there, so the chooser does not offer it
+(`FseAppInstaller.FSE_SDK`, 2026-11-19); Denza Apps itself (minSdk 33) is one.
+
 The read-only `upgrade_server` probe reported FSE MCU `42.2.3.2511110.2`, SoC
 `42.1.8.2511241.1`, and fingerprint
 `BYD-AUTO/FSE/FSE:12/SQ3A.220605.009.B1/eng.build.20251201.033803:user/release-keys_denza`.

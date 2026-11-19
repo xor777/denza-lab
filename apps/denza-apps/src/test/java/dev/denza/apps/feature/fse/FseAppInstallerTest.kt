@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.fse
 
+import dev.denza.apps.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -7,6 +8,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FseAppInstallerTest {
+    /**
+     * Review round 2, finding 9: the chooser offered Denza Apps itself (minSdk 33) to the
+     * passenger screen's Android 12L, which refuses it only after the copy.
+     */
+    @Test
+    fun anApkForANewerAndroidThanThePassengerScreensIsNotOffered() {
+        assertEquals(
+            R.string.fse_unavailable_newer_android,
+            FseAppInstaller.unavailableReason(splitCount = 0, sourceDir = BASE, readable = true, minSdk = 33),
+        )
+        assertNull(FseAppInstaller.unavailableReason(0, BASE, readable = true, minSdk = FseAppInstaller.FSE_SDK))
+        assertNull(FseAppInstaller.unavailableReason(0, BASE, readable = true, minSdk = 26))
+    }
+
+    @Test
+    fun aSplitOrMissingApkSaysSoBeforeItsAndroid() {
+        assertEquals(R.string.fse_unavailable_split, FseAppInstaller.unavailableReason(2, BASE, readable = true, minSdk = 33))
+        assertEquals(R.string.fse_unavailable_apk_not_found, FseAppInstaller.unavailableReason(0, "", readable = false, minSdk = 26))
+        assertEquals(R.string.fse_unavailable_apk_unreadable, FseAppInstaller.unavailableReason(0, BASE, readable = false, minSdk = 26))
+    }
+
+    private companion object {
+        const val BASE = "/data/app/base.apk"
+    }
+
     @Test
     fun parsesMatchingSuccessResponse() {
         assertEquals(
