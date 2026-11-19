@@ -15,7 +15,7 @@ currently inaccessible vehicle.
 | Review fixes of 2026-11-19: a noisy look no longer drops a held request; each outcome reaches the app once; a request on the car's screen outranks every restore state on the gate; the cap keeps request times dated ahead of the clock; one follow-up per opening, under the cap, and an approval counts as without the box only after 2.5 s; leaving during the handshake sends no key; a throw on the worker ends in `ERROR` with its control; the gate's title names the state when nothing is on the car | code, unit tests and emulator, 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
 | A departure about 40 ms after the dialog's activity starts, before it draws, leaves adbd's prompt pending with no dialog: every later request is skipped until an answer or an adbd restart | emulator (`ro.adb.secure=1`), 2026-11-19; not on a car | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
 | The prompt queue that hid the dialog on 2026-11-19 was held by a pending first prompt for another key, not by the app's repeats; holding the socket did not move it, one rejection did | live (Car ADB Gateway), 2026-11-19 | [Holding the request](#holding-the-request-and-the-prompt-queue-2026-11-19) |
-| Second review of 2026-11-19: while the gate is up and the key is not trusted, a passive look repeats every 5 s whatever the gate shows, so trust that arrives by any route takes the gate down with no press; the 2-min hold looks once more at its end before it says nobody answered; the looks after an approval run from 0 to 10 s and one that fails is looked at again | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
+| Second review of 2026-11-19: while the gate is up and the key is not trusted, a passive look repeats every 5 s whatever the gate shows, so trust that arrives by any route takes the gate down with no press; the 2-min hold looks once more at its end before it says nobody answered; the looks after an approval run from 0 to 10 s and one that fails is looked at again | code, unit tests and emulator (`ro.adb.secure=1`), 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
 | One function, `AdbStartupGatePolicy.view`, decides what the gate and the «Сервис» access row show, in one order: a request on the car's screen, a switch read off, the restore's states, the phase (the table is normative). «Все функции работают» needs `TRUSTED`; the restore's report says the car refused the key only when a refusal was seen | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
 | An automatic request is decided and recorded in one place on one clock reading; the first start after 0.7.1 seeds the day's log from `last_attempt_at`, so the upgrade day sends no second prompt behind a 0.7.1 request still waiting; «Технические сведения» counts the keys that reached the car | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
 | A panel saved with the screen waits for the gate; one startup pass per recovery cycle; a feature's refused key or closed port starts one 10 s window of looks, and only definite answers across it leave `TRUSTED`; the restore's switch is written off the main thread and a refused write keeps the setting; a damaged key file falls back to the intact legacy copy; the restore repairs accessibility each time the shared health says it is gone | code and unit tests, 2026-11-19; not on a car | [The access state](#the-access-state-and-what-shows-it-2026-11-19) |
@@ -494,8 +494,8 @@ connecting to the guest's own adbd on `127.0.0.1:5555`):
 
 ## The access state and what shows it (2026-11-19)
 
-Status: code and unit tests, 2026-11-19, after the second review of the request flow; the emulator
-checks are listed at the end. Not on a car.
+Status: code and unit tests, 2026-11-19, after the second review of the request flow; three
+emulator checks below. Not on a car.
 
 **What the gate and the access row show (normative).** `AdbStartupGatePolicy.view` reads the
 access snapshot and the restore's and returns one `AdbAccessView`; the gate
@@ -541,6 +541,19 @@ the day's three.
 **Behind the gate.** A panel or chooser saved with the screen and brought back after the process
 died waits for the gate to drop (`DashboardWindows.shown`); a panel opened from «Сервис» while the
 gate is up stands.
+
+**The emulator, after the second review (2026-11-19)**, a fresh Android 15 AVD with
+`ro.adb.secure=1` and the guest's adbd on `127.0.0.1:5555`; each run a new key (`pm clear`):
+
+- Three openings, three `adbd_auth: prompting user`, one each, and no `prompt currently pending,
+  skipping`.
+- **Allow** with the box 51 s into the hold: the gate left by itself.
+- **Allow** with the box 1:59.6 after the prompt: the gate left by itself, the dashboard with no
+  press.
+- **Allow** with the box 2:09.8 after the prompt, after the hold had closed its socket: the runtime
+  started 2.1 s after the tap and the gate was gone - the idle look found the trusted key.
+
+The AVD was deleted afterwards. Nothing here was run on a car.
 
 ### Known limits (2026-11-19)
 
