@@ -219,11 +219,43 @@ public final class HudGuidanceAccessibilityMonitor {
                     ? "YandexHUD brings its own source; only Yandex's limit is read from here"
                     : "ordinary Yandex; the hints go to the HUD from here");
         }
+        boolean was = navigatorDrawsHud;
         navigatorDrawsHud = draws;
-        if (draws) {
-            locationSource.stop();
-        } else {
-            locationSource.start();
+        applyNavigatorBuild(was, draws, new NavigatorEffects() {
+            @Override
+            public void location(boolean on) {
+                if (on) {
+                    locationSource.start();
+                } else {
+                    locationSource.stop();
+                }
+            }
+
+            @Override
+            public void reevaluateMapGrant() {
+                HudMapGrant.INSTANCE.evaluate(service, HudMapGrantTrigger.RESUME);
+            }
+        });
+    }
+
+    /** What the installed Navigator decides here; an interface so a test can watch it. */
+    interface NavigatorEffects {
+        void location(boolean on);
+
+        void reevaluateMapGrant();
+    }
+
+    /**
+     * {@code draws}: YandexHUD is installed ({@link HudNavigatorBuild}). It brings its own AR, so
+     * our location source stops; and it fills the map window itself, so a screen-capture token
+     * taken for the ordinary Yandex - with its foreground service - is looked at again at once
+     * ({@link HudMapGrant#evaluate}: the map is no longer ours, so it is released). Until
+     * 2026-11-19 that waited for Denza Apps' next resume or a switch.
+     */
+    static void applyNavigatorBuild(boolean was, boolean draws, NavigatorEffects effects) {
+        effects.location(!draws);
+        if (draws && !was) {
+            effects.reevaluateMapGrant();
         }
     }
 
