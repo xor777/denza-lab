@@ -184,6 +184,50 @@ class DiagnosticFrameAssemblerTest {
         assertEquals(Kind.SHAPE, opened(0x782, "190109").feed("0A078A0C01010162F19432330011DF0B000101").kind)
     }
 
+    @Test
+    fun aLateAnswerFromTheSameEcuToAnotherSelectorIsNotTheAnswer() {
+        // The same service, another DID: `62 F194` late while `22 F190` is asked.
+        val vin = opened(0x7E0, "22F194").apply { end() }
+        vin.begin(0x7E0, bytes("22F190"))
+        assertEquals(Kind.WAITING, vin.feed("0A07E80C01010162F19432440011E004000000").kind)
+        assertEquals(true, vin.isOpen)
+
+        // The same service, another sub-function: the list `59 02` late while the count `19 01` is asked.
+        val count = opened(0x782, "190209").apply { end() }
+        count.begin(0x782, bytes("190109"))
+        assertEquals(Kind.WAITING, count.feed("0A078A03010101590209").kind)
+        assertAnswer("5901FF000000", 1, count.feed("0A078A060101015901FF000000"))
+
+        // An ECU not asked before has no late answer to give.
+        assertEquals(Kind.SHAPE, opened(0x7E0, "22F190").feed("0A07E80C01010162F19432440011E004000000").kind)
+    }
+
+    @Test
+    fun aLateAnswerOfSeveralFramesGoesWholeAndTheRightOneStillComes() {
+        val bus = opened(0x7E0, "190209").apply { end() }
+        bus.begin(0x7E0, bytes("190109"))
+        assertEquals(Kind.WAITING, bus.feed("0A07E8070301015902FF51600628").kind)
+        assertEquals(Kind.WAITING, bus.feed("0A07E8040302C29D8728").kind)
+        assertEquals(Kind.WAITING, bus.feed("0A07E8040303C1218728").kind)
+        assertAnswer("5901FF000003", 1, bus.feed("0A07E8060101015901FF000003"))
+    }
+
+    @Test
+    fun anAnswerRepeatsTheSelectorTheNormFixes() {
+        fun echo(uds: String) = DiagnosticFrameAssembler.echoOf(bytes(uds)).joinToString("") { "%02X".format(it) }
+        assertEquals("01", echo("190109"))
+        assertEquals("02", echo("19020D"))
+        assertEquals("04C12187", echo("1904C1218701"))
+        assertEquals("F190", echo("22F190"))
+        assertEquals("0C", echo("010C"))
+        assertEquals("21", echo("0621"))
+        assertEquals("02", echo("0902"))
+        // several PIDs, a mode without a selector, several DIDs: told apart only by time
+        assertEquals("", echo("010C0D050B110F"))
+        assertEquals("", echo("03"))
+        assertEquals("", echo("22F190F194"))
+    }
+
     private companion object {
         /** ECU 762 `19 02 09` on 2026-10-18, as delivered (`diagnostics-fill-20261018/lbms-probe/list-live.txt`). */
         const val LBMS_LIST_240 = "0A076A0301010159020900000028C29D8728C1218728A1480228A2500028A25B0028C2298728C22A872832FFFFFFFFFF" +

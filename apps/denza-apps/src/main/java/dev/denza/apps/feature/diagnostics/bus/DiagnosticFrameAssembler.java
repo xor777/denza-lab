@@ -102,10 +102,15 @@ public final class DiagnosticFrameAssembler {
     private boolean open;
     private int reply = -1;
     private int sid;
+    /** What a positive answer to the open request repeats after its service byte ({@link #echoOf}). */
+    private byte[] echo = new byte[0];
     private int previousReply = -1;
     private int total;
     private int nextIndex = 1;
     private int buffers;
+    /** A late answer let go at its first frame: its frame count (0 for none) and the frame due next. */
+    private int lateTotal;
+    private int lateNext;
 
     /** Opens the exchange for one request; the previous one, if any, must be closed. */
     public void begin(int address, byte[] uds) {
@@ -114,10 +119,12 @@ public final class DiagnosticFrameAssembler {
         previousReply = reply;
         reply = address + 8;
         sid = uds[0] & 0xFF;
+        echo = echoOf(uds);
         open = true;
         seen.clear();
         restartAnswer();
         buffers = 0;
+        lateTotal = 0;
     }
 
     /** Closes the exchange without an answer: the helper's own wait ran out. */
@@ -177,10 +184,21 @@ public final class DiagnosticFrameAssembler {
             if (!forThisService(buffer[offset] & 0xFF, length > 1 ? buffer[offset + 1] & 0xFF : -1)) {
                 // The same ECU answering an earlier service late - consecutive requests to one ECU
                 // are the rule - is an echo; anything else from it is not an answer to anything.
-                return previousReply == reply ? Outcome.WAIT
+                return previousReply == reply ? late(count)
                         : Outcome.fault(Kind.SHAPE, String.format("answer %02X to service %02X", buffer[offset] & 0xFF, sid));
             }
+            if (!echoes(buffer, offset, length)) {
+                // The service's own answer to another selector - `59 02` while `19 01` is asked, `62 F194`
+                // while `22 F190` is - from the ECU asked before: an earlier request's late answer, not this one's.
+                return previousReply == reply ? late(count)
+                        : Outcome.fault(Kind.SHAPE, String.format("answer to another selector of service %02X", sid));
+            }
+            lateTotal = 0;
             total = count;
+        } else if (nextIndex == 1 && lateTotal > 0 && index == lateNext && count == lateTotal) {
+            // the rest of a late answer whose first frame was let go
+            if (++lateNext > lateTotal) lateTotal = 0;
+            return Outcome.WAIT;
         } else if (index != nextIndex || count != total) {
             return Outcome.fault(Kind.SHAPE, String.format("frame %d/%d after %d/%d", index, count, nextIndex - 1, total));
         }
@@ -204,6 +222,45 @@ public final class DiagnosticFrameAssembler {
 
     private boolean forThisService(int first, int second) {
         return first == sid + 0x40 || (first == 0x7F && second == sid);
+    }
+
+    /**
+     * Whether a positive first frame repeats the open request's selector; a negative answer repeats none, and a
+     * first frame too short to hold it is not judged by it.
+     */
+    private boolean echoes(byte[] buffer, int offset, int length) {
+        if ((buffer[offset] & 0xFF) == 0x7F || length - 1 < echo.length) return true;
+        for (int i = 0; i < echo.length; i++) {
+            if (buffer[offset + 1 + i] != echo[i]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * What a positive answer to {@code uds} repeats after its service byte, where the norm fixes it: a `19`'s
+     * sub-function, and with `04`/`06` its DTC too; a single DID of `22`; the single PID, MID or InfoType of
+     * OBD `01`, `06` and `09`. Empty elsewhere - a request of several PIDs, whose answer may order them its own way,
+     * or a mask, which `59 01`/`59 02` do not repeat - and such answers are told apart only by time.
+     */
+    public static byte[] echoOf(byte[] uds) {
+        int sid = uds[0] & 0xFF;
+        int n = 0;
+        if (sid == 0x19 && uds.length >= 2) {
+            int sub = uds[1] & 0xFF;
+            n = (sub == 0x04 || sub == 0x06) && uds.length >= 5 ? 4 : 1;
+        } else if (sid == 0x22 && uds.length == 3) {
+            n = 2;
+        } else if ((sid == 0x01 || sid == 0x06 || sid == 0x09) && uds.length == 2) {
+            n = 1;
+        }
+        return Arrays.copyOfRange(uds, 1, 1 + n);
+    }
+
+    /** A late answer's first frame, let go; the rest of its {@code count} frames follow it and go the same way. */
+    private Outcome late(int count) {
+        lateTotal = count > 1 ? count : 0;
+        lateNext = 2;
+        return Outcome.WAIT;
     }
 
     private Outcome foreign(int id) {

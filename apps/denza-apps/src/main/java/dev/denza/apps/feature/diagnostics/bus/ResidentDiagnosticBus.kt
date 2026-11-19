@@ -284,7 +284,10 @@ internal class ResidentDiagnosticBus(
         const val MAX_GAP_MS = 500
         /** Two seconds of silence and an `app_process` start, with room. */
         const val READY_TIMEOUT_MS = 10_000
-        /** The helper's gap, its checks over binder and the stream, beyond the request's own timeout. */
+        /**
+         * The helper's checks over binder, the stream, and its second's wait before it asks again an ECU it gave up
+         * on, beyond the request's own timeout and the gap.
+         */
         const val RESPONSE_GRACE_MS = 3_000
         /** The helper leaves after 60 s without a request; the app stops trusting it ten seconds sooner. */
         const val IDLE_REUSE_MS = 50_000L

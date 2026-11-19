@@ -17,6 +17,7 @@ import java.io.RandomAccessFile;
 import java.lang.reflect.Proxy;
 import java.nio.channels.FileLock;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -43,8 +44,9 @@ import java.util.concurrent.TimeUnit;
  * reason as {@code END err <code>}: the ADB stream reports a helper that exits before READY only
  * as a closed stream, and the app must tell "the lock is taken" and "not in P" from a lost link.
  *
- * <p>Before every request: the whitelist, profile 170, P, 0 km/h, the stock diagnostic manager at
- * rest and the gap since the previous exchange. The listener only copies the buffer and its
+ * <p>Before every request: the whitelist, profile 170, P, 0 km/h and P again as the last read, the
+ * stock diagnostic manager at rest, the gap since the previous exchange and, for the ECU of a
+ * request the helper stopped waiting for, {@link #DRAIN_MS} more. The listener only copies the buffer and its
  * arrival time and posts them to the main looper; everything else happens there.
  *
  * <p>{@code s gb} and {@code u gb} subscribe to and leave the BMS's pages of the GB stream (device
@@ -77,6 +79,11 @@ public final class DiagnosticBusMain {
     static final int MAX_TIMEOUT_MS = 6_000;
     /** How much longer than its own timeout the reader waits for the main looper. */
     static final int STALL_MS = 5_000;
+    /**
+     * How long the ECU of a request the helper stopped waiting for is left to finish before it is asked again;
+     * inside both the reader's {@link #STALL_MS} and the app's grace, so the next request's own wait covers it.
+     */
+    static final int DRAIN_MS = 1_000;
     /** The GB stream: its device, its event, and the BMS pages of it that are forwarded (architecture, 6.3). */
     static final String GB_DEVICE_CLASS = "android.hardware.bydauto.gb.BYDAutoGBDevice";
     static final int GB_DEVICE = 1039;
@@ -121,6 +128,9 @@ public final class DiagnosticBusMain {
     private volatile String fatal;
     private Exchange current;
     private long lastEndUptime = -1;
+    /** The address of the request the helper last stopped waiting for, and until when its ECU is left to finish. */
+    private int drainAddress = -1;
+    private long drainUntil;
     private final Runnable idleExit = () -> {
         if (!subscribed) exit(0);
     };
@@ -514,6 +524,11 @@ public final class DiagnosticBusMain {
             main.postDelayed(() -> send(exchange), wait);
             return;
         }
+        long drain = drainWait(exchange.address, drainAddress, drainUntil, SystemClock.uptimeMillis());
+        if (drain > 0) {
+            main.postDelayed(() -> send(exchange), drain);
+            return;
+        }
         try {
             String guard = guard();
             if (guard != null) {
@@ -540,6 +555,8 @@ public final class DiagnosticBusMain {
                 if (current != exchange) return;
                 current = null;
                 assembler.end();
+                drainAddress = exchange.address;
+                drainUntil = SystemClock.uptimeMillis() + DRAIN_MS;
                 long now = SystemClock.elapsedRealtimeNanos();
                 closed();
                 exchange.finish("n " + exchange.seq + " T " + exchange.millisTo(now) + " " + now, null, false);
@@ -604,13 +621,35 @@ public final class DiagnosticBusMain {
     private String guard() throws Exception {
         String profile = property("persist.sys.AutoType");
         if (!"170".equals(profile)) return "GUARD_PROFILE profile " + profile;
-        int gear = readWord(5, 1011, 89129008);
-        if (gear != 1) return "GUARD_PARK gear " + gear;
-        float speed = Float.intBitsToFloat(readWord(7, 1013, -1807745016));
-        if (speed != 0f) return "GUARD_SPEED speed " + speed;
         String manager = property("sys.diagmgrsrv.task_bk");
+        String parked = parked(() -> readWord(5, 1011, 89129008), () -> readWord(7, 1013, -1807745016));
+        if (parked != null) return parked;
         if (!MANAGER_AT_REST.equals(manager)) return "MANAGER_BUSY manager " + manager;
         return null;
+    }
+
+    /**
+     * P, a standstill, and P again, the last read just before the request goes out: a shift out of P between
+     * the first two reads - which would pair P from before it with a zero speed from after it - is caught by
+     * the third. It narrows the window to one read; only the vendor checking and sending in one step closes it.
+     */
+    static String parked(Callable<Integer> gear, Callable<Integer> speedBits) throws Exception {
+        int before = gear.call();
+        if (before != 1) return "GUARD_PARK gear " + before;
+        float speed = Float.intBitsToFloat(speedBits.call());
+        if (speed != 0f) return "GUARD_SPEED speed " + speed;
+        int after = gear.call();
+        if (after != 1) return "GUARD_PARK gear " + after;
+        return null;
+    }
+
+    /**
+     * How long a request to {@code address} still waits for the ECU the helper last stopped waiting for: a
+     * request it gave up on locally may still be answered, and its late `59 01` or gateway result looks like the
+     * answer to the next request to the same ECU. Another ECU's late frames are told apart by their id.
+     */
+    static long drainWait(int address, int timedOut, long drainUntil, long now) {
+        return address == timedOut && drainUntil > now ? drainUntil - now : 0;
     }
 
     private static String property(String key) throws Exception {

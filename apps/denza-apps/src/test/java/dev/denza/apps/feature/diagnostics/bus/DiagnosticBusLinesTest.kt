@@ -127,6 +127,32 @@ class DiagnosticBusLinesTest {
     }
 
     @Test
+    fun aShiftOutOfPBetweenTheGearAndTheSpeedIsCaught() {
+        fun parked(vararg gears: Int, speed: Float = 0f): String? {
+            val g = gears.iterator()
+            return DiagnosticBusMain.parked({ g.next() }, { speed.toRawBits() })
+        }
+        assertNull(parked(1, 1))
+        // P when the gear was read, D by the time the speed - still zero, the brake held - was: not parked
+        assertEquals("GUARD_PARK gear 3", parked(1, 3))
+        assertEquals("GUARD_PARK gear 3", parked(3))
+        assertEquals("GUARD_SPEED speed 0.5", parked(1, 1, speed = 0.5f))
+    }
+
+    @Test
+    fun theEcuAskedLastWithoutAnAnswerIsGivenTimeBeforeItIsAskedAgain() {
+        // A `19 01 0D` given up on; the `19 01 09` after it would take its late `59 01` - neither repeats its mask.
+        assertEquals(400L, DiagnosticBusMain.drainWait(0x7E0, 0x7E0, 1_000, 600))
+        assertEquals(0L, DiagnosticBusMain.drainWait(0x7E0, 0x7E0, 1_000, 1_000))
+        // another ECU's late frames carry their own id
+        assertEquals(0L, DiagnosticBusMain.drainWait(0x782, 0x7E0, 1_000, 600))
+        assertEquals(0L, DiagnosticBusMain.drainWait(0x7E0, -1, 0, 600))
+        // the next request's own waits - the reader's and the app's - cover the drain and the longest gap
+        assertTrue(DiagnosticBusMain.DRAIN_MS + DiagnosticBusMain.MAX_GAP_MS < DiagnosticBusMain.STALL_MS)
+        assertTrue(DiagnosticBusMain.DRAIN_MS < ResidentDiagnosticBus.RESPONSE_GRACE_MS)
+    }
+
+    @Test
     fun theHelperAndTheAppNameTheSameCodes() {
         // Every code the helper can write is one the app maps on purpose, not by the fallback.
         val helper = java.io.File("src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticBusMain.java").readText()
