@@ -21,11 +21,8 @@ internal object WeatherAdapterState {
             .apply()
     }
 
-    fun recordResult(context: Context, success: Boolean, result: String) {
-        preferences(context).edit().apply {
-            putString(KEY_LAST_RESULT, result.take(240))
-            if (success) putLong(KEY_LAST_SUCCESS_MILLIS, System.currentTimeMillis())
-        }.apply()
+    fun recordFailure(context: Context, result: String) {
+        preferences(context).edit().putString(KEY_LAST_RESULT, result.take(240)).apply()
     }
 
     /**
@@ -47,8 +44,18 @@ internal object WeatherAdapterState {
         preferences(context).getInt(KEY_LAST_TEMPERATURE, NO_TEMPERATURE)
             .takeIf { it != NO_TEMPERATURE }
 
-    fun setLastTemperature(context: Context, value: Int) {
-        preferences(context).edit().putInt(KEY_LAST_TEMPERATURE, value).apply()
+    /**
+     * A run handed the car a forecast: its temperature and the time, in one write, so the tile
+     * never pairs one run's temperature with another run's time. Written only after the provider
+     * kept the payload and the widget was told ([WeatherRefresh]); until 2026-11-19 the
+     * temperature was written before the provider write, and a failed write left it on the tile.
+     */
+    fun recordDelivery(context: Context, temperature: Int, result: String) {
+        preferences(context).edit()
+            .putInt(KEY_LAST_TEMPERATURE, temperature)
+            .putLong(KEY_LAST_SUCCESS_MILLIS, System.currentTimeMillis())
+            .putString(KEY_LAST_RESULT, result.take(240))
+            .apply()
     }
 
     fun lastSuccessMillis(context: Context): Long =

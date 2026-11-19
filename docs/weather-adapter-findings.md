@@ -7,7 +7,7 @@ availability and returned fields still need a live-car check.
 
 ## Current state
 
-Updated 2026-11-06. How Denza Apps feeds the car's own weather widget a forecast it can show in
+Updated 2026-11-19. How Denza Apps feeds the car's own weather widget a forecast it can show in
 Russia, and what the «Погода» tile reads back.
 
 | Claim | Status | Since | Section |
@@ -16,6 +16,10 @@ Russia, and what the «Погода» tile reads back.
 | MET Norway Locationforecast, mapped to the stock weather IDs, fills every native field but AQI | live | 2026-08-14 | [Product implementation](#product-implementation) |
 | A run every ten minutes (`setAndAllowWhileIdle`, may be deferred while the car sleeps), plus on opening the stock weather app and on app start | code | 2026-08-14 | [Product implementation](#product-implementation) |
 | The «Погода» tile switches the adapter; on by default, off cancels the alarm and nothing is fetched (`WeatherAdapterState`, `WeatherAdapterService`) | code | 2026-08-26 | [Product implementation](#product-implementation) |
+| Switching off also stops a run already under way: it writes, announces, records and re-arms nothing more (`WeatherRefreshFence`, `WeatherRefresh`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
+| The tile's temperature is the one in the widget's record, recorded with the success time only after the provider kept it and the widget was told (`NativeWeather`, `WeatherAdapterState.recordDelivery`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
+| Every app start registers an alarm, so a reboot that discarded it is repaired (`WeatherAlarmPlan`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
+| The cached forecast skips MET only between its save and its expiry; a clock set back sends the run to MET (`WeatherForecastCachePolicy.canServeWithoutRequest`) | code | 2026-11-19 | [Four holes in the run](#four-holes-in-the-run-2026-11-19) |
 | The service runs in the app's own process, and the tile follows each run (`WeatherFeature.refresh`, `WeatherAdapterState.observe`; `DenzaAppRepository.refreshWeather` until 2026-10-09) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | "The adapter runs in a short-lived `:weather` process": it did until 2026-10-06, and sharing preferences with the main process left the tile on the process start's temperature | refuted | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | The city label and the words written to the row follow the app's language, Russian or English (`AppText`; [The app's own language](system-language.md#the-apps-own-language)) | code | 2026-11-06 | [Product implementation](#product-implementation) |
@@ -27,6 +31,17 @@ Russia, and what the «Погода» tile reads back.
 - On the car: does the tile's temperature now change between runs, and does switching weather off
   stop the provider row from being rewritten? One evening with the tile and the widget side by side.
 
+**Car acceptance** (from the 2026-11-19 review)
+- After QuickBoot, after a full reboot within ten minutes of a run, and after an APK replacement:
+  does the runtime start come up, is the weather alarm registered
+  (`dumpsys alarm | grep -A3 WEATHER_REFRESH_ALARM`), and when does the first run land? The
+  foreground start of `WeatherAdapterService` from the alarm must be admitted each time.
+- Switch weather off while a run waits on MET (airplane-slow network): the log says
+  `refresh withdrawn`, the provider row keeps its previous `servertime`, and no
+  `WEATHER_REFRESH_ALARM` is left in `dumpsys alarm`.
+- Set the head unit's date back a day: the next run asks MET (a request in the log, not the
+  cache), and the widget's released time is the run's.
+
 ## Contents
 - [Problem](#problem) — the stock endpoint gives nothing usable in Russia.
 - [Native contract](#native-contract) — the provider row and the two refresh paths.
@@ -34,6 +49,8 @@ Russia, and what the «Погода» tile reads back.
 - [Live proof](#live-proof) — the in-car path and the mutation probes.
 - [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) — one process
   for the service and the dashboard.
+- [Four holes in the run](#four-holes-in-the-run-2026-11-19) — switch-off mid-run, the tile's
+  temperature, a quick reboot, a clock set back.
 - [Boundaries](#boundaries) — what is not guaranteed.
 
 ## Problem
@@ -78,6 +95,11 @@ before it had a switch. A run is a foreground service in the app's own process
 replacement, opening the native weather UI, and launching Denza Apps also repair
 or accelerate the schedule.
 
+> **Superseded 2026-11-19:** a boot did not always repair it. A stored next time from the boot
+> before that fell inside the new boot's window was taken as a standing alarm, and nothing was
+> registered; every start now registers one. See
+> [Four holes in the run](#four-holes-in-the-run-2026-11-19).
+
 Each run:
 
 1. Selects the newest standard Android last-known location. A fresh fix is used
@@ -89,12 +111,17 @@ Each run:
 3. Requests MET Norway Locationforecast using an identifying User-Agent and
    `Proxy.NO_PROXY`.
 4. Honors HTTP expiry/`Last-Modified` caching and permits a stale forecast for at
-   most six hours after a network failure.
+   most six hours after a network failure. The cache is used without a request
+   only between its save time and its expiry (since 2026-11-19).
 5. Maps MET symbols and wind data into the stock weather IDs and complete native
-   JSON shape.
+   JSON shape, and takes the tile's temperature from that same record.
 6. Snapshots the existing native row, replaces it, and verifies an exact read
    back. A failed write restores the previous row.
-7. Notifies the launcher and the stock widget provider.
+7. Notifies the launcher and the stock widget provider, then records the
+   temperature and the success time together for the tile.
+
+A run holds a licence issued before it read the switch; switching off revokes it,
+and the run stops before step 6 and before step 7, and does not re-arm the alarm.
 
 The stock `condition.updatetime` fields contain the actual adapter refresh time.
 The hourly MET forecast-point timestamp is kept separately as forecast metadata;
@@ -139,6 +166,10 @@ Mutation probes also established that:
   native icon or direction;
 - stale-cache acceptance is bounded on both sides of a system-clock adjustment.
 
+> **Superseded 2026-11-19:** only after a network failure. The path that skips MET while the
+> cache has not expired compared the expiry alone, so a clock set back served a cache of any age;
+> see [Four holes in the run](#four-holes-in-the-run-2026-11-19).
+
 ## The tile read a stale temperature (2026-10-06)
 
 Found while mapping the tiles to their code, from the code alone; not yet seen on the car.
@@ -163,6 +194,51 @@ preferences have one copy, every `DenzaAppRepository.refresh` reads the record (
 (`WeatherAdapterState.observe`) and marks that slice, so the tile follows each run as it is
 recorded.
 `WeatherProcessContractTest` holds both.
+
+> **Superseded 2026-11-19:** one process fixed the copy of the switch, not the run already under
+> way: it had read the switch once, at its start, and wrote, announced and re-armed whatever the
+> switch did after. See [Four holes in the run](#four-holes-in-the-run-2026-11-19).
+
+## Four holes in the run (2026-11-19)
+
+Found by an outside review of the code, confirmed by reading it; none seen on the car yet.
+
+**Switching off during a run.** The service read the switch once, before it fetched. Switching
+off cancelled the alarm, but a run waiting for a location fix, the geocoder or MET still
+replaced the provider row, told the widget, and in its `finally` armed the next alarm the switch
+had just cancelled. Now the service takes a licence from `WeatherRefreshFence` before it reads
+the switch, and `WeatherAdapterScheduler.cancel` revokes every licence before it cancels the
+alarm. `WeatherRefresh` checks the licence before the provider write and does the announcement,
+the record and the re-arm only under it; revoking waits for a licensed step already running. The
+provider write itself is not held under the fence: the provider is another app's process and the
+switch is pressed on the main thread, so a write already inside the provider finishes, and
+nothing announces it. `WeatherRefreshTest` holds this.
+
+**The tile's temperature.** The temperature was recorded before the provider write, from a second
+pass over the forecast with its own reading of the clock. A refused write left the tile on the new
+temperature under the previous success's time while the widget kept the old one; around the
+midpoint between two hourly points the two passes could pick different points. Now
+`NativeWeatherPayload.build` returns the record and its `condition.temperature` together
+(`NativeWeather`), and `WeatherAdapterState.recordDelivery` writes the temperature and the success
+time in one edit after the provider kept the record and the widget was told.
+`NativeWeatherPayloadTest.theTilesTemperatureIsTheOneInTheWidgetsRecord` and
+`WeatherRefreshTest.aRefusedProviderWriteLeavesTheTileOnWhatTheWidgetShows` hold it.
+
+**A quick reboot.** The next run is stored as an elapsed time, which restarts at boot. A success at
+three minutes of uptime stores thirteen; a reboot two minutes later finds thirteen ahead of its
+thirty seconds and inside the accepted window, and the success too recent for a prompt run, so the
+start registered nothing, and Android had dropped the alarm at the reboot. Now every start
+registers the alarm `WeatherAlarmPlan.onStart` names - the stored time if it is inside the window,
+otherwise a full interval, or a prompt run if the last success is stale or lies in the future.
+Registering the same pending intent again replaces it, so this costs nothing when the alarm did
+stand. `WeatherAlarmPlanTest` holds it.
+
+**A clock set back.** The cache was used without a request while `now < expires`. With the clock
+set back, every expiry is in the future, and a forecast of any age went out as this run's. Now the
+cache is used without a request only while `saved <= now < expires`
+(`WeatherForecastCachePolicy.canServeWithoutRequest`); a save in the future sends the run to MET
+with `If-Modified-Since`, and a 304 moves the save time to now.
+`WeatherForecastCachePolicyTest.aClockSetBackSendsTheRunToMetInsteadOfTheCache` holds it.
 
 ## Boundaries
 

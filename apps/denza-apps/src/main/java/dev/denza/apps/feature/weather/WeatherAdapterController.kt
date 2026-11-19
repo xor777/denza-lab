@@ -13,37 +13,58 @@ internal class WeatherAdapterController(context: Context) {
     private val appContext = context.applicationContext
     private val nativeStore = NativeWeatherStore(appContext)
 
-    /** One refresh, start to end; how it went is recorded in [WeatherAdapterState], not returned. */
-    fun refresh() {
-        WeatherAdapterState.recordAttempt(appContext)
-        try {
-            cleanupLegacyOwnedProxy()
-            val coordinates = WeatherLocationSource(appContext).resolve()
-            val locationLabel = AndroidWeatherGeocoder(appContext).resolve(
-                coordinates.latitude,
-                coordinates.longitude,
-            )
-            val forecast = MetNorwayClient(appContext).forecast(
-                coordinates.latitude,
-                coordinates.longitude,
-            )
-            val payload = NativeWeatherPayload.build(
-                forecast,
-                coordinates.latitude,
-                coordinates.longitude,
-                locationLabel = locationLabel,
-            )
+    /**
+     * One refresh, start to end, for as long as [licence] holds; how it went is recorded in
+     * [WeatherAdapterState], not returned. The order and the fencing are [WeatherRefresh]'s.
+     */
+    fun refresh(licence: WeatherRefreshFence.Licence) {
+        val outcome = WeatherRefresh(licence, StateRecord()).run(
+            prepare = ::prepare,
+            deliver = { payload ->
+                ensureNativeRefreshObserver()
+                nativeStore.replace(payload)
+            },
+            announce = ::notifyNativeConsumers,
+        )
+        if (outcome == WeatherRefresh.Outcome.WITHDRAWN) {
+            Log.i(TAG, "refresh withdrawn: weather was switched off while it ran")
+        }
+    }
 
-            NativeWeatherPayload.currentTemperature(forecast)?.let {
-                WeatherAdapterState.setLastTemperature(appContext, it)
-            }
-            ensureNativeRefreshObserver()
-            nativeStore.replace(payload)
-            notifyNativeConsumers()
-            finish(true, "updated native weather (${coordinates.source})")
-        } catch (failure: Exception) {
+    private fun prepare(): PreparedWeather {
+        cleanupLegacyOwnedProxy()
+        val coordinates = WeatherLocationSource(appContext).resolve()
+        val locationLabel = AndroidWeatherGeocoder(appContext).resolve(
+            coordinates.latitude,
+            coordinates.longitude,
+        )
+        val forecast = MetNorwayClient(appContext).forecast(
+            coordinates.latitude,
+            coordinates.longitude,
+        )
+        val weather = NativeWeatherPayload.build(
+            forecast,
+            coordinates.latitude,
+            coordinates.longitude,
+            locationLabel = locationLabel,
+        )
+        return PreparedWeather(weather, coordinates.source)
+    }
+
+    private inner class StateRecord : WeatherRecord {
+        override fun attempt() = WeatherAdapterState.recordAttempt(appContext)
+
+        override fun delivered(temperature: Int, message: String) {
+            WeatherAdapterState.recordDelivery(appContext, temperature, message)
+            Log.i(TAG, message)
+        }
+
+        override fun failed(failure: Exception) {
             Log.i(TAG, "weather refresh failed", failure)
-            finish(false, failure.message ?: failure.javaClass.simpleName)
+            WeatherAdapterState.recordFailure(
+                appContext,
+                failure.message ?: failure.javaClass.simpleName,
+            )
         }
     }
 
@@ -92,11 +113,6 @@ internal class WeatherAdapterController(context: Context) {
             }
         }
         WeatherAdapterState.setOwnedProxy(appContext, null)
-    }
-
-    private fun finish(success: Boolean, message: String) {
-        WeatherAdapterState.recordResult(appContext, success, message)
-        Log.i(TAG, message)
     }
 
     internal companion object {

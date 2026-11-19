@@ -29,13 +29,36 @@ class NativeWeatherPayloadTest {
             point("2026-06-21T10:00:00Z", temperature = 16.6, wind = 10.0, visibility = 12_500.0),
             point("2026-06-21T11:00:00Z", temperature = 18.0, wind = 2.0),
         )
-        val condition = data(build(forecast, now)).getJSONObject("condition")
+        val weather = weather(forecast, now)
+        val condition = data(weather.payload).getJSONObject("condition")
 
         assertEquals("the point nearest 10:20 is 10:00, rounded", 17, condition.getInt("temperature"))
         assertEquals("metres per second into km/h", 36, condition.getInt("windspeed"))
         assertEquals("metres into kilometres", 13, condition.getInt("visibility"))
-        // And the dashboard's tile reads the same point, so the two never disagree.
-        assertEquals(17, NativeWeatherPayload.currentTemperature(forecast, now.toEpochMilli(), MOSCOW))
+        // And the dashboard's tile is handed that same number.
+        assertEquals(17, weather.temperature)
+    }
+
+    /**
+     * The tile's temperature is the one written into the widget's record, at every moment -
+     * including either side of 09:30, where the nearest hourly point changes from 14° to 20°.
+     * Until 2026-11-19 the two came from separate passes, each reading the clock for itself.
+     */
+    @Test
+    fun theTilesTemperatureIsTheOneInTheWidgetsRecord() {
+        val forecast = forecast(
+            point("2026-06-21T09:00:00Z", temperature = 14.0),
+            point("2026-06-21T10:00:00Z", temperature = 20.0),
+        )
+        val start = Instant.parse("2026-06-21T09:29:58Z")
+        for (step in 0..4) {
+            val weather = weather(forecast, start.plusSeconds(step.toLong()))
+            assertEquals(
+                "at ${start.plusSeconds(step.toLong())}",
+                data(weather.payload).getJSONObject("condition").getInt("temperature"),
+                weather.temperature,
+            )
+        }
     }
 
     /**
@@ -113,14 +136,16 @@ class NativeWeatherPayloadTest {
             longitude = lon,
             nowMillis = noon.toEpochMilli(),
             zoneId = zone,
-        )
+        ).payload
         val first = data(payload).getJSONObject("dailys").getJSONArray("dailyweathers").getJSONObject(0)
         return OffsetDateTime.parse(first.getString("sunRiseFmt")).atZoneSameInstant(zone) to
             OffsetDateTime.parse(first.getString("sunSetFmt")).atZoneSameInstant(zone)
     }
 
-    private fun build(forecast: JSONObject, now: Instant): String =
+    private fun weather(forecast: JSONObject, now: Instant): NativeWeather =
         NativeWeatherPayload.build(forecast, MOSCOW_LAT, MOSCOW_LON, nowMillis = now.toEpochMilli(), zoneId = MOSCOW)
+
+    private fun build(forecast: JSONObject, now: Instant): String = weather(forecast, now).payload
 
     private fun data(payload: String): JSONObject = JSONObject(payload).getJSONObject("data")
 

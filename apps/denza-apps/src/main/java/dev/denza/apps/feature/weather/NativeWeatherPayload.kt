@@ -21,31 +21,20 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.tan
 
+/** One run's record for the stock widget, and the temperature written into it. */
+internal class NativeWeather(val payload: String, val temperature: Int)
+
 internal object NativeWeatherPayload {
     /**
-     * The temperature this forecast reports for right now.
+     * The widget's record for this forecast, and the temperature that record shows.
      *
      * The dashboard's weather tile shows a reading rather than a restatement of its own switch -
-     * "+14° · 12 минут назад", as `Attention.dc.html` draws it - and this is where that number
-     * comes from. Same point-nearest-to-now the payload itself uses, so the tile and the car's
-     * widget can never disagree about the temperature.
+     * "+14° · 12 минут назад", as `Attention.dc.html` draws it - and that number is the one put
+     * into `condition.temperature` here, from the same point and the same reading of the clock.
+     * Until 2026-11-19 the tile's number came from a second pass over the forecast with a clock of
+     * its own, so around the midpoint between two hourly points the two could pick different
+     * points.
      */
-    fun currentTemperature(
-        forecast: JSONObject,
-        nowMillis: Long = System.currentTimeMillis(),
-        zoneId: ZoneId = ZoneId.systemDefault(),
-    ): Int? {
-        val timeseries = forecast.optJSONObject("properties")
-            ?.optJSONArray("timeseries") ?: return null
-        val points = (0 until timeseries.length()).mapNotNull { index ->
-            parsePoint(timeseries.optJSONObject(index), zoneId)
-        }
-        if (points.isEmpty()) return null
-        val current = points.minBy { abs(it.instant.toEpochMilli() - nowMillis) }
-        val value = current.details.optDouble("air_temperature", Double.NaN)
-        return if (value.isNaN()) null else value.roundToInt()
-    }
-
     fun build(
         forecast: JSONObject,
         latitude: Double,
@@ -53,7 +42,7 @@ internal object NativeWeatherPayload {
         locationLabel: WeatherLocationLabel? = null,
         nowMillis: Long = System.currentTimeMillis(),
         zoneId: ZoneId = ZoneId.systemDefault(),
-    ): String {
+    ): NativeWeather {
         val timeseries = forecast.getJSONObject("properties").getJSONArray("timeseries")
         val points = (0 until timeseries.length()).mapNotNull { index ->
             parsePoint(timeseries.optJSONObject(index), zoneId)
@@ -137,12 +126,13 @@ internal object NativeWeatherPayload {
             .put("hourlys", hourlyForecast(points, nowMillis))
             .put("alarm", JSONArray())
 
-        return JSONObject()
+        val payload = JSONObject()
             .put("servertime", nowMillis)
             .put("resultinfo", "MET Norway adapter")
             .put("resultcode", "0")
             .put("data", native)
             .toString()
+        return NativeWeather(payload, temperature)
     }
 
     private fun city(
