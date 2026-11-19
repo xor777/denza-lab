@@ -17,6 +17,10 @@ import android.util.Log;
  *     then the source writes itself.
  * <li>A host lost mid-route: the source writes itself at once, and goes back to the host when it
  *     attaches again, its own session stopping without the clear.
+ * <li>A batch the host did not take, the host alive: the source keeps to the host and sends it
+ *     the whole picture again; it writes itself only after what the host last took has died and
+ *     been cleared ({@link HudRelay}), then lets the host go and asks again in
+ *     {@link #RECONNECT_MS}.
  * </ul>
  *
  * <p>Everything on {@code handler}'s thread, which must not be the main thread: attaching is a
@@ -48,7 +52,19 @@ public final class HudLink implements HudSink {
             public void onAttached() {
                 handler.removeCallbacks(giveUpWaiting);
                 Log.i(tag, "HUD through the host");
-                relay.attach(HudLink.this.host::send);
+                relay.attach(new HudRelay.Remote() {
+                    @Override
+                    public boolean send(byte[] batch) {
+                        return HudLink.this.host.send(batch);
+                    }
+
+                    @Override
+                    public void abandon() {
+                        Log.i(tag, "HUD by itself: the host stopped taking frames");
+                        HudLink.this.host.disconnect();
+                        nextConnect = SystemClock.uptimeMillis() + RECONNECT_MS;
+                    }
+                });
             }
 
             @Override

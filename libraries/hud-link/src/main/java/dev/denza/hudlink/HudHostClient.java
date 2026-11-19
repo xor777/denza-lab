@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Binder;
+import android.os.DeadObjectException;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Parcel;
@@ -90,7 +91,11 @@ public final class HudHostClient {
         return bound;
     }
 
-    /** One batch, one-way; false when the host is gone (the loss also reaches the listener). */
+    /**
+     * One batch, one-way; false when it did not go. A host that died is also a loss for the
+     * listener; any other failure - a full Binder buffer, say - is only this answer, the host
+     * still attached: whether to try again is the caller's.
+     */
     public boolean send(byte[] batch) {
         return send(HudHostProtocol.TX_CALLS, batch);
     }
@@ -109,9 +114,12 @@ public final class HudHostClient {
             data.writeInterfaceToken(HudHostProtocol.DESCRIPTOR);
             data.writeByteArray(batch);
             return target.transact(transaction, data, null, IBinder.FLAG_ONEWAY);
+        } catch (DeadObjectException error) {
+            Log.w(tag, "host send failed: host died");
+            postLost("host send failed: host died");
+            return false;
         } catch (RemoteException | RuntimeException error) {
             Log.w(tag, "host send failed", error);
-            postLost("host send failed");
             return false;
         } finally {
             data.recycle();

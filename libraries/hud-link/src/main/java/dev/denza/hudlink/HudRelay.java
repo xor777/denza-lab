@@ -19,6 +19,11 @@ import java.util.Map;
  *     gets everything still alive in one batch.
  * <li>The host goes, or never came: everything still alive goes to the own compositor, which
  *     starts writing.
+ * <li>A batch the host did not take, the host not known to be gone: it may still be showing what
+ *     it last took, so the own compositor does not start - two writers would alternate packets.
+ *     The next flush sends the host the whole picture again; only once what the host last took
+ *     has died and its compositor has had {@link #HOST_CLEAR_MS} to clear it does the source give
+ *     the host up ({@link Remote#abandon}) and write itself (2026-11-19).
  * </ul>
  *
  * <p>Plain Java on one thread; {@link HudLink} is the Android side.
@@ -32,9 +37,23 @@ public final class HudRelay implements HudSink {
 
     /** The attached host. */
     public interface Remote {
-        /** Sends one batch ({@link HudHostProtocol.Batch}); false when the host is gone. */
+        /**
+         * Sends one batch ({@link HudHostProtocol.Batch}); false when the host did not take it. A
+         * host known to be gone is {@link #useLocal}'s business, not this answer's.
+         */
         boolean send(byte[] batch);
+
+        /** The relay gives this host up after batches it did not take: tell it, let it go. */
+        default void abandon() {
+        }
     }
+
+    /**
+     * After what the host last took has died, the time its compositor takes to clear it - three
+     * clears {@link HudSession#CLEAR_REPEAT_MS} apart, the stop {@link HudSession#STOP_DELAY_MS}
+     * after the first - before the own one may start.
+     */
+    public static final long HOST_CLEAR_MS = 400L;
 
     /** Where calls go. */
     public enum State {
@@ -71,6 +90,10 @@ public final class HudRelay implements HudSink {
     private State state = State.LOCAL;
     private Remote remote;
     private HudHostProtocol.Batch pending = new HudHostProtocol.Batch();
+    /** Until when the host shows what it last took; it writes nothing of ours after. */
+    private long leaseUntil = Long.MIN_VALUE;
+    /** A batch was not taken: the next one is the whole picture. */
+    private boolean resend;
 
     // What is alive, by source and layer id, and by source and role.
     private final Map<String, Layer> layers = new LinkedHashMap<>();
@@ -103,6 +126,8 @@ public final class HudRelay implements HudSink {
         local.handOver();
         state = State.REMOTE;
         remote = host;
+        resend = false;
+        leaseUntil = Long.MIN_VALUE;
         pending = new HudHostProtocol.Batch();
         replay(pending);
         flush();
@@ -115,19 +140,41 @@ public final class HudRelay implements HudSink {
         }
         state = State.LOCAL;
         remote = null;
+        resend = false;
         pending = new HudHostProtocol.Batch();
         replay(local);
     }
 
-    /** Sends what this turn published to the host; the host gone, it goes to the own compositor. */
+    /**
+     * Sends what this turn published to the host. A batch it does not take is sent again, whole,
+     * with the next flush; once what the host last took has died and been cleared, the host is
+     * given up and the own compositor writes.
+     */
     public void flush() {
-        if (state != State.REMOTE || pending.isEmpty()) {
+        if (state != State.REMOTE) {
+            return;
+        }
+        if (resend) {
+            // The batch not taken may have held withdrawals: the host drops all of ours first (it
+            // takes a withdrawal of everything as the caller's, whatever source it names).
+            pending = new HudHostProtocol.Batch();
+            pending.withdraw(HudSource.MODULE);
+            replay(pending);
+        } else if (pending.isEmpty()) {
             return;
         }
         byte[] batch = pending.toByteArray();
         pending = new HudHostProtocol.Batch();
-        if (!remote.send(batch)) {
+        if (remote.send(batch)) {
+            resend = false;
+            leaseUntil = Math.max(leaseUntil, latestDeath());
+            return;
+        }
+        resend = true;
+        if (clock.now() >= leaseUntil + HOST_CLEAR_MS) {
+            Remote abandoned = remote;
             useLocal();
+            abandoned.abandon();
         }
     }
 
@@ -186,6 +233,18 @@ public final class HudRelay implements HudSink {
             default:
                 return local;
         }
+    }
+
+    /** When the last of what is published dies; MIN_VALUE with nothing. */
+    private long latestDeath() {
+        long latest = Long.MIN_VALUE;
+        for (Layer layer : layers.values()) {
+            latest = Math.max(latest, layer.publishedAt + layer.ttlMs);
+        }
+        for (Fields published : fields.values()) {
+            latest = Math.max(latest, published.publishedAt + published.ttlMs);
+        }
+        return latest;
     }
 
     /** Whether anything published has not died. */

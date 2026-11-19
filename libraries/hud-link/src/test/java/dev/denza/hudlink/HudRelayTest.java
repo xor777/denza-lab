@@ -14,9 +14,18 @@ public final class HudRelayTest {
     private final RecordingSink own = new RecordingSink();
     private final List<byte[]> sent = new ArrayList<>();
     private boolean hostAnswers = true;
-    private final HudRelay.Remote host = batch -> {
-        sent.add(batch);
-        return hostAnswers;
+    private int abandoned;
+    private final HudRelay.Remote host = new HudRelay.Remote() {
+        @Override
+        public boolean send(byte[] batch) {
+            sent.add(batch);
+            return hostAnswers;
+        }
+
+        @Override
+        public void abandon() {
+            abandoned++;
+        }
     };
     private final HudRelay relay = new HudRelay(clock, own);
 
@@ -94,15 +103,81 @@ public final class HudRelayTest {
         relay.flush();
         clock.now = 500;
         hint(200);
-        hostAnswers = false;
 
-        relay.flush();
+        // The host's death (HudHostClient's listener) is not a batch it did not take.
+        relay.useLocal();
 
         assertEquals(HudRelay.State.LOCAL, relay.state());
         assertEquals(Arrays.asList(
                 "hand over",
                 "layer MODULE map MAP 0,0 300×180 300x180 1.0 ttl=1000",
                 "fields MODULE MANEUVER 9=200 ttl=1500"), own.calls);
+    }
+
+    /**
+     * A batch the live host did not take (a full Binder buffer): until 2026-11-19 the source
+     * started writing at once while the host went on showing what it had, two writers on one HUD.
+     */
+    @Test
+    public void aBatchTheHostDidNotTakeGoesAgainWholeAndTheSourceDoesNotWriteBesideIt() {
+        relay.attach(host);
+        hint(250);
+        map();
+        relay.flush();
+        clock.now = 500;
+        hint(200);
+        hostAnswers = false;
+
+        relay.flush();
+
+        assertEquals(HudRelay.State.REMOTE, relay.state());
+        assertEquals(Arrays.asList("hand over"), own.calls);
+        assertEquals(0, abandoned);
+
+        clock.now = 600;
+        hostAnswers = true;
+        relay.flush();
+
+        assertEquals(Arrays.asList(
+                "withdraw MODULE",
+                "layer MODULE map MAP 0,0 300×180 300x180 1.0 ttl=900",
+                "fields MODULE MANEUVER 9=200 ttl=1400"), played(sent.get(sent.size() - 1)));
+        // Taken again: the next batch is only what changed.
+        hint(150);
+        relay.flush();
+        assertEquals(Arrays.asList("fields MODULE MANEUVER 9=150 ttl=1500"), played(sent.get(sent.size() - 1)));
+    }
+
+    @Test
+    public void aHostThatTakesNothingIsGivenUpOnlyOnceWhatItShowedHasDiedAndBeenCleared() {
+        relay.attach(host);
+        hint(250);
+        relay.flush(); // the host shows this until 1500
+        hostAnswers = false;
+        for (long time = 100; time < 1_500 + HudRelay.HOST_CLEAR_MS; time += 100) {
+            clock.now = time;
+            hint(200);
+            relay.flush();
+            assertEquals("still the host's at " + time, HudRelay.State.REMOTE, relay.state());
+        }
+        clock.now = 1_500 + HudRelay.HOST_CLEAR_MS;
+        hint(100);
+        relay.flush();
+
+        assertEquals(HudRelay.State.LOCAL, relay.state());
+        assertEquals(1, abandoned);
+        assertEquals(Arrays.asList("hand over", "fields MODULE MANEUVER 9=100 ttl=1500"), own.calls);
+    }
+
+    @Test
+    public void aHostThatTookNothingYetIsGivenUpAtOnce() {
+        hint(250);
+        hostAnswers = false;
+
+        relay.attach(host);
+
+        assertEquals(HudRelay.State.LOCAL, relay.state());
+        assertEquals(1, abandoned);
     }
 
     @Test
