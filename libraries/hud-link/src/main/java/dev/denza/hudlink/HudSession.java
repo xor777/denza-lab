@@ -22,9 +22,10 @@ import java.util.Arrays;
  *     {@link #CLEAR_SENDS} times {@link #CLEAR_REPEAT_MS} apart - then stop and unbind once
  *     {@link #STOP_DELAY_MS} have passed and the last clear is out. Something to show again
  *     before that ends the clear and sends at once.
- * <li>The clear is owed from the first send that reached the HUD until a clear has gone out. A
- *     session dropped by a failure (the binding, a send) and not back when there is nothing left
- *     to show binds and starts again for the clear, for at most {@link #CLEAR_RECOVERY_MS}.
+ * <li>The clear is owed from the first send that reached the HUD until a clear the service took
+ *     has gone out; a refused clear is a failed send. A session dropped by a failure (the
+ *     binding, a send, a clear) and not back when there is nothing left to show binds and starts
+ *     again for the clear, for at most {@link #CLEAR_RECOVERY_MS}.
  *     Before 2026-11-19 it found no started session and went idle, so the last picture stayed
  *     for the receiver to drop.
  * <li>Another writer takes over ({@link #handOver}): stop and unbind at once, without the
@@ -331,8 +332,16 @@ public final class HudSession {
             return IDLE;
         }
         if (clearsLeft > 0 && now >= clearAt) {
-            listener.onFired(HudProtocol.TOPIC_MAP, port.fire(HudProtocol.TOPIC_MAP, blankMap), true);
-            listener.onFired(HudProtocol.TOPIC_ROAD, port.fire(HudProtocol.TOPIC_ROAD, clear), true);
+            int map = port.fire(HudProtocol.TOPIC_MAP, blankMap);
+            listener.onFired(HudProtocol.TOPIC_MAP, map, true);
+            int road = port.fire(HudProtocol.TOPIC_ROAD, clear);
+            listener.onFired(HudProtocol.TOPIC_ROAD, road, true);
+            if ((map != 0 || road != 0) && owed) {
+                // A clear the service refused is not a clear (review round 2, finding 3): back
+                // through the same bounded recovery as a send that failed while showing.
+                recover(now, Trouble.FIRE_FAILED, map != 0 ? map : road);
+                return retryAt;
+            }
             clearsLeft--;
             clearAt = now + CLEAR_REPEAT_MS;
         }

@@ -1,6 +1,7 @@
 package dev.denza.hudlink;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.charset.StandardCharsets;
@@ -322,6 +323,52 @@ public final class HudSessionTest {
         assertCalls(since(500), "500 road road-A", "500 unbind", "1500 bind", "1500 start",
                 "1500 map black", "1500 road clear", "1620 map black", "1620 road clear",
                 "1740 map black", "1740 road clear", "1850 stop", "1850 unbind");
+    }
+
+    /**
+     * Review round 2, finding 3: the service stays bound but refuses the clear. Counted as sent,
+     * three refusals stopped the session and left the route on the glass.
+     */
+    @Test
+    public void aClearTheServiceRefusesIsSentAgainOnANewBinding() {
+        startedAt(0, ROAD_A, FRAME_1);
+        runUntil(500);
+        at(700);
+        session.show(null, null, null, 2);
+        port.fireAnswer = HudSomeIp.NOT_HANDLED;
+        changed();
+        runUntil(1_000);
+        port.fireAnswer = 0;
+        runUntil(1_700);
+        session.onConnected();
+        changed();
+        runUntil(5_000);
+
+        assertCalls(since(700), "700 map black", "700 road clear", "700 unbind", "1700 bind", "1700 start",
+                "1700 map black", "1700 road clear", "1820 map black", "1820 road clear",
+                "1940 map black", "1940 road clear", "2050 stop", "2050 unbind");
+        assertEquals("stopped", events.get(events.size() - 1));
+    }
+
+    /** A service that refuses every clear is given up within the clear's recovery, not retried for ever. */
+    @Test
+    public void aClearRefusedForEverIsGivenUpInTime() {
+        startedAt(0, ROAD_A, FRAME_1);
+        runUntil(500);
+        at(700);
+        session.show(null, null, null, 2);
+        port.fireAnswer = HudSomeIp.NOT_HANDLED;
+        changed();
+        for (long time = 1_700; time < 60_000; time += 1_000) {
+            runUntil(time);
+            session.onConnected();
+            changed();
+        }
+
+        assertEquals("stopped", events.get(events.size() - 1));
+        assertEquals(HudSession.IDLE, due);
+        long last = Long.parseLong(port.calls.get(port.calls.size() - 1).split(" ")[0]);
+        assertTrue("given up at " + last, last <= 1_700 + HudSession.CLEAR_RECOVERY_MS);
     }
 
     @Test

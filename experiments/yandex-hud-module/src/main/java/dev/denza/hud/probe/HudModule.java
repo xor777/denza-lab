@@ -253,7 +253,8 @@ public final class HudModule {
             Log.i(TAG, "transport started");
         }
         @Override public void onFired(long topic, int result, boolean clearing) {
-            // A failed send of a frame is onTrouble; a failed clear is not retried, so it is said here.
+            // A failed send of a frame is onTrouble; a refused clear is said here too, before the
+            // session binds again for it (HudSession, review round 2, finding 3).
             if (clearing && result != 0) Log.w(TAG, (topic == HudProtocol.TOPIC_MAP ? "map" : "road") + " clear ret=" + result);
         }
         @Override public void onTrouble(HudSession.Trouble trouble, int result) {
