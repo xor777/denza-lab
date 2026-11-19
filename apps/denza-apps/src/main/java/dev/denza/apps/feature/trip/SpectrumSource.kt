@@ -59,26 +59,39 @@ class SpectrumSource {
     val centreHz: DoubleArray?
         get() = bandMap?.centreHz
 
+    /** The application, for the grant check; set by the first [start]. */
+    @Volatile
+    private var app: Context? = null
+
+    /** When the effect is tried and when it is left alone: [SpectrumKeeper]. */
+    private val keeper = SpectrumKeeper(
+        permitted = { app?.let(TripAudioAccessCoordinator::isGranted) == true },
+        attach = ::attach,
+        release = ::releaseEffect,
+        attached = { attached },
+        sinceLastFrameMs = { SystemClock.uptimeMillis() - lastCaptureUptimeMs },
+        schedule = { task, delayMs -> handler.postDelayed(task, delayMs) },
+        unschedule = handler::removeCallbacks,
+    )
+
     fun start(context: Context, owner: Any = defaultOwner) {
         if (!owners.add(owner)) return
         val app = context.applicationContext
-        handler.removeCallbacks(watchdog)
-        handler.postDelayed(watchdog, WATCHDOG_INTERVAL_MS)
+        this.app = app
         if (TripAudioAccessCoordinator.isGranted(app)) {
-            attach()
+            keeper.start()
             return
         }
-        // Same self-heal as the panel's location access: grant over the local ADB
-        // channel rather than putting a microphone dialog in front of the driver
-        // for a feature that never opens the microphone.
+        // No permission, no attempt: the keeper waits for the grant rather than constructing an
+        // effect that cannot initialise. Same self-heal as the panel's location access: grant over
+        // the local ADB channel rather than putting a microphone dialog in front of the driver for
+        // a feature that never opens the microphone. The panel's next resume asks again.
+        lastFailure = "нет разрешения на аудио"
+        keeper.start()
         TripAudioAccessCoordinator.ensureAccess(app) { granted ->
             handler.post {
                 if (!running) return@post
-                if (granted) {
-                    attach()
-                } else {
-                    lastFailure = "нет разрешения на аудио"
-                }
+                if (granted) keeper.granted()
             }
         }
     }
@@ -86,34 +99,7 @@ class SpectrumSource {
     fun stop(owner: Any = defaultOwner) {
         owners.remove(owner)
         if (running) return
-        handler.removeCallbacks(watchdog)
-        releaseEffect()
-    }
-
-    /**
-     * Keeps the capture alive for as long as the panel is up.
-     *
-     * Two failures were possible and both left the analyser dead until the app
-     * was restarted. Creating the effect can fail for reasons that pass — the
-     * audio server busy, another client still holding session 0 as it shuts
-     * down, the permission landing a moment later — and the old code set
-     * `running` before that attempt, so nothing ever tried again. And an effect
-     * that attaches can go quiet without erroring, which looks identical to
-     * silence. So: retry while unattached, and rebuild if an attached capture
-     * stops delivering.
-     */
-    private val watchdog = object : Runnable {
-        override fun run() {
-            if (!running) return
-            if (!attached) {
-                attach()
-            } else if (SystemClock.uptimeMillis() - lastCaptureUptimeMs > REVIVE_AFTER_MS) {
-                Log.w(TAG, "capture went quiet, rebuilding the effect")
-                releaseEffect()
-                attach()
-            }
-            handler.postDelayed(this, WATCHDOG_INTERVAL_MS)
-        }
+        keeper.stop()
     }
 
     private fun releaseEffect() {
@@ -181,8 +167,10 @@ class SpectrumSource {
         )
     }
 
-    private fun attach() {
-        if (!running || visualizer != null) return
+    /** One attempt at the effect; whether it is attached now. [SpectrumKeeper] decides when. */
+    private fun attach(): Boolean {
+        if (!running) return false
+        if (visualizer != null) return attached
         val outcome = runCatching {
             val effect = Visualizer(GLOBAL_OUTPUT_MIX_SESSION)
             try {
@@ -201,12 +189,13 @@ class SpectrumSource {
             // Constructing the effect without RECORD_AUDIO fails with error -3.
             lastFailure = outcome.exceptionOrNull()?.message ?: "аудио недоступно"
             Log.w(TAG, "attach failed", outcome.exceptionOrNull())
-            return
+            return false
         }
         visualizer = effect
         lastFailure = null
         lastCaptureUptimeMs = SystemClock.uptimeMillis()
         attached = true
+        return true
     }
 
     private fun configure(effect: Visualizer) {
@@ -302,7 +291,5 @@ class SpectrumSource {
         const val MIN_HZ = 45.0
         const val MAX_HZ = 14000.0
         const val STALE_AFTER_MS = 900L
-        const val WATCHDOG_INTERVAL_MS = 2_000L
-        const val REVIVE_AFTER_MS = 4_000L
     }
 }

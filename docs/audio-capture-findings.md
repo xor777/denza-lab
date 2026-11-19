@@ -7,6 +7,26 @@ under the trip panel — can be fed from real playback rather than faked.
 Verified on the live car (DiLink5.1, `BYD AUTO`, Android 13 / API 33) with
 `:audio-probe` on 2026-08-14.
 
+## Current state
+
+Updated 2026-11-19.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| `Visualizer` on session 0 sees every app's output; `AudioPlaybackCapture` returns silence | live | 2026-08-14 | [Verdict](#verdict) |
+| `RECORD_AUDIO` is required to construct the effect (error -3 without it); the op recorded is `RECORD_AUDIO_OUTPUT` | live | 2026-08-14 | [Permissions](#permissions) |
+| The session-0 effect has one owner, and ours may not be it | live | 2026-08-27 | [The session-0 effect has exactly one owner](#the-session-0-effect-has-exactly-one-owner-2026-08-27) |
+| Without the permission nothing is constructed or scheduled; the ADB heal's result or the panel's next resume attaches, with no restart (`SpectrumKeeper`) | code | 2026-11-19 | [Attaching can fail transiently](#attaching-can-fail-transiently--retry-it) |
+| With the permission a failing construction backs off 4, 8, 16, 32 s and then a minute; a quiet capture is rebuilt on the watchdog's 2 s | code | 2026-11-19 | [Attaching can fail transiently](#attaching-can-fail-transiently--retry-it) |
+| Apple Music's output path | open | - | [Not yet verified](#not-yet-verified) |
+
+Contents: [Verdict](#verdict) · [Product adoption](#product-adoption) ·
+[Evidence](#evidence) · [One owner](#the-session-0-effect-has-exactly-one-owner-2026-08-27) ·
+[Sample rate](#sample-rate-is-misreported--calibrate-to-48-khz) · [Permissions](#permissions) ·
+[Implementation notes](#implementation-notes) · [Audio stack](#audio-stack-context) ·
+[Bluetooth](#bluetooth-verified-working) · [Shared effect](#the-session-0-effect-is-shared-and-that-bites) ·
+[Transient failures](#attaching-can-fail-transiently--retry-it) · [Not yet verified](#not-yet-verified)
+
 ## Verdict
 
 **Yes.** `android.media.audiofx.Visualizer` attached to audio session 0 (the
@@ -300,6 +320,18 @@ the process restarts, which reads as "it sometimes doesn't start". An attached
 effect can also stop delivering without reporting an error, which looks exactly
 like silence. Both need a watchdog that retries while unattached and rebuilds a
 capture that has gone quiet.
+
+**But not without the permission, and not at one pace forever** (2026-11-19,
+`SpectrumKeeper`, `SpectrumKeeperTest`). The watchdog used to construct
+`Visualizer(0)` on the main thread every two seconds whatever the grant said, so
+a fresh install, or a grant the ADB heal could not make, was an endless retry
+with a failed attach in the log each time - 1800 an hour with the strip open.
+Now an owner without `RECORD_AUDIO` constructs nothing and schedules nothing;
+the ADB heal's result attaches the moment it lands, and the panel's next resume
+(`TripSensorHub.start`) asks again, so a grant made in Settings attaches without
+a restart. With the permission, a failing construction waits 4, 8, 16, 32 s and
+then a minute between attempts, and the first success puts the watchdog back on
+its two seconds. The analyser draws its idle state throughout.
 
 ## Not yet verified
 
