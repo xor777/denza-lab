@@ -12,6 +12,7 @@ import dev.denza.apps.R
 import dev.denza.apps.core.AppLanguage
 import dev.denza.apps.core.AppLanguageRestart
 import dev.denza.apps.core.AppText
+import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
@@ -274,7 +275,6 @@ object DenzaAppRepository {
         Thread(runnable, "denza-catalog").apply { isDaemon = true }
     }
     private val adbRuntimeStarted = AtomicBoolean(false)
-    private val adbRuntimePassRunning = AtomicBoolean(false)
     private val displaysWatched = AtomicBoolean(false)
     private val overlayGrantWatched = AtomicBoolean(false)
 
@@ -373,7 +373,11 @@ object DenzaAppRepository {
         initializeAdbGate(context.applicationContext)
     }
 
-    fun recoverAutostart(context: Context, onChanged: (() -> Unit)? = null) {
+    /**
+     * One attempt of an autoload cycle. A look that finds the key trusted reaches the listener, whose
+     * startup pass ends the cycle; so does the pass a trusted key starts here.
+     */
+    fun recoverAutostart(context: Context) {
         val app = context.applicationContext
         appContext = app
         AdbRescueCoordinator.initialize(app) { onAdbRescueChanged(app) }
@@ -381,16 +385,10 @@ object DenzaAppRepository {
         when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
             AdbAutostartRetryAction.CHECK_ACCESS -> {
                 refresh("autostart")
-                AdbRescueCoordinator.checkAccess { onChanged?.invoke() }
+                AdbRescueCoordinator.checkAccess()
             }
-            AdbAutostartRetryAction.START_RUNTIME -> {
-                startAdbRuntime(app)
-                onChanged?.invoke()
-            }
-            AdbAutostartRetryAction.NONE -> {
-                refresh("autostart")
-                onChanged?.invoke()
-            }
+            AdbAutostartRetryAction.START_RUNTIME -> startAdbRuntime(app)
+            AdbAutostartRetryAction.NONE -> refresh("autostart")
         }
     }
 
@@ -1126,11 +1124,11 @@ object DenzaAppRepository {
         runtimeStep("ADB state refresh") { invalidate(StateSlice.ADB_ACCESS, "adb access") }
     }
 
+    /** One pass at a time; it ends the autoload cycle that was running when it began. */
     private fun startAdbRuntime(context: Context) {
-        if (!adbRuntimePassRunning.compareAndSet(false, true)) return
         val app = context.applicationContext
-        adbRuntimeStarted.set(true)
-        try {
+        DenzaRuntimeCoordinator.passes.run {
+            adbRuntimeStarted.set(true)
             // The sources the slices read that nothing in this app writes, each its own step:
             // one that cannot be registered leaves the others watched.
             runtimeStep("display watch") { watchDisplays(app) }
@@ -1177,8 +1175,6 @@ object DenzaAppRepository {
                 AdbPortRestore.prepare(app) { serviceReport.rebuildNow() }
                 AdbRestore.trigger("watchdog")
             }
-        } finally {
-            adbRuntimePassRunning.set(false)
         }
     }
 

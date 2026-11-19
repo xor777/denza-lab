@@ -13,14 +13,15 @@ import org.junit.Test
  * What the root does with the windows a tile opened: when they stand, and when a chooser closes.
  *
  * The windows are saved with the screen, so they come back after the process died - behind the
- * startup gate, before the runtime has started. A chooser brought straight back read the car and
- * ran its feature over the gate; these hold it back until the gate drops, and hold a chooser to
- * closing exactly when the app says the choice was taken.
+ * startup gate, before the runtime has started. A chooser or a panel brought straight back ran its
+ * feature over the gate; these hold them back until the gate drops, and hold a chooser to closing
+ * exactly when the app says the choice was taken.
  */
 class DashboardWindowsTest {
 
+    /** Review finding 2: a panel came back with the screen and stood over the gate before the car trusted the app. */
     @Test
-    fun aChooserBroughtBackWithTheScreenWaitsForTheStartupGate() {
+    fun aWindowBroughtBackWithTheScreenWaitsForTheStartupGate() {
         val restored = restoredAfterProcessDeath(
             DashboardWindows(
                 settingsFor = TileId.CLUSTER,
@@ -31,14 +32,16 @@ class DashboardWindowsTest {
             ),
         )
 
-        val underTheGate = restored.shown(gateUp = true)
-        assertFalse(underTheGate.clusterPicker)
-        assertFalse(underTheGate.apps)
-        assertFalse(underTheGate.navigationApp)
-        assertFalse(underTheGate.fseApp)
-        // «Сервис», which the gate leaves the driver, opens panels on purpose; a panel stands.
-        assertEquals(TileId.CLUSTER, underTheGate.settingsFor)
-
+        assertEquals(
+            DashboardWindows.Shown(
+                settingsFor = null,
+                clusterPicker = false,
+                apps = false,
+                navigationApp = false,
+                fseApp = false,
+            ),
+            restored.shown(gateUp = true),
+        )
         assertEquals(
             DashboardWindows.Shown(
                 settingsFor = TileId.CLUSTER,
@@ -49,6 +52,23 @@ class DashboardWindowsTest {
             ),
             restored.shown(gateUp = false),
         )
+        // Access lost later: what came back with the screen waits again.
+        assertEquals(null, restored.shown(gateUp = true).settingsFor)
+    }
+
+    /** «Сервис», which the gate leaves the driver, opens a tile's panel from its rows on purpose: that one stands. */
+    @Test
+    fun aPanelOpenedWhileTheGateIsUpStands() {
+        val restored = restoredAfterProcessDeath(DashboardWindows(settingsFor = TileId.CLUSTER))
+        restored.settingsFor = TileId.WEATHER
+        assertEquals(TileId.WEATHER, restored.shown(gateUp = true).settingsFor)
+
+        val fresh = DashboardWindows()
+        fresh.settingsFor = TileId.CLUSTER
+        assertEquals(TileId.CLUSTER, fresh.shown(gateUp = true).settingsFor)
+        // A chooser its button asks for still waits.
+        fresh.apps = true
+        assertFalse(fresh.shown(gateUp = true).apps)
     }
 
     @Test

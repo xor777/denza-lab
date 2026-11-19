@@ -23,9 +23,10 @@ import dev.denza.apps.ui.dashboard.TileId
  * install. So what is open and what is [shown] are two things: no chooser and no screen picker
  * shows while the gate is up, and each comes back as it was once the gate drops.
  *
- * A tile's panel is not held back. «Сервис», which the gate leaves the driver, opens one from its
- * rows on purpose, and a panel reads nothing of the car by opening; a chooser its button asks for
- * waits for the gate like any other.
+ * A tile's panel brought back with the screen waits for the gate the same way: its controls run
+ * the feature they belong to. A panel opened while the gate is up - «Сервис», which the gate leaves
+ * the driver, opens one from its rows on purpose - stands; a chooser its button asks for waits for
+ * the gate like any other.
  *
  * What a chooser does with an answer is here too, so the rule the root follows is one a test can
  * hold: a chooser closes exactly when the app says the choice was taken.
@@ -37,9 +38,19 @@ internal class DashboardWindows(
     apps: Boolean = false,
     navigationApp: Boolean = false,
     fseApp: Boolean = false,
+    /** [settingsFor] came back with the screen rather than from a press. */
+    panelSaved: Boolean = false,
 ) {
-    /** The tile whose panel is open. */
-    var settingsFor: TileId? by mutableStateOf(settingsFor)
+    private var panel: TileId? by mutableStateOf(settingsFor)
+    private var panelSaved: Boolean by mutableStateOf(panelSaved && settingsFor != null)
+
+    /** The tile whose panel is open; one set here is a press, and stands over the gate. */
+    var settingsFor: TileId?
+        get() = panel
+        set(value) {
+            panel = value
+            panelSaved = false
+        }
 
     /** «Приборный экран», opened by a tile waiting on the instruments' screen. */
     var clusterPicker: Boolean by mutableStateOf(clusterPicker)
@@ -53,9 +64,12 @@ internal class DashboardWindows(
     /** «Экран справа»'s chooser. */
     var fseApp: Boolean by mutableStateOf(fseApp)
 
-    /** What stands over the dashboard now: what is open, the choosers only once the gate is down. */
+    /**
+     * What stands over the dashboard now: what is open, the choosers and a panel the screen brought
+     * back only once the gate is down.
+     */
     fun shown(gateUp: Boolean): Shown = Shown(
-        settingsFor = settingsFor,
+        settingsFor = panel.takeUnless { gateUp && panelSaved },
         clusterPicker = clusterPicker && !gateUp,
         apps = apps && !gateUp,
         navigationApp = navigationApp && !gateUp,
@@ -118,6 +132,7 @@ internal class DashboardWindows(
                     apps = saved[2] as Boolean,
                     navigationApp = saved[3] as Boolean,
                     fseApp = saved[4] as Boolean,
+                    panelSaved = true,
                 )
             },
         )

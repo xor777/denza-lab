@@ -6,8 +6,6 @@ import android.os.Looper
 import android.os.UserManager
 import android.util.Log
 import dev.denza.apps.DenzaAppRepository
-import dev.denza.apps.feature.adb.AdbRescueCoordinator
-import dev.denza.apps.feature.adb.AdbRescuePhase
 
 /** Restores every enabled feature without requiring an Activity to be opened. */
 object DenzaRuntimeCoordinator {
@@ -68,23 +66,25 @@ object DenzaRuntimeCoordinator {
         DenzaAppRepository.recoverEnabledFeatures(context.applicationContext)
     }
 
+    /**
+     * One attempt of the cycle: a passive look, or the startup pass on a trusted key. The pass ends
+     * the cycle ([passes]), whoever starts it, so no attempt after it runs another.
+     */
     private fun attemptRecovery(context: Context, generation: Long) {
         if (!isActive(generation)) return
         try {
-            DenzaAppRepository.recoverAutostart(context) {
-                onRepositoryChanged(generation)
-            }
+            DenzaAppRepository.recoverAutostart(context)
         } catch (error: RuntimeException) {
             // One broken Binder or feature must not abort the finite recovery window.
             Log.w(TAG, "autoload runtime recovery failed", error)
         }
     }
 
-    private fun onRepositoryChanged(generation: Long) {
-        if (!isActive(generation)) return
-        if (AdbRescueCoordinator.snapshot().phase != AdbRescuePhase.TRUSTED) return
-        finish(generation, "runtime-ready")
-    }
+    /** The startup passes: each ends the cycle that was running when it began. */
+    internal val passes = RuntimePasses(
+        runningCycle = { synchronized(lock) { cycleState.activeGeneration() } },
+        cycleDone = { generation -> finish(generation, "runtime-ready") },
+    )
 
     private fun isActive(generation: Long): Boolean = synchronized(lock) {
         cycleState.isActive(generation)

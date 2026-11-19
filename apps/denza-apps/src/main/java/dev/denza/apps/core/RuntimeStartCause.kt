@@ -32,9 +32,37 @@ internal class RuntimeRecoveryCycleState {
     fun isActive(expectedGeneration: Long): Boolean =
         active && generation == expectedGeneration
 
+    /** The cycle running now, if one is. */
+    fun activeGeneration(): Long? = generation.takeIf { active }
+
     fun finish(expectedGeneration: Long): Boolean {
         if (!isActive(expectedGeneration)) return false
         active = false
+        return true
+    }
+}
+
+/**
+ * One startup pass at a time, and the recovery cycle that was running when it began ends when it is
+ * done: whoever started the pass - the cycle's own attempt, or the listener that heard the key
+ * trusted - there is exactly one pass a cycle, and no attempt after it runs another.
+ */
+internal class RuntimePasses(
+    private val runningCycle: () -> Long?,
+    private val cycleDone: (Long) -> Unit,
+) {
+    private val running = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Runs [pass] unless one is running; false when it did not. */
+    fun run(pass: () -> Unit): Boolean {
+        if (!running.compareAndSet(false, true)) return false
+        val cycle = runningCycle()
+        try {
+            pass()
+        } finally {
+            running.set(false)
+            cycle?.let(cycleDone)
+        }
         return true
     }
 }
