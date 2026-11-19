@@ -132,6 +132,24 @@ class TripEnergyLedgerTest {
         assertEquals(0.1, ledger.trip.kilometres, 1e-6)
     }
 
+    /**
+     * The sweep that read P had no odometer, and the driver left P before a sweep carried both. P
+     * is the gearbox's answer: the strip's trip clock ends its trip on it, and so does this one.
+     */
+    @Test
+    fun aParkReadWithoutTheOdometerStillEndsTheTrip() {
+        val ledger = ledger()
+        moving(ledger, 100.0)
+        moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
+
+        ledger.sample(null, 0.0, false, true, 1.0)
+        assertEquals("still the finished trip in P", 10.0, ledger.trip.netKwh, 1e-9)
+
+        moving(ledger, 100.2, powerKw = 4.0, seconds = hour)
+        assertEquals("the next movement starts a new trip", 4.0, ledger.trip.netKwh, 1e-9)
+        assertEquals(0.1, ledger.trip.kilometres, 1e-6)
+    }
+
     @Test
     fun standingStillWithoutParkKeepsTheTripGoing() {
         val ledger = ledger()

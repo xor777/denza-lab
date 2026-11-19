@@ -131,8 +131,9 @@ internal class TripEnergyLedger(
     /**
      * One sweep's answer.
      *
-     * @param odometerKm the vehicle odometer; null skips the sample entirely, because without it
-     *   there is no way to tell standing still from a lost reading
+     * @param odometerKm the vehicle odometer; null skips the sample - without it there is no way
+     *   to tell standing still from a lost reading - except for a P, which ends the trip whatever
+     *   the odometer said
      * @param powerKw pack power, positive out of the battery
      * @param engineRunning null while nothing has answered, which is not the same as stopped
      * @param parked whether the selector is in P
@@ -145,7 +146,14 @@ internal class TripEnergyLedger(
         parked: Boolean?,
         dtSeconds: Double,
     ) {
-        if (odometer.step(odometerKm) != OdometerGate.Step.ROAD) return
+        if (odometer.step(odometerKm) != OdometerGate.Step.ROAD) {
+            // P is the gearbox's answer, not the odometer's. A P read in a sweep whose odometer
+            // missed used to be dropped with the sample, so a driver who left P before the next
+            // sweep carried both had the energy trip run on into the next drive, while the strip's
+            // trip clock, reading the same P, had ended its own.
+            if (parked == true) armed = true
+            return
+        }
 
         val deltaKm = odometer.deltaKm
         val moved = deltaKm > KM_EPSILON
