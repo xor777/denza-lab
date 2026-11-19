@@ -665,6 +665,30 @@ public final class LocalAdbClientTest {
         }
     }
 
+    /**
+     * A whole answer, then the shell's next prompt, then adbd's OKAY for the command: the answer
+     * found first is the one returned. The scan resumes behind the bytes it has seen, so asking it
+     * again after the prompt finds nothing; overwriting the answer with that left the command
+     * waiting for bytes that never come, until its read timeout.
+     */
+    @Test
+    public void anAnswerFoundBeforeTheOkayOutlivesTheMessagesAfterIt() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("WRTE", 41, 1, "\u001eMARK_1:BEGIN\u001fanswer\u001eMARK_1:0\u001f"),
+                message("WRTE", 41, 1, "IVI:/ $ "),
+                message("OKAY", 41, 1, ""),
+                message("WRTE", 41, 1, "the next command's bytes")));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        assertEquals("answer", LocalAdbClient.runInteractiveCommand(
+                input, output, 1, 41, "echo answer", "MARK_1"));
+        assertEquals("the command returns at the OKAY, not later",
+                Arrays.asList("WRTE:1:41", "OKAY:1:41", "OKAY:1:41"),
+                messageHeaders(output.toByteArray()));
+        assertTrue("the message after the OKAY is left for the next command",
+                input.available() > 0);
+    }
+
     /** What the command prints on its own, with the streams merged exactly as the frame merges. */
     private static String bare(String command) throws Exception {
         return new String(

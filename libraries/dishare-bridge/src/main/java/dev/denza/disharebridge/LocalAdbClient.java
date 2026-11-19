@@ -599,7 +599,11 @@ public final class LocalAdbClient {
             } else if (message.command == A_WRTE) {
                 received.write(message.payload);
                 writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
-                framedResult = received.result();
+                // The scan has already searched the bytes behind a found answer, so asking it
+                // again after the shell's next prompt would answer null and lose the answer.
+                if (framedResult == null) {
+                    framedResult = received.result();
+                }
             } else if (message.command == A_CLSE) {
                 writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
                 throw new EOFException("ADB interactive shell closed during command");
@@ -709,7 +713,11 @@ public final class LocalAdbClient {
             this.statusMarkerPrefix = statusMarkerPrefix;
         }
 
-        /** The finished answer, or {@code null} while it is still on its way. */
+        /**
+         * The finished answer, or {@code null} while it is still on its way. Ask only until it
+         * answers: the search resumes behind what it has already seen, so after the answer it
+         * finds nothing more and says {@code null}.
+         */
         FramedShellResult result() throws IOException {
             if (outputStart < 0) {
                 int found = indexOf(buf, count, outputStartMarker,
