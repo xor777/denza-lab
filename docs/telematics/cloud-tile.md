@@ -102,7 +102,7 @@ independent switches:
 
 - **«Поддерживать связь с облаком»** — the app's own wish, stored in
   SharedPreferences `cloud_link`, absent meaning off.
-- **«Держать Wi-Fi включенным»** — the car's `Settings.Global`
+- **«Держать Wi-Fi включённым»** — the car's `Settings.Global`
   `byd_off_wifi_switch`, always read back from the car. On is
   `settings put global byd_off_wifi_switch 1`. Off is
   `settings delete global byd_off_wifi_switch`, which restores the absent
@@ -1055,7 +1055,7 @@ carry (`CloudFailure.report`, «<word>: <reason>»). The whole vocabulary:
 | «Нет свежих данных» | the car could not be read (a failed pass that never got its reading, or a reading older than 90 s) |
 | «Нет связи» | on and on internet with no link: a pass that read the car and could not finish, the profile changed by somebody else, a fresh 211 rejection, or no TCP after the 90 s settle |
 
-A refused «Держать Wi-Fi включенным» is no longer the link's refused press: the
+A refused «Держать Wi-Fi включённым» is no longer the link's refused press: the
 panel's switch reads the car's value back, which is the answer, and the reason
 goes to the «Отказ» row as «Wi-Fi во сне: …». The 211 rejection's code goes
 there too. `CloudLinkFailuresTest` holds that no reason reaches the tile, and
