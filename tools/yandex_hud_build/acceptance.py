@@ -15,6 +15,17 @@ def ar_cache_reused(initial, current):
             and initial['renderer']['arGeometryBuilds'] == current['renderer']['arGeometryBuilds'])
 
 
+def cancellation_cleared(before, after, later):
+    """Receiver reports around a cancellation that started from an ACTIVE session: three NEW
+    black frames, a road packet that says inactive, the session stopped, and nothing sent after.
+    Counting blanks from zero would accept the ones an earlier background disable sent."""
+    return (before['active'] and before['session']
+            and after['blanks'] - before['blanks'] >= 3
+            and after['roads'] > before['roads'] and not after['active']
+            and after['stops'] > before['stops'] and not after['session']
+            and later['frames'] == after['frames'] and later['roads'] == after['roads'])
+
+
 def verify_ar_geometry(directory, native):
     """Independently locate every received point on the original MapKit polyline, in order."""
     scale = math.cos(math.radians(native[0][1]))
@@ -166,11 +177,21 @@ def main():
         report['checks']['background_disabled_clears'] = not off['receiver']['active'] and not off['receiver']['session']
         report['checks']['ar_cleared'] = not off['receiver'].get('arActive', True) and off['receiver'].get('arClears', 0) > 0
         report['checks']['background_disabled_stops_frames'] = off['receiver']['frames'] == off_after['receiver']['frames']
+        # Cancellation must clear a HUD that is showing a route, not one the disable above
+        # already emptied: guidance comes back first, then the route is cancelled.
+        command('background', enabled=True)
+        time.sleep(4)
+        resumed = snapshot('active-before-cancel')
         command('stop')
         time.sleep(2)
         final = snapshot('cancelled')
+        time.sleep(3)
+        final_after = snapshot('cancelled-stable')
         report['checks']['wire_errors'] = max(item['receiver']['bad'] for item in report['snapshots'])
-        report['checks']['clear_frames'] = final['receiver']['blanks']
+        report['checks']['active_before_cancel'] = resumed['receiver']['active'] and resumed['receiver']['session']
+        report['checks']['cancel_clear_frames'] = final['receiver']['blanks'] - resumed['receiver']['blanks']
+        report['checks']['cancel_clears'] = cancellation_cleared(
+            resumed['receiver'], final['receiver'], final_after['receiver'])
     finally:
         command('stop')
         time.sleep(2)
@@ -186,7 +207,7 @@ def main():
           and check.get('reconnected')
           and check.get('process_survived_cleanup')
           and check.get('background_disabled_stops_frames') and check.get('wire_errors') == 0
-          and check.get('clear_frames', 0) >= 3)
+          and check.get('cancel_clears'))
     if args.require_lanes:
         ok = ok and check.get('lane_packets', 0) > 0 and check.get('background_lane_packets', 0) > 0
     if args.require_ar:
