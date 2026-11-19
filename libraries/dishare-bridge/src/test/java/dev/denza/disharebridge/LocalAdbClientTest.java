@@ -558,11 +558,12 @@ public final class LocalAdbClientTest {
         try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             FakeAdbd adbd = new FakeAdbd(server, false);
             adbd.start();
+            LocalAdbClient.RequestCancellation cancel = new LocalAdbClient.RequestCancellation();
             LocalAdbClient.AuthorizationRequest request = LocalAdbClient.openAuthorizationRequest(
-                    Arrays.asList("127.0.0.1"), server.getLocalPort(), new TestKeys(null),
-                    new LocalAdbClient.RequestCancellation());
+                    Arrays.asList("127.0.0.1"), server.getLocalPort(), new TestKeys(null), cancel);
             try {
                 assertEquals(LocalAdbClient.AuthorizationRequestResult.REQUEST_SENT, request.result);
+                assertTrue("the opening says the key went out", cancel.keyOffered());
                 assertTrue("the key reached adbd", adbd.keySent.await(2, TimeUnit.SECONDS));
                 assertFalse("no answer yet, and the transport stays open", request.awaitApproval(150));
                 adbd.approve.countDown();
@@ -593,6 +594,7 @@ public final class LocalAdbClientTest {
             adbd.join(2_000);
             assertEquals(Arrays.asList("CNXN", "AUTH:2"), adbd.received);
             assertTrue(adbd.closedByClient);
+            assertFalse("nothing reached the queue, and the opening says so", cancel.keyOffered());
         }
     }
 

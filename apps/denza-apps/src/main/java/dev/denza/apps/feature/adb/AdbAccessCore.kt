@@ -61,7 +61,10 @@ internal interface AdbAccessSystem {
     @Throws(Exception::class)
     fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest
 
-    /** A request that could not be sent, as the phase it leaves: UNAVAILABLE or ERROR. */
+    /**
+     * A request that could not be sent, as the phase it leaves: UNAVAILABLE or ERROR. An opening
+     * that ended before its public key was written throws [AdbKeyNotSentException].
+     */
     fun requestFailure(error: Throwable): AdbCheckResult
 
     fun systemSwitch(): AdbSystemSwitch
@@ -71,13 +74,34 @@ internal interface AdbAccessSystem {
     fun recordTrusted()
 }
 
+/** A request that ended before its public key was written: nothing is in the car's queue. */
+internal class AdbKeyNotSentException(cause: Throwable) : IOException(cause)
+
 /** Every request sent, so the daily cap survives the process and the reboot. */
 internal data class AdbAskLog(
     /** Wall times of the recent requests, oldest first: [AdbRescuePolicy.recent] keeps them. */
     val times: List<Long> = emptyList(),
     val total: Int = 0,
     val lastAtMs: Long = 0L,
+    /**
+     * 0.7.1 left a request out in the last day, and its prompt may still be on the car's screen:
+     * the next automatic request is not sent on top of it. Read once from 0.7.1's own keys.
+     */
+    val legacyPending: Boolean = false,
 )
+
+/** 0.7.1 kept the last request's time, a count and a pending flag; the log starts from them, once. */
+internal object AdbAskLegacy {
+    fun from071(total: Int, lastAtMs: Long, requestPending: Boolean, nowMs: Long): AdbAskLog {
+        val times = if (lastAtMs > 0L) listOf(lastAtMs) else emptyList()
+        return AdbAskLog(
+            times = times,
+            total = total,
+            lastAtMs = lastAtMs,
+            legacyPending = requestPending && AdbRescuePolicy.recent(times, nowMs).isNotEmpty(),
+        )
+    }
+}
 
 internal interface AdbAskStore {
     fun load(): AdbAskLog
@@ -252,9 +276,6 @@ internal class AdbAccessCore(
     /** Under [lock]: a screen is in front, or a configuration change is still bringing one back. */
     private fun inFront(): Boolean = foreground && !(keepOpening && keepExpired())
 
-    private fun underCap(): Boolean =
-        AdbRescuePolicy.recent(store.load().times, system.wallMs()).size < AdbRescuePolicy.DAILY_ASKS
-
     /** The change made on the caller's thread reaches the listener, and the loop runs even if the listener throws. */
     private fun announceThenPump() {
         try {
@@ -290,19 +311,18 @@ internal class AdbAccessCore(
 
     /**
      * Under [lock]: the next job, in the order the gate needs them. A request the opening is owed
-     * comes first - its own handshake is the look - then a press, then a look.
+     * comes first - its own handshake is the look - then a press, then a look. Whether an
+     * automatic request may go out under the cap is not decided here but in [reserve].
      */
     private fun pick(): Job? {
         stopped = false
         if (state.canAsk && inFront()) {
-            if (askedIn != openings && underCap()) {
+            if (askedIn != openings) {
                 askedIn = openings
-                lookWanted = false
                 return Job.ASK_AUTO
             }
-            if (followUpIn == openings && underCap()) {
+            if (followUpIn == openings) {
                 followUpIn = -1
-                lookWanted = false
                 return Job.ASK_AUTO
             }
         }
@@ -311,7 +331,6 @@ internal class AdbAccessCore(
             if (state.canAsk) {
                 // A press is this opening's request: the opening sends none of its own after it.
                 askedIn = openings
-                lookWanted = false
                 return Job.ASK_PRESSED
             }
         }
@@ -352,7 +371,8 @@ internal class AdbAccessCore(
                 return
             }
             change = when (job) {
-                Job.ASK_AUTO, Job.ASK_PRESSED -> askOnce()
+                Job.ASK_AUTO -> askOnce(automatic = true)
+                Job.ASK_PRESSED -> askOnce(automatic = false)
                 Job.LOOK -> classify(system.passiveCheck())
             }
         }
@@ -401,31 +421,46 @@ internal class AdbAccessCore(
     }
 
     /** One request, from the switch reading to its end: its outcome. */
-    private fun askOnce(): Change {
+    private fun askOnce(automatic: Boolean): Change {
         if (leaving()) return { AdbRescuePolicy.refused(it) }
         // Re-read at the moment of sending: a request is a queue entry the car keeps whatever
         // happens to this app, and one that can never be drawn is only a stuck queue.
         val switch = system.systemSwitch()
         if (switch == AdbSystemSwitch.DISABLED) return { AdbRescuePolicy.systemSwitchOff(it) }
-        val now = system.wallMs()
-        val before = store.load()
-        val log = AdbAskLog(AdbRescuePolicy.keep(before.times, now), before.total + 1, now)
-        if (!store.save(log)) {
-            return { AdbRescuePolicy.refused(it).copy(lastFailure = AdbRescuePolicy.NOT_RECORDED) }
+        val made = when (val reserved = reserve(automatic)) {
+            Reserved.Declined -> return { AdbRescuePolicy.refused(it) }
+            Reserved.NotRecorded -> return { AdbRescuePolicy.refused(it).copy(lastFailure = AdbRescuePolicy.NOT_RECORDED) }
+            is Reserved.Made -> reserved
         }
         val cancel = AdbRequestCancel()
         val leftAlready = synchronized(lock) {
+            // The request's own handshake is the look a caller wanted.
+            lookWanted = false
             if (!stopped) opening = cancel
             stopped
         }
-        if (leftAlready) return { AdbRescuePolicy.refused(it) }
-        publish { AdbRescuePolicy.sent(it, switch, log) }
+        if (leftAlready) {
+            release(made)
+            return { AdbRescuePolicy.refused(it) }
+        }
+        publish { AdbRescuePolicy.sent(it, switch, made.log) }
         val request = try {
             system.openRequest(cancel)
         } catch (error: Exception) {
+            val cause = if (error is AdbKeyNotSentException) {
+                release(made)
+                error.cause ?: error
+            } else {
+                error
+            }
             // Left during the handshake: the opening was stopped, and that is not a failure.
             if (leaving() || cancel.isCancelled) return { AdbRescuePolicy.refused(it) }
-            return classify(system.requestFailure(error))
+            return classify(system.requestFailure(cause))
+        }
+        if (request.alreadyTrusted) {
+            request.close()
+            release(made)
+            return classify(AdbCheckResult(AdbCheckOutcome.TRUSTED))
         }
         val leaving = synchronized(lock) {
             opening = null
@@ -435,10 +470,6 @@ internal class AdbAccessCore(
         if (leaving) {
             request.close()
             return { AdbRescuePolicy.refused(it) }
-        }
-        if (request.alreadyTrusted) {
-            request.close()
-            return classify(AdbCheckResult(AdbCheckOutcome.TRUSTED))
         }
         val ending = try {
             hold(request)
@@ -556,9 +587,55 @@ internal class AdbAccessCore(
     /** Under [lock]. */
     private fun keepExpired(): Boolean = system.elapsedMs() - keptAtMs > AdbRescuePolicy.RECREATE_MS
 
+    private sealed interface Reserved {
+        /** The request's entry, recorded; [previous] is the log without it, [wasAsked] the snapshot's flag. */
+        class Made(val atMs: Long, val log: AdbAskLog, val previous: AdbAskLog, val wasAsked: Boolean) : Reserved
+        data object Declined : Reserved
+        data object NotRecorded : Reserved
+    }
+
+    /**
+     * The one place a request is decided and recorded: for an automatic one the cap and a 0.7.1
+     * request still on the car's screen, then the time and the log's entry - all against one
+     * reading of the clock, on the worker. Nothing goes out that is not recorded first.
+     */
+    private fun reserve(automatic: Boolean): Reserved {
+        val now = system.wallMs()
+        val previous = store.load()
+        if (automatic) {
+            if (previous.legacyPending) {
+                store.save(previous.copy(legacyPending = false))
+                return Reserved.Declined
+            }
+            if (AdbRescuePolicy.recent(previous.times, now).size >= AdbRescuePolicy.DAILY_ASKS) return Reserved.Declined
+        }
+        val log = AdbAskLog(AdbRescuePolicy.keep(previous.times, now), previous.total + 1, now)
+        if (!store.save(log)) return Reserved.NotRecorded
+        val wasAsked = synchronized(lock) { state.asked }
+        return Reserved.Made(now, log, previous, wasAsked)
+    }
+
+    /**
+     * A reservation whose key never reached the car - already trusted, the opening stopped or
+     * failed before the write - leaves the log, the count and the snapshot as they were.
+     */
+    private fun release(made: Reserved.Made) {
+        val log = store.load()
+        val times = log.times.toMutableList().apply { remove(made.atMs) }
+        val released = log.copy(times = times, total = maxOf(0, log.total - 1), lastAtMs = made.previous.lastAtMs)
+        if (!store.save(released)) return
+        synchronized(lock) {
+            state = state.copy(attemptCount = released.total, lastAttemptAtMillis = released.lastAtMs, asked = made.wasAsked)
+        }
+    }
+
     /** A look's answer as a change, classified with a switch reading taken after it. */
     private fun classify(look: AdbCheckResult): Change {
-        if (look.outcome == AdbCheckOutcome.TRUSTED) system.recordTrusted()
+        if (look.outcome == AdbCheckOutcome.TRUSTED) {
+            system.recordTrusted()
+            // Whatever 0.7.1 left out was answered or no longer matters.
+            store.load().takeIf { it.legacyPending }?.let { store.save(it.copy(legacyPending = false)) }
+        }
         val switch = system.systemSwitch()
         return { AdbRescuePolicy.afterCheck(it, look.outcome, switch, look.failure) }
     }

@@ -265,6 +265,10 @@ object AdbRescueCoordinator {
     private const val KEY_ATTEMPT_COUNT = "attempt_count"
     private const val KEY_LAST_ATTEMPT_AT = "last_attempt_at"
     private const val KEY_ASK_TIMES = "ask_times"
+    private const val KEY_LEGACY_PENDING = "legacy_pending"
+
+    /** 0.7.1's own flag: its one request was out and not yet answered. Read once, then removed. */
+    private const val KEY_REQUEST_PENDING = "request_pending"
     private const val CHECK_MARKER = "DENZA_ADB_RESCUE_OK"
 
     /**
@@ -344,7 +348,12 @@ object AdbRescueCoordinator {
         override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
             val cancellation = LocalAdbClient.RequestCancellation()
             cancel.onCancel(cancellation::cancel)
-            val request = DenzaLocalAdb.client(app).openAuthorizationRequest(cancellation)
+            val request = try {
+                DenzaLocalAdb.client(app).openAuthorizationRequest(cancellation)
+            } catch (error: Exception) {
+                // Only the client knows whether the write of the key began: before it, no queue entry.
+                throw if (cancellation.keyOffered()) error else AdbKeyNotSentException(error)
+            }
             return object : AdbHeldRequest {
                 override val alreadyTrusted: Boolean =
                     request.result == LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED
@@ -372,18 +381,37 @@ object AdbRescueCoordinator {
     private class PreferencesAskStore(context: Context) : AdbAskStore {
         private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+        init {
+            // The first start after 0.7.1, which had no log: it starts from 0.7.1's last request,
+            // so that request counts toward the day and a prompt of it still up is not doubled.
+            // Idempotent until it lands, so an asynchronous write is enough.
+            if (!prefs.contains(KEY_ASK_TIMES)) {
+                val log = AdbAskLegacy.from071(
+                    total = prefs.getInt(KEY_ATTEMPT_COUNT, 0),
+                    lastAtMs = prefs.getLong(KEY_LAST_ATTEMPT_AT, 0L),
+                    requestPending = prefs.getBoolean(KEY_REQUEST_PENDING, false),
+                    nowMs = System.currentTimeMillis(),
+                )
+                write(log).remove(KEY_REQUEST_PENDING).apply()
+            }
+        }
+
         override fun load(): AdbAskLog = AdbAskLog(
             times = prefs.getString(KEY_ASK_TIMES, null).orEmpty().split(',').mapNotNull { it.toLongOrNull() },
             total = prefs.getInt(KEY_ATTEMPT_COUNT, 0),
             lastAtMs = prefs.getLong(KEY_LAST_ATTEMPT_AT, 0L),
+            legacyPending = prefs.getBoolean(KEY_LEGACY_PENDING, false),
         )
 
         // Synchronous: a request is a queue entry the car keeps, so it is never sent unrecorded.
-        @SuppressLint("UseKtx", "ApplySharedPref")
-        override fun save(log: AdbAskLog): Boolean = prefs.edit()
+        @SuppressLint("ApplySharedPref")
+        override fun save(log: AdbAskLog): Boolean = write(log).commit()
+
+        @SuppressLint("UseKtx")
+        private fun write(log: AdbAskLog) = prefs.edit()
             .putString(KEY_ASK_TIMES, log.times.joinToString(","))
             .putInt(KEY_ATTEMPT_COUNT, log.total)
             .putLong(KEY_LAST_ATTEMPT_AT, log.lastAtMs)
-            .commit()
+            .putBoolean(KEY_LEGACY_PENDING, log.legacyPending)
     }
 }

@@ -230,7 +230,18 @@ public final class LocalAdbClient {
     public static final class RequestCancellation {
         private final Object lock = new Object();
         private boolean cancelled;
+        private boolean keyOffered;
         private Socket socket;
+
+        /**
+         * The write of the public key began: from here the head unit may hold a queue entry for it.
+         * False means nothing reached the car's queue, whatever ended the opening.
+         */
+        public boolean keyOffered() {
+            synchronized (lock) {
+                return keyOffered;
+            }
+        }
 
         public void cancel() {
             Socket closing;
@@ -273,6 +284,7 @@ public final class LocalAdbClient {
                 if (cancelled) {
                     throw new AuthorizationRequestCancelledException();
                 }
+                keyOffered = true;
                 writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, payload);
             }
         }

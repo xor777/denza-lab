@@ -96,12 +96,14 @@ class AdbAccessCoreTest {
 
         override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
             requestFails?.let { throw it }
-            if (!portOpen) throw ConnectException("refused")
+            if (!portOpen) throw AdbKeyNotSentException(ConnectException("refused"))
             var socketClosed = false
             cancel.onCancel { socketClosed = true }
             duringHandshake?.invoke()
             // LocalAdbClient checks the cancel under the lock it writes the key with.
-            if (cancel.isCancelled || socketClosed) throw IOException("cancelled before the key was written")
+            if (cancel.isCancelled || socketClosed) {
+                throw AdbKeyNotSentException(IOException("cancelled before the key was written"))
+            }
             if (!trusted) keysSent++
             return FakeRequest(trusted).also {
                 requests += it
@@ -115,7 +117,10 @@ class AdbAccessCoreTest {
         )
 
         override fun systemSwitch(): AdbSystemSwitch = switch
-        override fun wallMs(): Long = wallBase + elapsed
+        /** Wall readings to hand out before the clock's own: a clock that jumps between two of them. */
+        val wallScript = ArrayDeque<Long>()
+
+        override fun wallMs(): Long = wallScript.removeFirstOrNull() ?: (wallBase + elapsed)
         override fun elapsedMs(): Long = elapsed
         override fun sleep(ms: Long) {
             elapsed += ms
@@ -517,7 +522,8 @@ class AdbAccessCoreTest {
         car.portOpen = true
         core.check()
         assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
-        assertEquals("the opening's request is spent", 1, store.log.total)
+        assertEquals("the opening's request is spent, and not counted: no key went out", 0, store.log.total)
+        assertEquals(0, car.keysSent)
         car.requestFails = IllegalStateException("odd")
         core.ask()
         assertEquals(AdbRescuePhase.ERROR, core.current.phase)
@@ -537,8 +543,9 @@ class AdbAccessCoreTest {
         assertEquals("EOFException", core.current.lastFailure)
     }
 
+    /** Review finding 13: the handshake found the key trusted, so nothing was asked and nothing is counted. */
     @Test
-    fun `a key trusted by the time the request goes out needs no answer`() {
+    fun `a key trusted by the time the request goes out needs no answer, and is not counted`() {
         core()
         core.check()
         car.trustedAt = 0
@@ -547,6 +554,10 @@ class AdbAccessCoreTest {
 
         assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
         assertTrue(car.requests.single().closed)
+        assertEquals(0, car.keysSent)
+        assertEquals(AdbAskLog(), store.log)
+        assertEquals(0, core.current.attemptCount)
+        assertEquals(0, core.requestsLastDay())
     }
 
     /**
@@ -803,10 +814,14 @@ class AdbAccessCoreTest {
         assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
         assertNull("leaving is not a failure", core.current.lastFailure)
 
+        assertEquals("a reservation that sent nothing is not counted", 0, store.log.total)
+        assertEquals(0, core.current.attemptCount)
+
         car.duringHandshake = null
         car.approve(at = car.elapsed + 3_000, tick = true)
         core.foregroundStarted()
         assertEquals(1, car.keysSent)
+        assertEquals(1, store.log.total)
         assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
     }
 
@@ -1133,5 +1148,114 @@ class AdbAccessCoreTest {
             assertTrue("seed $seed: ${car.keysSent} keys, $presses presses", car.keysSent <= AdbRescuePolicy.DAILY_ASKS + presses)
             assertTrue("seed $seed: one request at a time", maxOpen <= 1)
         }
+    }
+
+    // Invariant B: one place decides and records an automatic request.
+
+    /**
+     * Review finding 7: 0.7.1 sent its one request an hour before the upgrade and was still waiting.
+     * The first opening of the new release does not put a second prompt behind it; the next does.
+     */
+    @Test
+    fun `the first start after 0_7_1 does not double its pending request`() {
+        val now = car.wallMs()
+        store.log = AdbAskLegacy.from071(total = 1, lastAtMs = now - 3_600_000, requestPending = true, nowMs = now)
+        core()
+        core.check()
+
+        core.foregroundStarted()
+
+        assertEquals(0, car.keysSent)
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertTrue("the control still asks", core.current.canAsk)
+        assertFalse("declined once, then forgotten", store.log.legacyPending)
+        assertEquals("0.7.1's request counts toward the day", 1, core.requestsLastDay())
+
+        core.foregroundStopped(changingConfigurations = false)
+        core.foregroundStarted()
+        assertEquals(1, car.keysSent)
+    }
+
+    @Test
+    fun `0_7_1's keys seed the log once, and an old pending flag is not a prompt on the screen`() {
+        val now = 2_000_000_000_000L
+        assertEquals(
+            AdbAskLog(times = listOf(now - 60_000), total = 4, lastAtMs = now - 60_000, legacyPending = true),
+            AdbAskLegacy.from071(total = 4, lastAtMs = now - 60_000, requestPending = true, nowMs = now),
+        )
+        assertFalse(AdbAskLegacy.from071(4, now - 2 * AdbRescuePolicy.DAY_MS, requestPending = true, nowMs = now).legacyPending)
+        assertFalse(AdbAskLegacy.from071(4, now - 60_000, requestPending = false, nowMs = now).legacyPending)
+        assertEquals(AdbAskLog(), AdbAskLegacy.from071(0, 0L, requestPending = false, nowMs = now))
+    }
+
+    /** A pending 0.7.1 request is answered by trust: nothing is held back afterwards. */
+    @Test
+    fun `trust clears 0_7_1's pending request`() {
+        val now = car.wallMs()
+        store.log = AdbAskLegacy.from071(total = 1, lastAtMs = now - 60_000, requestPending = true, nowMs = now)
+        car.trustedAt = 0
+        core()
+        core.check()
+        assertFalse(store.log.legacyPending)
+    }
+
+    /**
+     * Review finding 8: the cap was read at one moment and the request recorded at another. A clock
+     * that stepped back between the two kept the three requests that had aged out, and a fourth
+     * went in beside them.
+     */
+    @Test
+    fun `the cap and the record are one reading of the clock`() {
+        val t = car.wallMs()
+        val day = AdbRescuePolicy.DAY_MS
+        store.log = AdbAskLog(listOf(t - day - 7_000, t - day - 6_000, t - day - 5_000), 3, t - day - 5_000)
+        core()
+        core.check()
+        car.wallScript.addAll(listOf(t, t - 10_000))
+
+        core.foregroundStarted()
+
+        val saved = store.log
+        assertEquals(1, car.keysSent)
+        assertTrue(
+            "at most three recent requests at the send's own time: ${saved.times}",
+            AdbRescuePolicy.recent(saved.times, saved.lastAtMs).size <= AdbRescuePolicy.DAILY_ASKS,
+        )
+    }
+
+    /** Whatever ends a request before its key is written, the log and the page count only keys that went out. */
+    @Test
+    fun `the count is the keys that reached the car`() {
+        core()
+        core.check()
+        car.portOpen = false
+        core.foregroundStarted()
+        car.portOpen = true
+        core.foregroundStopped(changingConfigurations = false)
+
+        car.duringHandshake = { core.foregroundStopped(changingConfigurations = false) }
+        core.foregroundStarted()
+        car.duringHandshake = null
+        assertEquals(0, car.keysSent)
+        assertEquals(AdbAskLog(), store.log)
+        assertEquals(0, core.current.attemptCount)
+        assertFalse("nothing went out, so the control asks for the first time", core.current.asked)
+
+        car.approve(at = car.elapsed + 2_000, tick = true)
+        core.foregroundStarted()
+        assertEquals(1, car.keysSent)
+        assertEquals(1, store.log.total)
+        assertEquals(1, store.log.times.size)
+    }
+
+    /** A failure after the key may have gone out is counted: the car may hold the entry. */
+    @Test
+    fun `a request that failed after its key may have gone out is counted`() {
+        core()
+        core.check()
+        car.requestFails = IOException("reset after the key")
+        core.foregroundStarted()
+        assertEquals(1, store.log.total)
+        assertEquals(1, core.current.attemptCount)
     }
 }
