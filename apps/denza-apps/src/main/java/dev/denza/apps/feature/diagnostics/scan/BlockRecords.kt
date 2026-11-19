@@ -43,7 +43,8 @@ internal object BlockRecords {
      * [result]'s records, in the memory's order: the UDS memory where it was read whole; at an OBD-only block
      * its Mode 03 and 0A codes, active as its row counts them, and Mode 07's, pending; at a UDS block that also
      * speaks OBD, Mode 07's codes its memory does not hold, pending (architecture, 5.2), as
-     * [ModuleResult.pending] counts them. Nothing for a memory not read.
+     * [ModuleResult.pending] counts them. Each list as far as it came back: a memory not read has no
+     * records, an OBD list that answered has its codes whatever the memory did.
      */
     fun of(result: ModuleResult): List<BlockRecord> {
         val request = result.read.request
@@ -56,7 +57,7 @@ internal object BlockRecords {
                 out += BlockRecord(request, r.code.display, mark(r.status), r.code, r.status.byte, memory.availability.byte, source)
             }
         }
-        if (!result.memoryRead) return out
+        // An OBD list that came back stands on its own: a UDS memory that did not is no reason to drop it.
         val lists = ScanRequests.OBD_LISTS.mapNotNull { (mode, uds) ->
             (result.obdLists[mode] as? Polled.Got)?.value?.codes?.let { Triple(mode, uds, it) }
         }

@@ -80,6 +80,14 @@ class TestsBuilderTest {
         assertEquals("81 80 AF FF 16 F6 3C 09 C4", r.raw)
     }
 
+    /** 06 00 lists no MID of its own, only the map of 21-40, and 06 20 does not come back: that is no «no tests». */
+    @Test
+    fun aContinuationMapThatDidNotComeBackIsNoEmptyList() {
+        val lost = view("06 00" to "46 00 00 00 00 01", noReply = listOf("06 20"))
+        assertEquals(ReadState.NO_REPLY, lost.state)
+        assertEquals("нет ответа · шлюз 3", lost.word)
+    }
+
     @Test
     fun theWholeReadRefusedUnansweredOrEmptyIsAQuietLine() {
         val refused = view("06 00" to "7F 06 12")

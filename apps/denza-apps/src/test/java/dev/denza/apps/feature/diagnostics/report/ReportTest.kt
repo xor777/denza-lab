@@ -15,6 +15,7 @@ import dev.denza.apps.feature.diagnostics.scan.Fixtures.rows
 import dev.denza.apps.feature.diagnostics.scan.MemoryStore
 import dev.denza.apps.feature.diagnostics.scan.ModuleResult
 import dev.denza.apps.feature.diagnostics.scan.ScanJson
+import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.SoftwareHistory
 import dev.denza.apps.feature.diagnostics.scan.StoredScan
 import dev.denza.apps.feature.diagnostics.scan.StreamSinks
@@ -110,6 +111,17 @@ class ReportTest {
         assertEquals(listOf("P0420"), ecm.map { it.code })
         assertEquals(ReportCodeKind.PENDING, ecm.single().kind)
         assertEquals(scanned.model.scan.pending, input.summary.pending)
+    }
+
+    /** ECM's `19 01 09` runs out of time and its Mode 07 answers P0420: the code is in the report all the same. */
+    @Test
+    fun aModeSevenCodeIsInTheReportWhenTheBlocksMemoryDidNotComeBack() {
+        val (input, scanned) = input(script = {
+            on(0x7E0, "190109").noReply()
+            on(0x7E0, "07").answer("47010420")
+        })
+        assertEquals(1, ModuleResult(EcuCatalog.byRequest(0x7E0)!!, scanned.scan.reads.first { it.request == 0x7E0 }).pending)
+        assertEquals(listOf("P0420"), input.codes.filter { it.address == "7E0" }.map { it.code })
     }
 
     @Test
@@ -393,9 +405,11 @@ class ReportTest {
     @Test
     fun anUnfinishedScanIsExportedAsWhatItIs() {
         val (_, scanned) = input()
-        val reads = scanned.scan.reads.take(12)
+        // the autoscan's first 12 blocks, and a later block read by hand («Прочитать DTC»): data, not progress
+        val reads = scanned.scan.reads.take(12) + scanned.scan.reads.last()
         val results = reads.associate { it.request to ModuleResult(EcuCatalog.byRequest(it.request)!!, it) }
-        val input = ReportInputs.of(scanned.model, results, null, car, SoftwareHistory(), Fixtures.EPOCH + 60_000, ZoneOffset.UTC)
+        val model = scanned.model.copy(scan = scanned.model.scan.copy(phase = ScanPhase.STOPPED, done = 12, finishedAt = null))
+        val input = ReportInputs.of(model, results, null, car, SoftwareHistory(), Fixtures.EPOCH + 60_000, ZoneOffset.UTC)
         assertNull(input.scanAt)
         assertEquals(12, input.scanDone)
         val meta = (ReportDocuments.of(input, ReportSection.entries.toSet()).pieces.first() as ReportPiece.Head).lines[1].first
@@ -408,7 +422,7 @@ class ReportTest {
         assertFalse(p.has("finishedAtMillis"))
         assertFalse(p.getBoolean("finished"))
         assertEquals(12 to 68, p.getInt("done") to p.getInt("of"))
-        assertEquals(12, p.getJSONArray("modules").length())
+        assertEquals(13, p.getJSONArray("modules").length())
         assertNull("not a finished scan to any reader", ScanJson.decode(p.toString()))
     }
 

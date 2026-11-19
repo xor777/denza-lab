@@ -234,6 +234,14 @@ internal object ObdReadProcedure {
     fun testMapMids(base: Int, answer: DiagReply.Answer): List<Int>? =
         ((DiagDecoder.obdTests(answer) as? Decoded.Ok)?.value as? ObdTestAnswer.Supported)?.takeIf { it.base == base }?.mids
 
+    /** The map of MIDs from [base] + 1 in [answer], a refusal passed on as it came. */
+    private fun map(base: Int, answer: DiagReply.Answer): Decoded<List<Int>> = when (val d = DiagDecoder.obdTests(answer)) {
+        is Decoded.Ok -> (d.value as? ObdTestAnswer.Supported)?.takeIf { it.base == base }?.let { Decoded.Ok(it.mids) }
+            ?: Decoded.Malformed("not the map of MIDs %02X-%02X".format(base + 1, base + 0x20))
+        is Decoded.Negative -> d
+        is Decoded.Malformed -> d
+    }
+
     /** What [read] - a [ObdRead.FREEZE_FRAME] read - says, for the screens. */
     fun freezeFrame(read: ModuleRead): FreezeFrameData {
         val dtcReply = read.reply(FRAME_DTC_REQUEST) ?: return FreezeFrameData()
@@ -275,18 +283,21 @@ internal object ObdReadProcedure {
         val first = read.reply(test(0)) ?: return ObdTestsData()
         val maps = MAPS.mapNotNull { base -> read.reply(test(base))?.let { base to it } }
         val exchanges = maps.map { Exchanges.of(it.second) }
-        val head = Polled.of(first) { a ->
-            when (val d = DiagDecoder.obdTests(a)) {
-                is Decoded.Ok -> (d.value as? ObdTestAnswer.Supported)?.let { Decoded.Ok(it.mids) } ?: Decoded.Malformed("not the map of MIDs 01-20")
-                is Decoded.Negative -> d
-                is Decoded.Malformed -> d
-            }
-        }
+        val head = Polled.of(first) { a -> map(0, a) }
         if (head !is Polled.Got) {
             val (outcome, why) = Exchanges.outcome(head)
             return ObdTestsData(outcome, why = why, exchanges = exchanges)
         }
-        val supported = maps.flatMap { (base, r) -> (r as? DiagReply.Answer)?.let { testMapMids(base, it) }.orEmpty() }.filterNot(ObdTests::isBitmap)
+        val advertised = maps.flatMap { (base, r) -> (r as? DiagReply.Answer)?.let { testMapMids(base, it) }.orEmpty() }
+        val supported = advertised.filterNot(ObdTests::isBitmap)
+        // A map the block advertised that did not come back: what it lists past it is not known - never «no tests».
+        val lost = MAPS.drop(1).filter { it in advertised }.firstOrNull { base ->
+            read.reply(test(base)).let { r -> r !is DiagReply.Answer || testMapMids(base, r) == null }
+        }
+        if (supported.isEmpty() && lost != null) {
+            val (outcome, why) = read.reply(test(lost))?.let { r -> Exchanges.outcome(Polled.of(r) { a -> map(lost, a) }) } ?: (ReadOutcome.NOT_READ to null)
+            return ObdTestsData(outcome, why = why, exchanges = exchanges)
+        }
         val monitors = supported.map { mid ->
             val reply = read.reply(test(mid))
             val p = reply?.let { r ->

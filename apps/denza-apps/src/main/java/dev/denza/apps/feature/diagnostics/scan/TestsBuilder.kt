@@ -25,8 +25,9 @@ internal object TestsBuilder {
         return when (data.outcome) {
             ReadOutcome.NOT_READ -> quiet(ReadState.NOT_READ, "не читали")
             ReadOutcome.READING -> quiet(ReadState.READING, "читаю…")
-            ReadOutcome.REFUSED -> quiet(ReadState.REFUSED, listOfNotNull("$abbreviation не отдаёт тесты", data.exchanges.firstOrNull()?.answer).joinToString(" · "))
-            ReadOutcome.NO_REPLY -> quiet(ReadState.NO_REPLY, data.exchanges.firstOrNull()?.noAnswer ?: "нет ответа")
+            // the map that failed is the last one asked: the first, or a continuation the first advertised
+            ReadOutcome.REFUSED -> quiet(ReadState.REFUSED, listOfNotNull("$abbreviation не отдаёт тесты", data.exchanges.lastOrNull()?.answer).joinToString(" · "))
+            ReadOutcome.NO_REPLY -> quiet(ReadState.NO_REPLY, data.exchanges.lastOrNull()?.noAnswer ?: "нет ответа")
             ReadOutcome.INCONSISTENT -> quiet(ReadState.INCONSISTENT, "ответ не сходится", maps)
             ReadOutcome.EMPTY -> quiet(ReadState.EMPTY, "блок не перечисляет тестов", maps)
             ReadOutcome.READ -> read(data, clock)

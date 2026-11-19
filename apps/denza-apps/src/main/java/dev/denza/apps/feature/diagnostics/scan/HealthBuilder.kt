@@ -25,13 +25,15 @@ internal object HealthBuilder {
         val volts = car.hub[VehicleSignal.PACK_VOLT]
         val full = JournalFacts.lastFullCharge(data)
         val weakest = JournalFacts.weakestCell(data, now - JournalFacts.WINDOW_DAYS * DAY_MS)
-        val sweepMin = cells?.cellMin?.let { cells.cells[it].value }
-        val sweepMax = cells?.cellMax?.let { cells.cells[it].value }
+        // «Now» is the sweep's extremes only while their cells are fresh; past the horizon, the hub's pair or «—».
+        val minCell = cells?.cellMin?.takeIf { cells.cells[it].fresh }
+        val sweepMin = minCell?.let { cells.cells[it].value }
+        val sweepMax = cells?.cellMax?.takeIf { cells.cells[it].fresh }?.let { cells.cells[it].value }
         val restNow = if (sweepMin != null && sweepMax != null) (sweepMax - sweepMin).toDouble()
             else car.hub[VehicleSignal.CELL_MAX_MV]?.let { hi -> car.hub[VehicleSignal.CELL_MIN_MV]?.let { hi - it } }
         val probes = cells?.probes?.mapNotNull { it.value }.orEmpty()
-        val probeLo = cells?.probeMin?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MIN)
-        val probeHi = cells?.probeMax?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MAX)
+        val probeLo = cells?.probeMin?.takeIf { cells.probes[it].fresh }?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MIN)
+        val probeHi = cells?.probeMax?.takeIf { cells.probes[it].fresh }?.let { cells.probes[it].value?.toDouble() } ?: car.extra(DiagnosticExtra.TEMP_MAX)
         val probeCount = probes.size.takeIf { it > 0 } ?: car.extra(DiagnosticExtra.PROBE_COUNT)?.toInt()
         val flags = GbFlags.view(car).groups.flatMap { it.flags }
         val bms = s.results[BMS]
@@ -57,7 +59,7 @@ internal object HealthBuilder {
                         HealthReference("${weakest.times} из ${weakest.of} ${Words.plural(weakest.of, "снимка", "снимков", "снимков")}", ReferenceKind.NOTE),
                         emptyList(), null)
                 } else {
-                    HealthRow("Слабейшая ячейка", "минимальная в этом обходе", cells?.cellMin?.let { "№ ${it + 1}" } ?: NA, "", false, null, emptyList(), null)
+                    HealthRow("Слабейшая ячейка", "минимальная в этом обходе", minCell?.let { "№ ${it + 1}" } ?: NA, "", false, null, emptyList(), null)
                 },
                 insulation(i, "канал BMS", DiagnosticExtra.INSULATION, JournalQuantity.INSULATION_MOHM, volts),
                 insulation(i, "канал 2", DiagnosticExtra.INSULATION_2, JournalQuantity.INSULATION_2_MOHM, volts),

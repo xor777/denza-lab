@@ -53,7 +53,8 @@ internal object ReportInputs {
             vinSources = reads?.vinSources.orEmpty(),
             odometerKm = car.hub[VehicleSignal.ODOMETER_KM],
             scanAt = finishedAtMillis?.let { Instant.ofEpochMilli(it).atZone(zone) },
-            scanDone = results.size.takeIf { finishedAtMillis == null && it > 0 },
+            // the autoscan's own progress: a block read by hand is in the data, not in how far the scan got
+            scanDone = model.scan.done.takeIf { finishedAtMillis == null && results.isNotEmpty() },
             madeAt = Instant.ofEpochMilli(nowMillis).atZone(zone),
             parked = car.parked,
             lowVoltage = car.extra(DiagnosticExtra.LV),

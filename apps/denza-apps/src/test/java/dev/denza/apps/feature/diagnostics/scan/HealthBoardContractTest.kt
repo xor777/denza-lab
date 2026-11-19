@@ -18,8 +18,8 @@ import org.junit.Test
 class HealthBoardContractTest {
     private val now = BoardScan.at("23.10 07:36:12")
 
-    /** The board's sweep, whole, and the next one 34 pages in. */
-    private fun cells(f: Map<String, Any?>): PackCellsView {
+    /** The board's sweep, whole, and the next one 34 pages in; seen [afterNs] after its last page. */
+    private fun cells(f: Map<String, Any?>, afterNs: Long = 400_000_000L): PackCellsView {
         val cells = (f["cells"] as List<Number>).map { it.toInt() }
         val probes = (f["probes"] as List<Number>).map { it.toInt() + PackCells.PROBE_OFFSET }
         val pack = PackCells(ScanClock(ZoneOffset.UTC))
@@ -44,7 +44,21 @@ class HealthBoardContractTest {
         }
         sweep(56, 0)
         sweep(34, -4)
-        return pack.view(t + 400_000_000L)
+        return pack.view(t + afterNs)
+    }
+
+    /**
+     * The BMS has stopped sending past its horizon while the page stays open: its cells are no longer «now», and the
+     * spread at rest is the hub's later pair (3 337 − 3 333), as are the probes' extremes.
+     */
+    @Test
+    fun cellsPastTheirHorizonAreNotNow() {
+        val f = SpecJson.fixture("scanner-sys-pack-health-first")
+        val stale = cells(f, afterNs = 60_000_000_000L)
+        assertEquals(false, stale.cells[stale.cellMin!!].fresh)
+        val scan = BoardScan.results(BoardScan.records("scanner-summary"))
+        val view = BoardScan.model(BoardScan.snapshot(scan, car = BoardScan.car(packVolts = 545.0), now = now, packCells = stale)).health!!
+        assertEquals("4", view.rows.first { it.name == "Разброс ячеек" }.value)
     }
 
     private fun check(id: String, journal: Boolean) {
