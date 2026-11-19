@@ -444,15 +444,20 @@ class AdbRestoreManager(
      * one already waiting, and an approval sets `adb_wifi_enabled=1` itself, so a dialog wave's retry
      * only reads: within one wave there is one write. Until 2026-11-19 a retry wrote again every
      * 15 s, stacking up to twenty dialogs in the wave's five minutes. A dialog the driver dismissed
-     * is raised again by a forcing request ([FORCING]) or by the first hint after the cooldown.
+     * is raised again by a forcing request ([FORCING]); a passive hint writes again only after the
+     * cooldown and only where no wave has run to its end - an exhausted network waits for another
+     * network, a success or a forcing request.
      */
     private suspend fun enableWireless(gen: Long, network: AdbRestoreWifi, request: Request): Boolean {
         if (!valid(gen, network)) return false
         // Already enabled means the dialog was approved between retries, even on an exhausted wave.
         if (system.readAdbWifiEnabled()) return true
         val suppress = synchronized(control) {
-            !request.force && store.lastWriteNetwork == network.id &&
-                system.nowMs() - store.lastWriteAtMs in 0 until WRITE_COOLDOWN_MS
+            // An exhausted wave's dialog is still standing unanswered: one more, however late, is
+            // only a slower stack. Its network waits for another network, a success or a forcing
+            // request.
+            !request.force && (exhaustedNetwork == network.id || (store.lastWriteNetwork == network.id &&
+                system.nowMs() - store.lastWriteAtMs in 0 until WRITE_COOLDOWN_MS))
         }
         if (suppress) {
             publish(gen, AdbRestoreState.NeedsDialog, request)
@@ -463,8 +468,6 @@ class AdbRestoreManager(
         synchronized(control) {
             if (!valid(gen, network)) return false
             store.recordWrite(network.id, system.nowMs())
-            // A new dialog gets its own wave of reads, whatever became of the last one.
-            exhaustedNetwork = null
             system.writeAdbWifiEnabled(true)
         }
         delay(SETTINGS_SETTLE_MS)

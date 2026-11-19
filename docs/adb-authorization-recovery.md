@@ -568,7 +568,7 @@ Left as they are after the second review: each needs a rare combination or the c
 | The opening's request goes out without window focus or with the display going off (finding 6) | a prompt raised under another window or a dark screen waits unseen until answered or the 2-min hold ends; later requests wait behind it | open the app with a system dialog over it, and as the screen turns off; `dumpsys window` for focus |
 | The canonical key file and the legacy copy are both damaged | every ADB call fails («Нет доступа», the gate); no new key is made, since the old one may still be readable | none; read-only on the car |
 | The accessibility service never binds after the restore's repair | each restore attempt that needs the Wi-Fi dialog repairs again, taking both Denza services down for about 3 s (since 2026-11-19 also in-process before each dialog write, at most one per network in 10 minutes) | after an update, with the restore needing the dialog |
-| The service binds more than 3 s after the in-process enable before the dialog, or goes while a dialog waits (2026-11-19) | the dialog stays until the driver answers it; the next write - a forcing request, or the first hint after the 10-minute cooldown - raises a fresh one the service can see. Until 2026-11-19 a retry rewrote every 15 s and reached it sooner, with a stack of dialogs | cold start with the port closed: is the dialog pressed by itself; «Служба перед диалогом» in «Технические сведения» |
+| The service binds more than 3 s after the in-process enable before the dialog, or goes while a dialog waits (2026-11-19) | the dialog stays until the driver answers it; the next write - a forcing request, another network, or (while no wave has run out on this network) the first hint after the 10-minute cooldown - raises a fresh one the service can see. Until 2026-11-19 a retry rewrote every 15 s and reached it sooner, with a stack of dialogs | cold start with the port closed: is the dialog pressed by itself; «Служба перед диалогом» in «Технические сведения» |
 | The idle look every 5 s while the gate is up | nothing; one passive connection to adbd each time, never offering the key | that the looks leave the restore and other ADB clients alone |
 
 ## 2026-08-18 live result
@@ -1041,15 +1041,18 @@ pairs are stored atomically.
 > holds for every request that does not force, retries included, so a wave has one write - the
 > attempt's - and reads after it. A forcing request (`settings`: «Сервис» opened; `switch`: the
 > restore's switch turned on; `gate`: the gate's or the recovery dialog's button) still writes at
-> once and starts its own wave. An exhausted network no longer waits for a new network: the first
-> hint after the cooldown writes once more, and that write gets a wave of reads. The trade: a dialog
-> the driver dismissed comes back only with a forcing request or after the cooldown, where it came
-> back within 15 s; and the 15 s rewrite was also what reached a dialog the accessibility service
-> missed - the rider presses on a window-state event, and a service bound after the dialog came up
-> sees none until the next dialog. The service is now made ready before the write
-> ([Recovery path comparison](#recovery-path-comparison-2026-11-19)); a bind later than that is a
-> known limit. `AdbRestoreManagerTest` holds one write per wave, an approval mid-wave, a forcing
-> request mid-wave and the write after the cooldown.
+> once and starts its own wave. An exhausted network still waits for a new network, a success or a
+> forcing request, however long ago its write was: its dialog stands unanswered, and one more every
+> ten minutes would only be a slower stack. The trade: a dialog the driver dismissed comes back only
+> with a forcing request (or, before any wave ran out, after the cooldown), where it came back within
+> 15 s; and the 15 s rewrite was also what reached a dialog the accessibility service missed - the
+> rider presses on a window-state event, and a service bound after the dialog came up saw none
+> until the next dialog. The service is now made ready before the write
+> ([The dialog's service before the write](#autonomous-restore-implementation-2026-10-08)); a bind
+> later than that is a known limit.
+> `AdbRestoreManagerTest` holds one write per wave, an approval mid-wave, a forcing request mid-wave,
+> and an exhausted network that passive hints do not write however late, a forcing request does and
+> another network does.
 
 **The dialog's service before the write (2026-11-19; code and unit tests, not on a car).** The
 preparation above runs only where there is a shell: on the classic path and after a restore. A

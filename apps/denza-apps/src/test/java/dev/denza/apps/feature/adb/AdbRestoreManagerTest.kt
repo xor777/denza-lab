@@ -292,21 +292,44 @@ class AdbRestoreManagerTest {
             assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
         }
     }
-    @Test fun afterAnExhaustedWaveAndItsCooldownAPassiveHintWritesOnceMore() = runTest {
+    /**
+     * The exhausted wave's dialog still stands unanswered: one more every ten minutes would be a
+     * slower stack. The network waits for a forcing request, another network or a success.
+     */
+    @Test fun anExhaustedNetworkIsNotWrittenByPassiveHintsHoweverLate() = runTest {
         val f = Fixture(this); f.system.revert = true
         f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
         assertTrue(f.manager.snapshot().retryBudgetExhausted)
         assertEquals(1, f.system.writes.size)
-        // Inside the cooldown of the wave's one write: nothing.
-        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        advanceTimeBy(AdbRestoreManager.WRITE_COOLDOWN_MS * 3); runCurrent()
+        for (hint in listOf(AdbRestoreManager.WIFI, AdbRestoreManager.SCREEN_ON, "recovery")) {
+            f.manager.attemptIfNeeded(hint); runCurrent()
+        }
         assertEquals(1, f.system.writes.size)
-        advanceTimeBy(AdbRestoreManager.WRITE_COOLDOWN_MS - 310_000); runCurrent()
+        assertEquals(AdbRestoreState.NeedsDialog, f.manager.snapshot().state)
+        assertTrue(f.manager.snapshot().retryBudgetExhausted)
+    }
+    @Test fun aForcingRequestOnAnExhaustedNetworkWritesOnceWithAWaveOfItsOwn() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
+        assertTrue(f.manager.snapshot().retryBudgetExhausted)
+        f.manager.attemptIfNeeded(AdbRestoreManager.GATE); settle()
+        assertEquals(2, f.system.writes.size)
+        assertFalse(f.manager.snapshot().retryBudgetExhausted)
+        // Its wave reads: approved now, the next retry connects with no third write.
+        f.system.wireless = true
+        advanceTimeBy(3_000); runCurrent()
+        assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
+        assertEquals(2, f.system.writes.size)
+    }
+    @Test fun anotherNetworkAfterAnExhaustedWaveWritesAsBefore() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(310_000); runCurrent()
+        assertTrue(f.manager.snapshot().retryBudgetExhausted)
+        f.system.wifi = AdbRestoreWifi("hotspot", "phone")
         f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
         assertEquals(2, f.system.writes.size)
-        assertEquals(AdbRestoreManager.WRITE_COOLDOWN_MS, f.system.writes[1].first - f.system.writes[0].first)
-        // One write, then its wave's reads.
-        advanceTimeBy(310_000); runCurrent()
-        assertEquals(2, f.system.writes.size)
+        assertEquals("hotspot", f.store.lastWriteNetwork)
     }
 
     // The service that presses the network dialog, made ready before the write that raises it.
