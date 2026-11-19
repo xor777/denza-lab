@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.hud
 
+import dev.denza.hudlink.HudRadarWarning
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -51,6 +53,58 @@ class HudSpeedingTest {
         assertEquals(0f, drive(60, null, 3_050, 8_000), 0f)
         assertEquals(0f, drive(0, 200.0, 8_050, 12_000), 0f)
         assertTrue(speeding.settled())
+    }
+
+    /** HUD Speed's warning of a camera at [limit] in [unit] (1 km/h, 2 mph), sampled at [at]. */
+    private fun camera(limit: Int, unit: Int = 1, at: Long = 0L) =
+        HudRadarWarning(at, true, HudRadarWarning.GPS_FIX, true, 1, 1, "Камера", 300, limit, unit, false, -1, "", "")
+
+    /** The host's tick: [kmh] from the wheels held from [from] to [to] past [camera]; the red at the end. */
+    private fun follow(camera: HudRadarWarning?, kmh: Double?, from: Long, to: Long): Float {
+        var red = 0f
+        var t = from
+        while (t <= to) {
+            red = speeding.update(camera, kmh, t)
+            t += 50
+        }
+        return red
+    }
+
+    @Test
+    fun aKmhCameraWithAnUnknownWheelSpeedIsNoRed() {
+        assertEquals(0f, follow(camera(60), null, 0, 2_000), 0f)
+        assertTrue(speeding.settled())
+    }
+
+    @Test
+    fun anMphCameraWithAnUnknownWheelSpeedIsNoRed() {
+        assertNull(HudSpeeding.inUnit(null, HudSpeeding.MPH))
+        assertEquals(0f, follow(camera(40, unit = 2), null, 0, 2_000), 0f)
+        assertTrue(speeding.settled())
+    }
+
+    @Test
+    fun aCameraWithoutALimitOrNoCameraIsNoRed() {
+        assertEquals(0f, follow(camera(0), 200.0, 0, 2_000), 0f)
+        assertEquals(0f, follow(null, 200.0, 2_050, 4_000), 0f)
+        assertEquals(0f, follow(null, null, 4_050, 5_000), 0f)
+        assertTrue(speeding.settled())
+    }
+
+    @Test
+    fun aSpeedThatArrivesLaterTurnsTheRedOn() {
+        assertEquals(0f, follow(camera(60), null, 0, 1_000), 0f)
+        assertEquals(1f, follow(camera(60), 80.0, 1_050, 4_000), 0f)
+        assertEquals(0f, follow(camera(60), null, 4_050, 8_000), 0f)
+    }
+
+    @Test
+    fun anMphCameraCountsInMiles() {
+        // 40 mph + 10 = 50 mph = 80.47 km/h: 80 km/h is no fine, 82 km/h is.
+        assertEquals(0f, follow(camera(40, unit = 2), 80.0, 0, 3_000), 0f)
+        assertEquals(1f, follow(camera(40, unit = 2), 82.0, 3_050, 6_000), 0f)
+        assertEquals(80.0 / 1.609344, HudSpeeding.inUnit(80.0, HudSpeeding.MPH)!!, 1e-9)
+        assertEquals(80.0, HudSpeeding.inUnit(80.0, 1)!!, 0.0)
     }
 
     @Test

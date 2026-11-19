@@ -42,7 +42,6 @@ final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
     /** How often the red follows the speed; the card reaches the HUD at most every HudSession.ROAD_MIN_INTERVAL_MS. */
     private static final long RED_TICK_MS = 83L;
-    private static final double KMH_PER_MPH = 1.609344;
     private static HudHostOutput instance;
 
     private final Context context;
@@ -162,9 +161,7 @@ final class HudHostOutput {
             wheels = new HudWheelSpeed(context);
         }
         wheels.watch(limit > 0);
-        Double kmh = wheels.kmh(now);
-        Double speed = kmh == null || camera == null || camera.unit != 2 ? kmh : kmh / KMH_PER_MPH;
-        radar.setRed(speeding.update(limit, speed, now), now);
+        radar.setRed(speeding.update(camera, wheels.kmh(now), now), now);
         if (limit > 0 || !speeding.settled()) {
             main.postDelayed(redTick, RED_TICK_MS);
         } else {

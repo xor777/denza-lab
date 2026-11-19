@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.hud;
 
+import dev.denza.hudlink.HudRadarWarning;
+
 /**
  * Whether the speed means a fine at HUD Speed's camera ahead, and how red its warning is for it
  * (docs/hud-output-architecture.md, 7.5). The owner's rule, 2026-11-02: more than the camera's
@@ -23,10 +25,32 @@ final class HudSpeeding {
     static final float TINT = 0.6f;
     /** The level moves in these steps, so a picture is drawn again only when it shows. */
     private static final float STEP = 1f / 32f;
+    /** {@link HudRadarWarning#unit} for miles per hour; 1 is km/h. */
+    static final int MPH = 2;
+    static final double KMH_PER_MPH = 1.609344;
 
     private boolean fined;
     private float level;
     private long at = -1L;
+
+    /**
+     * The red now for {@code camera} - the warning shown, null for none - and the wheels'
+     * {@code kmh}, null when the car has not said or its reading went stale: no speed is no red.
+     */
+    float update(HudRadarWarning camera, Double kmh, long now) {
+        return camera == null ? update(0, null, now) : update(camera.limit, inUnit(kmh, camera.unit), now);
+    }
+
+    /**
+     * {@code kmh} in a camera's unit: 1 km/h, 2 mph; null stays null. An if, not a conditional
+     * expression: {@code Double} beside {@code double} in one unboxes a null into an exception.
+     */
+    static Double inUnit(Double kmh, int unit) {
+        if (kmh == null || unit != MPH) {
+            return kmh;
+        }
+        return kmh / KMH_PER_MPH;
+    }
 
     /**
      * The red now, 0 to 1. {@code limit}: the camera's, 0 for none; {@code speed}: in the limit's
