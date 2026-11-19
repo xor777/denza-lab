@@ -453,6 +453,21 @@ single incident is not claimed to be root-caused or proven fixed. The car was
 unavailable; neither build 30 nor build 31 was installed on it, and physical HUD
 acceptance remains pending.
 
+Build 31 carries the manoeuvre-metre rounding (`fe822ca0`, `ManeuverMeters` in
+its module classes). It was built with the `current` renderer profile:
+`build-report.json` says `"renderer_profile": "current"`, which is
+`build.py`'s default, and the APK's `assets/denza-hud/theme.json` has no
+`camera` block. The car runs `29.8.1-YandexHUD.4` (SHA-256 `34690516…67a2`),
+built with `stock-prototype`: the stock HUD camera, the close zoom when slow
+and our colours. A release of build 31 as built would not carry the map the car
+drives with; build it again with `--renderer-profile stock-prototype` first.
+
+Read from the APK on 2026-11-19: Navigator 31.1.4 no longer has the view id
+`navi_service_open_voice_search`, one of the two ids by which Denza Apps'
+`feature/alice` finds Navigator's voice button (`NavigatorVoiceControls.kt`);
+`guidance_open_voice_search` is still there. The effect on the steering wheel's
+voice key is not verified.
+
 ## Earlier numbered candidates (2026-10-15)
 
 **YandexHUD build 1, ARM64 debug:**
@@ -700,9 +715,14 @@ as the current candidate.
 
 The experimental signature prevents an update over the original Navigator.
 Plan replacement and restoration of the original app/data before installing;
-do not uninstall the owner's current copy as an automatic build step. Disable
-Denza Apps' HUD navigation/map sender for the trial: two writers of the same
-road/map topics are not arbitrated. Keep other vehicle functions unchanged.
+do not uninstall the owner's current copy as an automatic build step. Denza
+Apps' HUD sender stays as it is: since 2026-10-18 (`f81b2570`) the module
+attaches to Denza Apps' host and Denza Apps alone writes the HUD, a module with
+no host writes itself, and Denza Apps turns its own capture off whenever the
+installed Navigator is a YandexHUD build (`HudNavigatorBuild`, since
+2026-10-15), so there is one writer either way
+([architecture](../../docs/hud-output-architecture.md), 4–5). The car's Denza
+Apps build (`fccd88dd`) has the host. Keep other vehicle functions unchanged.
 Verify binding permissions, image on glass, native GPS and real background
 service behavior, clear on cancel, receiver/process restart, sleep/wake,
 long-run memory and CPU/GPU load on the actual IVI. Emulator rates do not prove
