@@ -323,4 +323,65 @@ class CloudLinkProtocolTest {
         // And a build that names something else falls back to this car's.
         assertEquals("triple_apn", CloudCarState(buildProfile = "single_apn").stockProfile)
     }
+
+    /**
+     * APN2 and the session socket's interface, read as the N9 session of 2026-10-16 read the latter
+     * (`ss` for the established socket to 6041, `ip -o addr` for the interface holding its address).
+     * Only the interface's name comes out; a read that printed nothing is not read.
+     */
+    @Test
+    fun theReportReadsApn2AndTheSessionSocketsInterface() {
+        val car = CloudLinkProtocol.parseRead(
+            """
+            @@apn2state
+            connect
+            @@apn2stateExit:0
+            @@apn2if
+            ccmni1
+            @@socket
+            ESTAB       0      0      192.168.1.98:37572              124.71.10.211:6041
+            @@addresses
+            1: lo    inet 127.0.0.1/8 scope host lo\       valid_lft forever preferred_lft forever
+            38: wlan0    inet 192.168.1.98/24 brd 192.168.1.255 scope global wlan0\       valid_lft forever preferred_lft forever
+            40: ccmni1    inet 10.71.2.9/8 scope global ccmni1\       valid_lft forever preferred_lft forever
+            """.trimIndent(),
+        )
+        assertEquals("connect", car.apn2State)
+        assertEquals("ccmni1", car.apn2Interface)
+        assertEquals("wlan0", car.cloudInterface)
+        // APN2 is the report's: it is not the car's own cloud path and decides nothing.
+        assertFalse(car.cellular)
+        assertFalse(car.stockApnBusy)
+
+        // The same socket on mobile data, written the IPv6-mapped way.
+        assertEquals(
+            "ccmni1",
+            CloudLinkProtocol.socketInterface(
+                listOf("tcp   ESTAB 0 0 [::ffff:10.71.2.9]:41000 [::ffff:124.71.10.211]:6041"),
+                listOf("40: ccmni1    inet 10.71.2.9/8 scope global ccmni1"),
+            ),
+        )
+        // No session socket, a socket to another port, or no address that holds it: not read.
+        assertNull(CloudLinkProtocol.socketInterface(emptyList(), listOf("38: wlan0    inet 192.168.1.98/24")))
+        assertNull(
+            CloudLinkProtocol.socketInterface(
+                listOf("ESTAB 0 0 192.168.1.98:37572 124.71.10.211:6001"),
+                listOf("38: wlan0    inet 192.168.1.98/24"),
+            ),
+        )
+        assertNull(
+            CloudLinkProtocol.socketInterface(
+                listOf("ESTAB 0 0 192.168.1.98:37572 124.71.10.211:6041"),
+                listOf("40: ccmni1    inet 10.71.2.9/8"),
+            ),
+        )
+        val unread = CloudLinkProtocol.parseRead("@@apn2state\n@@socket\n@@addresses")
+        assertNull(unread.apn2State)
+        assertNull(unread.cloudInterface)
+        // An unread APN2 is not a failed reading of what the adapter decides on.
+        assertNull(CloudLinkProtocol.readFailure(CloudCarState(
+            profile = "triple_apn", apn1Disabled = false, connected = false,
+            apn1State = "disconnected", apn3State = "disconnected",
+        )))
+    }
 }

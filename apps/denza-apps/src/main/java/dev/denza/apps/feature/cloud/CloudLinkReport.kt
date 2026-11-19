@@ -38,7 +38,8 @@ object CloudLinkReport {
         automaticFailure: String? = null,
         setting: String? = null,
         registration: String? = null,
-    ): List<Pair<String, String>> = listOf(
+        remembered: String? = null,
+    ): List<Pair<String, String>> = listOfNotNull(
         "Связь" to "${if (enabled) "включена" else "выключена"}, плитка «$tile»",
         // The press's refusal and the adapter's own failed pass share the row, told apart, so a
         // screenshot says which of the two is on the tile and which clears with the next pass. The
@@ -56,7 +57,12 @@ object CloudLinkReport {
         "SIM" to sim(network.simOperator),
         "Профиль" to "${car?.profile ?: UNKNOWN}, сборки ${car?.buildProfile ?: UNKNOWN}, " +
             "APN1 ${apn1(car?.apn1Disabled)}",
+        remembered?.let { "Вернуть профиль" to it },
         "Сотовая BYD" to yesNo(car?.cellular),
+        // Which path the client is on, told apart from the car's own data APN: what tells the next
+        // failure on a car with a SIM adapter from one on Wi-Fi.
+        "APN2" to (car?.apn2State?.let { state -> car.apn2Interface?.let { "$state, $it" } ?: state } ?: NOT_READ),
+        "Сокет облака" to (car?.cloudInterface ?: NOT_READ),
         "cloudmanager" to "PID ${car?.cloudPid ?: NONE}, TCP ${car?.connected?.let { if (it) 1 else 0 } ?: UNKNOWN}",
         "Wi-Fi во сне" to yesNo(car?.wifiRetained),
         "Адаптер" to (adapter?.let { "${it.gate} (оценка приложения), попыток ${it.attempts}" } ?: NONE),
@@ -65,6 +71,13 @@ object CloudLinkReport {
         "Прочитано" to (readAtMs?.let { "${span(nowMs - it)} назад" } ?: "ещё не было") +
             if (busy) ", идёт запись" else "",
     )
+
+    /** What the adapter owes the car's profile, in the report's words. */
+    internal fun remembered(memory: CloudProfileMemory): String = when (memory) {
+        CloudProfileMemory.Legacy -> "не запомнен, вернётся профиль сборки"
+        CloudProfileMemory.Clear -> NONE
+        is CloudProfileMemory.Owed -> memory.profile
+    }
 
     /** When the last «ready» went, and how long the backoff holds the next one back. */
     private fun ready(adapter: Adapter?, nowMs: Long): String {
@@ -104,4 +117,5 @@ object CloudLinkReport {
 
     private const val UNKNOWN = "?"
     private const val NONE = "—"
+    private const val NOT_READ = "не прочитано"
 }

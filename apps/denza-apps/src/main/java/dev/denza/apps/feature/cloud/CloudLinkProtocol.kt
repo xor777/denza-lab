@@ -33,9 +33,15 @@ internal object CloudLinkProtocol {
     /** `Settings.Global` key the ACC-off radio policy reads; `1` keeps client Wi-Fi on in sleep. */
     const val WIFI_RETENTION_KEY = "byd_off_wifi_switch"
 
+    /**
+     * The port of the session server the discovery reply names (`dilinknat0-cn.denzacloud.com:6041`,
+     * docs/telematics/cloud-protocol.md): the socket whose interface the report prints.
+     */
+    const val SESSION_PORT = 6041
+
     private const val MARKER = "@@"
-    private val APN_FIELDS = setOf("apn1state", "apn3state")
-    private val APN_EXIT = Regex("@@(apn[13]state)Exit:([0-9]+)")
+    private val APN_FIELDS = setOf("apn1state", "apn2state", "apn3state")
+    private val APN_EXIT = Regex("@@(apn[123]state)Exit:([0-9]+)")
 
     private val FIELDS = listOf(
         "profile" to "getprop persist.sys.byd.apn_type",
@@ -52,6 +58,15 @@ internal object CloudLinkProtocol {
         "regError" to "getprop sys.tcp_reg_errcode",
         "apn1if" to "getprop net.lte.apn1.ifname",
         "apn3if" to "getprop net.lte.apn3.ifname",
+        // Report only, never a decision: the car's default data APN, which mobile internet rides.
+        "apn2state" to "getprop net.lte.apn2.state",
+        "apn2if" to "getprop net.lte.apn2.ifname",
+        // Report only: the interface the client's session socket is on, as the N9 session of
+        // 2026-10-16 read it - the established socket to the session port, and the interface
+        // holding its local address (docs/telematics/other-vehicles.md). Plain netlink reads; only
+        // the interface's name leaves the parser, never an address.
+        "socket" to "ss -tn 2>/dev/null | grep -F ':$SESSION_PORT'",
+        "addresses" to "ip -o addr 2>/dev/null",
     )
 
     /** APN defaults require a matching completed command, not merely an empty output buffer. */
@@ -98,6 +113,7 @@ internal object CloudLinkProtocol {
         }
         val values = fields.filterValues { !it.invalid }.mapValues { it.value.lines.firstOrNull() }
         val apn1 = readApnState(fields["apn1state"])
+        val apn2 = readApnState(fields["apn2state"])
         val apn3 = readApnState(fields["apn3state"])
         return CloudCarState(
             profile = values["profile"]?.takeIf { it in setOf(WIFI_PROFILE, STOCK_PROFILE) },
@@ -125,8 +141,45 @@ internal object CloudLinkProtocol {
             apn3Interface = values["apn3if"].interfaceName(),
             apn1ReadSource = apn1.second,
             apn3ReadSource = apn3.second,
+            apn2State = apn2.first,
+            apn2Interface = values["apn2if"].interfaceName(),
+            apn2ReadSource = apn2.second,
+            cloudInterface = socketInterface(
+                fields["socket"]?.takeUnless { it.invalid }?.lines.orEmpty(),
+                fields["addresses"]?.takeUnless { it.invalid }?.lines.orEmpty(),
+            ),
         )
     }
+
+    /**
+     * The interface of the first established socket to [SESSION_PORT]: its local address looked up
+     * among the interfaces' (`ip -o addr`). Null when either read printed nothing it could mean.
+     */
+    internal fun socketInterface(sockets: List<String>, addresses: List<String>): String? {
+        val whitespace = Regex("\\s+")
+        val local = sockets.firstNotNullOfOrNull { line ->
+            val words = line.trim().split(whitespace)
+            val state = words.indexOfFirst { it.startsWith("ESTAB") }
+            if (state < 0 || state + 4 >= words.size) return@firstNotNullOfOrNull null
+            if (portOf(words[state + 4]) != SESSION_PORT.toString()) return@firstNotNullOfOrNull null
+            hostOf(words[state + 3])
+        } ?: return null
+        return addresses.firstNotNullOfOrNull { line ->
+            val words = line.trim().split(whitespace)
+            val family = words.indexOfFirst { it == "inet" || it == "inet6" }
+            if (family < 2 || family + 1 >= words.size) return@firstNotNullOfOrNull null
+            val address = words[family + 1].substringBefore('/').let(::bare)
+            words[1].removeSuffix(":").substringBefore('@').takeIf { address == local }
+        }.interfaceName()
+    }
+
+    private fun portOf(endpoint: String): String = endpoint.substringAfterLast(':')
+
+    private fun hostOf(endpoint: String): String = bare(endpoint.substringBeforeLast(':'))
+
+    /** `[::ffff:10.0.0.2]` and `10.0.0.2%wlan0` are both `10.0.0.2`. */
+    private fun bare(address: String): String =
+        address.removePrefix("[").removeSuffix("]").substringBefore('%').removePrefix("::ffff:")
 
     private fun readApnState(read: ReadField?): Pair<String?, CloudApnReadSource> = when {
         read == null || read.invalid || read.exit == null -> null to CloudApnReadSource.INCOMPLETE
@@ -238,6 +291,12 @@ data class CloudCarState(
     val apn3Interface: String? = null,
     val apn1ReadSource: CloudApnReadSource? = null,
     val apn3ReadSource: CloudApnReadSource? = null,
+    /** The default data APN, for the report only; no decision reads it. */
+    val apn2State: String? = null,
+    val apn2Interface: String? = null,
+    val apn2ReadSource: CloudApnReadSource? = null,
+    /** The interface the client's session socket is on, for the report only; null if not read. */
+    val cloudInterface: String? = null,
 ) {
     /** An APN owned by the stock framework is connected or still transitioning. */
     val stockApnBusy: Boolean

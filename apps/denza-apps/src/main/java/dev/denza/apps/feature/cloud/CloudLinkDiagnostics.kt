@@ -153,6 +153,7 @@ internal object CloudLinkDiagnostics {
             "profile=${car.profile} build=${car.buildProfile} apn1Disabled=${car.apn1Disabled} " +
             "apn1=${car.apn1State}/${car.apn1Interface} apn3=${car.apn3State}/${car.apn3Interface} " +
             "apn1Read=${car.apn1ReadSource} apn3Read=${car.apn3ReadSource} " +
+            "apn2=${car.apn2State}/${car.apn2Interface} apn2Read=${car.apn2ReadSource} socket=${car.cloudInterface} " +
             "pid=${car.cloudPid} tcp=${car.connected} step=${car.tcpStep} regError=${car.registrationError} wifiRetention=${car.wifiRetained}"
         if (state != lastState) {
             record(context, "read $state")

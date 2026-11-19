@@ -1220,6 +1220,58 @@ request saved by 0.7.1 or an earlier build of this release has no
 exactly as before, on off and on the Wi-Fi-loss path alike, until the first
 restore or off clears it.
 
+**What the report says now.** The next failure on a car with a SIM adapter has
+to be told apart from one on Wi-Fi, from a screenshot. Added, all read-only:
+
+- **APN2** (`net.lte.apn2.state`, `net.lte.apn2.ifname`, read as APN1/APN3
+  are): the car's default data APN, which mobile internet rides. Report only;
+  no decision reads it. Row «APN2» in «Сервис», `apn2=` in the history.
+- **The session socket's interface**: the interface of the established socket
+  to port 6041, the session server the discovery reply names, found as the N9
+  session of 2026-10-16 found it — `ss -tn` for the socket, `ip -o addr` for
+  the interface that holds its local address
+  ([N9 factory eSIM follow-up](other-vehicles.md#n9-factory-esim-follow-up-same-day)).
+  Both are plain netlink reads from the app's shell; only the interface's name
+  leaves the parser, never an address. Row «Сокет облака», `socket=` in the
+  history. A car whose session runs to another port, or a shell without `ss`,
+  reads «не прочитано».
+- **The remembered profile**: row «Вернуть профиль» (the profile owed, «—»
+  when nothing is, «не запомнен, вернётся профиль сборки» for a 0.7.1
+  request), `remembered=` on every press and on every step's begin and done
+  lines in the history, and in the exported `request=` line.
+
+A field the car did not answer reads «не прочитано» and does not fail the
+reading: APN2 and the socket decide nothing.
+
+**Car checklist.** Nothing here has run on a car.
+
+With a SIM adapter whose own path connects the stock client:
+
+1. At home on Wi-Fi, the client not connected, switch the link on. The
+   report shows «Вернуть профиль» `triple_apn` (or the profile the car was
+   on), the profile `double_apn`, «Сокет облака» `wlan0` once TCP is 1.
+2. Drive away. About 30 s after Wi-Fi goes, `-5` in the history; at 5 min
+   `begin WaitDisconnected`, `begin RestoreProfile(profile=triple_apn)` and
+   `done … remembered=clear`; the profile back on `triple_apn`, APN1 enabled.
+3. On the road, the client back by the car's own path: tile «На связи»,
+   «Сокет облака» the cellular interface (`ccmni…`), APN3 or APN2 connected,
+   and no profile or `notify_nw` line in the history for the rest of the drive.
+4. Back home, Wi-Fi validated: if the client is still connected, nothing is
+   sent; if not, `UseWifiProfile` and `AnnounceReady` once.
+5. With mobile internet only, Wi-Fi off, switch the link on: tile «Нет Wi-Fi»
+   (or «На связи» when the client is connected by itself), no
+   `RADIO_CONFIG` and no `notify_nw` in the history; switch it off: no
+   profile write.
+
+Without one (the owner's car, Wi-Fi only):
+
+1. Switch on at home: profile `double_apn`, `4`, TCP 1, as before.
+2. Off: `-5`, TCP 0, the remembered profile back (`triple_apn` here), as
+   before.
+3. Away from Wi-Fi for more than 5 min with the link on: the profile goes back
+   to `triple_apn` and the tile reads «Нет Wi-Fi»; back on Wi-Fi it switches
+   again and reconnects.
+
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 
 The owner requested fixing supported application defects and continuing cache

@@ -173,6 +173,7 @@ object SupportDiagnostics {
             automaticFailure = failures.automatic?.report,
             setting = failures.setting,
             registration = CloudLinkRuntime.registrationFailure?.message(car, SystemClock.elapsedRealtime()),
+            remembered = CloudLinkReport.remembered(CloudLinkSettings.request(context).remembered),
         ).map { (key, value) -> row(key, value) } + listOf(
             row("Чтение", CloudLinkRuntime.readFailure ?: if (CloudLinkRuntime.readingFailed(SystemClock.elapsedRealtime())) "устарело" else "актуально"),
             row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),
