@@ -68,7 +68,11 @@ class GnssTripAccumulator(
             variometer *= exp(-step / varioFreezeTau)
             pendingReanchor = true
         }
-        if (hasAltitudeFix && altitudeAcceptable(hasVerticalAccuracy, verticalAccuracyMeters)) {
+        // A non-finite altitude is no fix: seeded or smoothed in, it reaches the strip's
+        // `roundToInt()` on the draw path, which throws for NaN.
+        if (hasAltitudeFix && altitude.isFinite() &&
+            altitudeAcceptable(hasVerticalAccuracy, verticalAccuracyMeters)
+        ) {
             if (!altitudeSeeded) {
                 maybeSeed(altitude, hasVerticalAccuracy)
             } else if (movingForClimb) {

@@ -47,6 +47,25 @@ class GnssTripAccumulatorTest {
         assertEquals(movingDistance, accumulator.distanceMeters, 1e-6)
     }
 
+    /**
+     * A provider that says it has an altitude and hands a non-finite one. Seeded or smoothed in, it
+     * reached the strip's `roundToInt()` on the draw path, which throws for NaN.
+     */
+    @Test
+    fun aNonFiniteAltitudeIsNoFix() {
+        val unseeded = GnssTripAccumulator()
+        unseeded.fix(speed = 10.0, alt = Double.NaN, hasAlt = true)
+        assertFalse("nothing seeded from NaN", unseeded.hasAltitude)
+
+        val seeded = GnssTripAccumulator()
+        seeded.fix(speed = 10.0, alt = 120.0, hasAlt = true)
+        seeded.fix(speed = 10.0, alt = 121.0, hasAlt = true)
+        seeded.fix(speed = 10.0, alt = Double.POSITIVE_INFINITY, hasAlt = true)
+        seeded.fix(speed = 10.0, alt = Double.NaN, hasAlt = true)
+        assertTrue(seeded.smoothedAltitude.isFinite())
+        assertTrue(seeded.variometer.isFinite())
+    }
+
     @Test
     fun distanceWaitsForTheTrip() {
         val accumulator = GnssTripAccumulator()
