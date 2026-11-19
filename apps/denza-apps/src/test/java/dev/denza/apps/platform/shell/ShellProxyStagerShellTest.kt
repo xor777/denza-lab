@@ -93,6 +93,27 @@ class ShellProxyStagerShellTest {
     }
 
     /**
+     * A part file of the current jar that nobody has written for an hour is a write a dropped link
+     * abandoned, and every drop on the same build used to leave one more for good. It goes; one
+     * written a moment ago is a write in flight and stays.
+     */
+    @Test
+    fun anAbandonedPartFileOfTheCurrentJarGoesAndALiveOneStays() {
+        val current = "denza-split-proxy-${ShellProxyStager.sha256(jar)}.jar"
+        val abandoned = File(directory, "$current.0b1e.part").apply {
+            writeText("half a jar")
+            setLastModified(System.currentTimeMillis() - 60 * 60_000L)
+        }
+        val inFlight = File(directory, "$current.4f2a9c.part").apply { writeText("half a jar") }
+
+        val path = stager().stage(::sh)
+
+        assertFalse("an abandoned part goes", abandoned.exists())
+        assertTrue("a write in flight keeps its part file", inFlight.isFile)
+        assertArrayEquals(jar, File(path).readBytes())
+    }
+
+    /**
      * The jar is deleted while the process lives and still holds its path: the command line
      * names the APK in its place, so the next command loads the class instead of failing.
      */

@@ -45,9 +45,11 @@ internal class ShellProxyRefused(message: String, cause: Throwable? = null) :
  *
  * Each call deletes the copies of the same helper under any other name - an earlier build's jar, a
  * part file of an earlier build - and so the directory holds one per helper. The sweep spares every
- * file that begins with the current name, which is what keeps two callers staging at once safe; it
- * also means that a part file of the current jar left by a link that dropped mid-write stays until
- * the jar changes. It is a few kilobytes, and nothing reads it.
+ * file that begins with the current name, which is what keeps two callers staging at once safe. A
+ * part file of the current jar left by a link that dropped mid-write is spared by that too, and
+ * every such drop on the same build left one more, without limit; so a part file of the current jar
+ * that nobody has written for [ABANDONED_PART_MINUTES] goes as well. A writer in flight touches its
+ * part with every piece, seconds apart, and is never that old.
  *
  * Failing throws: [ShellProxyRefused] when the car has answered and the answer is no, anything else
  * when the link did not carry the question. What a caller does then is its own policy: the split
@@ -129,7 +131,10 @@ internal class ShellProxyStager(
     private fun sweepAndHashCommand(path: String): String =
         "for f in ${shellQuote("$directory/${helper.fileName}-")}*; do " +
             "case \"\$f\" in ${shellQuote(path)}*) ;; *) rm -f \"\$f\" 2>/dev/null ;; esac; " +
-            "done; " + hashCommand(path)
+            "done; " +
+            "find ${shellQuote(directory)} -maxdepth 1 -type f -name ${shellQuote(path.substringAfterLast('/') + ".*.part")} " +
+            "-mmin +$ABANDONED_PART_MINUTES -exec rm -f {} \\; >/dev/null 2>&1; " +
+            hashCommand(path)
 
     // Silenced before it is attempted: the transport merges stderr into the answer.
     private fun hashCommand(path: String): String = "sha256sum ${shellQuote(path)} 2>/dev/null"
@@ -151,6 +156,12 @@ internal class ShellProxyStager(
          * it with the transport's frame added.
          */
         const val MAX_COMMAND_LINE = 8 * 1024
+
+        /**
+         * A part file of the current jar this long untouched is a write a dropped link abandoned.
+         * A writer in flight appends a piece every few seconds; ten minutes is two orders past that.
+         */
+        const val ABANDONED_PART_MINUTES = 10
 
         /** 6,144 characters of base64 a piece, which leaves the paths and the hash room. */
         const val CHUNK_BYTES = 4_608
