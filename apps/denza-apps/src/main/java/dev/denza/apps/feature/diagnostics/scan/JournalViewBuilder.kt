@@ -108,7 +108,10 @@ internal object JournalViewBuilder {
         class Row(val row: JournalCodeRow, val firstAt: Long, val goneAt: Long?, val index: Int)
         val rows = keys.withIndex().mapNotNull { (index, key) ->
             val life = JournalFacts.life(data, key, latest) ?: return@mapNotNull null
-            val goneAt = data.scans.firstOrNull { it.atMillis > life.lastAtMillis && it.module(key.address)?.memoryRead == true }?.atMillis
+            // gone at the first later reading that would have listed it - a mask that did not ask says nothing
+            val goneAt = data.scans.firstOrNull { s ->
+                s.atMillis > life.lastAtMillis && s.module(key.address)?.let { JournalFacts.covers(it, life.record) } == true
+            }?.atMillis
             val r = life.record
             val mark = r.status?.let { BlockRecords.mark(dev.denza.apps.feature.diagnostics.protocol.DtcStatus(it)) }
                 ?: if (r.source == "07") Mark.PENDING else Mark.ACTIVE
@@ -163,9 +166,10 @@ internal object JournalViewBuilder {
             .filter { it !in held }
             .mapNotNull { address ->
                 val last = upTo.last { s -> s.module(address)?.records?.isNotEmpty() == true }
-                val goneAt = upTo.firstOrNull { it.atMillis > last.atMillis && it.module(address)?.memoryRead == true }?.atMillis
-                    ?: return@mapNotNull null
                 val m = last.module(address)!!
+                val goneAt = upTo.firstOrNull { s ->
+                    s.atMillis > last.atMillis && s.module(address)?.let { now -> m.records.all { JournalFacts.covers(now, it) } } == true
+                }?.atMillis ?: return@mapNotNull null
                 val codes = m.records.map { it.code }.toSet()
                 val seen = upTo.filter { s -> s.module(address)?.records?.any { it.code in codes } == true }.map { it.atMillis }
                 goneAt to JournalCodeLane(address, "${m.abbreviation} ${Figures.address(address)}", m.records.size, worst(m), seen.map(axis::at), gone = true)

@@ -165,14 +165,15 @@ internal object JournalFacts {
         val holding = upTo.filter { s -> s.module(key.address)?.let { holds(it, key.code) } == true }
         val first = holding.firstOrNull() ?: return null
         val last = holding.last()
-        val readSince = upTo.filter { it.atMillis >= first.atMillis && it.module(key.address)?.memoryRead == true }
-            .map { it.atMillis }.toSet()
         val module = last.module(key.address)!!
+        val record = module.records.first { it.code == key.code }
+        val readSince = upTo.filter { it.atMillis >= first.atMillis && it.module(key.address)?.let { m -> covers(m, record) } == true }
+            .map { it.atMillis }.toSet()
         val before = previousReading(upTo, scan, key.address)
         return JournalCodeLife(
             key = key,
             abbreviation = module.abbreviation,
-            record = module.records.first { it.code == key.code },
+            record = record,
             firstAtMillis = first.atMillis,
             firstOdometerKm = first.odometerKm,
             lastAtMillis = last.atMillis,
@@ -180,7 +181,7 @@ internal object JournalFacts {
             seenIn = holding.count { it.atMillis in readSince },
             readIn = readSince.size,
             isNew = scan.module(key.address)?.let { holds(it, key.code) } == true &&
-                before != null && !holds(before.module(key.address)!!, key.code),
+                before != null && before.module(key.address)!!.let { !holds(it, key.code) && covers(it, record) },
         )
     }
 
@@ -195,7 +196,7 @@ internal object JournalFacts {
         val upTo = data.scans.filter { it.atMillis <= scan.atMillis }
         return scan.modules.filter { it.memoryRead }.flatMap { now ->
             val before = previousReading(upTo, scan, now.address)?.module(now.address) ?: return@flatMap emptyList()
-            before.records.distinctBy { it.code }.filter { !holds(now, it.code) }.map { r ->
+            before.records.distinctBy { it.code }.filter { !holds(now, it.code) && covers(now, it) }.map { r ->
                 val key = JournalCodeKey(now.address, r.code)
                 JournalGoneCode(key, now.abbreviation, r, upTo.last { s -> s.module(now.address)?.let { holds(it, r.code) } == true }.atMillis)
             }
@@ -207,6 +208,18 @@ internal object JournalFacts {
         scans.lastOrNull { it.atMillis < scan.atMillis && it.module(address)?.memoryRead == true }
 
     private fun holds(m: JournalModule, code: String) = m.records.any { it.code == code }
+
+    /**
+     * Whether [reading] would have listed [record] were it still held as it was: the memory read whole and - for a
+     * UDS record - under a request mask that takes one of its status bits. A pending-only code (`04`) read under
+     * `09`, after a `0D` read failed, is neither held nor gone there: that reading did not ask for it.
+     */
+    fun covers(reading: JournalModule, record: JournalRecord): Boolean {
+        if (!reading.memoryRead) return false
+        val status = record.status ?: return true
+        val mask = reading.requestMask ?: return true
+        return (status and mask) != 0
+    }
 
     // ------------------------------------------------------------------ two scans
 
@@ -233,8 +246,9 @@ internal object JournalFacts {
                 )
                 when {
                     !both -> unread += change
-                    change.from == null -> added += change
-                    change.to == null -> gone += change
+                    // a code one reading did not ask for (its mask): neither come nor gone between the two
+                    change.from == null -> if (covers(a!!, change.to!!)) added += change else unread += change
+                    change.to == null -> if (covers(b!!, change.from)) gone += change else unread += change
                     else -> same += change
                 }
             }

@@ -191,4 +191,37 @@ class JournalFactsTest {
         assertEquals(9, JournalFacts.points(d, JournalQuantity.SNAPSHOT_SPREAD_MV).size)
         assertEquals(base + 8 * 86_400_000L, JournalFacts.lastFullCharge(d)!!.atMillis)
     }
+
+    /**
+     * R_ZCU's C1170-09 read pending-only (`04`) under `0D`; the next scan's `0D` failed and `09` came back empty.
+     * `09` does not ask for a pending-only record: the code is not gone, the comparison does not know, and
+     * «Журнал · Коды» keeps it as it was last read. A later `0D` read without it is the one that says it went.
+     */
+    @Test
+    fun aMaskThatDidNotAskForACodeDoesNotSayItWent() {
+        fun x(uds: String, answer: String) = Triple(uds, answer, 20)
+        val pending = JournalFixtures.result(0x747, x("19010D", "59010D000001"), x("19020D", "59020D51700904"))
+        val narrower = JournalFixtures.result(0x747, x("19010D", "7F1931"), x("190109", "590109000000"))
+        val whole = JournalFixtures.result(0x747, x("19010D", "59010D000000"))
+        val a = JournalFixtures.scan(at("2026-10-20T19:31:29Z"), listOf(pending))
+        val b = JournalFixtures.scan(at("2026-10-21T08:05:00Z"), listOf(narrower))
+        val c = JournalFixtures.scan(at("2026-10-22T07:55:00Z"), listOf(whole))
+        assertEquals(0x0D, a.module(0x747)!!.requestMask)
+        assertEquals(0x09, b.module(0x747)!!.requestMask)
+        assertTrue(b.module(0x747)!!.memoryRead)
+        val key = key(0x747, "C1170-09")
+
+        val ab = listOf(a, b).fold(JournalData()) { d, s -> d.with(s) }
+        assertTrue(JournalFacts.gone(ab).isEmpty())
+        val compared = JournalFacts.compare(a, b)
+        assertTrue(compared.gone.isEmpty())
+        assertEquals(listOf(key), compared.unread.map { it.key })
+        val row = JournalViewBuilder.codeRows(ab, ScanClock(zone)).single()
+        assertEquals("not gone: still marked as last read", Mark.PENDING, row.mark)
+        assertEquals(1 to 1, JournalFacts.life(ab, key, a)!!.let { it.seenIn to it.readIn })
+
+        val abc = ab.with(c)
+        assertNull(JournalViewBuilder.codeRows(abc, ScanClock(zone)).single().mark)
+        assertEquals(listOf(key), JournalFacts.compare(a, c).gone.map { it.key })
+    }
 }
