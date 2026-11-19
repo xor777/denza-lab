@@ -156,12 +156,14 @@ internal class HudMapProjectionSource(private val service: AccessibilityService)
             val buffer = image.hardwareBuffer
             if (buffer == null) {
                 HudMapRuntime.onCaptureFailure("buffer")
+                sink.onFailure()
                 return
             }
             try {
                 val picture = Bitmap.wrapHardwareBuffer(buffer, null)
                 if (picture == null) {
                     HudMapRuntime.onCaptureFailure("bitmap")
+                    sink.onFailure()
                     return
                 }
                 try {

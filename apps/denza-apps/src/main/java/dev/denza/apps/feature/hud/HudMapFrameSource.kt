@@ -67,4 +67,11 @@ interface HudMapFrameSink {
      * last frame.
      */
     fun onGap(state: HudMapState)
+
+    /**
+     * The source had something to deliver and could not make it a frame - an image without a
+     * usable buffer. Counted like a frame the pipeline failed on: brief ones keep the last frame,
+     * lasting ones empty the window ([HudMapFailureClock]).
+     */
+    fun onFailure() {}
 }

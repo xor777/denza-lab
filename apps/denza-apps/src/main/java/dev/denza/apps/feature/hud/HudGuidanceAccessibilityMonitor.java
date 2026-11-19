@@ -173,7 +173,8 @@ public final class HudGuidanceAccessibilityMonitor {
             // while it publishes one through the host, comes first.
             // After the publish, which starts the session the map's frames ride on. A route read
             // from the notification has no Yandex on the screen; the map source finds that itself.
-            mapRunner.run(isMapOurs());
+            // Where the route stands as Yandex shows it: a map that stops following it is not kept.
+            mapRunner.run(isMapOurs(), guidance.getManeuverDistanceMeters() + "/" + guidance.getRemainingDistanceMeters());
         } else if (freshness.routeLost(now)) {
             routeHeld = false;
             // The map and the hints go together, and the compositor sends one clear for both;

@@ -26,7 +26,10 @@ import java.io.File
  * While frames are going, the last one is published again every [KEEP_ALIVE_MS] that no new one
  * came: a mirrored screen that does not change delivers no frames, and a frame not published again
  * dies after [HudScene.LAYER_TTL_MS]. The same picture renews the frame without sending it; the
- * session repeats it on the HUD once a second, as the stock navigator repeats its own.
+ * session repeats it on the HUD once a second, as the stock navigator repeats its own. It is not
+ * renewed once the route has moved on and the source has not followed ([HudMapStaleness]): a
+ * mirror that stops delivering with its token, display and Yandex's window all in place would
+ * otherwise keep a frozen map on the glass for good (2026-11-19).
  *
  * Main-thread calls; [shutdown] ends the thread, and the runner is not used after it.
  */
@@ -65,22 +68,31 @@ internal class HudMapRunner(
     private var framesThisRun = 0
     private val failures = HudMapFailureClock()
 
+    /** Main thread: whether the source still follows the route. */
+    private val staleness = HudMapStaleness()
+
     private val sink = object : HudMapFrameSink {
         override fun onFrame(frame: HudMapFrame) = onPicture(frame)
 
         override fun onGap(state: HudMapState) = onHidden(state, null)
+
+        override fun onFailure() = onSourceFailure()
     }
 
     init {
         HudMapRuntime.onSource("${source.name}, ${source.frameIntervalMs} мс")
     }
 
-    /** A route is held: the map runs if [enabled]. */
-    fun run(enabled: Boolean) {
+    /**
+     * A route is held: the map runs if [enabled]. [progress]: where the route stands as the hints
+     * read it (the distances Yandex shows), for [HudMapStaleness]; null when unknown.
+     */
+    fun run(enabled: Boolean, progress: Any? = null) {
         if (!enabled) {
             stop()
             return
         }
+        staleness.progressed(progress)
         if (active) return
         active = true
         // The state follows the source's first answer: a frame, Yandex hidden, or no capture.
@@ -180,6 +192,13 @@ internal class HudMapRunner(
         }
     }
 
+    /** Frame thread: the source could not make a frame; lasting failures empty the window. */
+    private fun onSourceFailure() {
+        val made = generation
+        if (pipeline == null) return
+        if (made == generation && failures.failed(SystemClock.uptimeMillis())) onHidden(HudMapState.FAILING, null)
+    }
+
     /** Frame thread: no picture now. The window is emptied once, as it stops being fed. */
     private fun onHidden(state: HudMapState, by: HudMapWindow?) {
         val made = generation
@@ -198,21 +217,34 @@ internal class HudMapRunner(
 
     /** Main thread: a new frame, and the clock for its renewal starts again. */
     private fun send(png: ByteArray) {
+        staleness.framed(SystemClock.uptimeMillis())
+        publish(png)
+    }
+
+    private fun publish(png: ByteArray) {
         lastPng = png
         publisher.publish(png)
         main.removeCallbacks(keepAlive)
         main.postDelayed(keepAlive, KEEP_ALIVE_MS)
     }
 
+    /** Main thread: the last frame again, unless the source has stopped following the route. */
     private fun renew() {
         val png = lastPng ?: return
         if (!active) return
-        send(png)
+        if (staleness.stale(SystemClock.uptimeMillis())) {
+            forgetLast()
+            publisher.clear()
+            setState(HudMapState.FAILING)
+            return
+        }
+        publish(png)
     }
 
     private fun forgetLast() {
         lastPng = null
         main.removeCallbacks(keepAlive)
+        staleness.reset()
     }
 
     /** One log line per change of state, from either thread; never one per frame. */
@@ -232,6 +264,54 @@ internal class HudMapRunner(
 
         /** Inside the frame's lifetime, [HudScene.LAYER_TTL_MS], with room for a busy main thread. */
         const val KEEP_ALIVE_MS = 1_000L
+    }
+}
+
+/**
+ * Whether the last frame still shows the route as it is. A screen that does not change delivers no
+ * frames - stopped at a light the map stays as it is, and that is right - so silence alone says
+ * nothing. Silence while the route moves on does: the distances Yandex shows changed [MOVES] times
+ * since the last frame, and that frame is [staleAfterMs] old. Yandex's own screen changed with
+ * those distances, so a working mirror would have delivered. Main thread.
+ */
+internal class HudMapStaleness(private val staleAfterMs: Long = STALE_AFTER_MS) {
+    private var frameAt = NONE
+    private var progress: Any? = null
+    private var moves = 0
+
+    /** A new frame went out at [nowMs]. */
+    fun framed(nowMs: Long) {
+        frameAt = nowMs
+        moves = 0
+    }
+
+    /** The hints read the route at [key]; null: unknown. */
+    fun progressed(key: Any?) {
+        if (key == null || key == progress) return
+        if (progress != null && frameAt != NONE) moves++
+        progress = key
+    }
+
+    /** True once the last frame no longer shows where the route is. */
+    fun stale(nowMs: Long): Boolean = frameAt != NONE && moves >= MOVES && nowMs - frameAt >= staleAfterMs
+
+    /** No frame on the glass: nothing to judge. */
+    fun reset() {
+        frameAt = NONE
+        progress = null
+        moves = 0
+    }
+
+    companion object {
+        /** Longer than a frame interval by far and than the failure clock's second. */
+        const val STALE_AFTER_MS = 3_000L
+
+        /**
+         * Two changes, not one: a single change can be the picture the source's pacer let pass
+         * just before the car stopped, with nothing on the screen moving after it.
+         */
+        const val MOVES = 2
+        private const val NONE = Long.MIN_VALUE
     }
 }
 
