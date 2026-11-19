@@ -158,6 +158,9 @@ the `experiments` property:
 ./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ```
 
+The parked «Сервис → Предупреждения машины» recorder is built in only with
+`-Pwarnings` (`./gradlew -Pwarnings :denza-apps:assembleDebug`).
+
 The same form works for every module in the second table above.
 
 ## Conventions

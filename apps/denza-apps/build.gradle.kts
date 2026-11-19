@@ -160,6 +160,10 @@ android {
         // can tell builds apart during acceptance; it never drives the version.
         versionCode = 79
         versionName = "0.7.1"
+        // «Сервис → Предупреждения машины» is a research recorder of the cluster's warning slot: its
+        // code builds, and the row and the recording exist only in a build asked for with `-Pwarnings`
+        // (docs/vehicle-data-findings.md, "Warning recorder").
+        buildConfigField("boolean", "WARNINGS", providers.gradleProperty("warnings").isPresent.toString())
     }
 
     buildFeatures {

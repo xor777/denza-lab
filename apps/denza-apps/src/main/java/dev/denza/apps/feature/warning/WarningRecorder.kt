@@ -52,10 +52,13 @@ internal class WarningRecorder private constructor(private val app: Context) {
     private val exportState = MutableStateFlow<String?>(null)
     val exported: StateFlow<String?> = exportState.asStateFlow()
 
-    /** Whether the sweep should ask for the slot at all: off means not one extra call. */
-    fun wantsSlot(): Boolean {
+    /**
+     * Whether the sweep should ask for the slot at all: off means not one extra call. In a build
+     * without `-Pwarnings` never, and the journal is not even opened, so nothing is written.
+     */
+    fun wantsSlot(): Boolean = asksSlot(BuildConfig.WARNINGS) {
         ensureOpen()
-        return journal.isEnabled
+        journal.isEnabled
     }
 
     /** One sweep's answer for the slot, or null when the car did not give one. The hub's thread. */
@@ -151,6 +154,13 @@ internal class WarningRecorder private constructor(private val app: Context) {
         const val TRANSLATION = "warnings/popup_ru.tsv"
 
         private val FILE_STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+
+        /**
+         * The recorder is parked: [built] is `BuildConfig.WARNINGS`, and without it [switchedOn] - the
+         * journal's own switch, which opens the journal - is never asked. A journal an earlier build
+         * wrote stays where it is.
+         */
+        internal fun asksSlot(built: Boolean, switchedOn: () -> Boolean): Boolean = built && switchedOn()
 
         @Volatile
         private var instance: WarningRecorder? = null

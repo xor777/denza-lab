@@ -10,8 +10,8 @@ import org.junit.Test
 
 /**
  * The warnings boards draw words, the page writes them from a record: every word on every board is
- * what [WarningText] makes of the record the board carries, and the service panel's row says the
- * same as the page it opens.
+ * what [WarningText] makes of the record the board carries. The recorder is parked outside a
+ * `-Pwarnings` build, so the service panel's boards, drawn as the public build shows them, have no row.
  */
 class WarningBoardContractTest {
 
@@ -87,18 +87,16 @@ class WarningBoardContractTest {
     }
 
     @Test
-    fun theServiceRowSaysWhatThePageHolds() {
+    fun theServiceBoardsHaveNoWarningsRow() {
         val ids = SpecJson.fixtures.keys.filter { id ->
             val state = SpecJson.fixture(id)["state"] as? Map<*, *>
             state?.get("tile") == "SERVICE" && state["page"] == "main"
         }
         assertTrue(ids.size >= 4)
         ids.forEach { id ->
-            val r = warnings(id)
             val rows = blocks(id).filter { it["t"] == "group" }
                 .flatMap { (it["rows"] as List<*>).map { row -> row as Map<*, *> } }
-            val row = rows.single { it["title"] == WarningText.TITLE }
-            assertEquals(id, WarningText.row(r.state, r.nowMs, zone), row["summary"])
+            assertTrue(id, rows.none { it["title"] == WarningText.TITLE })
         }
     }
 }

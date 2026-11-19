@@ -162,7 +162,9 @@ internal fun ServicePanel(
 ) {
     LaunchedEffect(Unit) { onOpenService() }
     val diagnostics = remember { DiagnosticsCar.offered(autoType()) }
-    val warnings = warningsFixture ?: rememberWarnings()
+    // The warning recorder is parked outside a `-Pwarnings` build (build.gradle.kts): no row, and the
+    // journal is not opened. A board brings its own record for the page's boards.
+    val warnings = warningsFixture ?: if (BuildConfig.WARNINGS) rememberWarnings() else null
     var page by rememberSaveable { mutableStateOf(firstPage) }
     val back = { page = page.parent }
     // One place a page: the journal is opened from the bottom of a long report, and the report has
@@ -223,7 +225,7 @@ internal fun ServicePanel(
             }
             ServicePage.WARNINGS -> {
                 DenzaSheetHeader(title = WarningText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
-                ServiceWarningsPage(warnings)
+                warnings?.let { ServiceWarningsPage(it) }
             }
         }
     }
@@ -238,7 +240,7 @@ private fun ServiceMain(
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onPage: (ServicePage) -> Unit,
     nowMs: () -> Long,
-    warnings: WarningsView,
+    warnings: WarningsView?,
     onSelectLanguage: (AppLanguage) -> Unit,
     diagnostics: Boolean,
 ) {
@@ -290,8 +292,9 @@ private fun ServiceMain(
     // The diagnostic section only on the car its catalog was made for (DiagnosticsCar).
     val pages = listOfNotNull(
         ServicePage.DIAGNOSTICS.takeIf { diagnostics },
-        ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.WARNINGS, ServicePage.SCREEN,
-        ServicePage.TECHNICAL,
+        ServicePage.RESTORE, ServicePage.MOBILE_INTERNET,
+        ServicePage.WARNINGS.takeIf { BuildConfig.WARNINGS && warnings != null },
+        ServicePage.SCREEN, ServicePage.TECHNICAL,
     )
     DenzaChoiceGroup(pages) { target ->
         when (target) {
@@ -309,11 +312,13 @@ private fun ServiceMain(
                     tone = restore.tone.tile,
                 )
             }
-            ServicePage.WARNINGS -> DenzaChoiceRow(
-                title = WarningText.TITLE,
-                value = WarningText.row(warnings.state, warnings.nowMs, warnings.zone),
-                onClick = { onPage(target) },
-            )
+            ServicePage.WARNINGS -> warnings?.let {
+                DenzaChoiceRow(
+                    title = WarningText.TITLE,
+                    value = WarningText.row(it.state, it.nowMs, it.zone),
+                    onClick = { onPage(target) },
+                )
+            }
             ServicePage.SCREEN -> DenzaChoiceRow(
                 title = AppText.s(R.string.cluster_display_title),
                 value = state.clusterDisplayLabel,

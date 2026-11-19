@@ -16437,11 +16437,6 @@
        },
        {
         "kind": "choice",
-        "title": "Car warnings",
-        "summary": "Last: 13F · today, 14:01"
-       },
-       {
-        "kind": "choice",
         "title": "Instrument screen",
         "summary": "Auto-detected: Screen 1 · 1920×720"
        },
@@ -17210,11 +17205,6 @@
         "kind": "choice",
         "title": "Mobile internet",
         "summary": "Stock traffic monitor"
-       },
-       {
-        "kind": "choice",
-        "title": "Car warnings",
-        "summary": "Last: 13F · today, 14:01"
        },
        {
         "kind": "choice",
@@ -17996,11 +17986,6 @@
         "kind": "choice",
         "title": "Mobile internet",
         "summary": "Stock traffic monitor"
-       },
-       {
-        "kind": "choice",
-        "title": "Car warnings",
-        "summary": "Last: 13F · today, 14:01"
        },
        {
         "kind": "choice",
@@ -32979,11 +32964,6 @@
         "kind": "choice",
         "title": "Mobile internet",
         "summary": "Stock traffic monitor"
-       },
-       {
-        "kind": "choice",
-        "title": "Car warnings",
-        "summary": "Last: 13F · today, 14:01"
        },
        {
         "kind": "choice",

@@ -275,12 +275,12 @@
   ] };
   // the restore's row says what it did after the last boot, in its colour when it needs somebody.
   // «Диагностика» leads on the Z9GT, the one car its catalog knows (`autoType` below); elsewhere
-  // the panel has no such row.
+  // the panel has no such row. «Предупреждения машины» is parked: its row exists only in a
+  // `-Pwarnings` build, not here; its page's boards stay.
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
     { kind: 'choice', title: 'Диагностика', summary: 'Автоскан блоков, коды неисправностей, потоковые данные' },
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
-    { kind: 'choice', title: 'Предупреждения машины', summary: 'Последнее: 13F · сегодня, 14:01' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] });
