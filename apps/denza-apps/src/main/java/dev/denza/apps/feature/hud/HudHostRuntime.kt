@@ -26,9 +26,13 @@ object HudHostRuntime {
     /** Whether the YandexHUD module writes to the HUD through this app now. */
     fun hostsModule(): Boolean = HudSource.MODULE in attached
 
-    /** A switch of the HUD panel moved; the host applies it on the main thread. */
+    /**
+     * A switch of the HUD panel moved; the host applies it on the main thread. The car's sign
+     * hears it here first, on the caller's thread ([HudSignFollower.switchMoved]).
+     */
     fun settingsChanged(context: Context) {
         val app = context.applicationContext
+        HudHostOutput.switchMoved()
         Handler(Looper.getMainLooper()).post { HudHostOutput.get(app).onSettingsChanged() }
     }
 

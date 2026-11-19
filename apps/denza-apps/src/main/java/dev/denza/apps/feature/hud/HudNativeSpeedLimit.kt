@@ -321,18 +321,60 @@ internal class HudNativeSpeedLimitPump(
         )
 }
 
+/** Where the sign's target goes: [HudNativeSpeedLimitRunner]; any thread. */
+internal fun interface HudSignTarget {
+    fun setTarget(limitKmh: Int?)
+}
+
+/**
+ * The car's sign after the composition's limit, behind «Ограничение скорости» ([HudHostOutput]).
+ * The target is the limit the switch lets through, never a limit cached before it moved.
+ *
+ * The switch reaches the composition only on the main thread and its next pump, while the worker
+ * may be reading the car for seconds; so [switchMoved] runs at once on the thread that moved it
+ * and voids the worker's pass before its write. Until 2026-11-19 nothing did, and the main thread
+ * then passed the cached limit again (review round 2, finding 1). A write the shell already took
+ * cannot be called back (docs/hud-output-architecture.md, known limits).
+ */
+internal class HudSignFollower(
+    private val signEnabled: java.util.function.BooleanSupplier,
+    private val start: java.util.function.Supplier<HudSignTarget>,
+) {
+    @Volatile
+    private var target: HudSignTarget? = null
+    private var limit: Int? = null
+
+    /** Main thread: the composition's limit changed. */
+    fun limitChanged(kmh: Int?) {
+        limit = kmh
+        follow()
+    }
+
+    /** Main thread: the sign follows the limit the switch lets through; its thread starts with the first one. */
+    fun follow() {
+        val wanted = if (signEnabled.asBoolean) limit else null
+        val sign = target ?: if (wanted == null) return else start.get().also { target = it }
+        sign.setTarget(wanted)
+    }
+
+    /** Any thread, the moment a HUD switch moves: with the sign off, nothing more is written. */
+    fun switchMoved() {
+        if (!signEnabled.asBoolean) target?.setTarget(null)
+    }
+}
+
 /**
  * One worker thread that runs [HudNativeSpeedLimitPump]. Targets arrive from the host output on the
- * main thread; every shell call happens here.
+ * main thread, or from [HudSignFollower.switchMoved] on any; every shell call happens here.
  */
-internal class HudNativeSpeedLimitRunner(context: Context) {
+internal class HudNativeSpeedLimitRunner(context: Context) : HudSignTarget {
     private val appContext = context.applicationContext
     private val thread = HandlerThread("denza-hud-speed-limit").apply { start() }
     private val handler = Handler(thread.looper)
     private val pump = HudNativeSpeedLimitPump(::shell, SystemClock::uptimeMillis) { Log.i(TAG, it) }
     private val stepper = Runnable { step() }
 
-    fun setTarget(limitKmh: Int?) {
+    override fun setTarget(limitKmh: Int?) {
         if (!pump.request(limitKmh)) return
         handler.post {
             pump.apply()

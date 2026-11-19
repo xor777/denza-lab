@@ -40,7 +40,7 @@ import dev.denza.hudlink.HudSource;
  */
 final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
-    private static HudHostOutput instance;
+    private static volatile HudHostOutput instance;
 
     private final Context context;
     private final HudOutput output;
@@ -48,8 +48,7 @@ final class HudHostOutput {
     private final HudRadarHost cameras;
     private final Handler main = new Handler(Looper.getMainLooper());
     private HudHostEndpoint endpoint;
-    private HudNativeSpeedLimitRunner sign;
-    private Integer limit;
+    private final HudSignFollower sign;
     private boolean stopAsked;
 
     /** The process's host; main thread. */
@@ -63,10 +62,9 @@ final class HudHostOutput {
     private HudHostOutput(Context context) {
         this.context = context;
         output = new HudOutput(context, new Handler(Looper.getMainLooper()), TAG, new Status());
-        output.setLimitListener(kmh -> {
-            limit = kmh;
-            followSign();
-        });
+        sign = new HudSignFollower(() -> HudGuidanceSettings.INSTANCE.isSignEnabled(context),
+                () -> new HudNativeSpeedLimitRunner(context));
+        output.setLimitListener(sign::limitChanged);
         HudRadarArt art = new HudRadarArt(context);
         HudRadarSource radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
             @Override
@@ -156,7 +154,18 @@ final class HudHostOutput {
         if (!panel.camerasShown()) {
             cameras.forget();
         }
-        followSign();
+        sign.follow();
+    }
+
+    /**
+     * Any thread, the moment a switch of the HUD panel moves, before {@link #onSettingsChanged}
+     * is posted: the car's sign stops at once if its switch went off ({@link HudSignFollower}).
+     */
+    static void switchMoved() {
+        HudHostOutput host = instance;
+        if (host != null) {
+            host.sign.switchMoved();
+        }
     }
 
     /** The HUD panel's switches as they stand. */
@@ -169,21 +178,6 @@ final class HudHostOutput {
     /** What the panel lets through from {@code source} for {@code role}. */
     private boolean admits(HudSource source, HudRole role) {
         return panel().admits(source, role);
-    }
-
-    /**
-     * The car's sign after the composition's limit. Its thread starts with the first limit to
-     * write; nothing to write leaves the car's own assistance to carry on from what it last had.
-     */
-    private void followSign() {
-        Integer target = limit;
-        if (sign == null) {
-            if (target == null) {
-                return;
-            }
-            sign = new HudNativeSpeedLimitRunner(context);
-        }
-        sign.setTarget(target);
     }
 
     /**
