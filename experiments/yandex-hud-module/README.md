@@ -150,7 +150,15 @@ filled the manoeuvre window with its own Chinese captions. A changed hint goes
 out at once, at most four times a second, else every 500 ms. A frame without a
 manoeuvre repeats the last one shown (`ManeuverHold`), so the HUD never fills
 an empty block in Chinese: up to 30 s while Navigator rebuilds the route or the
-hint cannot be read, up to 3 s when guidance simply has none ahead. Rerouting
+hint cannot be read, up to 3 s when guidance simply has none ahead. The hold
+repeats the arrow, street, metres and field 28 only: the route totals and the
+limit come from the current frame or are left out, so a reroute never puts the
+previous road's limit back on field 11 and the car's sign (until build 33 it
+did). Guidance going off resets the hold and the metre rounding; a new route id
+resets the rounding, so a new route's finish starts from its own distance
+(`ManeuverHints`). The held car position belongs to its route id: after a
+reroute nothing is drawn route-relative and no AR goes out until a position
+on the new route arrives. Rerouting
 still sends explicit 5 = 0, without a lane image; a held position keeps both.
 Before the first fix only 2/16 goes out. A missing
 lane sign also sends 5 = 0 while the route remains active. Field 6 (road class)
@@ -170,7 +178,9 @@ No Navigation Fusion setting or other persistent car property is written.
 
 The own session follows `HudSession`: a connection generation rejects late
 callbacks; a binding that has not started in 3 s, a refused bind, a lost service
-and a failed send drop the binding and retry after 1 s. A changed road packet goes
+and a failed send drop the binding and retry after 1 s; a route that already
+reached the glass leaves a clear owed, and a session dropped by a failed send
+comes back for it for at most 5 s (build 33). A changed road packet goes
 at once, at most four times a second, else every 500 ms; a new map frame at most
 12 times a second, the same frame again every second. When everything has died or
 been withdrawn, the clear — black PNG + inactive road (5 = 0) three times at 120 ms
