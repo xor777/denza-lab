@@ -51,7 +51,7 @@ class ThermalRowBindingTest {
     @Test
     fun eachSlotPrintsItsOwnGlyphsReadingOnBothScreens() {
         val frame = ContourPanel().run(telemetry, 1f)
-        val model = StripModel().also { StripReadings().car(it, telemetry) }
+        val model = StripModel().also { StripReadings().car(it, telemetry, NOW) }
         ThermalGlyphs.ROW.forEachIndexed { slot, cell ->
             val expected = signals.getValue(cell).second.toInt().toString()
             // what the two renderers draw in this slot: ROW[slot] over temps[ROW[slot].ordinal]
@@ -73,3 +73,6 @@ class ThermalRowBindingTest {
         }
     }
 }
+
+/** A frame's clock for snapshots that carry no stamp of their own: nothing in them ages. */
+private const val NOW = 0L

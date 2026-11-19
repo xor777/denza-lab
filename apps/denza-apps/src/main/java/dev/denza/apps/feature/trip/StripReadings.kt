@@ -131,8 +131,17 @@ internal class StripReadings {
      * is the snapshot's own hundred points, a filling one anchored at the right; a closed shell is
      * the hub's words for why, which the page draws as what it has of the car - «Нет доступа»
      * ([VehiclePageRenderer.closedState]) - and nothing else.
+     *
+     * **A hot reading leaves on the Contour's horizon** ([VehicleTelemetry.hotExpired]). The hub
+     * publishes a snapshot when a sweep ends, so a reader that blocks - a helper starting, a shell
+     * timing out - leaves the last one standing; the cluster ages it on its own clock and took its
+     * figures down after two seconds while this page kept printing «80 кВт» from a sweep the driver
+     * had long since lifted off. An expired snapshot is drawn as the dropped read it has become.
+     *
+     * @param nowMillis `SystemClock.elapsedRealtime()` of this frame, the clock the hub stamps with
      */
-    fun car(model: StripModel, telemetry: VehicleTelemetry) {
+    fun car(model: StripModel, snapshot: VehicleTelemetry, nowMillis: Long) {
+        val telemetry = if (snapshot.hotExpired(nowMillis)) expired(snapshot) else snapshot
         readouts.read(telemetry, telemetry.parked == true)
         if (telemetry.access == VehicleAccess.UNAVAILABLE) {
             model.closed = true
@@ -191,6 +200,17 @@ internal class StripReadings {
         model.spendFigure = readouts.consumptionFigure
         model.spendWindow = readouts.window
         model.spendNegative = readouts.consumptionNegative
+    }
+
+    /** The snapshot [expiredView] was built from, so the view is built once per snapshot, not per frame. */
+    private var expiredFrom: VehicleTelemetry? = null
+    private var expiredView: VehicleTelemetry? = null
+
+    private fun expired(snapshot: VehicleTelemetry): VehicleTelemetry {
+        val held = expiredView
+        if (held != null && expiredFrom === snapshot) return held
+        expiredFrom = snapshot
+        return snapshot.withoutHot().also { expiredView = it }
     }
 
     /** One printed duration, remembered by [AppDuration.key]: rebuilt only when it would read otherwise. */

@@ -51,7 +51,7 @@ class StripReadingsTest {
     }
 
     private fun car(telemetry: VehicleTelemetry): StripModel =
-        StripModel().also { StripReadings().car(it, telemetry) }
+        StripModel().also { StripReadings().car(it, telemetry, NOW) }
 
     @Test
     fun anElectricDriveIsTheBoardsCarPage() {
@@ -155,8 +155,8 @@ class StripReadingsTest {
         assertEquals("a scene's own state is drawn as it is", "Нет доступа", VehiclePageRenderer.closedState("Нет доступа"))
         val back = StripModel()
         val readings = StripReadings()
-        readings.car(back, VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"))
-        readings.car(back, snapshot())
+        readings.car(back, VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"), NOW)
+        readings.car(back, snapshot(), NOW)
         assertFalse("the page comes back when the car does", back.closed)
     }
 
@@ -218,3 +218,6 @@ class StripReadingsTest {
         assertEquals("-0,4", StripReadings.tenths(-4))
     }
 }
+
+/** A frame's clock for snapshots that carry no stamp of their own: nothing in them ages. */
+private const val NOW = 0L

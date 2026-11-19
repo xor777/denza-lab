@@ -72,6 +72,7 @@ class TripPanelRenderer {
      * @param dtSec seconds since the previous drawn frame, for the analyser's motion
      * @param showLocationHint the hint stands where the altitude would have
      * @param vehicle the vehicle hub's last snapshot, read by the car page and ignored by the other
+     * @param nowMillis this frame's `elapsedRealtime`, which ages [vehicle]'s hot readings
      */
     internal fun draw(
         canvas: Canvas,
@@ -86,13 +87,14 @@ class TripPanelRenderer {
         layout: TripPanelLayout,
         page: StripPage,
         vehicle: VehicleTelemetry,
+        nowMillis: Long,
     ) {
         when (page) {
             StripPage.SOUND -> {
                 meter.advance(spectrum, dtSec)
                 readings.sound(model, engine, nowPlaying, meter, showLocationHint)
             }
-            StripPage.VEHICLE -> readings.car(model, vehicle)
+            StripPage.VEHICLE -> readings.car(model, vehicle, nowMillis)
         }
         drawModel(canvas, w, h, density, layout, page, model)
     }

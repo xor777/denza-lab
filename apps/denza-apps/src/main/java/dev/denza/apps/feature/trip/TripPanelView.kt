@@ -3,6 +3,7 @@ package dev.denza.apps.feature.trip
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
+import android.os.SystemClock
 import android.view.Choreographer
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -295,6 +296,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
                 layout = layout,
                 page = page,
                 vehicle = vehicle.snapshot,
+                nowMillis = SystemClock.elapsedRealtime(),
             )
         }
         canvas.restoreToCount(save)

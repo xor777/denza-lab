@@ -71,6 +71,29 @@ internal data class VehicleTelemetry(
     operator fun get(signal: VehicleSignal): Double? = values[signal]
 
     /**
+     * Whether the hot readings in [values] have outlived their horizon at [nowMillis]
+     * (`elapsedRealtime`): [HOT_HORIZON_MS] since the sweep that read them, the Contour's own
+     * `ContourScene.STALE_SECONDS`. False for a snapshot with no stamp ([hotReadAtMillis] zero),
+     * which carries no hot reading of its own to age.
+     */
+    fun hotExpired(nowMillis: Long): Boolean =
+        hotReadAtMillis > 0L && nowMillis - hotReadAtMillis >= HOT_HORIZON_MS
+
+    /**
+     * This snapshot once its hot readings have expired: what the hub publishes for a dropped read
+     * ([VehicleDroppedRead]) - no hot value, the cold ones, the history and the trip - so a screen
+     * that reads each snapshot as it comes draws an expired reading the way it draws an absent one.
+     */
+    fun withoutHot(): VehicleTelemetry = VehicleDroppedRead.snapshot(
+        previous = access,
+        cold = values.filterKeys { it.poll == VehiclePoll.COLD },
+        consumption = consumption,
+        chart = chart,
+        engineCharge = engineCharge,
+        trip = trip,
+    )
+
+    /**
      * A gun is in **and** the charger has agreed, which is two facts and used to be half of one.
      *
      * This read `gun >= 1` until 2026-09-06, on the strength of one parked session where the gun
@@ -177,5 +200,11 @@ internal data class VehicleTelemetry(
     companion object {
         /** The one gun value this car has been read at, on AC, with power flowing. */
         private const val GUN_AC_CONNECTED = 2.0
+
+        /**
+         * How long a hot reading stays true after its sweep: [VehiclePoll.HOT]'s horizon, the one
+         * number the Contour ages its readings by too, in the milliseconds of [hotReadAtMillis].
+         */
+        val HOT_HORIZON_MS: Long = (VehiclePoll.HOT.staleSeconds * 1000f).toLong()
     }
 }

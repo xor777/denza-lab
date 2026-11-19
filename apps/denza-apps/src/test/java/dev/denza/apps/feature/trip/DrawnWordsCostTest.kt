@@ -12,6 +12,7 @@ import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import java.lang.management.ManagementFactory
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,7 +75,19 @@ class DrawnWordsCostTest {
         val readings = StripReadings()
         val model = StripModel()
         val car = steady()
-        measure("the car page") { readings.car(model, car) }
+        measure("the car page") { readings.car(model, car, NOW) }
+    }
+
+    /** A snapshot past its horizon is drawn as a dropped read, built once and not once a frame. */
+    @Test
+    fun anExpiredCarPageFrameAllocatesNothing() {
+        val readings = StripReadings()
+        val model = StripModel()
+        val car = steady().copy(hotReadAtMillis = 1_000L)
+        val later = 1_000L + 10 * VehicleTelemetry.HOT_HORIZON_MS
+        readings.car(model, car, later)
+        assertNull("the power has gone", model.power.figure)
+        measure("the expired car page") { readings.car(model, car, later) }
     }
 
     @Test
@@ -85,7 +98,7 @@ class DrawnWordsCostTest {
         measure("the closed cluster") { panel.builder.build(panel.frame, car, panel.motion, panel.scene, panel.clock) }
         val readings = StripReadings()
         val model = StripModel()
-        measure("the closed car page") { readings.car(model, car) }
+        measure("the closed car page") { readings.car(model, car, NOW) }
     }
 
     private companion object {
@@ -96,3 +109,6 @@ class DrawnWordsCostTest {
         const val BYTES_A_FRAME = 64L
     }
 }
+
+/** A frame's clock for snapshots that carry no stamp of their own: nothing in them ages. */
+private const val NOW = 0L

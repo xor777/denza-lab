@@ -9,6 +9,7 @@ import dev.denza.apps.feature.cluster.dashboard.ContourPanel
 import dev.denza.apps.R
 import dev.denza.apps.core.AppText
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
+import dev.denza.apps.feature.cluster.dashboard.ContourScene
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM
 import dev.denza.apps.feature.cluster.dashboard.UNIT_PER_100KM_PREFIX
 import dev.denza.apps.feature.trip.StripModel
@@ -181,7 +182,7 @@ open class EnergyReadoutsTest {
 
     /** One snapshot on both screens: the cluster's frame, [SETTLED] seconds into it, and the car page's model. */
     private fun screens(telemetry: VehicleTelemetry): Pair<ContourFrame, StripModel> =
-        ContourPanel().run(telemetry, SETTLED) to StripModel().also { StripReadings().car(it, telemetry) }
+        ContourPanel().run(telemetry, SETTLED) to StripModel().also { StripReadings().car(it, telemetry, NOW) }
 
     @Test
     fun bothScreensPrintTheSameThingAboutEverySnapshot() {
@@ -386,6 +387,39 @@ open class EnergyReadoutsTest {
         assertEquals(say("мин", "min"), readouts.engineCellUnit)
         readouts.read(snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
         assertEquals("no cell, no words", "" to "", readouts.engineCellCaption to readouts.engineCellUnit)
+    }
+
+    /**
+     * A snapshot the hub leaves standing - a reader blocked behind a helper's start - is aged by
+     * one horizon on both screens. The cluster ages it on its own clock from when it arrived; the car
+     * page reads each snapshot as it comes and kept printing «80 кВт» from it after the cluster's
+     * figure had gone. Arrival and the sweep's stamp are one moment here, as they are on the car.
+     */
+    @Test
+    fun aSnapshotLeftStandingLeavesBothScreensOnOneHorizon() {
+        val stamp = 50_000L
+        val standing = snapshot(
+            powerKw = 80.0,
+            values = mapOf(VehicleSignal.PACK_TEMP_AVG to 28.0),
+            buckets = road(100),
+            trip = TripEnergy(netKwh = 9.3, kilometres = 42.0, opened = true),
+        ).copy(hotReadAtMillis = stamp)
+        for ((seconds, live) in listOf(0.5f to true, 1.9f to true, 2.1f to false, 30f to false)) {
+            val panel = ContourPanel()
+            panel.run(standing, 0.01f)
+            val frame = panel.run(standing, seconds, quiet = true)
+            val model = StripModel().also { StripReadings().car(it, standing, stamp + (seconds * 1000f).toLong()) }
+            assertEquals("$seconds s: the cluster's power", live, frame.heroFigure != null)
+            assertEquals("$seconds s: the car page's power", live, model.power.figure != null)
+            assertEquals("$seconds s: the volts", frame.volts, model.volts.figure)
+            val caption = if (live) EnergyReadouts.WORD_FROM_PACK_SENTENCE else EnergyReadouts.WORD_NEUTRAL_SENTENCE
+            assertEquals("$seconds s: the caption stays", caption, model.power.caption)
+        }
+        assertEquals(
+            "one horizon, not two",
+            (ContourScene.STALE_SECONDS * 1000f).toLong(),
+            VehicleTelemetry.HOT_HORIZON_MS,
+        )
     }
 
     /**
@@ -758,3 +792,6 @@ class EnergyReadoutsEnglishTest : EnergyReadoutsTest() {
     @get:Rule
     val english = EnglishWords()
 }
+
+/** A frame's clock for snapshots that carry no stamp of their own: nothing in them ages. */
+private const val NOW = 0L

@@ -600,7 +600,16 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   (`VehicleDroppedRead`: no hot value, the cold ones carried, the history and the
   trip kept, `VehicleTelemetry.dropped`), which the Contour does not count as a
   packet, so its ages run on as for a hub gone quiet, and on which the car page
-  keeps its captions and loses its live figures at once;
+  keeps its captions and loses its live figures at once. **A hub that publishes
+  nothing** - its reader blocked behind a helper's start or a shell's timeout -
+  leaves its last snapshot standing, and both screens age it by one horizon
+  (since 2026-11-19): the cluster on its own clock, the car page by the sweep's
+  stamp (`VehicleTelemetry.hotReadAtMillis`, `hotExpired`), both
+  `VehiclePoll.HOT`'s two seconds; past it the car page draws the snapshot as the
+  dropped read it has become (`StripReadings.car`,
+  `EnergyReadoutsTest.aSnapshotLeftStandingLeavesBothScreensOnOneHorizon`).
+  Until then the car page printed the last «80 кВт» for as long as the reader
+  blocked, after the cluster had taken its figure down;
 - **moving**: hero + band (cluster) / headline + figure (car page); the ten
   kilometre chart and its whole-kilowatt-hour figure; the trip's phrase; the
   engine's revolutions while it runs;
