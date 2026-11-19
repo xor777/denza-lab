@@ -253,6 +253,28 @@ class PackLiveTest {
         assertEquals("−4,5", live.view().row("Ток ВВБ").value)
     }
 
+    /**
+     * The hub lost - `UNAVAILABLE`, or a value past its own horizon - clears what the feed holds without a new
+     * sweep: the hub's rows end there, one gap and «н/д», not their last value for as long as the tab stands.
+     */
+    @Test
+    fun aHubValueTheFeedNoLongerHoldsIsAGapWithoutANewSweep() {
+        val live = SystemLive(CarSystem.PACK).apply { show() }
+        live.take(round(1))
+        val lost = round(1).copy(hub = emptyMap(), atNanos = 2 * SECOND)
+        live.take(lost)
+        live.take(lost.copy(atNanos = 3 * SECOND))
+        val v = live.view()
+        assertEquals("н/д", v.row("Напряжение ВВБ").value)
+        assertEquals("one gap, not one a tick", listOf(553f, null), v.row("Напряжение ВВБ").samples.map { it.value })
+        assertEquals("н/д", v.row("Ячейка, мин.").value)
+        assertEquals("н/д", v.row(SystemStreams.SPREAD_NAME).value)
+        assertEquals("н/д", v.row("Зарядный разъём").value)
+        // the next sweep brings them back
+        live.take(round(2))
+        assertEquals("553", live.view().row("Напряжение ВВБ").value)
+    }
+
     @Test
     fun aValueOutsideItsNormIsMarkedAndNothingElseIs() {
         fun view(hub: Map<VehicleSignal, Double> = emptyMap(), extras: Map<DiagnosticExtra, Double> = emptyMap(), drop: Set<Any> = emptySet()): SystemLiveView {

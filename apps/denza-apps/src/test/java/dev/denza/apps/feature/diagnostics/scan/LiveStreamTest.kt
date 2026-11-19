@@ -227,6 +227,19 @@ class LiveStreamTest {
         assertTrue(LiveStream(0x7E2, listOf(0x05, 0x0C, 0x0D), carRows = false).carTick(car).isEmpty())
     }
 
+    /** The hub lost without a new sweep: the car's rows end with one gap, not their last value. */
+    @Test
+    fun aCarSignalTheFeedNoLongerHoldsIsOneGap() {
+        val s = ecm()
+        val car = CarReadings(hub = mapOf(VehicleSignal.ENGINE_RPM to 1250.0), sweep = 5, atNanos = 7_000_000_000L)
+        s.carTick(car)
+        val lost = car.copy(hub = emptyMap(), atNanos = 8_000_000_000L)
+        assertEquals(listOf("8000000000,autoservice,ENGINE_RPM,,"), s.carTick(lost))
+        assertTrue(s.carTick(lost.copy(atNanos = 9_000_000_000L)).isEmpty())
+        val rpm = s.view(true, false, null).rows.first { it.pid < 0 && it.abbreviation == "RPM" }
+        assertEquals(listOf(Sample(7_000_000_000L, 1250f), Sample(8_000_000_000L, null)), rpm.samples)
+    }
+
     @Test
     fun theSessionStreamsOnlyWhileTheTabIsVisibleAndTheAutoscanStands() = runTest {
         val bus = carNow()

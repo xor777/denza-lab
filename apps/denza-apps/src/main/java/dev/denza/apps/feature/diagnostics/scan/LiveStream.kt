@@ -114,14 +114,27 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 
     /** One sample of each fast car signal per new hub sweep; returns its CSV lines. */
     fun carTick(readings: CarReadings): List<String> {
-        if (car.isEmpty() || readings.sweep == lastSweep || readings.sweep == 0L) return emptyList()
+        if (car.isEmpty()) return emptyList()
+        if (readings.sweep == lastSweep || readings.sweep == 0L) {
+            // A signal the feed no longer holds - the car lost, or past its horizon - ends without a new sweep: one gap.
+            return car.mapNotNull { (row, s) ->
+                if (row !in carHeld || readings.hub[row.signal] != null) return@mapNotNull null
+                carHeld -= row
+                s.putCar(readings.atNanos, null, row)
+                "${readings.atNanos},autoservice,${row.signal.name},,"
+            }
+        }
         lastSweep = readings.sweep
         return car.map { (row, s) ->
             val v = readings.hub[row.signal]
             s.putCar(readings.atNanos, v, row)
+            if (v != null) carHeld += row else carHeld -= row
             "${readings.atNanos},autoservice,${row.signal.name},,${v?.let { plainNumber(it) } ?: ""}"
         }
     }
+
+    /** The car rows whose last point is a value. */
+    private val carHeld = HashSet<CarRow>()
 
     /** «Сбросить мин/макс», and what opening the tab does. */
     fun resetMinMax() {
