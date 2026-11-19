@@ -144,6 +144,7 @@ internal class SplitPickerShellSession(
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
         timeLeftMs: (() -> Long)? = null,
         onPhase: (String) -> Unit = {},
+        reparentCrossing: Boolean = false,
         onTask: (SplitBuiltTask) -> Unit = {},
     ): SplitSceneBuild = builder.buildScene(
         pickerComponents = pickerComponents,
@@ -152,6 +153,7 @@ internal class SplitPickerShellSession(
         timeLeftMs = timeLeftMs,
         onPhase = onPhase,
         onTask = onTask,
+        reparentCrossing = reparentCrossing,
     )
 
     // endregion
@@ -162,7 +164,17 @@ internal class SplitPickerShellSession(
         pickerTaskId: Int,
         target: SplitLaunchTarget,
         pickerComponents: Set<String>,
-    ): SplitPickerPlacement = selection.selectApp(pickerTaskId, target, pickerComponents)
+        onEvicted: (SplitBuiltTask) -> Unit = {},
+        onLaunched: (SplitBuiltTask) -> Unit = {},
+        requirePane: Boolean = false,
+    ): SplitPickerPlacement = selection.selectApp(
+        pickerTaskId,
+        target,
+        pickerComponents,
+        onEvicted,
+        onLaunched,
+        requirePane,
+    )
 
     // endregion
 

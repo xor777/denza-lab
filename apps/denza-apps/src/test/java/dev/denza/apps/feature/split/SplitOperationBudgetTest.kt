@@ -42,7 +42,7 @@ class SplitOperationBudgetTest {
             EnableOperation(work),
             DisableOperation(work),
             OpenOperation(work),
-            SelectOperation(work, pickerTaskId = 1, target = launchTargetOf("ru.yandex.music")),
+            SelectOperation(work, pickerTaskId = 1, resolvedTarget = launchTargetOf("ru.yandex.music")),
             HomeOperation(work),
         ).forEach { operation ->
             assertTrue(

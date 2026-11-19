@@ -116,6 +116,13 @@ internal class SplitSceneBuilder(
          */
         onPhase: (String) -> Unit = {},
         /**
+         * A choice on the pill (1.15.4): an app of the pair standing on top of the OTHER pane, which
+         * the pair moves elsewhere, is taken across by reparenting that exact task rather than by a
+         * launcher start - the swap of the pair on screen moves the two live tasks (ревью пилюли,
+         * A2). The button's open does not ask for it.
+         */
+        reparentCrossing: Boolean = false,
+        /**
          * Every task the recipe took charge of, reported the moment it has one rather than at the
          * end: a build the fence stops halfway still owes an undo for what it already did
          * (invariant 10). The caller decides which of them it created and which it only moved.
@@ -302,6 +309,12 @@ internal class SplitSceneBuilder(
             } else {
                 null
             }
+            val crossing = if (reparentCrossing && covered == null && stray == null && resident == null) {
+                crossingApp(settled, rootIds, pane, hostTaskIds, wanted, target)
+                    ?.takeUnless { task -> task.id in appTaskIds.values }
+            } else {
+                null
+            }
             when {
                 root != null &&
                     top != null &&
@@ -350,6 +363,22 @@ internal class SplitSceneBuilder(
                     )
                     commands.moveTask(stray.id, rootIds.getValue(pane))
                 }
+                // A choice that moves the other pane's app here (a swap of the pair on screen): the
+                // exact live task is reparented, nothing is launched (U2). Its inverse is the root
+                // it came from, journalled by the caller as a move.
+                crossing != null -> {
+                    appTaskIds[pane] = crossing.id
+                    adoptedAppIds += crossing.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = crossing.id,
+                            component = target.componentName,
+                            fromRootId = crossing.rootId,
+                            toRootId = rootIds.getValue(pane),
+                        ),
+                    )
+                    commands.moveTask(crossing.id, rootIds.getValue(pane))
+                }
                 // The pane's application already stands in its root. It is raised by the same
                 // focus as `covered` and takes the pane's size in the batched resize.
                 resident != null -> {
@@ -393,6 +422,9 @@ internal class SplitSceneBuilder(
             settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
                 .filterNot { task ->
                     task.id in keep ||
+                        // A task another pane has just taken (a crossing app of a swap) is not
+                        // this pane's surplus: it is already on its way out of this root.
+                        task.id in appTaskIds.values ||
                         task.isEmptyRootMarker() ||
                         (resident != null &&
                             !task.isOwnSplitComponent() &&
@@ -406,7 +438,25 @@ internal class SplitSceneBuilder(
         // geometry because it does not go to the background there.
         val (executable, foreign) = stale.partition(SplitTask::isOwnSplitComponent)
         commands.removeTasksSafely(executable.distinctBy(SplitTask::id))
-        commands.evictToFullRoot(foreign)
+        // The eviction of an application a pane was showing is reported before it is sent: the
+        // task was the user's before this build and its inverse is the top of the pane it stood in
+        // (a choice on the pill that is unwound puts the application it replaced back, invariant
+        // 9). What lay under a picker is not reported: its way back is not the top.
+        val shownIds = SplitPane.entries.mapNotNullTo(mutableSetOf()) { pane ->
+            settled.root(rootIds.getValue(pane))?.resolvedTopTask()?.id
+        }
+        commands.evictToFullRoot(foreign) { task, fullRootId ->
+            if (task.id !in shownIds) return@evictToFullRoot
+            onTask(
+                SplitBuiltTask(
+                    taskId = task.id,
+                    component = task.packageName,
+                    fromRootId = task.rootId,
+                    toRootId = fullRootId,
+                    evicted = true,
+                ),
+            )
+        }
         if (launching.isNotEmpty()) {
             launchApps(
                 rootIds = rootIds,
@@ -512,17 +562,25 @@ internal class SplitSceneBuilder(
         } else {
             launching.entries.map { (pane, target) -> mapOf(pane to target) }
         }
-        val taken = mutableSetOf<Int>()
+        // The tasks already assigned to a pane are reserved: a launch's discovery never takes the
+        // copy another pane holds (ревью пилюли, A2/C3).
+        val taken = appTaskIds.values.toMutableSet()
         // The pane each launch ASKED for, and only that; the pane the world gave is read below.
         val requested = linkedMapOf<SplitPane, Int>()
+        val startedPanes = mutableSetOf<SplitPane>()
         groups.forEach { group ->
             val started = group.filter { (pane, target) ->
                 runCatching {
-                    commands.startTargetInPane(pane, target, secondInstanceOf(pane, paneApps))
+                    commands.startTargetInPane(
+                        pane,
+                        target,
+                        secondInstanceOf(pane, paneApps, appTaskIds.keys + startedPanes),
+                    )
                 }
                     .onFailure { failed += pane }
                     .isSuccess
             }
+            startedPanes += started.keys
             if (started.isEmpty()) return@forEach
             // One poll answers the whole group from the same reads, with no settle before it: a
             // restore's task already exists, so the very first read finds it. A pane keeps its
@@ -657,13 +715,45 @@ internal class SplitSceneBuilder(
      * Whether this launch has to become a task of its own (1.5.2).
      *
      * Everything else reuses the task the package already has, which is exactly what makes a
-     * restore keep the app that is already playing (U2) instead of leaving an orphan behind it.
-     * `PRIMARY` is launched first, so it is `SECONDARY` that needs the second instance.
+     * restore keep the app that is already playing (U2) instead of leaving an orphan behind it. The
+     * second instance is asked for exactly when the OTHER pane wants the same package and already
+     * [holding] it - a copy it kept standing or one this build has started for it - so the launch
+     * never takes that copy away (ревью пилюли, A2/C3: with the standing copy in `SECONDARY` the
+     * old rule asked `PRIMARY` for the package's own task, which is that copy).
      */
-    private fun secondInstanceOf(pane: SplitPane, paneApps: Map<SplitPane, String?>): Boolean =
-        pane == SplitPane.SECONDARY &&
-            paneApps[SplitPane.PRIMARY] != null &&
-            paneApps[SplitPane.PRIMARY] == paneApps[SplitPane.SECONDARY]
+    private fun secondInstanceOf(
+        pane: SplitPane,
+        paneApps: Map<SplitPane, String?>,
+        holding: Set<SplitPane>,
+    ): Boolean =
+        paneApps[pane] != null &&
+            paneApps[pane.other()] == paneApps[pane] &&
+            pane.other() in holding
+
+    /**
+     * The app of a choice standing on top of the OTHER pane, which the choice gives another
+     * application: a swap of the pair on screen takes it across by reparenting (ревью пилюли, A2).
+     * Never a picker base, never the product's own component, never what the other pane keeps.
+     */
+    private fun crossingApp(
+        state: SplitTaskSnapshot,
+        rootIds: Map<SplitPane, Int>,
+        pane: SplitPane,
+        hostTaskIds: Map<SplitPane, Int>,
+        wanted: Map<SplitPane, SplitLaunchTarget>,
+        target: SplitLaunchTarget,
+    ): SplitTask? {
+        val other = pane.other()
+        if (wanted[other]?.packageName == target.packageName) return null
+        val top = state.root(rootIds.getValue(other))?.resolvedTopTask() ?: return null
+        return top.takeIf { task ->
+            task.id != hostTaskIds.getValue(other) &&
+                task.packageName == target.packageName &&
+                !task.isOwnSplitComponent() &&
+                !task.isEmptyRootMarker() &&
+                !task.isDenzaPickerBase()
+        }
+    }
 
     /**
      * The exact recorded app of a pane, alive on the main display outside every panel root.
@@ -1157,12 +1247,16 @@ internal const val SPLIT_PHASE_SCENE_NORMALIZED = "scene-normalized"
  * [fromRootId] is what makes an unwind exact for a task the build did not create: a restore reuses
  * the task its package already had and reparents it into a pane, and putting that one back where it
  * came from is the honest inverse (contract 7.6, invariant 9).
+ *
+ * [evicted] marks a user's task the build moved out of a pane root alive (contract, note under
+ * 1.5): it already ran before the build, and [component] is then only its package.
  */
 internal data class SplitBuiltTask(
     val taskId: Int,
     val component: String,
     val fromRootId: Int,
     val toRootId: Int,
+    val evicted: Boolean = false,
 )
 
 /**

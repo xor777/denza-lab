@@ -251,12 +251,22 @@ internal class SplitTaskCommands(
      * must not cost the user the whole scene. The first defence against an app landing in the
      * wrong pane is the build's own record of where it landed, not this eviction.
      *
+     * [beforeMove] hears each task and the root it is about to be moved into before the move is
+     * sent, so an operation can journal the inverse ahead of the mutation (a choice on the pill puts
+     * an evicted application back into its pane if it is unwound, invariant 9).
+     *
      * @return whether anything actually had to leave.
      */
-    fun evictToFullRoot(tasks: List<SplitTask>): Boolean {
+    fun evictToFullRoot(
+        tasks: List<SplitTask>,
+        beforeMove: (SplitTask, Int) -> Unit = { _, _ -> },
+    ): Boolean {
         if (tasks.isEmpty()) return false
         val fullRootId = world.fullIviRootTaskId()
-        tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
+        tasks.forEach { task ->
+            beforeMove(task, fullRootId)
+            moveTask(task.id, fullRootId, toTop = false)
+        }
         world.pause(ROOT_SETTLE_MS)
         normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
         raiseSceneOverTheEvicted()

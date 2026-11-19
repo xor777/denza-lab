@@ -89,8 +89,12 @@ internal data class SplitMemory(
             recent.none { pair -> pair == last || pair in pinned }
 
     companion object {
-        /** Contract 1.14.1: five other recent pairs; the sixth pushes the oldest out (1.14.4). */
-        const val RECENT_LIMIT = 5
+        /**
+         * Contract 1.14.1: five other recent pairs; the sixth pushes the oldest out (1.14.4). The
+         * number is the board's `row.recents` (tools/design-canvas/split-pill/spec.json), read from
+         * its checked-in copy, so the memory and the pill keep the same count.
+         */
+        val RECENT_LIMIT: Int = dev.denza.apps.feature.split.pill.SplitPillSpec.Row.RECENTS.toInt()
     }
 }
 
@@ -137,12 +141,13 @@ internal data class SplitState(
  * A fact is an established observation ("the task left the panel roots"), never a raw event
  * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
  *
- * Every one of them but the three pin facts has a producer: `ReconcileOperation` settles the
+ * Every one of them but [PinsReordered] has a producer: `ReconcileOperation` settles the
  * topology facts including [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"),
  * `PackageRemovedOperation` settles [PackageRemoved] from what a live picker saw (1.5.6) and an
- * open settles it for a remembered package the catalogue no longer resolves (section 6). [PairPinned],
- * [PairUnpinned] and [PinsReordered] are the pill's (1.15.7, 1.15.8), which is not written yet: they
- * are reduced now so that the memory of 1.14 is whole, and nothing sends them.
+ * open settles it for a remembered package the catalogue no longer resolves (section 6). [PairPinned]
+ * and [PairUnpinned] are the pill's star (1.15.7), settled by `PinOperation`. [PinsReordered] is the
+ * pill's edit mode (1.15.8), which is not written yet: it is reduced so that the memory of 1.14 is
+ * whole, and nothing sends it.
  *
  * Invariant 14 (ред. 2026-11-11) is what the producers owe: a slot loses its package only because
  * the application left the pane on a visible scene ([AppClosedSettled]), the pane was collapsed

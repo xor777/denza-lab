@@ -19,10 +19,27 @@ internal class SplitSelect(
     private val commands: SplitTaskCommands,
     private val gate: SplitGate,
 ) {
+    /**
+     * [onEvicted] hears each application this selection moves out of the pane alive, before the
+     * move: the inverse an operation journals so that an unwound selection into an occupied pane
+     * puts that application back (invariant 9; the pill's apps row, contract 1.15).
+     *
+     * [onLaunched] hears the task the launch brought, with the root it stood in before this
+     * selection looked, the moment it is found: a task that was already running is borrowed, and
+     * an unwind takes it back out of the pane (ревью пилюли, A10).
+     *
+     * [requirePane]: a selection addressed by its pane (the pill) lands in that pane or not at all.
+     * A launch the firmware routes into the other pane is undone before anything of that pane is
+     * touched, so the neighbour keeps its application (ревью пилюли, A1). A picker tap keeps the
+     * firmware's side (1.5.3).
+     */
     fun selectApp(
         pickerTaskId: Int,
         target: SplitLaunchTarget,
         pickerComponents: Set<String>,
+        onEvicted: (SplitBuiltTask) -> Unit = {},
+        onLaunched: (SplitBuiltTask) -> Unit = {},
+        requirePane: Boolean = false,
     ): SplitPickerPlacement {
         gate.ensureGateOpen()
         val roots = world.nativeRootIds()
@@ -87,7 +104,15 @@ internal class SplitSelect(
             .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
             .partition { task -> task.isOwnSplitComponent() }
         commands.removeTasksSafely(ownArtifacts)
-        commands.evictToFullRoot(foreignOccupants)
+        // Only the application the pane was showing is reported: it is what the user saw, and the
+        // one task whose way back is the top of this root. A picker tap never has one (its picker
+        // is the top); a choice on the pill's apps row has exactly one.
+        val shownId = before.root(targetRootId)?.resolvedTopTask()?.id
+        commands.evictToFullRoot(foreignOccupants) { task, fullRootId ->
+            if (task.id == shownId) {
+                onEvicted(SplitBuiltTask(task.id, task.packageName, task.rootId, fullRootId, evicted = true))
+            }
+        }
 
         val clearedState = world.snapshot()
         val clearedPicker = clearedState.root(targetRootId)?.tasks?.firstOrNull { task ->
@@ -127,6 +152,20 @@ internal class SplitSelect(
             // postcondition take the actual side rather than rolling back a window that stands.
             val settledPane = SplitPane.entries.first { candidate ->
                 roots.getValue(candidate) == launchedTask.rootId
+            }
+            onLaunched(
+                SplitBuiltTask(
+                    taskId = launchedTask.id,
+                    component = target.componentName,
+                    fromRootId = baselineTasks.firstOrNull { task -> task.id == launchedTask.id }?.rootId
+                        ?: launchedTask.rootId,
+                    toRootId = launchedTask.rootId,
+                ),
+            )
+            // A1: the pill named this pane. A launch in the other one is not this choice, and it is
+            // undone here, before the sweep below would clear the neighbour's application.
+            check(!requirePane || settledPane == pane) {
+                "the firmware placed ${target.packageName} in the other pane"
             }
             val settledRootId = roots.getValue(settledPane)
             val settledPickerHost = if (settledPane == pane) {

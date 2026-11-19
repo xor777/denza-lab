@@ -274,6 +274,27 @@ internal fun SplitDiagnosticLog.log(message: String) = log(message, background =
 internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>
 
 /**
+ * One reading for the pill, taken whole (ревью пилюли 2026-11-19, A14): the settled [state] and the
+ * [live] scene it was settled on, numbered by a [revision] that only grows, so a listener drops
+ * anything older than what it already has. The first reading a listener gets goes the same way.
+ *
+ * [withdrawn] is the toggle's off as soon as it is asked: the pill gives up its input and leaves
+ * before the disable operation has torn the scene down (1.15.9). [open] is a one-shot request from
+ * the dock's button to open the pill over the full pair that button's operation settled (1.15.2,
+ * 1.15.10); a listener acts on each id once.
+ */
+internal data class SplitSettled(
+    val revision: Long,
+    val state: SplitState,
+    val live: SplitLiveScene,
+    val withdrawn: Boolean = false,
+    val open: SplitPillOpenRequest? = null,
+)
+
+/** The dock button's request to open the pill; [afterHome] waits the board's `timer.splitOpen`. */
+internal data class SplitPillOpenRequest(val id: Long, val afterHome: Boolean)
+
+/**
  * What the live scene can testify to (invariant 14, ред. 2026-11-11): the [panes] whose recorded
  * application this process saw on a scene that was on the screen, as of the [epoch]-th cover it
  * had heard of. Every cover the process hears of afterwards - Home, a covered area pushed by the
@@ -332,6 +353,7 @@ internal class SplitCoordinatorCore(
     private val toggleLock = Any()
 
     /** The last word of the toggle in this process; `null` until one is said (guarded by [toggleLock]). */
+    @Volatile
     private var toggledTo: Boolean? = null
     private val recheckLock = Any()
     private val residentLock = Any()
@@ -369,6 +391,14 @@ internal class SplitCoordinatorCore(
 
     @Volatile
     private var onStateChanged: (() -> Unit)? = null
+
+    /** The pill's reading of every commit ([observeSettled]); guarded by [settledLock]. */
+    private var settledListener: ((SplitSettled) -> Unit)? = null
+
+    /** Orders every reading the pill gets: one revision at a time, the first one included. */
+    private val settledLock = Any()
+    private var settledRevision = 0L
+    private var pillOpenIds = 0L
 
     // region product inputs (appendix A.1)
 
@@ -431,6 +461,8 @@ internal class SplitCoordinatorCore(
                 return
             }
             signals.disarm()
+            // B4: the pill leaves the moment off is asked, not when the teardown commits.
+            deliverSettled()
             markBusy(DISABLE_LABEL, enabled = false, message = AppText.s(R.string.split_closing))
             submit { work -> DisableOperation(work) }
         }
@@ -452,12 +484,18 @@ internal class SplitCoordinatorCore(
             joined.onComplete { outcome -> report(onComplete, outcome) }
             return
         }
+        // 1.15.2, 1.15.10: a press over a scene that already exists - on the screen or under Home -
+        // opens the pill once the pair stands; a press that makes the scene anew does not.
+        val before = currentState()
+        val pillAfter = before.enabled && before.scene != null
+        val afterHome = before.visibility == SceneVisibility.COVERED
         val overlay = overlayOwner.begin()
         markBusy(OPEN_LABEL, enabled = true, message = AppText.s(R.string.split_opening))
         val ticket = submit { work -> OpenOperation(work) }
         synchronized(stateLock) { openTicket = ticket }
         ticket.onComplete { outcome ->
             if (outcome is SplitOutcome.Committed) overlay.close() else overlay.closeImmediately()
+            if (outcome is SplitOutcome.Committed && pillAfter) openPillOver(afterHome)
             report(onComplete, outcome)
         }
     }
@@ -481,6 +519,93 @@ internal class SplitCoordinatorCore(
         submit { work -> SelectOperation(work, pickerTaskId, target) }
             .onComplete { outcome -> report(onComplete, outcome) }
     }
+
+    /**
+     * Contract 1.15.4: a pair tapped on the pill puts it on screen - one operation over both panes,
+     * the open's own build aimed at the pair ([OpenOperation] with a choice).
+     *
+     * The cover count is taken now, at the tap: a choice that waited in the queue while Home or a
+     * fullscreen window came is refused by the operation before it touches anything (ревью пилюли,
+     * A7).
+     */
+    fun choosePair(pair: SplitPair, onComplete: (SplitActionResult) -> Unit = {}) {
+        ready()
+        val epoch = covers.get()
+        submit { work -> OpenOperation(work, chosen = pair, submittedEpoch = epoch) }
+            .onComplete { outcome -> report(onComplete, outcome) }
+    }
+
+    /**
+     * Contract 1.15 (apps row and repair row): one app into one pane, the other pane untouched -
+     * the picker's own selection, addressed by its pane ([SelectOperation]). The package is
+     * resolved by the operation, on the worker: the caller is the pill's main thread, and the
+     * catalogue read can take a second on this car (ревью пилюли, B5).
+     */
+    fun selectIntoPane(
+        pane: SplitPane,
+        packageName: String,
+        onComplete: (SplitActionResult) -> Unit = {},
+    ) {
+        ready()
+        val epoch = covers.get()
+        submit { work -> SelectOperation.intoPane(work, pane, packageName, epoch) }
+            .onComplete { outcome -> report(onComplete, outcome) }
+    }
+
+    /**
+     * Contract 1.15.7: the star on the pair on screen, a fact committed with the snapshot - and only
+     * while that pair is still the one on the visible scene it was tapped on (ревью пилюли, A13).
+     */
+    fun setPairPinned(pair: SplitPair, pinned: Boolean) {
+        ready()
+        val epoch = covers.get()
+        submit { work -> PinOperation(work, pair, pinned, epoch) }
+    }
+
+    /**
+     * What the pill draws from: the settled state and the scene it was settled on, delivered after
+     * every commit on the worker thread and once at once. The pill only reads; it never writes back
+     * except through the three inputs above (contract 5, «К 1.15»).
+     */
+    fun observeSettled(listener: ((SplitSettled) -> Unit)?) {
+        ready()
+        synchronized(settledLock) {
+            settledListener = listener
+            deliverSettledLocked(open = null)
+        }
+    }
+
+    /**
+     * Hands the listener one whole reading under [settledLock], so readings arrive in revision
+     * order whichever thread made them. The listener only posts; it never calls back in.
+     */
+    private fun deliverSettled(open: SplitPillOpenRequest? = null) {
+        synchronized(settledLock) { deliverSettledLocked(open) }
+    }
+
+    private fun deliverSettledLocked(open: SplitPillOpenRequest?) {
+        val listener = settledListener ?: return
+        val (s, l) = synchronized(stateLock) { state to live }
+        // Read without [toggleLock]: [setEnabled] holds it while it asks for a reading.
+        val off = toggledTo == false
+        settledRevision += 1
+        listener(SplitSettled(settledRevision, s, l, withdrawn = off, open = open))
+    }
+
+    /**
+     * The dock button's open committed over an existing scene: one reading carrying a one-shot
+     * request, sent only when that settled scene is a visible two-pane scene. The pill opens it
+     * over a full pair; a vacant pane opens the pill by itself anyway.
+     */
+    private fun openPillOver(afterHome: Boolean) {
+        val now = currentState()
+        if (!now.enabled || now.scene != SplitScene.Split || now.visibility != SceneVisibility.VISIBLE) return
+        deliverSettled(open = pillOpenRequest(afterHome))
+    }
+
+    /** A new one-shot open request for the pill (1.15.2, 1.15.10). */
+    private fun pillOpenRequest(afterHome: Boolean): SplitPillOpenRequest =
+        synchronized(settledLock) { SplitPillOpenRequest(++pillOpenIds, afterHome) }
 
     /** Contract 1.6.2, 1.7.1: a revealed picker is a hint that its app may have closed. */
     fun pickerVisible(hostTaskId: Int?) {
@@ -855,9 +980,12 @@ internal class SplitCoordinatorCore(
 
     /** The single writer of semantic state outside the automaton itself: the worker, on commit. */
     private fun publishSettled(next: SplitState, nextLive: SplitLiveScene) {
-        synchronized(stateLock) {
-            state = next
-            live = if (next.scene == null) emptyMap() else nextLive
+        synchronized(settledLock) {
+            synchronized(stateLock) {
+                state = next
+                live = if (next.scene == null) emptyMap() else nextLive
+            }
+            deliverSettledLocked(open = null)
         }
     }
 
@@ -988,6 +1116,12 @@ internal class SplitCoordinatorCore(
         const val DISABLE_LABEL = "disable"
         const val OPEN_LABEL = "open"
         const val SELECT_LABEL = "select"
+
+        /** A pair chosen on the pill: one operation over both panes (1.15.4). */
+        const val PAIR_LABEL = "pair"
+
+        /** The star on the pill: a pair pinned or unpinned, no command (1.15.7). */
+        const val PIN_LABEL = "pin"
         const val HOME_LABEL = "home"
         const val EDGE_LABEL = "edge"
         const val RECONCILE_LABEL = "reconcile"
@@ -1018,6 +1152,8 @@ internal class SplitCoordinatorCore(
             DISABLE_LABEL,
             OPEN_LABEL,
             SELECT_LABEL,
+            PAIR_LABEL,
+            PIN_LABEL,
         )
 
         /**

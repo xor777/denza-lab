@@ -403,8 +403,18 @@ internal class SplitShellRollbackExecutor(
         check(removed) { "task $taskId was not removed: ${output.trim()}" }
     }
 
+    /**
+     * Undo of a [SplitJournalEntry.TaskMoved]: the task back on top of the root it came from, and
+     * with that root's bounds (ревью пилюли, C1). The eviction it undoes gave the task the full
+     * root's geometry ([SplitTaskCommands.evictToFullRoot]); moved back without a resize it would
+     * stand in its pane at full-screen size, a scene the next owned read refuses. The resize is the
+     * recipes' own normalisation, and a task that will not take it is a rollback failure.
+     */
     override fun moveTask(taskId: Int, toRootId: Int) {
         budgeted("am stack move-task $taskId $toRootId true")
+        val world = SplitWorld(::budgeted, sleeper, SplitTopologyCache()) {}
+        world.pause(SplitWorld.ROOT_SETTLE_MS)
+        SplitTaskCommands(world, apkPath, proxyClasspath).normalizeTaskToRoot(taskId, toRootId)
     }
 
     /**
@@ -913,6 +923,13 @@ internal class DisableOperation(
 internal class SplitOpenPlan(
     val adopted: SplitLiveScene?,
     val restorable: Map<SplitPane, String>,
+    /** A choice's two targets, resolved before the first command (ревью пилюли, A3); `null` for the button. */
+    val targets: Map<SplitPane, SplitLaunchTarget>? = null,
+    /**
+     * A choice refused because the package manager proved one of its apps absent: nothing is sent,
+     * and the only thing committed is that uninstall ([SplitFact.PackageRemoved], section 6).
+     */
+    val forgetOnly: Boolean = false,
 )
 
 /**
@@ -924,21 +941,39 @@ internal class SplitOpenPlan(
  */
 internal class OpenOperation(
     work: SplitOperationWorkspace,
+    /**
+     * A pair chosen on the pill (1.15.4), or `null` for the button's open (1.3).
+     *
+     * A choice is this same build aimed at the chosen pair instead of the slots, in the scene that
+     * is on the screen: never an adoption, no waiting window, Home wins over it like over a
+     * selection (1.5.8). Both apps are resolved before the first command; a pair that cannot be is
+     * refused with nothing sent (ревью пилюли, A3). A pane already showing its app of the pair is
+     * untouched (U2); an app the pane was showing is evicted alive and journalled, so an unwind
+     * puts it back (invariant 9). The choice commits pane by pane like the button's open (ред.
+     * 2026-11-19): the placed panes as occupants, one the build could not place on its picker with
+     * the chosen app as the choice still owed (1.3.11), and only a choice that placed nothing is
+     * unwound to the pair that was on the screen. A refusal or a lost deadline writes nothing.
+     */
+    private val chosen: SplitPair? = null,
+    /** The cover count when the pill was tapped; a cover heard since refuses the choice (A7). */
+    private val submittedEpoch: Long = 0L,
 ) : SplitCoreOperation<SplitOpenPlan>(
-    label = SplitCoordinatorCore.OPEN_LABEL,
-    priority = SplitInputPriority.OPEN,
+    label = if (chosen == null) SplitCoordinatorCore.OPEN_LABEL else SplitCoordinatorCore.PAIR_LABEL,
+    priority = if (chosen == null) SplitInputPriority.OPEN else SplitInputPriority.SELECT,
     durationMs = OPEN_BUDGET_MS,
-    joinKey = SplitCoordinatorCore.OPEN_LABEL,
+    joinKey = if (chosen == null) SplitCoordinatorCore.OPEN_LABEL else PAIR_JOIN_PREFIX + chosen,
     coalesceKey = null,
     work = work,
 ) {
-    override val refusal: String get() = "Split screen выключен"
+    override val refusal: String
+        get() = if (working.enabled) "no two-pane scene on the screen" else "Split screen выключен"
 
     // Явная перестройка сцены поверх чужого move - это два рецепта на одном дереве задач.
     override val taskMoves = SplitTaskMoveOwnership.YIELDS
 
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
+        if (chosen != null) return prepareChoice(op, chosen)
         // 1.3.4 is decided here or nowhere: this is the one moment a pane the user closed can be
         // brought back, so it is also the one moment worth asking the car again (правка волны 12).
         settleTheCollapseNobodyRead(op)
@@ -962,6 +997,51 @@ internal class OpenOperation(
         )
         mark(op, "scene-read: ${read.reason}")
         return SplitOpenPlan(adoptable(read.scene, restorable, op), restorable)
+    }
+
+    /**
+     * A choice is made on the scene the pill stands on: a two-pane scene on the screen, the one the
+     * tap was made on. Anything else - a cover that came between the tap and this run (the cover
+     * count moved since [submittedEpoch]), a collapse, a projected navigator - is a refusal that
+     * sends nothing (1.15.13, U5, ревью пилюли A7); the pill is not shown there anyway.
+     *
+     * Both apps are resolved here, before the first command (A3). One the launcher cannot start is
+     * a refusal; one the package manager proves absent is an uninstall nobody heard, and that much
+     * is committed on its own even though the choice is refused (section 6, 1.14.4).
+     */
+    private fun prepareChoice(op: SplitOperationContext, pair: SplitPair): SplitOpenPlan? {
+        if (
+            work.coverEpoch() != submittedEpoch ||
+            working.scene != SplitScene.Split ||
+            working.visibility != SceneVisibility.VISIBLE ||
+            working.projectedPane != null
+        ) {
+            mark(op, "pair refused: not the visible two-pane scene it was tapped on")
+            return null
+        }
+        mark(op, "pair: ${pair.primary} | ${pair.secondary}")
+        val targets = SplitPane.entries.mapNotNull { pane ->
+            work.catalog.resolve(pair.packageOf(pane))?.let { target -> pane to target }
+        }.toMap()
+        val missing = SplitPane.entries.filterNot(targets::containsKey).map(pair::packageOf).distinct()
+        if (missing.isNotEmpty()) {
+            val absent = missing.filter { packageName ->
+                runCatching { work.catalog.presence(packageName) }
+                    .getOrDefault(SplitPackagePresence.UNKNOWN) == SplitPackagePresence.ABSENT
+            }
+            if (absent.isEmpty()) {
+                mark(op, "pair refused: ${missing.joinToString()} cannot be launched")
+                return null
+            }
+            absent.forEach { packageName -> settle(SplitFact.PackageRemoved(packageName)) }
+            mark(op, "pair refused: ${absent.joinToString()} is not installed; its pairs are forgotten")
+            return SplitOpenPlan(adopted = null, restorable = emptyMap(), forgetOnly = true)
+        }
+        return SplitOpenPlan(
+            adopted = null,
+            restorable = SplitPane.entries.associateWith { pane -> pair.packageOf(pane) },
+            targets = targets,
+        )
     }
 
     /**
@@ -1031,6 +1111,7 @@ internal class OpenOperation(
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: SplitOpenPlan) {
+        if (plan.forgetOnly) return
         val split = work.split(op)
         enableLeases(op, shell, ALL_LEASES)
         mark(op, "leases-taken")
@@ -1044,7 +1125,7 @@ internal class OpenOperation(
             mark(op, "revealed")
             return
         }
-        build(op, split, plan.restorable)
+        build(op, split, plan.restorable, plan.targets)
     }
 
     /**
@@ -1080,11 +1161,12 @@ internal class OpenOperation(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
         restorable: Map<SplitPane, String>,
+        resolved: Map<SplitPane, SplitLaunchTarget>?,
     ) {
         // One read before the first mutation: whatever the recipe hands back that is not in here
         // is a task this operation created, and therefore a task this operation owes an undo for.
         val preexisting = preexistingTaskIds(split)
-        val targets = restorable.mapNotNull { (pane, packageName) ->
+        val targets = resolved ?: restorable.mapNotNull { (pane, packageName) ->
             work.catalog.resolve(packageName)?.let { target -> pane to target }
         }.toMap()
         forgetUninstalled(restorable.filterKeys { pane -> pane !in targets }.values.toSet())
@@ -1115,8 +1197,13 @@ internal class OpenOperation(
                 if (phase == SPLIT_PHASE_ROOTS_PLACED) keepStandingBases(op)
                 if (phase == SPLIT_PHASE_SCENE_NORMALIZED) epochBeforePlacement = work.coverEpoch()
             },
+            // A choice swapping the pair on screen moves the two live tasks across (A2).
+            reparentCrossing = chosen != null,
         ) { task ->
             when {
+                // The button's open leaves what it evicted where it went, as it always has; only a
+                // choice on the pill owes the application it replaced its way back (invariant 9).
+                task.evicted && chosen == null -> Unit
                 // A task that was already running is one this build only borrowed: its inverse is
                 // the root it came from, never a removal (U2).
                 preexisting != null && task.taskId in preexisting -> {
@@ -1145,10 +1232,28 @@ internal class OpenOperation(
         built.failed.mapNotNull { pane -> restorable[pane] }.forEach { packageName ->
             work.log("not restored $packageName: the pane keeps its choice")
         }
-        settle(sceneBuilt(built.panes))
+        settle(if (chosen == null) sceneBuilt(built.panes) else choiceBuilt(built.panes, chosen))
         liveScene = built.panes
         // The placement the build ended on is a read at area 3 (invariant 14).
         witnessRead(built.panes, epochBeforePlacement ?: work.coverEpoch())
+    }
+
+    /**
+     * The scene a choice built, read against the chosen pair rather than the slots it replaces:
+     * choosing is the user giving each pane another application (invariant 14), and the pair
+     * becomes the last when both stand (1.14.2). A pane the build could not place - a cold app that
+     * missed its discovery window, a refused launch - keeps the chosen one as its choice still owed
+     * (1.3.11): its picker is on the screen, the pill opens on the repair row with the pair's chip,
+     * and one tap finishes it (ред. 2026-11-19; it used to unwind the whole pair).
+     */
+    private fun choiceBuilt(read: SplitLiveScene, pair: SplitPair): SplitFact.BuildSceneSucceeded {
+        val asked = working.copy(
+            slots = SplitPane.entries.associateWith { pane -> SplitSlot.App(pair.packageOf(pane)) },
+        )
+        return SplitFact.BuildSceneSucceeded(
+            SplitCoordinatorCore.provenSlots(asked, read, emptySet()),
+            SplitCoordinatorCore.owedPanes(asked, read, emptySet()),
+        )
     }
 
     /**
@@ -1219,12 +1324,20 @@ internal class OpenOperation(
         shell: (String) -> String,
         plan: SplitOpenPlan,
     ): Boolean {
-        if (plan.adopted != null) return true
+        if (plan.adopted != null || plan.forgetOnly) return true
         work.dropSharedReads()
         val settled = runCatching {
             work.split(op).existingOwnedSession(SPLIT_PICKER_COMPONENT_SET)
         }.getOrNull() ?: return false
         mark(op, "read-back")
+        // A choice commits pane by pane (ред. 2026-11-19): what the build placed is committed and a
+        // pane it could not place keeps the chosen app as owed ([choiceBuilt]). Only a choice that
+        // placed nothing of the pair is unwound, and the journal puts back what it moved out, so
+        // the user keeps the pair they had (invariant 9).
+        if (chosen != null && SplitPane.entries.none { pane -> settled[pane]?.appPackageName == chosen.packageOf(pane) }) {
+            mark(op, "read-back: nothing of the chosen pair stands")
+            return false
+        }
         return settled == liveScene
     }
 }
@@ -1233,30 +1346,92 @@ internal class OpenOperation(
 
 // region select
 
-/** Contract 1.5: one pane, one launch, and a failure that leaves the picker interactive (K14). */
+/**
+ * Contract 1.5: one pane, one launch, and a failure that leaves the picker interactive (K14).
+ *
+ * A picker tap names its picker ([pickerTaskId]); the pill names a pane instead ([pane], 1.15:
+ * an app of the apps row or of the repair row), and the picker under that pane is taken from the
+ * scene this process recorded when the operation runs. Into an occupied pane it is the same
+ * selection: the app the pane was showing is evicted alive and journalled, so an unwind puts it
+ * back (invariant 9), and the neighbour is not touched - the app lands in the pane the pill named
+ * or not at all (ревью пилюли, A1).
+ *
+ * The pill's selection names a package and is resolved here, on the worker ([intoPane], B5); a
+ * picker tap arrives resolved.
+ */
 internal class SelectOperation(
     work: SplitOperationWorkspace,
-    private val pickerTaskId: Int,
-    private val target: SplitLaunchTarget,
-) : SplitCoreOperation<Unit>(
+    private val pickerTaskId: Int?,
+    private val resolvedTarget: SplitLaunchTarget?,
+    private val pane: SplitPane? = null,
+    private val packageName: String = resolvedTarget?.packageName.orEmpty(),
+    /** The cover count when the pill was tapped; a cover heard since refuses the selection (A7). */
+    private val submittedEpoch: Long = 0L,
+) : SplitCoreOperation<Int>(
     label = SplitCoordinatorCore.SELECT_LABEL,
     priority = SplitInputPriority.SELECT,
     durationMs = SELECT_BUDGET_MS,
-    joinKey = SELECT_JOIN_PREFIX + pickerTaskId,
+    // A12: another app for the same pane is another ticket; the same app joins.
+    joinKey = if (pane == null) SELECT_JOIN_PREFIX + pickerTaskId else "$SELECT_PANE_JOIN_PREFIX$pane-$packageName",
     coalesceKey = null,
     work = work,
 ) {
-    override val refusal: String get() = "Split screen выключен"
+    init {
+        require((pickerTaskId == null) != (pane == null)) { "a selection names its picker or its pane" }
+        require(pane != null || resolvedTarget != null) { "a picker tap arrives resolved" }
+        require(packageName.isNotBlank()) { "a selection names its app" }
+    }
+
+    override val refusal: String
+        get() = if (working.enabled) "no pane with a picker on the screen" else "Split screen выключен"
 
     // То же, что и у открытия: приложение встаёт в панель командами, а не пожеланием.
     override val taskMoves = SplitTaskMoveOwnership.YIELDS
 
     private var placement: SplitPickerPlacement? = null
 
-    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Unit? =
-        if (working.enabled) Unit else null
+    /** The app this selection launches: the picker tap's, or the pill's resolved in [prepare]. */
+    private var target: SplitLaunchTarget? = resolvedTarget
 
-    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Int? {
+        if (!working.enabled) return null
+        pickerTaskId?.let { return it }
+        val addressed = pane ?: return null
+        // The pill stands only on a two-pane scene on the screen, the one it was tapped on: one that
+        // is not there any more by the time this runs - a cover heard since the tap included - is a
+        // refusal that sends nothing, not a lease, not the gate (1.15.13, A7).
+        if (
+            work.coverEpoch() != submittedEpoch ||
+            working.scene != SplitScene.Split ||
+            working.visibility != SceneVisibility.VISIBLE ||
+            working.projectedPane != null
+        ) {
+            mark(op, "pane select refused: not the visible two-pane scene it was tapped on")
+            return null
+        }
+        val resolved = work.catalog.resolve(packageName)
+        if (resolved == null) {
+            // 1.5.6, A3: an app that cannot be launched is refused with nothing sent; one the
+            // package manager proves absent is an uninstall nobody heard, and that much commits.
+            val presence = runCatching { work.catalog.presence(packageName) }
+                .getOrDefault(SplitPackagePresence.UNKNOWN)
+            if (presence != SplitPackagePresence.ABSENT) {
+                mark(op, "pane select refused: $packageName cannot be launched")
+                return null
+            }
+            settle(SplitFact.PackageRemoved(packageName))
+            mark(op, "pane select refused: $packageName is not installed; its pairs are forgotten")
+            return FORGET_ONLY
+        }
+        target = resolved
+        val picker = liveScene[addressed]?.hostTaskId
+        if (picker == null) mark(op, "pane select refused: no recorded picker under $addressed")
+        return picker
+    }
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Int) {
+        if (plan == FORGET_ONLY) return
+        val target = checkNotNull(target) { "a selection without its app" }
         val split = work.split(op)
         // Only resizeability: a tap in a picker must not drag the accessibility observer's
         // disable/re-enable dance into the middle of a launch the user is watching.
@@ -1267,9 +1442,32 @@ internal class SelectOperation(
         // neighbour out of it, so a launch that did not happen needs nothing more from the product
         // than to stop - the catalogue is on screen and the next tap works (U5).
         val settled = split.selectApp(
-            pickerTaskId = pickerTaskId,
+            pickerTaskId = plan,
             target = target,
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+            onEvicted = { evicted ->
+                // The application an occupied pane was showing: its inverse is the top of that
+                // pane. Only the pill's selection owes it (A11): a picker tap that fails leaves its
+                // picker interactive, as it always has, and brings nothing back over it.
+                if (pane != null && preexisting != null && evicted.taskId in preexisting) {
+                    op.journal.record(
+                        SplitJournalEntry.TaskMoved(evicted.taskId, evicted.fromRootId, evicted.toRootId),
+                    )
+                }
+            },
+            onLaunched = { launched ->
+                // A10: a task of the target that was already running is borrowed into the pane;
+                // an unwind takes it back out of the pane root alive (never a removal, U2).
+                if (
+                    pane != null &&
+                    preexisting != null &&
+                    launched.taskId in preexisting &&
+                    launched.fromRootId != launched.toRootId
+                ) {
+                    op.journal.record(SplitJournalEntry.AppStarted(launched.taskId, target.packageName))
+                }
+            },
+            requirePane = pane != null,
         )
         placement = settled
         recordCreated(op, preexisting, settled.appTaskId, target.componentName)
@@ -1302,7 +1500,8 @@ internal class SelectOperation(
      * ФАКТИЧЕСКОЙ стороне (1.5.3): прошивка при каждом схлопывании переносит выжившего в широкую
      * панель, и записанный продуктом логический выживший может не совпадать с физическим.
      */
-    override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: Unit): Boolean {
+    override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: Int): Boolean {
+        if (plan == FORGET_ONLY) return true
         val chosen = placement ?: return false
         work.dropSharedReads()
         // Этот read-back раньше глотал собственный результат: `runCatching {}.getOrNull()` без
@@ -1358,6 +1557,71 @@ internal class SelectOperation(
         settleOccupant(chosen.pane, chosen.packageName)
         return true
     }
+
+    companion object {
+        /** A plan that sends nothing and commits only a proven uninstall. */
+        private const val FORGET_ONLY = -1
+
+        /** The pill's selection: a pane and a package, resolved on the worker (B5). */
+        fun intoPane(
+            work: SplitOperationWorkspace,
+            pane: SplitPane,
+            packageName: String,
+            submittedEpoch: Long,
+        ) = SelectOperation(
+            work,
+            pickerTaskId = null,
+            resolvedTarget = null,
+            pane = pane,
+            packageName = packageName,
+            submittedEpoch = submittedEpoch,
+        )
+    }
+}
+
+/**
+ * The star on the pill (1.15.7, 1.14.2): the pair on screen pinned or unpinned. A fact about the
+ * memory and nothing else - not one command, no lease, no task - committed with the snapshot like
+ * every other fact (section 6). The automaton decides what a pin of a pair it does not hold means
+ * (nothing); then nothing moved and nothing is written.
+ *
+ * The star belongs to the pair on the screen it was tapped on (ревью пилюли, A13): it settles only
+ * while the function is on, the scene is the visible two-pane scene with no cover heard since the
+ * tap ([submittedEpoch]), and both panes still show the pair. A star that outlived that scene - a
+ * choice that ran before it, Home - is a refusal that writes nothing.
+ */
+internal class PinOperation(
+    work: SplitOperationWorkspace,
+    private val pair: SplitPair,
+    private val pinned: Boolean,
+    private val submittedEpoch: Long = 0L,
+) : SplitCoreOperation<Unit>(
+    label = SplitCoordinatorCore.PIN_LABEL,
+    priority = SplitInputPriority.SELECT,
+    durationMs = SELECT_BUDGET_MS,
+    // The wanted value is part of the ticket: a pin and an unpin of one pair are two intents.
+    joinKey = "$PIN_JOIN_PREFIX$pair-$pinned",
+    coalesceKey = null,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Unit? {
+        val onScreen = SplitPane.entries.all { pane -> liveScene[pane]?.appPackageName == pair.packageOf(pane) }
+        if (
+            !working.enabled ||
+            work.coverEpoch() != submittedEpoch ||
+            working.scene != SplitScene.Split ||
+            working.visibility != SceneVisibility.VISIBLE ||
+            working.owed.isNotEmpty() ||
+            !onScreen
+        ) {
+            mark(op, "star refused: the pair is not the one on the visible scene")
+            return null
+        }
+        settle(if (pinned) SplitFact.PairPinned(pair) else SplitFact.PairUnpinned(pair))
+        return Unit
+    }
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) = Unit
 }
 
 // endregion
@@ -2608,6 +2872,9 @@ private val ALL_LEASES = setOf(
     SplitLeaseKind.SMART_MULTI,
 )
 private const val SELECT_JOIN_PREFIX = "select-"
+private const val SELECT_PANE_JOIN_PREFIX = "select-pane-"
+private const val PAIR_JOIN_PREFIX = "pair-"
+private const val PIN_JOIN_PREFIX = "pin-"
 private const val PACKAGE_REMOVED_COALESCE_PREFIX = "package-removed-"
 /**
  * Что операция успевает до результата или честной ошибки, и к кому из них применим потолок §1.13.

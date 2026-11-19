@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import dev.denza.apps.feature.split.pill.SplitPillHost
 import dev.denza.apps.platform.accessibility.AccessibilityServiceSettings
 import dev.denza.apps.platform.accessibility.AccessibilitySettingsMutationLock
 
@@ -58,10 +59,20 @@ internal object SplitNativePickerAccessibilityAccess {
     }
 }
 
-/** Exact event source for the two pickers and the window-topology hint of the reconcile. */
+/**
+ * Exact event source for the two pickers and the window-topology hint of the reconcile, and the
+ * owner of the split pill's window ([SplitPillHost], contract 1.15): the service is held from a
+ * product open until the toggle goes off, so it exists whenever a product scene does.
+ */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
+    private var pill: SplitPillHost? = null
+
     override fun onServiceConnected() {
         connected = true
+        pill?.stop()
+        pill = runCatching { SplitPillHost(this).also(SplitPillHost::start) }
+            .onFailure { error -> Log.w(TAG, "split pill unavailable", error) }
+            .getOrNull()
         val packages = serviceInfo.packageNames?.joinToString().orEmpty().ifBlank { "<all>" }
         Log.i(TAG, "service connected packages=$packages")
         if (SplitScreenSettings.isEnabled(this)) {
@@ -113,6 +124,9 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         // may have moved underneath us. It is one coalesced hint, and it costs nothing at all
         // unless a live product scene exists to reconcile.
         if (SplitAccessibilityEventPolicy.isTopologyHint(event.eventType)) {
+            // The pill's own region changing is a window change too, and no topology hint.
+            if (pill?.isOwnWindow(event.windowId) == true) return
+            pill?.onWindowsChanged()
             SplitScreenCoordinator.onDividerResized(this)
         }
     }
@@ -121,11 +135,15 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         connected = false
+        pill?.stop()
+        pill = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         connected = false
+        pill?.stop()
+        pill = null
         super.onDestroy()
     }
 

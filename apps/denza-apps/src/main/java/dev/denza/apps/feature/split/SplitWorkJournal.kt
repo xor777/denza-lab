@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.R
+import dev.denza.apps.core.AppText
 import java.io.File
 import java.io.RandomAccessFile
 import java.time.Instant
@@ -185,6 +187,8 @@ internal object SplitWorkJournal {
     fun kind(label: String): String = when (label) {
         SplitCoordinatorCore.OPEN_LABEL -> "Открытие"
         SplitCoordinatorCore.SELECT_LABEL -> "Выбор"
+        SplitCoordinatorCore.PAIR_LABEL -> AppText.s(R.string.split_journal_pair)
+        SplitCoordinatorCore.PIN_LABEL -> AppText.s(R.string.split_journal_pin)
         SplitCoordinatorCore.ENABLE_LABEL -> "Включение"
         SplitCoordinatorCore.DISABLE_LABEL -> "Выключение"
         SplitCoordinatorCore.HOME_LABEL -> "Home"

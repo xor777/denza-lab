@@ -3,11 +3,13 @@ package dev.denza.apps.feature.split
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import dev.denza.apps.MainActivity
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.platform.shell.ShellProxyClasspath
 import dev.denza.apps.platform.shell.ShellProxyJar
@@ -137,6 +139,60 @@ object SplitScreenCoordinator {
         onComplete: (SplitActionResult) -> Unit = {},
     ) {
         core(context).selectApp(pickerTaskId, packageName, onComplete)
+    }
+
+    /**
+     * A pair tapped on the pill (1.15.4): one operation over both panes. Its outcome takes the dock
+     * button's route when the control channel is dead (1.15.13, 1.11.4).
+     */
+    internal fun choosePair(context: Context, pair: SplitPair) {
+        val app = context.applicationContext
+        core(app).choosePair(pair) { result -> repairOnDeadChannel(app, result) }
+    }
+
+    /**
+     * An app tapped on the pill's apps or repair row: a selection into that pane (1.15). The
+     * package is resolved inside the operation, off the caller's thread (ревью пилюли, B5).
+     */
+    internal fun selectIntoPane(context: Context, pane: SplitPane, packageName: String) {
+        val app = context.applicationContext
+        core(app).selectIntoPane(pane, packageName) { result -> repairOnDeadChannel(app, result) }
+    }
+
+    /**
+     * Contract 1.11.4, shared by every tap that asks the car for a scene - the dock's button and
+     * the pill's choices: split with a dead control channel is not offered as something that works,
+     * and the channel is repaired on the hub's own screen rather than by an error over a picker (U5:
+     * no text). Any other outcome needs nothing from here.
+     *
+     * The hub opens on the ADB gate, the one surface that can ask for the key and re-check it. What
+     * this cannot do is stop offering the icon: the alias is the user's own persisted toggle (1.2),
+     * and taking it away for a dead link would be the product forgetting a user decision.
+     */
+    internal fun repairOnDeadChannel(context: Context, result: SplitActionResult) {
+        if (result != SplitActionResult.CHANNEL_UNAVAILABLE) return
+        val app = context.applicationContext
+        SplitDiagnostics.record("a tap refused by a dead control channel: opening the hub (1.11.4)")
+        runCatching {
+            app.startActivity(
+                Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }.onFailure { error ->
+            SplitDiagnostics.record("the hub could not be opened for the repair: $error")
+        }
+    }
+
+    /** The star on the pill (1.15.7). */
+    internal fun setPairPinned(context: Context, pair: SplitPair, pinned: Boolean) {
+        core(context).setPairPinned(pair, pinned)
+    }
+
+    /** The pill's reading of every settled state; `null` stops it. */
+    internal fun observeSettled(
+        context: Context,
+        listener: ((SplitSettled) -> Unit)?,
+    ) {
+        core(context).observeSettled(listener)
     }
 
     /** Exact picker reveal event; only the recorded app task can be removed. */

@@ -17,6 +17,12 @@
             android:exported="true"
             android:screenOrientation="landscape"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <!-- Draws a split pill board with the product's own pill, for compare.py. -->
+        <activity
+            android:name=".debug.SplitPillFixtureActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <receiver
             android:name=".feature.simulcast.SimulcastDebugReceiver"
             android:enabled="true"

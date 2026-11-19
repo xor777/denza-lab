@@ -103,6 +103,10 @@
     <string name="split_picker_title">Choose an app</string>
     <string name="split_picker_loading">Loading apps…</string>
     <string name="split_picker_empty">No apps found</string>
+    <string name="split_pill_handle">Split screen app pairs</string>
+    <string name="split_pill_open">Open row of pairs and apps</string>
+    <string name="split_journal_pair">Pair from the pill</string>
+    <string name="split_journal_pin">Pair star</string>
 
     <!-- HUD -->
     <string name="hud_no_navigator">No navigator</string>

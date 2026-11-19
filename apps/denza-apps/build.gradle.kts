@@ -307,6 +307,7 @@ tasks.withType<Test>().configureEach {
         rootProject.fileTree("tools/design-canvas/luminofor"),
         rootProject.fileTree("research/vehicle-diagnostics") { include("*.json") },
         rootProject.fileTree("tools/design-canvas/split-crew"),
+        rootProject.fileTree("tools/design-canvas/split-pill"),
         fileTree("src/debug/assets/luminofor"),
         rootProject.file("docs/feature-map.md"),
         file("build.gradle.kts"),

@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-11-11. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-11-19. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -40,6 +40,8 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 | Two Denza tasks side by side (hub + picker, picker + picker): a stock divider resize becomes a side swap (`changePrimaryAppAndPosition` returns early); left as the firmware does it, by the owner's decision | live | 2026-09-23 | [A resize between two panes of one package](#a-resize-between-two-panes-of-one-package-moves-them-instead-live-2026-09-23) |
 | Measured: warm open 0.9–1.5 s, cold 3.5 s, first after an install 7.1 s, select 1.1–1.2 s, disable 2.2 s. Budgets: 10 s for toggle/open/select/home, 25 s edge, 30 s reconcile (`SplitOperations.kt`); the waiting shield stays at least 300 ms and at most 15 s (`SplitLaunchOverlay.kt`); a picker's wait for its selection ends by itself at 15 s even with no answer (`SplitPickerWait.kt`, 2026-10-08) | code | 2026-08-27 | [What the operations actually cost](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27), [Explicit restore progress window](#explicit-restore-progress-window-and-bounded-close-2026-08-22) |
 | A pane's choice is lost only to a departure, a collapse, another choice or a package the package manager proves absent (invariant 14, ред. 2026-11-11). A departure is two reads of the pane on the screen with no cover heard between them (`SplitCoreOperation.departureProven`, the one rule for every producer); a failed or late restore, a package that cannot be launched, a death under cover, a sleep, a process restart and «Clear all» keep the choice. A cold package is waited for inside the open's own deadline, the reserves derived from the measured trip cost (`SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS`, `COLD_DEGRADE_RESERVE_MS`); late cold panes go back to their pickers together, and a task the restore started is evicted, never removed. The automaton alone writes the pair memory, in the same commit as the slots; pins are reduced but nothing sends them yet (`SplitAutomaton.kt`, `SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11), [The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) |
+| The divider is the `multi-divider` window (`DOCK_DIVIDER`, uid 1000, `mBaseLayer` 31000, full-screen frame, `NOT_FOCUSABLE`, above the input method, below the BYD card bar); its drag is a separate spy window, `multi-divider-shadow`, that pilfers the pointer on down. Cross-window blur is on (`supports_background_blur=1`, `mBlurEnabled=true`); the display runs at 60 Hz. An accessibility overlay stands above it (`mBaseLayer` 311000) and the accessibility window list gives the divider's x (the run of a disposable on-device probe, `dev.denza.splitpill.probe`, since removed). The same run measured the rest: a touch that goes down on the handle is the overlay's to the end, touch to frame is 4–6 ms, a fixed window holds every vsync while a window resized per frame drops a tenth of them, and window blur blurs the window's rectangle rather than the capsule | live | 2026-11-19 | [The divider is a DOCK_DIVIDER window; blur is on](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) |
+| The split pill's first slice is in code, not on the car: one fixed `TYPE_ACCESSIBILITY_OVERLAY` window of the split's own accessibility service, as wide as the screen over the panes' bottom, never moved or resized; touches only inside the shape's region (the 96 × 48 target round the disc at rest); the divider read from the `SYSTEM` `multi-divider` window, else the two pane windows; a pair chosen is one operation over both panes that commits pane by pane (one placed: the other pane owed and the repair row opens; none placed: unwound), an app goes into the pane it names or nowhere, the star is a committed fact of the pair on screen; between a tap and its commit a pane being filled shows its bare picker. No edit mode, no flights, no launch placeholder | code | 2026-11-19 | [The split pill in code, first slice](#the-split-pill-in-code-first-slice-code-2026-11-19) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
 | "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
 | "The wide picker dies (`recent-task-trimmed`) at every fullscreen launch from Home." Not so: only the first task new to recents after a Home or a collapse arms the trim; fullscreen dock launches of running apps armed none | refuted | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it) |
@@ -85,6 +87,8 @@ Updated 2026-11-11. Where this journal and the normative [split-screen-product-c
 - [The session cut into recipe units (code, 2026-10-09)](#the-session-cut-into-recipe-units-code-2026-10-09) — `SplitPickerShellSession` as the facade of ten units, the proof that no command changed, and the history the recipes' comments used to carry, rule by rule.
 - [Where the remembered pair is lost (code, 2026-11-11)](#where-the-remembered-pair-is-lost-code-2026-11-11) — the five places a slot lost its package before the 2026-11-11 code, and what each does now.
   - [The one rule for a departure, and the cold wait's time (code, 2026-11-11)](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) — the witness and its four producers; the reserves of the open, counted from the measured trip cost.
+- [The divider is a DOCK_DIVIDER window; blur is on (car, read-only, 2026-11-19)](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) — the divider's window and its drag window, layers, touch occlusion and blur, read for the split pill's window; the probe that tests it.
+- [The split pill in code, first slice (code, 2026-11-19)](#the-split-pill-in-code-first-slice-code-2026-11-19) — the window, the divider, the three operations the pill sends, and what is not built; nothing of it run on the car yet.
 
 ## Product direction: explicit two-picker session
 
@@ -3139,3 +3143,213 @@ While a cold pane is still unconfirmed, no sample of the placement fails the bui
 time runs out, every unconfirmed cold pane goes back to its picker in one eviction and the rest
 of the scene is confirmed once more, within the time left. A cold application is never the
 reason the neighbour loses its scene.
+
+## The divider is a DOCK_DIVIDER window; blur is on (car, read-only, 2026-11-19)
+
+Read from the car with `dumpsys` and `getprop`, nothing installed, for the split pill's window
+(contract 1.15, «К 1.15»):
+
+- API 33; the screen 2560 × 1600, two pixels per dp; 60 Hz.
+- The divider is `multi-divider`, `ty=DOCK_DIVIDER`, uid 1000, package `android`,
+  `mBaseLayer=31000`, frame `(0,0)(2560x1600)`, flags `NOT_FOCUSABLE NOT_TOUCH_MODAL
+  LAYOUT_NO_LIMITS`. In the window list it stands above `InputMethod` and below
+  `BydLauncher_CardBarwindow`.
+- `ro.surface_flinger.supports_background_blur=1`, `mBlurEnabled=true`, and
+  `disable_window_blurs` unset: cross-window blur is available.
+
+Read from the OTA corpus (`captures/split-firmware-20260923/`), not run:
+
+- `BydSmartMultiDividerController.initDividerContainer` adds the divider (type 2034, flags 0x228,
+  title and accessibility title `multi-divider`). Its drag is a second window,
+  `multi-divider-shadow` (type 2001, a trusted overlay, `ivi_divider_touch_region_width × 2` wide
+  round the divider), hosted with `SurfaceControlViewHost`. The window manager marks an input
+  channel with that name as a spy window, and the handler calls `pilferPointers` on
+  `ACTION_DOWN`. It exists only while the 3:7 split is enabled (`isShadowDividerEnable`).
+- Both live inside the task display area (`mSplitScreenDividerAnchor` at relative layer 30000,
+  beside a shadow anchor). `DOCK_DIVIDER` is policy layer 3 (`mBaseLayer` 31000);
+  `TYPE_APPLICATION_OVERLAY` and `TYPE_ACCESSIBILITY_OVERLAY` are system overlays above the task
+  display area. A spy gets a touch only when it is above the first non-spy window touched, so a
+  touch that lands in an overlay's touchable region should not reach the divider's drag.
+- `TYPE_ACCESSIBILITY_OVERLAY` is a trusted overlay and never occludes. `TYPE_APPLICATION_OVERLAY`
+  occludes by opacity: a touch on another uid's window under its frame (not its touchable region)
+  is dropped while its alpha is above the maximum obscuring opacity (0.8 by default).
+- `UnionWindowManager.setUnionWindowBackgroundBlur` sets `privateFlags 0x200`, which the window
+  manager turns into a blur layer under the whole window (the product's split picker uses it).
+  `Window.setBackgroundBlurRadius` blurs the decor's bounds with its background's corner radius;
+  `FLAG_BLUR_BEHIND` blurs the whole area behind. None of the three follows a shape smaller than
+  the window.
+
+A disposable on-device probe (`dev.denza.splitpill.probe`) tested these on the car: the pill as an
+accessibility overlay, three window constructions, the glass variants, the touch cases round the
+divider, and the motion's frame times and touch latency. The probe was never committed: what it
+proved is below and in the product's own pill (`feature/split/pill`), and it was removed from the
+tree on 2026-11-19. The application-overlay type was never run on the car; it was set aside on
+reasoning (an untrusted overlay is subject to occlusion rules).
+
+The run, 2026-11-19 17:44, build `570b150d`, over a product split scene (area 3), accessibility
+overlay, construction A, dense glass. What was measured (the loop while an app cold-starts was
+not):
+
+- The accessibility overlay stands above the divider: our windows are `ty=2032`,
+  `mBaseLayer=311000`, against the divider's 31000; the accessibility window list puts ours at
+  layer 6 and everything of the scene below it.
+- Accessibility sees the divider's position. Besides the full-screen `SPLIT_SCREEN_DIVIDER` window
+  (bounds `[0,0][2560,1600]`, useless for a position) the list has a `SYSTEM` window titled
+  `multi-divider` whose bounds are the drag strip: `[1604,0][1780,1600]` with the wide pane on the
+  left, centre x 1692 px = 846 dp. The two pane windows give the same answer by their edges:
+  `[24,112][1680,1472]` and `[1704,112][2536,1472]` at 846, `[24,112][856,1472]` and
+  `[880,112][2536,1472]` at 434.
+- A touch that goes down in the handle's touchable region is ours to the end: two drags that
+  started on the handle (123 dp and 320 dp of travel, 2.5 s and 0.9 s) arrived whole, down to
+  the up, with no cancel - the divider's drag window did not take them. The owner moved the
+  divider between its detents by dragging it elsewhere while the handle stood on it, and taps on
+  the chips of the open pill and on the apps beside it went where they were aimed.
+- Touch to picture: from the touch's event time to the vsync of the first frame that answers it,
+  p50 3.7 ms, p90 5.2 ms, max 6.5 ms over 32 touches (to the frame being queued: p50 8.1, max
+  13.7).
+- The window must not be resized during motion. Eight open-close cycles each, the page's springs:
+
+  | Construction, glass | Frames | Skipped vsyncs | Frames over 33 ms | Longest interval |
+  | --- | --- | --- | --- | --- |
+  | Fixed window, dense | 585 | 0 | 0 | 16.7 ms |
+  | Fixed window, window blur | 584 | 0 | 0 | 16.8 ms |
+  | Window resized every frame, dense | 535 | 50 | 5 | 50 ms |
+  | Window resized every frame, blur on the capsule | 534 | 51 | 5 | 67 ms |
+
+  In the fixed window a tenth of the frames took longer than 16.6 ms to produce (p99 26 ms dense,
+  21 ms blurred; GPU p90 13 ms and 10 ms) and still met their vsync. The owner's own 16 tap-opens
+  before the loops: 763 frames, none skipped, two over 16.6 ms, the worst 17.6 ms.
+- By the owner's eyes: the fixed window drew well with the dense glass and with the blur, but the
+  window blur showed as a large blurred square round the pill - it blurs the window's rectangle,
+  not the capsule, as the corpus reading said. The pill's glass in the product is therefore the
+  dense one; a blur that follows the capsule needs a window that is the capsule, which is the
+  construction that drops frames. The finger-following opening felt right from the first try.
+- `isCrossWindowBlurEnabled()` is true for the probe's process.
+- The log buffer on the car holds seconds: the probe's lines are read as a stream
+  (`adb logcat -s <tag>` left running), not with `logcat -d` afterwards.
+- A full-screen `screencap` through the relay takes about 77 s; it is no way to watch motion.
+
+## The split pill in code, first slice (code, 2026-11-19)
+
+Written against the board (`tools/design-canvas/split-pill/`) and contract 1.15 as amended on
+2026-11-19; built and unit-tested, not installed on the car.
+
+- **Window.** `SplitPillHost`, owned by `SplitNativePickerAccessibilityService` (created on
+  connect, stopped on unbind and destroy), adds one `TYPE_ACCESSIBILITY_OVERLAY` window titled
+  `denza-split-pill` the first time a product two-pane scene is described, and removes it when the
+  scene has gone and the pill has faded out (170 ms), or with the service. It is the probe's
+  window: `NOT_FOCUSABLE | NOT_TOUCH_MODAL | WATCH_OUTSIDE_TOUCH | LAYOUT_NO_LIMITS |
+  LAYOUT_IN_SCREEN`, `PRIVATE_FLAG_NO_MOVE_ANIMATION`, no window animation. It is as wide as the
+  stage and spans from 65 dp above the open pill's top (the bloom and the pull's band) to the
+  screen's bottom (799 of 800), so it never moves, whatever the detent or the apps row's
+  offset. It is added `NOT_TOUCHABLE` and becomes touchable only once the first touchable region
+  is set, so the full rectangle never takes a touch. The region is a union of 4 px bands over the capsule, set
+  at a motion's start and end: at rest the handle's 96 × 48 target, open the capsule, in motion
+  the widest capsule plus the target.
+- **Divider.** On every `TYPE_WINDOWS_CHANGED` the host reads `getWindows()`: the centre of the
+  `SYSTEM` window titled `multi-divider`, else the gap between two tall application windows. The
+  full-screen `SPLIT_SCREEN_DIVIDER` window is ignored. The pill's own window changes are skipped
+  before the reconcile hint, so a region update is not a topology hint.
+- **What it shows.** `SplitPillModel.describe` from the settled state
+  (`SplitScreenCoordinator.observeSettled`, one listener, called on every publication) and the
+  last scene read; nothing while the toggle is off, without a two-pane scene, under cover, with a
+  navigator projected out of a pane, or with no divider in the list. Which pane is on the left
+  follows the divider: left of 640 dp the narrow primary pane. The apps come from the launch
+  catalogue (`SplitPickerCatalog.load`, read off the main thread).
+- **Taps.** A pair: `OpenOperation` with a choice, priority `SELECT` (Home preempts it), refused
+  without a visible two-pane scene; the build evicts the panes' shown apps with a `TaskMoved`
+  journal entry each. *Overturned by the review round below:* the read-back refused a choice that
+  did not land in both panes, so the unwind put the replaced apps back on top of their panes; a
+  choice now commits pane by pane and only one that placed nothing is unwound. An app: `SelectOperation`
+  addressed by pane (its host task from the live scene), the replaced app journalled the same way.
+  The star: `PinOperation`, `PairPinned` or `PairUnpinned` committed with the snapshot, no command.
+- **Not built.** The edit mode (long press, badges on every chip, reorder, unpin badge), the
+  flights and the launch placeholders, the contour's dash-drawing (the contour is the icon's
+  luminance tinted blue, since real icons carry no glyph), the badge's pop to 1.22 on entering
+  (it fades and scales in), the press's long-press lift. *Overturned by the review round below:*
+  "the dock's split icon does not open the pill" - it does now.
+- **Fixture.** `SplitPillFixtureActivity` (debug) draws `handle`, `handle-dim`, `open`,
+  `open-wide-left`, `vacant-*` and `apps*` with this device's apps over black. On a 2560 × 1600
+  emulator the open, apps, repair and handle boards matched the page's in place, size, rim,
+  badge, mark and separator; `compare.py` counts the whole frame, so the stand behind the board
+  dominates its numbers.
+
+### Review round (code, 2026-11-19)
+
+Three hostile reviews of the first slice (operations and state, window and gestures, model and
+spec); what they found and what changed, in code and unit tests only, nothing on the car.
+
+- **A pair commits pane by pane** (owner's rule, replacing "lands whole or not at all"). Both
+  placed: commit. One placed: commit what stands, the other pane on its picker with the chosen
+  app as its choice still owed (1.3.11); the pill opens itself on the repair row with that pair's
+  opened chip, and one tap finishes it. None placed: unwound to the pair that was on screen,
+  nothing written. Both apps are resolved before the first command; one the launcher cannot start
+  refuses the choice with nothing sent, one the package manager proves absent refuses it and
+  commits `PackageRemoved` on its own. The same package in both panes gets a second task exactly
+  where the other pane already holds or has started a copy, and tasks already assigned to a pane
+  are kept out of a launch's discovery; a swap of the pair on screen reparents the two live tasks
+  (`reparentCrossing`), no launcher start.
+- **The discovery window of a choice.** A cold app is waited for while the build's time still
+  covers everything after the wait: the deadline is 10 000 ms from the tap, the read-back keeps
+  400 ms, and the launch's cold wait keeps `COLD_DISCOVERY_RESERVE_MS` = 6 740 ms. So a cold
+  app's task must appear within about 2 860 ms of the tap (less any time the tap waited in the
+  queue); after that its pane is committed owed. The reserves are unchanged; the window is not
+  measured on a real cold start.
+- **What the driver sees between a tap on a pair and its commit.** Per pane: an app already in
+  place is untouched; a swapped one moves across; otherwise the shown app is evicted to the full
+  root just before the launch, and the pane shows its picker until the new app's task lands on
+  top. That picker is the bare catalogue grid: its own waiting presentation (the spinner on the
+  tapped tile, the dimmed grid) belongs to its own taps and is not raised for a pill choice, and
+  the dock button's waiting window (`SplitLaunchOverlay`) is only the `OPEN`'s. For a warm app the
+  gap is one launch and a promote; for a cold one it lasts until the task appears, at most the
+  window above, after which the picker stays as the owed pane's. The launch placeholder of 1.15.4
+  is what is meant to cover it.
+- **One app into one pane** lands in the pane it names or nowhere: a launch the firmware routes
+  into the other pane is undone before the sweep could touch the neighbour (a native picker tap
+  keeps the firmware's side, 1.5.3). It is resolved inside the operation, on the worker. A task of
+  the target that was already running and is borrowed into the pane is journalled
+  (`AppStarted`), so an unwind takes it back out alive. The eviction's inverse is journalled only
+  for this pane-addressed selection; a native picker tap that fails keeps its picker interactive.
+  The join key carries the package, so another app for the same pane is its own ticket.
+- **Rollback geometry.** The inverse of an eviction moves the task back on top of its pane and
+  resizes it to the pane (`normalizeTaskToRoot`): the eviction had given it the full root's
+  bounds.
+- **Covers and the star.** Each of the three inputs takes the cover count at the tap and refuses
+  in `prepare`, before any lease or gate, when a cover was heard since or the scene is no longer
+  the visible two-pane scene. The star also needs its pair standing in both panes, and its join
+  key carries the wanted value.
+- **Dead channel.** A pill tap that ends `CHANNEL_UNAVAILABLE` takes the dock button's route to
+  the hub (`SplitScreenCoordinator.repairOnDeadChannel`, no text).
+- **The dock button opens the pill.** A press over a scene that already exists (on the screen or
+  under Home) sends one reading with a one-shot `SplitPillOpenRequest` once the pair stands; after
+  Home it waits `timer.splitOpen` (240 ms). A press that makes the scene anew does not.
+- **Readings.** `observeSettled` hands one `SplitSettled` (state, live, revision, withdrawn, open)
+  under one lock, the first reading included; the host drops anything not newer than what it has.
+  The toggle's off sends a `withdrawn` reading at once, and the pill empties its touch region,
+  fades and removes its window before the disable has torn the scene down.
+- **Window and touch.** At rest the touch region is exactly the drawn shape (the motion envelope
+  only while the shape moves) and it is settled the frame the shape stops, whatever still breathes
+  or fades; hiding empties it at once. The bands follow the drawn stadium, a tall narrow one
+  included. Touch is enabled by installing the region while the window is still `NOT_TOUCHABLE`
+  and clearing the flag two frames later; a failure of either step removes the window. Window-list
+  reads are coalesced to one per frame, off the main thread, latest wins; the two-window divider
+  fallback needs the two windows to overlap by 80 % of the shorter one's height.
+- **Gestures and drawing.** Hit tests use each item's drawn place, scale and opacity, the badge
+  first; the target captured at down is the one released, and only if it still means the same.
+  The tracked pointer's own up ends a gesture, other pointers are ignored, `ACTION_CANCEL` takes no
+  action. A description that arrives during a held gesture is applied on release before any tap;
+  moving into one empty pane puts the repair row up, from the apps row too. The 5 s close and the
+  dimming follow pill input and mode changes only. No allocation in `onDraw` or the frame step;
+  the contour breathes once per 2 400 ms; with animations off a still repair row asks for no
+  frames.
+- **The glass after the round (fixture, emulator, 2026-11-19).** The first cut of the no-allocation
+  drawing lost the rim and laid a grey wash over the whole glass: its rim was an even-odd ring
+  path emptied each frame with `Path.rewind()`, which, unlike `reset()`, puts the fill type back to
+  winding, so the ring filled the capsule in the rim's gradient. The rim is now a 1 dp stroke, and
+  the sheen and rim gradients are made once per whole-pixel capsule height (`PillGlass`,
+  `PillGlassPlan`) and only translated. The same screenshots were also dimmed by half by the
+  system's "Viewing full screen" card that hiding the navigation bar brings up; the fixture now
+  hides the status bar only. Measured afterwards on all ten boards at the divider's gap: glass,
+  sheen, rim, bead, «+», separator, badge and the divider's mark within 3 levels of the boards. The
+  check, with its sample points, is in `SplitPillFixtureActivity`'s KDoc; no unit test can see it.
+- **Known limitations** left as they are: contract 1.17.

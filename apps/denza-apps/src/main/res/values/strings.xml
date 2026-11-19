@@ -104,6 +104,10 @@
     <string name="split_picker_title">Выберите приложение</string>
     <string name="split_picker_loading">Загружаю приложения…</string>
     <string name="split_picker_empty">Приложения не найдены</string>
+    <string name="split_pill_handle">Пары приложений разделённого экрана</string>
+    <string name="split_pill_open">Открытый ряд пар и приложений</string>
+    <string name="split_journal_pair">Пара с пилюли</string>
+    <string name="split_journal_pin">Звезда пары</string>
 
     <!-- HUD -->
     <string name="hud_no_navigator">Нет навигатора</string>
