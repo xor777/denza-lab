@@ -27,6 +27,7 @@ Updated 2026-11-19. Which vehicle signals Denza Apps can read on this head unit,
 | Historical scalar GETs remain silent for coolant, torque, boost, knock and fuel in `0x324` / `0x387` / `0x30D`; the 2026-10-21 MCU trace nevertheless finds seven field parsers. API silence does not establish absence from the MCU/raw stream | live API limit; offline MCU candidates | 2026-10-21 | [Did not answer](#did-not-answer--every-candidate-at-every-device-tried); [Signal origins](#signal-origins-and-passive-qualification-2026-10-21) |
 | A floored accelerator in P starts the engine, which generates 8–10 kW into the pack while held; `0x34200008` is the pedal in percent | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
 | Consumption is the last 10 km of recorded road: a 100-point chart of 100 m buckets, each point a 1 km trailing mean; the journal `filesDir/consumption.log` keeps the newest 300 buckets as `odometer,kwh,km,knownKm` (`ConsumptionWindow.kt`, `ConsumptionChart.kt`, `ConsumptionJournal.kt`); a line torn by the ignition is cut off before the next append, since 2026-11-19, and is never read or completed: a tail without its newline costs its bucket | code | 2026-11-19 | [Energy contract §2.2](energy-display-contract.md#22-consumption-over-the-last-ten-kilometres) |
+| Known limits accepted at release: a downgrade to 0.7.1 drops the trip, a fast in-drive helper retry is integrated, odometer gaps inside a bucket, a trip without power, capture header failures, a helper that answers `Parcel(NULL)` | code | 2026-11-19 | [Known limits of the vehicle hub](#known-limits-of-the-vehicle-hub-2026-11-19) |
 | Which car: `persist.sys.AutoType` (readable from the app UID through `getprop`) or FID `0x40D00010`: `168` N9, `170` our Z9GT; an unrecognised id is an unknown car (Z9GT `AutoType=170` also read live on 2026-10-18) | live | 2026-08-30 | [Which car is this](#which-car-is-this-2026-08-30) |
 | Raw CAN-FD frames: shell-UID `BYDAutoBigDataDevice` (`1061`) listener on `0x99000020`, about 137 frames/s, delivered only while the main `Looper` runs; app-UID registration unproven | live | 2026-09-03 | [Raw CAN-FD callback](#raw-can-fd-callback-2026-09-03) |
 | Turn signals: shell-UID listener on `0x1330002C` (raw lever phase, never names a side) and `0x38A0002C` (lamps: `1` off, `2` left, `4` right, `6` hazard) behind `VehicleSignalHub` (`TurnSignalEventProtocol.kt`) | live | 2026-09-04 | [Targeted turn-signal events](#targeted-turn-signal-events-2026-09-04) |
@@ -94,6 +95,7 @@ Updated 2026-11-19. Which vehicle signals Denza Apps can read on this head unit,
 - [autoservice FID protocol](#autoservice-fid-protocol) — the shell-UID read recipe, the resident reader (2026-11-02), device ids, sentinels and scales
 - [Widget allowlist (2026-08-22)](#widget-allowlist-2026-08-22) — the measured FIDs with dev, transact and decoding
 - [Vehicle telemetry wiring (2026-08-22 to 2026-08-27)](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) — the decisions behind `feature.vehicle`, its consumers and cadence
+  - [Known limits of the vehicle hub (2026-11-19)](#known-limits-of-the-vehicle-hub-2026-11-19) — accepted for the release, with the car check that would settle each
 - [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
   - [The engine charges on the move with generation at zero (2026-11-19)](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) — `GENERATION_KW` is non-zero only in P; what that leaves the cluster and the trip
 - [Diagnostics and DTC (2026-10-18)](#diagnostics-and-dtc-2026-10-18) — proven read transport, real records, status semantics and scan coverage
@@ -923,6 +925,21 @@ Two readings from the same session are worth keeping:
   which agrees with the owner's "under 40" and rules out the falsified 100 kWh
   figure. It is an estimate from two vendor-derived numbers, not a measurement,
   and the panel does not display it.
+
+### Known limits of the vehicle hub (2026-11-19)
+
+Accepted for the release after the second external review; traced, not fixed.
+The full list, with the screens' side, is the energy contract's
+[§8.1](energy-display-contract.md#81-known-limits-at-release-2026-11-19).
+
+| # | scenario | what the driver may see | car check |
+| --- | --- | --- | --- |
+| 5 | 0.7.1 reinstalled with app data kept (`TripJournal`) | the trip starts again: 0.7.1 deletes the versioned record | none; not a supported path |
+| 6 | in-drive helper retry back in under 8 s (`VehicleReaders`, `VehicleSweepClock`) | the retry's interval integrated at its last reading | shell-fallback drive with a retry under load |
+| 7 | odometer missing inside one bucket while speed or P answers (`ConsumptionLog`, `OdometerGate.Step.UNREAD`) | a partly measured bucket counted as measured | recorded drive with odometer gaps |
+| 8 | `POWER_KW` a sentinel during a trip (`TripEnergyLedger`) | exact kilometres over short kWh | any drive where `POWER_KW` drops |
+| 14 | capture marker present and the header write refused (`VehicleCapture.open`) | a partial CSV a minute, nothing on screen | none; host diagnostic |
+| 16 | helper answers `Parcel(NULL)` or optional ids only (`ResidentVehicleReader`) | the helper is kept while `service call` might answer | the helper on another firmware generation |
 
 ## Combustion side of the hybrid (2026-08-23)
 

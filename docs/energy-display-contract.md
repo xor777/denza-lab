@@ -872,3 +872,24 @@ The chart's ceilings and its form were closed by the car's own journal on
 
 Until the first three are closed the engine is drawn as §2.5 says and no other
 way.
+
+### 8.1 Known limits at release (2026-11-19)
+
+The second external review of this zone found narrow races and rare failure
+combinations that the release accepts rather than restructures for. Each is
+traced to the code; none is fixed. Where one belongs to the hub's reading of
+the car, [vehicle-data-findings.md](vehicle-data-findings.md#known-limits-of-the-vehicle-hub-2026-11-19)
+carries it too.
+
+| # | scenario | what the driver may see | car check |
+| --- | --- | --- | --- |
+| 5 | 0.7.1 reinstalled over this build with app data kept | the trip starts again: 0.7.1 cannot read the versioned `trip.log` and deletes it | none; a downgrade is not a supported path |
+| 6 | the in-drive helper retry (5 min after a failed start) takes under 8 s to come back | up to one retry's interval, about 0.3 kWh at 200 kW, credited to the trip, the engine's run and one bucket at the last reading | a full drive on the shell fallback with a retry under load: the log's gap and the bucket around it |
+| 7 | the odometer misses sweeps inside one 100 m bucket while speed or P answers | that bucket counts as fully measured on part of its time; both screens use it | a drive recording (`VehicleCapture`) with odometer gaps: compare `knownKm` with the time covered |
+| 8 | `POWER_KW` answers a sentinel for all or part of a trip while the odometer and P answer | the trip's kilometres are exact and its kWh is short - «0,0 кВт·ч» for a trip with no power at all | none known on this car; any drive where `POWER_KW` drops |
+| 10 | the cluster panel is switched on while the hub is blocked on a read with an 80 kW snapshot still published | the cluster shows that power for up to two more seconds after the car page has dropped it | a reader stall (helper start) with the Contour toggled on: the two screens side by side |
+| 11 | the engine flag is missing for several sweeps around a stop, then the Contour is reopened | the engine block's hold and the minutes cell can end a second apart in an open and a reopened panel; a restart inside that second may count as a new run | a stop with dropped `ENGINE_RUNNING` reads and the panel reopened inside ten seconds |
+| 14 | `VehicleCapture` is on (host marker) and the data volume refuses the CSV header | a partial file per minute while the marker stays; nothing on screen | none; capture is a host-placed diagnostic |
+| 16 | the resident helper answers `Parcel(NULL)` or only optional ids while `service call` would answer | the hub keeps the helper and its quiet-bus backoff; the panels show no live figures | the helper on another firmware generation: does `Parcel(NULL)` occur with the primary ids |
+| 17 | `setDataCaptureListener` fails while `setEnabled(true)` succeeds | idle bars, and the effect rebuilt about every six seconds | listener registration result on the installed audio firmware |
+| 19 | a stock DiShare share of the same app is up, and our start of it times out after creating its client | the stock share may stop | a same-target start against an active stock share (`docs/dishare-api-notes.md`) |
