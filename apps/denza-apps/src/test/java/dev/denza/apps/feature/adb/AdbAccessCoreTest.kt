@@ -86,7 +86,7 @@ class AdbAccessCoreTest {
             if (failLooks > 0) failLooks--
             val result = when {
                 failing -> AdbCheckResult(AdbCheckOutcome.ERROR, "SocketTimeoutException")
-                !portOpen -> AdbCheckResult(AdbCheckOutcome.UNAVAILABLE, "ConnectException")
+                !portOpen -> AdbCheckResult(AdbCheckOutcome.UNAVAILABLE, "ConnectException", definite = true)
                 trusted -> AdbCheckResult(AdbCheckOutcome.TRUSTED)
                 else -> AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
             }
@@ -893,7 +893,8 @@ class AdbAccessCoreTest {
         }
         assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
         core.check()
-        assertEquals(looks + 4, car.looks)
+        // The look on the trusted key was a window of them.
+        assertEquals(looks + 3 + AdbRescuePolicy.LOSS_LOOKS_MS.size, car.looks)
     }
 
     /**
@@ -1257,5 +1258,169 @@ class AdbAccessCoreTest {
         core.foregroundStarted()
         assertEquals(1, store.log.total)
         assertEquals(1, core.current.attemptCount)
+    }
+
+    // Invariant E: access lost while the app runs.
+
+    private fun trustedCore(): AdbAccessCore {
+        car.trustedAt = 0
+        core(trustedBefore = true)
+        core.check()
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        published.clear()
+        return core
+    }
+
+    /**
+     * Review finding 1: the car stopped trusting the key while the app ran - its features failed,
+     * and the phase stayed TRUSTED for as long as the process lived, with no gate and no way back.
+     * A feature's refusal now starts one window of looks, and a refusal across it leaves TRUSTED
+     * through the listener, as any other change.
+     */
+    @Test
+    fun `a key refused across the window leaves TRUSTED through the listener`() {
+        trustedCore()
+        car.trustedAt = null
+        val looks = car.looks
+        val start = car.elapsed
+
+        core.transportLost()
+
+        assertEquals(AdbRescuePhase.AUTHORIZATION_REQUIRED, core.current.phase)
+        assertEquals(listOf(AdbRescuePhase.AUTHORIZATION_REQUIRED), steps)
+        assertEquals(AdbRescuePolicy.LOSS_LOOKS_MS.size, car.looks - looks)
+        assertTrue(car.elapsed - start >= AdbRescuePolicy.LOSS_LOOKS_MS.last())
+        assertEquals("nothing in the background offers the key", 0, car.keysSent)
+        assertEquals("nor records a request", AdbAskLog(), store.log)
+    }
+
+    @Test
+    fun `a port closed across the window leaves TRUSTED`() {
+        trustedCore()
+        car.portOpen = false
+
+        core.transportLost()
+
+        assertEquals(listOf(AdbRescuePhase.UNAVAILABLE), steps)
+    }
+
+    /** A restart of adbd, or a passing refusal: the window ends at the first look that gets in. */
+    @Test
+    fun `a passing refusal is no loss, and the gate never shows it`() {
+        trustedCore()
+        car.trustedAt = null
+        car.meanwhile(3_000) { car.trustedAt = car.elapsed }
+
+        core.transportLost()
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertTrue("the listener heard nothing: $steps", published.isEmpty())
+        assertEquals(3, car.looks - 1)
+    }
+
+    @Test
+    fun `timeouts are no loss, wherever they are in the window`() {
+        trustedCore()
+        car.looksTimeOut = true
+        core.transportLost()
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+
+        car.looksTimeOut = false
+        car.trustedAt = null
+        car.failLooks = 1
+        car.meanwhile(car.elapsed + 6_000) { car.failLooks = 1 }
+        core.transportLost()
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertTrue(published.isEmpty())
+    }
+
+    @Test
+    fun `features failing at once start one window`() {
+        trustedCore()
+        car.trustedAt = null
+        listOf(500L, 1_000L, 2_500L, 4_000L, 9_000L).forEach { at -> car.meanwhile(at) { core.transportLost() } }
+        val looks = car.looks
+
+        core.transportLost()
+        core.transportLost()
+
+        assertEquals(AdbRescuePolicy.LOSS_LOOKS_MS.size, car.looks - looks)
+        assertEquals(listOf(AdbRescuePhase.AUTHORIZATION_REQUIRED), steps)
+        // Off TRUSTED, a feature's failure says nothing new.
+        core.transportLost()
+        assertEquals(AdbRescuePolicy.LOSS_LOOKS_MS.size, car.looks - looks)
+    }
+
+    /** Access back by any route - here the port reopened behind the app's back - returns the same way it left. */
+    @Test
+    fun `access regained is found by a feature that got in, through the listener`() {
+        trustedCore()
+        car.portOpen = false
+        core.transportLost()
+        assertEquals(AdbRescuePhase.UNAVAILABLE, core.current.phase)
+
+        car.portOpen = true
+        val looks = car.looks
+        core.channelReached()
+
+        assertEquals(AdbRescuePhase.TRUSTED, core.current.phase)
+        assertEquals(listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.TRUSTED), steps)
+        assertEquals(1, car.looks - looks)
+        // A trusted key that gets in is no news.
+        core.channelReached()
+        assertEquals(1, car.looks - looks)
+    }
+
+    /** Lost in front of the screen: the opening's one request, and the cap's rules for the rest. */
+    @Test
+    fun `access lost in front of the screen asks once`() {
+        trustedCore()
+        core.foregroundStarted()
+        car.trustedAt = null
+
+        core.transportLost()
+        idle(AdbRescuePolicy.HOLD_MS + 60_000)
+        repeat(5) { core.transportLost() }
+        idle(10 * 60_000L)
+
+        assertEquals(1, car.keysSent)
+        assertTrue(core.current.canAsk)
+    }
+
+    /**
+     * Any four answers in the window: it leaves TRUSTED exactly when none got in and every one was
+     * definite - a refusal or a closed port - and then by the last of them.
+     */
+    @Test
+    fun `only a window of definite answers leaves TRUSTED`() {
+        val answers = listOf("trusted", "refused", "closed", "timeout")
+        repeat(256) { seed ->
+            val window = List(4) { answers[(seed shr (2 * it)) and 3] }
+            car.elapsed = 0
+            car.portOpen = true
+            car.looksTimeOut = false
+            car.failLooks = 0
+            car.events.clear()
+            trustedCore()
+            fun set(answer: String) {
+                car.trustedAt = if (answer == "trusted") 0 else null
+                car.portOpen = answer != "closed"
+                car.looksTimeOut = answer == "timeout"
+            }
+            set(window[0])
+            // Between the looks at 0, 2, 5 and 10 seconds.
+            listOf(1_000L, 3_500L, 7_500L).forEachIndexed { i, at -> car.meanwhile(car.elapsed + at) { set(window[i + 1]) } }
+
+            core.transportLost()
+
+            val lost = "trusted" !in window && "timeout" !in window
+            val expected = when {
+                !lost -> AdbRescuePhase.TRUSTED
+                window.last() == "closed" -> AdbRescuePhase.UNAVAILABLE
+                else -> AdbRescuePhase.AUTHORIZATION_REQUIRED
+            }
+            assertEquals("$window", expected, core.current.phase)
+            assertEquals("$window", if (lost) listOf(expected) else emptyList<AdbRescuePhase>(), steps)
+        }
     }
 }

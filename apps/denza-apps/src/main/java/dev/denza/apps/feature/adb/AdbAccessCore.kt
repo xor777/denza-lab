@@ -2,8 +2,16 @@ package dev.denza.apps.feature.adb
 
 import java.io.IOException
 
-/** What a passive look found, and the failure's own name for the technical page. */
-internal class AdbCheckResult(val outcome: AdbCheckOutcome, val failure: String? = null)
+/**
+ * What a passive look found, and the failure's own name for the technical page. [definite] is an
+ * answer rather than noise: the key refused, or nothing listening on the port - not a timeout, not
+ * an unexpected reply. Only a definite answer takes a trusted key's access away.
+ */
+internal class AdbCheckResult(
+    val outcome: AdbCheckOutcome,
+    val failure: String? = null,
+    val definite: Boolean = outcome == AdbCheckOutcome.AUTHORIZATION_REQUIRED,
+)
 
 /** A key request whose transport is still open, so adbd can deliver the answer to it. */
 internal interface AdbHeldRequest {
@@ -136,6 +144,10 @@ private typealias Change = (AdbRescueSnapshot) -> AdbRescueSnapshot
  *   [AdbRescuePolicy.IDLE_LOOK_MS], whatever the gate shows: trust that arrives by any route - an
  *   earlier prompt approved with the box, the port coming back - takes the gate down by itself.
  *   It stops when the screen does.
+ * - A trusted key is looked at again when a feature's own connection was refused or found the port
+ *   closed ([transportLost]): looks over [AdbRescuePolicy.LOSS_LOOKS_MS], and only a window of
+ *   definite answers, none trusted, leaves TRUSTED. A feature's connection that got in while the
+ *   key is not trusted here is looked at once ([channelReached]). A loss changes no setting.
  * - Leaving the foreground, the switch going off, the time running out and the car answering all
  *   close the transport; leaving during the handshake stops it before the key is written. A
  *   configuration change is not leaving.
@@ -184,6 +196,9 @@ internal class AdbAccessCore(
     private var askWanted = false
     private var lookWanted = false
     private var pressed = false
+
+    /** A loss is being looked at; signals meanwhile are answered by it. */
+    private var verifying = false
     private val afters = mutableListOf<() -> Unit>()
 
     /** The idle look armed last; any older one finds itself stale and does nothing. */
@@ -213,6 +228,30 @@ internal class AdbAccessCore(
             }
         }
         announceThenPump()
+    }
+
+    /**
+     * A feature's own connection got in. Nothing to do on a trusted key; on any other, one look -
+     * the key may be trusted now, by a route nothing here was listening on.
+     */
+    fun channelReached() {
+        synchronized(lock) {
+            if (state.phase == AdbRescuePhase.TRUSTED || lookWanted) return
+            lookWanted = true
+        }
+        pump()
+    }
+
+    /**
+     * A feature's own connection was refused, or found the port closed. On a trusted key that is a
+     * reason to look, not an answer: one verification, however many features say it at once.
+     */
+    fun transportLost() {
+        synchronized(lock) {
+            if (state.phase != AdbRescuePhase.TRUSTED || lookWanted || verifying) return
+            lookWanted = true
+        }
+        pump()
     }
 
     /** The gate's control: one request now, whatever the cap, while nothing else is out. */
@@ -307,7 +346,7 @@ internal class AdbAccessCore(
         worker(Runnable { guarded { loop() } })
     }
 
-    private enum class Job { ASK_AUTO, ASK_PRESSED, LOOK }
+    private enum class Job { ASK_AUTO, ASK_PRESSED, LOOK, VERIFY }
 
     /**
      * Under [lock]: the next job, in the order the gate needs them. A request the opening is owed
@@ -336,6 +375,11 @@ internal class AdbAccessCore(
         }
         if (lookWanted) {
             lookWanted = false
+            // A trusted key is not taken away by one look.
+            if (state.phase == AdbRescuePhase.TRUSTED) {
+                verifying = true
+                return Job.VERIFY
+            }
             if (state.phase == AdbRescuePhase.UNKNOWN || pressed) state = AdbRescuePolicy.checking(state)
             pressed = false
             return Job.LOOK
@@ -374,6 +418,11 @@ internal class AdbAccessCore(
                 Job.ASK_AUTO -> askOnce(automatic = true)
                 Job.ASK_PRESSED -> askOnce(automatic = false)
                 Job.LOOK -> classify(system.passiveCheck())
+                Job.VERIFY -> try {
+                    verify()
+                } finally {
+                    synchronized(lock) { verifying = false }
+                }
             }
         }
     }
@@ -567,6 +616,26 @@ internal class AdbAccessCore(
             last = look
         }
         return classify(last)
+    }
+
+    /**
+     * Whether a trusted key is still trusted: looks over [AdbRescuePolicy.LOSS_LOOKS_MS]. Any that
+     * finds it trusted ends it with nothing changed; only a window in which every look had a
+     * definite answer - refused, or nothing listening - leaves TRUSTED, by the last of them, through
+     * the same change and the same listener as any other look. A timeout anywhere in it is no loss.
+     */
+    private fun verify(): Change {
+        val start = system.elapsedMs()
+        var last = AdbCheckResult(AdbCheckOutcome.ERROR)
+        var confirmed = true
+        for (at in AdbRescuePolicy.LOSS_LOOKS_MS) {
+            val wait = start + at - system.elapsedMs()
+            if (wait > 0) system.sleep(wait)
+            last = system.passiveCheck()
+            if (last.outcome == AdbCheckOutcome.TRUSTED) return classify(last)
+            confirmed = confirmed && last.definite
+        }
+        return if (confirmed) classify(last) else { snapshot -> snapshot }
     }
 
     /**

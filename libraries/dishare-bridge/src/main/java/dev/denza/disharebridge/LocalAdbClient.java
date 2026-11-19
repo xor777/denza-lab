@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.SequenceInputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -77,6 +78,20 @@ public final class LocalAdbClient {
     private final AdbKeyStore keyStore;
     private final List<String> hosts;
     private final AuthorizationPolicy authorizationPolicy;
+    private final ChannelObserver observer;
+
+    /**
+     * What this client's own connections learn about the channel, as they learn it: on the caller's
+     * thread, and never for an explicit key request. A timeout or an unexpected reply says nothing
+     * definite and is not heard.
+     */
+    public interface ChannelObserver {
+        /** A handshake completed: adbd trusts this key. */
+        void reached();
+
+        /** adbd refused this key, or nothing listens on its loopback port. */
+        void lost(IOException definite);
+    }
 
     public enum AuthorizationPolicy {
         /** Preserve the legacy behaviour for callers which intentionally own the auth prompt. */
@@ -127,9 +142,18 @@ public final class LocalAdbClient {
             Context context,
             String publicKeyComment,
             AuthorizationPolicy authorizationPolicy) {
+        this(context, publicKeyComment, authorizationPolicy, null);
+    }
+
+    public LocalAdbClient(
+            Context context,
+            String publicKeyComment,
+            AuthorizationPolicy authorizationPolicy,
+            ChannelObserver observer) {
         keyStore = new AdbKeyStore(context, publicKeyComment);
         hosts = candidateHosts();
         this.authorizationPolicy = authorizationPolicy;
+        this.observer = observer;
     }
 
     /**
@@ -541,7 +565,7 @@ public final class LocalAdbClient {
     private String shell(String host, String command, int readTimeoutMs, CommandSent sent)
             throws IOException, GeneralSecurityException {
         Socket socket = new Socket();
-        socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+        connectObserved(socket, host, PORT, observer);
         prepareTransport(socket, readTimeoutMs);
         try {
             InputStream input = socket.getInputStream();
@@ -587,7 +611,52 @@ public final class LocalAdbClient {
 
     private void connect(InputStream input, OutputStream output)
             throws IOException, GeneralSecurityException {
-        handshake(input, output, keys, authorizationPolicy, false, null);
+        handshakeObserved(observer, () -> handshake(input, output, keys, authorizationPolicy, false, null));
+    }
+
+    interface Handshake {
+        void run() throws IOException, GeneralSecurityException;
+    }
+
+    /** [handshake], with what it proved told to [observer]: trust, or a refusal of the key. */
+    static void handshakeObserved(ChannelObserver observer, Handshake handshake)
+            throws IOException, GeneralSecurityException {
+        try {
+            handshake.run();
+        } catch (AuthorizationRequiredException refused) {
+            tell(observer, refused);
+            throw refused;
+        }
+        tell(observer, null);
+    }
+
+    /** Connects [socket]; a refused connection to the loopback port is adbd not listening, told to [observer]. */
+    static void connectObserved(Socket socket, String host, int port, ChannelObserver observer)
+            throws IOException {
+        try {
+            socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
+        } catch (ConnectException refused) {
+            if (HOST.equals(host)) {
+                tell(observer, refused);
+            }
+            throw refused;
+        }
+    }
+
+    /** [lost] null is a handshake that completed. An observer that throws changes nothing the caller hears. */
+    private static void tell(ChannelObserver observer, IOException lost) {
+        if (observer == null) {
+            return;
+        }
+        try {
+            if (lost == null) {
+                observer.reached();
+            } else {
+                observer.lost(lost);
+            }
+        } catch (RuntimeException ignored) {
+            // The channel's own outcome is the caller's answer either way.
+        }
     }
 
     /** [cancel], when there is one, is checked at the write of the public key and nowhere else. */
@@ -1053,7 +1122,7 @@ public final class LocalAdbClient {
                     if (closed) {
                         throw new IOException("this resident session was closed while starting");
                     }
-                    candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+                    connectObserved(candidate, host, PORT, observer);
                     prepareTransport(candidate, readyTimeoutMs);
                     InputStream candidateInput = candidate.getInputStream();
                     OutputStream candidateOutput = candidate.getOutputStream();
@@ -1508,7 +1577,7 @@ public final class LocalAdbClient {
                     if (closed) {
                         throw new IOException("Persistent ADB shell was closed while connecting");
                     }
-                    candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+                    connectObserved(candidate, host, PORT, observer);
                     prepareTransport(candidate, readTimeoutMs);
                     InputStream candidateInput = candidate.getInputStream();
                     OutputStream candidateOutput = candidate.getOutputStream();

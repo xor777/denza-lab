@@ -55,6 +55,69 @@ public final class LocalAdbClientTest {
     }
 
     /**
+     * What a feature's connection learns reaches its observer as it learns it: trust, a refused
+     * key, nothing listening on the loopback port - and not a timeout, which says nothing.
+     */
+    @Test
+    public void theObserverHearsTrustARefusalAndAClosedPortOnly() throws Exception {
+        List<String> heard = new ArrayList<>();
+        LocalAdbClient.ChannelObserver observer = new LocalAdbClient.ChannelObserver() {
+            @Override
+            public void reached() {
+                heard.add("reached");
+            }
+
+            @Override
+            public void lost(IOException definite) {
+                heard.add("lost " + definite.getClass().getSimpleName());
+            }
+        };
+
+        LocalAdbClient.handshakeObserved(observer, () -> { });
+        try {
+            LocalAdbClient.handshakeObserved(observer, () -> {
+                throw new LocalAdbClient.AuthorizationRequiredException();
+            });
+            fail();
+        } catch (LocalAdbClient.AuthorizationRequiredException expected) {
+            // The caller still hears the failure.
+        }
+        try {
+            LocalAdbClient.handshakeObserved(observer, () -> {
+                throw new SocketTimeoutException("slow binder");
+            });
+            fail();
+        } catch (SocketTimeoutException expected) {
+            // Not definite: not heard.
+        }
+        int closedPort;
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            closedPort = server.getLocalPort();
+        }
+        try (Socket socket = new Socket()) {
+            LocalAdbClient.connectObserved(socket, "127.0.0.1", closedPort, observer);
+            fail();
+        } catch (ConnectException expected) {
+            // The caller still hears the failure.
+        }
+        LocalAdbClient.handshakeObserved(null, () -> { });
+        // An observer that throws does not turn a completed handshake into a failure.
+        LocalAdbClient.handshakeObserved(new LocalAdbClient.ChannelObserver() {
+            @Override
+            public void reached() {
+                throw new IllegalStateException("observer");
+            }
+
+            @Override
+            public void lost(IOException definite) {
+                throw new IllegalStateException("observer");
+            }
+        }, () -> { });
+
+        assertEquals(Arrays.asList("reached", "lost AuthorizationRequiredException", "lost ConnectException"), heard);
+    }
+
+    /**
      * No address to try is a channel that is not there, said by its type: the app's tiles read it
      * as a missing channel rather than as a failure of whatever was being asked.
      */

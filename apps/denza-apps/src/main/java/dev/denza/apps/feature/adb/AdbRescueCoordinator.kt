@@ -8,6 +8,8 @@ import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.AppText
 import dev.denza.disharebridge.LocalAdbClient
+import java.io.IOException
+import java.net.ConnectException
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
@@ -89,6 +91,12 @@ internal object AdbRescuePolicy {
 
     /** How often a held request looks passively for an approval that came by another transport. */
     const val LOOK_MS = 3_000L
+
+    /**
+     * When the looks that decide whether a trusted key lost its access run, from a feature's failed
+     * connection: across ten seconds, so a restart of adbd or a passing refusal is not a loss.
+     */
+    val LOSS_LOOKS_MS = listOf(0L, 2_000L, 5_000L, 10_000L)
 
     /** How long a configuration change may take to bring the screen back before it counts as leaving. */
     const val RECREATE_MS = 5_000L
@@ -327,29 +335,50 @@ object AdbRescueCoordinator {
         core?.foregroundStarted()
     }
 
+    /** A feature's connection got in; see [AdbAccessCore.channelReached]. */
+    fun channelReached() {
+        core?.channelReached()
+    }
+
+    /** A feature's connection was refused or found the port closed; see [AdbAccessCore.transportLost]. */
+    fun transportLost() {
+        core?.transportLost()
+    }
+
     fun foregroundStopped(changingConfigurations: Boolean) {
         core?.foregroundStopped(changingConfigurations)
     }
 
     private class AndroidAdbAccessSystem(private val app: Context) : AdbAccessSystem {
-        override fun passiveCheck(): AdbCheckResult = try {
-            val output = DenzaLocalAdb.client(app).shell("printf $CHECK_MARKER")
-            if (output.contains(CHECK_MARKER)) {
-                AdbCheckResult(AdbCheckOutcome.TRUSTED)
-            } else {
-                AdbCheckResult(AdbCheckOutcome.ERROR, AdbRescuePolicy.UNEXPECTED_REPLY)
+        override fun passiveCheck(): AdbCheckResult {
+            // The look's own connections tell nobody but this look: whether the loopback port refused it.
+            var portClosed = false
+            val quiet = object : LocalAdbClient.ChannelObserver {
+                override fun reached() = Unit
+                override fun lost(definite: IOException) {
+                    if (definite is ConnectException) portClosed = true
+                }
             }
-        } catch (_: LocalAdbClient.AuthorizationRequiredException) {
-            AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
-        } catch (error: Exception) {
-            requestFailure(error)
+            return try {
+                val output = DenzaLocalAdb.client(app, quiet).shell("printf $CHECK_MARKER")
+                if (output.contains(CHECK_MARKER)) {
+                    AdbCheckResult(AdbCheckOutcome.TRUSTED)
+                } else {
+                    AdbCheckResult(AdbCheckOutcome.ERROR, AdbRescuePolicy.UNEXPECTED_REPLY)
+                }
+            } catch (_: LocalAdbClient.AuthorizationRequiredException) {
+                AdbCheckResult(AdbCheckOutcome.AUTHORIZATION_REQUIRED)
+            } catch (error: Exception) {
+                val failure = requestFailure(error)
+                AdbCheckResult(failure.outcome, failure.failure, definite = portClosed)
+            }
         }
 
         override fun openRequest(cancel: AdbRequestCancel): AdbHeldRequest {
             val cancellation = LocalAdbClient.RequestCancellation()
             cancel.onCancel(cancellation::cancel)
             val request = try {
-                DenzaLocalAdb.client(app).openAuthorizationRequest(cancellation)
+                DenzaLocalAdb.client(app, observer = null).openAuthorizationRequest(cancellation)
             } catch (error: Exception) {
                 // Only the client knows whether the write of the key began: before it, no queue entry.
                 throw if (cancellation.keyOffered()) error else AdbKeyNotSentException(error)
