@@ -1,5 +1,7 @@
 package dev.denza.hud.probe;
 
+import java.util.Objects;
+
 /**
  * The metres to the manoeuvre as the HUD shows them, field 9. Navigator measures them anew every
  * frame, ten a second, and the fix moves them back and forth by a few metres, so the digits on the
@@ -11,31 +13,37 @@ package dev.denza.hud.probe;
  * wanders across a step's middle would show 250, 300, 250, and the HUD's AR scene starts over
  * whenever field 9 grows (docs/instrument-display-findings.md, the AR arrow's scene machine).
  * The map's zoom and the AR geometry keep the exact distance; only what the HUD prints is rounded.
- * The wire's 11 m floor comes after this ({@code ModuleFields}). The place alone does not tell
- * routes apart (every finish is at 0), so a new route or guidance off starts over ({@link #reset},
- * from {@code ManeuverHints}).
+ * The wire's 11 m floor comes after this ({@code ModuleFields}).
+ *
+ * <p>A manoeuvre is its route and its place on it ({@link #shown}): every finish is at 0, so the
+ * place alone does not tell one route's finish from the next one's, and the route id in the key is
+ * what starts a new route over - not a reset someone has to remember to call. Only a manoeuvre the
+ * current frame measured comes here; one repeated through a gap ({@code ManeuverHold}) never does,
+ * so it cannot hold a new route's number down (2026-11-19, docs/hud-output-architecture.md, 3.4).
  */
 final class ManeuverMeters {
     /** A manoeuvre is the same one while its place on the route moves by no more than this. */
     static final int SAME_PLACE = 5;
 
+    private String route;
     private int at = -1;
     private int shown;
 
-    /** A new route or guidance off: the next manoeuvre starts from its own distance. */
+    /** Guidance off: nothing of this route is remembered. */
     void reset() {
+        route = null;
         at = -1;
         shown = 0;
     }
 
-    /** {@code hint}'s distance as the HUD shows it, written back into it; nothing without a manoeuvre. */
-    void apply(NavigatorSource.Hint hint) {
-        if (hint == null || hint.icon == null || hint.distance < 0) return;
-        int rounded = round(hint.distance);
-        if (hint.at < 0 || at < 0 || Math.abs(hint.at - at) > SAME_PLACE) shown = rounded;
-        else shown = Math.min(shown, rounded);
-        at = hint.at;
-        hint.distance = shown;
+    /** {@code distance} metres to the manoeuvre at {@code at} on {@code route}, as the HUD shows them. */
+    int shown(String route, int at, int distance) {
+        int rounded = round(distance);
+        boolean same = at >= 0 && this.at >= 0 && Math.abs(at - this.at) <= SAME_PLACE && Objects.equals(route, this.route);
+        shown = same ? Math.min(shown, rounded) : rounded;
+        this.route = route;
+        this.at = at;
+        return shown;
     }
 
     /**

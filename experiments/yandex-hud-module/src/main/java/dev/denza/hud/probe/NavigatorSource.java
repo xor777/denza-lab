@@ -21,7 +21,7 @@ final class NavigatorSource {
      * the guidance itself rather than from Yandex's screen. icon is a semantic manoeuvre key, null
      * without a manoeuvre ahead; -1 means unknown; speedLimit 0 means no sign.
      */
-    static final class Hint {
+    static final class Hint implements Cloneable {
         String icon, action, road = "", limitText;
         Object position, followingPosition;
         int stockId, exit, distance = -1, remainingMeters = -1, remainingSeconds = -1, speedLimit;
@@ -29,6 +29,11 @@ final class NavigatorSource {
         int at = -1;
         double limitValue = Double.NaN;
         String iconKey() { return icon == null ? null : icon.equals("roundabout") ? icon + exit : icon; }
+        /** Every field, a new one included: what the module publishes is a copy, never the frame's own hint. */
+        Hint copy() {
+            try { return (Hint) clone(); }
+            catch (CloneNotSupportedException impossible) { throw new AssertionError(impossible); }
+        }
     }
     /**
      * mode: off; waiting (a route but no position yet: nothing drawn, nothing written); guidance (a

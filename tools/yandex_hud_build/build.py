@@ -149,6 +149,7 @@ def main():
          package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java', package/'ManeuverHold.java', package/'ManeuverMeters.java', package/'ManeuverHints.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.HoldTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hudlink.camera.CameraTest',
          ROOT/'research/yandex-hud-renderer/stock-camera-queue-oracle.csv',

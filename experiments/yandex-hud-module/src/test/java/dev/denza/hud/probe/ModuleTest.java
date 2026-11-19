@@ -337,7 +337,7 @@ public final class ModuleTest {
         hint.exit=11;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou11"),"unknown exit must not display a wrong number");
         hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
     }
-    /** The manoeuvre block through a gap: a rebuilt route up to 30 s, no manoeuvre ahead up to 3 s, never past the route. */
+    /** Field 9 as Navigator rounds it, never back up within one manoeuvre of one route. */
     private static void meters() {
         int[][] rounded={{0,0},{9,9},{10,10},{14,10},{15,20},{50,50},{51,50},{74,50},{75,100},{247,250},
                 {275,300},{299,300},{300,300},{301,300},{349,300},{350,400},{2950,3000},{3000,3000},{3001,3000},
@@ -347,46 +347,46 @@ public final class ModuleTest {
         ManeuverMeters meters=new ManeuverMeters();
         int[] jitter={243,247,238,252,224,230,212,176};
         int[] shown={250,250,250,250,200,200,200,200};
-        for(int i=0;i<jitter.length;i++) check(shownAt(meters,1000,jitter[i])==shown[i],"the fix's jitter never moves field 9 back up: "+jitter[i]);
-        check(shownAt(meters,1003,170)==150,"the same manoeuvre a few metres off is still the same");
-        check(shownAt(meters,400,612)==600,"the next manoeuvre starts from its own distance");
-        check(shownAt(meters,-1,612)==600&&shownAt(meters,-1,660)==700,"a manoeuvre without a place is only rounded");
-        NavigatorSource.Hint none=new NavigatorSource.Hint();none.distance=37;none.at=400;
-        meters.apply(none);
-        check(none.distance==37,"no manoeuvre, nothing rounded");
-    }
-    private static int shownAt(ManeuverMeters meters,int at,int distance) {
-        NavigatorSource.Hint hint=new NavigatorSource.Hint();
-        hint.icon="right";hint.at=at;hint.distance=distance;
-        meters.apply(hint);
-        return hint.distance;
+        for(int i=0;i<jitter.length;i++) check(meters.shown("r",1000,jitter[i])==shown[i],"the fix's jitter never moves field 9 back up: "+jitter[i]);
+        check(meters.shown("r",1003,170)==150,"the same manoeuvre a few metres off is still the same");
+        check(meters.shown("r",400,612)==600,"the next manoeuvre starts from its own distance");
+        check(meters.shown("r",-1,612)==600&&meters.shown("r",-1,660)==700,"a manoeuvre without a place is only rounded");
+        check(meters.shown("r",0,20)==20&&meters.shown("s",0,350)==400,"another route's finish at the same place starts from its own");
+        meters.reset();
+        check(meters.shown("s",0,30)==30&&meters.shown(null,0,350)==400,"after a reset nothing is remembered");
     }
     private static void hold() {
         ManeuverHold hold=new ManeuverHold();
         NavigatorSource.Frame frame=new NavigatorSource.Frame();frame.mode="guidance";frame.hint=withManoeuvre();
-        check(hold.apply(frame,0)==frame.hint&&hold.holding==null,"a manoeuvre ahead goes out as it is");
+        check(hold.apply(frame,frame.hint,0)==frame.hint&&hold.holding==null,"a manoeuvre ahead goes out as it is");
         NavigatorSource.Frame rebuild=new NavigatorSource.Frame();rebuild.mode="rerouting";
-        NavigatorSource.Hint held=hold.apply(rebuild,29000);
-        // The limit is not held: field 11 goes into the car's own speed-limit assistance, and a
-        // rebuild after a missed turn is usually another road (until 2026-11-19 the old 60 rode on).
-        check(held!=null&&"right".equals(held.icon)&&held.distance==250&&held.speedLimit==0&&Double.isNaN(held.limitValue)&&held.limitText==null
-                &&"rerouting".equals(hold.holding),"rerouting repeats the last manoeuvre, never its limit");
+        NavigatorSource.Hint held=hold.apply(rebuild,null,29000);
+        // Only the shape is held (docs/hud-output-architecture.md, 3.4): the limit goes into the
+        // car's own speed-limit assistance, the totals and the street belong to the route being left.
+        check(held!=null&&"right".equals(held.icon)&&held.distance==250&&held.stockId==2&&held.speedLimit==0&&Double.isNaN(held.limitValue)&&held.limitText==null
+                &&held.remainingMeters==-1&&held.remainingSeconds==-1&&held.road.isEmpty()&&"rerouting".equals(hold.holding),"rerouting repeats the last manoeuvre's shape and nothing else");
         Map<Integer,Object> road=fields(HudWire.road(true,held,new byte[]{7,7}));
-        check(road.get(9).equals(250L)&&road.get(28).equals(2L)&&text(road,10).equals("Тверская")&&!road.containsKey(11),"so the block keeps its arrow, metres and street, not the HUD's Chinese, and no limit");
+        check(road.get(9).equals(250L)&&road.get(28).equals(2L)&&!road.containsKey(10)&&!road.containsKey(11)&&!road.containsKey(3)&&!road.containsKey(26),
+                "so the block keeps its arrow and metres, not the HUD's Chinese, and nothing of the old route");
         check(!ModuleFields.of(held,new byte[]{7},0,null,null).containsKey(HudRole.ROAD_LIMIT),"a held manoeuvre withdraws the road limit");
         NavigatorSource.Frame unread=new NavigatorSource.Frame();unread.mode="guidance";
-        check(hold.apply(unread,29500).speedLimit==0&&"unread".equals(hold.holding),"an unread hint holds no limit either");
-        check(hold.apply(rebuild,31000)==null&&hold.holding==null,"not past the lost-position hold");
-        NavigatorSource.Hint none=new NavigatorSource.Hint();none.remainingMeters=900;none.remainingSeconds=120;none.speedLimit=40;
-        NavigatorSource.Frame empty=new NavigatorSource.Frame();empty.mode="guidance";empty.hint=none;
-        hold.apply(frame,40000);
-        held=hold.apply(empty,42000);
+        check(hold.apply(unread,null,29500).speedLimit==0&&"unread".equals(hold.holding),"an unread hint holds no limit either");
+        check(hold.apply(rebuild,null,31000)==null&&hold.holding==null,"not past the lost-position hold");
+        NavigatorSource.Frame empty=new NavigatorSource.Frame();empty.mode="guidance";
+        hold.apply(frame,frame.hint.copy(),40000);
+        held=hold.apply(empty,ahead(),42000);
         check("right".equals(held.icon)&&held.remainingMeters==900&&held.remainingSeconds==120&&held.speedLimit==40&&"no-manoeuvre".equals(hold.holding),"a blink keeps the manoeuvre with the frame's totals and limit");
-        check(hold.apply(empty,43500)==none,"a turn already taken is not carried down a straight");
+        NavigatorSource.Hint straight=ahead();
+        check(hold.apply(empty,straight,43500)==straight&&straight.icon==null,"a turn already taken is not carried down a straight");
         NavigatorSource.Frame lost=new NavigatorSource.Frame();lost.mode="lost";lost.hint=frame.hint;
-        check(hold.apply(lost,44000)==frame.hint,"a held position keeps its own hint");
-        check(hold.apply(new NavigatorSource.Frame(),45000)==null&&hold.apply(rebuild,45100)==null,"a new route starts from nothing");
+        check(hold.apply(lost,lost.hint,44000)==frame.hint,"a held position keeps its own hint");
+        check(hold.apply(new NavigatorSource.Frame(),null,45000)==null&&hold.apply(rebuild,null,45100)==null,"a new route starts from nothing");
         hints();
+    }
+    /** No manoeuvre ahead, but the route's totals and a limit. */
+    private static NavigatorSource.Hint ahead() {
+        NavigatorSource.Hint none=new NavigatorSource.Hint();none.remainingMeters=900;none.remainingSeconds=120;none.speedLimit=40;
+        return none;
     }
     /**
      * What the engine publishes frame by frame (HudModule calls ManeuverHints on every tick, off
@@ -404,10 +404,13 @@ public final class ModuleTest {
         hints.apply(new NavigatorSource.Frame(),700);
         NavigatorSource.Frame rebuild=new NavigatorSource.Frame();rebuild.mode="rerouting";rebuild.routeId="d";
         check(hints.apply(rebuild,800)==null&&hints.hold.holding==null,"after guidance off nothing is held into the next route");
-        // A rebuild within guidance keeps the arrow, its metres and street, without the old limit.
+        // A rebuild within guidance keeps the arrow and its metres, without the old limit.
         hints.apply(guided("d",400,250),900);
         NavigatorSource.Hint held=hints.apply(rebuild,1000);
         check(held!=null&&held.distance==250&&held.speedLimit==0,"a rebuild holds the manoeuvre and drops its limit");
+        NavigatorSource.Frame frame=guided("d",400,240);
+        hints.apply(frame,1100);
+        check(frame.hint.distance==240,"the frame's own hint is never rewritten: the map and AR keep the exact metres");
     }
     private static NavigatorSource.Frame guided(String route,int at,int distance) {
         NavigatorSource.Frame frame=new NavigatorSource.Frame();
