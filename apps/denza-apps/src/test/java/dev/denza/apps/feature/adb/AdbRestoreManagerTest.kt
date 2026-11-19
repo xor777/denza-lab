@@ -94,19 +94,19 @@ class AdbRestoreManagerTest {
     @Test fun missingPermissionNeedsActivationWithoutEnablingWireless() = runTest {
         val f = Fixture(this); f.system.held = false
         f.manager.attemptIfNeeded("startup"); runCurrent()
-        assertEquals(AdbRestoreState.NeedsActivation, f.manager.snapshot().state)
+        assertEquals(AdbRestoreState.NeedsActivation(refused = false), f.manager.snapshot().state)
         assertTrue(f.system.writes.isEmpty())
     }
     @Test fun noPriorTrustCannotActivateWirelessEvenWithPermission() = runTest {
         val f = Fixture(this); f.store.trustedBefore = false
         f.manager.attemptIfNeeded("startup"); runCurrent()
-        assertEquals(AdbRestoreState.NeedsActivation, f.manager.snapshot().state)
+        assertEquals(AdbRestoreState.NeedsActivation(refused = false), f.manager.snapshot().state)
         assertTrue(f.system.writes.isEmpty())
     }
     @Test fun refusedPreviouslyTrustedKeyDoesNotCreateWirelessDialog() = runTest {
         val f = Fixture(this); f.system.probe = { throw AdbRestoreKeyUntrustedException() }
         f.manager.attemptIfNeeded("startup"); runCurrent()
-        assertEquals(AdbRestoreState.NeedsActivation, f.manager.snapshot().state)
+        assertEquals(AdbRestoreState.NeedsActivation(refused = true), f.manager.snapshot().state)
         assertTrue(f.system.writes.isEmpty())
     }
     @Test fun missingWifiWaitsAndTheNextWifiHintRestores() = runTest {
@@ -546,7 +546,7 @@ class AdbRestoreManagerTest {
     @Test fun aRefusedKeyDuringTheHoldStillNeedsActivation() = runTest {
         val f = failedOnce(); f.system.probe = { throw AdbRestoreKeyUntrustedException() }
         f.manager.attemptIfNeeded("wifi"); runCurrent()
-        assertEquals(AdbRestoreState.NeedsActivation, f.manager.snapshot().state)
+        assertEquals(AdbRestoreState.NeedsActivation(refused = true), f.manager.snapshot().state)
     }
 
     @Test fun turningTheSwitchOnLooksAtOnceLikeOpeningService() = runTest {

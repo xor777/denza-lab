@@ -44,8 +44,11 @@ object AdbRestoreReport {
             AdbRestoreState.NeedsDialog ->
                 if (s.retryBudgetExhausted) Line(AppText.s(R.string.adb_restore_status_system_refuses), Tone.BROKEN)
                 else Line(AppText.s(R.string.adb_restore_status_waiting_system), Tone.ATTENTION)
-            AdbRestoreState.NeedsActivation ->
-                Line(AppText.s(R.string.adb_restore_status_untrusted), Tone.BROKEN)
+            // The car refusing the key and a port the app cannot reopen are two different cars.
+            is AdbRestoreState.NeedsActivation -> Line(
+                AppText.s(if (s.state.refused) R.string.adb_restore_status_untrusted else R.string.adb_restore_status_cannot),
+                Tone.BROKEN,
+            )
             is AdbRestoreState.Failed -> Line(AppText.s(R.string.adb_restore_status_failed), Tone.BROKEN)
             AdbRestoreState.Disabled, AdbRestoreState.Unsupported -> null
         }
@@ -93,7 +96,7 @@ object AdbRestoreReport {
                 AdbRestoreState.NeedsDialog ->
                     if (s.retryBudgetExhausted) Line(AppText.s(R.string.adb_restore_summary_system_refuses), Tone.BROKEN)
                     else Line(AppText.s(R.string.adb_restore_summary_waiting_system), Tone.ATTENTION)
-                AdbRestoreState.NeedsActivation -> Line(AppText.s(R.string.adb_restore_summary_cannot), Tone.BROKEN)
+                is AdbRestoreState.NeedsActivation -> Line(AppText.s(R.string.adb_restore_summary_cannot), Tone.BROKEN)
                 is AdbRestoreState.Failed -> Line(AppText.s(R.string.adb_restore_summary_failed), Tone.BROKEN)
                 AdbRestoreState.Connecting -> Line(AppText.s(R.string.adb_restore_summary_connecting))
                 else -> when {
@@ -178,7 +181,8 @@ object AdbRestoreReport {
         AdbRestoreState.Connecting -> "возвращает доступ"
         AdbRestoreState.WaitingWifi -> "ждёт Wi-Fi"
         AdbRestoreState.NeedsDialog -> "ждёт разрешения системы"
-        AdbRestoreState.NeedsActivation -> "машина не доверяет приложению"
+        is AdbRestoreState.NeedsActivation ->
+            if (state.refused) "машина не доверяет приложению" else "порт закрыт, восстановление невозможно"
         is AdbRestoreState.Failed -> "не вышло: ${state.reason}"
         AdbRestoreState.Disabled -> "выключено"
         AdbRestoreState.Unsupported -> "Android ниже 11"

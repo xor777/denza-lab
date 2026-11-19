@@ -418,6 +418,7 @@
     <string name="adb_restore_status_system_refuses">No access: the system does not turn on wireless debugging</string>
     <string name="adb_restore_status_waiting_system">No access. Waiting for the system to turn on wireless debugging</string>
     <string name="adb_restore_status_untrusted">No access. It cannot be brought back over Wi-Fi: the car does not trust the app</string>
+    <string name="adb_restore_status_cannot">No access. It cannot be brought back over Wi-Fi</string>
     <string name="adb_restore_status_failed">Could not bring access back. The app will try again</string>
     <string name="adb_boot_restore_not_needed">not needed</string>
     <string name="adb_boot_restore_none">none yet</string>

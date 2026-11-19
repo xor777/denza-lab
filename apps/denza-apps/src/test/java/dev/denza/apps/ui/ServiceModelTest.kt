@@ -92,4 +92,29 @@ class ServiceModelTest {
         assertEquals(ServicePage.MAIN, ServicePage.TECHNICAL.parent)
         assertEquals(ServicePage.MAIN, ServicePage.SCREEN.parent)
     }
+
+    /** Review finding 15: «Все функции работают» on a car with a prompt on its screen. Only a trusted key works. */
+    @Test
+    fun `everything works only on a trusted key`() {
+        AdbRescuePhase.entries.forEach { phase ->
+            val model = ServiceModel.of(DenzaUiState(adbRescue = AdbRescueSnapshot(phase = phase)))
+            assertEquals(phase.name, phase == AdbRescuePhase.TRUSTED, model.allWorking)
+        }
+    }
+
+    /** A check of a gate that is up keeps the row as the gate keeps its card: no access, buttons waiting. */
+    @Test
+    fun `a re-check of missing access keeps the row red and its buttons waiting`() {
+        val model = ServiceModel.of(
+            DenzaUiState(
+                adbRescue = dev.denza.apps.feature.adb.AdbRescuePolicy.checking(
+                    AdbRescueSnapshot(phase = AdbRescuePhase.AUTHORIZATION_REQUIRED),
+                ),
+            ),
+        )
+        assertEquals(ServiceModel.NO_ACCESS, model.status)
+        assertEquals(DenzaTileTone.BROKEN, model.accessTone)
+        assertTrue(model.accessBusy)
+        assertFalse(model.allWorking)
+    }
 }

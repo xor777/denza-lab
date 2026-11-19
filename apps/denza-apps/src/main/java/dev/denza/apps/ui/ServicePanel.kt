@@ -26,6 +26,7 @@ import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
+import dev.denza.apps.feature.adb.AdbAccessView
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.diagnostics.DiagnosticsCar
@@ -104,10 +105,13 @@ internal data class ServiceModel(
         fun of(state: DenzaUiState): ServiceModel {
             val tiles = DashboardTiles.of(state)
             val trouble = DashboardTiles.attentionTiles(state)
-            val phase = state.adbRescue.phase
-            val busy = phase == AdbRescuePhase.CHECKING || phase == AdbRescuePhase.AWAITING_CONFIRMATION
+            // The gate's own decision: the row and the gate never say two different things.
+            val view = AdbStartupGatePolicy.view(state.adbRescue, state.adbRestore)
+            val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING || view == AdbAccessView.REQUEST_ON_SCREEN
             // Not yet checked is not missing: the app asks at start, and the answer is seconds away.
-            val missing = phase != AdbRescuePhase.TRUSTED && phase != AdbRescuePhase.UNKNOWN && !busy
+            // A request on the screen is the answer coming.
+            val missing = view != AdbAccessView.TRUSTED && view != AdbAccessView.FIRST_CHECK &&
+                view != AdbAccessView.REQUEST_ON_SCREEN
             val (status, tone) = when {
                 missing -> NO_ACCESS to DenzaTileTone.BROKEN
                 // The service tile's count and colour: what the panel's rows add up to, in the colour
@@ -127,9 +131,9 @@ internal data class ServiceModel(
                 status = status,
                 statusTone = tone,
                 trouble = trouble,
-                allWorking = trouble.isEmpty() && !missing,
+                allWorking = view == AdbAccessView.TRUSTED && trouble.isEmpty(),
                 accessTone = if (missing) DenzaTileTone.BROKEN else null,
-                accessActions = phase != AdbRescuePhase.TRUSTED,
+                accessActions = view != AdbAccessView.TRUSTED,
                 accessBusy = busy,
             )
         }

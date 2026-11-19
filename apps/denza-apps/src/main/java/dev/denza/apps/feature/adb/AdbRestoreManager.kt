@@ -13,7 +13,11 @@ sealed interface AdbRestoreState {
     data object Disabled : AdbRestoreState
     data object Unsupported : AdbRestoreState
     data object NotNeeded : AdbRestoreState
-    data object NeedsActivation : AdbRestoreState
+    /**
+     * The port is closed and Wi-Fi cannot bring it back: the car [refused] this app's key, or the
+     * app never had it trusted or lacks the permission the restore writes with.
+     */
+    data class NeedsActivation(val refused: Boolean) : AdbRestoreState
     data object WaitingWifi : AdbRestoreState
     data object NeedsDialog : AdbRestoreState
     data object Connecting : AdbRestoreState
@@ -238,7 +242,7 @@ class AdbRestoreManager(
                             throw cancelled
                         } catch (_: AdbRestoreKeyUntrustedException) {
                             look(gen, AdbBootLook.REFUSED)
-                            publish(gen, AdbRestoreState.NeedsActivation)
+                            publish(gen, AdbRestoreState.NeedsActivation(refused = true))
                         } catch (error: Exception) {
                             publish(gen, AdbRestoreState.Failed(error.javaClass.simpleName, system.nowMs()))
                         }
@@ -328,7 +332,7 @@ class AdbRestoreManager(
         if (abandoned(gen)) return
         look(gen, AdbBootLook.CLOSED)
         if (!store.trustedBefore || !system.permissionHeld()) {
-            publish(gen, AdbRestoreState.NeedsActivation, request); return
+            publish(gen, AdbRestoreState.NeedsActivation(refused = false), request); return
         }
         val network = system.wifiNetwork()
         if (network == null) { publish(gen, AdbRestoreState.WaitingWifi, request); return }
@@ -489,7 +493,7 @@ class AdbRestoreManager(
                 AdbRestoreState.Connecting -> AdbBootOutcome.CONNECTING
                 AdbRestoreState.WaitingWifi -> AdbBootOutcome.WAITING_WIFI
                 AdbRestoreState.NeedsDialog -> AdbBootOutcome.NEEDS_DIALOG
-                AdbRestoreState.NeedsActivation -> AdbBootOutcome.NEEDS_ACTIVATION
+                is AdbRestoreState.NeedsActivation -> AdbBootOutcome.NEEDS_ACTIVATION
                 is AdbRestoreState.Failed -> AdbBootOutcome.FAILED
                 is AdbRestoreState.Restored -> AdbBootOutcome.RESTORED
                 // The port open again, with the restore not the one that opened it.
@@ -605,7 +609,7 @@ fun AdbRestoreState.label(): String = when (this) {
     AdbRestoreState.Disabled -> "disabled"
     AdbRestoreState.Unsupported -> "unsupported"
     AdbRestoreState.NotNeeded -> "not-needed"
-    AdbRestoreState.NeedsActivation -> "needs-activation"
+    is AdbRestoreState.NeedsActivation -> if (refused) "needs-activation: refused" else "needs-activation"
     AdbRestoreState.WaitingWifi -> "waiting-wifi"
     AdbRestoreState.NeedsDialog -> "needs-dialog"
     AdbRestoreState.Connecting -> "connecting"

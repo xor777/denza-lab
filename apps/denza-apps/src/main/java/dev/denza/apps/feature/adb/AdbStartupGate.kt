@@ -24,6 +24,32 @@ enum class AdbAutostartRetryAction {
     START_RUNTIME,
 }
 
+/**
+ * What the car's access is, as the gate and the service row both say it. [AdbStartupGatePolicy.view]
+ * is the one decision, in one order; the gate's card and the row's colour, words and buttons are
+ * drawn from it and from nothing else.
+ */
+enum class AdbAccessView {
+    /** The key is trusted: no gate, and the row may say that everything works. */
+    TRUSTED,
+
+    /** The process's first look: no gate yet, only the invisible shield, and the row waits. */
+    FIRST_CHECK,
+
+    /** A request is out and its prompt on the car's screen: the ring. */
+    REQUEST_ON_SCREEN,
+
+    /** A look ended with Android's switch read off: the service's sentence and the check again. */
+    SWITCH_OFF,
+    RESTORE_WIFI,
+    RESTORE_CONNECTING,
+    RESTORE_DIALOG,
+    RESTORE_FAILED,
+    UNAVAILABLE,
+    NOT_GRANTED,
+    NOT_CONFIRMED,
+}
+
 data class AdbStartupOverlayModel(
     val visible: Boolean,
     val title: String = "",
@@ -86,61 +112,116 @@ object AdbStartupGatePolicy {
         -> AdbStartupEntryAction.NONE
     }
 
+    /**
+     * The one decision of what access is, in this order:
+     *
+     * 1. trusted - nothing to show;
+     * 2. a request on the car's screen - its prompt is up now, and nothing may cover the one thing
+     *    the driver has to answer, a restore state left over from before it least of all;
+     * 3. a look that ended with the switch read off - the answer itself, which no restore changes,
+     *    with its own sentence and the check again;
+     * 4. the restore at work: waiting for Wi-Fi, connecting (also a restore that reopened the port
+     *    before the look that will say trusted), waiting for the network dialog, failed;
+     * 5. the phase's own gate; the process's first look has none.
+     *
+     * A check of a gate that is up is that gate: [AdbRescueSnapshot.recheckOf] is what it shows.
+     */
+    fun view(snapshot: AdbRescueSnapshot, restore: AdbRestoreSnapshot? = null): AdbAccessView {
+        val shown = snapshot.recheckOf ?: snapshot.phase
+        val restoring = restore?.takeIf { it.enabled }?.state
+        return when {
+            snapshot.phase == AdbRescuePhase.TRUSTED -> AdbAccessView.TRUSTED
+            snapshot.phase == AdbRescuePhase.AWAITING_CONFIRMATION -> AdbAccessView.REQUEST_ON_SCREEN
+            shown in STANDING && snapshot.systemSwitch == AdbSystemSwitch.DISABLED -> AdbAccessView.SWITCH_OFF
+            restoring == AdbRestoreState.WaitingWifi -> AdbAccessView.RESTORE_WIFI
+            restoring == AdbRestoreState.Connecting -> AdbAccessView.RESTORE_CONNECTING
+            restoring == AdbRestoreState.NeedsDialog -> AdbAccessView.RESTORE_DIALOG
+            restoring is AdbRestoreState.Failed -> AdbAccessView.RESTORE_FAILED
+            restoring is AdbRestoreState.Restored && shown in CLOSED_PORT -> AdbAccessView.RESTORE_CONNECTING
+            shown == AdbRescuePhase.UNAVAILABLE -> AdbAccessView.UNAVAILABLE
+            shown == AdbRescuePhase.AUTHORIZATION_REQUIRED -> AdbAccessView.NOT_GRANTED
+            shown == AdbRescuePhase.ERROR -> AdbAccessView.NOT_CONFIRMED
+            else -> AdbAccessView.FIRST_CHECK
+        }
+    }
+
     /** [carLocale] is the language the car draws its own prompt in, for the box's words. */
     fun overlay(
         snapshot: AdbRescueSnapshot,
         restore: AdbRestoreSnapshot? = null,
         carLocale: Locale = Locale.getDefault(),
     ): AdbStartupOverlayModel {
-        // A request on the car's screen outranks whatever the restore last said: its prompt is up
-        // now, and a restore state left over from before it - a failure, a wait for Wi-Fi - would
-        // cover the one thing the driver has to answer. The request follows a look on the same
-        // worker step, so the restore may not even have heard of the refusal that started it.
-        val requestUp = snapshot.phase == AdbRescuePhase.AWAITING_CONFIRMATION
-        if (snapshot.phase != AdbRescuePhase.TRUSTED && !requestUp && restore?.enabled == true) {
-            when (restore.state) {
-                AdbRestoreState.WaitingWifi -> return AdbStartupOverlayModel(
-                    visible = true,
-                    title = AppText.s(R.string.adb_gate_wifi_title),
-                    message = AppText.s(R.string.adb_gate_wifi_message),
-                    details = AppText.s(R.string.adb_gate_wifi_details),
-                    explainerAvailable = true,
+        val gate = when (view(snapshot, restore)) {
+            AdbAccessView.TRUSTED -> AdbStartupOverlayModel(visible = false)
+            // The first passive handshake normally completes before the first useful frame. Keep
+            // startup visually stable; the root still installs an invisible input shield and does
+            // not start any ADB-dependent runtime until TRUSTED.
+            AdbAccessView.FIRST_CHECK -> AdbStartupOverlayModel(visible = false)
+            // A request is out and its transport held; the gate leaves by itself on the approval.
+            AdbAccessView.REQUEST_ON_SCREEN -> confirm(
+                snapshot,
+                AppText.s(R.string.adb_gate_confirm_title),
+                AppText.s(R.string.adb_gate_awaiting_message),
+                carLocale,
+            ).copy(busy = true)
+            AdbAccessView.SWITCH_OFF, AdbAccessView.UNAVAILABLE -> AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_unavailable_title),
+                message = unavailableMessage(snapshot, restore),
+                details = systemSwitchReading(snapshot.systemSwitch),
+                primaryLabel = AppText.s(R.string.adb_gate_check_again),
+                primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
+                explainerAvailable = true,
+            )
+            AdbAccessView.RESTORE_WIFI -> AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_wifi_title),
+                message = AppText.s(R.string.adb_gate_wifi_message),
+                details = AppText.s(R.string.adb_gate_wifi_details),
+                explainerAvailable = true,
+            )
+            // An attempt is up to about 100 s, and the dashboard behind is blocked all that time:
+            // the gate says what is happening and keeps the door to «Сервис».
+            AdbAccessView.RESTORE_CONNECTING -> restoring()
+            AdbAccessView.RESTORE_DIALOG -> AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_dialog_title),
+                message = AppText.s(R.string.adb_gate_dialog_message),
+                explainerAvailable = true,
+            )
+            AdbAccessView.RESTORE_FAILED -> AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_gate_failed_title),
+                message = AppText.s(R.string.adb_gate_failed_message),
+                primaryLabel = AppText.s(R.string.adb_check_access),
+                primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
+                explainerAvailable = true,
+            )
+            // No request out: the opening's own went unanswered or was denied, or the day's were
+            // spent. Nothing on the car is waiting to be confirmed, so the title is the state; the
+            // control sends one request now.
+            AdbAccessView.NOT_GRANTED ->
+                confirm(snapshot, AppText.s(R.string.adb_gate_not_granted), message = "", carLocale).copy(
+                    primaryLabel = askLabel(snapshot),
+                    primaryAction = AdbStartupPrimaryAction.ASK,
+                    attention = true,
                 )
-                // An attempt is up to about 100 s, and the dashboard behind is blocked all that time:
-                // the gate says what is happening and keeps the door to «Сервис». It was hidden here,
-                // and a car whose restore could not succeed showed a disabled dashboard with nothing on it.
-                AdbRestoreState.Connecting -> return restoring()
-                AdbRestoreState.NeedsDialog -> return AdbStartupOverlayModel(
-                    visible = true,
-                    title = AppText.s(R.string.adb_gate_dialog_title),
-                    message = AppText.s(R.string.adb_gate_dialog_message),
-                    explainerAvailable = true,
-                )
-                is AdbRestoreState.Failed -> return AdbStartupOverlayModel(
-                    visible = true,
-                    title = AppText.s(R.string.adb_gate_failed_title),
-                    message = AppText.s(R.string.adb_gate_failed_message),
-                    primaryLabel = AppText.s(R.string.adb_check_access),
-                    primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
-                    explainerAvailable = true,
-                )
-                // The port is open again and the check that will say TRUSTED has not answered yet:
-                // the phase is still the closed port's, and its gate would flash between the two.
-                // Only over the phases a closed port leaves - a car that answered and refused is that
-                // phase's gate and not a ring.
-                is AdbRestoreState.Restored ->
-                    if ((snapshot.recheckOf ?: snapshot.phase) in CLOSED_PORT) return restoring()
-                else -> Unit
-            }
+            // A state, and the button under it is the check again.
+            AdbAccessView.NOT_CONFIRMED -> AdbStartupOverlayModel(
+                visible = true,
+                title = AppText.s(R.string.adb_access_not_confirmed),
+                message = AppText.s(R.string.adb_gate_error_message),
+                details = systemSwitchReading(snapshot.systemSwitch),
+                primaryLabel = AppText.s(R.string.adb_gate_check_again),
+                primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
+                explainerAvailable = true,
+            )
         }
-        val recheckOf = snapshot.recheckOf
-        if (snapshot.phase == AdbRescuePhase.CHECKING && recheckOf != null) {
-            // A check of a gate that is up: the same gate, the ring in place of its glyph and nothing
-            // else changed, so the card neither leaves nor resizes. The button stops answering while
-            // the ring turns: a press would only send the restore another forcing hint.
-            return phaseGate(recheckOf, snapshot, restore, carLocale).copy(busy = true)
-        }
-        return phaseGate(snapshot.phase, snapshot, restore, carLocale)
+        // A check while a gate with a control is up: the same gate, the ring in place of its glyph
+        // and nothing else changed, so the card neither leaves nor resizes. The button stops
+        // answering while the ring turns.
+        val checking = snapshot.phase == AdbRescuePhase.CHECKING && gate.primaryAction != AdbStartupPrimaryAction.NONE
+        return if (checking) gate.copy(busy = true) else gate
     }
 
     /**
@@ -167,12 +248,14 @@ object AdbStartupGatePolicy {
     }
 
     private fun AdbRestoreSnapshot?.restoresThePort(): Boolean =
-        this != null && enabled && state !in CANNOT_RESTORE
+        this != null && enabled && state != AdbRestoreState.Disabled && state != AdbRestoreState.Unsupported &&
+            state !is AdbRestoreState.NeedsActivation
 
-    private val CANNOT_RESTORE = setOf(
-        AdbRestoreState.Disabled,
-        AdbRestoreState.Unsupported,
-        AdbRestoreState.NeedsActivation,
+    /** The phases whose gate is the answer of a look: a check of one keeps it up. */
+    private val STANDING = setOf(
+        AdbRescuePhase.UNAVAILABLE,
+        AdbRescuePhase.AUTHORIZATION_REQUIRED,
+        AdbRescuePhase.ERROR,
     )
 
     private val CLOSED_PORT = setOf(
@@ -189,60 +272,6 @@ object AdbStartupGatePolicy {
         busy = true,
         explainerAvailable = true,
     )
-
-    private fun phaseGate(
-        phase: AdbRescuePhase,
-        snapshot: AdbRescueSnapshot,
-        restore: AdbRestoreSnapshot?,
-        carLocale: Locale,
-    ): AdbStartupOverlayModel =
-        when (phase) {
-        AdbRescuePhase.TRUSTED -> AdbStartupOverlayModel(visible = false)
-        AdbRescuePhase.UNKNOWN,
-        AdbRescuePhase.CHECKING,
-        -> AdbStartupOverlayModel(
-            // The first passive handshake normally completes before the first useful frame. Keep
-            // startup visually stable; the root still installs an invisible input shield and
-            // does not start any ADB-dependent runtime until TRUSTED.
-            visible = false,
-        )
-        AdbRescuePhase.UNAVAILABLE -> AdbStartupOverlayModel(
-            visible = true,
-            title = AppText.s(R.string.adb_gate_unavailable_title),
-            message = unavailableMessage(snapshot, restore),
-            details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = AppText.s(R.string.adb_gate_check_again),
-            primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
-            explainerAvailable = true,
-        )
-        // No request out: the opening's own went unanswered or was denied, or the day's were spent.
-        // Nothing on the car is waiting to be confirmed, so the title is the state; the control
-        // sends one request now.
-        AdbRescuePhase.AUTHORIZATION_REQUIRED ->
-            confirm(snapshot, AppText.s(R.string.adb_gate_not_granted), message = "", carLocale).copy(
-                primaryLabel = askLabel(snapshot),
-                primaryAction = AdbStartupPrimaryAction.ASK,
-                attention = true,
-            )
-        // A request is out and its transport held; the gate leaves by itself on the approval.
-        AdbRescuePhase.AWAITING_CONFIRMATION -> confirm(
-            snapshot,
-            AppText.s(R.string.adb_gate_confirm_title),
-            AppText.s(R.string.adb_gate_awaiting_message),
-            carLocale,
-        ).copy(busy = true)
-        // A state, and the button under it is the check again. «Не удалось проверить ADB» over
-        // «Повторите проверку доступа» was a failure and an instruction the button already is.
-        AdbRescuePhase.ERROR -> AdbStartupOverlayModel(
-            visible = true,
-            title = AppText.s(R.string.adb_access_not_confirmed),
-            message = AppText.s(R.string.adb_gate_error_message),
-            details = systemSwitchReading(snapshot.systemSwitch),
-            primaryLabel = AppText.s(R.string.adb_gate_check_again),
-            primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
-            explainerAvailable = true,
-        )
-        }
 
     /** [title] with [message] and the switch reading, or with the box the last approval left unticked. */
     private fun confirm(snapshot: AdbRescueSnapshot, title: String, message: String, carLocale: Locale): AdbStartupOverlayModel =

@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.adb
 
+import dev.denza.apps.DenzaUiState
+import dev.denza.apps.ui.ServiceModel
+import dev.denza.apps.ui.components.DenzaTileTone
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -103,7 +106,8 @@ class AdbStartupGatePolicyTest {
             AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.Disabled),
             AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.NotNeeded),
             AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.Unsupported),
-            AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.NeedsActivation),
+            AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.NeedsActivation(refused = true)),
+            AdbRestoreSnapshot(enabled = true, state = AdbRestoreState.NeedsActivation(refused = false)),
         )
         listOf(AdbSystemSwitch.ENABLED, AdbSystemSwitch.UNKNOWN).forEach { switch ->
             val snapshot = AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = switch, trustedBefore = true)
@@ -296,7 +300,8 @@ class AdbStartupGatePolicyTest {
             AdbRestoreState.Disabled,
             AdbRestoreState.Unsupported,
             AdbRestoreState.NotNeeded,
-            AdbRestoreState.NeedsActivation,
+            AdbRestoreState.NeedsActivation(refused = true),
+            AdbRestoreState.NeedsActivation(refused = false),
             AdbRestoreState.WaitingWifi,
             AdbRestoreState.NeedsDialog,
             AdbRestoreState.Connecting,
@@ -307,7 +312,8 @@ class AdbStartupGatePolicyTest {
             AdbRestoreState.Disabled,
             AdbRestoreState.Unsupported,
             AdbRestoreState.NotNeeded,
-            AdbRestoreState.NeedsActivation,
+            AdbRestoreState.NeedsActivation(refused = true),
+            AdbRestoreState.NeedsActivation(refused = false),
         )
         val standing = listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.AUTHORIZATION_REQUIRED, AdbRescuePhase.ERROR)
         val snapshots = AdbSystemSwitch.entries.flatMap { switch ->
@@ -395,7 +401,7 @@ class AdbStartupGatePolicyTest {
                 AdbRestoreState.NeedsDialog,
                 AdbRestoreState.Connecting,
                 AdbRestoreState.Restored(1L),
-                AdbRestoreState.NeedsActivation,
+                AdbRestoreState.NeedsActivation(refused = true),
                 AdbRestoreState.NotNeeded,
             ).forEach { state ->
                 assertEquals("$state, missed $missed", own,
@@ -429,5 +435,113 @@ class AdbStartupGatePolicyTest {
         assertNull(AdbRescuePolicy.asking(checking).recheckOf)
         assertNull(AdbRescuePolicy.refused(checking).recheckOf)
         assertFalse(AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(start)).visible)
+    }
+
+    /**
+     * Review finding 9: Android's switch read off while the restore waits for Wi-Fi. The switch is
+     * the answer - nothing Wi-Fi brings back will open a port the system closed - and the gate said
+     * «waiting for Wi-Fi» with no control instead.
+     */
+    @Test
+    fun `a switch read off outranks every restore state`() {
+        val off = AdbRescuePolicy.systemSwitchOff(AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, trustedBefore = true))
+        listOf(
+            AdbRestoreState.WaitingWifi,
+            AdbRestoreState.Connecting,
+            AdbRestoreState.NeedsDialog,
+            AdbRestoreState.Failed("mDNS timeout", 1L),
+            AdbRestoreState.Restored(1L),
+        ).forEach { state ->
+            val restore = AdbRestoreSnapshot(enabled = true, state = state)
+            val model = AdbStartupGatePolicy.overlay(off, restore)
+            assertEquals("$state", AdbAccessView.SWITCH_OFF, AdbStartupGatePolicy.view(off, restore))
+            assertEquals("$state", AdbStartupGatePolicy.SERVICE_INSTRUCTION, model.message)
+            assertEquals("$state", AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL, model.details)
+            assertEquals("$state", AdbStartupPrimaryAction.CHECK_ACCESS, model.primaryAction)
+            // Its own check keeps the gate, with the ring.
+            assertEquals("$state", model.copy(busy = true), AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(off), restore))
+        }
+    }
+
+    /**
+     * The normative table of what access is (docs/adb-authorization-recovery.md, «State and
+     * presentation»), walked over every phase and its re-check, the switch's three readings, the
+     * missed box, a car trusted before or not, and every state of the restore - on, off or absent.
+     * The gate and the service row are both checked against the one answer.
+     */
+    @Test
+    fun `one decision says what the gate and the service row show, in one order`() {
+        val restores = listOf(null, AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.WaitingWifi)) + listOf(
+            AdbRestoreState.Disabled,
+            AdbRestoreState.Unsupported,
+            AdbRestoreState.NotNeeded,
+            AdbRestoreState.NeedsActivation(refused = true),
+            AdbRestoreState.NeedsActivation(refused = false),
+            AdbRestoreState.WaitingWifi,
+            AdbRestoreState.NeedsDialog,
+            AdbRestoreState.Connecting,
+            AdbRestoreState.Restored(1L),
+            AdbRestoreState.Failed("mDNS timeout", 1L),
+        ).map { AdbRestoreSnapshot(enabled = true, state = it) }
+        val standing = setOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.AUTHORIZATION_REQUIRED, AdbRescuePhase.ERROR)
+        val snapshots = AdbSystemSwitch.entries.flatMap { switch ->
+            listOf(false, true).flatMap { trustedBefore ->
+                listOf(false, true).flatMap { missed ->
+                    val base = AdbRescueSnapshot(systemSwitch = switch, trustedBefore = trustedBefore, alwaysAllowMissed = missed)
+                    AdbRescuePhase.entries.map { base.copy(phase = it) } +
+                        standing.map { AdbRescuePolicy.checking(base.copy(phase = it)) }
+                }
+            }
+        }
+        val blocked = AdbAccessView.entries.toSet() -
+            setOf(AdbAccessView.TRUSTED, AdbAccessView.FIRST_CHECK, AdbAccessView.REQUEST_ON_SCREEN)
+        var walked = 0
+        snapshots.forEach { s ->
+            restores.forEach { r ->
+                val name = "${s.phase} (re-check of ${s.recheckOf}, switch ${s.systemSwitch}, missed ${s.alwaysAllowMissed}) under $r"
+                val shown = s.recheckOf ?: s.phase
+                val on = r?.takeIf { it.enabled }?.state
+                val expected = when {
+                    s.phase == AdbRescuePhase.TRUSTED -> AdbAccessView.TRUSTED
+                    s.phase == AdbRescuePhase.AWAITING_CONFIRMATION -> AdbAccessView.REQUEST_ON_SCREEN
+                    shown in standing && s.systemSwitch == AdbSystemSwitch.DISABLED -> AdbAccessView.SWITCH_OFF
+                    on == AdbRestoreState.WaitingWifi -> AdbAccessView.RESTORE_WIFI
+                    on == AdbRestoreState.Connecting -> AdbAccessView.RESTORE_CONNECTING
+                    on == AdbRestoreState.NeedsDialog -> AdbAccessView.RESTORE_DIALOG
+                    on is AdbRestoreState.Failed -> AdbAccessView.RESTORE_FAILED
+                    on is AdbRestoreState.Restored && shown != AdbRescuePhase.AUTHORIZATION_REQUIRED ->
+                        AdbAccessView.RESTORE_CONNECTING
+                    shown == AdbRescuePhase.UNAVAILABLE -> AdbAccessView.UNAVAILABLE
+                    shown == AdbRescuePhase.AUTHORIZATION_REQUIRED -> AdbAccessView.NOT_GRANTED
+                    shown == AdbRescuePhase.ERROR -> AdbAccessView.NOT_CONFIRMED
+                    else -> AdbAccessView.FIRST_CHECK
+                }
+                val view = AdbStartupGatePolicy.view(s, r)
+                assertEquals(name, expected, view)
+
+                val gate = AdbStartupGatePolicy.overlay(s, r)
+                assertEquals(name, view != AdbAccessView.TRUSTED && view != AdbAccessView.FIRST_CHECK, gate.visible)
+                if (view == AdbAccessView.REQUEST_ON_SCREEN) assertTrue(name, gate.busy && gate.primaryLabel == null)
+                if (view == AdbAccessView.SWITCH_OFF) {
+                    assertEquals(name, AdbStartupGatePolicy.SERVICE_INSTRUCTION, gate.message)
+                    assertEquals(name, AdbStartupPrimaryAction.CHECK_ACCESS, gate.primaryAction)
+                }
+                if (view == AdbAccessView.NOT_GRANTED) assertEquals(name, AdbStartupPrimaryAction.ASK, gate.primaryAction)
+                // A check keeps a gate with a control, and only turns its ring.
+                if (s.phase == AdbRescuePhase.CHECKING && gate.primaryLabel != null) assertTrue(name, gate.busy)
+
+                val row = ServiceModel.of(
+                    DenzaUiState(adbRescue = s, adbRestore = r ?: AdbRestoreSnapshot(enabled = false, state = AdbRestoreState.Disabled)),
+                )
+                assertEquals(name, view == AdbAccessView.TRUSTED, row.allWorking)
+                assertEquals(name, view != AdbAccessView.TRUSTED, row.accessActions)
+                assertEquals(name, view in blocked, row.accessTone == DenzaTileTone.BROKEN)
+                assertEquals(name, view in blocked, row.status == ServiceModel.NO_ACCESS)
+                // The gate's ring and the row's waiting buttons are the same moment.
+                if (gate.busy && gate.primaryLabel != null) assertTrue(name, row.accessBusy)
+                walked++
+            }
+        }
+        assertTrue(walked > 1_000)
     }
 }

@@ -219,7 +219,7 @@ internal object SheetFixtures {
             "Connecting" -> AdbRestoreState.Connecting
             "WaitingWifi" -> AdbRestoreState.WaitingWifi
             "NeedsDialog" -> AdbRestoreState.NeedsDialog
-            "NeedsActivation" -> AdbRestoreState.NeedsActivation
+            "NeedsActivation" -> AdbRestoreState.NeedsActivation(refused = r.optString("look") == "REFUSED")
             "Disabled" -> AdbRestoreState.Disabled
             else -> AdbRestoreState.NotNeeded.also { check(name == "NotNeeded") { name } }
         }

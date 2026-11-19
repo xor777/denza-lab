@@ -71,7 +71,7 @@ class AdbRestoreReportTest {
         assertEquals(AdbRestoreReport.Line("Ждёт Wi-Fi", AdbRestoreReport.Tone.ATTENTION),
             AdbRestoreReport.summary(wifi, now, zone))
 
-        val refused = snapshot(state = AdbRestoreState.NeedsActivation, look = AdbBootLook.REFUSED,
+        val refused = snapshot(state = AdbRestoreState.NeedsActivation(refused = true), look = AdbBootLook.REFUSED,
             outcome = AdbBootOutcome.NEEDS_ACTIVATION, closed = "08:10:40", outcomeAt = "08:10:40")
         assertEquals(AdbRestoreReport.Tone.BROKEN, AdbRestoreReport.status(refused)!!.tone)
         assertEquals("ключ не принят", AdbRestoreReport.bootRows(refused, now, zone).toMap().getValue("Доступ после неё"))
@@ -156,5 +156,21 @@ class AdbRestoreReportTest {
         const val DAY = 86_400_000L
         /** 2026-10-18T00:00+03:00. */
         const val MIDNIGHT = 1_792_270_800_000L
+    }
+
+    /**
+     * Review finding 14: a closed port on a car whose app lacks the permission was reported as the car
+     * refusing the key. They are different cars, and the page tells them apart.
+     */
+    @Test
+    fun `a refused key and a port the app cannot reopen are told apart`() {
+        val refused = AdbRestoreReport.status(snapshot(state = AdbRestoreState.NeedsActivation(refused = true)))!!
+        val cannot = AdbRestoreReport.status(snapshot(state = AdbRestoreState.NeedsActivation(refused = false)))!!
+        assertEquals("Доступа нет. Через Wi-Fi его не вернуть: машина не доверяет приложению", refused.text)
+        assertEquals("Доступа нет. Через Wi-Fi его не вернуть", cannot.text)
+        assertEquals(AdbRestoreReport.Tone.BROKEN, cannot.tone)
+        val technical = { state: AdbRestoreState -> AdbRestoreReport.technicalRows(snapshot(state = state), zone).toMap().getValue("Последняя проверка") }
+        assertTrue(technical(AdbRestoreState.NeedsActivation(refused = true)).startsWith("машина не доверяет приложению"))
+        assertTrue(technical(AdbRestoreState.NeedsActivation(refused = false)).startsWith("порт закрыт, восстановление невозможно"))
     }
 }

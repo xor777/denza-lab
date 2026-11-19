@@ -435,6 +435,7 @@
     <string name="adb_restore_status_system_refuses">Доступа нет: система не включает отладку по Wi-Fi</string>
     <string name="adb_restore_status_waiting_system">Доступа нет. Жду, пока система включит отладку по Wi-Fi</string>
     <string name="adb_restore_status_untrusted">Доступа нет. Через Wi-Fi его не вернуть: машина не доверяет приложению</string>
+    <string name="adb_restore_status_cannot">Доступа нет. Через Wi-Fi его не вернуть</string>
     <string name="adb_restore_status_failed">Доступ вернуть не удалось. Приложение попробует ещё раз</string>
     <string name="adb_boot_restore_not_needed">не понадобилось</string>
     <string name="adb_boot_restore_none">ещё не было</string>
