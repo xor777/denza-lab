@@ -97,8 +97,9 @@
       "detailDrop": 30
     },
     "band": {
-      "outKw": 300,
-      "inKw": 100,
+      "scale": "One scale both ways: equal power is equal length on either side of zero, on the square-root curve. fullKw is the length of a half; past it the beam stops at the end and a clip tick stands beyond its head.",
+      "fullKw": 300,
+      "clipTick": [6, 1.4, 0.8],
       "filamentHalo": [5, 0.06],
       "filamentCore": [1, 0.5],
       "zeroTick": [7, 1.6, 0.45],
@@ -108,7 +109,7 @@
       "headBlur": 14,
       "peakTick": [5, 1.4],
       "threads": { "base": 30, "perUnit": 0.45, "ampBase": 5, "ampRange": 13, "ampKw": 200, "width": 0.7 },
-      "glow": { "about": "Alpha at the centre is max x (|P| / span) ^ exponent, the span being the band's own: outKw out of the pack, inKw back into it. Dark through ordinary driving, lit as the band nears its end.", "max": 0.65, "exponent": 1.5, "radius": 442, "reachBelow": 63.9 }
+      "glow": { "about": "Alpha at the centre is max x (|P| / span) ^ exponent, the span being the band's one fullKw, out of the pack and back into it alike. Dark through ordinary driving, lit as the band nears its end.", "max": 0.65, "exponent": 1.5, "radius": 442, "reachBelow": 63.9 }
     },
     "trace": {
       "about": "Ten kilometres under the axis: zero on the figure's baseline, spending up to the contract's 60 over the figure's cap (0.71 x 52 = 36.92), returns down to its 20 over a descender of 13.",

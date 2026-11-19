@@ -24,7 +24,7 @@ import org.junit.Test
  *
  * `LuminoforSpecContractTest` holds [dev.denza.apps.design.luminofor.LuminoforSpec] to spec.json
  * value by value. This holds the few spec values that are *also* somebody else's record - the
- * trace's two ceilings, its hundred points, the engine box's span, the band's two spans - to that
+ * trace's two ceilings, its hundred points, the engine box's span, the band's one scale - to that
  * record, and then asks the question a value-by-value test cannot: whether the widest thing each
  * group can print stays inside the group.
  *
@@ -102,11 +102,28 @@ open class ContourGeometryTest {
         assertEquals(0f, g.reach(0f), 0f)
         assertTrue("pulling reaches right", g.reach(40f) > 0f)
         assertTrue("braking reaches left", g.reach(-40f) < 0f)
-        // Three hundred out against a hundred back: the same forty kilowatts reach further braking.
-        assertTrue(-g.reach(-40f) > g.reach(40f))
-        // Clamped at the margins, so nothing the pack reports leaves the glass.
+        // One scale both ways: equal power, equal length, out of the pack or into it.
+        for (kw in listOf(3f, 14f, 26f, 80f, 226f, 300f)) assertEquals("$kw kW", g.reach(kw), -g.reach(-kw), 1e-4f)
+        // So 14 kW back is shorter than 26 kW out, and 80 back shorter than 226 out.
+        assertTrue(-g.reach(-14f) < g.reach(26f))
+        assertTrue(-g.reach(-80f) < g.reach(226f))
+        // On the square root: a quarter of the scale reaches half the half.
+        assertEquals((g.AXIS - Cluster.MARGIN) / 2f, g.reach(Band.FULL_KW / 4f), 1e-3f)
+        // Clamped at the margins, so nothing the pack reports leaves the glass, and past the scale
+        // the tick stands beyond the head on its own side.
         assertEquals(g.AXIS - Cluster.MARGIN, g.reach(600f), 1e-3f)
         assertEquals(-(g.AXIS - Cluster.MARGIN), g.reach(-600f), 1e-3f)
+        assertFalse(g.clipped(Band.FULL_KW))
+        assertTrue(g.clipped(Band.FULL_KW + 1f) && g.clipped(-Band.FULL_KW - 1f))
+        assertEquals(g.W - Cluster.MARGIN + Band.CLIP_TICK_HALF, g.clipTickX(320f), 1e-3f)
+        assertEquals(Cluster.MARGIN - Band.CLIP_TICK_HALF, g.clipTickX(-320f), 1e-3f)
+        assertTrue("and stays on the glass", g.clipTickX(-320f) > 0f && g.clipTickX(320f) < g.W)
+        assertTrue(
+            "luminofor.js reaches the same way",
+            SpecJson.read("luminofor/luminofor.js").contains(
+                "return Math.sign(v) * half * Math.sqrt(Math.min(Math.abs(v), CB.fullKw) / CB.fullKw);",
+            ),
+        )
     }
 
     @Test
@@ -302,21 +319,21 @@ open class ContourGeometryTest {
     @Test
     fun theGlowStaysDarkUntilTheBandNearsItsEnd() {
         assertEquals(0f, g.glowAlpha(0f), 0f)
-        assertEquals(Band.GLOW_MAX, g.glowAlpha(Band.OUT_KW), 1e-6f)
-        assertEquals(Band.GLOW_MAX, g.glowAlpha(-Band.IN_KW), 1e-6f)
-        assertEquals("past the span it holds", Band.GLOW_MAX, g.glowAlpha(2 * Band.OUT_KW), 1e-6f)
-        assertEquals(
-            "the span is the scale, not the kilowatts",
-            g.glowAlpha(Band.OUT_KW / 2), g.glowAlpha(-Band.IN_KW / 2), 1e-6f,
-        )
-        val half = g.glowAlpha(Band.OUT_KW / 2)
+        assertEquals(Band.GLOW_MAX, g.glowAlpha(Band.FULL_KW), 1e-6f)
+        assertEquals(Band.GLOW_MAX, g.glowAlpha(-Band.FULL_KW), 1e-6f)
+        assertEquals("past the span it holds", Band.GLOW_MAX, g.glowAlpha(2 * Band.FULL_KW), 1e-6f)
+        for (kw in listOf(14f, 80f, 150f)) assertEquals("one rule both ways at $kw", g.glowAlpha(kw), g.glowAlpha(-kw), 1e-7f)
+        val half = g.glowAlpha(Band.FULL_KW / 2)
         assertTrue("slow, then fast: the second half of the span adds more", Band.GLOW_MAX - half > half)
         // Recorded drives spend 90 % of their moving time under 28 kW.
         assertTrue("28 kW lights ${g.glowAlpha(28f)}", g.glowAlpha(28f) < 0.025f)
+        // Back into the pack: an ordinary regeneration is below two levels of 255, a hard one 23.
+        assertEquals(1.67f, g.glowAlpha(-14f) * 255f, 0.01f)
+        assertEquals(22.8f, g.glowAlpha(-80f) * 255f, 0.1f)
         assertTrue(
             "luminofor.js draws the same curve",
             SpecJson.read("luminofor/luminofor.js").contains(
-                "const ga = CB.glow.max * Math.pow(Math.min(1, absP / (P < 0 ? CB.inKw : CB.outKw)), CB.glow.exponent);",
+                "const ga = CB.glow.max * Math.pow(Math.min(1, absP / CB.fullKw), CB.glow.exponent);",
             ),
         )
     }

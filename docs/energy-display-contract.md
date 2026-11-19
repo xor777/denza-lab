@@ -52,6 +52,13 @@ side and the hero's colour; the car page says it with the word and the colour.
 The car page printed «В БАТАРЕЮ» over «−25 кВт» because the word and the sign
 were decided in two places; there is one place now.
 
+**The band has one scale both ways** (since 2026-11-19): equal power is equal
+length whether it flows out of the pack or into it, on the square root, full at
+300 kW (`ContourGeometry.reach`, `spec.json` → `cluster.band.fullKw`); past 300 kW
+the beam stops at its end with a clip tick beyond the head. Until then the return
+had its own 100 kW span and 14 kW back drew longer than 26 kW out. The zero's
+glow follows the same span on both sides.
+
 **While the charger has agreed (`VehicleTelemetry.charging`), `P` is
 `−|CHARGE_KW|` on both screens.** The pack's own id reads zero, or less than the
 charger delivers, on a car standing on a charger - the board electronics take

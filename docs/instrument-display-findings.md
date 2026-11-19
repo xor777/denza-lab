@@ -22,7 +22,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
-| The zero's glow is `0.65·(|P| / span)^1.5`, the span being the band's own (300 kW out, 100 kW back), radius 442 and `reachBelow` 63.9 (since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW out or 30 kW back, 83 at 200 kW and 153 at 300 kW. Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. Not on the car yet | live | 2026-10-26 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26) |
+| The band has one scale both ways since 2026-11-19: equal power is equal length out of the pack or into it, on the square root, full at 300 kW, a clip tick past it (until then 100 kW back). The zero's glow is `0.65·(|P| / 300)^1.5` on both sides, radius 442 and `reachBelow` 63.9 (curve since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW, 83 at 200 kW and 153 at 300 kW; 14 kW back is now under 2 and 80 kW back 23 (they were 9 and 119). Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. The one scale is not on the car yet | live | 2026-11-19 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26), [One scale both ways](#one-scale-both-ways-2026-11-19) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22). `GENERATION_KW` is above zero only during forced generation in P: on the 2026-09-24 drive the engine charged the pack on the move with it at `0` (refutes "the engine's charge into the pack", 2026-11-19). Since 2026-11-19 the engine's block reads the pack's own charge, `max(0, −P)` while `ENGINE_RUNNING` is up (`EngineCharge.kt`): «ЗАРЯД ОТ ДВС» over two minutes of it, the run's kWh and time beside it, up while the engine runs, moving or parked, and 10 s after; not yet on the car | code | 2026-11-19 | [energy contract §2.5](energy-display-contract.md#25-the-engine), [Generation reads zero on the move](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
@@ -461,6 +461,34 @@ light shows only the big ones. `cluster.band.glow` in `spec.json` is
 to the curve and checks that `luminofor.js` computes the same one. The probe now
 draws this curve too.
 
+> **Superseded 2026-11-19:** the band has one span both ways, `fullKw` 300, so the "back" columns above no longer hold: 30 kW back is 5 of 255, 75 kW back 21 — see [One scale both ways](#one-scale-both-ways-2026-11-19).
+
+#### One scale both ways (2026-11-19)
+
+The band's two halves had two scales, 300 kW out of the pack and 100 kW back
+into it, so 14 kW of regeneration drew longer than 26 kW of driving and 80 kW
+back nearly filled its half while 226 kW out did not fill its own. The owner
+approved one scale from the board: equal power is equal length on either side of
+zero, still on the square root, full at 300 kW (`spec.json` → `cluster.band.fullKw`,
+`LuminoforSpec.Cluster.Band.FULL_KW`, `ContourGeometry.reach`). Past 300 kW the
+beam stops at the end of its half and a short tick stands its own half-length
+beyond the head (`clipTick`, `ContourGeometry.clipTickX`); no recorded drive and no
+board reaches it. The peak's mark and the threads read the same `reach`, so they
+moved with it.
+
+The glow keyed to the band keeps its curve, `0.65·(|P| / 300)^1.5`, and now uses
+it on both sides. Out of the pack nothing changed. Back into it:
+
+| Back into the pack | 14 kW | 30 kW | 75 kW | 80 kW |
+| --- | --- | --- | --- | --- |
+| Centre, of 255, until 2026-11-19 (span 100) | 9 | 23 | 91 | 119 |
+| Centre, of 255, now | 2 | 5 | 21 | 23 |
+
+So an ordinary regeneration no longer lights the zero (14 kW is under 2 levels,
+which the eye does not see), and a hard brake at 80 kW glows as faintly as 80 kW
+of driving. `ContourGeometryTest` holds equal reach and equal light at equal
+power on both sides, the clip tick's place, and the board's two lines.
+
 ### What it shows, and what it deliberately does not: the Contour
 
 > **Superseded 2026-09-23:** "now" below means 2026-09-04 to 2026-09-23. The driver's display draws the Luminofor triptych; `ContourPlan` and `ContourBoardContractTest` no longer exist, and the board↔code joins are `LuminoforSpecContractTest`, `ContourGeometryTest`, `ContourFrameBuilderTest` and `ContourFixturesContractTest` — see [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23). What a figure means is owned by [energy-display-contract.md](energy-display-contract.md).
@@ -490,7 +518,7 @@ glance, by somebody who has never seen it and has no legend?**
 | | |
 | --- | --- |
 | the hero | instantaneous pack power in kilowatts, on the axis, at 88 with its unit at 34 - the one figure read on the move and the one place a unit has to be readable |
-| the band | that same reading as a bar across the whole clear width, zero in the middle, a square root over 300 kW out and 100 kW back (`ContourGeometry.reach`), with a peak hold |
+| the band | that same reading as a bar across the whole clear width, zero in the middle, a square root over 300 kW out and 100 kW back (`ContourGeometry.reach`; one 300 kW scale both ways since 2026-11-19, [One scale both ways](#one-scale-both-ways-2026-11-19)), with a peak hold |
 | the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
@@ -1049,7 +1077,7 @@ bug - the behaviour was right, and nothing stated it:
    running engine returning `0.0` and then `-2.0` for an hour each;
 4. **which side of zero the band leaves on.** Nothing asked. Killed by a test that
    states direction, the two spans (300 kW out against 100 kW back) and the clamp
-   at both margins;
+   at both margins (since 2026-11-19 one span both ways, and the test states that);
 5. **P read from a switch that answered zero.** `parked` has three answers and
    only two were tested. Killed in `VehicleTelemetryTest`;
 6. **the cold map's rebuild** - the rule the whole staleness design rests on, and

@@ -47,17 +47,25 @@ internal object ContourGeometry {
     // ---- the band
 
     /**
-     * How far along the axis a reading reaches: a square root over 300 kW out and 100 kW back,
-     * clamped at the margins. No dead band of its own: the follower is already snapped to zero under
-     * [ContourMotion.FLOOR_KW], and the board draws what it is given.
+     * How far along the axis a reading reaches: a square root over [Band.FULL_KW] on either side,
+     * clamped at the margins. One scale both ways, so equal power draws equal length whether it
+     * flows out of the pack or into it (until 2026-11-19 the return had its own 100 kW, and 14 kW
+     * back drew longer than 26 kW out). No dead band of its own: the follower is already snapped to
+     * zero under [ContourMotion.FLOOR_KW], and the board draws what it is given.
      */
     fun reach(kilowatts: Float): Float {
         val half = AXIS - Cluster.MARGIN
-        return if (kilowatts >= 0f) {
-            half * sqrt(min(kilowatts, Band.OUT_KW) / Band.OUT_KW)
-        } else {
-            -half * sqrt(min(-kilowatts, Band.IN_KW) / Band.IN_KW)
-        }
+        val share = sqrt(min(abs(kilowatts), Band.FULL_KW) / Band.FULL_KW)
+        return if (kilowatts >= 0f) half * share else -half * share
+    }
+
+    /** Whether the reading is past the scale, so the beam's end wears [clipTickX]'s tick. */
+    fun clipped(kilowatts: Float): Boolean = abs(kilowatts) > Band.FULL_KW
+
+    /** `luminofor.js` centre(): the clip tick stands its own half-length beyond the head. */
+    fun clipTickX(kilowatts: Float): Float {
+        val end = AXIS + reach(kilowatts)
+        return if (kilowatts >= 0f) end + Band.CLIP_TICK_HALF else end - Band.CLIP_TICK_HALF
     }
 
     /** `luminofor.js` centre(): no beam, threads or head under two units of reach. */
@@ -70,20 +78,21 @@ internal object ContourGeometry {
     fun peakIntensity(age: Float): Float = max(0.2f, 0.6f - age * 0.07f)
 
     /**
-     * The zero's pool of light: 0.65·(|P| / span)^1.5, the span being the band's own - 300 kW out
-     * of the pack, 100 kW back into it - so the glow is full exactly when the band is.
+     * The zero's pool of light: 0.65·(|P| / 300 kW)^1.5, the band's one span either way, so the
+     * glow is full exactly when the band is.
      *
      * The curve rises slowly and then fast, the band's square root turned over: the band shows the
      * small numbers, the light only the big ones. Recorded drives spend 90 % of their moving time
      * under 28 kW, where this is at most 4 levels of 255; it reaches 25, the brightest the first,
-     * unseen glow ever got, near 90 kW out and 30 kW back. Until 2026-10-20 it was 0.13·√(|P| / 120 kW), which no one could see on the car; the
-     * owner then picked ×6 with `:cluster-glow-probe`, which lit through ordinary driving, and on
-     * 2026-10-26 asked for one step down and a curve that starts slow.
+     * unseen glow ever got, near 90 kW. Out of the pack it is what it was; back into it, it followed
+     * a 100 kW span until 2026-11-19 and now follows the same rule, so 14 kW back is under 2 levels
+     * and 80 kW back 23 (they were 9 and 119). Until 2026-10-20 it was 0.13·√(|P| / 120 kW), which
+     * no one could see on the car; the owner then picked ×6 with `:cluster-glow-probe`, which lit
+     * through ordinary driving, and on 2026-10-26 asked for one step down and a curve that starts
+     * slow.
      */
-    fun glowAlpha(kilowatts: Float): Float {
-        val span = if (kilowatts < 0f) Band.IN_KW else Band.OUT_KW
-        return Band.GLOW_MAX * min(1f, abs(kilowatts) / span).pow(Band.GLOW_EXPONENT)
-    }
+    fun glowAlpha(kilowatts: Float): Float =
+        Band.GLOW_MAX * min(1f, abs(kilowatts) / Band.FULL_KW).pow(Band.GLOW_EXPONENT)
 
     /** The glow is not drawn under this, which is where the board stops drawing it too. */
     const val GLOW_MIN: Float = 0.005f

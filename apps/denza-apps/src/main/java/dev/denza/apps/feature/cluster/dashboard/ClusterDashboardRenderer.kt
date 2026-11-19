@@ -216,6 +216,14 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
             path.rewind()
             path.addCircle(AXIS + len, y, Band.HEAD_RADIUS, Path.Direction.CW)
             pen.glowFill(path, beamCol, 1f, Band.HEAD_BLUR)
+            // Past the scale the beam stops at its end, and a tick beyond the head says so.
+            if (ContourGeometry.clipped(p)) {
+                val xc = ContourGeometry.clipTickX(p)
+                path.rewind()
+                path.moveTo(xc, y - Band.CLIP_TICK_HALF)
+                path.lineTo(xc, y + Band.CLIP_TICK_HALF)
+                pen.beam(path, Band.CLIP_TICK_STROKE, beamCol, Band.CLIP_TICK_INTENSITY, 1f)
+            }
         }
         val peak = f.peakKw
         if (!peak.isNaN()) {

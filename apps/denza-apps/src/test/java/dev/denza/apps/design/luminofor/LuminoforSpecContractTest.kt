@@ -134,7 +134,9 @@ class LuminoforSpecContractTest {
     @Test
     fun clusterBandTraceBoxGlyph() {
         val b = Cluster.Band
-        n(b.OUT_KW, "cluster", "band", "outKw"); n(b.IN_KW, "cluster", "band", "inKw")
+        n(b.FULL_KW, "cluster", "band", "fullKw")
+        n(b.CLIP_TICK_HALF, "cluster", "band", "clipTick", "0"); n(b.CLIP_TICK_STROKE, "cluster", "band", "clipTick", "1")
+        n(b.CLIP_TICK_INTENSITY, "cluster", "band", "clipTick", "2")
         n(b.FILAMENT_HALO_WIDTH, "cluster", "band", "filamentHalo", "0"); n(b.FILAMENT_HALO_ALPHA, "cluster", "band", "filamentHalo", "1")
         n(b.FILAMENT_CORE_WIDTH, "cluster", "band", "filamentCore", "0"); n(b.FILAMENT_CORE_ALPHA, "cluster", "band", "filamentCore", "1")
         n(b.ZERO_TICK_HALF, "cluster", "band", "zeroTick", "0"); n(b.ZERO_TICK_STROKE, "cluster", "band", "zeroTick", "1")

@@ -182,9 +182,12 @@
     c.restore();
   }
 
+  // One scale both ways (spec: band.fullKw): equal power is equal length on either side of zero, so
+  // 14 kW into the pack never draws longer than 26 kW out of it. The root keeps a small power
+  // visible; past fullKw the beam stops at the end of its half and a clip tick stands beyond it.
   function reach(v) {
     const half = AX - M;
-    return v >= 0 ? half * Math.sqrt(Math.min(v, CB.outKw) / CB.outKw) : -half * Math.sqrt(Math.min(-v, CB.inKw) / CB.inKw);
+    return Math.sign(v) * half * Math.sqrt(Math.min(Math.abs(v), CB.fullKw) / CB.fullKw);
   }
 
   function filament(c, y) {
@@ -205,8 +208,8 @@
     const heroCol = into ? BLUE : INK;
     const y = CG.axis, base = CG.baseline;
     // the zero's own glow: it stays at zero; brightness and colour say how hard - the power's share
-    // of the band's own span, to a power above one, so it stays dark until the band nears its end
-    const ga = CB.glow.max * Math.pow(Math.min(1, absP / (P < 0 ? CB.inKw : CB.outKw)), CB.glow.exponent);
+    // of the band's one span, to a power above one, so it stays dark until the band nears its end
+    const ga = CB.glow.max * Math.pow(Math.min(1, absP / CB.fullKw), CB.glow.exponent);
     const fresh = f.powerFresh !== false;
     if (fresh && ga > 0.005) {
       const r = CB.glow.radius;
@@ -247,6 +250,11 @@
       beam(c, b, CB.beamStroke, beamCol, CB.beamIntensity, 1);
       const head = new Path2D(); head.arc(AX + len, y, CB.headRadius, 0, Math.PI * 2);
       glowFill(c, head, beamCol, 1, CB.headBlur);
+      if (absP > CB.fullKw) {
+        const ct = CB.clipTick, xc = AX + len + Math.sign(len) * ct[0], tk = new Path2D();
+        tk.moveTo(xc, y - ct[0]); tk.lineTo(xc, y + ct[0]);
+        beam(c, tk, ct[1], beamCol, ct[2], 1);
+      }
     }
     const pk = reach(f.peak);
     if (Math.abs(pk) > 6) {

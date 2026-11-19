@@ -119,8 +119,13 @@ object LuminoforSpec {
         }
 
         object Band {
-            const val OUT_KW: Float = 300f
-            const val IN_KW: Float = 100f
+            /** One scale both ways: the power that reaches the end of either half. */
+            const val FULL_KW: Float = 300f
+
+            /** Past [FULL_KW] the beam stops at its end and this tick stands beyond the head. */
+            const val CLIP_TICK_HALF: Float = 6f
+            const val CLIP_TICK_STROKE: Float = 1.4f
+            const val CLIP_TICK_INTENSITY: Float = 0.8f
             const val FILAMENT_HALO_WIDTH: Float = 5f
             const val FILAMENT_HALO_ALPHA: Float = 0.06f
             const val FILAMENT_CORE_WIDTH: Float = 1f
