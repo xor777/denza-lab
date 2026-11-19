@@ -121,6 +121,41 @@ class EngineChargeTest {
         assertEquals(10.0, run.seconds, 1e-9)
     }
 
+    /**
+     * A braking sweep with the flag missing: neither the figure nor the time counts it, and the
+     * chart did - the newest ten-second mean went from 10 to 15 kW on one sweep the run itself had
+     * refused.
+     */
+    @Test
+    fun aFlagThatDidNotAnswerPutsNothingOnTheChart() {
+        repeat(20) { sweep(running = true, loadKw = -10.0) }
+        sweep(running = null, loadKw = -60.0)
+        val run = charge.snapshot()
+        assertEquals(10f, run.points.last(), 1e-4f)
+        assertEquals(20 * 10.0 / 3600.0, run.kwh, 1e-12)
+    }
+
+    /**
+     * A process suspended for a day wakes to a running flag. The chart is what it would have been,
+     * and the history behind it is no longer than the window and its smoothing: the gap is skipped,
+     * not walked a second at a time. On the old code this test allocated a boxed entry for every
+     * second of three years before trimming them.
+     */
+    @Test
+    fun aLongSuspendIsSkippedRatherThanWalked() {
+        repeat(20) { sweep(running = true, loadKw = -10.0) }
+        val years = 3L * 365 * 24 * 3600
+        sweep(running = true, loadKw = -10.0, dt = years.toDouble())
+        repeat(5) { sweep(running = true, loadKw = -10.0) }
+
+        val run = charge.snapshot()
+        assertEquals(EngineCharge.WINDOW_SECONDS, run.points.size)
+        assertTrue(run.points.all { !it.isNaN() })
+        assertEquals("the newest points are the run after the wake", 10f, run.points.last(), 1e-4f)
+        assertEquals("the suspended time is not the run's", 25.0, run.seconds, 1e-9)
+
+    }
+
     @Test
     fun aRestartWithinTenSecondsIsTheSameRun() {
         repeat(30) { sweep(running = true, loadKw = -10.0) }

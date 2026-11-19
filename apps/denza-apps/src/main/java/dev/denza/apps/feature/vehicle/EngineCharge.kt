@@ -17,7 +17,7 @@ import kotlin.math.max
  * ### A run
  *
  * A run starts when the flag goes up and ends when it reads down. A flag that did not answer is
- * neither: it neither ends a run nor counts toward one. A run that starts again within
+ * neither: it neither ends a run nor counts toward one, in its figure, its time or its chart. A run that starts again within
  * [RESTART_SECONDS] of its stop is the same run - the block is still on the panel then, and a
  * flag that read down once for a dropped read does not get to zero the figure under it. The run
  * carries the energy it put into the pack and the seconds the engine ran, integrated sweep by
@@ -95,7 +95,11 @@ internal class EngineCharge {
         if (!running) return
 
         advance(slot)
-        val charge = loadKw?.let { max(0.0, -it) }
+        // Only a sweep the flag confirms is a sample of the run. One whose flag did not answer is
+        // a missing sample - the second keeps the reading before it, as for a power that did not
+        // answer - and not a charge the run then neither counts nor times: a braking sweep of 60 kW
+        // with the flag missing put a quarter of itself into the newest ten-second mean.
+        val charge = loadKw?.takeIf { engineRunning == true }?.let { max(0.0, -it) }
         if (charge != null) {
             slotSum += charge
             slotCount++
@@ -201,13 +205,26 @@ internal class EngineCharge {
         runSeconds = 0.0
     }
 
-    /** Moves the filling second on to [slot], closing the ones before it. */
+    /**
+     * Moves the filling second on to [slot], closing the ones before it.
+     *
+     * Only the seconds [trim] would keep are ever made: the window and the smoothing behind it. A
+     * process suspended for a day used to wake with one entry a second for all of it - 86,400 -
+     * before the trim took them back off, on the poll loop's thread, with both screens and the
+     * journals waiting.
+     */
     private fun advance(slot: Long) {
         if (slot == lastSlot) return
         seconds.addLast(closing(lastSlot))
         slotSum = 0.0
         slotCount = 0
         lastSlot++
+        val kept = (WINDOW_SECONDS + SMOOTH_SECONDS).toLong()
+        if (slot - lastSlot > kept) {
+            // Everything before the oldest second the window can still use goes in the trim anyway.
+            seconds.clear()
+            lastSlot = slot - kept
+        }
         while (lastSlot < slot) {
             seconds.addLast(closing(lastSlot))
             lastSlot++
