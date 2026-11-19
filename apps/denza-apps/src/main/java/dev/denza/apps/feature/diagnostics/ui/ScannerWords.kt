@@ -29,6 +29,7 @@ import dev.denza.apps.feature.diagnostics.scan.RailPlace
 import dev.denza.apps.feature.diagnostics.scan.RawLine
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
+import dev.denza.apps.feature.diagnostics.scan.SummaryBuilder
 import dev.denza.apps.feature.diagnostics.scan.SystemPage
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
@@ -246,8 +247,8 @@ internal object ScannerWords {
             val n = records(row)
             BlockRow(
                 request = row.request, abbreviation = row.abbreviation, name = row.name, route = row.route, protocol = row.protocol,
-                mark = mark(row.status), records = if (n == null || n == 0) "—" else n.toString(), software = "—",
-                softwareChanged = false, latency = "—",
+                mark = mark(row.status), records = if (n == null || n == 0) "—" else n.toString(),
+                memoryRead = row.status in READ, software = "—", softwareChanged = false, latency = "—",
                 filters = setOfNotNull(BlocksFilter.ALL, BlocksFilter.WITH_RECORDS.takeIf { (n ?: 0) > 0 }, BlocksFilter.NO_REPLY.takeIf { row.status == ModuleStatus.NO_REPLY }),
                 target = row.target,
             )
@@ -259,21 +260,11 @@ internal object ScannerWords {
      */
     fun systemBlocks(model: DiagnosticsModel, page: SystemPage): List<BlocksGroup> {
         val rows = page.blocks.map { blockRow(model, it) }
-        return groups(rows)
+        return SummaryBuilder.groups(rows)
     }
 
-    /** Rows into «С ЗАПИСЯМИ · n» and «БЕЗ ЗАПИСЕЙ · n» as `blocksTable()` orders them; an empty group is left out. */
-    fun groups(rows: List<BlockRow>): List<BlocksGroup> {
-        val rank = mapOf(Mark.ACTIVE to 0, Mark.PENDING to 1, Mark.HISTORY to 2)
-        val with = rows.withIndex().filter { (it.value.records.toIntOrNull() ?: 0) > 0 }
-            .sortedWith(compareBy({ rank[it.value.mark] ?: 3 }, { -(it.value.records.toIntOrNull() ?: 0) }, { it.index }))
-            .map { it.value }
-        val without = rows.filter { (it.records.toIntOrNull() ?: 0) == 0 }
-        return listOfNotNull(
-            BlocksGroup("С ЗАПИСЯМИ · ${with.size}", with).takeIf { with.isNotEmpty() },
-            BlocksGroup("БЕЗ ЗАПИСЕЙ · ${without.size}", without).takeIf { without.isNotEmpty() },
-        )
-    }
+    /** A system's row whose memory came back whole: an empty one is «без записей», as [SummaryBuilder.groups] has it. */
+    private val READ = setOf(ModuleStatus.OK, ModuleStatus.HISTORY, ModuleStatus.PENDING)
 
     /** «Блоки» at a filter: the session's groups with the rows that pass it, each group's count of what it shows. */
     fun filtered(groups: List<BlocksGroup>, filter: BlocksFilter): List<BlocksGroup> =

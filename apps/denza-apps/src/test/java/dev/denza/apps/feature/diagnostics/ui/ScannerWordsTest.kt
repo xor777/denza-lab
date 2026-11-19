@@ -15,6 +15,7 @@ import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.RawLine
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
+import dev.denza.apps.feature.diagnostics.scan.SummaryBuilder
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -138,20 +139,27 @@ class ScannerWordsTest {
         assertEquals("Состояние", ScannerWords.tabLabel(CarSystem.HV, SystemTab.STATE))
     }
 
-    private fun block(abbr: String, mark: Mark?, records: String) = BlockRow(
-        0x700, abbr, abbr, "700 → 708", "UDS", mark, records, "—", false, "—",
-        setOfNotNull(BlocksFilter.ALL, BlocksFilter.WITH_RECORDS.takeIf { records != "—" }), null,
+    private fun block(abbr: String, mark: Mark?, records: String, read: Boolean = true) = BlockRow(
+        0x700, abbr, abbr, "700 → 708", "UDS", mark, records, read, "—", false, "—",
+        setOfNotNull(BlocksFilter.ALL, BlocksFilter.WITH_RECORDS.takeIf { records != "—" }, BlocksFilter.NO_REPLY.takeIf { mark == Mark.NO_REPLY }), null,
     )
 
     @Test
     fun blocksWithRecordsComeFirstTheWorstAndTheMostFirst() {
         val rows = listOf(block("A", null, "—"), block("B", Mark.HISTORY, "8"), block("C", Mark.HISTORY, "2"), block("D", Mark.PENDING, "1"))
-        val groups = ScannerWords.groups(rows)
+        val groups = SummaryBuilder.groups(rows)
         assertEquals(listOf("С ЗАПИСЯМИ · 3", "БЕЗ ЗАПИСЕЙ · 1"), groups.map { it.title })
         assertEquals(listOf("D", "B", "C"), groups[0].rows.map { it.abbreviation })
         // a filter keeps what passes it and counts what it shows
         assertEquals(listOf("С ЗАПИСЯМИ · 3"), ScannerWords.filtered(groups, BlocksFilter.WITH_RECORDS).map { it.title })
         assertEquals(groups, ScannerWords.filtered(groups, BlocksFilter.ALL))
+    }
+
+    @Test
+    fun onlyAMemoryReadWholeAndEmptyIsWithoutRecords() {
+        // a system's blocks: one read clean, one silent, one whose memory did not come back or was not asked yet
+        val rows = listOf(block("A", null, "—"), block("B", Mark.NO_REPLY, "—", read = false), block("C", null, "—", read = false))
+        assertEquals(listOf("БЕЗ ЗАПИСЕЙ · 1", "НЕТ ОТВЕТА · 1", "ПАМЯТЬ НЕ ПРОЧИТАНА · 1"), SummaryBuilder.groups(rows).map { it.title })
     }
 
     @Test

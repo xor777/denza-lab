@@ -125,7 +125,7 @@ internal data class BlocksView(
     val line: String,
     /** «Все · 68», «С записями · 6», «Без ответа · 0», «ПО изменено · 0». */
     val filters: List<Pair<BlocksFilter, String>>,
-    /** «С ЗАПИСЯМИ · 6», «БЕЗ ЗАПИСЕЙ · 62», «НЕТ ОТВЕТА · 1». */
+    /** «С ЗАПИСЯМИ · 6», «БЕЗ ЗАПИСЕЙ · 61», «НЕТ ОТВЕТА · 1», «ПАМЯТЬ НЕ ПРОЧИТАНА · 0» ([SummaryBuilder.groups]). */
     val groups: List<BlocksGroup>,
     val footnote: String,
 )
@@ -143,6 +143,8 @@ internal data class BlockRow(
     val mark: Mark?,
     /** «8», «—». */
     val records: String,
+    /** The block's memory came back whole: only then is a row without records «без записей». */
+    val memoryRead: Boolean,
     /** F194 in fours, «4B4D 0011 DE01 1406 00»; «—». */
     val software: String,
     /** F194 or F195 changed since the journal's previous reading of the block: lit. */

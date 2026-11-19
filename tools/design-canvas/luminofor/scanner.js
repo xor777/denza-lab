@@ -548,7 +548,10 @@
       M.top, M.head);
     const withRec = blocks.map((b, i) => [b, i]).filter(([b]) => records(b) > 0)
       .sort((a, b) => (RANK[blockKind(a[0])] - RANK[blockKind(b[0])]) || (records(b[0]) - records(a[0])) || (a[1] - b[1])).map(p => p[0]);
-    const without = blocks.filter(b => !records(b));
+    // «без записей» is a memory read whole and empty: a block that did not answer has its own group
+    // (SummaryBuilder.groups; a board's scan is whole, so «ПАМЯТЬ НЕ ПРОЧИТАНА» never shows here)
+    const without = blocks.filter(b => !records(b) && b.answered !== false);
+    const silentRows = blocks.filter(b => !records(b) && b.answered === false);
     c.save();
     c.beginPath(); c.rect(24, Li.top, W - 48, Li.bottom - Li.top); c.clip();
     let y = Li.top;
@@ -573,6 +576,7 @@
     };
     if (withRec.length) { group(`С ЗАПИСЯМИ · ${withRec.length}`); withRec.forEach(row); }
     if (without.length) { group(`БЕЗ ЗАПИСЕЙ · ${without.length}`); without.forEach(row); }
+    if (silentRows.length) { group(`НЕТ ОТВЕТА · ${silentRows.length}`); silentRows.forEach(row); }
     c.restore();
   }
 

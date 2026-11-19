@@ -101,6 +101,7 @@ import dev.denza.apps.feature.diagnostics.scan.ScanCompareView
 import dev.denza.apps.feature.diagnostics.scan.StatusByteView
 import dev.denza.apps.feature.diagnostics.scan.SummaryBand
 import dev.denza.apps.feature.diagnostics.scan.SummaryBlock
+import dev.denza.apps.feature.diagnostics.scan.SummaryBuilder
 import dev.denza.apps.feature.diagnostics.scan.SummaryRecord
 import dev.denza.apps.feature.diagnostics.scan.SummarySystem
 import dev.denza.apps.feature.diagnostics.scan.SummaryView
@@ -487,6 +488,8 @@ internal object ScannerFixtures {
                 request = req, abbreviation = e.getString("abbr"), name = e.getString("name").removePrefix("≈ "),
                 route = ScannerWords.route(req), protocol = e.optStringOrNull("proto") ?: "—",
                 mark = if (silent) Mark.NO_REPLY else kindOf(e), records = if (n > 0) n.toString() else "—",
+                // a board's scan is whole: a block that answered had its memory read
+                memoryRead = !silent,
                 software = f194?.chunked(4)?.joinToString(" ") ?: "—", softwareChanged = e.optBoolean("swChanged"),
                 latency = if (e.has("ms") && !e.isNull("ms")) "${e.getInt("ms")} мс" else "—",
                 filters = setOfNotNull(
@@ -505,7 +508,7 @@ internal object ScannerFixtures {
                 BlocksFilter.ALL to "Все · ${rows.size}", BlocksFilter.WITH_RECORDS to "С записями · $withRecords",
                 BlocksFilter.NO_REPLY to "Без ответа · $silent", BlocksFilter.SOFTWARE_CHANGED to "ПО изменено · ${rows.count { it.softwareChanged }}",
             ),
-            groups = ScannerWords.groups(rows),
+            groups = SummaryBuilder.groups(rows),
             footnote = footnote(f),
         )
     }

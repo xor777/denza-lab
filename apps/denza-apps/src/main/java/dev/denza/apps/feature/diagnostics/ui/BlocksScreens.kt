@@ -18,6 +18,7 @@ import dev.denza.apps.feature.diagnostics.scan.BlocksGroup
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.Mark
+import dev.denza.apps.feature.diagnostics.scan.SummaryBuilder
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
@@ -41,7 +42,7 @@ internal fun BlocksPage(
 ) {
     val view = model.blocks
     // before the first scan: the catalog's blocks as the section knows them
-    val groups = view?.groups ?: ScannerWords.groups(model.groups.flatMap { it.rows }.map { ScannerWords.blockRow(model, it) })
+    val groups = view?.groups ?: SummaryBuilder.groups(model.groups.flatMap { it.rows }.map { ScannerWords.blockRow(model, it) })
     RailPage(frame, footer = {
         ScanFooter(
             listOf(FooterButton(ScannerWords.scanButton(model.scan), true, onClick = actions::rescan), FooterButton(AppText.s(R.string.diag_report), false, onClick = onReport)),

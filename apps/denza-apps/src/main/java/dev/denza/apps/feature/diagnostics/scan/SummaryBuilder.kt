@@ -80,9 +80,10 @@ internal object SummaryBuilder {
     fun rail(i: V4Inputs): List<RailLine> {
         val catalogued = EcuCatalog.all.size
         val silent = i.s.results.values.count { !it.answered }
+        val unasked = unasked(i.s)
         return listOf(RailLine(RailPlace.Summary, AppText.s(R.string.diag_summary), markCount(i, i.s.results.keys))) +
             RailLine(RailPlace.Blocks, AppText.s(R.string.diag_blocks), null,
-                plain = if (silent == 0) "$catalogued" else "${catalogued - silent}/$catalogued", plainLit = silent > 0) +
+                plain = if (silent == 0 && unasked == 0) "$catalogued" else "${catalogued - silent - unasked}/$catalogued", plainLit = silent > 0) +
             SystemPagesBuilder.SHOWN.map { system ->
                 RailLine(RailPlace.System(system), system.railName, markCount(i, SystemPagesBuilder.MEMBERS.getValue(system)))
             } +
@@ -138,6 +139,8 @@ internal object SummaryBuilder {
         val all = routed.flatMap { e -> i.records[e.request].orEmpty() }
         val active = all.count { it.mark == Mark.ACTIVE }
         val mil = routed.any { e -> Pid01.newest(s.results[e.request], s.idents[e.request])?.mil == true }
+        // The lamp is off only where the ECM said so: a PID 01 not read is «н/д», never off.
+        val milOff = Pid01.newest(s.results[ECM], s.idents[ECM])?.mil == false
         val running = s.phase == ScanPhase.RUNNING || s.phase == ScanPhase.PAUSED
         // «No faults» only where every block's memory was read: a memory not read is said as a count, never as none.
         val read = routed.count { e -> s.results[e.request]?.memoryRead == true }
@@ -147,6 +150,7 @@ internal object SummaryBuilder {
             active > 0 -> "$active " + Words.plural(active, "активная неисправность", "активные неисправности", "активных неисправностей")
             mil -> "MIL горит"
             read < routed.size -> "Память прочитана у $read из ${routed.size}"
+            !milOff -> "MIL н/д"
             else -> "Активных неисправностей нет"
         }
         val answered = s.results.values.count { it.answered }
@@ -155,6 +159,7 @@ internal object SummaryBuilder {
         // A block whose memory was not read has no records to show, and is not «без записей» either.
         val quiet = routed.count { e -> s.results[e.request]?.memoryRead == true && i.records[e.request].isNullOrEmpty() }
         val unread = s.results.values.count { it.answered && !it.memoryRead }
+        val unasked = unasked(s)
         return SummaryView(
             verdict = verdict,
             verdictMark = if (active > 0 || mil) Mark.ACTIVE else null,
@@ -162,10 +167,9 @@ internal object SummaryBuilder {
             vitals = vitals(s.car),
             band = band(all, withRecords.size),
             columns = columns(i),
-            rest = "${Words.count(quiet, "блок", "блока", "блоков")} без записей · " +
-                (if (silent == 0) "все ответили" else "не ответили $silent") +
+            rest = "${Words.count(quiet, "блок", "блока", "блоков")} без записей · " + replies(silent, unasked) +
                 (if (unread > 0) " · память не прочитана $unread" else ""),
-            restAttention = silent > 0 || unread > 0,
+            restAttention = silent > 0 || unread > 0 || (unasked > 0 && !running),
             footnote = listOfNotNull(
                 Words.count(i.facts.count, "обмен", "обмена", "обменов"),
                 i.facts.medianMs?.let { "медиана $it мс" },
@@ -173,6 +177,19 @@ internal object SummaryBuilder {
             ).joinToString(" · "),
         )
     }
+
+    private val ECM: Int = EcuCatalog.all.first { it.abbreviation == "ECM" }.request!!
+
+    /** The routed blocks the shown scan has no result for: not asked yet, neither answered nor silent. */
+    private fun unasked(s: SessionSnapshot): Int = EcuCatalog.routed.count { e -> e.request !in s.results }
+
+    /**
+     * «все ответили» only where every routed block was asked and answered; else what is known of the rest -
+     * «не ответили 2 · не опрошены 56».
+     */
+    private fun replies(silent: Int, unasked: Int): String =
+        if (silent == 0 && unasked == 0) "все ответили"
+        else listOfNotNull("не ответили $silent".takeIf { silent > 0 }, "не опрошены $unasked".takeIf { unasked > 0 }).joinToString(" · ")
 
     /** «скан 20.10 19:31 · <middle> · маска 09 · 19,9 с»: the scan's end, or its start while it runs. */
     private fun scanLine(i: V4Inputs, middle: String): String {
@@ -289,13 +306,11 @@ internal object SummaryBuilder {
         if (s.phase == ScanPhase.NEVER && s.results.isEmpty()) return null
         val catalogued = EcuCatalog.all
         val rows = catalogued.map { e -> row(i, e) }
-        val withRecords = rows.withIndex().filter { BlocksFilter.WITH_RECORDS in it.value.filters }
-            .sortedWith(compareBy({ it.value.mark!!.ordinal }, { -(it.value.records.toIntOrNull() ?: 0) }, { it.index })).map { it.value }
-        val silent = rows.filter { BlocksFilter.NO_REPLY in it.filters }
-        val rest = rows.filter { BlocksFilter.WITH_RECORDS !in it.filters && BlocksFilter.NO_REPLY !in it.filters }
+        val withRecords = rows.count { BlocksFilter.WITH_RECORDS in it.filters }
+        val silent = rows.count { BlocksFilter.NO_REPLY in it.filters }
         val changed = rows.count { BlocksFilter.SOFTWARE_CHANGED in it.filters }
         return BlocksView(
-            aside = "· ${catalogued.size} · " + if (silent.isEmpty()) "все ответили" else "не ответили ${silent.size}",
+            aside = "· ${catalogued.size} · " + replies(silent, unasked(s)),
             line = listOfNotNull(
                 (s.finishedAtMillis ?: i.facts.startMillis)?.let { "скан ${i.clock.dated(it)}" } ?: "скан",
                 Words.count(i.facts.count, "обмен", "обмена", "обменов"),
@@ -304,17 +319,31 @@ internal object SummaryBuilder {
             ).joinToString(" · "),
             filters = listOf(
                 BlocksFilter.ALL to "Все · ${rows.size}",
-                BlocksFilter.WITH_RECORDS to "С записями · ${withRecords.size}",
-                BlocksFilter.NO_REPLY to "Без ответа · ${silent.size}",
+                BlocksFilter.WITH_RECORDS to "С записями · $withRecords",
+                BlocksFilter.NO_REPLY to "Без ответа · $silent",
                 BlocksFilter.SOFTWARE_CHANGED to "ПО изменено · $changed",
             ),
-            groups = listOfNotNull(
-                withRecords.takeIf { it.isNotEmpty() }?.let { BlocksGroup("С ЗАПИСЯМИ · ${it.size}", it) },
-                rest.takeIf { it.isNotEmpty() }?.let { BlocksGroup("БЕЗ ЗАПИСЕЙ · ${it.size}", it) },
-                silent.takeIf { it.isNotEmpty() }?.let { BlocksGroup("НЕТ ОТВЕТА · ${it.size}", it) },
-            ),
+            groups = groups(rows),
             footnote = "порядок: записи, затем система",
         )
+    }
+
+    /**
+     * Rows into their groups, each counted, an empty one left out - «Блоки» and a system's blocks alike:
+     * «С ЗАПИСЯМИ» the worst first, then the most records, then the catalog's order; «БЕЗ ЗАПИСЕЙ» only a
+     * memory read whole and empty; «НЕТ ОТВЕТА»; «ПАМЯТЬ НЕ ПРОЧИТАНА» a block that answered and whose memory
+     * did not come back, or one not asked yet.
+     */
+    fun groups(rows: List<BlockRow>): List<BlocksGroup> {
+        val with = rows.withIndex().filter { BlocksFilter.WITH_RECORDS in it.value.filters }
+            .sortedWith(compareBy({ it.value.mark?.ordinal ?: Int.MAX_VALUE }, { -(it.value.records.toIntOrNull() ?: 0) }, { it.index }))
+            .map { it.value }
+        val rest = rows.filter { BlocksFilter.WITH_RECORDS !in it.filters }
+        val silent = rest.filter { BlocksFilter.NO_REPLY in it.filters }
+        val without = rest.filter { BlocksFilter.NO_REPLY !in it.filters && it.memoryRead }
+        val unread = rest.filter { BlocksFilter.NO_REPLY !in it.filters && !it.memoryRead }
+        return listOf("С ЗАПИСЯМИ" to with, "БЕЗ ЗАПИСЕЙ" to without, "НЕТ ОТВЕТА" to silent, "ПАМЯТЬ НЕ ПРОЧИТАНА" to unread)
+            .filter { it.second.isNotEmpty() }.map { (title, group) -> BlocksGroup("$title · ${group.size}", group) }
     }
 
     private fun row(i: V4Inputs, e: Ecu): BlockRow {
@@ -344,6 +373,7 @@ internal object SummaryBuilder {
             },
             mark = mark,
             records = if (records.isEmpty()) NA else records.size.toString(),
+            memoryRead = result?.memoryRead == true,
             software = f194?.let(::fours) ?: NA,
             softwareChanged = changed,
             latency = result?.let { BlockRecords.medianMs(it.read.replies) }?.let { "$it мс" } ?: NA,

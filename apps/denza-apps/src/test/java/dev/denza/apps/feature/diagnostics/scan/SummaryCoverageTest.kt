@@ -55,6 +55,38 @@ class SummaryCoverageTest {
     }
 
     @Test
+    fun aMilNotReadIsNoAllClear() {
+        val results = clean().toMutableMap()
+        val ecmRead = results.getValue(ecm).read
+        // every memory reads clean, and the ECM's 01 01 runs out of time
+        val lost = ecmRead.replies.map { r ->
+            if (r.request.uds.contentEquals(hexBytes("0101"))) DiagReply.NoReply(r.request, 0, r.atMillis, 4_000, r.atMillis * 1_000_000L) else r
+        }
+        results[ecm] = ModuleResult(EcuCatalog.byRequest(ecm)!!, ecmRead.copy(replies = lost))
+        assertTrue(results.getValue(ecm).memoryRead)
+
+        val view = model(results).summary!!
+        assertEquals("MIL н/д", view.verdict)
+        assertNull(view.verdictMark)
+    }
+
+    @Test
+    fun aScanThatHasNotAskedEveryBlockDoesNotSayTheyAllAnswered() {
+        val asked = EcuCatalog.routed.take(12).mapNotNull { it.request }.toSet()
+        val results = clean().filterKeys { it in asked }
+        val quiet = results.values.count { it.memoryRead }
+        val unasked = EcuCatalog.routed.size - 12
+        val catalogued = EcuCatalog.all.size
+        val m = model(results)
+
+        assertEquals("${Words.count(quiet, "блок", "блока", "блоков")} без записей · не опрошены $unasked", m.summary!!.rest)
+        assertEquals("· $catalogued · не опрошены $unasked", m.blocks!!.aside)
+        // «без записей» is a memory read whole and empty: a block not asked yet is not among them
+        assertEquals(listOf("БЕЗ ЗАПИСЕЙ · $quiet", "ПАМЯТЬ НЕ ПРОЧИТАНА · ${catalogued - quiet}"), m.blocks!!.groups.map { it.title })
+        assertEquals("${catalogued - unasked}/$catalogued", m.railLines.single { it.place == RailPlace.Blocks }.plain)
+    }
+
+    @Test
     fun aLitMilWithNoRecordIsNoAllClear() {
         val results = clean().toMutableMap()
         val ecmRead = results.getValue(ecm).read
