@@ -259,6 +259,28 @@ counted with the engine off only, so nothing is counted twice.
 > seat stayed at zero on every drive; it is the pack's own charge now, under
 > «ЗАРЯД ОТ ДВС» — see [§2.5](#25-the-engine).
 
+**The record survives a restart and an upgrade** (`TripJournal`, `trip.log`,
+2026-11-19). It starts with its version and says whether its engine charge is
+known and whether a trip was opened at all. 0.7.1's record had seven fields and
+its third was `∫G dt`: restored across the upgrade, its net, recuperation,
+minutes and road are kept, and its engine charge is **unknown** - zero, not
+printed, not added to (`TripEnergy.engineKwhKnown`) - until the next trip
+starts, rather than a sum of two quantities under one caption. A checkpoint that
+cannot be written leaves the last good record on disk, and an unchanged record
+(the car standing in P) is not written again.
+
+**P ends the trip whatever the odometer said.** A P read in a sweep whose
+odometer did not answer used to be dropped with the sweep, so the energy trip ran
+on into the next drive while the strip's trip clock, reading the same P, had ended
+its own. P is latched on its own now; the odometer still decides when the next
+movement starts the new trip.
+
+**A ledger that has opened no trip has none** (`TripEnergy.opened`): true from the
+first movement after the process started, or for a restored trip, and still true
+in P after it. A car that answers its pack and not its odometer has no trip,
+which is not a trip of nothing; the screens are to read this flag before they
+print a trip figure.
+
 On the Luminofor cluster the trip is the right group's figure - «42 км · ЗА
 ПОЕЗДКУ» over «9,3 кВт·ч» - and «ЗАРЯД ОТ ДВС» and «РЕКУПЕРАЦИЯ» stand on the
 detail line under it, «0,8 кВт·ч ЗАРЯД ОТ ДВС» whenever the ledger carries the
@@ -291,11 +313,23 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
 (§2.4); the screens say nothing about that.
 
 - **A run** starts when the flag goes up and ends when it reads down; a flag
-  that did not answer neither ends nor counts toward one. A run that starts again
-  within ten seconds of its stop is the same run. It carries the energy it put
-  into the pack and the seconds the engine ran, integrated sweep by sweep on the
-  ledger's own intervals (`EngineCharge`), so the block's figure and the trip's
-  «ЗАРЯД ОТ ДВС» are one integral.
+  that did not answer neither ends nor counts toward one - not in its figure,
+  its time or its chart (until 2026-11-19 such a sweep still went into the
+  chart's second). A run that starts again within ten seconds of its stop is the
+  same run. It carries the energy it put into the pack and the seconds the engine
+  ran, integrated sweep by sweep on the ledger's own intervals (`EngineCharge`),
+  with the trip's formula: the block's figure and the trip's «ЗАРЯД ОТ ДВС» are
+  the same integral **wherever their intervals overlap**, which is an open trip
+  with the engine running. They are not one figure: the block counts every
+  interval of its run, in P too - forced generation standing after a finished
+  trip goes into the block - while the trip integrates nothing in P, so the
+  finished trip stays the finished trip. A run longer than the trip, or one that
+  started before it, differs from it the same way.
+
+  > **Superseded 2026-11-19:** this item said the two «are one integral». They
+  > share the formula and the intervals of an open trip; in P after a finished
+  > trip the block counts forced generation and the trip does not
+  > (`TripEnergyLedgerTest.anEngineRunningInParkIsNotThisTripsEngineEither`).
 - **The chart**: a sample a second (the mean of that second's sweeps; a second no
   sweep landed in keeps the newest reading for up to `MAX_GAP_SECONDS`), each
   drawn point the trailing mean of the last ten samples - the ten kilometres'
@@ -396,6 +430,17 @@ the figure divides by its known road. So «за 3,7 км» is thirty-seven readi
 whatever share of each was watched, and the chart beside it is thirty-seven
 points.
 
+**A bucket the sweeps were interrupted inside is not a reading** (2026-11-19). A
+failed read, its backoff and the reconnect - or the backoff after a bus gone
+quiet (§2.7) - are time nobody watched, and the first sweep back has no interval
+behind it (`VehicleSweepClock`). That zero interval said nothing to the log: a
+bucket with three quarters of a second of power in it, closed by the first sweep
+back, was a full reading of the partial energy, drawn and journalled. The clock
+now says the sweep follows an interruption (`VehicleSweepClock.resumed`), and the
+open bucket knows none of its road (`ConsumptionLog.interrupted`). The trip's
+ledger refuses the zero interval's road and energy together, as it refuses any
+interval it was not given, so its kilowatt-hours and kilometres stay one drive.
+
 **An odometer step longer than one bucket closes one bucket of that road, and it
 is not a reading**: none of its road is known, because nobody watched it being
 covered. So every reading is one tick, which is what lets a pitch per point be
@@ -429,7 +474,17 @@ The hub holds a claim of its own, `VehicleWatcher.LEDGER`, from the application'
 start for the life of the process. Alone, it sweeps once a second - the integral
 needs no more, and a shell round trip is the cost - and the moment a screen claims
 the hub the cadence is the screens' own 100 ms, as now. Unavailable answers back
-off as they do now, so a car asleep costs the backoff and nothing else. The trip's
+off as they do now, so a car asleep costs the backoff and nothing else.
+
+**The backoff follows fresh decoded telemetry** (2026-11-19, `VehicleQuietBus`).
+A read that threw backed off; a shell that answered every id with a sentinel - a
+bus asleep under a head unit that is not - reset the backoff because a reply had
+come, and was polled at the full cadence for as long as the bus slept. A sweep is
+fresh when it decoded a reading of its own (not a carried cold value, not the
+warning slot). Quiet sweeps keep the cadence for the link's horizon
+(`VehicleLink.CLOSE_AFTER_MS`), so a blip on a live bus costs nothing; past it
+each waits out the backoff, capped at `MAX_GAP_SECONDS` so a car switched on is
+not missed for a minute, and the wait is an interruption (§2.6). The trip's
 ledger (§2.4) is fed by the same sweep and stops losing road for the same reason.
 
 A screen that claims the hub ends whatever backoff it finds and gets its attempt
@@ -658,6 +713,11 @@ test.
 | whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | a recorded stop at a charger known to be DC (the owner does not recall what the 2026-09-22 stop was, asked 2026-10-09) |
 | the stock zones' true edges | the grid photograph |
 | ~~what the engine box, «ДАЛ ДВС» and «ОТ ДВС» do on the move, where `GENERATION_KW` reads zero while the engine charges the pack~~ | closed 2026-11-19: the block, the trip's «ЗАРЯД ОТ ДВС» and «ОТ ДВС» read the pack's charge while the engine runs (§2.4, §2.5). Not yet seen on the car |
+| the engine block through a long run and through P/D transitions | a drive with an engine run past ten minutes, a stop in P with the engine still running, and a start-off after it |
+| the upgrade from 0.7.1 over an open trip | install over 0.7.1 within a kilometre of its last checkpoint: the trip carries on with no «ЗАРЯД ОТ ДВС» until the next trip, then the new trip's |
+| the quiet-bus backoff | the head unit left on with the car switched off: the sweeps fall to one per eight seconds after four of silence, and the first drive afterwards loses no more than that |
+| whether a firmware fails the helper's Java path while `service call` works | the resident helper on the other DiLink generations, with missing service data and with a Binder that refuses it; a full drive on the shell fallback, including an in-drive helper retry |
+| whether the signals mean the same on another model | `AutoType` and the FID answers on an N9 (`168`), the other Z9-family ids and a pure EV: an integer in range does not establish a meaning |
 
 **Closed by the first recorded drive, 2026-09-22** -
 `captures/vehicle-log/vehicle-20260922-172447-car.csv`, written on the car by a
