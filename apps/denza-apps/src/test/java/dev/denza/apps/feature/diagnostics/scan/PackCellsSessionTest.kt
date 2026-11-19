@@ -205,4 +205,34 @@ class PackCellsSessionTest {
         )
         s.stop()
     }
+
+    /**
+     * «Обновить», «Пауза» → «Продолжить», and leaving and coming back: each new subscription waits for the old one
+     * to leave, so the old `u gb` never follows the new `s gb` on the helper and the new one is left with no pages.
+     */
+    @Test
+    fun aNewSubscriptionWaitsForTheOldOneToLeave() = runTest {
+        val bus = carNow()
+        bus.leaveMs = 300
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        s.setCellsVisible(true)
+        runCurrent()
+        s.refreshCells()
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(listOf("s", "u", "s"), bus.subscriptions)
+
+        s.setCellsPaused(true)
+        s.setCellsPaused(false)
+        advanceTimeBy(1_000)
+        runCurrent()
+        s.setCellsVisible(false)
+        s.setCellsVisible(true)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(listOf("s", "u", "s", "u", "s", "u", "s"), bus.subscriptions)
+        s.stop()
+    }
 }

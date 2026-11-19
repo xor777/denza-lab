@@ -1,11 +1,13 @@
 package dev.denza.apps.feature.diagnostics.bus
 
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * A [DiagnosticBus] that answers from a script, for the engine and the screens.
@@ -151,9 +153,14 @@ internal class FakeDiagnosticBus(
                 emit(page)
             }
         } finally {
+            // `u gb` is an exchange with the helper: it takes [leaveMs], cancelled or not, as the real bus's does.
+            if (!lost && leaveMs > 0) withContext(NonCancellable) { delay(leaveMs) }
             synchronized(this@FakeDiagnosticBus) { subscriptionLog += if (lost) "lost" else "u" }
         }
     }
+
+    /** How long leaving the pages takes; 0 leaves at once. */
+    @Volatile var leaveMs = 0L
 
     private fun next(request: DiagRequest): Step {
         val steps = scripts[key(request.address, hex(request.uds))] ?: return unscripted(request)

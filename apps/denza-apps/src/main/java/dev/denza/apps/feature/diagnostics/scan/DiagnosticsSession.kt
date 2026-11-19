@@ -163,6 +163,8 @@ internal class DiagnosticsSession(
     /** «Ячейки»: the assembled pages while the tab shows, its subscription (none while paused), and whether that ended. */
     private var cells: PackCells? = null
     private var cellsJob: Job? = null
+    /** The last subscription launched, cancelled or not: the next one starts once it has left the pages. */
+    private var cellsTail: Job? = null
     private var cellsStopped = false
     /** This opening of the battery's page - or its «Обновить» - put its snapshot into the journal (6.4). */
     private var cellsSaved = false
@@ -434,7 +436,7 @@ internal class DiagnosticsSession(
             cells = PackCells(clock)
             cellsStopped = false
             cellsSaved = false
-            cellsJob = s.launch { listenCells() }
+            cellsJob = launchCells(s)
         } else {
             cellsJob?.cancel()
             cellsJob = null
@@ -449,7 +451,7 @@ internal class DiagnosticsSession(
         cells = PackCells(clock)
         cellsStopped = false
         cellsSaved = false
-        cellsJob = s.launch { listenCells() }
+        cellsJob = launchCells(s)
     }
 
     /**
@@ -476,7 +478,7 @@ internal class DiagnosticsSession(
             val s = scope ?: return@act
             c.resume()
             cellsStopped = false
-            cellsJob = s.launch { listenCells() }
+            cellsJob = launchCells(s)
         }
     }
 
@@ -541,6 +543,18 @@ internal class DiagnosticsSession(
     private fun lookRecording() {
         desk.look()
         synchronized(lock) { publish() }
+    }
+
+    /**
+     * A new subscription to the BMS pages, begun once the one before it has left them: the helper holds one
+     * subscription per link, so the old `u gb` after the new `s gb` would leave the new one without pages. Under [lock].
+     */
+    private fun launchCells(s: CoroutineScope): Job {
+        val previous = cellsTail
+        return s.launch {
+            previous?.join()
+            listenCells()
+        }.also { cellsTail = it }
     }
 
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
