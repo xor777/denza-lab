@@ -574,4 +574,56 @@ class DiagnosticsSessionTest {
         assertEquals(before, bus.requests.size)
         s.stop()
     }
+
+    /**
+     * «Прочитать снова» on «Идентификация» after the channel was lost under that very read: the press lifts the
+     * halt for the read still waiting, and adds none.
+     */
+    @Test
+    fun readingTheIdentificationAgainLiftsTheHaltItsOwnReadStoppedOn() = runTest {
+        val bus = carNow()
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        bus.failNext(DiagFailure.ChannelLost(IllegalStateException("lost")))
+        s.setModuleOpen(0x7E3, true)
+        runCurrent()
+        assertEquals(LinkState.LOST, s.model.value.header.link)
+        val asked = bus.requests.size
+
+        s.rereadIdent(0x7E3)
+        runCurrent()
+        assertTrue(bus.requests.drop(asked).any { it.startsWith(Figures.address(0x7E3) + " 22") })
+        assertEquals(LinkState.OK, s.model.value.header.link)
+        s.stop()
+    }
+
+    /**
+     * «Опросить снова» while a block's exchange is on the wire: the old block asks nothing more, and the channel
+     * lost under its exchange is not the new scan's - the new one begins at the first block and ends.
+     */
+    @Test
+    fun aBlockOfAScanBegunAgainAsksNothingMoreAndItsFailureIsNotTheNewScans() = runTest {
+        val bus = carNow()
+        bus.delayMs = 100
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        val first = EcuCatalog.routed[0].request!!
+        val second = EcuCatalog.routed[1].request!!
+        while (s.model.value.row(second).status != ModuleStatus.POLLING) {
+            advanceTimeBy(10)
+            runCurrent()
+        }
+        val asked = bus.requests.size
+        s.rescan()
+        bus.failNext(DiagFailure.ChannelLost(IllegalStateException("lost")))
+        advanceTimeBy(600_000)
+        runCurrent()
+
+        assertTrue(bus.requests[asked].startsWith(Figures.address(second) + " "))
+        assertTrue("the next exchange is the new scan's", bus.requests[asked + 1].startsWith(Figures.address(first) + " "))
+        assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
+        s.stop()
+    }
 }

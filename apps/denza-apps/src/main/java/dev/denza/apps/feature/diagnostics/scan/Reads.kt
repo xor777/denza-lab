@@ -381,11 +381,15 @@ internal object VinReads {
 internal class SessionReads {
     val masks = PendingMasks()
 
-    /** One opened code to read: where, as the screen names it, and its three bytes. */
-    data class CodeWork(val request: Int, val code: String, val raw: Int)
+    /**
+     * One opened code to read: where, as the screen names it, and its three bytes; [attempt] numbers each time the
+     * screen asked, so a read the screen asked again or closed is told from the one it asked for now.
+     */
+    data class CodeWork(val request: Int, val code: String, val raw: Int, val attempt: Int)
 
     private val codes = HashMap<Int, LinkedHashMap<String, CodeReadResult>>()
     private var codeQueue: CodeWork? = null
+    private var lastAttempt = 0
     private val obdQueue = LinkedHashSet<Pair<Int, ObdRead>>()
     /** Per block and read: its data, null while it is asked and not answered. */
     private val obd = HashMap<Int, HashMap<ObdRead, ModuleRead?>>()
@@ -410,15 +414,20 @@ internal class SessionReads {
             ?.firstOrNull { it.code.display == code || it.code.rawHex.equals(code, ignoreCase = true) } ?: return false
         val key = record.code.display
         codes.getOrPut(ecu.request!!) { LinkedHashMap() }[key] = CodeReadResult(key, record.code.raw, null)
-        codeQueue = CodeWork(request, key, record.code.raw)
+        codeQueue = CodeWork(request, key, record.code.raw, ++lastAttempt)
         return true
     }
 
     fun nextCode(): CodeWork? = codeQueue
 
+    /** [work] is the attempt the code's screen asked for last and still waits on. */
+    fun codeCurrent(work: CodeWork): Boolean = codeQueue?.attempt == work.attempt
+
+    /** [read] of [work]; dropped where the screen has asked again or closed since. */
     fun codeRead(work: CodeWork, read: ModuleRead) {
+        if (!codeCurrent(work)) return
         codes.getOrPut(work.request) { LinkedHashMap() }[work.code] = CodeReadResult(work.code, work.raw, read)
-        if (codeQueue == work) codeQueue = null
+        codeQueue = null
     }
 
     /** An OBD block's screen opened or closed: on opening its freeze frame and tests are queued, once. */
@@ -439,12 +448,14 @@ internal class SessionReads {
     }
 
     /**
-     * «Прочитать снова» on «Тесты»: the tests of an opened block queued again, alone; false - and nothing - where
-     * the block's screen is not open or its tests are queued or being read already.
+     * «Прочитать снова» on «Тесты»: the tests of an opened block queued again, alone - or, queued or being read
+     * already, left as they are; whether a tests read is queued. False - and nothing - where the block's screen
+     * is not open.
      */
     fun rereadTests(request: Int): Boolean {
         val m = obd[request] ?: return false
-        if (ObdRead.TESTS in m && m[ObdRead.TESTS] == null) return false
+        // Queued or on the wire already - a channel lost under it - it stays queued once; the press is for it.
+        if (ObdRead.TESTS in m && m[ObdRead.TESTS] == null) return true
         m[ObdRead.TESTS] = null
         obdQueue += request to ObdRead.TESTS
         refreshObd(request)

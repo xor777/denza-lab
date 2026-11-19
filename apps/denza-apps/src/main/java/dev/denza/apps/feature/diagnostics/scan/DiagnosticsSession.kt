@@ -228,7 +228,10 @@ internal class DiagnosticsSession(
     /** A unit of work ended early because the channel halted; nothing of it is kept. */
     private class Aborted : Exception()
 
-    /** A screen's read whose screen has gone: it asks nothing more, and nothing of it is kept. */
+    /**
+     * Work that is no longer its owner's - a screen's read whose screen has gone or was asked again, a block of
+     * an autoscan begun again: it asks nothing more, its failure halts nothing, and nothing of it is kept.
+     */
     private class Abandoned : Exception()
 
     /** The section opened: the hub claim, the last scan, and an autoscan when that one is old or missing. */
@@ -311,7 +314,8 @@ internal class DiagnosticsSession(
     }
 
     override fun rereadIdent(request: Int) = act {
-        if (request !in open || request in identPending) return@act
+        if (request !in open) return@act
+        // Queued already - a channel lost under it - is queued once; the press still lifts the halt for it.
         identPending += request
         retryStopped()
     }
@@ -641,6 +645,8 @@ internal class DiagnosticsSession(
                 run(job)
             } catch (_: Aborted) {
                 // The halt is already on the screen; the job waits where it was.
+            } catch (_: Abandoned) {
+                // No longer its owner's: whoever superseded it has queued what it wants.
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -698,8 +704,10 @@ internal class DiagnosticsSession(
                     polling = job.request
                     publish()
                 }
+                // A block of a scan begun again while it was read: the new scan reads it itself.
+                val owned: () -> Boolean = { job !is Work.Scan || job.generation == scanGeneration }
                 val read = try {
-                    ModuleProcedure.read(ecu, wallClock, synchronized(lock) { plan(ecu) }, ::ask)
+                    ModuleProcedure.read(ecu, wallClock, synchronized(lock) { plan(ecu) }) { r -> ask(r, owned) }
                 } finally {
                     synchronized(lock) {
                         polling = null
@@ -708,8 +716,7 @@ internal class DiagnosticsSession(
                 }
                 var entry: JournalScan? = null
                 val (save, learned) = synchronized(lock) {
-                    // A block of a scan begun again while it was read: the new scan reads it itself.
-                    if (job is Work.Scan && job.generation != scanGeneration) return
+                    if (!owned()) return
                     val result = ModuleResult(ecu, read)
                     results[job.request] = result
                     reads.masks.learn(result)
@@ -735,7 +742,8 @@ internal class DiagnosticsSession(
                 entry?.let { remember(it) }
             }
             is Work.Code -> {
-                val read = CodeReadProcedure.read(ecu, job.work.raw, wallClock, ::ask)
+                // The code's screen asked again or closed: this attempt asks nothing more and is not kept.
+                val read = CodeReadProcedure.read(ecu, job.work.raw, wallClock) { r -> ask(r) { reads.codeCurrent(job.work) } }
                 synchronized(lock) {
                     reads.codeRead(job.work, read)
                     publish()
@@ -743,15 +751,7 @@ internal class DiagnosticsSession(
             }
             is Work.Obd -> {
                 // The opening's own read: once its screen has gone, the exchanges it had not made yet are not made.
-                val owned: suspend (DiagRequest) -> DiagReply = { r ->
-                    if (synchronized(lock) { reads.opening(job.request) } != job.opening) throw Abandoned()
-                    ask(r)
-                }
-                val read = try {
-                    ObdReadProcedure.read(ecu, job.what, wallClock, owned)
-                } catch (_: Abandoned) {
-                    return
-                }
+                val read = ObdReadProcedure.read(ecu, job.what, wallClock) { r -> ask(r) { reads.opening(job.request) == job.opening } }
                 synchronized(lock) {
                     reads.obdRead(job.request, job.what, job.opening, read)
                     publish()
@@ -873,9 +873,16 @@ internal class DiagnosticsSession(
         synchronized(journaling) { runCatching(add).onFailure { log("diagnostics: journal not written: $it") } }
     }
 
-    /** One exchange; a halt of any kind ends the unit of work with [Aborted]. */
-    private suspend fun ask(request: DiagRequest): DiagReply {
+    private suspend fun ask(request: DiagRequest): DiagReply = ask(request) { true }
+
+    /**
+     * One exchange; a halt of any kind ends the unit of work with [Aborted]. [owned], under [lock], says whether
+     * the work is still its owner's: asked before the exchange is sent and before its failure is applied, so work
+     * superseded ends at its next exchange with [Abandoned], and a failure under it halts nothing.
+     */
+    private suspend fun ask(request: DiagRequest, owned: () -> Boolean): DiagReply {
         val b = synchronized(lock) {
+            if (!owned()) throw Abandoned()
             if (halt != null) throw Aborted()
             // The hub sees the car leave P before the helper would refuse: no refused request, no new helper.
             if (readings.parkedStill == false) {
@@ -893,6 +900,10 @@ internal class DiagnosticsSession(
             b.exchange(request)
         } catch (failure: DiagFailure) {
             synchronized(lock) {
+                if (!owned()) {
+                    log("diagnostics: ${failure.javaClass.simpleName} under superseded work: ${failure.message}")
+                    throw Abandoned()
+                }
                 fail(failure)
                 publish()
             }

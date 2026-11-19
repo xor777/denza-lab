@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.feature.diagnostics.bus.DiagFailure
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.carNow
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.row
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.session
@@ -411,6 +412,60 @@ class ReadsSessionTest {
         assertEquals(closed, bus.requests.size)
         // a block whose screen does not read Mode 06 has no tests
         assertNull(s.model.value.modules[0x7E5]?.tests)
+        s.stop()
+    }
+
+    /** «Прочитать снова» on «Тесты» after the channel was lost under the tests' own read: the press lifts the halt. */
+    @Test
+    fun readAgainLiftsTheHaltTheTestsReadStoppedOn() = runTest {
+        val bus = carNow {
+            CarNow.scriptEcmIdent(this)
+            on(0x7E0, "020200").answer("4202000000")
+            on(0x7E0, "0600").fail(DiagFailure.ChannelLost(IllegalStateException("lost"))).answer("4600C0000000")
+            on(0x7E0, "0601").answer("4601010B01C200000384")
+            on(0x7E0, "0602").answer("4602810B03E800000384")
+        }
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        s.setModuleOpen(0x7E0, true)
+        runCurrent()
+        assertEquals(LinkState.LOST, s.model.value.header.link)
+        assertEquals(ReadState.READING, s.model.value.modules.getValue(0x7E0).tests!!.state)
+
+        s.rereadTests(0x7E0)
+        runCurrent()
+        assertEquals(ReadState.READ, s.model.value.modules.getValue(0x7E0).tests!!.state)
+        assertEquals(1, bus.requests.count { it == "7E0 0601" })
+        s.stop()
+    }
+
+    /**
+     * A code's «Прочитать снова» while its first read is on the wire: the first asks nothing more, and what the
+     * screen shows is the second's.
+     */
+    @Test
+    fun aCodeReadAgainShowsTheNewReadNotTheOneItReplaced() = runTest {
+        val bus = carNow {
+            on(0x747, "1904517009FF").answer("5904517009280101F19031320201").answer("5904517009290101F19031320201")
+            on(0x747, "190451700901").answer("5904517009290101F1903132")
+            on(0x747, "1906517009FF").answer("590651700929")
+        }
+        val s = session(bus)
+        s.start()
+        runCurrent()
+        bus.delayMs = 100
+        val before = bus.requests.size
+        s.openCode(0x747, "C1170-09")
+        runCurrent()
+        // as the screen asks again: closed and opened on the same code
+        s.openCode(0x747, null)
+        s.openCode(0x747, "C1170-09")
+        advanceTimeBy(10_000)
+        runCurrent()
+
+        assertEquals(listOf("747 1904517009FF", "747 1904517009FF", "747 190451700901", "747 1906517009FF"), bus.requests.drop(before))
+        assertEquals(0x29, s.model.value.modules.getValue(0x747).codeReads.getValue("C1170-09").snapshots.status)
         s.stop()
     }
 
