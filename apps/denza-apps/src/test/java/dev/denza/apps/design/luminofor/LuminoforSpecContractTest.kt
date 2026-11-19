@@ -331,6 +331,7 @@ class LuminoforSpecContractTest {
         n(a.TILE, "sheet", "apps", "tile"); i(a.COLUMNS, "sheet", "apps", "columns")
         n(a.RADIUS, "sheet", "apps", "radius"); n(a.ICON, "sheet", "apps", "icon"); n(a.NAME_SIZE, "sheet", "apps", "nameSize")
         n(a.NAME_ALPHA, "sheet", "apps", "nameAlpha"); n(a.GAP, "sheet", "apps", "gap"); n(a.BADGE, "sheet", "apps", "badge")
+        i(a.NAME_LINES, "sheet", "apps", "nameLines"); n(a.NAME_STEP, "sheet", "apps", "nameStep")
         assertEquals(hex(SpecJson.str("sheet", "apps", "badgeColor")), a.BADGE_COLOR); n(a.BADGE_INSET, "sheet", "apps", "badgeInset")
         n(LuminoforSpec.Sheet.Note.SIZE, "sheet", "note", "size"); n(LuminoforSpec.Sheet.Note.ALPHA, "sheet", "note", "alpha"); n(LuminoforSpec.Sheet.Note.LEADING, "sheet", "note", "leading")
         n(LuminoforSpec.Sheet.Status.SIZE, "sheet", "status", "size"); n(LuminoforSpec.Sheet.Status.LEADING, "sheet", "status", "leading")

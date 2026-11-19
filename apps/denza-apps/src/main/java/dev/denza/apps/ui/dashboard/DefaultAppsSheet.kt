@@ -175,6 +175,7 @@ private fun ColumnScope.DefaultAppsChooserPage(
         subtitle = "",
         items = roleState.choices,
         key = DefaultAppChoice::packageName,
+        label = DefaultAppChoice::label,
         compact = compact,
         onDismiss = onDismiss,
         onBack = onBack,

@@ -981,18 +981,31 @@
   // The app's grid: a fixed count of columns on the full screen (four, three for the navigators),
   // and in a pane as many 96-wide columns as fit - Compose's Adaptive - each stretched to share the
   // width, so a cell is wider than tall and the tile is its width by 96.
+  // A name wraps to two centred lines under its icon rather than losing its end, and only past two
+  // is it cut. A row is as tall as its tallest name - a line's step more for a second line - so a
+  // one-line name keeps the row's first baseline.
   function apps(c, b, x, y, w, compact) {
     const A = SH.apps;
     const cols = compact ? Math.max(1, Math.floor((w + A.gap) / (A.tile + A.gap))) : (b.columns || 4);
     const cw = (w - (cols - 1) * A.gap) / cols;
+    const names = b.items.map(it => {
+      const ls = wrap(c, it.name, A.nameSize, 500, cw - 12);
+      if (ls.length <= A.nameLines) return ls;
+      let last = ls.slice(A.nameLines - 1).join(' ');
+      while (wordsW(c, last + '…', A.nameSize, 500) > cw - 12 && last.length > 1) last = last.slice(0, -1);
+      return ls.slice(0, A.nameLines - 1).concat([last + '…']);
+    });
+    const rowsN = Math.ceil(b.items.length / cols), rowY = [], rowH = [];
+    for (let r = 0, yy = y; r < rowsN; r++) {
+      const lines = Math.max(...names.slice(r * cols, r * cols + cols).map(l => l.length));
+      rowY.push(yy); rowH.push(A.tile + (lines - 1) * A.nameStep); yy += rowH[r] + A.gap;
+    }
     b.items.forEach((it, i) => {
-      const tx = x + (i % cols) * (cw + A.gap), ty = y + Math.floor(i / cols) * (A.tile + A.gap);
+      const r = Math.floor(i / cols), tx = x + (i % cols) * (cw + A.gap), ty = rowY[r];
       const dim = it.enabled === false ? 0.5 : 1;
-      fillRound(c, tx, ty, cw, A.tile, A.radius, SH.plate.color);
+      fillRound(c, tx, ty, cw, rowH[r], A.radius, SH.plate.color);
       letterIcon(c, it.name, tx + (cw - A.icon) / 2, ty + 14, A.icon, it.glyph, dim);
-      let nm = it.name;
-      while (wordsW(c, nm, A.nameSize, 500) > cw - 12 && nm.length > 1) nm = nm.slice(0, -2) + '…';
-      words(c, nm, tx + cw / 2, ty + 82, A.nameSize, A.nameAlpha * dim, { w: 500, align: 'center' });
+      names[i].forEach((l, k) => words(c, l, tx + cw / 2, ty + 82 + k * A.nameStep, A.nameSize, A.nameAlpha * dim, { w: 500, align: 'center' }));
       if (it.selected) {
         const bx = tx + cw - A.badgeInset - A.badge, by = ty + A.badgeInset;
         over(c, () => {
@@ -1001,8 +1014,7 @@
         });
       }
     });
-    const rows = Math.ceil(b.items.length / cols);
-    return rows * A.tile + (rows - 1) * A.gap;
+    return rowH.reduce((a, h) => a + h, 0) + (rowsN - 1) * A.gap;
   }
   function paragraph(c, str, x, y, w, size, leading, a, col) {
     const lines = wrap(c, str, size, 400, w), lh = size * leading;

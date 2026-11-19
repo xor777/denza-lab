@@ -320,6 +320,10 @@ object LuminoforSpec {
             const val ICON: Float = 44f
             const val NAME_SIZE: Float = 14f
             const val NAME_ALPHA: Float = 0.9f
+
+            /** A name wraps to two centred lines, [NAME_STEP] apart, and only past them is it cut. */
+            const val NAME_LINES: Int = 2
+            const val NAME_STEP: Float = 18f
             const val GAP: Float = 12f
             const val BADGE: Float = 20f
             const val BADGE_COLOR: Int = 0xFF1677D9.toInt()

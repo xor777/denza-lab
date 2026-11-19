@@ -759,7 +759,8 @@ widths. The panel's own row keeps the full wording, «Камеры и опасн
 the system sans, so Android's fallback chain draws it, and which font that is on this firmware is unknown. On
 the board Chrome borrows it from macOS. `everyLetterIsInTheFaceThatDrawsIt` holds it as the one such key and
 counts it a full em. «Яндекс Навигатор», «Яндекс Музыка» and Yandex Navigator are wider than the 84 dp of an app
-tile and end in an ellipsis, on the boards too; they are products' names, so the test lists them.
+tile's line; until 2026-11-19 they ended in an ellipsis, and since then a name wraps to a second centred line and
+its row grows by a line, on the boards too.
 
 Looking at every English board on 2026-11-06 changed two more strings. `adb_restore_status_waiting_wifi` broke
 as «Wi-» and «Fi» on `sheet-service-restore-wifi` and is now shorter, 330 dp. `sheet_cluster_map_card_summary` lost

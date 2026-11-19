@@ -37,6 +37,9 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
  * Selection is the badge and nothing else: a coloured edge round the chosen one made its neighbours
  * look unchosen by comparison, and a tinted icon well made the icon lie about its own colours.
  *
+ * The name wraps to two centred lines and the plate grows a line's step for the second - as tall
+ * as its row's tallest name, which [DenzaAppGrid] provides through [LocalAppTileLines].
+ *
  * [glyph] is for the one answer that is not an application - this app's own instruments on «Что
  * показывать» - drawn on the square an application without an icon gets its initial on.
  */
@@ -54,10 +57,11 @@ fun DenzaAppTile(
     val bitmap = rememberAppIcon(iconPackage, ICON_PX)
     val a = Sheet.Apps
     val dim = if (enabled) 1f else DISABLED
+    val lines = LocalAppTileLines.current.coerceIn(1, a.NAME_LINES)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(a.TILE.dp)
+            .height((a.TILE + (lines - 1) * a.NAME_STEP).dp)
             .clip(RoundedCornerShape(a.RADIUS.dp))
             .background(Color(Sheet.Plate.COLOR))
             .clickable(enabled = enabled, onClick = onClick),
@@ -82,10 +86,11 @@ fun DenzaAppTile(
         }
         BaselineText(
             text = label,
-            style = SheetInk.style(a.NAME_SIZE, 500, SheetInk.white(a.NAME_ALPHA * dim)),
+            style = appNameStyle(dim),
             baseline = NAME_BASELINE.dp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = NAME_INSET.dp),
+            maxLines = a.NAME_LINES,
         )
         if (selected) {
             SelectionBadge(
@@ -114,6 +119,15 @@ internal fun SelectionBadge(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/**
+ * An application's name as a tile sets it, at [dim] of its light: the board's 14/500 at 0.9, lines
+ * [Sheet.Apps.NAME_STEP] apart. [DenzaAppGrid] measures with the same style, so a row grows exactly
+ * when a name in it breaks.
+ */
+internal fun appNameStyle(dim: Float) = Sheet.Apps.let { a ->
+    SheetInk.style(a.NAME_SIZE, 500, SheetInk.white(a.NAME_ALPHA * dim), a.NAME_STEP / a.NAME_SIZE)
 }
 
 /** The badge's check on its own 20-unit box, scaled to the badge's pixels as it is drawn. */
