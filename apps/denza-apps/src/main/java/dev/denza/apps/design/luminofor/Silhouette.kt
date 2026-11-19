@@ -30,7 +30,9 @@ import kotlin.math.min
  * [upFill] and [downFill] are each an old and a new alpha, equal for a flat field.
  *
  * Nothing is allocated per frame but the gradients, and they only when the window moves on the
- * screen: the curve's points and tangents live in arrays sized to [capacity] once. After [draw], [endX], [endY] and [endValue] say where the newest point is, for the
+ * screen: the curve's points and tangents live in arrays sized to [capacity] once. And nothing is
+ * laid per frame that the last frame laid: the paths are built again only when the points or the
+ * geometry change ([CurveMemo]). After [draw], [endX], [endY] and [endValue] say where the newest point is, for the
  * caller's own dot.
  */
 class Silhouette(
@@ -49,6 +51,8 @@ class Silhouette(
     private var ys = FloatArray(capacity)
     private var tangents = FloatArray(capacity)
     private var secants = FloatArray(capacity)
+
+    private val memo = CurveMemo(capacity)
 
     private val line = Path()
     private val field = Path()
@@ -116,32 +120,11 @@ class Silhouette(
         endY = yOf(endValue)
         if (count < 2) return true
 
-        if (xs.size < count) {
-            xs = FloatArray(count)
-            ys = FloatArray(count)
-            tangents = FloatArray(count)
-            secants = FloatArray(count)
+        // The paths are the points' and the geometry's, and the cluster draws the same ones sixty
+        // times a second between sweeps: they are laid when either changes and only then.
+        if (!memo.same(points, first, count, right, pitch, zero, top, bottom, upTo, downTo, pen.x(0f), pen.y(0f), pen.px(1f))) {
+            lay(pen, points, first, x0, x1)
         }
-        for (i in 0 until count) {
-            xs[i] = pen.x(xOf(i))
-            ys[i] = pen.y(yOf(points[first + i]))
-        }
-        MonotoneCurve.tangents(xs, ys, count, tangents, secants)
-        line.rewind()
-        field.rewind()
-        line.moveTo(xs[0], ys[0])
-        field.moveTo(xs[0], ys[0])
-        for (i in 0 until count - 1) {
-            val ax = MonotoneCurve.c1x(xs, i)
-            val ay = MonotoneCurve.c1y(xs, ys, tangents, i)
-            val bx = MonotoneCurve.c2x(xs, i)
-            val by = MonotoneCurve.c2y(xs, ys, tangents, i)
-            line.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
-            field.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
-        }
-        field.lineTo(pen.x(x1), pen.y(zero))
-        field.lineTo(pen.x(x0), pen.y(zero))
-        field.close()
         shaders(pen.x(x0), pen.x(x1))
 
         val canvas = pen.canvas
@@ -169,6 +152,49 @@ class Silhouette(
         fill.shader = null
         beam.shader = null
 
+        if (!ticksUp.isEmpty) {
+            beam.color = upLight.core
+            canvas.drawPath(ticksUp, beam)
+        }
+        if (!ticksDown.isEmpty) {
+            beam.color = downLight.core
+            canvas.drawPath(ticksDown, beam)
+        }
+        return true
+    }
+
+    /**
+     * The curve, its field and the ticks of its cuts, in pixels: what [memo] keeps from being built
+     * again for the same points on the same geometry.
+     */
+    private fun lay(pen: LightPen, points: FloatArray, first: Int, x0: Float, x1: Float) {
+        if (xs.size < count) {
+            xs = FloatArray(count)
+            ys = FloatArray(count)
+            tangents = FloatArray(count)
+            secants = FloatArray(count)
+        }
+        for (i in 0 until count) {
+            xs[i] = pen.x(xOf(i))
+            ys[i] = pen.y(yOf(points[first + i]))
+        }
+        MonotoneCurve.tangents(xs, ys, count, tangents, secants)
+        line.rewind()
+        field.rewind()
+        line.moveTo(xs[0], ys[0])
+        field.moveTo(xs[0], ys[0])
+        for (i in 0 until count - 1) {
+            val ax = MonotoneCurve.c1x(xs, i)
+            val ay = MonotoneCurve.c1y(xs, ys, tangents, i)
+            val bx = MonotoneCurve.c2x(xs, i)
+            val by = MonotoneCurve.c2y(xs, ys, tangents, i)
+            line.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
+            field.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
+        }
+        field.lineTo(pen.x(x1), pen.y(zero))
+        field.lineTo(pen.x(x0), pen.y(zero))
+        field.close()
+
         // One tick per run cut at a ceiling, at the run's centre, just outside the box.
         ticksUp.rewind()
         ticksDown.rewind()
@@ -193,15 +219,6 @@ class Silhouette(
             }
             i = j + 1
         }
-        if (!ticksUp.isEmpty) {
-            beam.color = upLight.core
-            canvas.drawPath(ticksUp, beam)
-        }
-        if (!ticksDown.isEmpty) {
-            beam.color = downLight.core
-            canvas.drawPath(ticksDown, beam)
-        }
-        return true
     }
 
     // The window being drawn, held in fields so the two below are plain methods.
