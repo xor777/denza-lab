@@ -38,6 +38,29 @@ class VehicleAnsweredSweepTest {
     }
 
     /**
+     * A failed read, its backoff and a reconnect inside a bucket, through the clock the hub keeps:
+     * the first sweep back steps the odometer with no interval behind it, and the bucket it closes
+     * is not a reading. The clock said the sweeps were interrupted, and the sweep step told the log.
+     */
+    @Test
+    fun aBucketClosedByTheFirstSweepAfterAnInterruptionIsNotAReading() {
+        val clock = VehicleSweepClock()
+        fun at(millis: Long, km: Double) {
+            val dt = clock.tick(millis)
+            val parsed = mapOf(VehicleSignal.ODOMETER_KM to km, VehicleSignal.POWER_KW to 30.0)
+            VehicleAnsweredSweep.feed(parsed, emptyMap(), millis, dt, log, ledger, charge, resumed = clock.resumed)
+        }
+        at(1_000L, 100.0)
+        at(1_750L, 100.0)
+        clock.interrupted()
+        at(9_250L, 100.1)
+
+        val bucket = log.buckets.single()
+        assertEquals(0.1, bucket.km, 1e-9)
+        assertFalse("three quarters of a second is not the cost of the tick", bucket.known)
+    }
+
+    /**
      * The chart is the log's whole retention and the figure is the window's.
      *
      * Thirty expensive hundred-metre buckets and then a hundred cheap ones: the window is the last ten

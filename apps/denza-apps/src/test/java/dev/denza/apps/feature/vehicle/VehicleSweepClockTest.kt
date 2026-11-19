@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.vehicle
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -30,7 +32,17 @@ class VehicleSweepClockTest {
         clock.interrupted()
 
         assertEquals("the outage is not an interval", 0.0, clock.tick(17_600L), 1e-9)
+        assertTrue("and it says so", clock.resumed)
         assertEquals("and the one after it is", 0.25, clock.tick(17_850L), 1e-9)
+        assertFalse(clock.resumed)
+    }
+
+    /** A loop's first sweep has no interval either, but nothing unwatched is behind it. */
+    @Test
+    fun theFirstSweepOfALoopIsNotAResumption() {
+        val clock = VehicleSweepClock()
+        clock.tick(10_000L)
+        assertFalse(clock.resumed)
     }
 
     @Test

@@ -298,6 +298,30 @@ class ConsumptionLogTest {
     }
 
     /**
+     * The scenario of the hostile review of 2026-11-19: three quarters of a second of power in the
+     * bucket, then a failed read, its backoff and a reconnect, and the first sweep back steps the
+     * odometer a tick with no interval behind it. Nothing in the bucket's own sums says a gap was
+     * in it, so it closed as a full reading of the partial energy. The interruption says so now.
+     */
+    @Test
+    fun aBucketTheSweepsWereInterruptedInsideIsNotAReading() {
+        val car = Car()
+        car.poll(30.0, dt = 0.75)
+        car.log.interrupted()
+        car.poll(30.0, dt = 0.0, ticks = 1)
+
+        val bucket = car.log.buckets.single()
+        assertEquals("the road is still the road", 0.1, bucket.km, 1e-9)
+        assertEquals("none of it was watched whole", 0.0, bucket.knownKm, 0.0)
+        assertFalse(bucket.known)
+
+        // And the interruption belongs to that bucket alone.
+        repeat(4) { car.poll(30.0) }
+        car.poll(30.0, ticks = 1)
+        assertTrue(car.log.buckets.last().known)
+    }
+
+    /**
      * A stop is in neither side of the share: the light's minute without a power answer costs the
      * bucket nothing, because standing energy is the trip's and not the road's (contract §2.2).
      */

@@ -347,14 +347,16 @@ internal class VehicleTelemetryHub(context: Context) {
                 restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
 
                 val now = SystemClock.elapsedRealtime()
+                val dtSeconds = clock.tick(now)
                 val merged = VehicleAnsweredSweep.feed(
                     parsed = parsed,
                     cold = cold,
                     atMillis = now,
-                    dtSeconds = clock.tick(now),
+                    dtSeconds = dtSeconds,
                     log = log,
                     ledger = ledger,
                     charge = charge,
+                    resumed = clock.resumed,
                 )
                 saveTrip(now)
 
@@ -483,11 +485,25 @@ internal object VehicleColdSweep {
 internal class VehicleSweepClock {
 
     private var lastAt = 0L
+    private var gap = false
+
+    /**
+     * Whether the interval the last [tick] returned follows time nobody watched ([interrupted]).
+     *
+     * A zero interval says only that there is nothing to integrate; the log also has to know that
+     * the bucket it holds open spent time unwatched (`ConsumptionLog.interrupted`), and the first
+     * sweep of a loop has a zero interval with nothing unwatched behind it. So the interruption is
+     * said, not inferred.
+     */
+    var resumed = false
+        private set
 
     /** The interval since the previous sweep, or zero when there is not one to speak of. */
     fun tick(nowMillis: Long): Double {
         val previous = lastAt
         lastAt = nowMillis
+        resumed = gap
+        gap = false
         if (previous == 0L || nowMillis <= previous) return 0.0
         return (nowMillis - previous) / 1000.0
     }
@@ -495,6 +511,7 @@ internal class VehicleSweepClock {
     /** Time nobody was watching. The next sweep starts a new interval rather than closing this one. */
     fun interrupted() {
         lastAt = 0L
+        gap = true
     }
 }
 
@@ -653,7 +670,13 @@ internal object VehicleAnsweredSweep {
         log: ConsumptionLog,
         ledger: TripEnergyLedger,
         charge: EngineCharge,
+        /** This sweep follows time nobody watched ([VehicleSweepClock.resumed]). */
+        resumed: Boolean = false,
     ): Map<VehicleSignal, Double> {
+        // Before the sample, which may be the one that closes the bucket the gap was inside. The
+        // ledger needs no telling: [dtSeconds] is zero, and it integrates neither the road nor the
+        // energy of an interval it was not given.
+        if (resumed) log.interrupted()
         val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
         val load = VehicleConvention.load(parsed[VehicleSignal.POWER_KW])
         // Sampled on every sweep: a run is the engine's own flag, and what it charts is what the

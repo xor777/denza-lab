@@ -105,6 +105,7 @@ internal class ConsumptionLog(
     private var pendingMovingSeconds = 0.0
     private var pendingKnownSeconds = 0.0
     private var pendingOverran = false
+    private var pendingInterrupted = false
 
     /** Closed buckets, oldest first. All of them - the journal's own thirty kilometres. */
     val buckets: List<ConsumptionSample> get() = closed.toList()
@@ -192,13 +193,27 @@ internal class ConsumptionLog(
                 reading,
                 pendingKwh,
                 pendingKm,
-                knownRoad(pendingKm, pendingMovingSeconds, pendingKnownSeconds, pendingOverran),
+                knownRoad(pendingKm, pendingMovingSeconds, pendingKnownSeconds, pendingOverran || pendingInterrupted),
             )
             closed.addLast(sample)
             while (closed.size > capacity) closed.removeFirst()
             dropOpenWork()
             onBucketClosed(sample)
         }
+    }
+
+    /**
+     * The sweeps stopped and started again: a failed read, its backoff and the reconnect, or a bus
+     * that went quiet long enough to be backed off from. The open bucket spent time inside it that
+     * nobody watched, of a length the next sweep cannot be given ([VehicleSweepClock] starts that
+     * sweep's interval at zero), so none of its road is known (contract §2.6).
+     *
+     * Until 2026-11-19 nothing told the log, and a bucket with three quarters of a second of power
+     * behind it, closed by the first sweep after a reconnect, was a full reading of its hundred
+     * metres: the partial energy was drawn and journalled as the cost of the whole tick.
+     */
+    fun interrupted() {
+        pendingInterrupted = true
     }
 
     fun reset() {
@@ -244,6 +259,7 @@ internal class ConsumptionLog(
         pendingMovingSeconds = 0.0
         pendingKnownSeconds = 0.0
         pendingOverran = false
+        pendingInterrupted = false
     }
 
     companion object {
@@ -251,8 +267,9 @@ internal class ConsumptionLog(
          * A closing bucket's known road (contract §2.6): its road times the share of its moving
          * time that had power.
          *
-         * None of it after a step of more than one tick, which is road nobody watched, and none of
-         * it for a bucket that never moved by its speed readings, which has no time to measure the
+         * None of it after a step of more than one tick or across an interruption of the sweeps,
+         * which are road nobody watched ([unwatched] stands for both), and none of it for a bucket
+         * that never moved by its speed readings, which has no time to measure the
          * share over and no energy filed against its road. A bucket known in every moving second
          * gets its road back exactly: the two sums are the same additions in the same order.
          */
@@ -260,9 +277,9 @@ internal class ConsumptionLog(
             km: Double,
             movingSeconds: Double,
             knownSeconds: Double,
-            overran: Boolean,
+            unwatched: Boolean,
         ): Double =
-            if (overran || movingSeconds <= 0.0) 0.0 else km * (knownSeconds / movingSeconds)
+            if (unwatched || movingSeconds <= 0.0) 0.0 else km * (knownSeconds / movingSeconds)
 
         /**
          * One odometer tick per bucket, which is as fine as this car can be asked.
