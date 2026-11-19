@@ -294,14 +294,16 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
             f.voltsUnit?.let { pen.text(it, left + w + Grid.UNIT_GAP, base, Grid.UNIT_SIZE, ClusterInk.GREY, 1f) }
         }
 
-        for (index in 0 until ContourFrame.CELLS) {
-            val cell = f.temps[index]
+        // Slot by slot in the row's order, each reading taken from its own glyph's place in the frame.
+        for (slot in ThermalGlyphs.ROW.indices) {
+            val glyph = ThermalGlyphs.ROW[slot]
+            val cell = f.temps[glyph.ordinal]
             if (!cell.shown) continue
-            val x = ContourGeometry.tempX(index)
+            val x = ContourGeometry.tempX(slot)
             val hot = cell.level != ContourReadout.Level.NORMAL
             val col = levelLight(cell.level)
             if (hot) hotPool(x, base, cell.level, f.t)
-            ThermalGlyphs.draw(pen, GLYPHS[index], x, Grid.GLYPH_BASE, col, if (hot) 1f else 0.85f, hot)
+            ThermalGlyphs.draw(pen, glyph, x, Grid.GLYPH_BASE, col, if (hot) 1f else 0.85f, hot)
             val value = cell.value ?: continue
             pen.figures(value, x, base, Grid.TEMP_SIZE, col, 1f)
             pen.figures(ContourReadout.DEGREE, ContourGeometry.degreeX(x, value), base, Grid.TEMP_SIZE, col, 1f)
@@ -541,9 +543,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     private fun unit(a: Float): Int = (a.coerceIn(0f, 1f) * 255f).roundToInt()
 
     private companion object {
-        /** `ThermalGlyphs`' cells in the frame's order: pack, front, rear left, rear right, inverter. */
-        val GLYPHS = ThermalGlyphs.Cell.entries.toTypedArray()
-
         /** The filament's centre stop is 0.85 of the alpha spec.json gives it. */
         const val FILAMENT_PEAK = 0.85f
 

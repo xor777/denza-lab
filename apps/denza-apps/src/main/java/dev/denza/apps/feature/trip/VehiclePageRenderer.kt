@@ -126,16 +126,18 @@ internal class VehiclePageRenderer {
         pitch: Float,
         size: Float,
     ) {
-        for (index in 0 until StripModel.TEMPERATURES) {
-            val cell = model.temps[index]
-            val x = x0 + index * pitch
+        // Slot by slot in the row's order, each reading taken from its own glyph's place in the model.
+        for (slot in ThermalGlyphs.ROW.indices) {
+            val glyph = ThermalGlyphs.ROW[slot]
+            val cell = model.temps[glyph.ordinal]
+            val x = x0 + slot * pitch
             val hot = cell.heat != StripHeat.NORMAL
             val light = when (cell.heat) {
                 StripHeat.DANGER -> ClusterInk.RED
                 StripHeat.WARNING -> ClusterInk.ORANGE
                 StripHeat.NORMAL -> HeadInk.WHITE
             }
-            ThermalGlyphs.draw(pen, CELLS[index], x, capY + GLYPH_DROP, light, if (hot) 1f else GLYPH_LEVEL, hot)
+            ThermalGlyphs.draw(pen, glyph, x, capY + GLYPH_DROP, light, if (hot) 1f else GLYPH_LEVEL, hot)
             cell.figure?.let { pen.figures(it, x, valY, size, light, 1f) }
         }
     }
@@ -256,13 +258,5 @@ internal class VehiclePageRenderer {
             VehicleReadFailure.NO_ANSWER.message -> AppText.s(R.string.car_page_no_answer)
             else -> message
         }
-
-        private val CELLS = arrayOf(
-            ThermalGlyphs.Cell.PACK,
-            ThermalGlyphs.Cell.FRONT,
-            ThermalGlyphs.Cell.REAR_LEFT,
-            ThermalGlyphs.Cell.REAR_RIGHT,
-            ThermalGlyphs.Cell.INVERTER,
-        )
     }
 }

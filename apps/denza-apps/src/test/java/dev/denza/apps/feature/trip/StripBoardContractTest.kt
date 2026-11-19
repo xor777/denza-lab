@@ -216,8 +216,10 @@ open class StripBoardContractTest {
         val v = VehiclePageRenderer
         assertDrawn(
             "a temperature's glyph",
-            "glyph(c, KINDS[i], x, capY + ${js(v.GLYPH_DROP)}, col, hot ? 1 : ${js(v.GLYPH_LEVEL)}, hot)",
+            "glyph(c, kind, x, capY + ${js(v.GLYPH_DROP)}, col, hot ? 1 : ${js(v.GLYPH_LEVEL)}, hot)",
         )
+        // and in the row's order, each reading with its own kind (ThermalRowBindingTest holds the app)
+        assertDrawn("the temperatures' row", "row(f.temps).forEach(({ kind, cell }, i) => {")
         assertDrawn("the chart's line", "runs: 1,\n      intensity: () => ${js(v.LINE_INTENSITY)},")
         assertDrawn("the chart's newest point", "glowFill(c, d, end.last < 0 ? HUB : WHT, 1, ${js(v.END_BLUR)})")
         // Silhouette's one inline number: a tick stands one unit clear of the box it was cut at.

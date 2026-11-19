@@ -119,21 +119,21 @@ internal object ContourGeometry {
 
     /**
      * The widest temperature the row prints: a motor at 150°, which reaches as far as a pack at
-     * −40° once its one hangs ([WideDigits.lead]). [Grid.TEMP_PITCH] holds it three tracking steps
-     * clear of the next reading - more air than a one leaves inside a reading.
+     * −40° once its one hangs ([WideDigits.lead]). [Grid.TEMP_PITCH] holds it clear of the next
+     * reading by twice the air a reading has inside it, so five readings past a hundred stay five.
      */
     const val TEMPERATURE_WIDEST: String = "150°"
 
     /**
-     * The first temperature cell: the five end flush with the group's edge at two digits and «°»,
-     * as they always did. Anchored at [TEMPERATURE_WIDEST] instead, the pack's glyph would stand
-     * on «НАПРЯЖЕНИЕ» on the line the two share; so a reading past a hundred in the
-     * last cell reaches 16 units past the edge, into the air before the hero's field.
+     * The first temperature cell, [Grid.TEMPS_LEFT]: further from «НАПРЯЖЕНИЕ» than two readings
+     * stand from each other. A reading past a hundred in the last cell reaches past the group's edge
+     * into the air before the hero's field and stops well short of it. Until 2026-11-19 the row
+     * ended on the group's edge at two figures, 15 units after the caption, at a pitch of 80.
      */
-    val TEMPS_LEFT: Float =
-        GROUP_LEFT_END - WideDigits.width("00°", Grid.TEMP_SIZE) - (ContourFrame.CELLS - 1) * Grid.TEMP_PITCH
+    const val TEMPS_LEFT: Float = Grid.TEMPS_LEFT
 
-    fun tempX(index: Int): Float = TEMPS_LEFT + index * Grid.TEMP_PITCH
+    /** The left edge of the row's [slot]th cell, in `ThermalGlyphs.ROW`'s order. */
+    fun tempX(slot: Int): Float = TEMPS_LEFT + slot * Grid.TEMP_PITCH
 
     /** Where a figure's «°» starts when the two are drawn apart: one tracking step after it. */
     fun degreeX(x: Float, value: String): Float =

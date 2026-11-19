@@ -102,7 +102,8 @@ object LuminoforSpec {
             const val BASELINE: Float = 246.6578f
             const val AXIS: Float = 296f
             const val SIDE: Float = 200f
-            const val TEMP_PITCH: Float = 80f
+            const val TEMP_PITCH: Float = 85f
+            const val TEMPS_LEFT: Float = 190f
             const val HERO_SIZE: Float = 88f
             const val HERO_UNIT_GAP: Float = 32f
             const val HERO_UNIT_SIZE: Float = 34f
@@ -187,6 +188,24 @@ object LuminoforSpec {
             const val OUTLINE: Float = 1.4f
             const val WHEEL: Float = 1.1f
             const val HEIGHT: Float = 24f
+
+            /** `spec.json` → `cluster.glyph.row`, as `ThermalGlyphs.ROW` lays the cells out. */
+            val ROW: List<String> = listOf("pack", "front", "inverter", "rearLeft", "rearRight")
+
+            /** The converter's symbol: the box, its diagonal, «=» in and the lit «~» out. */
+            object Inverter {
+                const val BOX: Float = 24f
+                const val RADIUS: Float = 3.2f
+                const val INSET: Float = 1.6f
+                val DC: FloatArray = floatArrayOf(19f, 15.5f)
+                const val DC_FROM: Float = 4f
+                const val DC_TO: Float = 10.5f
+                const val WAVE_FROM: Float = 10.6f
+                const val WAVE_TO: Float = 21.6f
+                const val WAVE_MID: Float = 7f
+                const val WAVE_AMP: Float = 4.3f
+                const val WAVE_STROKE: Float = 2.6f
+            }
         }
     }
 
@@ -524,7 +543,7 @@ object LuminoforSpec {
             object Car {
                 const val HERO_SIZE: Float = 56f
                 const val HERO_CAPTION: Float = 397f
-                const val TEMP_PITCH: Float = 72f
+                const val TEMP_PITCH: Float = 76f
                 const val TEMP_SIZE: Float = 30f
                 const val CHART_CAPTION: Float = 502f
                 const val CHART_CAPTION_SIZE: Float = 15f
@@ -571,7 +590,7 @@ object LuminoforSpec {
                 const val ROW2_CAPTION: Float = 262f
                 const val ROW2_VALUE: Float = 304f
                 const val VOLT_SIZE: Float = 34f
-                const val TEMP_PITCH: Float = 72f
+                const val TEMP_PITCH: Float = 76f
                 const val TEMP_SIZE: Float = 30f
                 const val CHART_CAPTION: Float = 350f
                 const val CHART_TOP: Float = 364f

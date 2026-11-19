@@ -23,6 +23,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
 | The band has one scale both ways since 2026-11-19: equal power is equal length out of the pack or into it, on the square root, full at 300 kW, a clip tick past it (until then 100 kW back). The zero's glow is `0.65·(|P| / 300)^1.5` on both sides, radius 442 and `reachBelow` 63.9 (curve since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW, 83 at 200 kW and 153 at 300 kW; 14 kW back is now under 2 and 80 kW back 23 (they were 9 and 119). Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. The one scale is not on the car yet | live | 2026-11-19 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26), [One scale both ways](#one-scale-both-ways-2026-11-19) |
+| The temperature row stands pack, front motor, front inverter, rear left, rear right since 2026-11-19, on the cluster and the car page (`ThermalGlyphs.ROW`; the readings keep the data's order, `ThermalRowBindingTest`); a motor lights its wheels and axle outside the body, the inverter is the converter's symbol with a larger wave; pitch 85 on the cluster and 76 dp on the car page, so two readings stand twice as far apart as the figures inside one; «НАПРЯЖЕНИЕ» 23 units from the pack's glyph. Not on the car yet | code | 2026-11-19 | [The row's order and its air](#the-rows-order-and-its-air-2026-11-19) |
 | A Contour caption is a name only since 2026-11-19: one case, tracking 0.08 everywhere, the unit small beside its figure, each detail reading caption, figure, unit - «НАПРЯЖЕНИЕ» over «412 В», «ДВС» over «1650 об/мин», «ЗА ПОЕЗДКУ» over «9,3 кВт·ч» with «42 км» under it, «ЗАРЯД ОТ ДВС 0,8 кВт·ч»; the engine's block narrowed to 296. Not on the car yet | code | 2026-11-19 | [A caption is a name](#a-caption-is-a-name-2026-11-19), [energy contract §3](energy-display-contract.md#3-words) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22). `GENERATION_KW` is above zero only during forced generation in P: on the 2026-09-24 drive the engine charged the pack on the move with it at `0` (refutes "the engine's charge into the pack", 2026-11-19). Since 2026-11-19 the engine's block reads the pack's own charge, `max(0, −P)` while `ENGINE_RUNNING` is up (`EngineCharge.kt`): «ЗАРЯД ОТ ДВС» over two minutes of it, the run's kWh and time beside it, up while the engine runs, moving or parked, and 10 s after; not yet on the car | code | 2026-11-19 | [energy contract §2.5](energy-display-contract.md#25-the-engine), [Generation reads zero on the move](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
@@ -523,7 +524,7 @@ glance, by somebody who has never seen it and has no legend?**
 | the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52. **Superseded 2026-11-19:** «НАПРЯЖЕНИЕ» over «412 В», the unit beside the figure ([A caption is a name](#a-caption-is-a-name-2026-11-19)) |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip. **Superseded 2026-11-19:** «ДВС» over «1650 об/мин», «ДВС ЗА ПОЕЗДКУ» over «6 мин» |
-| the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
+| the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT`. **Superseded 2026-11-19:** the row stands pack, front motor, front inverter, rear left, rear right ([The row's order and its air](#the-rows-order-and-its-air-2026-11-19)) |
 | the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P. It keeps the shelf whenever the engine's box does not, which is every state except an engine that is running **and giving** (since 2026-11-19: «ЗАРЯД ОТ ДВС», and the shelf goes to the engine's block whenever the engine runs). **Superseded 2026-11-19:** «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», and under it «42 км», «ЗАРЯД ОТ ДВС 0,8 кВт·ч», «● РЕКУПЕРАЦИЯ 3,1 кВт·ч» |
 | the engine's box | only while `ENGINE_RUNNING` is up and `GENERATION_KW` was above zero somewhere in the window: what the engine is giving, as twenty-four five-second steps linear to 30 kW in the history's own grey, under one sentence - «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», no dot. It leaves ten seconds after the flag drops. **Superseded 2026-11-19:** the engine's block - the pack's charge while the engine runs, a curve a second over two minutes in blue, «ЗАРЯД ОТ ДВС», the run's kWh and time ([contract §2.5](energy-display-contract.md#25-the-engine)) |
 | the petal | the last ten kilometres of consumption, as **a line through a hundred points** on the odometer's own 100 m grid, each the mean of the kilometre ending at it, standing on the figure's own baseline, linear 0…60 up and 0…20 back down with one tick over each run it cuts, holes where the log had no energy - «кВт·ч/100 км · за 10 км», or a countdown to full while a gun is in |
@@ -612,6 +613,10 @@ with its own `°` over a drawing of the thing the figure is about.
 | 5 | a case with one period of alternating current in it | `INVERTER_C` |
 | 6 | «РАЗБРОС ЯЧЕЕК», and it is the only word in the row | `CELL_MAX_MV − CELL_MIN_MV` |
 
+> **Superseded 2026-11-19:** the order and three of the drawings. The inverter is the third
+> cell, a motor lights its wheels as well as its axle, and the inverter is the converter's symbol
+> — see [The row's order and its air](#the-rows-order-and-its-air-2026-11-19).
+
 Five rules carry the family, and `ContourGlyphs` is where they live:
 
 - **all five or none.** «если символы, то и батарея, и инвертор, и хорошие» - half
@@ -647,6 +652,45 @@ This row breaks the house icon rule on purpose. `DenzaIcons` is one optical weig
 throughout, because those are labels on tiles; a glyph here is half of a reading,
 and inside one mark the case, the lit component and the wheels are three different
 kinds of thing.
+
+#### The row's order and its air (2026-11-19)
+
+The owner approved a meaning pass on the row from the board; the board and the code
+moved together, on the cluster and on the car page at all three widths.
+
+| slot | glyph | signal |
+| --- | --- | --- |
+| 1 | the pack, as before | `PACK_TEMP_AVG` |
+| 2 | the car from above, both front wheels and the axle between them lit | `MOTOR_FRONT_C` |
+| 3 | the converter's symbol: a box cut by its diagonal, «=» in, the lit «~» out | `INVERTER_C` |
+| 4 | the car, the left rear wheel and its half-axle lit | `MOTOR_REAR_LEFT_C` |
+| 5 | the car, the right rear wheel and its half-axle lit | `MOTOR_REAR_RIGHT_C` |
+
+- **The order follows the drive.** The one inverter the car reports is the front
+  drive's power module (`INVERTER_C`, 1039/`0x46406010`, the front motor's IPM in
+  the motor table of [vehicle-data-findings](vehicle-data-findings.md)), so it stands beside the front
+  motor it feeds. The readings keep the data's order (pack, front, rear left, rear
+  right, inverter); `ThermalGlyphs.ROW` (`spec.json` → `cluster.glyph.row`) is the
+  row, and both renderers draw slot `i` as `ROW[i]` over the reading at
+  `ROW[i].ordinal`. `ThermalRowBindingTest` puts five different temperatures through
+  both screens and reads each slot back.
+- **A motor lights where it is.** The light stands outside the body - two front
+  wheels and their axle, or one rear wheel and its half-axle - so left and right
+  part at a glance; the block on the axle inside the body was the same width for
+  all three cars.
+- **The inverter's wave** fills the lower triangle of the box (24 units, the wave
+  11 wide and 8.6 high at a 2.6 stroke, starting downward so its crest stands
+  where the triangle is tall); the first drawing's wave was 10 by 6.8 at 2.2.
+- **Air between readings.** At pitch 80 (cluster) and 72 dp (car page, full and
+  two-thirds) five readings past a hundred - «−12° 104° 110° 118° 121°» - ran into
+  one number: two readings stood 1.4 times as far apart as the figures inside one.
+  The rule is twice now (`ContourGeometryTest`, `StripGeometryTest`): the cluster
+  pitches the row at 85, the car page at 76 dp at every width.
+- **Air after the caption.** The row starts at `tempsLeft` 190, so «НАПРЯЖЕНИЕ»
+  ends 23 units before the pack's glyph (it was 15), more than two readings stand
+  apart. The row no longer ends on the group's edge at two figures: the widest
+  reading in the last cell runs into the air before the hero and stops 34 units
+  short of a three-figure hero.
 
 ### The four rules the panel is built on
 

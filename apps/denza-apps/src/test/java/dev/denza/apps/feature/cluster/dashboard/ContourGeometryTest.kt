@@ -169,31 +169,32 @@ open class ContourGeometryTest {
         val left = g.GROUP_LEFT
         val end = g.GROUP_LEFT_END
         val firstCell = g.tempX(0)
-        // «НАПРЯЖЕНИЕ» and three-digit volts with their «В» both end before the first glyph starts.
-        val caption = JuraMeasure.width(ContourReadout.TITLE_VOLTS, Grid.CAPTION_SIZE, Grid.CAPTION_TRACK)
-        assertTrue("the caption ends at ${left + caption}, the glyphs start at $firstCell", left + caption < firstCell)
-        val volts = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP +
-            JuraMeasure.width(ContourReadout.UNIT_VOLT, Grid.UNIT_SIZE)
-        assertTrue("three-digit volts end at ${left + volts}", left + volts < firstCell)
-        // Five two-digit temperatures end on the group's edge, as they always did. The widest the
-        // row prints, −40° to 150° - a one hangs, so «150°» reaches no further than «−40°» - stands
-        // three tracking steps clear of the next, more than a one leaves inside a reading, and in
-        // the last cell reaches past the edge by less than a quarter of the air before the hero.
+        // The widest the row prints, −40° to 150° - a one hangs, so «150°» reaches no further than
+        // «−40°» - and every reading of the stress set within it.
         val widest = WideDigits.extent(g.TEMPERATURE_WIDEST, Grid.TEMP_SIZE)
-        assertEquals("flush with the edge", end, g.tempX(ContourFrame.CELLS - 1) + figures("00°", Grid.TEMP_SIZE), 1e-3f)
-        for (t in listOf("-40°", "-12°", "00°", "104°", "118°", "150°")) {
+        for (t in listOf("-40°", "-12°", "00°", "104°", "110°", "118°", "121°", "150°")) {
             assertTrue("«$t» stays in its cell", WideDigits.extent(t, Grid.TEMP_SIZE) <= widest + 1e-4f)
         }
         val clear = Grid.TEMP_PITCH - widest
-        assertTrue("$clear between the widest two", clear >= 2.9f * Digits.TRACK * WideDigits.k(Grid.TEMP_SIZE))
         // Ink to ink: from a «°» to a hung one's flag, against a one's stem to the figure after it.
+        // Two readings stand twice as far apart as the figures inside one (since 2026-11-19: at 80
+        // it was 1.4 times, and «104° 118° 121°» read as one number).
         val k = WideDigits.k(Grid.TEMP_SIZE)
         val between = clear / k - 6f
         val inside = 70f - 44f + Digits.TRACK - WideDigits.stroke(Grid.TEMP_SIZE) / k
-        assertTrue("$between units between two readings, $inside inside one", between > 1.3f * inside)
+        assertTrue("$between units between two readings, $inside inside one", between >= 2f * inside)
+        // «НАПРЯЖЕНИЕ» stands further from the pack's glyph than two readings stand apart, and
+        // three-digit volts with their «В» end that far before the first figure.
+        val caption = JuraMeasure.width(ContourReadout.TITLE_VOLTS, Grid.CAPTION_SIZE, Grid.CAPTION_TRACK)
+        assertTrue("the caption ends at ${left + caption}, the glyphs start at $firstCell", left + caption + clear <= firstCell)
+        val volts = figures("888", Grid.FIGURE_SIZE) + Grid.UNIT_GAP +
+            JuraMeasure.width(ContourReadout.UNIT_VOLT, Grid.UNIT_SIZE)
+        assertTrue("three-digit volts end at ${left + volts}", left + volts + clear <= firstCell)
+        // The widest reading in the last cell runs past the group's edge into the air before the
+        // hero's three figures and stops half as far again from them as two readings stand apart.
         val heroField = g.heroFieldRight(JuraMeasure.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE)) - g.HERO_FIELD
-        val over = g.tempX(ContourFrame.CELLS - 1) + widest - end
-        assertTrue("past the edge by $over of ${heroField - end}", over < (heroField - end) / 4f)
+        val last = g.tempX(ContourFrame.CELLS - 1) + widest
+        assertTrue("the row ends at $last, the hero starts at $heroField", heroField - last >= 1.5f * clear)
         assertEquals(
             "and the «°» drawn apart lands where the run would put it",
             g.tempX(4) + WideDigits.extent("118°", Grid.TEMP_SIZE) - figures("°", Grid.TEMP_SIZE),

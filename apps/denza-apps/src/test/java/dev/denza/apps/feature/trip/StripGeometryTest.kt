@@ -228,8 +228,8 @@ open class StripGeometryTest {
         Span("the trip", minOf(caption, run), right)
 
     /**
-     * At every width the row is drawn, the widest two readings stand three tracking steps apart -
-     * more air than a one leaves inside a reading - so a row of five never reads as one number.
+     * At every width the row is drawn, the widest two readings stand twice as far apart as the
+     * figures inside one, so a row of five never reads as one number.
      * (The cluster's row is held so in `ContourGeometryTest`.)
      */
     @Test
@@ -244,12 +244,13 @@ open class StripGeometryTest {
                 assertTrue("$name: «$t» stays in its cell", WideDigits.extent(t, size) <= widest + 1e-4f)
             }
             val clear = pitch - widest
-            assertTrue("$name: $clear between the widest two", clear >= 2.9f * Digits.TRACK * WideDigits.k(size))
             // Ink to ink: from a «°» to a hung one's flag, against a one's stem to the next figure.
+            // Twice the air of a reading's inside since 2026-11-19 (at 72 it was 1.4 times, and
+            // «104° 118° 121°» read as one number).
             val k = WideDigits.k(size)
             val between = clear / k - 6f
             val inside = 70f - 44f + Digits.TRACK - WideDigits.stroke(size) / k
-            assertTrue("$name: $between units between two readings, $inside inside one", between > 1.3f * inside)
+            assertTrue("$name: $between units between two readings, $inside inside one", between >= 2f * inside)
         }
     }
 

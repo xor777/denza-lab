@@ -119,8 +119,16 @@
   }
 
   /* --------------------------------------------------------- temperatures */
-  // The five cells: pack, front motor, rear-left motor, rear-right motor, inverter.
+  // The readings come in the data's order: pack, front motor, rear-left motor, rear-right motor,
+  // inverter. The row draws them in spec cluster.glyph.row: the pack, the front drive - its motor,
+  // then the inverter feeding it - and the rear motors left and right. `row` lays the cells out in
+  // that order, each with its own kind, so a reading cannot leave its glyph.
   const KINDS = ['pack', 'front', 'rearL', 'rearR', 'inv'];
+  const ROW_KIND = { pack: 'pack', front: 'front', inverter: 'inv', rearLeft: 'rearL', rearRight: 'rearR' };
+  const row = temps => (temps.length ? S.cluster.glyph.row.map(name => {
+    const i = KINDS.indexOf(ROW_KIND[name]);
+    return { kind: KINDS[i], cell: temps[i] };
+  }) : []);
   // The widest temperature either screen prints: a motor at 150°, as far as a pack at −40°.
   const TEMP_WIDEST = '150°';
   function glyph(c, kind, x, base, col, lit, hot) {
@@ -134,20 +142,37 @@
       beam(c, out, G.outline, GREY, 0.9, 0); glowFill(c, on, col, lit, blur);
       return;
     }
+    // the front drive's inverter - the one the car reports, its power module - as the converter's
+    // own symbol: a box cut by its diagonal, direct current «=» in, alternating «~» out and lit. The
+    // wave fills the lower triangle, so it reads at the size of the motors' lit axles.
     if (kind === 'inv') {
-      out.roundRect(x, base - 22, 21, 21, 3);
-      const w = new Path2D(); w.moveTo(x + 4, base - 11.5);
-      for (let i = 0; i <= 26; i++) { const u = i / 26; w.lineTo(x + 4 + u * 13, base - 11.5 - Math.sin(u * Math.PI * 2) * 5); }
-      beam(c, out, G.outline, GREY, 0.9, 0); beam(c, w, 1.8, col, lit, hot ? 1 : 0);
+      const I = G.inverter, b = I.box;
+      out.roundRect(x, base - b, b, b, I.radius);
+      out.moveTo(x + I.inset, base - I.inset); out.lineTo(x + b - I.inset, base - b + I.inset);
+      I.dc.forEach(h => { out.moveTo(x + I.dcFrom, base - h); out.lineTo(x + I.dcTo, base - h); });
+      const w = new Path2D(), [w0, w1] = I.wave;
+      w.moveTo(x + w0, base - I.waveMid);
+      for (let i = 1; i <= 32; i++) {
+        const u = i / 32;
+        w.lineTo(x + w0 + u * (w1 - w0), base - I.waveMid + Math.sin(u * Math.PI * 2) * I.waveAmp);
+      }
+      beam(c, out, G.outline, GREY, 0.9, 0); beam(c, w, I.waveStroke, col, lit, hot ? 1 : 0);
       return;
     }
+    // a motor is the car from above and its drive lit where it is: the whole front axle with both
+    // wheels for the front motor, one rear wheel and its half-axle for a rear motor - the light
+    // stands outside the body, on the side it names, so left and right part at a glance
     const bx = x + 4, bw = 13, top = base - 23, bh = 22;
     out.roundRect(bx, top, bw, bh, 4);
-    const wh = new Path2D();
-    [[bx - 3.4, top + 3], [bx + bw + 0.4, top + 3], [bx - 3.4, top + bh - 9], [bx + bw + 0.4, top + bh - 9]].forEach(([wx, wy]) => wh.roundRect(wx, wy, 3, 6, 1));
-    if (kind === 'front') on.roundRect(bx + 2, top + 4.5, bw - 4, 3.2, 1);
-    if (kind === 'rearL') on.roundRect(bx + 2, top + bh - 7.5, (bw - 4) / 2 - 0.5, 3.2, 1);
-    if (kind === 'rearR') on.roundRect(bx + bw / 2 + 0.5, top + bh - 7.5, (bw - 4) / 2 - 0.5, 3.2, 1);
+    const wh = new Path2D(), ww = 3.2, wl = 6.6, fy = top + 2.5, ry = top + bh - 9;
+    const L = bx - ww - 0.6, R = bx + bw + 0.6;
+    const lit4 = { front: [[L, fy], [R, fy]], rearL: [[L, ry]], rearR: [[R, ry]] }[kind];
+    [[L, fy], [R, fy], [L, ry], [R, ry]].forEach(([wx, wy]) => {
+      (lit4.some(q => q[0] === wx && q[1] === wy) ? on : wh).roundRect(wx, wy, ww, wl, 1);
+    });
+    if (kind === 'front') on.roundRect(L + ww, fy + wl / 2 - 1.6, R - L - ww, 3.2, 1);
+    if (kind === 'rearL') on.roundRect(L + ww, ry + wl / 2 - 1.6, bw / 2 + 0.6, 3.2, 1);
+    if (kind === 'rearR') on.roundRect(bx + bw / 2, ry + wl / 2 - 1.6, bw / 2 + 0.6, 3.2, 1);
     beam(c, out, G.outline, GREY, 0.9, 0); beam(c, wh, G.wheel, GREY, 0.7, 0); glowFill(c, on, col, lit, blur);
   }
   // The fixture says which cells are out of line; the thresholds are the app's, not the board's.
@@ -438,12 +463,11 @@
       const vw = num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
       if (f.voltsUnit) text(c, f.voltsUnit, GL + vw + CG.unitGap, base, CG.unitSize, GREY, 1);
     }
-    // the pitch holds the widest reading (−40° to 150°) three tracking steps clear of the next; the
-    // row ends on the group's edge at two figures, so the pack's glyph keeps its distance from the
-    // caption on the line it now shares
-    const tx0 = GR - numWidth('00°', CG.tempSize) - 4 * CG.tempPitch;
-    f.temps.forEach((cell, i) => {
-      const x = tx0 + i * CG.tempPitch;
+    // the row starts tempsLeft, further from the volts' caption than two readings stand apart, and
+    // its pitch holds the widest reading (−40° to 150°) twice the air a reading has inside it clear
+    // of the next; a reading past a hundred in the last cell reaches into the air before the hero
+    row(f.temps).forEach(({ kind, cell }, i) => {
+      const x = CG.tempsLeft + i * CG.tempPitch;
       const [hc, hot] = tempColour(cell.state);
       const col = hot ? hc : INK;
       if (hot) {
@@ -452,7 +476,7 @@
         g.addColorStop(0, rgba(col[0], 0.10 + 0.04 * Math.sin(f.t * 4))); g.addColorStop(1, rgba(col[0], 0));
         c.fillStyle = g; c.fillRect(x - 30, base - 80, 110, 110); c.restore();
       }
-      glyph(c, KINDS[i], x, CG.glyphBase, col, hot ? 1 : 0.85, hot);
+      glyph(c, kind, x, CG.glyphBase, col, hot ? 1 : 0.85, hot);
       if (cell.value != null) num(c, cell.value + '°', x, base, CG.tempSize, col, 1, 'left');
     });
 
@@ -611,11 +635,11 @@
     glowFill(c, d, end.last < 0 ? HUB : WHT, 1, 8);
   }
   function tempsRow(c, f, x0, capY, valY, pitch, size) {
-    f.temps.forEach((cell, i) => {
+    row(f.temps).forEach(({ kind, cell }, i) => {
       const x = x0 + i * pitch;
       const [hc, hot] = tempColour(cell.state);
       const col = hot ? hc : WHT;
-      glyph(c, KINDS[i], x, capY + 5, col, hot ? 1 : 0.9, hot);
+      glyph(c, kind, x, capY + 5, col, hot ? 1 : 0.9, hot);
       num(c, cell.value + '°', x, valY, size, col, 1, 'left');
     });
   }

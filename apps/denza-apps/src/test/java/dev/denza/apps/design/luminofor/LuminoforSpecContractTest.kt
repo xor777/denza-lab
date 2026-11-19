@@ -122,6 +122,7 @@ class LuminoforSpecContractTest {
         n(g.CAPTION, "cluster", "grid", "caption"); n(g.GLYPH_BASE, "cluster", "grid", "glyphBase")
         n(g.BASELINE, "cluster", "grid", "baseline"); n(g.AXIS, "cluster", "grid", "axis")
         n(g.SIDE, "cluster", "grid", "side"); n(g.TEMP_PITCH, "cluster", "grid", "tempPitch")
+        n(g.TEMPS_LEFT, "cluster", "grid", "tempsLeft")
         n(g.HERO_SIZE, "cluster", "grid", "heroSize"); n(g.HERO_UNIT_GAP, "cluster", "grid", "heroUnitGap")
         n(g.HERO_UNIT_SIZE, "cluster", "grid", "heroUnitSize"); n(g.FIGURE_SIZE, "cluster", "grid", "figureSize")
         n(g.TEMP_SIZE, "cluster", "grid", "tempSize"); n(g.CAPTION_SIZE, "cluster", "grid", "captionSize")
@@ -164,6 +165,15 @@ class LuminoforSpecContractTest {
         n(e.POINTS.toFloat(), "cluster", "engineCharge", "points")
         n(Cluster.Glyph.OUTLINE, "cluster", "glyph", "outline"); n(Cluster.Glyph.WHEEL, "cluster", "glyph", "wheel")
         n(Cluster.Glyph.HEIGHT, "cluster", "glyph", "height")
+        assertEquals(list("cluster", "glyph", "row"), Cluster.Glyph.ROW)
+        val i = Cluster.Glyph.Inverter
+        n(i.BOX, "cluster", "glyph", "inverter", "box"); n(i.RADIUS, "cluster", "glyph", "inverter", "radius")
+        n(i.INSET, "cluster", "glyph", "inverter", "inset")
+        assertEquals(list("cluster", "glyph", "inverter", "dc").map { (it as Number).toFloat() }, i.DC.toList())
+        n(i.DC_FROM, "cluster", "glyph", "inverter", "dcFrom"); n(i.DC_TO, "cluster", "glyph", "inverter", "dcTo")
+        assertEquals(list("cluster", "glyph", "inverter", "wave").map { (it as Number).toFloat() }, listOf(i.WAVE_FROM, i.WAVE_TO))
+        n(i.WAVE_MID, "cluster", "glyph", "inverter", "waveMid"); n(i.WAVE_AMP, "cluster", "glyph", "inverter", "waveAmp")
+        n(i.WAVE_STROKE, "cluster", "glyph", "inverter", "waveStroke")
     }
 
     private fun box(actual: Head.Box, vararg path: String) {
