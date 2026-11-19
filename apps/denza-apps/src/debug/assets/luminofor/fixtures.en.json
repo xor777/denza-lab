@@ -35616,7 +35616,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -35706,14 +35706,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -36186,7 +36200,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -36276,14 +36290,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -36756,7 +36784,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -36846,14 +36874,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
@@ -37326,7 +37368,7 @@
      ]
     },
     {
-     "name": "Shortcuts",
+     "name": "Apps",
      "status": "3 set up",
      "on": true,
      "icon": [
@@ -37416,14 +37458,28 @@
    "trip": [
     {
      "cap": "On the road",
-     "fig": "1:42",
-     "unit": "128 km"
+     "parts": [
+      [
+       "1",
+       "h"
+      ],
+      [
+       "42",
+       "min"
+      ]
+     ]
+    },
+    {
+     "cap": "Distance",
+     "fig": "128",
+     "unit": "km"
     },
     {
      "cap": "Altitude",
      "fig": "642",
      "unit": "m",
-     "rate": "1.2"
+     "rate": "1.2",
+     "rateUnit": "m/s"
     },
     {
      "cap": "Sunset",
