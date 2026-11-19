@@ -19,7 +19,7 @@ currently inaccessible vehicle.
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
 | The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns). A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
+| A blocked dashboard has a gate once the first check is over: a restore under way (`Connecting`, and `Restored` until the check says trusted) shows «Восстановление доступа» with the ring and the door to «Сервис», and a re-check keeps the gate that is up (a reset of the one-shot latch included, with the dialog's words kept and the gate's button inactive while the ring turns); `Connecting` ends when the network changes. A restore that failed on a network is not restarted by passive hints on that network for 10 minutes; the screen coming on, Wi-Fi coming back and a press on the gate do restart it. Until then (0.7.x) the gate was hidden during `Connecting` and attempts followed each other back to back | code and unit tests, 2026-11-19; not on a car; the defect read from the code against a field report of 0.7.x on newer firmware, not reproduced on a car, the reported car's readings not seen | [The gate hidden while a restore connects](#the-gate-hidden-while-a-restore-connects-field-report-2026-11-19) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -839,9 +839,11 @@ which a passive check leaves within seconds (900 ms to connect and 2.5 s to read
 for `AdbRestoreState.Connecting`, which outranks the phase.
 
 `Connecting` is not short. With `trusted_before`, `WRITE_SECURE_SETTINGS` and Wi-Fi in place, and
-`adb_wifi_enabled` holding, one attempt is the TLS `tcpip:5555` request, 15 s of classic probes, up
-to 45 s of mDNS discovery and 15 s more of probes before it publishes `Failed`. And attempts follow
-one another:
+`adb_wifi_enabled` holding, one attempt is the TLS `tcpip:5555` request (5 s to connect and 5 s for
+each read), 15 s of classic probes (each up to 1.5 s), up to 45 s of mDNS discovery, a second TLS
+request and 15 s more of probes before it publishes `Failed`: with the 1.5 s settings settle in front,
+up to about 100 s. (The figure was given as 75 s until 2026-11-19, without the two TLS requests and
+the probes' own time.) And attempts follow one another:
 
 - every passive check that ends `UNAVAILABLE`, `ERROR` or `AUTHORIZATION_REQUIRED` sends the
   `recovery` hint (`DenzaAppRepository.onAdbRescueChanged`), and the autoload window makes five of
@@ -877,6 +879,10 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   phase's gate. `WaitingWifi`, `NeedsDialog` and `Failed` still outrank the phase. The only blocked
   state without a gate is the first passive check of a process (`AdbStartupGatePolicyTest`, which
   walks every phase under every restore state, under a restore switched off and with none).
+- `Connecting` ends. An attempt that has published it and stops because the network changed (the id
+  is the BSSID, so roaming between access points of one Wi-Fi is a change) or went away publishes
+  `WaitingWifi` without Wi-Fi, and otherwise queues a fresh attempt on the new network. Before,
+  with no hint coinciding, the state stayed `Connecting` and the ring turned for good.
 - A re-check does not take a standing gate down. `AdbRescueSnapshot.recheckOf` holds the phase a
   check is looking at again (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
   `ERROR`); the gate keeps its title, text, reading and buttons and only the ring replaces the
@@ -895,7 +901,13 @@ Since 2026-11-19 the code holds three rules (code and unit tests; not on a car):
   or `Restored`, with the switch, and with a forcing request: «Сервис» opened, or a press on the
   gate's button, the recovery dialog's or the service panel's (`gate`, «нажата проверка доступа» on
   the technical page). The `Failed` gate's «Ожидаем следующего подключения к Wi-Fi или пробуждения
-  экрана» is what the code does.
+  экрана» is what the code does. Hints that arrive during an attempt merge into one request, whose
+  trigger is the newest; the screen coming on (`wake`), a forcing press and a dialog wave's `retry`
+  are flags merged with OR, so a passive hint after them no longer cancels what they asked for.
+  Hints queued during an attempt that then fails are held like any other on that connection. A
+  `wifi-lost` during an attempt starts a new connection: the attempt notes the connection count
+  when it starts and sets the hold only if the count has not moved, so a drop and reconnect to the
+  same router during a failing attempt is not held by that failure.
 
 ## Dipilot identity rescue (local review, 2026-10-08)
 

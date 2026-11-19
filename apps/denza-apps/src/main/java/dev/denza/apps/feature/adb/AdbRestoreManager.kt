@@ -167,11 +167,36 @@ class AdbRestoreManager(
     private val scope: CoroutineScope,
     private val onChanged: () -> Unit = {},
 ) {
-    private data class Request(val trigger: String, val retry: Boolean = false, val force: Boolean = false)
+    /**
+     * What is waiting to run. Hints that arrive during an attempt merge into one, and every flag is
+     * merged with OR: the trigger kept is only the newest, so a decision keyed on it lost the screen
+     * coming on, or a dialog wave's retry, to a passive hint that came after it.
+     */
+    private data class Request(
+        val trigger: String,
+        val retry: Boolean = false,
+        val force: Boolean = false,
+        /** The screen came on: passes the failed-network hold, as the `Failed` gate promises. */
+        val wake: Boolean = false,
+    ) {
+        fun merge(before: Request?): Request = if (before == null) this else copy(
+            retry = retry || before.retry,
+            force = force || before.force,
+            wake = wake || before.wake,
+        )
+    }
     private val control = Any()
     private val mutex = Mutex()
-    private val wake = Channel<Unit>(Channel.CONFLATED)
+    private val signal = Channel<Unit>(Channel.CONFLATED)
     private var generation = 0L
+    /**
+     * Counts the Wi-Fi connections: one more at every `wifi-lost`. An attempt notes it as it starts
+     * and sets the failed-network hold only if it is still the same, because a hint that came during
+     * it may belong to a new connection to the same router - forgetting the hold at that hint was
+     * undone by the failure the attempt published afterwards.
+     */
+    private var connection = 0L
+    private var attemptConnection = 0L
     private var pending: Request? = null
     private var active: Job? = null
     private var wave: Job? = null
@@ -180,7 +205,7 @@ class AdbRestoreManager(
     /**
      * The network an attempt last failed on, and when, by the elapsed clock. In memory only: a new
      * process gets one fresh attempt. While it holds, a passive hint on the same network does not
-     * start another attempt - one is up to 75 s of `Connecting`, and hints come back to back.
+     * start another attempt - one is up to about 100 s of `Connecting`, and hints come back to back.
      */
     private var failedNetwork: String? = null
     private var failedAtElapsedMs = 0L
@@ -196,9 +221,9 @@ class AdbRestoreManager(
 
     init {
         scope.launch {
-            for (signal in wake) {
+            for (ready in signal) {
                 val next = synchronized(control) { pending.also { pending = null } } ?: continue
-                val gen = synchronized(control) { generation }
+                val gen = synchronized(control) { attemptConnection = connection; generation }
                 val attempt = launch {
                     mutex.withLock {
                         try {
@@ -227,7 +252,8 @@ class AdbRestoreManager(
 
     fun snapshot(): AdbRestoreSnapshot = current
 
-    fun attemptIfNeeded(trigger: String) = enqueue(Request(trigger, force = trigger in FORCING))
+    fun attemptIfNeeded(trigger: String) =
+        enqueue(Request(trigger, force = trigger in FORCING, wake = trigger == SCREEN_ON))
 
     private fun enqueue(request: Request) {
         synchronized(control) {
@@ -236,11 +262,10 @@ class AdbRestoreManager(
                 wave?.cancel(); wave = null; waveNetwork = null
             }
             // Wi-Fi gone: whatever comes up next is a new connection, even to the same router.
+            if (request.trigger == WIFI_LOST) connection++
             if (request.force || request.trigger == WIFI_LOST) forgetFailure()
-            val before = pending
-            pending = request.copy(force = request.force || before?.force == true,
-                retry = request.retry && before?.retry != false)
-            wake.trySend(Unit)
+            pending = request.merge(pending)
+            signal.trySend(Unit)
         }
     }
 
@@ -311,6 +336,16 @@ class AdbRestoreManager(
         if (!enableWireless(gen, network, request)) return
         if (!valid(gen, network)) return
         publish(gen, AdbRestoreState.Connecting, request)
+        connect(gen, network)
+        leaveConnecting(gen)
+    }
+
+    /**
+     * The TLS request and the probes after it, once `Connecting` is published. Every early return
+     * here is the network changing or the attempt being abandoned; [leaveConnecting] after it is the
+     * one exit, so none of them can leave the ring turning.
+     */
+    private suspend fun connect(gen: Long, network: AdbRestoreWifi) {
         val property = AdbTlsEndpoint.fromProperty(system.tlsPortProperty())
         if (!valid(gen, network)) return
         if (property != null && runTcpip(gen, network, property)) return
@@ -328,12 +363,27 @@ class AdbRestoreManager(
     }
 
     /**
+     * An attempt that published `Connecting` and stopped because the network changed or went away.
+     * The network id is the BSSID, so roaming between access points changes it, and with no hint
+     * coinciding the state stayed `Connecting` and the gate's ring turned for good. Without Wi-Fi it
+     * is `WaitingWifi`; on another network a fresh attempt starts there at once.
+     */
+    private fun leaveConnecting(gen: Long) {
+        val noWifi = synchronized(control) {
+            if (abandoned(gen) || current.state != AdbRestoreState.Connecting) return
+            system.wifiNetwork() == null
+        }
+        if (noWifi) publish(gen, AdbRestoreState.WaitingWifi)
+        else enqueue(Request(WIFI))
+    }
+
+    /**
      * Whether this attempt would repeat the one that just failed on [network]. Only a passive hint
      * is held back, and only while the failure is what the gate shows: a press, «Сервис», the
      * switch and the screen coming on each get an attempt, and so does a dialog wave's retry.
      */
     private fun failedHere(network: AdbRestoreWifi, request: Request): Boolean = synchronized(control) {
-        !request.force && request.trigger != SCREEN_ON && current.state is AdbRestoreState.Failed &&
+        !request.force && !request.wake && current.state is AdbRestoreState.Failed &&
             failedNetwork == network.id && system.elapsedMs() - failedAtElapsedMs in 0 until FAILED_COOLDOWN_MS
     }
 
@@ -410,7 +460,9 @@ class AdbRestoreManager(
                 exhaustedNetwork = null
             }
             when (state) {
-                is AdbRestoreState.Failed -> current.wifi?.id?.let { failedNetwork = it; failedAtElapsedMs = system.elapsedMs() }
+                // Only on the connection the attempt started on: after a `wifi-lost` it is a new one.
+                is AdbRestoreState.Failed -> current.wifi?.id?.takeIf { attemptConnection == connection }
+                    ?.let { failedNetwork = it; failedAtElapsedMs = system.elapsedMs() }
                 AdbRestoreState.NotNeeded, is AdbRestoreState.Restored, AdbRestoreState.WaitingWifi -> forgetFailure()
                 else -> Unit
             }
@@ -482,13 +534,14 @@ class AdbRestoreManager(
                 if (remaining <= 0) break
                 delay(minOf(RETRY_DELAYS_MS[minOf(index++, RETRY_DELAYS_MS.lastIndex)], remaining))
                 if (system.elapsedMs() - started >= RETRY_BUDGET_MS) break
-                if (!abandoned(gen) && system.wifiNetwork()?.id == network) enqueue(Request("retry", retry = true))
+                if (!abandoned(gen) && system.wifiNetwork()?.id == network) enqueue(Request(RETRY, retry = true))
             }
             synchronized(control) {
                 if (!abandoned(gen) && system.wifiNetwork()?.id == network) {
                     exhaustedNetwork = network
                     current = current.copy(retryBudgetExhausted = true)
-                    pending = pending?.takeUnless { it.retry }
+                    // The wave's own retry goes; a hint merged into it stays, as the hint it was.
+                    pending = pending?.takeUnless { it.trigger == RETRY }?.copy(retry = false)
                 }
             }
             changed()
@@ -513,6 +566,10 @@ class AdbRestoreManager(
         /** The screen coming on: passes the failed-network hold, the one the gate promises, but forces nothing. */
         const val SCREEN_ON = "screen-on"
         const val WIFI_LOST = "wifi-lost"
+        /** Wi-Fi came up or changed; also what an attempt cut short by a network change leaves queued. */
+        const val WIFI = "wifi"
+        /** A dialog wave's next attempt. */
+        const val RETRY = "retry"
         const val MIN_SDK = 30
         const val SETTINGS_SETTLE_MS = 1_500L
         const val DISCOVERY_TIMEOUT_MS = 45_000L

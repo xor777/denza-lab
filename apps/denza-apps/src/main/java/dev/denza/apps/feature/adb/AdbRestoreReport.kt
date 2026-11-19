@@ -188,7 +188,7 @@ object AdbRestoreReport {
     private fun triggerWords(trigger: String): String = when (trigger) {
         "process-start" -> "запуск приложения"
         AdbRestoreManager.SCREEN_ON -> "включение экрана"
-        "wifi" -> "Wi-Fi"
+        AdbRestoreManager.WIFI -> "Wi-Fi"
         AdbRestoreManager.WIFI_LOST -> "потеря Wi-Fi"
         "watchdog" -> "проверка функций"
         "recovery" -> "восстановление функций"
@@ -196,7 +196,7 @@ object AdbRestoreReport {
         AdbRestoreManager.SWITCH -> "включён переключатель"
         AdbRestoreManager.GATE -> "нажата проверка доступа"
         "dialog-allowed" -> "разрешение отладки"
-        "retry" -> "повтор"
+        AdbRestoreManager.RETRY -> "повтор"
         else -> trigger
     }
 

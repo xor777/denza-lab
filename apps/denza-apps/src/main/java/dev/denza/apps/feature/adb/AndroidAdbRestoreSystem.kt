@@ -133,9 +133,9 @@ object AdbRestore {
                 }
             }
         val listener = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { trigger("wifi") }
+            override fun onAvailable(network: Network) { trigger(AdbRestoreManager.WIFI) }
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) trigger("wifi")
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) trigger(AdbRestoreManager.WIFI)
             }
             override fun onLost(network: Network) { trigger(AdbRestoreManager.WIFI_LOST) }
         }

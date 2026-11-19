@@ -89,9 +89,9 @@ object AdbStartupGatePolicy {
                     details = AppText.s(R.string.adb_gate_wifi_details),
                     explainerAvailable = true,
                 )
-                // An attempt is up to 75 s, and the dashboard behind is blocked all that time: the
-                // gate says what is happening and keeps the door to «Сервис». It was hidden here, and
-                // a car whose restore could not succeed showed a disabled dashboard with nothing on it.
+                // An attempt is up to about 100 s, and the dashboard behind is blocked all that time:
+                // the gate says what is happening and keeps the door to «Сервис». It was hidden here,
+                // and a car whose restore could not succeed showed a disabled dashboard with nothing on it.
                 AdbRestoreState.Connecting -> return restoring()
                 AdbRestoreState.NeedsDialog -> return AdbStartupOverlayModel(
                     visible = true,

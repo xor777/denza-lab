@@ -444,6 +444,86 @@ class AdbRestoreManagerTest {
         f.system.wifi = router
         f.manager.attemptIfNeeded("wifi"); runCurrent()
         assertEquals(2, f.system.discoveries)
+
+        // The loss heard only as `wifi-lost`, with Wi-Fi back by the time it is looked at: no
+        // `WaitingWifi` comes between, so forgetting the hold at the hint is what lets it through.
+        val late = failedOnce()
+        late.manager.attemptIfNeeded(AdbRestoreManager.WIFI_LOST); runCurrent()
+        assertEquals(2, late.system.discoveries)
+
+        // The loss seen only by an attempt (`WaitingWifi`, no hint), and the next attempt's failure
+        // published with Wi-Fi gone again, so it holds nothing of its own: only the forgetting at
+        // `WaitingWifi` keeps the first failure's hold from coming back with that failure.
+        val seen = failedOnce(); val home = seen.system.wifi
+        seen.system.wifi = null
+        seen.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        assertEquals(AdbRestoreState.WaitingWifi, seen.manager.snapshot().state)
+        seen.system.wifi = home
+        seen.system.discover = { seen.system.wifi = null; throw EOFException() }
+        seen.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        assertEquals("EOFException", (seen.manager.snapshot().state as AdbRestoreState.Failed).reason)
+        seen.system.discover = null; seen.system.wifi = home
+        seen.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent()
+        assertEquals(3, seen.system.discoveries)
+    }
+    @Test fun aWifiBounceDuringAFailingAttemptIsANewConnection() = runTest {
+        val f = Fixture(this); f.system.property = null; f.system.discovered = null
+        f.system.discover = { delay(45_000) }
+        f.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        assertEquals(AdbRestoreState.Connecting, f.manager.snapshot().state)
+        // Dropped and back on the same router between two of the attempt's looks at the network.
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI_LOST); f.manager.attemptIfNeeded(AdbRestoreManager.WIFI)
+        advanceTimeBy(40_000); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun hintsQueuedDuringAFailingAttemptAreHeldAfterIt() = runTest {
+        val f = Fixture(this); f.system.property = null; f.system.discovered = null
+        f.system.discover = { delay(45_000) }
+        f.manager.attemptIfNeeded("process-start"); advanceTimeBy(10_000); runCurrent()
+        f.manager.attemptIfNeeded("recovery"); f.manager.attemptIfNeeded(AdbRestoreManager.WIFI)
+        advanceTimeBy(40_000); runCurrent()
+        assertTrue(f.manager.snapshot().state is AdbRestoreState.Failed)
+        // Looked at the port, and nothing past it: the same connection, the same failure.
+        assertEquals(1, f.system.discoveries)
+        assertEquals("process-start", f.manager.snapshot().lastTrigger)
+    }
+    @Test fun theScreenComingOnIsNotLostToAPassiveHintAfterIt() = runTest {
+        val f = failedOnce(); val release = CompletableDeferred<Unit>()
+        f.system.probe = { release.await() }
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent() // held, still at its probe
+        f.manager.attemptIfNeeded(AdbRestoreManager.SCREEN_ON)
+        f.manager.attemptIfNeeded("recovery")
+        release.complete(Unit); runCurrent()
+        assertEquals(2, f.system.discoveries)
+    }
+    @Test fun aRetryMergedWithAPassiveHintKeepsItsShortCooldown() = runTest {
+        val f = Fixture(this); f.system.revert = true
+        f.manager.attemptIfNeeded("startup"); advanceTimeBy(9_000); runCurrent()
+        assertEquals(1, f.system.writes.size) // the retries at 3.5 and 8.5 s are inside the 15 s
+        val release = CompletableDeferred<Unit>(); f.system.probe = { release.await() }
+        f.manager.attemptIfNeeded(AdbRestoreManager.WIFI); runCurrent() // an attempt held at its probe
+        advanceTimeBy(10_000); runCurrent() // the wave's retry at 18.5 s waits behind it
+        f.manager.attemptIfNeeded("recovery") // and a passive hint merges into the retry
+        release.complete(Unit); runCurrent()
+        assertEquals(2, f.system.writes.size)
+    }
+    @Test fun aNetworkChangeAfterConnectingStartsAgainOnTheNewOne() = runTest {
+        val f = Fixture(this); f.system.restart = { if (f.system.wifi?.id == "next") f.system.live = true }
+        f.manager.attemptIfNeeded("startup"); settle()
+        assertEquals(AdbRestoreState.Connecting, f.manager.snapshot().state)
+        // Roamed to another access point of the same Wi-Fi, and no hint came with it.
+        f.system.wifi = AdbRestoreWifi("next", "wifi")
+        advanceTimeBy(2_000); runCurrent()
+        assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
+        assertEquals(listOf(37111, 37111), f.system.endpoints)
+    }
+    @Test fun wifiGoneAfterConnectingWaitsForWifi() = runTest {
+        val f = Fixture(this); f.system.restart = { }
+        f.manager.attemptIfNeeded("startup"); settle()
+        assertEquals(AdbRestoreState.Connecting, f.manager.snapshot().state)
+        f.system.wifi = null
+        advanceTimeBy(600_000); runCurrent()
+        assertEquals(AdbRestoreState.WaitingWifi, f.manager.snapshot().state)
     }
     @Test fun aRefusedKeyDuringTheHoldStillNeedsActivation() = runTest {
         val f = failedOnce(); f.system.probe = { throw AdbRestoreKeyUntrustedException() }
