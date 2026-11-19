@@ -52,6 +52,7 @@ internal class VehiclePageRenderer {
         runLevels = floatArrayOf(LINE_INTENSITY),
         upFill = floatArrayOf(Head.Chart.FILL_UP, Head.Chart.FILL_UP),
         downFill = floatArrayOf(Head.Chart.FILL_DOWN, Head.Chart.FILL_DOWN),
+        capacity = Head.Chart.POINTS,
     )
 
     fun draw(ink: StripInk, layout: TripPanelLayout, model: StripModel, left: Float, right: Float) {

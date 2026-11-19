@@ -227,6 +227,12 @@ are drawn twice, clipped above the zero and below it, so the colour changes
 exactly where the line crosses and nothing is stroked along the zero. On the
 cluster the line keeps the Luminofor persistence: ten equal runs of the window,
 each a step dimmer than the next, drawn as one stroke under a stepped gradient.
+Since 2026-11-19 the line is a monotone cubic through the points rather than a
+polyline between them (`MonotoneCurve`, `monotoneCurve()` on the board,
+Fritsch-Carlson tangents): it passes through every point, never overshoots a
+neighbour, and between two points on one side of the zero it does not cross it,
+so the colour split above is unchanged. The points are the same points; at 2x a
+polyline of a hundred points showed a corner at each of them.
 The car page's axis gutter - «60» and «−20» - is gone: the approved board has no
 gutter, and a scale the driver never reads is furniture on a page that was
 already called a mess. The ceilings are the spec's constants and the plan is in

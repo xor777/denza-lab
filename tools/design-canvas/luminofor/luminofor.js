@@ -262,13 +262,38 @@
   // and zero. White above zero and blue under it, split by zero itself, so nothing is stroked along
   // the zero. A run of points past a ceiling lies along it, with one tick just outside the box at
   // the run's centre, so the reader sees it was cut.
+  //
+  // The line is a monotone cubic through the points (Fritsch-Carlson): it passes through every
+  // point, never overshoots a neighbour, and between two points on the same side of the zero it
+  // never crosses it. `Silhouette` in the app builds the same curve with the same arithmetic
+  // (`MonotoneCurve`).
+  function monotoneCurve(path, xs, ys) {
+    const n = xs.length;
+    path.moveTo(xs[0], ys[0]);
+    if (n < 2) return;
+    const d = [], m = [];
+    for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]));
+    m.push(d[0]);
+    for (let i = 1; i < n - 1; i++) m.push(d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2);
+    m.push(d[n - 2]);
+    for (let i = 0; i < n - 1; i++) {
+      if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+      const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b;
+      if (h > 9) { const t = 3 / Math.sqrt(h); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+    }
+    for (let i = 0; i < n - 1; i++) {
+      const dx = (xs[i + 1] - xs[i]) / 3;
+      path.bezierCurveTo(xs[i] + dx, ys[i] + m[i] * dx, xs[i + 1] - dx, ys[i + 1] - m[i + 1] * dx, xs[i + 1], ys[i + 1]);
+    }
+  }
+
   function silhouette(c, ch, o) {
     const n = ch.length;
     const xOf = i => o.right - (n - 1 - i) * o.pitch;
     const yOf = v => v >= 0 ? o.zero - (o.zero - o.top) * Math.min(1, v / o.upTo) : o.zero + (o.bottom - o.zero) * Math.min(1, -v / o.downTo);
     const x0 = xOf(0), x1 = xOf(n - 1);
     const line = new Path2D();
-    ch.forEach((v, i) => i ? line.lineTo(xOf(i), yOf(v)) : line.moveTo(xOf(i), yOf(v)));
+    monotoneCurve(line, ch.map((v, i) => xOf(i)), ch.map(yOf));
     const field = new Path2D(line); field.lineTo(x1, o.zero); field.lineTo(x0, o.zero); field.closePath();
     const above = new Path2D(); above.rect(x0 - 20, o.top - 20, x1 - x0 + 40, o.zero - o.top + 20);
     const below = new Path2D(); below.rect(x0 - 20, o.zero, x1 - x0 + 40, o.bottom - o.zero + 20);

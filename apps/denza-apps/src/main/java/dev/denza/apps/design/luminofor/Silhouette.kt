@@ -14,6 +14,8 @@ import kotlin.math.min
  *
  * One line through the points - the newest on the right edge, a full window edge to edge and a
  * filling one growing leftward at the same pitch - and the field between the line and zero. The
+ * line is [MonotoneCurve]'s: a cubic through every point that never overshoots a neighbour, so it
+ * has no corner at a point and never crosses the zero between two points on one side of it. The
  * field and the line are drawn twice, clipped once above the zero in the [upLight] and once below
  * it in the [downLight], so the silhouette changes colour exactly where it crosses the zero and
  * nothing is stroked along the zero itself. A run of points past a ceiling lies along the ceiling,
@@ -28,7 +30,7 @@ import kotlin.math.min
  * [upFill] and [downFill] are each an old and a new alpha, equal for a flat field.
  *
  * Nothing is allocated per frame but the gradients, and they only when the window moves on the
- * screen. After [draw], [endX], [endY] and [endValue] say where the newest point is, for the
+ * screen: the curve's points and tangents live in arrays sized to [capacity] once. After [draw], [endX], [endY] and [endValue] say where the newest point is, for the
  * caller's own dot.
  */
 class Silhouette(
@@ -39,7 +41,14 @@ class Silhouette(
     private val runLevels: FloatArray,
     private val upFill: FloatArray,
     private val downFill: FloatArray,
+    /** The most points one draw is given; more grows the arrays once rather than failing. */
+    capacity: Int,
 ) {
+
+    private var xs = FloatArray(capacity)
+    private var ys = FloatArray(capacity)
+    private var tangents = FloatArray(capacity)
+    private var secants = FloatArray(capacity)
 
     private val line = Path()
     private val field = Path()
@@ -107,18 +116,28 @@ class Silhouette(
         endY = yOf(endValue)
         if (count < 2) return true
 
+        if (xs.size < count) {
+            xs = FloatArray(count)
+            ys = FloatArray(count)
+            tangents = FloatArray(count)
+            secants = FloatArray(count)
+        }
+        for (i in 0 until count) {
+            xs[i] = pen.x(xOf(i))
+            ys[i] = pen.y(yOf(points[first + i]))
+        }
+        MonotoneCurve.tangents(xs, ys, count, tangents, secants)
         line.rewind()
         field.rewind()
-        for (i in 0 until count) {
-            val x = pen.x(xOf(i))
-            val y = pen.y(yOf(points[first + i]))
-            if (i == 0) {
-                line.moveTo(x, y)
-                field.moveTo(x, y)
-            } else {
-                line.lineTo(x, y)
-                field.lineTo(x, y)
-            }
+        line.moveTo(xs[0], ys[0])
+        field.moveTo(xs[0], ys[0])
+        for (i in 0 until count - 1) {
+            val ax = MonotoneCurve.c1x(xs, i)
+            val ay = MonotoneCurve.c1y(xs, ys, tangents, i)
+            val bx = MonotoneCurve.c2x(xs, i)
+            val by = MonotoneCurve.c2y(xs, ys, tangents, i)
+            line.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
+            field.cubicTo(ax, ay, bx, by, xs[i + 1], ys[i + 1])
         }
         field.lineTo(pen.x(x1), pen.y(zero))
         field.lineTo(pen.x(x0), pen.y(zero))

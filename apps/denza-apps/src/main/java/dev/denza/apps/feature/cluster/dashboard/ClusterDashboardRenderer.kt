@@ -103,6 +103,7 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         runLevels = FloatArray(Trace.RUNS) { ContourGeometry.runIntensity(it) },
         upFill = floatArrayOf(TRACE_UP_OLD, TRACE_UP_NEW),
         downFill = floatArrayOf(TRACE_DOWN_OLD, TRACE_DOWN_NEW),
+        capacity = Trace.POINTS,
     )
 
 
