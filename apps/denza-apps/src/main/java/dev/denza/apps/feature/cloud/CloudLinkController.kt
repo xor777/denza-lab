@@ -25,6 +25,7 @@ object CloudLinkController {
     private val pressesInFlight = AtomicInteger()
     private val hintQueued = AtomicBoolean()
     private var disableRetryAt = 0L
+    private val repeated = CloudRepeatedFailures()
 
     fun switchOn(context: Context) = switch(context, true)
     fun switchOff(context: Context) = switch(context, false)
@@ -37,6 +38,7 @@ object CloudLinkController {
             refused = { failures, detail -> failures.pressRefused(CloudFailure.refused(enabled, detail)) },
         ) {
             cancelFollowUps()
+            repeated.pressed().forEach { record(app, it) }
             CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressStarted()
             CloudLinkRuntime.registrationFailure = null
             CloudLinkRuntime.registrationNotBeforeEpochMs = System.currentTimeMillis()
@@ -74,7 +76,7 @@ object CloudLinkController {
     fun refresh(context: Context) {
         val app = context.applicationContext
         executor.execute {
-            runCatching { read(app) }.onFailure { recordError(app, "read", it) }
+            runCatching { read(app) }.onFailure { recordFailedPass(app, "read", it) }
             publish(app)
         }
     }
@@ -143,10 +145,11 @@ object CloudLinkController {
                 operated = steps.isNotEmpty(),
                 connected = car.connected == true,
             )
+            repeated.passed(reason).forEach { record(app, it) }
         } catch (error: Exception) {
             val kind = if (readTheCar) CloudFailure.Kind.NOT_DONE else CloudFailure.Kind.NOT_READ
             CloudLinkRuntime.failures = CloudLinkRuntime.failures.passFailed(CloudFailure(kind, failure(error)))
-            recordError(app, reason, error)
+            recordFailedPass(app, reason, error)
         } finally {
             publish(app)
             schedule(app)
@@ -301,16 +304,23 @@ object CloudLinkController {
         CloudLinkDiagnostics.record(app, message)
     }
 
+    /** A press that failed: every press is its own event in the history. */
     private fun recordError(app: Context, stage: String, error: Throwable) {
         Log.w(TAG, "$stage failed", error)
-        // Exception messages/command output can contain identifiers. Export only our controlled
-        // state-machine messages; arbitrary transport exceptions are represented by class name.
         record(app, "$stage failed ${failure(error)}")
     }
 
-    /** The reason, for the report and the exported diagnostics; never the tile's words. */
-    private fun failure(error: Throwable): String =
-        if (error is IllegalStateException) error.message.orEmpty().take(160) else "Нет ответа: ${error.javaClass.simpleName}"
+    /**
+     * A pass of the adapter's own, or the screen's read, that failed: the same failure again is
+     * counted, not appended ([CloudRepeatedFailures]), so a car without local ADB stops rewriting
+     * the history and the report on every pass.
+     */
+    private fun recordFailedPass(app: Context, stage: String, error: Throwable) {
+        Log.w(TAG, "$stage failed: ${failure(error)}")
+        repeated.failed(stage, failure(error), now()).forEach { record(app, it) }
+    }
+
+    private fun failure(error: Throwable): String = CloudRepeatedFailures.reason(error)
 
     private fun now(): Long = SystemClock.elapsedRealtime()
 }

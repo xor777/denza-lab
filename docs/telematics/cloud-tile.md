@@ -22,6 +22,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09)
   - [The cloud takes a Chinese ICCID, 2026-10-09](#the-cloud-takes-a-chinese-iccid-2026-10-09)
   - [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19)
+  - [A failure that repeats is told once, 2026-11-19](#a-failure-that-repeats-is-told-once-2026-11-19)
   - [Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24](#build-59-confirmed-application-fixes-and-cache-refresh-investigation-2026-09-24)
   - [Offline identity preparation and command 211 reproduction, 2026-09-24](#offline-identity-preparation-and-command-211-reproduction-2026-09-24)
   - [R-SIM terminology and configurable ICCID, 2026-09-24](#r-sim-terminology-and-configurable-iccid-2026-09-24)
@@ -512,6 +513,11 @@ in the installed app with varied pauses. Wi-Fi changes remained excluded.
   > report without its clock lines (export time, `readAgeMs`, native capture
   > time, moved to the header; the native summary has its own line) and writes
   > on a change, or every 15 minutes (`CloudReportWrites`).
+  > **Superseded 2026-11-19, later the same day:** a failure that repeated
+  > still changed the content on every pass, because each one was a new
+  > timestamped history line; a run of identical failures is now told once,
+  > with a count every 15 minutes and its end — see
+  > [A failure that repeats is told once](#a-failure-that-repeats-is-told-once-2026-11-19).
 
 The ordinary-SIM eligibility policy and native cellular guard were **not**
 relaxed. The forum photos instead exposed a common profile mismatch. These
@@ -1271,6 +1277,42 @@ Without one (the owner's car, Wi-Fi only):
 3. Away from Wi-Fi for more than 5 min with the link on: the profile goes back
    to `triple_apn` and the tile reads «Нет Wi-Fi»; back on Wi-Fi it switches
    again and reconnects.
+
+### A failure that repeats is told once, 2026-11-19
+
+Found by the second external review; code change, not on any car.
+
+With the link on, the client not connected and local ADB gone, every pass
+fails the same way: every 15 s while connecting, every 30 s offline. Each
+failure went into the adapter's history as a new line, the same reason under a
+new UTC time. That rewrote the private history on every pass, and since the
+report in Downloads carries the history, it rewrote the report too: this
+morning's content comparison (`CloudReportWrites`) saw a new line as a change.
+The 512-event cap then rolled out everything from before the outage in about
+two hours.
+
+`CloudRepeatedFailures` now stands between a failed pass and the history. A
+run of identical failures is told as:
+
+| Line | When |
+|---|---|
+| `<pass> failed <reason>` | the run's first failure |
+| `<pass> failed <reason> (×N in a row)` | every 15 min while it lasts, so a process that dies mid-run has left its count |
+| `<pass> passed after ×N failed in a row (<reason>)` | the next automatic pass that reads the car and completes its plan |
+| `the failure before repeated ×N in a row (<reason>)` | a different failure, or the driver's press of the link's switch, ends the run before its count was told |
+
+Everything in between is counted, not written. Identical means the same
+reason; which pass met it (the tick, a status broadcast, a follow-up, the
+screen's read) does not split a run. A press that fails is still written every
+time. The reasons are the same controlled strings as before (our own messages,
+or a transport class name). An hour without ADB now writes the history and the
+report five times, not 240 (`CloudRepeatedFailuresTest`, through exception →
+reason → timestamped history → report content → `CloudReportWrites`).
+
+**Car check.** With the link on and the client not connected, take local ADB
+away for about 20 minutes: the report's modification time moves at the first
+failure and once at 15 minutes, and the history shows `failed`, `(×61 in a
+row)` and, after ADB comes back, `passed after ×N`.
 
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 
