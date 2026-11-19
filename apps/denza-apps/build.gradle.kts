@@ -158,8 +158,8 @@ android {
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
-        versionCode = 80
-        versionName = "0.7.1"
+        versionCode = 81
+        versionName = "0.7.2"
         // «Сервис → Предупреждения машины» is a research recorder of the cluster's warning slot: its
         // code builds, and the row and the recording exist only in a build asked for with `-Pwarnings`
         // (docs/vehicle-data-findings.md, "Warning recorder").
