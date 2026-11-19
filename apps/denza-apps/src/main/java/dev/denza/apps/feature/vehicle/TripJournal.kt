@@ -22,6 +22,29 @@ import java.util.Locale
  * that cannot be trusted is worth less than no figure at all. [TripEnergyLedger.restore] applies the
  * second test - whether the odometer says this record is even about the road we are on.
  *
+ * ### The record is versioned (2026-11-19)
+ *
+ * 0.7.1 wrote seven fields, `net,recovered,engine,seconds,km,odometer,armed`, and its third was
+ * `∫GENERATION_KW dt`. The same position means the pack's charge while the engine runs now
+ * ([TripEnergy]), and a record that does not say which it is cannot be read as either. So the
+ * record starts with its version, [VERSION], and carries whether its engine charge is known and
+ * whether a trip was opened at all. A seven-field record is read as 0.7.1's: the net, the
+ * recuperation, the minutes and the kilometres mean what they meant and are kept, and the engine
+ * charge is unknown ([TripEnergy.engineKwhKnown]) until the next trip starts.
+ *
+ * ### A write that fails leaves the record that was there
+ *
+ * [JournalFile.replace] keeps the old file when it cannot write the new one - a full disk, a sync
+ * that failed. Until 2026-11-19 [save] answered that by deleting the old file, so one failed
+ * checkpoint threw away the last good trip, and a restart before the next good one started the
+ * trip again. Now it reports the failure and leaves the file; the next checkpoint tries again.
+ *
+ * ### An unchanged record is not written again
+ *
+ * Standing in P the trip does not change, and the checkpoint every ten seconds wrote the same bytes
+ * and synced them - up to 360 times an hour of a parked charge. [save] keeps the text it last made
+ * durable and skips a write of the same text.
+ *
  * ### Threading
  *
  * Not thread-safe and does not need to be: every call comes from the telemetry hub's own poll loop,
@@ -31,6 +54,9 @@ internal class TripJournal(
     private val file: File,
     private val onWiped: (String) -> Unit = {},
 ) {
+
+    /** The text the file was last known to hold, so an unchanged checkpoint costs nothing. */
+    private var written: String? = null
 
     /** The record on disk, or null when there is none this class can trust. */
     fun load(): TripRecord? {
@@ -44,20 +70,51 @@ internal class TripJournal(
             return null
         }
         val record = parse(text.trim())
-        if (record == null) wipe("строка не разобралась")
+        if (record == null) {
+            wipe("строка не разобралась")
+        } else {
+            written = text
+        }
         return record
     }
 
     private fun parse(row: String): TripRecord? {
         val parts = row.split(',')
-        if (parts.size != FIELDS) return null
-        val numbers = parts.take(FIELDS - 1).map { it.toDoubleOrNull() ?: return null }
-        if (numbers.any { !it.isFinite() }) return null
-        val armed = when (parts[FIELDS - 1]) {
-            "1" -> true
-            "0" -> false
-            else -> return null
+        return when {
+            parts.size == FIELDS && parts[0] == VERSION -> parseCurrent(parts.drop(1))
+            parts.size == LEGACY_FIELDS -> parseLegacy(parts)
+            else -> null
         }
+    }
+
+    /** `net,recovered,engine,seconds,km,odometer,armed,engineKnown,opened`, after the version. */
+    private fun parseCurrent(parts: List<String>): TripRecord? {
+        val common = parseCommon(parts.take(LEGACY_FIELDS)) ?: return null
+        val engineKnown = flag(parts[LEGACY_FIELDS]) ?: return null
+        val opened = flag(parts[LEGACY_FIELDS + 1]) ?: return null
+        return common.copy(energy = common.energy.copy(engineKwhKnown = engineKnown, opened = opened))
+    }
+
+    /**
+     * 0.7.1's seven fields. Its third is `∫GENERATION_KW dt`, which is not this field: the engine
+     * charge is unknown for the rest of this trip. A trip was opened if the record says the car has
+     * moved since its last P or carries any road.
+     */
+    private fun parseLegacy(parts: List<String>): TripRecord? {
+        val record = parseCommon(parts) ?: return null
+        return record.copy(
+            energy = record.energy.copy(
+                engineKwh = 0.0,
+                engineKwhKnown = false,
+                opened = !record.armed || record.energy.kilometres > 0.0,
+            ),
+        )
+    }
+
+    private fun parseCommon(parts: List<String>): TripRecord? {
+        val numbers = parts.take(LEGACY_FIELDS - 1).map { it.toDoubleOrNull() ?: return null }
+        if (numbers.any { !it.isFinite() }) return null
+        val armed = flag(parts[LEGACY_FIELDS - 1]) ?: return null
         val seconds = numbers[3]
         val kilometres = numbers[4]
         val odometer = numbers[5]
@@ -70,12 +127,24 @@ internal class TripJournal(
         )
     }
 
-    /** Replace the record. Whole, atomically, or not at all. */
-    fun save(record: TripRecord) {
+    private fun flag(text: String): Boolean? = when (text) {
+        "1" -> true
+        "0" -> false
+        else -> null
+    }
+
+    /**
+     * Replace the record. Whole, atomically, or not at all.
+     *
+     * @return whether the record is on the disk: false when the write failed, and the previous
+     *   record - the last good one - is still there
+     */
+    fun save(record: TripRecord): Boolean {
         val energy = record.energy
         val text = String.format(
             Locale.US,
-            "%.4f,%.4f,%.4f,%.1f,%.3f,%.1f,%d\n",
+            "%s,%.4f,%.4f,%.4f,%.1f,%.3f,%.1f,%d,%d,%d\n",
+            VERSION,
             energy.netKwh,
             energy.recoveredKwh,
             energy.engineKwh,
@@ -83,13 +152,19 @@ internal class TripJournal(
             energy.kilometres,
             record.odometerKm,
             if (record.armed) 1 else 0,
+            if (energy.engineKwhKnown) 1 else 0,
+            if (energy.opened) 1 else 0,
         )
-        if (!JournalFile.replace(file, text)) wipe("запись не удалась")
+        if (text == written && file.exists()) return true
+        if (!JournalFile.replace(file, text)) return false
+        written = text
+        return true
     }
 
     /** Forget the trip. Cheap, and the answer to every kind of wrong. */
     fun clear() {
         file.delete()
+        written = null
     }
 
     private fun wipe(why: String) {
@@ -104,8 +179,14 @@ internal class TripJournal(
 
         private const val FILE_NAME = "trip.log"
 
-        /** Five doubles, a distance and a flag. */
-        private const val FIELDS = 7
+        /** The record's first field. 0.7.1's record had none. */
+        const val VERSION = "2"
+
+        /** The version, five doubles, a distance and three flags. */
+        private const val FIELDS = 10
+
+        /** 0.7.1's: five doubles, a distance and a flag. */
+        private const val LEGACY_FIELDS = 7
 
         /** One record is under a hundred bytes; anything past this is not our file. */
         private const val MAX_BYTES = 512

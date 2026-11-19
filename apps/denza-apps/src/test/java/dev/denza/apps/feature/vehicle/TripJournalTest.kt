@@ -66,6 +66,7 @@ class TripJournalTest {
         assertEquals(42.4, loaded.energy.kilometres, 1e-3)
         assertEquals(12_345.6, loaded.odometerKm, 1e-1)
         assertFalse(loaded.armed)
+        assertTrue(loaded.energy.engineKwhKnown)
     }
 
     @Test
@@ -135,6 +136,82 @@ class TripJournalTest {
 
         assertFalse(file().exists())
         assertNull(journal.load())
+    }
+
+    /**
+     * A checkpoint that cannot be written - a full disk, a sync that failed - leaves the file it
+     * found. [JournalFile.replace] already kept it; the journal then deleted it, so one failed
+     * checkpoint lost the last good trip and a restart before the next good one started it again.
+     */
+    @Test
+    fun aCheckpointThatFailsKeepsTheLastGoodRecord() {
+        val journal = journal()
+        assertTrue(journal.save(record))
+        // Where the temporary file has to go, something that cannot be opened as a file.
+        File(directory, "trip.log.tmp").mkdirs()
+
+        assertFalse("the failure is reported", journal.save(record.copy(energy = record.energy.copy(netKwh = 11.7))))
+        assertTrue("the last good record is still there", file().exists())
+        assertEquals(9.3, journal().load()!!.energy.netKwh, 1e-4)
+        assertTrue(wipes.isEmpty())
+    }
+
+    /**
+     * Standing in P the record does not change, and the ten-second checkpoint wrote it again and
+     * synced it, up to 360 times an hour. The same record is not written twice; a changed one is.
+     */
+    @Test
+    fun anUnchangedRecordIsNotWrittenAgain() {
+        val journal = journal()
+        journal.save(record.copy(armed = true))
+        val long = System.currentTimeMillis() - 3_600_000L
+        assertTrue(file().setLastModified(long))
+
+        assertTrue(journal.save(record.copy(armed = true)))
+        assertEquals("the file was not touched", long, file().lastModified())
+
+        assertTrue(journal.save(record.copy(armed = true, odometerKm = 12_345.7)))
+        assertTrue("a changed record is written", file().lastModified() > long)
+    }
+
+    /**
+     * 0.7.1's record, as it wrote it. Its third field was `∫GENERATION_KW dt`, and this build's is
+     * the pack's charge while the engine runs: the totals that mean the same are kept, and the
+     * engine charge is unknown rather than a sum of the two.
+     */
+    @Test
+    fun aRecordFrom071KeepsItsTotalsAndNotItsEngineCharge() {
+        // `"%.4f,%.4f,%.4f,%.1f,%.3f,%.1f,%d\n"`, from denza-apps-v0.7.1's TripJournal.save.
+        file().writeText("9.3000,3.1000,1.1000,372.0,42.400,12345.6,0\n")
+
+        val loaded = journal().load()!!
+
+        assertEquals(9.3, loaded.energy.netKwh, 1e-4)
+        assertEquals(3.1, loaded.energy.recoveredKwh, 1e-4)
+        assertEquals(372.0, loaded.energy.engineSeconds, 1e-1)
+        assertEquals(42.4, loaded.energy.kilometres, 1e-3)
+        assertEquals(12_345.6, loaded.odometerKm, 1e-1)
+        assertFalse(loaded.armed)
+        assertFalse("the engine charge of 0.7.1 is another quantity", loaded.energy.engineKwhKnown)
+        assertEquals(0.0, loaded.energy.engineKwh, 0.0)
+        assertTrue(loaded.energy.opened)
+        assertTrue(wipes.isEmpty())
+    }
+
+    @Test
+    fun theRecordSaysItsVersionAndWhatItKnows() {
+        val unknown = record.copy(energy = record.energy.copy(engineKwh = 0.0, engineKwhKnown = false, opened = true))
+        journal().save(unknown)
+
+        assertTrue(file().readText().startsWith(TripJournal.VERSION + ","))
+        val loaded = journal().load()!!
+        assertFalse(loaded.energy.engineKwhKnown)
+        assertTrue(loaded.energy.opened)
+
+        journal().save(record)
+        val known = journal().load()!!
+        assertTrue(known.energy.engineKwhKnown)
+        assertFalse(known.energy.opened)
     }
 
     @Test

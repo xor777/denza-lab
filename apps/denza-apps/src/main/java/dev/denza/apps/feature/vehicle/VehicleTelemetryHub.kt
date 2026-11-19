@@ -231,13 +231,23 @@ internal class VehicleTelemetryHub(context: Context) {
      *
      * The interval is the size of the hole an ignition cut leaves in the figure, and ten seconds of
      * driving is under a hundredth of a kilowatt-hour. It costs one small `fsync` and it is a
-     * rename, so a cut write leaves the previous record rather than half of this one.
+     * rename, so a cut write leaves the previous record rather than half of this one. An unchanged
+     * record - a car standing in P - is not written at all ([TripJournal.save]).
      */
     private fun saveTrip(now: Long) {
         if (now - tripSavedAt < TRIP_SAVE_MS) return
         val record = ledger.record() ?: return
         tripSavedAt = now
-        tripJournal.save(record)
+        persistTrip(record)
+    }
+
+    /** Whether the last checkpoint failed, so a full disk is logged once rather than every ten seconds. */
+    private var tripSaveFailed = false
+
+    private fun persistTrip(record: TripRecord) {
+        val saved = tripJournal.save(record)
+        if (!saved && !tripSaveFailed) Log.w(TAG, "Журнал поездки не записан, на диске прежняя запись")
+        tripSaveFailed = !saved
     }
 
     /**
@@ -372,7 +382,7 @@ internal class VehicleTelemetryHub(context: Context) {
             }
         } finally {
             flush()
-            ledger.record()?.let(tripJournal::save)
+            ledger.record()?.let(::persistTrip)
             capture.close()
             reader?.let(readers::ended)
         }

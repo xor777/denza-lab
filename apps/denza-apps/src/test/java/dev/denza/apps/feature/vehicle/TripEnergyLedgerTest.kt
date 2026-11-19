@@ -238,6 +238,47 @@ class TripEnergyLedgerTest {
         assertEquals(42.1, ledger.trip.kilometres, 1e-6)
     }
 
+    /**
+     * Upgraded from 0.7.1 in the middle of a trip: the restored engine charge is another quantity,
+     * so it is not shown and nothing is added to it until the next trip starts. Everything else
+     * carries on.
+     */
+    @Test
+    fun aTripFrom071HasNoEngineChargeUntilTheNextTrip() {
+        val ledger = ledger()
+        val legacy = TripRecord(
+            TripEnergy(9.3, 3.1, 0.0, 360.0, 42.0, engineKwhKnown = false, opened = true),
+            1000.0,
+            armed = false,
+        )
+        assertTrue(ledger.restore(legacy, 1000.0))
+
+        moving(ledger, 1000.1, powerKw = -6.0, engineRunning = true, seconds = hour)
+        assertEquals("the net carries on", 3.3, ledger.trip.netKwh, 1e-9)
+        assertEquals("the minutes carry on", 360.0 + hour, ledger.trip.engineSeconds, 1e-9)
+        assertFalse(ledger.trip.engineKwhKnown)
+        assertEquals("and the engine charge is not a sum of two quantities", 0.0, ledger.trip.engineKwh, 0.0)
+
+        // P, then the next movement: a new trip, whose engine charge is its own.
+        ledger.sample(1000.1, 0.0, false, true, 1.0)
+        moving(ledger, 1000.2, powerKw = -6.0, engineRunning = true, seconds = hour)
+        assertTrue(ledger.trip.engineKwhKnown)
+        assertEquals(6.0, ledger.trip.engineKwh, 1e-9)
+    }
+
+    @Test
+    fun aLedgerThatHasSeenNoRoadHasOpenedNoTrip() {
+        val ledger = ledger()
+        assertFalse(ledger.trip.opened)
+        moving(ledger, 100.0, powerKw = 10.0)
+        moving(ledger, 100.0, powerKw = 10.0)
+        assertFalse("standing still opens nothing", ledger.trip.opened)
+        moving(ledger, 100.1, powerKw = 10.0)
+        assertTrue(ledger.trip.opened)
+        ledger.sample(100.1, 0.0, false, true, 1.0)
+        assertTrue("the finished trip is still a trip", ledger.trip.opened)
+    }
+
     @Test
     fun aRestoredTripThatWasArmedStillEndsAtTheNextMovement() {
         val ledger = ledger()

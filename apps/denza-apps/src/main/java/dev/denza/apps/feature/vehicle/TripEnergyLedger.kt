@@ -21,6 +21,12 @@ package dev.denza.apps.feature.vehicle
  * Until 2026-11-19 [engineKwh] was `∫GENERATION_KW dt`, which on this firmware is above zero only
  * during forced generation standing in P, where the trip integrates nothing: on the move it read
  * zero while the engine charged the pack, so the figure never moved.
+ *
+ * That is also why [engineKwhKnown] exists. A trip journalled by 0.7.1 carries the old integral in
+ * the same field, and adding the new one to it would print a sum of two different quantities under
+ * one caption. Such a trip keeps its net, its recuperation, its minutes and its kilometres, which
+ * mean what they meant, and its engine charge is unknown - zero, not printed, not added to - until
+ * the next trip starts ([TripJournal], 2026-11-19).
  */
 internal data class TripEnergy(
     val netKwh: Double = 0.0,
@@ -28,6 +34,16 @@ internal data class TripEnergy(
     val engineKwh: Double = 0.0,
     val engineSeconds: Double = 0.0,
     val kilometres: Double = 0.0,
+    /** Whether [engineKwh] is this trip's integral; false for a trip carried over from 0.7.1. */
+    val engineKwhKnown: Boolean = true,
+    /**
+     * Whether the ledger has opened a trip at all: the first movement since the process started,
+     * or a journalled trip it restored. It stays true while the car stands in P after the trip,
+     * which is when the finished trip is read. False is the empty trip of a ledger whose odometer
+     * never moved - a car that answers its pack but not its odometer has no trip, not a trip of
+     * nothing.
+     */
+    val opened: Boolean = false,
 ) {
     val engineMinutes: Double get() = engineSeconds / 60.0
 
@@ -89,6 +105,8 @@ internal class TripEnergyLedger(
     private var engine = 0.0
     private var engineSeconds = 0.0
     private var kilometres = 0.0
+    private var engineKnown = true
+    private var opened = false
 
     /** What a reading of the road is worth, which is not this class's own arithmetic. */
     private val odometer = OdometerGate()
@@ -102,7 +120,7 @@ internal class TripEnergyLedger(
     private var armed = true
 
     val trip: TripEnergy
-        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres)
+        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres, engineKnown, opened)
 
     /** Everything the journal needs, and nothing it does not. */
     fun record(): TripRecord? {
@@ -134,6 +152,7 @@ internal class TripEnergyLedger(
         if (moved && armed) {
             clear()
             armed = false
+            opened = true
         }
         // Arming after the reset, not before it: a car that rolls a metre inside its own parking
         // manoeuvre would otherwise start a trip and then be told to start another one.
@@ -163,7 +182,7 @@ internal class TripEnergyLedger(
         }
         if (engineRunning == true) {
             engineSeconds += dtSeconds
-            if (powerKw != null && powerKw < 0.0) engine += -powerKw * hours
+            if (engineKnown && powerKw != null && powerKw < 0.0) engine += -powerKw * hours
         }
     }
 
@@ -180,9 +199,11 @@ internal class TripEnergyLedger(
         if (odometerKm - record.odometerKm > RESTART_GAP_KM) return false
         net = record.energy.netKwh
         recovered = record.energy.recoveredKwh
-        engine = record.energy.engineKwh
+        engineKnown = record.energy.engineKwhKnown
+        engine = if (engineKnown) record.energy.engineKwh else 0.0
         engineSeconds = record.energy.engineSeconds
         kilometres = record.energy.kilometres
+        opened = record.energy.opened
         armed = record.armed
         odometer.anchor(odometerKm)
         return true
@@ -194,6 +215,7 @@ internal class TripEnergyLedger(
         engine = 0.0
         engineSeconds = 0.0
         kilometres = 0.0
+        engineKnown = true
     }
 
     companion object {
