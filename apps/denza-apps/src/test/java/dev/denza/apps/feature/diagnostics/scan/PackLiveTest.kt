@@ -45,6 +45,52 @@ class PackLiveTest {
         override fun close() {}
     }
 
+    /** A shell that refuses once closed, as the car's does, and runs [duringCheck] while its profile check waits. */
+    private class CheckedShell(val name: String, private val duringCheck: () -> Unit = {}) : ExtrasShell {
+        val commands = mutableListOf<String>()
+        var closed = 0
+        override fun shell(command: String): String {
+            if (closed > 0) throw IOException("$name closed")
+            commands += command
+            if (command.startsWith("getprop")) {
+                duringCheck()
+                return "170\n"
+            }
+            return "@@extra:soc\nResult: Parcel(00000000 %08x   '........')\n".format(74f.toBits())
+        }
+        override fun close() { closed++ }
+    }
+
+    /**
+     * The section left - and entered again - while the readings' shell checks the car's profile: the shell of the
+     * run that was stopped is closed and asks nothing more; the next run's shell is its own, and stays open.
+     */
+    @Test
+    fun aStopDuringTheProfileCheckClosesThatShellAndNotTheNextOne() = runTest {
+        lateinit var poller: ExtrasPoller
+        val first = CheckedShell("first") { poller.stop(); poller.start() }
+        val second = CheckedShell("second")
+        val shells = ArrayDeque(listOf(first, second))
+        poller = ExtrasPoller(
+            open = { shells.removeFirst() },
+            log = {},
+            context = backgroundScope.coroutineContext,
+            wallClock = { testScheduler.currentTime },
+            elapsed = { testScheduler.currentTime },
+            nanos = { 0L },
+        )
+        poller.start()
+        runCurrent()
+
+        assertTrue("the stopped run's shell is closed", first.closed > 0)
+        assertEquals("it asked nothing after its check", 1, first.commands.size)
+        assertEquals("the next run's shell stays open", 0, second.closed)
+        assertEquals(2, second.commands.size)
+        assertEquals(74.0, poller.latest.values.getValue(DiagnosticExtra.SOC), 0.0)
+        poller.stop()
+        assertTrue(second.closed > 0)
+    }
+
     @Test
     fun whileThePacksStreamShowsTheBatchGoesBackToBackAndFiveSecondsApartOtherwise() = runTest {
         val shell = BatchShell().apply { cost = 60 }

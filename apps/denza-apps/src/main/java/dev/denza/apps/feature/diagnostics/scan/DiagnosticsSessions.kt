@@ -19,6 +19,7 @@ import java.io.File
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -168,7 +169,10 @@ internal class ExtrasPoller(
 
     @Synchronized fun start() {
         if (job?.isActive == true) return
-        job = scope.launch { loop() }
+        // The run knows itself by [job]: it is set before the run can look.
+        val run = scope.launch(start = CoroutineStart.LAZY) { loop() }
+        job = run
+        run.start()
     }
 
     @Synchronized fun stop() {
@@ -209,45 +213,72 @@ internal class ExtrasPoller(
     /** The focused readings since the last call, oldest first. */
     fun drain(): List<SignalReading> = synchronized(this) { readings.toList().also { readings.clear() } }
 
+    /**
+     * One run of the poller, from [start] to [stop]. It owns its shell: it publishes it before the shell's first
+     * blocking call, so [stop] can close it under that call; it closes that very shell - never a later run's - on
+     * a failure and when it ends; and a run that [stop] has ended neither adopts a shell nor writes [latest].
+     */
     private suspend fun loop() {
-        while (currentCoroutineContext().isActive) {
-            val get = target
-            val began = elapsed()
-            val ok = try {
-                val s = shell ?: open().also { opened ->
-                    val profile = opened.shell("getprop persist.sys.AutoType").trim()
-                    if (profile != DiagnosticsCar.AUTO_TYPE) {
-                        opened.close()
-                        throw IllegalStateException("profile $profile, readings are qualified for ${DiagnosticsCar.AUTO_TYPE}")
+        val me = currentCoroutineContext()[Job]
+        var mine: ExtrasShell? = null
+        try {
+            while (currentCoroutineContext().isActive) {
+                val get = target
+                val began = elapsed()
+                val ok = try {
+                    val s = mine ?: open().also { opened ->
+                        adopt(me, opened)
+                        mine = opened
+                        val profile = opened.shell("getprop persist.sys.AutoType").trim()
+                        if (profile != DiagnosticsCar.AUTO_TYPE) {
+                            throw IllegalStateException("profile $profile, readings are qualified for ${DiagnosticsCar.AUTO_TYPE}")
+                        }
                     }
-                    shell = opened
+                    if (get == null) {
+                        val output = s.shell(DiagnosticExtraReader.command(pages))
+                        val at = elapsed()
+                        val batch = DiagnosticExtraReader.decode(output, wallClock(), at, at - began)
+                        synchronized(this) { if (job === me) latest = batch }
+                    } else {
+                        val value = get.value(s.shell(get.command))
+                        keep(get, SignalReading(nanos(), value))
+                    }
+                    true
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    log("diagnostic readings: ${error.javaClass.simpleName} ${error.message ?: ""}")
+                    mine?.let(::release)
+                    mine = null
+                    if (get != null) keep(get, SignalReading(nanos(), null))
+                    false
                 }
-                if (get == null) {
-                    val output = s.shell(DiagnosticExtraReader.command(pages))
-                    val at = elapsed()
-                    latest = DiagnosticExtraReader.decode(output, wallClock(), at, at - began)
-                } else {
-                    val value = get.value(s.shell(get.command))
-                    keep(get, SignalReading(nanos(), value))
+                val period = when {
+                    !ok -> null
+                    get != null -> FOCUS_PERIOD_MS
+                    else -> pages.mapNotNull { it.periodMs }.minOrNull()
                 }
-                true
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                log("diagnostic readings: ${error.javaClass.simpleName} ${error.message ?: ""}")
-                shell?.close()
-                shell = null
-                if (get != null) keep(get, SignalReading(nanos(), null))
-                false
+                val wait = period?.let { (it - (elapsed() - began)).coerceAtLeast(0) } ?: PERIOD_MS
+                withTimeoutOrNull(wait) { wake.receive() }
             }
-            val period = when {
-                !ok -> null
-                get != null -> FOCUS_PERIOD_MS
-                else -> pages.mapNotNull { it.periodMs }.minOrNull()
-            }
-            val wait = period?.let { (it - (elapsed() - began)).coerceAtLeast(0) } ?: PERIOD_MS
-            withTimeoutOrNull(wait) { wake.receive() }
+        } finally {
+            mine?.let(::release)
         }
+    }
+
+    /** [opened] becomes the run [me]'s shell, where [stop] finds it; a run already stopped closes it and ends. */
+    private fun adopt(me: Job?, opened: ExtrasShell) {
+        val current = synchronized(this) { (job === me).also { if (it) shell = opened } }
+        if (!current) {
+            opened.close()
+            throw CancellationException("the readings were stopped while their shell opened")
+        }
+    }
+
+    /** A run's own shell closed, and unpublished where it is still the one [stop] would close. */
+    private fun release(s: ExtrasShell) {
+        synchronized(this) { if (shell === s) shell = null }
+        s.close()
     }
 
     private fun keep(get: SignalGet, reading: SignalReading) = synchronized(this) {
