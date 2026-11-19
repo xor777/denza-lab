@@ -63,8 +63,13 @@ open class StripBoardContractTest {
         assertEquals("42" + EnergyReadouts.TRIP_KM_SENTENCE, main.obj("tripCell").str("cap"))
         assertEquals(ContourReadout.UNIT_KWH, main.obj("tripCell").str("unit"))
         assertEquals(
-            VehiclePageWords.SPEND + " " + figure("16,9") + " " + ContourReadout.perHundredKm(10.0, ConsumptionWindow.KM),
+            VehiclePageWords.SPEND + " " + figure("17") + " " + ContourReadout.perHundredKm(10.0, ConsumptionWindow.KM),
             main.str("consumptionCaption"),
+        )
+        // whole on the move and to a tenth standing on P (contract §2.2): the charger is parked
+        assertEquals(
+            VehiclePageWords.SPEND + " " + figure("16,9") + " " + ContourReadout.perHundredKm(10.0, ConsumptionWindow.KM),
+            scene("main-car-charging").str("consumptionCaption"),
         )
 
         val engine = scene("main-car-engine")

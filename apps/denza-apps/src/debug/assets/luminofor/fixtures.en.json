@@ -1698,7 +1698,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -1721,7 +1721,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -2216,7 +2216,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-car": [
@@ -2229,7 +2229,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -2252,7 +2252,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -2747,7 +2747,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-car-engine": [
@@ -2760,7 +2760,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -2783,7 +2783,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -3280,7 +3280,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-car-hot": [
@@ -3293,7 +3293,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -3316,7 +3316,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -3811,7 +3811,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-first": [
@@ -4345,7 +4345,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-paused": [
@@ -4358,7 +4358,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -4381,7 +4381,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -4877,7 +4877,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-car-neutral": [
@@ -4890,7 +4890,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -4913,7 +4913,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -5408,7 +5408,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "main-car-charging": [
@@ -5421,7 +5421,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -5444,7 +5444,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -5954,7 +5954,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -5977,7 +5977,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -6472,7 +6472,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "unavailable": true,
    "message": "ADB key not confirmed · open Denza Apps"
   }
@@ -7008,7 +7008,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "one-car-closed": [
@@ -7021,7 +7021,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -7044,7 +7044,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -7539,7 +7539,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "unavailable": true,
    "message": "ADB key not confirmed · open Denza Apps"
   }
@@ -7554,7 +7554,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -7577,7 +7577,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -8072,7 +8072,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "two-car": [
@@ -8085,7 +8085,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -8108,7 +8108,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -8603,7 +8603,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "one-sound": [
@@ -8616,7 +8616,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -8639,7 +8639,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -9134,7 +9134,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "one-car": [
@@ -9147,7 +9147,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -9170,7 +9170,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -9665,7 +9665,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km"
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km"
   }
  ],
  "sheet-cluster": [
@@ -9677,7 +9677,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -9700,7 +9700,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -10195,7 +10195,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -10335,7 +10335,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -10358,7 +10358,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -10853,7 +10853,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -10921,7 +10921,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -10944,7 +10944,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -11439,7 +11439,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -11539,7 +11539,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -11562,7 +11562,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -12057,7 +12057,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -12165,7 +12165,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -12188,7 +12188,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -12683,7 +12683,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -12824,7 +12824,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -12847,7 +12847,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -13342,7 +13342,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -13483,7 +13483,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -13506,7 +13506,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -14001,7 +14001,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -14059,7 +14059,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -14082,7 +14082,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -14577,7 +14577,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -14679,7 +14679,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -14702,7 +14702,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -15197,7 +15197,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -15248,7 +15248,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -15271,7 +15271,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -15766,7 +15766,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -15840,7 +15840,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -15863,7 +15863,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -16358,7 +16358,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -16451,7 +16451,7 @@
     "footer": [
      {
       "t": "footnote",
-      "text": "Denza Apps 0.6.2 · build 53"
+      "text": "Denza Apps 0.7.1 · build 79"
      }
     ]
    },
@@ -16539,8 +16539,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -16557,7 +16557,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -16596,7 +16596,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -16619,7 +16619,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -17114,7 +17114,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -17221,7 +17221,7 @@
     "footer": [
      {
       "t": "footnote",
-      "text": "Denza Apps 0.6.2 · build 53"
+      "text": "Denza Apps 0.7.1 · build 79"
      }
     ]
    },
@@ -17309,8 +17309,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -17327,7 +17327,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -17367,7 +17367,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -17390,7 +17390,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -17885,7 +17885,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -18001,7 +18001,7 @@
     "footer": [
      {
       "t": "footnote",
-      "text": "Denza Apps 0.6.2 · build 53"
+      "text": "Denza Apps 0.7.1 · build 79"
      }
     ]
    },
@@ -18089,8 +18089,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -18107,7 +18107,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -18154,7 +18154,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -18177,7 +18177,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -18672,7 +18672,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -18807,8 +18807,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -18825,7 +18825,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -18864,7 +18864,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -18887,7 +18887,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -19382,7 +19382,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -19532,8 +19532,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -19550,7 +19550,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -19589,7 +19589,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -19612,7 +19612,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -20107,7 +20107,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -20257,8 +20257,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -20275,7 +20275,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -20322,7 +20322,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -20345,7 +20345,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -20840,7 +20840,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -20991,8 +20991,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -21009,7 +21009,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -21056,7 +21056,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -21079,7 +21079,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -21574,7 +21574,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -21787,8 +21787,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -21805,7 +21805,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -21844,7 +21844,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -21867,7 +21867,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -22362,7 +22362,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -22585,8 +22585,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -22603,7 +22603,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -22642,7 +22642,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -22665,7 +22665,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -23160,7 +23160,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -23384,8 +23384,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -23402,7 +23402,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -23441,7 +23441,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -23464,7 +23464,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -23959,7 +23959,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -24090,8 +24090,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -24108,7 +24108,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -24151,7 +24151,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -24174,7 +24174,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -24669,7 +24669,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -24804,8 +24804,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -24822,7 +24822,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -24866,7 +24866,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -24889,7 +24889,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -25384,7 +25384,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -25514,8 +25514,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -25532,7 +25532,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -25575,7 +25575,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -25598,7 +25598,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -26093,7 +26093,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -26218,8 +26218,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -26236,7 +26236,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -26279,7 +26279,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -26302,7 +26302,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -26797,7 +26797,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -26933,8 +26933,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -26951,7 +26951,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -26995,7 +26995,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -27018,7 +27018,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -27513,7 +27513,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -27644,8 +27644,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -27662,7 +27662,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -27705,7 +27705,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -27728,7 +27728,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -28223,7 +28223,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -28354,8 +28354,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -28372,7 +28372,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -28415,7 +28415,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -28438,7 +28438,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -28933,7 +28933,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -29068,8 +29068,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -29086,7 +29086,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -29130,7 +29130,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -29153,7 +29153,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -29648,7 +29648,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -29798,8 +29798,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -29816,7 +29816,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -29863,7 +29863,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -29886,7 +29886,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -30381,7 +30381,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -30410,7 +30410,7 @@
     "tone": "live",
     "title": "Technical details",
     "back": true,
-    "subtitle": "Denza Apps 0.6.2 · build 53",
+    "subtitle": "Denza Apps 0.7.1 · build 79",
     "blocks": [
      {
       "t": "section",
@@ -30495,7 +30495,7 @@
         {
          "kind": "pair",
          "title": "Версия",
-         "value": "0.6.2 · сборка 53"
+         "value": "0.7.1 · сборка 79"
         },
         {
          "kind": "pair",
@@ -30661,8 +30661,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -30679,7 +30679,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -30718,7 +30718,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -30741,7 +30741,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -31236,7 +31236,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -31265,7 +31265,7 @@
     "tone": "live",
     "title": "Technical details",
     "back": true,
-    "subtitle": "Denza Apps 0.6.2 · build 53",
+    "subtitle": "Denza Apps 0.7.1 · build 79",
     "blocks": [
      {
       "t": "section",
@@ -31350,7 +31350,7 @@
         {
          "kind": "pair",
          "title": "Версия",
-         "value": "0.6.2 · сборка 53"
+         "value": "0.7.1 · сборка 79"
         },
         {
          "kind": "pair",
@@ -31517,8 +31517,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -31535,7 +31535,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -31575,7 +31575,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -31598,7 +31598,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -32093,7 +32093,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -32277,8 +32277,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -32295,7 +32295,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -32334,7 +32334,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -32357,7 +32357,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -32852,7 +32852,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -32959,7 +32959,7 @@
     "footer": [
      {
       "t": "footnote",
-      "text": "Denza Apps 0.6.2 · build 53"
+      "text": "Denza Apps 0.7.1 · build 79"
      }
     ]
    },
@@ -33047,8 +33047,8 @@
       720
      ]
     ],
-    "version": "0.6.2",
-    "build": 53,
+    "version": "0.7.1",
+    "build": 79,
     "technical": [
      "[Облако]",
      "Связь=включена, плитка «На связи»",
@@ -33065,7 +33065,7 @@
      "Без связи=—",
      "Прочитано=12 с назад",
      "[Приложение]",
-     "Версия=0.6.2 · сборка 53",
+     "Версия=0.7.1 · сборка 79",
      "Android=13 · SDK 33",
      "Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys",
      "[Доступ к машине]",
@@ -33105,7 +33105,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -33128,7 +33128,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -33623,7 +33623,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "modal": {
     "icon": [
      [
@@ -33679,7 +33679,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -33702,7 +33702,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -34197,7 +34197,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "modal": {
     "icon": [
      [
@@ -34253,7 +34253,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -34276,7 +34276,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -34771,7 +34771,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "modal": {
     "icon": [
      [
@@ -34822,7 +34822,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -34845,7 +34845,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -35340,7 +35340,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "modal": {
     "icon": [
      [
@@ -35391,7 +35391,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -35414,7 +35414,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -35909,7 +35909,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -35961,7 +35961,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -35984,7 +35984,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -36479,7 +36479,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -36531,7 +36531,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -36554,7 +36554,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -37049,7 +37049,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -37123,7 +37123,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -37146,7 +37146,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -37641,7 +37641,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -37715,7 +37715,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -37738,7 +37738,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -38233,7 +38233,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -38309,7 +38309,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -38332,7 +38332,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -38827,7 +38827,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -38902,7 +38902,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -38925,7 +38925,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -39420,7 +39420,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -39498,7 +39498,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -39521,7 +39521,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -40016,7 +40016,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -40094,7 +40094,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -40117,7 +40117,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -40612,7 +40612,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [
@@ -40752,7 +40752,7 @@
    "tiles": [
     {
      "name": "Driver screen",
-     "status": "Instruments",
+     "status": "Yandex Navigator",
      "on": true,
      "icon": [
       [
@@ -40775,7 +40775,7 @@
     },
     {
      "name": "Simulcast",
-     "status": "6 chosen",
+     "status": "2 chosen",
      "on": true,
      "icon": [
       [
@@ -41270,7 +41270,7 @@
     20.73,
     18.73
    ],
-   "consumptionCaption": "Usage 16.9 kWh/100 km · last 10 km",
+   "consumptionCaption": "Usage 17 kWh/100 km · last 10 km",
    "sheet": {
     "icon": [
      [

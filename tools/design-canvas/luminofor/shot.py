@@ -176,6 +176,16 @@ def board_ids():
     return ids
 
 
+def app_version():
+    """versionName and versionCode as the app's build file has them today: the boards print the
+    version the app would, not the one that was current when a scene was written."""
+    with open(os.path.join(REPO, 'apps', 'denza-apps', 'build.gradle.kts'), encoding='utf-8') as f:
+        src = f.read()
+    name = re.search(r'^\s*versionName\s*=\s*"([^"]+)"', src, re.M).group(1)
+    code = int(re.search(r'^\s*versionCode\s*=\s*(\d+)', src, re.M).group(1))
+    return {'version': name, 'build': code}
+
+
 def page(body_script, lang=RU):
     spec = read('spec.json')
     # English goes in after the scenes and before anything is drawn; a Russian page has none of it.
@@ -189,6 +199,7 @@ def page(body_script, lang=RU):
             f'<script>window.LUMINOFOR_SPEC = {spec};</script>'
             f'<script>window.SCANNER_LAYOUT = {read("scanner.json")};</script>'
             f'<script>{read("scanner.js")}</script>'
+            f'<script>window.LUMINOFOR_APP = {json.dumps(app_version())};</script>'
             f'<script>{read("fixtures.js")}</script>'
             f'{english}'
             f'<script>{read("luminofor.js")}</script>'

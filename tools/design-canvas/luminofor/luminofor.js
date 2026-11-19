@@ -331,8 +331,10 @@
   function traceFigure(c, f) {
     const zero = CT.zero;
     const fx = AX + CT.gapFromAxis;
-    // a figure that stopped arriving leaves, and its unit stays where the last one put it
-    const fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, INK, 1, 'left')
+    // a figure that stopped arriving leaves, and its unit stays where the last one put it; a minus
+    // is the one signed figure on either screen and is blue, the trace's own blue (contract §2.2)
+    const ink = f.consumption && /^[-−]/.test(f.consumption) ? BLUE : INK;
+    const fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, ink, 1, 'left')
       : f.consumptionHeld ? numExtent(f.consumptionHeld, CT.figureSize) : 0;
     if (f.consumptionUnit) text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
   }

@@ -32,8 +32,8 @@
   }
 
   const TILES = [
-    { name: 'Экран водителя', status: 'Приборы', on: true, icon: [['c', 11, 12, 9], ['c', 11, 12, 3], ['p', 'M2.2 10.5 L8.1 10.9 M19.8 10.5 L13.9 10.9 M11 15 L11 21']] },
-    { name: 'Трансляция', status: 'Выбрано 6', on: true, icon: [['p', 'M2 20h0.01'], ['p', 'M2 16a4 4 0 0 1 4 4'], ['p', 'M2 12a8 8 0 0 1 8 8'], ['p', 'M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6']] },
+    { name: 'Экран водителя', status: 'Яндекс Навигатор', on: true, icon: [['c', 11, 12, 9], ['c', 11, 12, 3], ['p', 'M2.2 10.5 L8.1 10.9 M19.8 10.5 L13.9 10.9 M11 15 L11 21']] },
+    { name: 'Трансляция', status: 'Выбрано 2', on: true, icon: [['p', 'M2 20h0.01'], ['p', 'M2 16a4 4 0 0 1 4 4'], ['p', 'M2 12a8 8 0 0 1 8 8'], ['p', 'M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6']] },
     { name: 'Зеркала', status: 'Включены', on: true, icon: [['p', 'M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z'], ['c', 12, 12, 3]] },
     { name: 'Разделение', status: 'Включено', on: true, icon: [['r', 2, 4.5, 18, 15, 2], ['p', 'M11 4.5v15']] },
     { name: 'HUD Подсказки', status: 'Включены', on: true, icon: [['p', 'M3 13.5l6-6 6 6'], ['p', 'M2 19h14']] },
@@ -124,7 +124,8 @@
     tripCell: { cap: '42 км · за поездку', fig: '9,3', unit: 'кВт·ч' },
     temps: temps([28, 31, 29, 31, 32]),
     chart,
-    consumptionCaption: 'Расход 16,9 кВт·ч/100 км · за 10 км'
+    // on the move: the figure is whole (contract §2.2), as the cluster's «17» beside it
+    consumptionCaption: 'Расход 17 кВт·ч/100 км · за 10 км'
   };
   const headEngine = Object.assign({}, head, {
     power: { cap: 'В батарею от ДВС', fig: '14', unit: 'кВт', dot: true, col: 'blue' },
@@ -151,6 +152,8 @@
   const headNeutral = Object.assign({}, head, { power: { cap: 'Батарея', fig: '1', unit: 'кВт' } });
   // on an AC charger, parked
   const headCharging = Object.assign({}, head, {
+    // standing on P: the tenth comes back
+    consumptionCaption: 'Расход 16,9 кВт·ч/100 км · за 10 км',
     power: { cap: 'В батарею от зарядки', fig: '7', unit: 'кВт', dot: true, col: 'blue' },
     volts: { cap: 'Напряжение', fig: '561', unit: 'В' },
     temps: temps([27, 26, 25, 25, 29])
@@ -259,7 +262,11 @@
   // healthy car it is two quiet rows; a feature that needs somebody is a row in its tile's colour
   // that opens its panel; the car's access grows its buttons only when there is no access. The
   // instruments' screen and the technical readings are pages, and the version is the foot.
-  const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
+  // the app's version as its build file has it when the board is drawn (shot.py reads it), so no
+  // board shows a release that has already gone by
+  const APP = root.LUMINOFOR_APP;
+  const APP_LINE = 'Denza Apps ' + APP.version + ' · сборка ' + APP.build;
+  const SVC_VERSION = { t: 'footnote', text: APP_LINE };
   // the app's own language: both names stay whichever is on, and it stands above the pages, on the
   // first screen, so that nobody has to read the panel or scroll it to find the way out of Russian
   const SVC_LANGUAGE = { t: 'section', label: 'Язык / Language', body: [
@@ -296,7 +303,7 @@
     'Без связи=—',
     'Прочитано=12 с назад',
     '[Приложение]',
-    'Версия=0.6.2 · сборка 53',
+    'Версия=' + APP.version + ' · сборка ' + APP.build,
     'Android=13 · SDK 33',
     'Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys',
     '[Доступ к машине]',
@@ -372,7 +379,7 @@
     sightings: [['13F', '19.10 08:05:40', '21.10 14:01:22', 14], ['7D', '20.10 08:40:02', '20.10 19:12:24', 2]],
     events: WARN_EVENTS, names: WARN_NAMES };
   const svcState = { tile: 'SERVICE', warnings: WARN, adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
-    cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL,
+    cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: APP.version, build: APP.build, technical: SVC_TECHNICAL,
     // every scene of the panel carries the journal, so the debug build's row opens the page
     journal: SVC_JOURNAL };
   // «Восстановление ADB»: the answer, the switch, and what the last boot did - the port open at the
@@ -490,12 +497,12 @@
         { t: 'note', text: 'Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.' }
       ]
     }, Object.assign({}, svcState, { page: 'screen' })),
-    tech: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW) },
+    tech: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: APP_LINE, blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW) },
       Object.assign({}, svcState, { page: 'technical' })),
     // the same page scrolled to its end, where the split's section and the way to its journal are:
     // what an owner on another firmware photographs (the header scrolls away with the rows, as the
     // app's column does)
-    split: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW), scroll: 'end' },
+    split: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: APP_LINE, blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW), scroll: 'end' },
       Object.assign({}, svcState, { page: 'technical', scroll: 'end' })),
     journal: sheetOf(11, { title: 'Журнал работы', back: true, subtitle: 'Разделение экрана', blocks: techBlocks(SVC_JOURNAL) },
       Object.assign({}, svcState, { page: 'journal' }))
