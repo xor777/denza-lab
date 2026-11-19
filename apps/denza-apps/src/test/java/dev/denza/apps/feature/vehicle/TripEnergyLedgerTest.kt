@@ -173,6 +173,19 @@ class TripEnergyLedgerTest {
     }
 
     @Test
+    fun theLedgerCountsEveryArrivalInParkAndAMissedAnswerIsNotOne() {
+        val ledger = ledger()
+        assertEquals(0, ledger.trip.parks)
+        ledger.sample(null, null, null, true, 1.0)
+        ledger.sample(null, null, null, null, 1.0)
+        ledger.sample(null, null, null, true, 1.0)
+        assertEquals("P, nothing, P is one park", 1, ledger.trip.parks)
+        ledger.sample(100.0, null, null, false, 1.0)
+        ledger.sample(100.0, null, null, true, 1.0)
+        assertEquals(2, ledger.trip.parks)
+    }
+
+    @Test
     fun standingStillWithoutParkKeepsTheTripGoing() {
         val ledger = ledger()
         moving(ledger, 100.0)

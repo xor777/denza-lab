@@ -44,6 +44,13 @@ internal data class TripEnergy(
      * nothing.
      */
     val opened: Boolean = false,
+    /**
+     * How many times the ledger has read the selector go into P since the process started: not
+     * part of the trip's cost and never journalled, but the one boundary a reader that looked away
+     * cannot see in a later snapshot. The strip's trip clock stops reading the hub while the
+     * dashboard is paused, and a P it missed is a count that moved (`TripParkFeed`).
+     */
+    val parks: Int = 0,
 ) {
     val engineMinutes: Double get() = engineSeconds / 60.0
 
@@ -119,8 +126,12 @@ internal class TripEnergyLedger(
      */
     private var armed = true
 
+    /** [TripEnergy.parks], and the last answer the selector gave, which is what a new P is new against. */
+    private var parks = 0
+    private var lastParked: Boolean? = null
+
     val trip: TripEnergy
-        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres, engineKnown, opened)
+        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres, engineKnown, opened, parks)
 
     /** Everything the journal needs, and nothing it does not. */
     fun record(): TripRecord? {
@@ -146,6 +157,11 @@ internal class TripEnergyLedger(
         parked: Boolean?,
         dtSeconds: Double,
     ) {
+        // A sweep the selector did not answer is not a way out of P, so P, nothing, P is one park.
+        if (parked != null) {
+            if (parked && lastParked != true) parks++
+            lastParked = parked
+        }
         if (odometer.step(odometerKm) != OdometerGate.Step.ROAD) {
             // P is the gearbox's answer, not the odometer's. A P read in a sweep whose odometer
             // missed used to be dropped with the sample, so a driver who left P before the next

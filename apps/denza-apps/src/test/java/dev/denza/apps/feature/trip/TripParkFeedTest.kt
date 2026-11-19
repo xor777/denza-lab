@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.trip
 
 import dev.denza.apps.feature.vehicle.AutoserviceShell
+import dev.denza.apps.feature.vehicle.TripEnergyLedger
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
@@ -201,6 +202,50 @@ class TripParkFeedTest {
 
         assertEquals(false, engine.parked)
         assertTrue(waiting.isEmpty())
+    }
+
+    /**
+     * The driver switches to the navigator mid-trip, parks, and comes back to the dashboard after
+     * selecting D. The strip handed nothing on while it was paused; the vehicle ledger read the P
+     * and started a new trip. The strip's trip clock used to run on through the stop.
+     */
+    @Test
+    fun aParkTheStripMissedWhilePausedEndsItsTripOnResume() {
+        hubSweep = sweep("Result: Parcel(00000000 00000000   '........')")
+        feed.start()
+        drive(fromMs = now)
+        assertTrue(engine.tripStarted)
+        feed.stop()
+
+        // The ledger read P and then D while nobody was handing sweeps to the engine.
+        val ledger = TripEnergyLedger()
+        ledger.sample(1000.0, 0.0, false, false, 1.0)
+        ledger.sample(1000.0, 0.0, false, true, 1.0)
+        ledger.sample(1000.0, 0.0, false, false, 1.0)
+        hubSweep = sweep("Result: Parcel(00000000 00000000   '........')").copy(trip = ledger.trip)
+        now += 600_000L
+
+        feed.start()
+
+        assertFalse("the P ended the trip", engine.tripStarted)
+        assertEquals(false, engine.parked)
+        assertEquals(0.0, engine.elapsedSeconds, 1e-9)
+    }
+
+    /** A sweep the strip did hand on carries the count it has already acted on: no second reset. */
+    @Test
+    fun aParkTheStripSawItselfIsNotTakenAgain() {
+        val ledger = TripEnergyLedger()
+        ledger.sample(1000.0, 0.0, false, true, 1.0)
+        feed.onTelemetry(sweep("Result: Parcel(00000000 00000001   '........')").copy(trip = ledger.trip), 0L)
+        ledger.sample(1000.0, 0.0, false, false, 1.0)
+        val drivingTrip = ledger.trip
+        feed.onTelemetry(sweep("Result: Parcel(00000000 00000000   '........')").copy(trip = drivingTrip), 1_000L)
+        drive(fromMs = 1_000L)
+        assertTrue(engine.tripStarted)
+
+        feed.onTelemetry(sweep("Result: Parcel(00000000 00000000   '........')").copy(trip = drivingTrip), 6_000L)
+        assertTrue("the same count is not news", engine.tripStarted)
     }
 
     /** `TripSensorHub.tick` on every frame and `onLocationChanged` on every fix call [TripParkFeed.feed]. */

@@ -35,6 +35,9 @@ internal class TripParkFeed(
     private var last: VehicleTelemetry? = null
     private var running = false
 
+    /** The vehicle ledger's count of P arrivals as of the last sweep handed on (`TripEnergy.parks`). */
+    private var parks = 0
+
     private val second = object : Runnable {
         override fun run() {
             if (!running) return
@@ -63,9 +66,20 @@ internal class TripParkFeed(
         onTelemetry(telemetry(), clock())
     }
 
+    /**
+     * A P this feed did not see is still a P. The feed hands on the latest sweep only, and it hands
+     * nothing while the strip is stopped - the dashboard paused for the navigator - while the
+     * vehicle ledger reads every sweep and starts a new trip after the P. So the ledger's count of
+     * P arrivals is compared with the one this feed last handed on, and a count that moved ends the
+     * trip before the sweep's own answer is given: otherwise the strip's trip clock ran through the
+     * stop into the next drive while the energy trip had started again.
+     */
     fun onTelemetry(snapshot: VehicleTelemetry, nowElapsedMs: Long) {
         if (snapshot === last) return
         last = snapshot
+        val seen = snapshot.trip.parks
+        if (seen > parks && snapshot.parked != true) engine.onParkState(true, nowElapsedMs)
+        if (seen > parks) parks = seen
         engine.onParkState(snapshot.parked, nowElapsedMs)
     }
 
