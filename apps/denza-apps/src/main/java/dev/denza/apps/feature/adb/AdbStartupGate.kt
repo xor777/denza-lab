@@ -89,7 +89,10 @@ object AdbStartupGatePolicy {
                     details = AppText.s(R.string.adb_gate_wifi_details),
                     explainerAvailable = true,
                 )
-                AdbRestoreState.Connecting -> return AdbStartupOverlayModel(visible = false)
+                // An attempt is up to 75 s, and the dashboard behind is blocked all that time: the
+                // gate says what is happening and keeps the door to «Сервис». It was hidden here, and
+                // a car whose restore could not succeed showed a disabled dashboard with nothing on it.
+                AdbRestoreState.Connecting -> return restoring()
                 AdbRestoreState.NeedsDialog -> return AdbStartupOverlayModel(
                     visible = true,
                     title = AppText.s(R.string.adb_gate_dialog_title),
@@ -104,15 +107,47 @@ object AdbStartupGatePolicy {
                     primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
                     explainerAvailable = true,
                 )
+                // The port is open again and the check that will say TRUSTED has not answered yet:
+                // the phase is still the closed port's, and its gate would flash between the two.
+                // Only over the phases a closed port leaves - a car that answered and refused, or a
+                // request waiting on the driver, is that phase's gate and not a ring.
+                is AdbRestoreState.Restored ->
+                    if ((snapshot.recheckOf ?: snapshot.phase) in CLOSED_PORT) return restoring()
                 else -> Unit
             }
         }
-        return when (snapshot.phase) {
+        val recheckOf = snapshot.recheckOf
+        if (snapshot.phase == AdbRescuePhase.CHECKING && recheckOf != null) {
+            // A check of a gate that is up: the same gate, the ring in place of its glyph and nothing
+            // else changed, so the card neither leaves nor resizes. A press during the check is
+            // absorbed by the coordinator's single flight.
+            return phaseGate(recheckOf, snapshot).copy(busy = true)
+        }
+        return phaseGate(snapshot.phase, snapshot)
+    }
+
+    private val CLOSED_PORT = setOf(
+        AdbRescuePhase.UNKNOWN,
+        AdbRescuePhase.CHECKING,
+        AdbRescuePhase.UNAVAILABLE,
+        AdbRescuePhase.ERROR,
+    )
+
+    private fun restoring() = AdbStartupOverlayModel(
+        visible = true,
+        title = AppText.s(R.string.adb_gate_failed_title),
+        message = AppText.s(R.string.adb_gate_connecting_message),
+        busy = true,
+        explainerAvailable = true,
+    )
+
+    private fun phaseGate(phase: AdbRescuePhase, snapshot: AdbRescueSnapshot): AdbStartupOverlayModel =
+        when (phase) {
         AdbRescuePhase.TRUSTED -> AdbStartupOverlayModel(visible = false)
         AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.CHECKING,
         -> AdbStartupOverlayModel(
-            // The passive handshake normally completes before the first useful frame. Keep
+            // The first passive handshake normally completes before the first useful frame. Keep
             // startup visually stable; the root still installs an invisible input shield and
             // does not start any ADB-dependent runtime until TRUSTED.
             visible = false,
@@ -165,7 +200,6 @@ object AdbStartupGatePolicy {
             explainerAvailable = true,
         )
         }
-    }
 
     /**
      * Что машина ответила про свой тумблер отладки — на каждом экране, где человек застрял.

@@ -347,6 +347,7 @@
     <string name="adb_gate_dialog_message">Denza Apps confirms the network dialog automatically. If it stays on the screen, tick “Always allow on this network” and press ALLOW.</string>
     <string name="adb_gate_failed_title">Restoring access</string>
     <string name="adb_gate_failed_message">Waiting for the next Wi-Fi connection or for the screen to wake</string>
+    <string name="adb_gate_connecting_message">Restoring access over Wi-Fi</string>
     <string name="adb_gate_unavailable_title">ADB unavailable</string>
     <string name="adb_gate_confirm_title">Confirm ADB access</string>
     <string name="adb_gate_authorize_message">To use Denza Apps, allow the ADB system request on the car\'s screen</string>

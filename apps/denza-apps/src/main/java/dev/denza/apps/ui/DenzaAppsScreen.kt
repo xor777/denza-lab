@@ -468,6 +468,9 @@ private fun AdbRecoveryDialog(
 ) {
     val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
+    // A re-check keeps the gate up, and with it this window: its buttons stay where they are and
+    // stop answering, rather than leaving for the check's seconds and coming back.
+    val settled = state.adbRescue.recheckOf?.let { state.adbRescue.copy(phase = it) } ?: state.adbRescue
     DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
         Text(AppText.s(R.string.adb_recovery_title), style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
         Text(
@@ -483,7 +486,7 @@ private fun AdbRecoveryDialog(
             modifier = Modifier.fillMaxWidth(),
             enabled = !busy,
         )
-        if (state.adbRescue.canRequest) {
+        if (settled.canRequest) {
             DenzaPrimaryButton(
                 text = AppText.s(R.string.adb_request_once),
                 onClick = onRequestAdbAuthorizationOnce,
@@ -491,7 +494,7 @@ private fun AdbRecoveryDialog(
                 enabled = !busy,
             )
         }
-        if (state.adbRescue.canResetAttempt) {
+        if (settled.canResetAttempt) {
             DenzaSecondaryButton(
                 text = AppText.s(R.string.adb_allow_new_attempt),
                 onClick = onAllowNewAdbAuthorizationAttempt,

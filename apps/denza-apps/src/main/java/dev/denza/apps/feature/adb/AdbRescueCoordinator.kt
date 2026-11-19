@@ -36,6 +36,13 @@ data class AdbRescueSnapshot(
      * dialog print under the message, so a class name stood on the panel the driver opens.
      */
     val lastFailure: String? = null,
+    /**
+     * The gate a check is looking at again: the phase before it, while [phase] is CHECKING and that
+     * phase had a gate up. Null at every other time, and during the first check, which has no gate.
+     * The gate stays as it was through the check, with the ring in place of its glyph; taking it
+     * down for the check's seconds and putting it back was a flash on every press.
+     */
+    val recheckOf: AdbRescuePhase? = null,
 ) {
     // The single request is also a slot in Android's prompt queue. Never offer to spend it where
     // the system has already said no prompt can be drawn.
@@ -107,6 +114,7 @@ internal object AdbRescuePolicy {
      */
     fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNAVAILABLE,
+        recheckOf = null,
         message = NO_LINK,
         details = SYSTEM_SWITCH_OFF_DETAIL,
         systemSwitch = AdbSystemSwitch.DISABLED,
@@ -136,6 +144,19 @@ internal object AdbRescuePolicy {
         phase = AdbRescuePhase.CHECKING,
         message = AppText.s(R.string.adb_checking),
         details = null,
+        recheckOf = when (previous.phase) {
+            in STANDING_GATES -> previous.phase
+            AdbRescuePhase.CHECKING -> previous.recheckOf
+            else -> null
+        },
+    )
+
+    /** The phases whose gate stays up while a check looks again. */
+    private val STANDING_GATES = setOf(
+        AdbRescuePhase.UNAVAILABLE,
+        AdbRescuePhase.AUTHORIZATION_REQUIRED,
+        AdbRescuePhase.AWAITING_CONFIRMATION,
+        AdbRescuePhase.ERROR,
     )
 
     fun afterCheck(
@@ -144,7 +165,7 @@ internal object AdbRescuePolicy {
         systemSwitch: AdbSystemSwitch,
         failure: String? = null,
     ): AdbRescueSnapshot {
-        val base = previous.copy(systemSwitch = systemSwitch)
+        val base = previous.copy(systemSwitch = systemSwitch, recheckOf = null)
         return when (outcome) {
             // A completed handshake outranks the flag: whatever the switch says, this key is
             // trusted and the transport works.
@@ -200,6 +221,7 @@ internal object AdbRescuePolicy {
         phase = AdbRescuePhase.REQUESTING,
         message = AppText.s(R.string.adb_requesting),
         details = AppText.s(R.string.adb_requesting_details),
+        recheckOf = null,
         requestPending = true,
         attemptCount = previous.attemptCount + 1,
         lastAttemptAtMillis = attemptAtMillis,
@@ -239,6 +261,7 @@ internal object AdbRescuePolicy {
 
     fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNKNOWN,
+        recheckOf = null,
         message = AppText.s(R.string.adb_new_attempt_allowed),
         details = AppText.s(R.string.adb_check_first),
         requestPending = false,

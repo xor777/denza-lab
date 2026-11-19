@@ -132,8 +132,11 @@ internal object SheetFixtures {
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),
         )
         AdbStartupOverlay(
-            model = AdbStartupGatePolicy.overlay(snapshot, if (s.optString("restore") == "WaitingWifi")
-                AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi) else null),
+            model = AdbStartupGatePolicy.overlay(snapshot, when (s.optString("restore")) {
+                "WaitingWifi" -> AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi)
+                "Connecting" -> AdbRestoreSnapshot(state = AdbRestoreState.Connecting)
+                else -> null
+            }),
             compact = compact,
             onPrimaryAction = {},
             onOpenRecovery = {},

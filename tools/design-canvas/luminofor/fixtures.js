@@ -522,6 +522,15 @@
     },
     state: { gate: 'UNAVAILABLE', restore: 'WaitingWifi' }
   });
+  // the restore at work: the ring in the glyph's place, what is happening, and the door to «Сервис»
+  const restoringGate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[11].icon, tone: 'idle', busy: true, title: 'Восстановление доступа',
+      message: 'Возвращаем доступ через Wi-Fi',
+      quiet: [{ text: 'Что такое ADB' }]
+    },
+    state: { gate: 'UNAVAILABLE', restore: 'Connecting' }
+  });
 
   // the cloud link: a switch whose reason is a warning, on two lines rather than cut short
   sheets.cloud = sheetOf(10, {
@@ -1875,6 +1884,7 @@
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
     'modal-adb-wifi':  [{ kind: 'modal', mode: 'full' }, wifiGate],
+    'modal-adb-restoring': [{ kind: 'modal', mode: 'full' }, restoringGate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'sheet-hud':       [{ kind: 'sheet', mode: 'full' }, sheets.hud],

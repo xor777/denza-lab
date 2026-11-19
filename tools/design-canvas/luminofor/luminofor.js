@@ -1152,7 +1152,9 @@
     over(c, () => { c.strokeStyle = rgba([255, 255, 255], SH.panel.edgeAlpha); c.lineWidth = 1; c.beginPath(); c.roundRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1, M.radius - 0.5); c.stroke(); });
     const x = cx + pad; let y = cy + pad;
     const col = m.tone === 'attention' ? hex('#FF9F19') : [255, 255, 255];
-    glyphAt(c, m.icon, x, y, M.icon, m.tone === 'attention' ? 1 : SH.header.closeAlpha, col, SH.plate.color);
+    // working, the tiles' ring in the glyph's place, at the glyph's size and weight
+    if (m.busy) ring(c, x + M.icon / 2, y + M.icon / 2, M.icon, S.head.icon.stroke * M.icon / 24);
+    else glyphAt(c, m.icon, x, y, M.icon, m.tone === 'attention' ? 1 : SH.header.closeAlpha, col, SH.plate.color);
     const ts = full ? M.titleSize : M.compactTitleSize;
     words(c, m.title, x + M.icon + M.iconGap, centred(y + M.icon / 2, ts), ts, 1, { w: 500 });
     y += M.icon + M.gap;

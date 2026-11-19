@@ -363,6 +363,127 @@ class AdbStartupGatePolicyTest {
         )
     }
 
+    /**
+     * The field report of 2026-11-19: a blocked dashboard with nothing on it. Every phase that blocks,
+     * under every state of an enabled restore, has a gate - except the first passive check, which
+     * must not flash one.
+     */
+    @Test
+    fun `a blocked dashboard has a gate once the first check is over`() {
+        val restoreStates = listOf(
+            AdbRestoreState.Disabled,
+            AdbRestoreState.Unsupported,
+            AdbRestoreState.NotNeeded,
+            AdbRestoreState.NeedsActivation,
+            AdbRestoreState.WaitingWifi,
+            AdbRestoreState.NeedsDialog,
+            AdbRestoreState.Connecting,
+            AdbRestoreState.Restored(1L),
+            AdbRestoreState.Failed("mDNS timeout", 1L),
+        )
+        val fallsThrough = setOf(
+            AdbRestoreState.Disabled,
+            AdbRestoreState.Unsupported,
+            AdbRestoreState.NotNeeded,
+            AdbRestoreState.NeedsActivation,
+        )
+        val standing = listOf(
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.ERROR,
+        )
+        val snapshots = AdbRescuePhase.entries.filter { it != AdbRescuePhase.TRUSTED }
+            .map { AdbRescueSnapshot(phase = it) } +
+            standing.map { AdbRescuePolicy.checking(AdbRescueSnapshot(phase = it)) }
+        snapshots.forEach { snapshot ->
+            val firstCheck = snapshot.phase == AdbRescuePhase.UNKNOWN ||
+                (snapshot.phase == AdbRescuePhase.CHECKING && snapshot.recheckOf == null)
+            restoreStates.forEach { state ->
+                val model = AdbStartupGatePolicy.overlay(snapshot, AdbRestoreSnapshot(enabled = true, state = state))
+                assertEquals(
+                    "${snapshot.phase} (re-check of ${snapshot.recheckOf}) under $state",
+                    !(firstCheck && state in fallsThrough),
+                    model.visible,
+                )
+                if (model.visible) assertTrue("${snapshot.phase} under $state", model.explainerAvailable)
+            }
+        }
+    }
+
+    @Test
+    fun `a restore under way has the working gate, not nothing`() {
+        AdbRescuePhase.entries.filter { it != AdbRescuePhase.TRUSTED }.forEach { phase ->
+            val model = AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = phase),
+                AdbRestoreSnapshot(state = AdbRestoreState.Connecting))
+            assertTrue(phase.name, model.visible)
+            assertTrue(phase.name, model.busy)
+            assertEquals("Восстановление доступа", model.title)
+            assertEquals("Возвращаем доступ через Wi-Fi", model.message)
+            assertNull(model.details)
+            assertNull(model.primaryLabel)
+            assertEquals(AdbStartupPrimaryAction.NONE, model.primaryAction)
+            assertFalse(model.recoveryAvailable)
+            assertTrue(model.explainerAvailable)
+        }
+        assertFalse(AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED),
+            AdbRestoreSnapshot(state = AdbRestoreState.Connecting)).visible)
+    }
+
+    @Test
+    fun `a restore that succeeded keeps the working gate until the check says trusted`() {
+        val restored = AdbRestoreSnapshot(state = AdbRestoreState.Restored(1L))
+        val connecting = AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE),
+            AdbRestoreSnapshot(state = AdbRestoreState.Connecting))
+        // The phase the closed port left, then the check that follows the restore: no «ADB недоступен».
+        val stale = AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE)
+        assertEquals(connecting, AdbStartupGatePolicy.overlay(stale, restored))
+        assertEquals(connecting, AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(stale), restored))
+        assertEquals(connecting, AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.ERROR), restored))
+        assertFalse(AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED), restored).visible)
+        // A car that answered and wants the driver is that phase's gate, never a ring that stays.
+        val awaiting = AdbRescueSnapshot(phase = AdbRescuePhase.AWAITING_CONFIRMATION, requestPending = true)
+        assertEquals(AdbStartupGatePolicy.overlay(awaiting), AdbStartupGatePolicy.overlay(awaiting, restored))
+    }
+
+    @Test
+    fun `a re-check keeps the standing gate and only turns its glyph into the ring`() {
+        listOf(
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.ERROR,
+        ).forEach { phase ->
+            AdbSystemSwitch.entries.forEach { switch ->
+                val standing = AdbRescueSnapshot(phase = phase, systemSwitch = switch, requestPending =
+                    phase == AdbRescuePhase.AWAITING_CONFIRMATION)
+                val checking = AdbRescuePolicy.checking(standing)
+                assertEquals(AdbRescuePhase.CHECKING, checking.phase)
+                assertEquals(phase, checking.recheckOf)
+                val settled = AdbStartupGatePolicy.overlay(standing)
+                assertFalse(settled.busy)
+                assertEquals("$phase $switch", settled.copy(busy = true), AdbStartupGatePolicy.overlay(checking))
+                // Pressed again during the check: still the same gate.
+                assertEquals(phase, AdbRescuePolicy.checking(checking).recheckOf)
+            }
+        }
+    }
+
+    @Test
+    fun `the re-check mark lives only while the check does`() {
+        val checking = AdbRescuePolicy.checking(AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE))
+        AdbCheckOutcome.entries.forEach { outcome ->
+            assertNull(outcome.name, AdbRescuePolicy.afterCheck(checking, outcome, AdbSystemSwitch.ENABLED).recheckOf)
+        }
+        assertNull(AdbRescuePolicy.systemSwitchOff(checking).recheckOf)
+        assertNull(AdbRescuePolicy.resetAttempt(checking).recheckOf)
+        assertNull(AdbRescuePolicy.requesting(checking, 1L, AdbSystemSwitch.ENABLED).recheckOf)
+        // The first check of a process, and a check after a reset, have no gate to keep.
+        assertNull(AdbRescuePolicy.checking(AdbRescuePolicy.initial(false, 0, 0L)).recheckOf)
+        assertNull(AdbRescuePolicy.checking(AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED)).recheckOf)
+        assertFalse(AdbStartupGatePolicy.overlay(AdbRescuePolicy.checking(AdbRescuePolicy.initial(false, 0, 0L))).visible)
+    }
+
     @Test
     fun `pending request checks trust without automatically submitting another key`() {
         val model = AdbStartupGatePolicy.overlay(
