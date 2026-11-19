@@ -37,6 +37,7 @@ public class SimulcastOverlayService extends Service {
     private static final String ACTION_HIDE_ACTIVE_EXIT = "dev.denza.apps.HIDE_ACTIVE_EXIT";
     static final String ACTION_START_TARGET = "dev.denza.apps.START_SIMULCAST_TARGET";
     static final String ACTION_STOP_CURRENT = "dev.denza.apps.STOP_SIMULCAST_TARGET";
+    private static final String ACTION_STOP_OWNED = "dev.denza.apps.STOP_OWNED_SIMULCAST";
     static final String EXTRA_TARGET_PACKAGE = "targetPackage";
     static final String EXTRA_RECEIVER = "receiver";
     private static final String DISHARE_PACKAGE = "com.byd.dishare";
@@ -48,9 +49,13 @@ public class SimulcastOverlayService extends Service {
     private SimulcastExitButtonView activeShareExitView;
     private DiShareProjectionBridge activeBridge;
 
-    public static void stopCurrent(Context context) {
+    /**
+     * «Поддержка трансляции» went off: ends the share this process started, if one runs, and
+     * leaves a share the driver started from the stock dialog alone ({@link SimulcastStopPolicy}).
+     */
+    public static void stopOwned(Context context) {
         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
-        startAction(context, ACTION_STOP_CURRENT);
+        startAction(context, ACTION_STOP_OWNED);
     }
 
     /** Starts the service if it is not running, and shows the exit control if a share is. */
@@ -97,8 +102,9 @@ public class SimulcastOverlayService extends Service {
             }
             return START_STICKY;
         }
-        if (ACTION_STOP_CURRENT.equals(action)) {
-            stopCurrentShare();
+        if (ACTION_STOP_CURRENT.equals(action) || ACTION_STOP_OWNED.equals(action)) {
+            stopCurrentShare(ACTION_STOP_OWNED.equals(action)
+                    ? SimulcastStopRequest.SWITCH_OFF : SimulcastStopRequest.EXIT_CONTROL);
             hideActiveShareExit();
             closeDiShareDialog();
             stopSelf(startId);
@@ -211,13 +217,18 @@ public class SimulcastOverlayService extends Service {
                         videoBounds.getRight(), videoBounds.getBottom()));
     }
 
-    private void stopCurrentShare() {
+    private void stopCurrentShare(SimulcastStopRequest request) {
         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
-        if (activeBridge != null) {
+        SimulcastStop stop = SimulcastStopPolicy.decide(request, activeBridge != null);
+        if (stop == SimulcastStop.OWNED_BRIDGE) {
             stopBridge();
             shareOver();
             // The exit control going away is the answer; no toast.
             SimulcastScreenDiagnostics.recordCastOutcome("выход: завершено");
+            return;
+        }
+        if (stop == SimulcastStop.NOTHING) {
+            shareOver();
             return;
         }
         DiShareProjectionBridge.stopCurrentShare(getApplicationContext(),
@@ -291,7 +302,7 @@ public class SimulcastOverlayService extends Service {
         }
         activeShareExitView = new SimulcastExitButtonView(this);
         activeShareExitView.setOnClickListener(view -> {
-            stopCurrentShare();
+            stopCurrentShare(SimulcastStopRequest.EXIT_CONTROL);
             closeDiShareDialog();
         });
         try {

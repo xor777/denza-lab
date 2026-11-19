@@ -10,7 +10,7 @@ create a virtual display named `BYD-Mirror` and move Bilibili to it.
 
 ## Current state
 
-Updated 2026-10-09. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
+Updated 2026-11-19. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
 draws and casts over the stock Simulcast screen, and which camera/HUD streaming routes are dead
 ends.
 
@@ -21,6 +21,7 @@ ends.
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state and stops as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`); `DiShareScreens.java` asks tx `0x4`. The bridge's tx `0xb` "close UI" had no caller and was removed on 2026-10-09: the product closes the dialog with the package-scoped `DIALOG_CLOSE` broadcast | code | 2026-10-09 | [Direct control service transaction map](#direct-control-service-transaction-map) |
 | DiShare tells the API client that started a share when it stops being the mirror client: `IDiShareApiClient` tx 1 `true` during the start, `false` 0.1 s after the `605` on P→D (`captures/hud-pd-20260924T132255Z/dishare.log`) | live | 2026-09-24 | [End of a share](#end-of-a-share) |
 | The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. The target lives in memory only (`SimulcastIntegration.java`). Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
+| Switching «Поддержка трансляции» off ends only a share this process started (`SimulcastStopPolicy.kt`); a share started from the stock dialog stays. Only the exit control keeps the fallback that reads DiShare's current session and stops it | code | 2026-11-19 | [Switching support off](#switching-support-off-2026-11-19) |
 | A start or exit is answered on screen only by the stock dialog closing and the exit control appearing or going; a refused start keeps the dialog and our row, and DiShare's reply is the «Последний исход» row of «Технические сведения», never a toast (`SimulcastOverlayService.java`, `SimulcastScreenDiagnostics.recordCastOutcome`) | code | 2026-10-09 | [End of a share](#end-of-a-share) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
@@ -68,7 +69,7 @@ ends.
 - [Exported components](#exported-components) — DiShare's services, binder descriptors, the action-only bind.
 - [Direct control service transaction map](#direct-control-service-transaction-map) — `IDiShareControl` transaction codes and return parcelables.
 - [Direct start path](#direct-start-path) — what `start` checks, and the first live HUD share as `com.byd.dishare`.
-- [Share session lifecycle (2026-10-08)](#share-session-lifecycle-2026-10-08) — how the product binds to DiShare, learns that its share ended, and lets go.
+- [Share session lifecycle (2026-10-08)](#share-session-lifecycle-2026-10-08) — how the product binds to DiShare, learns that its share ended, lets go, and what switching support off stops.
 - [Probe commands](#probe-commands) — the legacy raw-Binder probe activity and its extras.
 - [Historical Simulcast App Change alias path](#historical-simulcast-app-change-alias-path) — the archived alias APKs, where the native row's metadata lives, the native-list follow-up.
 - [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) — the accessibility row and drop layer, dialog lifecycle, centered aspect-fit, receivers, share size.
@@ -244,6 +245,21 @@ What the product does (`DiShareShareSession.java`, tested in `DiShareShareSessio
   gone, and it brought the exit control and a running tile back after every restart (APK
   update, a killed process). That the share ends with our process has not been watched on the
   car; it follows from `onClientRemoved`.
+
+### Switching support off (2026-11-19)
+
+«Поддержка трансляции» is a setting for our row over the stock dialog and our exit control. Until
+2026-11-19 switching it off sent the exit control's stop (`SimulcastOverlayService.stopCurrent`),
+and with no bridge of ours that stop falls back to `DiShareProjectionBridge.stopCurrentShare`:
+register as `com.byd.dishare`, read the current session (tx `0x5`) and stop it (tx `0x7`). A share
+the driver had started from the stock dialog, without our row, was ended by a switch that was
+never about it.
+
+Now the switch sends its own request, and `SimulcastStopPolicy.kt` decides (tested in
+`SimulcastStopPolicyTest`): a bridge this process holds is stopped as the exit control stops it;
+with none, nothing is sent to DiShare and only our own target and exit control are cleared. The
+exit control keeps the fallback: it is on screen only while this process has a cast on record, so
+its press means "end the share I see".
 
 ## Probe commands
 

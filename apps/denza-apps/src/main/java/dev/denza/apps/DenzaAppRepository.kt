@@ -563,7 +563,7 @@ object DenzaAppRepository {
         SimulcastIntegration.setEnabled(context, enabled)
         if (!enabled) {
             SimulcastIntegration.clearLastTargetPackage()
-            SimulcastOverlayService.stopCurrent(context)
+            SimulcastOverlayService.stopOwned(context)
             invalidate(StateSlice.SIMULCAST, "simulcast switch")
             return
         }
