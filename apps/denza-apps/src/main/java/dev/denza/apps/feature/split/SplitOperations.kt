@@ -714,6 +714,19 @@ internal abstract class SplitCoreOperation<P>(
         SplitCoordinatorCore.provenSlots(working, read, departed)
 
     /**
+     * The scene [read] proves, as the one fact that settles it: the slots of [sceneSlots] and the
+     * panes among them still owed their application ([SplitCoordinatorCore.owedPanes]), so the pair
+     * memory hears occupants only (1.14.2).
+     */
+    protected fun sceneBuilt(
+        read: SplitLiveScene,
+        departed: Set<SplitPane> = emptySet(),
+    ): SplitFact.BuildSceneSucceeded = SplitFact.BuildSceneSucceeded(
+        sceneSlots(read, departed),
+        SplitCoordinatorCore.owedPanes(working, read, departed),
+    )
+
+    /**
      * The panes of [read] whose application, recorded in [recorded], is no longer there and was
      * seen to leave ([departureProven]).
      */
@@ -1054,7 +1067,7 @@ internal class OpenOperation(
         // An adopted scene answers the selection pane for pane ([adoptable]); the first read after
         // a reveal proves no departure (invariant 14), and the scene it raised is on the screen
         // (`revealOwnedSession` ends on area 3), so it is the witness from here on.
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(revealed)))
+        settle(sceneBuilt(revealed))
         liveScene = revealed
         settle(SplitFact.SceneRevealed)
         witnessRead(revealed, epochBeforeReveal)
@@ -1132,7 +1145,7 @@ internal class OpenOperation(
         built.failed.mapNotNull { pane -> restorable[pane] }.forEach { packageName ->
             work.log("not restored $packageName: the pane keeps its choice")
         }
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
+        settle(sceneBuilt(built.panes))
         liveScene = built.panes
         // The placement the build ended on is a read at area 3 (invariant 14).
         witnessRead(built.panes, epochBeforePlacement ?: work.coverEpoch())
@@ -1326,7 +1339,7 @@ internal class SelectOperation(
                 working.slot(pane) == SplitSlot.App(chosen.packageName)
         }
         val departed = departures(settled, liveScene, read.onScreen) + taken
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled, departed)))
+        settle(sceneBuilt(settled, departed))
         liveScene = settled
         if (read.onScreen) witnessRead(settled, epoch) else unwitness()
         settleOccupant(chosen.pane, chosen.packageName)
@@ -2021,7 +2034,7 @@ internal class ReconcileOperation(
         // A process that remembers no scene has seen nothing leave it (invariant 14): what the read
         // shows on a pane's picker is a restore still owed, not a choice. What it shows on the
         // screen is the first witness of this process.
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
+        settle(sceneBuilt(settled))
         liveScene = settled
         if (read.onScreen) witnessRead(settled, epoch) else unwitness()
         return working.scene != null
@@ -2416,7 +2429,7 @@ internal class ReconcileOperation(
             // Invariant 14: a read under a cover records an application gone and keeps the slot;
             // a read on the screen proves a departure only where the pane's witness stands.
             val departed = departures(settled, previous, onScreen)
-            settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled, departed)))
+            settle(sceneBuilt(settled, departed))
             liveScene = settled
             if (onScreen) witnessRead(settled, epoch) else unwitness()
             return true

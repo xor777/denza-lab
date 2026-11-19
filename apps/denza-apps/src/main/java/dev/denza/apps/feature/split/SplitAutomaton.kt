@@ -15,7 +15,7 @@ internal object SplitAutomaton {
         if (!state.enabled && fact !is SplitFact.ToggleChanged) return unchanged(state)
         return when (fact) {
             is SplitFact.ToggleChanged -> toggle(state, fact.enabled)
-            is SplitFact.BuildSceneSucceeded -> sceneBuilt(state, fact.slots)
+            is SplitFact.BuildSceneSucceeded -> sceneBuilt(state, fact.slots, fact.owed)
             is SplitFact.AppLaunchConfirmed -> launchConfirmed(state, fact)
             is SplitFact.AppClosedSettled -> appClosed(state, fact.pane)
             is SplitFact.PaneCollapsedSettled ->
@@ -69,15 +69,27 @@ internal object SplitAutomaton {
      * the build is settled, so a failed or cancelled open leaves the selection untouched - which is
      * also why an open *request* is not a fact: it moved nothing, and the two request facts the
      * automaton used to hear returned the very same state on every branch.
+     *
+     * [owed] panes keep their application in the slot while the scene shows their picker (1.3.11);
+     * the state carries them so that no later reduction mistakes the kept choice for an occupant.
      */
-    private fun sceneBuilt(state: SplitState, slots: Map<SplitPane, SplitSlot>): SplitReduction {
+    private fun sceneBuilt(
+        state: SplitState,
+        slots: Map<SplitPane, SplitSlot>,
+        owed: Set<SplitPane>,
+    ): SplitReduction {
         if (!slots.isWellFormed()) return unchanged(state)
         val scene = sceneFor(slots) ?: return unchanged(state)
+        val built = state
+            .withSlots { pane, _ -> slots.getValue(pane) }
+            .copy(scene = scene, visibility = SceneVisibility.VISIBLE)
         return settled(
             state,
-            state
-                .withSlots { pane, _ -> slots.getValue(pane) }
-                .copy(scene = scene, visibility = SceneVisibility.VISIBLE),
+            built.copy(
+                owed = owed.filterTo(mutableSetOf()) { pane ->
+                    pane != built.projectedPane && built.slot(pane) is SplitSlot.App
+                },
+            ),
         )
     }
 
@@ -107,10 +119,17 @@ internal object SplitAutomaton {
             )
         }
         val current = state.slot(fact.pane)
-        if (current == SplitSlot.Closed || current == SplitSlot.App(fact.packageName)) {
+        if (current == SplitSlot.Closed) return unchanged(state)
+        // The launch the operation proved is an occupant: an owed pane is owed no longer.
+        if (current == SplitSlot.App(fact.packageName) && fact.pane !in state.owed) {
             return unchanged(state)
         }
-        return settled(state, state.withSlot(fact.pane, SplitSlot.App(fact.packageName)))
+        return settled(
+            state,
+            state.withSlot(fact.pane, SplitSlot.App(fact.packageName)).let { next ->
+                next.copy(owed = next.owed - fact.pane)
+            },
+        )
     }
 
     /**
@@ -164,7 +183,11 @@ internal object SplitAutomaton {
                 .withSlots { pane, _ ->
                     if (pane == survivorPane) survivorSlot else SplitSlot.Closed
                 }
-                .copy(scene = SplitScene.Full(survivorPane)),
+                .copy(
+                    scene = SplitScene.Full(survivorPane),
+                    // A survivor still owed its restore is owed in the pane it now stands in.
+                    owed = if (collapsed.other() in state.owed) setOf(survivorPane) else emptySet(),
+                ),
         )
     }
 
@@ -250,7 +273,7 @@ internal object SplitAutomaton {
     private fun projectionStarted(state: SplitState, pane: SplitPane): SplitReduction {
         if (state.slot(pane) !is SplitSlot.App) return unchanged(state)
         if (state.projectedPane != null && state.projectedPane != pane) return unchanged(state)
-        return settled(state, state.copy(projectedPane = pane))
+        return settled(state, state.copy(projectedPane = pane, owed = state.owed - pane))
     }
 
     /** Contract 1.10.3, 1.10.4: the navigator is home again and the vacancy record is spent. */
@@ -346,6 +369,8 @@ internal object SplitAutomaton {
             slots = updated,
             projectedPane = projected,
             vacancyApp = if (projected == null) emptyMap() else vacancyApp.filterKeys { it == projected },
+            // A pane is owed only an application its slot still names.
+            owed = owed.filterTo(mutableSetOf()) { pane -> updated.getValue(pane) is SplitSlot.App },
         )
     }
 
@@ -377,7 +402,9 @@ internal object SplitAutomaton {
         next: SplitState,
         teardownRequired: Boolean = false,
     ): SplitReduction {
-        val remembered = remembered(next)
+        // No scene, nothing owed: a debt is the live scene's, and the next open reads its own.
+        val live = if (next.scene == null && next.owed.isNotEmpty()) next.copy(owed = emptySet()) else next
+        val remembered = remembered(live)
         return SplitReduction(if (remembered == previous) previous else remembered, teardownRequired)
     }
 
@@ -391,9 +418,14 @@ internal object SplitAutomaton {
      * becomes the first recent one unless it is pinned; the recent list keeps no duplicate, never the
      * last pair nor a pin, and the sixth falls off. A scene that is not two applications - a picker
      * in a pane, a collapse - leaves the memory alone: the pair it broke stays the last one (1.14.6).
+     *
+     * An owed pane ([SplitState.owed]) is a picker on screen, whatever its slot keeps: two durable
+     * `APP` slots are two occupied panes only when neither is owed (ревью 2026-11-19, находка 5 -
+     * the first partial restore after the upgrade from 0.7.1 made a pair the last one that never
+     * stood in both panes). The projected navigator's pane is never owed, so it still counts.
      */
     private fun remembered(state: SplitState): SplitState {
-        if (state.scene != SplitScene.Split) return state
+        if (state.scene != SplitScene.Split || state.owed.isNotEmpty()) return state
         val pair = SplitPair.of(state.slots) ?: return state
         val memory = state.memory
         if (pair == memory.last) return state

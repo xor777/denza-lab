@@ -113,6 +113,10 @@ internal enum class SceneVisibility {
  * @param projectedPane pane whose navigator is temporarily on the instrument cluster (1.10).
  * @param vacancyApp ephemeral app occupying a projected pane's vacancy; lost on any restart.
  * @param memory the pairs the user put in the panes (1.14); durable, beside the slots.
+ * @param owed the panes of the live scene whose slot names an application the scene does not hold:
+ * an open could not finish restoring it, and the pane shows its picker (1.3.11, «К 1.14»). Live,
+ * never durable. Such a pane is the user's choice, not an occupant, so a pair it is part of has not
+ * stood in both panes and cannot become the last one (1.14.2; ревью 2026-11-19, находка 5).
  */
 internal data class SplitState(
     val enabled: Boolean = false,
@@ -122,6 +126,7 @@ internal data class SplitState(
     val projectedPane: SplitPane? = null,
     val vacancyApp: Map<SplitPane, String> = emptyMap(),
     val memory: SplitMemory = SplitMemory(),
+    val owed: Set<SplitPane> = emptySet(),
 ) {
     fun slot(pane: SplitPane): SplitSlot = slots[pane] ?: SplitSlot.Closed
 }
@@ -212,7 +217,16 @@ internal sealed interface SplitFact {
 
     data class PackageRemoved(val packageName: String) : SplitFact
 
-    data class BuildSceneSucceeded(val slots: Map<SplitPane, SplitSlot>) : SplitFact
+    /**
+     * A scene the operation read back, as [slots] the read proves for the selection
+     * ([SplitCoordinatorCore.provenSlots]). [owed] names the panes among them whose slot keeps an
+     * application the read did not find there - an unfinished restore (1.3.11): the choice is
+     * kept, the pane is not occupied, and the pair memory hears only occupied panes (1.14.2).
+     */
+    data class BuildSceneSucceeded(
+        val slots: Map<SplitPane, SplitSlot>,
+        val owed: Set<SplitPane> = emptySet(),
+    ) : SplitFact
 
     /** The star on the pill: [pair], the last pair or a recent one, joins the pins at the end (1.15.7). */
     data class PairPinned(val pair: SplitPair) : SplitFact

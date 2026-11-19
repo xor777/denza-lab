@@ -5892,6 +5892,48 @@ class SplitScenarioTest {
             SECONDARY_PICKER_ACTIVITY,
             car.fake.topActivity(SECONDARY_ROOT),
         )
+        assertEquals(
+            "пара, которая не стояла в обеих панелях, последней не стала (1.14.2)",
+            null,
+            car.store.load().memory.last,
+        )
+    }
+
+    /**
+     * Ревью 2026-11-19, находка 5: первое открытие после обновления с 0.7.1.
+     *
+     * Снимок 0.7.1 - это `split_state_v2` с парой Навигатор | Музыка и без памяти пар; новая
+     * сборка читает его как тумблер, слоты и пустую память (раздел 6). Музыка установлена, но не
+     * открылась: её панель на рабочем пикере, слот остаётся за ней (1.3.11). Пара Навигатор |
+     * Музыка в обеих панелях при этом не стояла, и последней парой она стать не может (1.14.2):
+     * до правки автомат считал два durable `APP` двумя занятыми панелями и записывал её.
+     *
+     * Второй тап, на котором Музыка встаёт на место, - и есть то подтверждённое заполнение обеих
+     * панелей, после которого пара становится последней.
+     */
+    @Test
+    fun theFirstPartialRestoreAfterTheUpgradeFrom071RecordsNoPair() {
+        val v071 = PreferencesSplitStateStore.decodeV2("2|1|0|A:$NAVIGATOR|A:$MUSIC")
+        assertNotNull("снимок 0.7.1 читается", v071)
+        assertEquals(SplitMemory(), v071!!.memory)
+        val car = car(FakeShell())
+        val core = car.core(v071)
+        core.initialize {}
+
+        car.shells.failOn("service call activity_task 112 s16 '$MUSIC'")
+        core.openPickerSession()
+        car.barrier()
+
+        val partial = car.store.load()
+        assertEquals("выбор Музыки сохранён за её панелью", APP_PAIR, partial.slots)
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+        assertEquals("пары в памяти нет: обе панели заняты не были", SplitMemory(), partial.memory)
+
+        // Второй тап: Музыка открывается и встаёт в свою панель - теперь пара стоит в обеих.
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), car.store.load().memory.last)
     }
 
     /**

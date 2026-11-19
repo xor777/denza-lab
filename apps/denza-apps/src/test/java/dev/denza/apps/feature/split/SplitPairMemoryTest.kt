@@ -39,6 +39,34 @@ class SplitPairMemoryTest {
     }
 
     @Test
+    fun aPaneStillOwedItsRestoreIsNoOccupant() {
+        // 1.14.2, ревью 2026-11-19 (находка 5): слот хранит выбор, но в панели пикер - пары нет,
+        // и ни один следующий факт над этим долгом её не записывает
+        val partial = reduce(
+            state(),
+            SplitFact.BuildSceneSucceeded(
+                slots(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC)),
+                owed = setOf(SplitPane.SECONDARY),
+            ),
+        )
+        val covered = reduce(partial, SplitFact.HomeConfirmed)
+        val revealed = reduce(covered, SplitFact.SceneRevealed)
+        val otherPane = choose(revealed, SplitPane.PRIMARY, RADIO)
+        val finished = choose(otherPane, SplitPane.SECONDARY, MUSIC)
+
+        assertEquals(SplitSlot.App(MUSIC), partial.slot(SplitPane.SECONDARY))
+        assertNull("частичное восстановление", partial.memory.last)
+        assertNull("Home и возврат сцены", revealed.memory.last)
+        assertNull("выбор в соседней панели при долге", otherPane.memory.last)
+        assertEquals(
+            "Музыка встала в свою панель - теперь обе заняты",
+            SplitPair(RADIO, MUSIC),
+            finished.memory.last,
+        )
+        assertEquals(emptySet<SplitPane>(), finished.owed)
+    }
+
+    @Test
     fun theSameTwoAppsTheOtherWayRoundAreAnotherPair() {
         // 1.14.1: пара - два приложения и панель каждого
         // The facts the selection's read-back settles (1.5.3): the navigator chosen in the first

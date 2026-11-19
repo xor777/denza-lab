@@ -1146,6 +1146,23 @@ internal class SplitCoordinatorCore(
         }
 
         /**
+         * The panes [provenSlots] keeps on an application the read did not find there: on screen a
+         * picker, in the slot the user's choice - the unfinished restore of 1.3.5 and 1.3.11. The
+         * projected pane is not one: its navigator is on the cluster, not missing (1.10.1).
+         */
+        internal fun owedPanes(
+            state: SplitState,
+            read: SplitLiveScene,
+            departed: Set<SplitPane>,
+        ): Set<SplitPane> = SplitPane.entries.filterTo(mutableSetOf()) { pane ->
+            pane != state.projectedPane &&
+                pane !in departed &&
+                read[pane] != null &&
+                read[pane]?.appPackageName == null &&
+                state.slot(pane) is SplitSlot.App
+        }
+
+        /**
          * Whether a failure that reached the core only as text means the control channel itself is
          * not usable (1.11.4) - the helper path.
          *
