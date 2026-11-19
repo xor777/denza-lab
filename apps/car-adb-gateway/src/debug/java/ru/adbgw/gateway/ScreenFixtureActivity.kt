@@ -114,6 +114,9 @@ internal object ScreenFixtures {
             ),
         ),
         "main-waiting" to Scene(waiting),
+        "main-adb-approval" to Scene(
+            enrolled.copy(adbState = AdbState.AuthorizationRequired, endpoint = null, relayState = RelayState.WaitingForAdb, clientLabel = "MacBook Pro"),
+        ),
         "main-connected" to Scene(connected),
         "main-active" to Scene(active),
         "main-disabled" to Scene(

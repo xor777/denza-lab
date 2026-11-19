@@ -211,9 +211,9 @@ private fun HeroLayout(modifier: Modifier, core: @Composable () -> Unit, extra: 
 
 // --------------------------------------------------------------------------------------- scenes
 
-private enum class SceneAction { RetryAdb, CheckAdb, Enroll, Pair, Replace, Disable, Enable }
+internal enum class SceneAction { RetryAdb, CheckAdb, Enroll, Pair, Replace, Disable, Enable }
 
-private class Scene(
+internal class Scene(
     val headline: String,
     val detail: String? = null,
     val detailAlarm: Boolean = false,
@@ -221,14 +221,30 @@ private class Scene(
     val actions: List<Pair<SceneAction, Boolean>> = emptyList(),
 )
 
-private fun sceneOf(state: GatewayUiState, view: GatewayViewState, nowMillis: Long): Scene = when {
+internal fun sceneOf(state: GatewayUiState, view: GatewayViewState, nowMillis: Long): Scene = when {
     state.permanentFailure != null -> Scene(
         headline = state.headline,
         detail = state.permanentFailure,
         detailAlarm = true,
         actions = if (state.isEnrolled) mainActions(state) else emptyList(),
     )
-    !state.isEnrolled -> onboardingScene(state, view)
+    (!state.isEnrolled || state.enabled) && state.adbState == AdbState.AuthorizationRequired -> Scene(
+        headline = "Разрешите ADB на экране",
+        detail = state.adbRequestHint ?: "Если системное окно закрыто, запросите разрешение снова",
+        actions = adbActions(state, SceneAction.RetryAdb),
+    )
+    (!state.isEnrolled || state.enabled) && state.adbState == AdbState.Unavailable -> Scene(
+        headline = "ADB недоступен",
+        detail = "Проверьте отладку по сети в настройках машины и повторите проверку",
+        actions = adbActions(state, SceneAction.CheckAdb),
+    )
+    !state.isEnrolled && state.adbState == AdbState.Checking -> Scene(headline = state.headline, detail = state.message)
+    !state.isEnrolled -> Scene(
+        headline = "Код от администратора",
+        detail = state.message?.takeIf { it != view.enrollmentError },
+        codeEntry = true,
+        actions = listOf(SceneAction.Enroll to (view.code.length == CODE_LENGTH)),
+    )
     else -> Scene(
         headline = state.headline,
         detail = mainDetail(state, nowMillis),
@@ -236,25 +252,8 @@ private fun sceneOf(state: GatewayUiState, view: GatewayViewState, nowMillis: Lo
     )
 }
 
-private fun onboardingScene(state: GatewayUiState, view: GatewayViewState): Scene = when (state.adbState) {
-    AdbState.Checking -> Scene(headline = state.headline, detail = state.message)
-    AdbState.AuthorizationRequired -> Scene(
-        headline = "Разрешите ADB на экране",
-        detail = "Нажмите «Разрешить» в системном окне",
-        actions = listOf(SceneAction.RetryAdb to true),
-    )
-    AdbState.Unavailable -> Scene(
-        headline = "ADB выключен",
-        detail = "Включите отладку по сети в настройках машины",
-        actions = listOf(SceneAction.CheckAdb to true),
-    )
-    AdbState.Available -> Scene(
-        headline = "Код от администратора",
-        detail = state.message?.takeIf { it != view.enrollmentError },
-        codeEntry = true,
-        actions = listOf(SceneAction.Enroll to (view.code.length == CODE_LENGTH)),
-    )
-}
+private fun adbActions(state: GatewayUiState, action: SceneAction) =
+    if (state.isEnrolled) listOf(action to true, SceneAction.Disable to true) else listOf(action to true)
 
 private fun mainActions(state: GatewayUiState): List<Pair<SceneAction, Boolean>> = if (state.enabled) {
     listOf(
@@ -316,7 +315,7 @@ private fun ActionBar(list: List<Pair<SceneAction, Boolean>>, busy: Boolean, act
             val primary = index == 0
             GatewayButton(
                 text = when (action) {
-                    SceneAction.RetryAdb -> "Запросить снова"
+                    SceneAction.RetryAdb -> "Запросить разрешение ADB"
                     SceneAction.CheckAdb -> "Проверить снова"
                     SceneAction.Enroll -> "Подключить машину"
                     SceneAction.Pair -> "Подключить компьютер"
@@ -730,13 +729,14 @@ internal fun adbWords(state: AdbState): String = when (state) {
     AdbState.Checking -> "Проверка"
     AdbState.AuthorizationRequired -> "Ждёт разрешения"
     AdbState.Available -> "Готов"
-    AdbState.Unavailable -> "Выключен"
+    AdbState.Unavailable -> "Недоступен"
 }
 
 internal fun relayWords(state: GatewayUiState): String = when {
     !state.isEnrolled -> "Нет"
     else -> when (state.relayState) {
         RelayState.Disabled -> "Выключено"
+        RelayState.WaitingForAdb -> "Ждёт ADB"
         RelayState.WaitingForNetwork -> "Ждёт сеть"
         RelayState.Connecting -> "Подключение"
         RelayState.Connected -> "На связи"

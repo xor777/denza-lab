@@ -17,6 +17,10 @@ end to end, on an Android 15 emulator and then on the owner's DiLink 5.1 head
 unit, through the production relay ([Verification](#8-verification-status)); a
 wake from the car's sleep and the soak test are still ahead.
 
+| Current state | Evidence | Section |
+| --- | --- | --- |
+| CAG 0.1.1 restores local ADB after owner approval and keeps the existing computer grant. One stale system prompt needed operator intervention on this car. | Live head unit, relay shell and screenshot, 2026-11-19 | [ADB recovery after enrollment](#adb-recovery-after-enrollment) |
+
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
 where ADB is available locally. It can be installed alongside the existing
 LAN-only Denza Gateway and does not depend on the vehicle brand.
@@ -212,10 +216,13 @@ backup is disabled ([CAG-010](car-adb-gateway-decision-log.md#cag-010)).
 1. The app creates its own ADB RSA key when it first attempts a local shell.
 2. If raw adbd requires authorization, the app offers its key once, Android
    shows the standard system dialog, and the app moves on by itself a few
-   seconds after the person taps Allow. Background checks never offer the key;
-   only opening the app without access and the «Запросить снова» button do
-   ([CAG-007](car-adb-gateway-decision-log.md#cag-007),
-   [CAG-017](car-adb-gateway-decision-log.md#cag-017)).
+   seconds after the person taps Allow. On opening the enabled app or tapping
+   «Запросить разрешение ADB», CAG checks existing access and offers its key
+   once if approval is required. This also works after enrollment. Background
+   checks stay passive. See the [field check](#adb-recovery-after-enrollment).
+   The intended foreground behavior is recorded in
+   [CAG-007](car-adb-gateway-decision-log.md#cag-007) and
+   [CAG-017](car-adb-gateway-decision-log.md#cag-017).
 3. The app verifies shell access and makes a best-effort attempt to apply
    available device-idle and background app-op settings through the authorized
    local ADB connection.
@@ -327,8 +334,9 @@ chain «Машина — Сервер — Компьютер»: each node says i
 (ADB, relay, the trusted computer), a link lights up when that hop works, and
 pulses run along both links while the computer holds an ADB channel
 ([CAG-008](car-adb-gateway-decision-log.md#cag-008)). Under it are one headline
-and at most one line of detail, and at the bottom one connect-or-replace-computer
-action and one switch-off action. SSH, relay ports, endpoints and the event log
+and at most one line of detail. The primary action recovers local ADB while
+access needs attention, then returns to connecting or replacing the computer.
+The switch-off action stays available. SSH, relay ports, endpoints and the event log
 appear only in the «Сведения» sheet. The screens are stateless
 (`GatewayScreens`, `ConnectionChain`); the debug build's `ScreenFixtureActivity`
 renders each scene from a fixed state.
@@ -426,6 +434,68 @@ reached the car through `adbgw.ru`.
   full-VM backup boundary must not be assumed for the replacement.
 
 ## 8. Verification Status
+
+### ADB recovery after enrollment
+
+On 2026-11-19 the owner reported an orange ADB indicator and no system dialog.
+On the Mac, `adb devices -l` initially showed `unauthorized`. After the owner
+approved the Mac, the same Legacy SSH process and ADB transport could open CAG
+and take screenshots. Android reported `init.svc.adbd=running`,
+`service.adb.tcp.port=5555` and `adb_enabled=1`. The installed APK matched
+the local debug APK (SHA-256
+`b26a7a99d6d26abc44dc8954505624e1c9c8c9c22c94ee25725ea5d91537ee56`).
+
+The main screen still said «Разрешите ADB на экране» with only «Заменить компьютер»
+and «Выключить доступ». In «Сведения», ADB showed «Ждёт разрешения» and the
+connection showed «Ждёт сеть». The journal repeated «Ожидается системное
+подтверждение ADB-ключа» ten seconds apart. Neither screenshot showed a system
+dialog. The available evidence does not establish when or why the previous
+approval was lost. The original screenshots are in the ignored capture folder
+`captures/cag-adb-20261119/`.
+
+On the relay, `cag-admin status` showed access enabled and the existing Mac
+grant. The registration was valid through December 3. A read-only `ss -lnt`
+check on the car's assigned port found no listener. `GatewaySupervisor.relayLoop`
+renews the registration before checking local ADB. A new forwarding tunnel
+requires a usable ADB endpoint and a running inner server. An already open
+tunnel can survive local ADB loss. The 0.1.0 server node displayed «Подключение»
+even when the loop is only waiting for local ADB.
+
+In the original source (`a9d27d9d`), only onboarding called `prepareAdb()` on
+opening or offered a retry. The journal also recorded that a request was sent
+even when `requestAuthorization()` failed. In 0.1.1 an enrolled car uses the same
+one-shot request on opening or tapping «Запросить разрешение ADB». The recovery
+screen reports submission failure and timeout. «Проверить снова» checks an
+unreachable endpoint. While a new tunnel is waiting for local ADB, both the
+server node and «Сведения» say «Ждёт ADB». A disabled registration stays disabled.
+
+On the owner's enrolled car the new screen offered the retry and showed «Ждёт
+ADB». Pressing the button submitted the app key, but no dialog appeared.
+The native log recorded `prompt currently pending, skipping` and the framework
+still listed the Mac fingerprint as the last one received. CAG now keeps the
+requesting socket open while awaiting a decision, for up to two minutes.
+Holding the socket alone did not clear the earlier pending prompt.
+
+With the Legacy session still authorized and no confirmation activity visible,
+one operator rejection of the outstanding request advanced Android's queue.
+The framework then received the CAG public key and displayed the stock
+`UsbDebuggingActivity` at 10:24:57 MSK. The dialog fingerprint matched the
+key received from CAG. The rejection was a one-time operator action on this car.
+The APK requests consent through the standard Android dialog.
+
+At 10:25:59 MSK Android recorded persistent approval for the CAG key. A second
+previously queued request for the same fingerprint was confirmed and the native
+queue emptied. The app reached «Ждём компьютер» without another setup code.
+At 10:27 the existing Mac grant opened a fresh tunnel through `adbgw.ru` on a
+temporary local port. `adb shell id -u` returned `2000`, the model was
+`DiLink5.1`, and `adb exec-out screencap -p` through that tunnel captured
+«Компьютер работает». The APK hash read through the relay matched the installed
+0.1.1 (build 2), SHA-256
+`763a14c263e3e7da06fed8f6b07ecb9b4cc2b1496b4270661ee2481287ba23ea`.
+The test tunnel was closed and the original Legacy SSH process continued to
+serve `127.0.0.1:5555`. Evidence is in `captures/cag-adb-20261119/`.
+
+### Relay and client verification
 
 On 2026-10-29 the VDSina migration passed 14 baseline checks and all 64 relay
 checks, including the unchanged pin through public port 443, real DNS resolution,

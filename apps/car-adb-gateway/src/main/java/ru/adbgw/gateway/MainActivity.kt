@@ -57,8 +57,12 @@ private fun GatewayApp() {
         ActivityResultContracts.RequestPermission(),
     ) { }
 
+    var checkedAdbOnOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (!state.isEnrolled) GatewayRepository.prepareAdb()
+        if (!checkedAdbOnOpen && state.enabled && state.permanentFailure == null) {
+            checkedAdbOnOpen = true
+            GatewayRepository.prepareAdb()
+        }
     }
     LaunchedEffect(state.isEnrolled) {
         val notificationGranted = ContextCompat.checkSelfPermission(
@@ -89,7 +93,7 @@ private fun GatewayApp() {
             inviteCode = normalizeCodeInput(it)
             enrollmentError = null
         },
-        onRetryAdb = { scope.launch { GatewayRepository.prepareAdb() } },
+        onRetryAdb = GatewayRepository::prepareAdb,
         onEnroll = { showEnrollmentWarning = true },
         onConfirmEnroll = {
             showEnrollmentWarning = false

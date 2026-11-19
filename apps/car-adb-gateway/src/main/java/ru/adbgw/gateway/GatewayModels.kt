@@ -60,6 +60,7 @@ enum class AdbState {
 
 enum class RelayState {
     Disabled,
+    WaitingForAdb,
     WaitingForNetwork,
     Connecting,
     Connected,
@@ -82,6 +83,7 @@ data class GatewayUiState(
     val registration: RelayRegistration? = null,
     val enabled: Boolean = true,
     val adbState: AdbState = AdbState.Checking,
+    val adbRequestHint: String? = null,
     val endpoint: AdbEndpoint? = null,
     val relayState: RelayState = RelayState.WaitingForNetwork,
     val clientState: ClientState = ClientState.Waiting,
@@ -102,7 +104,8 @@ data class GatewayUiState(
             !isEnrolled -> "Подключение машины"
             !enabled -> "Доступ выключен"
             adbState == AdbState.AuthorizationRequired -> "Разрешите ADB на экране"
-            adbState != AdbState.Available -> "Проверяем ADB"
+            adbState == AdbState.Unavailable -> "ADB недоступен"
+            adbState == AdbState.Checking -> "Проверяем ADB"
             relayState == RelayState.Connected && clientState == ClientState.Active -> "Компьютер работает"
             relayState == RelayState.Connected && clientState == ClientState.Connected -> "Компьютер на связи"
             relayState == RelayState.Connected -> "Ждём компьютер"
@@ -113,6 +116,7 @@ data class GatewayUiState(
 sealed interface GatewayEvent {
     data class Initialized(val registration: RelayRegistration?, val enabled: Boolean) : GatewayEvent
     data class AdbChanged(val state: AdbState, val endpoint: AdbEndpoint? = null) : GatewayEvent
+    data class AdbRequestFeedback(val hint: String) : GatewayEvent
     data class RelayChanged(val state: RelayState) : GatewayEvent
     data class ClientChanged(val state: ClientState, val label: String?, val atMillis: Long) : GatewayEvent
     data class PairingChanged(val window: PairingWindow?) : GatewayEvent
@@ -131,7 +135,14 @@ object GatewayStateMachine {
             enabled = event.enabled,
             relayState = if (event.enabled) RelayState.WaitingForNetwork else RelayState.Disabled,
         )
-        is GatewayEvent.AdbChanged -> current.copy(adbState = event.state, endpoint = event.endpoint)
+        is GatewayEvent.AdbChanged -> current.copy(
+            adbState = event.state,
+            endpoint = event.endpoint,
+            adbRequestHint = current.adbRequestHint.takeIf { event.state == AdbState.AuthorizationRequired },
+        )
+        is GatewayEvent.AdbRequestFeedback -> if (current.adbState == AdbState.AuthorizationRequired) {
+            current.copy(adbRequestHint = event.hint)
+        } else current
         is GatewayEvent.RelayChanged -> current.copy(relayState = event.state)
         is GatewayEvent.ClientChanged -> current.copy(
             clientState = event.state,

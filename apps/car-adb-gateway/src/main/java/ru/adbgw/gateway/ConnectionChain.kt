@@ -71,13 +71,14 @@ internal fun chainModel(state: GatewayUiState, nowMillis: Long): ChainModel {
         AdbState.Available -> ChainNode(NodeTone.Live, "ADB готов")
         AdbState.Checking -> ChainNode(NodeTone.Working, "Проверка ADB")
         AdbState.AuthorizationRequired -> ChainNode(NodeTone.Attention, "Разрешите ADB")
-        AdbState.Unavailable -> ChainNode(NodeTone.Attention, "ADB выключен")
+        AdbState.Unavailable -> ChainNode(NodeTone.Attention, "ADB недоступен")
     }
     val server = when {
         !state.isEnrolled -> ChainNode(NodeTone.Dim, "Нужен код")
         state.permanentFailure != null || state.relayState == RelayState.PermanentFailure ->
             ChainNode(NodeTone.Broken, "Остановлено")
         !state.enabled -> ChainNode(NodeTone.Dim, "Выключено")
+        state.relayState == RelayState.WaitingForAdb -> ChainNode(NodeTone.Dim, "Ждёт ADB")
         state.relayState == RelayState.Connected -> ChainNode(NodeTone.Live, "На связи")
         else -> ChainNode(NodeTone.Working, "Подключение")
     }

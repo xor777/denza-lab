@@ -3,6 +3,8 @@ package ru.adbgw.gateway
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import dev.denza.disharebridge.LocalAdbClient.AuthorizationRequestResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -97,30 +99,52 @@ object GatewayRepository {
         supervisor?.networkValidated()
     }
 
-    suspend fun prepareAdb(): Boolean {
-        // A new explicit request replaces the previous wait, so the retry button always works.
-        approvalWatch?.cancel()
-        return operationMutex.withLock {
+    fun prepareAdb() {
+        appScope.launch { prepareAdbAccess() }
+    }
+
+    private suspend fun prepareAdbAccess(): Boolean {
+        // Ignore a second tap while this operation is sending its one request.
+        if (!operationMutex.tryLock()) return false
+        try {
+            approvalWatch?.cancel()
             dispatch(GatewayEvent.BusyChanged(true, "Проверяем доступ к системе"))
             dispatch(GatewayEvent.AdbChanged(AdbState.Checking))
             val endpoint = AdbEndpointDetector().detect().getOrElse { error ->
                 dispatch(GatewayEvent.AdbChanged(AdbState.Unavailable))
                 dispatch(GatewayEvent.BusyChanged(false, "ADB пока недоступен"))
                 support("ADB не найден: ${error.message}")
-                return@withLock false
+                return false
             }
             val provisioner = AdbProvisioner(requireContext())
-            val provisioned = provisioner.authorizeAndConfigure(endpoint)
+            val provisioned = provisioner.authorizeAndConfigure(endpoint, applyBackgroundSettings = !state.value.isEnrolled)
             if (provisioned.exceptionOrNull() is AdbAuthorizationRequiredException) {
                 // The explicit foreground request is the only place the key goes out, and only once.
                 dispatch(GatewayEvent.AdbChanged(AdbState.AuthorizationRequired))
-                dispatch(GatewayEvent.BusyChanged(false))
-                provisioner.requestAuthorization()
+                val request = provisioner.requestAuthorization().getOrElse { error ->
+                    support("Не удалось отправить запрос ADB: ${error.message ?: error.javaClass.simpleName}")
+                    dispatch(GatewayEvent.AdbRequestFeedback("Не удалось отправить запрос. Попробуйте ещё раз"))
+                    dispatch(GatewayEvent.BusyChanged(false))
+                    return false
+                }
+                if (request.result == AuthorizationRequestResult.ALREADY_AUTHORIZED) {
+                    request.close()
+                    return applyAdbResult(provisioner.authorizeAndConfigure(endpoint), endpoint)
+                }
                 support("Отправлен запрос подтверждения ADB-ключа на экране автомобиля")
-                approvalWatch = appScope.launch { awaitAuthorization(provisioner, endpoint) }
-                return@withLock false
+                dispatch(GatewayEvent.AdbRequestFeedback("В системном окне нажмите «Разрешить». Если окно закрыто, запросите разрешение снова"))
+                dispatch(GatewayEvent.BusyChanged(false))
+                approvalWatch = appScope.launch { awaitAuthorization(provisioner, endpoint) }.also { job ->
+                    job.invokeOnCompletion { request.close() }
+                }
+                return false
             }
-            applyAdbResult(provisioned, endpoint)
+            return applyAdbResult(provisioned, endpoint)
+        } catch (error: CancellationException) {
+            dispatch(GatewayEvent.BusyChanged(false))
+            throw error
+        } finally {
+            operationMutex.unlock()
         }
     }
 
@@ -136,6 +160,7 @@ object GatewayRepository {
             return
         }
         support("Подтверждение ADB не получено; запрос можно отправить снова")
+        dispatch(GatewayEvent.AdbRequestFeedback("Время ожидания истекло. Запросите разрешение снова"))
     }
 
     private fun applyAdbResult(provisioned: Result<List<String>>, endpoint: AdbEndpoint): Boolean {
@@ -205,6 +230,7 @@ object GatewayRepository {
     }
 
     suspend fun disableRemoteAccess() = operationMutex.withLock {
+        approvalWatch?.cancel()
         val store = requireStore()
         val registration = store.registration()
         supervisor?.stop()

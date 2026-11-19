@@ -151,6 +151,30 @@ public final class LocalAdbClient {
      */
     public synchronized AuthorizationRequestResult requestAuthorization()
             throws IOException, GeneralSecurityException {
+        try (AuthorizationRequest request = openAuthorizationRequest()) {
+            return request.result;
+        }
+    }
+
+    /** Keeps the requesting transport alive so Android can deliver the person's answer. */
+    public static final class AuthorizationRequest implements AutoCloseable {
+        public final AuthorizationRequestResult result;
+        private final Socket socket;
+
+        private AuthorizationRequest(AuthorizationRequestResult result, Socket socket) {
+            this.result = result;
+            this.socket = socket;
+        }
+
+        @Override
+        public void close() {
+            closeQuietly(socket);
+        }
+    }
+
+    /** Submits at most one key. The caller closes the request on approval, cancellation or timeout. */
+    public synchronized AuthorizationRequest openAuthorizationRequest()
+            throws IOException, GeneralSecurityException {
         IOException lastIoFailure = null;
         for (String host : hosts) {
             Socket socket = new Socket();
@@ -163,10 +187,12 @@ public final class LocalAdbClient {
             }
             try {
                 prepareTransport(socket, READ_TIMEOUT_MS);
-                return connectForAuthorizationRequest(
+                AuthorizationRequestResult result = connectForAuthorizationRequest(
                         socket.getInputStream(), socket.getOutputStream());
-            } finally {
+                return new AuthorizationRequest(result, socket);
+            } catch (IOException | GeneralSecurityException | RuntimeException failure) {
                 closeQuietly(socket);
+                throw failure;
             }
         }
         if (lastIoFailure != null) {

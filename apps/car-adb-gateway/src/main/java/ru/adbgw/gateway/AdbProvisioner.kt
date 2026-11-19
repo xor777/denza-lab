@@ -46,13 +46,8 @@ class AdbProvisioner(context: Context) {
      * real state with passive re-checks. Raw adbd is where authorization matters; a car with no raw
      * adbd fails here harmlessly and is served over the smart socket instead.
      */
-    suspend fun requestAuthorization(): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                passiveClient().requestAuthorization()
-                Unit
-            }
-        }
+    fun requestAuthorization(): Result<LocalAdbClient.AuthorizationRequest> =
+        runCatching { passiveClient().openAuthorizationRequest() }
 
     private fun selectShell(endpoint: AdbEndpoint, raw: LocalAdbClient): (String) -> String {
         if (endpoint.kind == AdbEndpointKind.RawAdbd) {

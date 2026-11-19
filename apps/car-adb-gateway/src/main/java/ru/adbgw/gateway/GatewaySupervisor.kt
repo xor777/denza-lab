@@ -99,7 +99,6 @@ class GatewaySupervisor(
         var lastConfigured: AdbEndpoint? = null
         var lastReported: AdbEndpoint? = null
         while (scope.isActive && stateStore.isEnabled()) {
-            onEvent(GatewayEvent.AdbChanged(AdbState.Checking, endpoint.get()))
             val detected = detector.detect()
             val current = detected.getOrNull()
             if (current == null) {
@@ -165,15 +164,19 @@ class GatewaySupervisor(
             // that follows this attempt.
             val wakeMark = relayPacer.mark()
             var portBusy = false
-            onEvent(GatewayEvent.RelayChanged(RelayState.Connecting))
             try {
                 recoverPendingPairCommit(registration)
                 if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
                     registration = renewLease(registration)
                     nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
                 }
-                if (endpoint.get() == null || innerServer?.isRunning != true) {
-                    onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
+                if (endpoint.get() == null) {
+                    onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForAdb))
+                    relayPacer.pause(WAITING_POLL_MILLIS, wakeMark)
+                    continue
+                }
+                onEvent(GatewayEvent.RelayChanged(RelayState.Connecting))
+                if (innerServer?.isRunning != true) {
                     relayPacer.pause(WAITING_POLL_MILLIS, wakeMark)
                     continue
                 }

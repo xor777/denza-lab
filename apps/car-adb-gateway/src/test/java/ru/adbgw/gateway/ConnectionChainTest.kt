@@ -35,6 +35,18 @@ class ConnectionChainTest {
     }
 
     @Test
+    fun `enrolled car can request approval or check ADB while keeping its existing computer`() {
+        val paired = enrolled.copy(clientLabel = "Mac")
+        fun actions(state: GatewayUiState) = sceneOf(state, GatewayViewState(), 0).actions
+        val needsKey = paired.copy(adbState = AdbState.AuthorizationRequired)
+        assertEquals(listOf(SceneAction.RetryAdb to true, SceneAction.Disable to true), actions(needsKey))
+        assertEquals(listOf(SceneAction.CheckAdb to true, SceneAction.Disable to true), actions(paired.copy(adbState = AdbState.Unavailable)))
+        assertEquals(listOf(SceneAction.Enable to true), actions(needsKey.copy(enabled = false)))
+        assertEquals(listOf(SceneAction.Replace to true, SceneAction.Disable to true), actions(paired))
+        assertFalse(actions(needsKey.copy(permanentFailure = "identity")).any { it.first == SceneAction.RetryAdb })
+    }
+
+    @Test
     fun `an open ADB channel lights both hops and runs the pulses`() {
         val chain = chainModel(enrolled.copy(clientState = ClientState.Active, clientLabel = "Mac"), 0)
         assertEquals(ChainNode(NodeTone.Live, "ADB готов"), chain.car)
@@ -87,7 +99,26 @@ class ConnectionChainTest {
         assertEquals("Доступ выключен", enrolled.copy(enabled = false).headline)
         assertEquals("Доступ остановлен", enrolled.copy(permanentFailure = "x").headline)
         assertEquals("Разрешите ADB на экране", enrolled.copy(adbState = AdbState.AuthorizationRequired).headline)
-        assertEquals("Проверяем ADB", enrolled.copy(adbState = AdbState.Unavailable).headline)
+        assertEquals("ADB недоступен", enrolled.copy(adbState = AdbState.Unavailable).headline)
+    }
+
+    @Test
+    fun `waiting for local ADB is shown on both screens without network activity`() {
+        val state = enrolled.copy(adbState = AdbState.AuthorizationRequired, relayState = RelayState.WaitingForAdb)
+        val chain = chainModel(state, 0)
+        assertEquals(ChainNode(NodeTone.Dim, "Ждёт ADB"), chain.server)
+        assertFalse(chain.carServerLit)
+        assertEquals("Ждёт ADB", supportRows(state).toMap()["Соединение"])
+    }
+
+    @Test
+    fun `request feedback survives passive checks and clears after approval`() {
+        val waiting = enrolled.copy(adbState = AdbState.AuthorizationRequired)
+        val failed = GatewayStateMachine.reduce(waiting, GatewayEvent.AdbRequestFeedback("Попробуйте ещё раз"))
+        val checked = GatewayStateMachine.reduce(failed, GatewayEvent.AdbChanged(AdbState.AuthorizationRequired))
+        assertEquals("Попробуйте ещё раз", sceneOf(checked, GatewayViewState(), 0).detail)
+        val ready = GatewayStateMachine.reduce(checked, GatewayEvent.AdbChanged(AdbState.Available))
+        assertEquals(null, ready.adbRequestHint)
     }
 
     @Test
