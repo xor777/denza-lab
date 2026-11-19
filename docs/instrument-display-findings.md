@@ -8,7 +8,7 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-11-02. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-11-19. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
@@ -23,7 +23,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
 | The zero's glow is `0.65·(|P| / span)^1.5`, the span being the band's own (300 kW out, 100 kW back), radius 442 and `reachBelow` 63.9 (since 2026-10-26). It is under 5 of 255 below 28 kW, where recorded drives spend 90 % of their moving time; it reaches 25 near 90 kW out or 30 kW back, 83 at 200 kW and 153 at 300 kW. Two versions before it failed on the car. The first, `0.13·√(|P|/120)`, peaked at 23 of 255 and the owner never saw it. The second, ×6 and ×1.6 picked with `:cluster-glow-probe` (`29d7357e`, on the car from 2026-10-24), lit through ordinary driving: the owner found it too bright and intrusive. `compare.py` only counts a channel that moved by more than 24, so it cannot see a faint layer. Not on the car yet | live | 2026-10-26 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20), [Too bright on the road](#too-bright-on-the-road-2026-10-26) |
-| Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
+| Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22). `GENERATION_KW` is above zero only during forced generation in P: on the 2026-09-24 drive the engine charged the pack on the move with it at `0` (refutes "the engine's charge into the pack", 2026-11-19). So the engine's box appears only while generating in P and leaves 10 s after `ENGINE_RUNNING` drops; its rule on the move is open ([energy contract §2.5](energy-display-contract.md#25-the-engine)) | live | 2026-11-19 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker), [Generation reads zero on the move](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
 | A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer; a screen that starts watching ends the backoff (`VehicleBackoff.wake`) | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
@@ -1114,6 +1114,8 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    drawings that were there were the claim in two different shapes - and
    `VehicleConvention.GENERATION_INSIDE_PACK_POWER` stays as the recorded
    assumption that draws nothing;
+
+   > **Superseded 2026-11-19:** on that drive the engine also charged the pack on the move (series mode, about 0.82 kWh in) with `GENERATION_KW` at zero, so the id is not the engine's charge into the pack; it is above zero only during forced generation in P — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19).
 4. **a photograph of the hero under the stock speedometer** at 30-40 km/h, to see
    whether «34» and «34 км/ч» merge;
 5. **whether the stock dimmer darkens our window at night.** If it does,
@@ -1169,6 +1171,8 @@ sentence «● В БАТАРЕЮ ОТ ДВС» is the car page's. The parked sce
 the drive is still owed.
 
 > **Superseded 2026-09-24:** the drives were recorded on 2026-09-22 and 2026-09-24; on the second the engine ran three times in motion with `GENERATION_KW` at zero throughout, so the box correctly stayed off the shelf (`docs/energy-display-contract.md` §8). No owner report of the panel on those drives is recorded here.
+
+> **Superseded 2026-11-19:** "correctly" does not hold: in those runs the engine also charged the pack on the move with `GENERATION_KW` at zero, so the box stayed off because the id cannot see that charge, not because there was none — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19).
 
 ### Telemetry ownership
 

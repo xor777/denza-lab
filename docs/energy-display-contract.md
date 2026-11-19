@@ -261,6 +261,8 @@ being the pack's charge from the engine (zero while the engine drives the wheels
 or feeds the motor) and inconsistent with it being the generator's output. Until
 the recording says which:
 
+> **Superseded 2026-11-19:** neither reading holds on the move. On the 2026-09-24 drive the engine ran decoupled from the wheels and charged the pack (about 0.82 kWh in while it ran) with `G` and its state at `0` on every row; `G` is above zero only during forced generation standing in P — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19). With the signal as it is, the box below and the figure in its sentence appear only during forced generation in P and never on the move; the car page's «ОТ ДВС» likewise; the trip's «ДАЛ ДВС» (§2.4) stays at zero, because the ledger takes nothing in P; and the engine's charge on the move counts neither as recuperation nor as the engine's. What the box does on the move is an open decision (§8). The rules below stand as written until it is made.
+
 - the engine's box on the cluster exists **only while the flag is up** and only
   if `G` was above zero somewhere in its window. A running engine that gives the
   pack nothing keeps the trip's cells on the shelf and the revolutions in the
@@ -429,7 +431,8 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   kilometres of road when the car stops;
 - **engine giving**: the cluster's box replaces the trip's cells while the flag
   is up and `G > 0`; the car page's headline gains «ОТ ДВС» while the pack takes
-  charge;
+  charge. Since 2026-11-19 known to happen only during forced generation in P,
+  because `G` reads zero on the move (§2.5);
 - **charging**: the cluster's petal figure becomes the countdown; the car page's
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
@@ -572,6 +575,7 @@ test.
 | --- | --- |
 | whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | a recorded stop at a charger known to be DC (the owner does not recall what the 2026-09-22 stop was, asked 2026-10-09) |
 | the stock zones' true edges | the grid photograph |
+| what the engine box, «ДАЛ ДВС» and «ОТ ДВС» do on the move, where `GENERATION_KW` reads zero while the engine charges the pack (2026-11-19, §2.5) | the owner's decision; a reading of generator power on the move would widen the choices ([findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19)) |
 
 **Closed by the first recorded drive, 2026-09-22** -
 `captures/vehicle-log/vehicle-20260922-172447-car.csv`, written on the car by a
@@ -600,7 +604,9 @@ output.** Each start came with a demand past 220 kW and the engine drove the
 wheels beside the pack; not one sample of 186 had the id or its state off zero.
 So §2.5's box is right as drawn: it stands only while the engine is charging, and
 a running engine that drives the wheels shows its revolutions in the corner and
-nothing on the shelf. What it gives the wheels has no reading on this firmware -
+nothing on the shelf.
+
+> **Superseded 2026-11-19:** the same 186 rows show the engine charging the pack, not only driving the wheels: `P` ran −51…+291 kW (median +13), 84 rows were at −3 kW or below, 44 of them with the accelerator pressed and the brake off, about 0.82 kWh went in, and the revolutions wandered 23…150 per km/h on set-points near 1350–1500 rpm, which is the series mode. `GENERATION_KW` and its state read `0` throughout. So the id is not the engine's charge into the pack on the move; it is above zero only during forced generation in P, and the box does not stand while the engine charges on the move — see [the findings](vehicle-data-findings.md#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19). What it gives the wheels has no reading on this firmware -
 torque, fuel flow and boost are the silent `0x324`/`0x387`/`0x30D` families
 (`docs/vehicle-data-findings.md`). `ENGINE_RPM` is real in motion (1304…2985),
 and its `_20D` twin agrees once the engine is past cranking.

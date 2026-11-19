@@ -7,7 +7,7 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-11-19. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -19,7 +19,7 @@ Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit,
 | Every `BYDAutoFeatureIds` constant, resolved for this car: untracked `captures/ambient-light-20260923/data/fids-canfd.tsv` (and `fids-can-classic.tsv`), tab-separated `<class or TOP>`, `<NAME>`, `<signed decimal>`, built by `resolve_clinit.py` because jadx cannot evaluate the static initializer; look ids up there, not by hand | firmware | 2026-09-23 | [autoservice FID protocol](#autoservice-fid-protocol) |
 | The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster, strip's car page or diagnostic section is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. One event id rides in every sweep while the warning recorder is on (`TEXT_WARNING`, `VehiclePoll.EVENT`) and never joins the telemetry snapshot. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
 | Pack power `0x14400020` (dev 1012, catalog `ENGINE_POWER`) is positive out of the pack, on a charger and in motion (`VehicleConvention.POWER_POSITIVE_IS_DISCHARGE`) | live | 2026-09-22 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
-| `GENERATION_KW` `0x2610001F` (dev 1006) is the engine's charge into the pack: 8–10 kW generating in P, `0` while the engine drives the wheels; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | live | 2026-09-24 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
+| Refuted: `GENERATION_KW` `0x2610001F` (dev 1006, `ENERGY_POWER_GENERATION_VALUE`) is the engine's charge into the pack. It reads 8–10 kW with state `1` only during forced generation standing in P; on the 2026-09-24 drive the engine charged the pack on the move (about 0.82 kWh in over 186 rows, series mode) with the id and its state `0x34F0000A` at `0` throughout. No id is known for generator power on the move; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | refuted | 2026-11-19 | [Generation reads zero on the move](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) |
 | `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`); `ENGINE_RPM` `0x14400012` answers `0x1FFF` (13-bit "not available") with the engine off, parked or moving; `VehicleSignal.invalid` refuses it before decoding | live | 2026-09-22 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster); [A resting reading is not the same as a resting ECU](#a-resting-reading-is-not-the-same-as-a-resting-ecu) |
 | Scales: pack temp = raw − 40 °C; cells in mV; odometer = raw / 10 km; tyres = raw / 100 bar; 12 V and SOC are floats | live | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
 | `CHARGE_GUN` `0x34400032`: `2` AC connected, `1` on every moving row of both recorded drives, `3` on a DC stop; "charging" needs `2`, a charger reading and a pack that is not discharging (`VehicleTelemetry.kt`) | live | 2026-09-24 | [The gun is not a charger](#the-gun-is-not-a-charger-2026-09-06-falsified-on-the-road) |
@@ -76,6 +76,7 @@ Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit,
 - Which palette this car uses: one read of `SET_IAL_COLOR_CONFIG`, or the owner naming the cabin colour.
 - Whether a normal APK can register the raw CAN-FD listener, DiCar's ambient-light listener or the vendor SCP IMU sensors: one isolated probe each.
 - The remaining Z9GT `persist.sys.*` vehicle-id properties: a qualified dump; `persist.sys.AutoType=170` is confirmed on 2026-10-18.
+- What the generator gives on the move, which `GENERATION_KW` does not report: a drive recorded by `VehicleCapture` with the engine charging the pack for minutes (ideally at low SOC), or a raw CAN reading of the generator's frames, or the ISG `7E6` answering a numeric DID ([Generation reads zero on the move](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19)).
 
 ## Contents
 - [Executive result](#executive-result) — what a normal APK can and cannot read, in one screen
@@ -91,6 +92,7 @@ Updated 2026-11-02. Which vehicle signals Denza Apps can read on this head unit,
 - [Widget allowlist (2026-08-22)](#widget-allowlist-2026-08-22) — the measured FIDs with dev, transact and decoding
 - [Vehicle telemetry wiring (2026-08-22 to 2026-08-27)](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) — the decisions behind `feature.vehicle`, its consumers and cadence
 - [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
+  - [The engine charges on the move with generation at zero (2026-11-19)](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19) — `GENERATION_KW` is non-zero only in P; what that leaves the cluster and the trip
 - [Diagnostics and DTC (2026-10-18)](#diagnostics-and-dtc-2026-10-18) — proven read transport, real records, status semantics and scan coverage
 - [Additional diagnostic readings and LBMS](#additional-diagnostic-readings-and-lbms-2026-10-18) — 43 GETs, window polling and the second qualified ECU
 - [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) — ABS/ESP, EPS, SRS, ADAS, radar, 32 cache matches and the brake OBD interface
@@ -1023,6 +1025,8 @@ the applicable getter and its enum before deriving a warning.
 | `ENGINE_CHARGE_POWER` | `0x2ED00010` | 1009 / 1012 | 5 | `-2` | **not** engine generation: it tracks pack power, and is the int twin of the float above |
 | DC-DC work mode | `0x36D00030` | 1006 | 5 | `2` | |
 
+> **Superseded 2026-11-19:** `0x2610001F` is not "the figure the series hybrid generates into the pack" on the move. It reads above zero only during forced generation standing in P; on the 2026-09-24 drive the engine charged the pack in series mode with it at `0` — see [The engine charges on the move with generation at zero](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19).
+
 Two figures that answer but do not mean what their names suggest:
 `INSTRUMENT_DD_EXTERNAL_CHARGE_POWER` (`0x4A508010`) reads `1522.6` and
 `INSTRUMENT_DISCHARGE_POWER` (`0x15100012`) reads `51.1` — lifetime totals or
@@ -1113,6 +1117,8 @@ engine off in motion are open for the same reason.
 
 > **Superseded 2026-09-24:** all three are closed by recorded drives: `POWER_KW` is positive out of the pack in motion and `ENGINE_RPM` sends only `0x1FFF` with the engine off (2026-09-22), and `GENERATION_KW` stayed `0` through three engine runs at speed, so it is the pack's charge from the engine, not the generator's output (2026-09-24) — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
 
+> **Superseded 2026-11-19:** the last conclusion does not hold. On the same 2026-09-24 drive the engine ran decoupled from the wheels and charged the pack (about 0.82 kWh in) with `GENERATION_KW` at `0`, so it is neither the pack's charge from the engine nor the generator's output on the move: it reads above zero only during forced generation in P — see [The engine charges on the move with generation at zero](#the-engine-charges-on-the-move-with-generation-at-zero-2026-11-19).
+
 `tools/vehicle_log.py` is what closes them. It asks this same Binder through the
 same `service call` chain, from the host over ADB, one CSV row a second into
 `captures/vehicle-log/` (git-ignored), reconnecting when the car sleeps; the
@@ -1187,6 +1193,84 @@ What the cycle does *not* add is anything about motion: the car stood in P, so
 that closes the open items is still owed.
 
 > **Superseded 2026-09-24:** the drives were recorded on 2026-09-22 and 2026-09-24, and they close the motion questions above — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
+### The engine charges on the move with generation at zero (2026-11-19)
+
+Read again from the two recordings on 2026-11-19, while reviewing a release. The
+2026-09-24 reading of `GENERATION_KW` ("the engine's charge into the pack, zero
+while the engine drives the wheels", energy contract §8) does not survive a look
+at what the pack did while the engine ran.
+
+The ids: `GENERATION_KW` is `1006/0x2610001F`, firmware name
+`ENERGY_POWER_GENERATION_VALUE`; its state is `1006/0x34F0000A`
+(`ENERGY_POWER_GENERATION_STATE`: `0` INVALID, `1` GENERATING, `2` END, `3`
+ERROR, see [Adjacent current consumers](#adjacent-current-consumers-and-isg-boundary-2026-10-21)).
+
+**On the road** - `captures/vehicle-log/vehicle-20260924-182412-car.csv`,
+recorded on the car by a `service call` loop (its parcels are in the `.raw.log`
+beside it), 3106 rows over 74 min, 12.2 km. `ENGINE_RUNNING`
+was `≥ 1` on 186 rows, all of them moving and none in P: three runs, 76 s, 22 s
+and 171 s, about 270 s in all.
+
+- Pack power `P` over those rows ran from −51 to +291 kW: p10 −34, median +13,
+  p90 +36. 84 rows had `P ≤ −3`, the pack taking charge; 44 of them with the
+  accelerator pressed and the brake off, so not regeneration. Integrated over the
+  real time between rows, about 0.82 kWh went into the pack while the engine ran
+  (0.50 kWh net out).
+- `GENERATION_KW` read `0` and the state `0` on every one of the 186 rows, and on
+  every row of the file.
+- The engine was not geared to the wheels. Revolutions per km/h wandered from 23 to
+  150 on the primary rpm id (8 to 151 on the `_20D` twin, which counts the
+  cranking seconds), and the primary id held set-points: 1353 rpm for twelve
+  rows in a row at 9–31 km/h, and repeated values near 1400 and 1500 rpm at
+  speeds from 18 to 52 km/h. That is the series (generator) mode: the engine
+  turns a generator, the generator feeds the motors and the pack, and the energy
+  API reports none of it.
+
+**Standing** - `captures/vehicle-log/vehicle-20260918-183009.csv`, 180 min in P,
+three starts forced with the accelerator floored (see
+[Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster)).
+`GENERATION_KW` read 8 or 10 kW on 162 rows, every one in P, with state `1` on
+161 rows and `2` on the 16 rows of the three shutdowns. The other recordings
+(2026-09-11, 2026-09-22 host and car) never had the engine running and never
+read the id above zero.
+
+So the id is non-zero only during forced generation standing in P. What it
+measures there agrees with the pack to the kilowatt; what the generator gives on
+the move has no reading on this API. The resolved FID tables
+(`fids-canfd.tsv`, see the Current state table) carry no other generation value:
+besides these two ids there are only the instrument lamps
+`INSTRUMENT_B_M_POWER_GENERATION_SYSTEM` and
+`INSTRUMENT_DD_FAULT_CHECK_POWER_GENERATION_SYSTEM`. `0x2ED00010`
+(`ENGINE_CHARGE_POWER`) adds nothing: on the 2026-09-24 drive it equals `P` on
+110 of the 186 rows with the engine running (59 %) and on 1818 of 2240 rows with
+it stopped (81 %), and differs where the two reads fall in different seconds.
+
+**What this leaves the product with** (code, 2026-11-19):
+
+- the Contour's engine box («ДВС ДАЁТ n кВт · ПОСЛЕДНИЕ m:ss») needs
+  `EngineTraceSnapshot.gives`, which is `GENERATION_KW > 0` in some five-second
+  bin of the window (`EngineTrace.kt`, fed by `VehicleTelemetryHub.kt`; the rule
+  in `ContourScene.kt`), so it cannot appear on the move. The figure in its
+  sentence (`EnergyReadouts.engineFigure`) is the same id;
+- the car page's «ОТ ДВС» (`EnergyReadouts` → `VehicleTelemetry.generating`:
+  state `1` or the id above its floor) cannot appear on the move either;
+- the trip's «ДАЛ ДВС» is `∫GENERATION_KW dt` while the engine runs
+  (`TripEnergyLedger.kt`), and the ledger takes nothing while the car stands in
+  P, so with the signal as it is it stays at zero and its caption never shows
+  (`ContourScene.kt`, `TRIP_ENGINE` needs `engineKwh > 0`);
+- energy the engine puts into the pack on the move, with `P` negative, is counted
+  neither as recuperation (the ledger counts that only with the engine off) nor as
+  the engine's;
+- `VehicleLogReplayTest` decides "the engine gave" by the same `GENERATION_KW > 0`,
+  so it cannot catch any of this.
+
+What the box should do on the move is the owner's decision and is open in
+[energy contract §2.5](energy-display-contract.md#25-the-engine). To reproduce:
+read the two files above with Python's `csv`, take the rows with
+`engine_running ≥ 1`, and print `power_kw`, `generation_kw`, `generation_state`,
+`engine_rpm`, `engine_rpm_20d` and `speed_kmh` over them. There is no recording
+after 2026-09-24, and none with a long engine charge on the move at low SOC.
 
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 
