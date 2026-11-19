@@ -19,6 +19,7 @@ object MirrorsSettings {
     private const val PROCESSING = "processing"
     private const val OBSERVED_SIDE = "observed_side"
     private const val STATUS_DETAILS = "status_details"
+    private const val UNREADABLE = "monitor_unreadable"
     private const val STOCK_CHOICE_BEFORE = "stock_turn_camera_before"
 
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(ENABLED, false)
@@ -51,12 +52,19 @@ object MirrorsSettings {
         .getString(OBSERVED_SIDE, null)
         ?.let { runCatching { MirrorSide.valueOf(it) }.getOrNull() }
 
+    /**
+     * The running monitor has not read the car for [MirrorObservationWatch.DEADLINE_MS]: the
+     * camera display may be there, but nothing the monitor shows follows the car any more.
+     */
+    fun monitorUnreadable(context: Context): Boolean = prefs(context).getBoolean(UNREADABLE, false)
+
     // These explicit transactions are the persisted boundary read by runtime recovery.
     @SuppressLint("UseKtx")
-    fun setObserved(context: Context, side: MirrorSide?, details: String) {
+    fun setObserved(context: Context, side: MirrorSide?, details: String, unreadable: Boolean = false) {
         prefs(context).edit().apply {
             if (side == null) remove(OBSERVED_SIDE) else putString(OBSERVED_SIDE, side.name)
             putString(STATUS_DETAILS, details)
+            if (unreadable) putBoolean(UNREADABLE, true) else remove(UNREADABLE)
         }.apply()
     }
 

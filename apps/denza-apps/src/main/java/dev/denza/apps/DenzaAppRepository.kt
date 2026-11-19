@@ -1340,6 +1340,7 @@ object DenzaAppRepository {
         return MirrorDisplayReadiness.snapshot(
             selection = ClusterDisplayResolver.resolveCameraOverlay(context),
             active = MirrorsSettings.observedSide(context) != null,
+            unreadable = MirrorsSettings.monitorUnreadable(context),
         )
     }
 

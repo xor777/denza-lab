@@ -40,6 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class SideCameraMonitorService : Service() {
     private var executor: ScheduledExecutorService? = null
+    private var deadlineExecutor: ScheduledExecutorService? = null
+    @Volatile private var observationWatch = MirrorObservationWatch(0L)
     private var signalExecutor: ExecutorService? = null
     private lateinit var adb: LocalAdbClient.PersistentShellSession
     private var turnSignalLease: VehicleSignalLease? = null
@@ -54,8 +56,8 @@ class SideCameraMonitorService : Service() {
     private var transitionState = MirrorTransitionState()
     private val preemptInFlight = AtomicBoolean()
     private val statusLock = Any()
-    private var lastStatus: Pair<MirrorSide?, String>? = null
-    private var clusterDisplayId: Int? = null
+    private var lastStatus: Triple<MirrorSide?, String, Boolean>? = null
+    @Volatile private var clusterDisplayId: Int? = null
     private var lastDisplayResolveMs = 0L
     private var lastShadowStatus = ""
     // Timing only; these observations never participate in the reducer or CAN policy.
@@ -137,9 +139,21 @@ class SideCameraMonitorService : Service() {
         }.onFailure { error ->
             Log.w(TAG, "turn-lamp events unavailable", error)
         }.getOrNull()
+        observationWatch = MirrorObservationWatch(SystemClock.elapsedRealtime())
         executor = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
             scheduler.execute(::grantOverlayPermission)
             scheduler.scheduleWithFixedDelay(::poll, 0L, POLL_MS, TimeUnit.MILLISECONDS)
+        }
+        // Not the poll's thread: a shell read that blocks must not hold the deadline back.
+        deadlineExecutor = Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "denza-mirror-deadline").apply { isDaemon = true }
+        }.also { scheduler ->
+            scheduler.scheduleWithFixedDelay(
+                ::checkObservationDeadline,
+                MirrorObservationWatch.CHECK_MS,
+                MirrorObservationWatch.CHECK_MS,
+                TimeUnit.MILLISECONDS,
+            )
         }
         setStatus(null, "monitor running")
     }
@@ -164,6 +178,8 @@ class SideCameraMonitorService : Service() {
         signalExecutor = null
         executor?.shutdownNow()
         executor = null
+        deadlineExecutor?.shutdownNow()
+        deadlineExecutor = null
         val stock = avcStock
         avcStock = null
         if (stock != null) {
@@ -227,9 +243,34 @@ class SideCameraMonitorService : Service() {
             val stockSide = observeStock(detection, now)
             val mode = recordTurnSignalState(stockSide, now)
             applyTransition(stockSide, now, mode)
+            observationWatch.read(now)
             releaseStaleClaimWhenIdle(detection)
         } catch (error: Exception) {
-            setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
+            val watch = observationWatch
+            watch.failed(shortError(error))
+            // Past the deadline the status is the deadline's, written once (below).
+            if (!watch.lost(SystemClock.elapsedRealtime())) {
+                setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
+            }
+        }
+    }
+
+    /**
+     * The deadline no shell read has to reach ([MirrorObservationWatch]). Past it a camera of ours
+     * closes through the lamps-off teardown - the same reducer step, the same [ClusterSceneService]
+     * preempt, the same skipped free when AVC has taken its renderer back - and the tile is told
+     * the car cannot be read. A poll that reads the car again clears both.
+     */
+    private fun checkObservationDeadline() {
+        if (clusterDisplayId == null) return
+        val watch = observationWatch
+        if (!watch.lost(SystemClock.elapsedRealtime())) return
+        transitionGate.runIfRunning {
+            val now = SystemClock.elapsedRealtime()
+            // A poll may have read the car while this waited for the gate.
+            if (!watch.lost(now)) return@runIfRunning
+            teardownActiveCameraLocked("car not read", now, blockSide = null)
+            setStatus(null, "car not read: ${watch.lastError ?: "no answer"}", unreadable = true)
         }
     }
 
@@ -579,12 +620,12 @@ class SideCameraMonitorService : Service() {
      * mirrors' slice of the dashboard. False when it is the status already recorded: a monitor
      * that keeps failing the same way (two polls a second while ADB is gone) writes it once.
      */
-    private fun setStatus(side: MirrorSide?, details: String): Boolean {
+    private fun setStatus(side: MirrorSide?, details: String, unreadable: Boolean = false): Boolean {
         synchronized(statusLock) {
-            val status = side to details
+            val status = Triple(side, details, unreadable)
             if (status == lastStatus) return false
             lastStatus = status
-            MirrorsSettings.setObserved(this, side, details)
+            MirrorsSettings.setObserved(this, side, details, unreadable)
         }
         StateMarks.mark(StateSlice.MIRRORS, "mirrors")
         return true

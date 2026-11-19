@@ -28,7 +28,8 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
 | A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer; a screen that starts watching ends the backoff (`VehicleBackoff.wake`) | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
 | Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
-| While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`). Since 2026-11-19 the owner's value is committed to disk before AVC is asked, kept through a reply that never came, and dropped only when AVC's answer shows the write did not land (`MirrorStockChoicePolicy.applyEnable`); before, a lost reply or a process death between the write and the save lost it for good. The new order is code, not run on the car | live | 2026-11-19 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| A monitor that cannot read the car for 4 s (the window poll's shell and the lamp feed both down) closes its camera through the lamps-off teardown, on its own thread, and the tile reads «Нет доступа» with the access check as its press (`MirrorObservationWatch.kt`, `MirrorDisplayReadiness.kt`). Before 2026-11-19 every ending of a camera was decided on a poll that succeeded, so a camera could stay on the cluster after the turn, under a lit tile. Code, not run on the car | code | 2026-11-19 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | `com.byd.avc/.AutoVideoService` (action `com.byd.action.AVCSERVICE`, no permission, no caller check) answers a Messenger: `what=35` gives the mode in `arg2` (`5095` left, `5096`/`5099` right, `5000` idle), `what=1011` replies `1012` with the choice (`0` left on the meter, `1` head unit, `2` full-screen, `3` off), `what=1013` writes it, `what=52` closes the PIP (read, not run); an app UID binds in 23 ms and gets answers in 6-11 ms on AVC's main thread, so it is asked once per transition, never polled | live | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
 | AVC's renderer (TS SDK, one field `AbsAPI.mCurrentSurface`) has one output: our `initDisplay` takes it from the stock PIP, any window-creating stock PIP entry while our surface holds it crashes AVC (`TSAPI.createDisplay` from `PIPViewAlertController.modeChange`, the 2026-09-04 tombstone), and nothing clears our surface if our process dies | firmware | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
 | Stock PIP rules: the card stays 2.00 s after the lamps go off (`LightUtil.onLightOff`; matched to the millisecond live on 2026-09-23); no speed gate; only the left side can go to the meter, the right is always the head-unit `PIP2HostAlert`; the meter card is started by `BydProjectionService` on `shared_fission_bg_XDJAScreenProjection_1` for a fixed package list | firmware | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
@@ -54,6 +55,8 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - The stock graphics' true edges: one photograph of a white 8-unit grid over the whole cluster and one with the bulb check, indicators and ADAS lit; it also checks the range badge at 426.7 and the power figure at about 1095 ([What still waits for the car](#what-still-waits-for-the-car)).
 - Glance checks on the move: whether «34» merges with the stock «34 км/ч», whether the stock dimmer darkens our window at night, frames per second inside the `Presentation` - one drive with photographs and a frame counter.
 - The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
+- Mirrors with no way to read the car (since 2026-11-19): during a turn with our camera up, both local ADB streams gone (window poll and lamp feed). Measure whether the cluster keeps the last frame until the 4 s deadline, that the deadline's teardown closes it with AVC keeping its PID (`logcat -b crash -v time`), whether the free is skipped or taken, how AVC's ownership looks after the turn, and that the tile reads «Нет доступа» and comes back by itself once ADB returns. One owning session, from a documented reset. The same run can measure the window poll's sustained CPU cost.
+- The stock choice's new order (2026-11-19): with the owner's value at `0`, turn Mirrors on and read `stock_turn_camera_before` (`0`) and AVC (`1`); off gives `0` back.
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
 - What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m (no longer sent since 2026-10-21: the wire keeps it at 11), and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); the car's sign fed from Yandex (`text_speedlimit`, the Setting writes and their ADAS readback): one drive under posted limits ([The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09)); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
@@ -1668,6 +1671,32 @@ quarantine rules described above and in vehicle-data-findings.md:
   choice was read and stored `0`; Mirrors off gave back `1 → 0` and cleared it;
   Mirrors on wrote `0 → 1` again. Each step was read back through the probe
   (`captures/mirrors-firmware-model/live-3-choice.log`); AVC kept PID `4746`.
+
+  > **Superseded 2026-11-19 (the order):** the owner's value used to be stored
+  > only after AVC's answer read back `1`. A reply that timed out, or the process
+  > dying between the write and the save, left `1` in AVC and nothing stored; the
+  > next start read `1` as already right and turning Mirrors off had nothing to
+  > give back. Now the value is committed (`commit`, not `apply`) before the
+  > write, AVC is not asked when it cannot be stored, a write with no answer
+  > keeps it and is asked again on the next poll with no card, and only an
+  > answer that is not `1` (AVC did not take it) drops it again
+  > (`MirrorStockChoicePolicy.applyEnable`). The disable side is unchanged: it
+  > forgets the value only after AVC confirms the give-back, or when AVC no
+  > longer holds `1`. Code; not run on the car.
+- **When the car cannot be read** (2026-11-19). Every rule above is applied on a
+  poll that read the car, or on a lamp event; both come through the local adbd.
+  With both down (`dumpsys window visible` timing out, no lamp event) none ran,
+  and a camera could stay on the cluster after the turn ended. A second thread
+  now watches the time since the last poll that read the car
+  (`MirrorObservationWatch`): past 4 s (one 2.5 s shell timeout plus the next
+  poll, twice AVC's own tail) a camera of ours closes through the lamps-off
+  teardown, with no vendor call of its own: the same reducer step
+  (`lampsLeft`), the same `ClusterSceneService.preemptCamera`, the same skipped
+  `freeDisplay` when frames had stopped, the same reopen after two clean polls
+  once the car is read again. The status then carries `monitor_unreadable`,
+  and the tile reads «Нет доступа» with the access check as its press, instead
+  of staying lit on a display alone; the next poll that reads the car clears it.
+  Code; the run that settles it is in the open questions.
 
 **Hazard and the comfort tap (2026-09-23, 17:52, same build).** Hazard is flash
 value `6` on this car. Left on, then hazard: our camera closed 3 ms after the

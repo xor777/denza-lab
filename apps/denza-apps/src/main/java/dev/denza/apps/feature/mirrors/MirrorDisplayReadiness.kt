@@ -6,6 +6,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 
 /**
@@ -20,14 +21,26 @@ object MirrorDisplayReadiness {
      */
     val SCREEN_NOT_FOUND: String get() = AppText.s(R.string.mirrors_screen_not_found)
 
+    /**
+     * [unreadable]: the running monitor has not read the car for its deadline
+     * ([MirrorObservationWatch]). A display alone is not a working mirror: the tile says there is
+     * no access, and its press is the access check every ADB feature uses.
+     */
     fun snapshot(
         selection: ClusterDisplaySelection,
         active: Boolean,
+        unreadable: Boolean = false,
     ): FeatureSnapshot = when (selection) {
-        is ClusterDisplaySelection.Selected -> FeatureReducer.ready(
-            FeatureId.MIRRORS,
-            active = active,
-        )
+        is ClusterDisplaySelection.Selected -> if (unreadable) {
+            FeatureReducer.needsAction(
+                FeatureReducer.starting(FeatureId.MIRRORS),
+                message = FeatureWords.NO_ACCESS,
+                details = "monitor cannot read the car",
+                resolution = FeatureResolution.CHECK_ACCESS,
+            )
+        } else {
+            FeatureReducer.ready(FeatureId.MIRRORS, active = active)
+        }
         is ClusterDisplaySelection.NeedsVerification -> FeatureReducer.needsAction(
             FeatureReducer.starting(FeatureId.MIRRORS),
             message = SCREEN_NOT_FOUND,

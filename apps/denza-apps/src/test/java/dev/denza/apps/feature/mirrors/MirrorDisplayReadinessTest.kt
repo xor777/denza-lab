@@ -2,6 +2,7 @@ package dev.denza.apps.feature.mirrors
 
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -24,6 +25,23 @@ class MirrorDisplayReadinessTest {
 
         assertEquals(FeatureStatus.ACTIVE, snapshot.status)
         assertTrue(snapshot.desiredEnabled)
+    }
+
+    @Test
+    fun `a monitor that cannot read the car is no access, not a lit tile`() {
+        // The display is there and a side was recorded before adbd went away: before the fix the
+        // tile stayed ACTIVE, «cameras on», with nothing following the car.
+        val snapshot = MirrorDisplayReadiness.snapshot(
+            ClusterDisplaySelection.Selected(
+                display(4, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY),
+            ),
+            active = true,
+            unreadable = true,
+        )
+
+        assertEquals(FeatureStatus.NEEDS_ACTION, snapshot.status)
+        assertEquals(FeatureResolution.CHECK_ACCESS, snapshot.resolution)
+        assertEquals(FeatureWords.NO_ACCESS, snapshot.message)
     }
 
     @Test
