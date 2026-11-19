@@ -173,5 +173,8 @@ object AdbRestore {
     @JvmStatic fun onWifiDialog(service: android.accessibilityservice.AccessibilityService, event: android.view.accessibility.AccessibilityEvent) {
         WifiDebuggingDialogAutoAllow.onEvent(service, event)
     }
+    @JvmStatic fun onWifiDialogServiceConnected(service: android.accessibilityservice.AccessibilityService) {
+        WifiDebuggingDialogAutoAllow.onConnected(service)
+    }
     fun recordTrusted(context: Context) { AdbRestorePreferences(context).trustedBefore = true }
 }

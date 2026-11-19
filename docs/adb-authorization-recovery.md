@@ -568,7 +568,7 @@ Left as they are after the second review: each needs a rare combination or the c
 | The opening's request goes out without window focus or with the display going off (finding 6) | a prompt raised under another window or a dark screen waits unseen until answered or the 2-min hold ends; later requests wait behind it | open the app with a system dialog over it, and as the screen turns off; `dumpsys window` for focus |
 | The canonical key file and the legacy copy are both damaged | every ADB call fails («Нет доступа», the gate); no new key is made, since the old one may still be readable | none; read-only on the car |
 | The accessibility service never binds after the restore's repair | each restore attempt that needs the Wi-Fi dialog repairs again, taking both Denza services down for about 3 s (since 2026-11-19 also in-process before each dialog write, at most one per network in 10 minutes) | after an update, with the restore needing the dialog |
-| The service binds more than 3 s after the in-process enable before the dialog, or goes while a dialog waits (2026-11-19) | the dialog stays until the driver answers it; the next write - a forcing request, another network, or (while no wave has run out on this network) the first hint after the 10-minute cooldown - raises a fresh one the service can see. Until 2026-11-19 a retry rewrote every 15 s and reached it sooner, with a stack of dialogs | cold start with the port closed: is the dialog pressed by itself; «Служба перед диалогом» in «Технические сведения» |
+| The service never binds, or goes while a dialog waits and does not come back (2026-11-19) | the dialog stays until the driver answers it; the next write - a forcing request, another network, or (while no wave has run out on this network) the first hint after the 10-minute cooldown - raises a fresh one. A service that binds late, after the 3 s wait, presses the dialog standing there as it connects. Until 2026-11-19 a retry rewrote every 15 s and reached it sooner, with a stack of dialogs | cold start with the port closed: is the dialog pressed by itself; kill the service with a dialog up and prove the reconnected service presses it; «Служба перед диалогом» and «Сетевой диалог» in «Технические сведения» |
 | The idle look every 5 s while the gate is up | nothing; one passive connection to adbd each time, never offering the key | that the looks leave the restore and other ADB clients alone |
 
 ## 2026-08-18 live result
@@ -636,6 +636,10 @@ target firmware:
     сведения». Repeat once with our services removed from `enabled_accessibility_services` before
     the reboot (other entries left alone): the reading should be `enabled, bound`, the dialog pressed,
     and every other entry still in the setting in its order.
+16. With the network dialog standing unanswered, take our services out of the setting and put them
+    back (or force-stop and reopen the app): prove the service presses the standing dialog as it
+    connects, «Сетевой диалог» reads `allowed`, and a USB debugging prompt standing at the same
+    moment is not touched.
 
 Until this gate passes, the diagnostics UI reports queue recovery as disabled. Local unit tests and
 an APK build prove only the state machine and packaging, not vehicle behaviour.
@@ -1047,9 +1051,9 @@ pairs are stored atomically.
 > with a forcing request (or, before any wave ran out, after the cooldown), where it came back within
 > 15 s; and the 15 s rewrite was also what reached a dialog the accessibility service missed - the
 > rider presses on a window-state event, and a service bound after the dialog came up saw none
-> until the next dialog. The service is now made ready before the write
-> ([The dialog's service before the write](#autonomous-restore-implementation-2026-10-08)); a bind
-> later than that is a known limit.
+> until the next dialog. The service is now made ready before the write, and on connecting it looks
+> at the windows already up and presses a network dialog standing there
+> ([The dialog's service before the write](#autonomous-restore-implementation-2026-10-08)).
 > `AdbRestoreManagerTest` holds one write per wave, an approval mid-wave, a forcing request mid-wave,
 > and an exhausted network that passive hints do not write however late, a forcing request does and
 > another network does.
@@ -1091,6 +1095,25 @@ checkbox, checks actual `ACTION_CLICK` results and allows once if the checkbox i
 There is at most one pending 300-ms layout retry per window, and the wish is checked again before
 each click. No other SystemUI authorization dialog is touched. Checkbox/button IDs still need
 confirmation in a live window dump.
+
+**A dialog already up when the service connects (2026-11-19; code and policy tests, not on a
+device).** With one write per wave, a service that binds later than the 3 s wait above would never
+see the dialog: its window-state event went to nobody, and no other comes while it stands. So the
+rider, on connecting and only then (no polling, no other event types), offers each SystemUI window
+in `service.windows` to the same `WifiDebuggingDialogPolicy.allow` - the same Allow and checkbox ids,
+the same single press checked by its `ACTION_CLICK` result, the same `recordAutoAllow` and
+`dialog-allowed` hint. A window carries no activity name, so `WifiDebuggingDialogPolicy.recognizes`
+takes SystemUI's own title in its place: a visible node of that SystemUI window must say exactly
+SystemUI's `wifi_debugging_title`, read from SystemUI's resources in the system's language (the
+car's SystemUI has it, and `WifiDebuggingActivity` sets it as the alert's title). The USB
+authorization dialog shares the ids and has its own title (`usb_debugging_title`), so it cannot
+match; a SystemUI window that is not the dialog records nothing. There is no network check in either
+entry: the dialog names the network, and the policy presses whatever network it asks about, as it
+always has. The service already declares `flagRetrieveInteractiveWindows`, `flagReportViewIds` and
+`canRetrieveWindowContent`; nothing was added. `WifiDebuggingDialogPolicyTest` holds the
+recognition; what only a device shows is whether `service.windows` lists the dialog at the moment
+of connecting, whether its title node is visible to the service, and whether
+`createPackageContext` of SystemUI gives the title in the car's language.
 
 A valid `service.adb.tls.port` is tried before mDNS. The resolver queues services and resolves
 serially, filters remote addresses and stops its discovery registration once on every completion
