@@ -15,3 +15,28 @@ internal object SpeakerObserverAccess {
         if (!health.ready()) repair()
     }
 }
+
+/**
+ * The start commands of a switched-on watcher. The first begins watching; every one, the first
+ * included, looks at access again ([checkAccess] is told which it is).
+ *
+ * Until 2026-11-19 a start found the watcher already watching and returned, so the tile's «Нет
+ * доступа» press - which switches the feature on again, a start command to the running service -
+ * never reached the repair: one failed repair stayed failed until the service was recreated.
+ */
+internal class SpeakerWatchStarts(
+    private val beginWatching: () -> Unit,
+    private val checkAccess: (firstStart: Boolean) -> Unit,
+) {
+    var watching = false
+        private set
+
+    fun onStart() {
+        val first = !watching
+        if (first) {
+            watching = true
+            beginWatching()
+        }
+        checkAccess(first)
+    }
+}

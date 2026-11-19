@@ -27,4 +27,23 @@ class SpeakerObserverAccessTest {
     fun `a ready observer is left alone`() {
         assertEquals(0, repairsFor(AccessibilityHealth(enabled = true, connected = true)))
     }
+
+    /**
+     * The tile's «Нет доступа» press switches the feature on again: a start command to a service
+     * already watching. Until 2026-11-19 that start returned at «already watching» and the failed
+     * repair was never tried again.
+     */
+    @Test
+    fun `a start of a watching service looks at access again`() {
+        val events = mutableListOf<String>()
+        val starts = SpeakerWatchStarts(
+            beginWatching = { events += "watch" },
+            checkAccess = { first -> events += if (first) "access (first)" else "access (again)" },
+        )
+
+        starts.onStart() // the service starts; its first repair fails
+        starts.onStart() // the tile's retry
+
+        assertEquals(listOf("watch", "access (first)", "access (again)"), events)
+    }
 }

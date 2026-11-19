@@ -40,7 +40,13 @@ class SpeakerCoverService : Service() {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private lateinit var mediaSessions: SpeakerMediaSessionObserver
-    private var watching = false
+    private val starts = SpeakerWatchStarts(
+        beginWatching = {
+            renotify()
+            mediaSessions.start()
+        },
+        checkAccess = ::ensureObserverAccess,
+    )
     private var destroyed = false
 
     /** Reports sent and not yet answered; the screen greys «Поднять» while it is above zero. */
@@ -97,29 +103,26 @@ class SpeakerCoverService : Service() {
     }
 
     /**
-     * Start listening, once.
+     * Start listening, once; look at access on every call ([SpeakerWatchStarts]).
      *
      * Starting the observer reads every active session, so a player already going when the switch
      * is flipped on is reported right here - and silence is left as silence. That is the whole of
      * what switching on does to the covers.
      */
-    private fun watch() {
-        if (watching) return
-        watching = true
-        renotify()
-        mediaSessions.start()
-        ensureObserverAccess()
-    }
+    private fun watch() = starts.onStart()
 
-    private fun ensureObserverAccess() {
+    private fun ensureObserverAccess(firstStart: Boolean) {
         SpeakerObserverAccess.ensure(AccessibilityHealth.read(this)) {
             AccessibilityRepair.repair(this) { failure ->
                 if (failure != null) Log.i(TAG, "foreground-app observer unavailable", failure)
             }
         }
+        // A later start re-reads the sessions only when access was missing: one already there has
+        // been feeding the observer all along.
+        val sawSessions = !firstStart && MediaSessionAccess.isEnabled(this)
         MediaSessionAccess.ensure(this) {
             handler.post {
-                if (!destroyed && watching) mediaSessions.restart()
+                if (!destroyed && starts.watching && !sawSessions) mediaSessions.restart()
                 // Access may just have been granted, and the tile reads that from the settings.
                 StateMarks.mark(StateSlice.SPEAKER_COVERS, "speakers access")
             }

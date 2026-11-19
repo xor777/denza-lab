@@ -28,7 +28,7 @@ Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the 
 | The car reports by itself for `MediaTaskManager`'s whitelist (`com.byd.mediacenter`, `com.byd.videoplay*`, QQ Music, NetEase, Ximalaya, `bubei.tingshu.hd`) and filter (`android`, telecom, Bluetooth); the app's copy is `SpeakerCoverReporting.kt`, to re-read after a firmware update | code | 2026-09-03 | [Who the app reports for](#who-the-app-reports-for) |
 | Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
 | The report is refused from the app UID (`20004`, `BYDAUTO_INSTRUMENT_SET`) even though `ICarMediaService` is reachable from it; the shell UID is accepted | live | 2026-09-03 | [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one) |
-| The tile reads OFF, NEEDS_ACTION «Нет доступа» (media-session access; until 2026-10-09 «Повторите настройку доступа») or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`) | code | 2026-10-09 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
+| The tile reads OFF, NEEDS_ACTION «Нет доступа» (media-session access; until 2026-10-09 «Повторите настройку доступа») or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`). Its press reaches the repair even while the service is already watching: every start command looks at access again (`SpeakerWatchStarts`, since 2026-11-19; before, a running service ignored it) | code | 2026-11-19 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
 | The eager list's foreground-app observer (the shared accessibility service) is repaired when it is off or on but not bound, by the one check every rider uses (`AccessibilityHealth.ready`, `SpeakerObserverAccess.kt`, `SpeakerObserverAccessTest`); until 2026-10-09 only an off service was. A repair asked for while the system is still binding an instance it created by itself waits up to 2 s for it and rewrites nothing if it lands (`AccessibilityRepair.awaitBind`) | code | 2026-10-09 | [The foreground-app observer is repaired like everyone's](#the-foreground-app-observer-is-repaired-like-everyones-2026-10-09) |
 | On the Z9GT `0x16300025` (dev `1002`) drives the motor as an edge: `1` out, `2` in; rewriting the value it already holds moves nothing | live | 2026-08-25 | [Direct cover control](#direct-cover-control-2026-08-25-live-proven-both-ways) |
 | On the Z9GT the first `2` latches the amp into manual mode (`0x35A000DA` reads `2`, stock raises stop) until an ignition cycle; it read `1` again by 2026-09-03 | live | 2026-08-25 | [Confirmed: direct retract disables stock auto-lift](#confirmed-direct-retract-disables-stock-auto-lift-for-the-ignition-cycle) |
@@ -54,6 +54,7 @@ Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the 
 - Whether the installed MCU image matches the archive's AppBlock (the two Android libraries already match): a hash of the installed image.
 - No live acceptance of the shipped v2 service is recorded here: one owner drive opening Yandex with the switch on, and one «Поднять» after an idle retract.
 - The repair of an on-but-unbound observer (2026-10-09) is held by `SpeakerObserverAccessTest`, not yet seen on the car: one start of the speaker service with the accessibility service listed but not bound, and Yandex opened after it.
+- The tile's press on a running service (2026-11-19): with the notification listener revoked while the switch is on, the tile reads «Нет доступа»; one press grants it again and the tile goes READY without switching the feature off and on.
 
 ## Contents
 - [Verdict](#verdict) — the 2026-08-22..25 summary table; the normative part is the v2 contract
@@ -1965,6 +1966,11 @@ the same:
   > within the tile's 17 characters; the instruction asked the driver to do what the press does.
   RETRY is the tile press, which switches the feature on again and walks the
   service through the access repair, exactly as on HUD.
+  > **Superseded 2026-11-19:** it did not walk a running service through anything. The press is a
+  > start command, and a service already watching returned at «already watching», so a repair that
+  > failed once was never tried again until the service was recreated. Every start command now
+  > looks at access again (`SpeakerWatchStarts`); a later one re-reads the sessions only when access
+  > had been missing.
 - `SpeakerCoverRuntime` is one Boolean, `reporting`, set by the service for the
   second a report is on the wire and spent only on greying «Поднять».
 - The service asks the policy first, then the per-player repeat guard, and only
