@@ -8,14 +8,26 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 
-/** Emulator-only test running under Navigator's real UID; never handles credentials. */
+/**
+ * Emulator-only test running under Navigator's real UID; never handles credentials. The Passport
+ * SDK's obfuscated names differ per Navigator base: account_check.py passes them from its table
+ * (configureClass/configureMethod/configureExtra, typeClass/typeMethod).
+ */
 public final class AccountAccessCheck extends Instrumentation {
+    private Bundle arguments;
     private String expectedType;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        this.arguments = arguments;
         expectedType = arguments.getString("expectedType");
         start();
+    }
+
+    private String argument(String name) {
+        String value = arguments.getString(name);
+        require(value != null && !value.isEmpty(), "Missing argument " + name);
+        return value;
     }
 
     @Override public void onStart() {
@@ -30,13 +42,23 @@ public final class AccountAccessCheck extends Instrumentation {
             require("ru.yandex.yandexnavi".equals(context.getPackageName()), "Wrong target package");
             require("com.yandex.passport".equals(expectedType)
                     || "com.yandex.passport.denza".equals(expectedType), "Unexpected test account type");
-            require(expectedType.equals(context.getString(0x7f1515b5)), "Resource account type mismatch");
+            // By name: the id moves with every base (0x7f1515b5 in 29.8.1, 0x7f151402 in 31.1.4).
+            int id = context.getResources().getIdentifier("passport_account_type", "string", context.getPackageName());
+            result.putString("resource_id", Integer.toHexString(id));
+            require(id != 0 && expectedType.equals(context.getString(id)), "Resource account type mismatch");
             ClassLoader loader = context.getClassLoader();
-            // Exercise the SDK's existing resource configuration path, without bypassing checks.
-            Class.forName("com.yandex.passport.internal.e0", true, loader)
-                    .getMethod("b", Context.class).invoke(null, context);
-            Object runtimeType = Class.forName("com.yandex.passport.internal.t", true, loader)
-                    .getMethod("a").invoke(null);
+            // Exercise the SDK's existing resource configuration path, without bypassing checks:
+            // configure(Context[, extra = null]) reads the resource, type() returns what it stored.
+            String extra = arguments.getString("configureExtra");
+            Class<?> configure = Class.forName(argument("configureClass"), true, loader);
+            if (extra == null || extra.isEmpty()) {
+                configure.getMethod(argument("configureMethod"), Context.class).invoke(null, context);
+            } else {
+                configure.getMethod(argument("configureMethod"), Context.class, Class.forName(extra, true, loader))
+                        .invoke(null, context, null);
+            }
+            Object runtimeType = Class.forName(argument("typeClass"), true, loader)
+                    .getMethod(argument("typeMethod")).invoke(null);
             require(expectedType.equals(runtimeType), "Passport SDK account type mismatch");
             result.putString("resource_and_sdk_type", expectedType);
             manager = AccountManager.get(context);

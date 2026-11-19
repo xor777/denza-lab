@@ -12,6 +12,28 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = 'ru.yandex.yandexnavi'
 OWNER = 'dev.denza.hudaccountowner.probe'
 CHECK = 'dev.denza.hudaccountcheck.probe'
+# The Passport SDK's obfuscated names per Navigator base: configure(Context[, extra]) reads
+# passport_account_type and type() returns what it stored. The resource is found by name on the
+# device. A new base needs a row here, read from its decompile; the check refuses an unknown one.
+PASSPORT = {
+    '29.8.1': {'configureClass': 'com.yandex.passport.internal.e0', 'configureMethod': 'b',
+               'configureExtra': '',
+               'typeClass': 'com.yandex.passport.internal.t', 'typeMethod': 'a'},
+    '31.1.4': {'configureClass': 'com.yandex.passport.internal.a0', 'configureMethod': 'b',
+               'configureExtra': 'io.appmetrica.analytics.IReporterYandex',
+               'typeClass': 'com.yandex.passport.internal.q', 'typeMethod': 'a'},
+}
+
+
+def base_version(apk, aapt2):
+    """The Navigator base an APK is built on: its versionName up to the first '-'."""
+    badging = subprocess.check_output([str(aapt2), 'dump', 'badging', str(apk)], text=True, timeout=120)
+    for line in badging.splitlines():
+        if line.startswith('package:'):
+            for field in line.split():
+                if field.startswith("versionName='"):
+                    return field[len("versionName='"):-1].split('-')[0]
+    raise RuntimeError(f'No versionName in {apk}')
 
 
 def main():
@@ -40,6 +62,12 @@ def main():
     env = dict(os.environ, JAVA_HOME=str(java))
     build_tools = sdk/'build-tools/36.0.0'
     android = sdk/'platforms/android-35/android.jar'
+    passport = {}
+    for name, apk in (('before', args.before), ('after', args.after)):
+        base = base_version(apk, build_tools/'aapt2')
+        if base not in PASSPORT:
+            parser.error(f'{name}: no Passport names for Navigator {base}; add a row to PASSPORT')
+        passport[name] = PASSPORT[base]
 
     def run(*command):
         subprocess.run([str(x) for x in command], env=env, timeout=60, check=True)
@@ -75,7 +103,8 @@ def main():
     adb('install', '--no-streaming', args.out/'access/emulator-only.apk')
 
     def check(name, expected):
-        result = adb('shell', 'am', 'instrument', '-w', '-e', 'expectedType', expected,
+        names = [x for key, value in passport[name].items() if value for x in ('-e', key, value)]
+        result = adb('shell', 'am', 'instrument', '-w', '-e', 'expectedType', expected, *names,
                      CHECK + '/dev.denza.hud.accountcheck.AccountAccessCheck')
         (args.out/(name + '.txt')).write_text(result)
         print(result, flush=True)
