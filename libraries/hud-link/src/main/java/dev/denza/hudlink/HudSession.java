@@ -22,6 +22,11 @@ import java.util.Arrays;
  *     {@link #CLEAR_SENDS} times {@link #CLEAR_REPEAT_MS} apart - then stop and unbind once
  *     {@link #STOP_DELAY_MS} have passed and the last clear is out. Something to show again
  *     before that ends the clear and sends at once.
+ * <li>The clear is owed from the first send that reached the HUD until a clear has gone out. A
+ *     session dropped by a failure (the binding, a send) and not back when there is nothing left
+ *     to show binds and starts again for the clear, for at most {@link #CLEAR_RECOVERY_MS}.
+ *     Before 2026-11-19 it found no started session and went idle, so the last picture stayed
+ *     for the receiver to drop.
  * <li>Another writer takes over ({@link #handOver}): stop and unbind at once, without the
  *     clear, so the glass keeps the last picture until the other writer's comes.
  * </ul>
@@ -42,6 +47,8 @@ public final class HudSession {
     public static final int CLEAR_SENDS = 3;
     public static final long CLEAR_REPEAT_MS = 120L;
     public static final long STOP_DELAY_MS = 350L;
+    /** How long a session dropped by a failure comes back for a clear it owes: one retry and one bind deadline. */
+    public static final long CLEAR_RECOVERY_MS = RETRY_MS + BIND_DEADLINE_MS + 1_000L;
     /** What {@link #pump} returns when nothing is due until something changes. */
     public static final long IDLE = Long.MAX_VALUE;
 
@@ -123,6 +130,10 @@ public final class HudSession {
     private int clearsLeft;
     private long clearAt;
     private long stopAt = NEVER;
+    /** Something of ours reached the HUD and no clear has gone out since. */
+    private boolean owed;
+    /** While nothing is to be shown and the session is not back: when coming back for the clear ends. */
+    private long owedUntil = NEVER;
 
     /** {@code blankMap}: the map event with an all-black frame, what empties the window. */
     public HudSession(HudClock clock, Port port, Listener listener, byte[] blankMap) {
@@ -158,7 +169,7 @@ public final class HudSession {
         if (!bound) {
             return;
         }
-        if (road != null) {
+        if (road != null || owed) {
             recover(clock.now(), Trouble.DISCONNECTED, 0);
         } else {
             finish();
@@ -173,6 +184,9 @@ public final class HudSession {
     public void handOver() {
         road = null;
         map = null;
+        // The other writer's picture follows; no clear is owed for ours.
+        owed = false;
+        owedUntil = NEVER;
         if (started) {
             port.stop();
         }
@@ -189,6 +203,7 @@ public final class HudSession {
     }
 
     private long show(long now) {
+        owedUntil = NEVER;
         if (stopAt != NEVER) {
             // Something to show again while the clear was under way: it ends, and the glass, now
             // blank, gets everything at once.
@@ -196,24 +211,9 @@ public final class HudSession {
             stopAt = NEVER;
             forgetSent();
         }
-        if (!bound) {
-            if (now < retryAt) {
-                return retryAt;
-            }
-            bind(now);
-            if (!bound) {
-                return retryAt;
-            }
-        }
+        long opening = open(now);
         if (!started) {
-            if (connected) {
-                start(now);
-            } else if (now - bindingSince >= BIND_DEADLINE_MS) {
-                recover(now, Trouble.BIND_TIMEOUT, 0);
-            }
-            if (!started) {
-                return bound ? bindingSince + BIND_DEADLINE_MS : retryAt;
-            }
+            return opening;
         }
         long next = sendRoad(now);
         if (started) {
@@ -274,7 +274,49 @@ public final class HudSession {
         return blanksLeft > 0 ? blankAt : IDLE;
     }
 
+    /**
+     * Binds and starts as far as {@code now} allows: returns when to look again while the session
+     * is not started.
+     */
+    private long open(long now) {
+        if (!bound) {
+            if (now < retryAt) {
+                return retryAt;
+            }
+            bind(now);
+            if (!bound) {
+                return retryAt;
+            }
+        }
+        if (!started) {
+            if (connected) {
+                start(now);
+            } else if (now - bindingSince >= BIND_DEADLINE_MS) {
+                recover(now, Trouble.BIND_TIMEOUT, 0);
+            }
+            if (!started) {
+                return bound ? bindingSince + BIND_DEADLINE_MS : retryAt;
+            }
+        }
+        return now;
+    }
+
     private long quiet(long now) {
+        if (owed && !started) {
+            // Dropped by a failure after something of ours reached the glass: back for the clear.
+            if (owedUntil == NEVER) {
+                owedUntil = now + CLEAR_RECOVERY_MS;
+            }
+            if (now >= owedUntil) {
+                retryAt = NEVER;
+                finish();
+                return IDLE;
+            }
+            long opening = open(now);
+            if (!started) {
+                return Math.min(opening, owedUntil);
+            }
+        }
         if (started && stopAt == NEVER) {
             clearsLeft = CLEAR_SENDS;
             clearAt = now;
@@ -343,6 +385,7 @@ public final class HudSession {
             recover(now, Trouble.FIRE_FAILED, result);
             return false;
         }
+        owed = true;
         return true;
     }
 
@@ -350,6 +393,9 @@ public final class HudSession {
     private void recover(long now, Trouble trouble, int result) {
         listener.onTrouble(trouble, result);
         drop();
+        // A clear cut short starts again from its first send once the session is back.
+        clearsLeft = 0;
+        stopAt = NEVER;
         retryAt = now + RETRY_MS;
     }
 
@@ -358,6 +404,8 @@ public final class HudSession {
         drop();
         clearsLeft = 0;
         stopAt = NEVER;
+        owed = false;
+        owedUntil = NEVER;
         listener.onStopped();
     }
 

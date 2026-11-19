@@ -275,8 +275,12 @@ public final class HudSessionTest {
         assertEquals("trouble FIRE_FAILED -201", events.get(2));
     }
 
+    /**
+     * Until 2026-11-19 the session ended where the service went; the clear is owed until it has
+     * gone out whole, so the session comes back for it (bounded, below).
+     */
     @Test
-    public void losingTheServiceDuringTheClearEndsTheSessionThere() {
+    public void losingTheServiceDuringTheClearComesBackToFinishIt() {
         startedAt(0, ROAD_A, null);
         at(1_100);
         session.show(null, null, null, 0);
@@ -285,10 +289,69 @@ public final class HudSessionTest {
         at(1_150);
         session.onDisconnected();
         changed();
-        runUntil(3_000);
+        runUntil(2_150);
+        session.onConnected();
+        changed();
+        runUntil(5_000);
 
-        assertCalls(since(1_100), "1100 map black", "1100 road clear", "1150 unbind");
+        assertCalls(since(1_100), "1100 map black", "1100 road clear", "1150 unbind", "2150 bind", "2150 start",
+                "2150 map black", "2150 road clear", "2270 map black", "2270 road clear",
+                "2390 map black", "2390 road clear", "2500 stop", "2500 unbind");
         assertEquals("stopped", events.get(events.size() - 1));
+    }
+
+    /**
+     * A send fails after the route reached the glass, and guidance ends before the retry: the
+     * session comes back for the clear rather than leaving the last picture to the receiver.
+     */
+    @Test
+    public void aSendFailureJustBeforeTheRouteEndsStillSendsTheClear() {
+        startedAt(0, ROAD_A, FRAME_1);
+        port.fireAnswer = HudSomeIp.NOT_HANDLED;
+        runUntil(500);
+        port.fireAnswer = 0;
+
+        at(700);
+        session.show(null, null, null, 2);
+        changed();
+        runUntil(1_500);
+        session.onConnected();
+        changed();
+        runUntil(5_000);
+
+        assertCalls(since(500), "500 road road-A", "500 unbind", "1500 bind", "1500 start",
+                "1500 map black", "1500 road clear", "1620 map black", "1620 road clear",
+                "1740 map black", "1740 road clear", "1850 stop", "1850 unbind");
+    }
+
+    @Test
+    public void aClearOwedIsGivenUpWhenTheServiceDoesNotComeBackInTime() {
+        startedAt(0, ROAD_A, FRAME_1);
+        port.fireAnswer = HudSomeIp.NOT_HANDLED;
+        runUntil(500);
+
+        at(700);
+        session.show(null, null, null, 2);
+        changed();
+        runUntil(60_000);
+
+        long end = 700 + HudSession.CLEAR_RECOVERY_MS;
+        assertCalls(since(501), "1500 bind", "4500 unbind", "5500 bind", end + " unbind");
+        assertEquals("stopped", events.get(events.size() - 1));
+        assertEquals(HudSession.IDLE, due);
+    }
+
+    @Test
+    public void handingOverOwesNoClear() {
+        startedAt(0, ROAD_A, FRAME_1);
+        port.fireAnswer = HudSomeIp.NOT_HANDLED;
+        runUntil(500);
+
+        session.handOver();
+        changed();
+        runUntil(10_000);
+
+        assertCalls(since(501));
     }
 
     /** Bound, started and the first sends out at {@code time}; the port forgets those calls. */
