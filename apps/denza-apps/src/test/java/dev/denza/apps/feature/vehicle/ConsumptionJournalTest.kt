@@ -102,6 +102,49 @@ class ConsumptionJournalTest {
         assertTrue("a torn tail is not a reason to wipe", wipes.isEmpty())
     }
 
+    /**
+     * The cut is followed by a drive. The torn tail used to be joined onto the next line written,
+     * and the line after that made the joined one an interior line, which takes the whole file: up
+     * to thirty kilometres for a cut that had cost one line, every time the car is switched off.
+     */
+    @Test
+    fun theDriveAfterACutKeepsEverythingTheCutLeft() {
+        journal().append(bars(3))
+        file().appendText("1000.4")
+
+        val restarted = journal()
+        assertEquals(3, restarted.load().size)
+        restarted.append(bars(1, from = 1000.5))
+        restarted.append(bars(1, from = 1000.6))
+
+        val read = journal().load()
+        assertEquals(listOf(1000.0, 1000.1, 1000.2, 1000.5, 1000.6), read.map { it.odometerKm })
+        assertTrue("nothing was wiped: $wipes", wipes.isEmpty())
+        assertTrue("and the file ends with a whole line", file().readText().endsWith("\n"))
+    }
+
+    /** A cut that fell between a whole bucket and its newline: the bucket was read, and stays. */
+    @Test
+    fun aWholeLineThatOnlyLostItsNewlineIsKept() {
+        journal().append(bars(2))
+        file().appendText("1000.2,0.02000,0.1000,0.1000")
+
+        val restarted = journal()
+        assertEquals(3, restarted.load().size)
+        restarted.append(bars(2, from = 1000.3))
+
+        assertEquals(5, journal().load().size)
+        assertTrue(wipes.isEmpty())
+    }
+
+    /** A cut inside the very first line leaves nothing worth keeping, and nothing to wipe either. */
+    @Test
+    fun aFileThatIsOnlyATornLineStartsCleanOnTheNextAppend() {
+        file().writeText("1000.0,0.0")
+        journal().append(bars(2, from = 1000.1))
+        assertEquals(2, journal().load().size)
+    }
+
     @Test
     fun aBadLineAnywhereElseTakesTheWholeFile() {
         journal().append(bars(3))

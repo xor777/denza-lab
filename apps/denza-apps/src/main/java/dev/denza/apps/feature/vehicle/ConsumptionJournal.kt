@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.Locale
 
 /**
@@ -66,7 +67,8 @@ internal class ConsumptionJournal(
      * Everything the file holds, oldest first.
      *
      * A single unparseable last line is a write the ignition interrupted and is
-     * dropped in silence. Anything else means the file is not what this class
+     * dropped in silence; the next [append] cuts it off the file before it writes
+     * ([endTornTail]). Anything else means the file is not what this class
      * wrote, and the file goes.
      */
     fun load(): List<ConsumptionSample> {
@@ -120,6 +122,10 @@ internal class ConsumptionJournal(
      */
     fun append(samples: List<ConsumptionSample>) {
         if (samples.isEmpty()) return
+        if (!endTornTail()) {
+            wipe("обрывок строки не убрать")
+            return
+        }
         val text = StringBuilder(samples.size * LINE_BYTES)
         samples.forEach { text.append(line(it)) }
         if (!JournalFile.append(file, text.toString())) {
@@ -129,6 +135,64 @@ internal class ConsumptionJournal(
         lines += samples.size
         if (lines > MAX_LINES + TRIM_SLACK) trim()
     }
+
+    /**
+     * Make the file end with a whole line before anything is added to it.
+     *
+     * [load] forgives one torn last line because it is the last. An append made after it used to
+     * join the next line onto it - `1000.4` and `1000.5,0.02…` became one line that is not a
+     * bucket - and the append after that made the joined line an interior one, which [load] and
+     * [trim] read as a file this class did not write: the whole journal went, up to thirty
+     * kilometres, for a cut that had cost one line. The head unit loses power that way every time
+     * the car is switched off, so this is the ordinary path, not the rare one.
+     *
+     * So the tail after the last newline is settled first. A tail that is a whole bucket short only
+     * of its newline - the cut came between the two - gets the newline, because [load] has already
+     * handed it to the log as a reading; anything else is cut off, and the valid lines before it
+     * stay as they are. Read from the end, a few bytes at a time: a line is under forty bytes and
+     * this runs before every append.
+     *
+     * @return whether the file now ends with a whole line (or is empty or absent)
+     */
+    private fun endTornTail(): Boolean = runCatching {
+        if (!file.exists()) return true
+        RandomAccessFile(file, "rw").use { raf ->
+            val length = raf.length()
+            if (length == 0L) return true
+            raf.seek(length - 1)
+            if (raf.read() == NEWLINE) return true
+            // Back to the newline before the tail, or to the start of the file.
+            var start = length
+            val buffer = ByteArray(TAIL_SCAN_BYTES)
+            search@ while (start > 0) {
+                val from = maxOf(0L, start - buffer.size)
+                val count = (start - from).toInt()
+                raf.seek(from)
+                raf.readFully(buffer, 0, count)
+                for (index in count - 1 downTo 0) {
+                    if (buffer[index].toInt() == NEWLINE) {
+                        start = from + index + 1
+                        break@search
+                    }
+                }
+                start = from
+            }
+            val whole = length - start <= LINE_BYTES * 2 && run {
+                val tail = ByteArray((length - start).toInt())
+                raf.seek(start)
+                raf.readFully(tail)
+                parse(String(tail)) != null
+            }
+            if (whole) {
+                raf.seek(length)
+                raf.write(NEWLINE)
+            } else {
+                raf.setLength(start)
+            }
+            raf.fd.sync()
+        }
+        true
+    }.getOrDefault(false)
 
     /**
      * Rewrite the file with only the newest [MAX_LINES] entries.
@@ -209,6 +273,11 @@ internal class ConsumptionJournal(
 
         /** What one line costs, which is what a builder is sized from. */
         private const val LINE_BYTES = 36
+
+        private const val NEWLINE = '\n'.code
+
+        /** How much of the end [endTornTail] reads at a time. */
+        private const val TAIL_SCAN_BYTES = 256
 
         /** And anything past a generous multiple of that is not our file. */
         private const val MAX_BYTES = (MAX_LINES + TRIM_SLACK) * 64
