@@ -25,14 +25,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
     private val app = context.applicationContext
     private val connectivity = app.getSystemService(ConnectivityManager::class.java)
-    private val accessibilityPrepared = AtomicBoolean(false)
     override val sdk: Int get() = Build.VERSION.SDK_INT
     override fun nowMs(): Long = System.currentTimeMillis()
     override fun elapsedMs(): Long = SystemClock.elapsedRealtime()
@@ -76,34 +74,31 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
     }
     override suspend fun ensureAccessibilityForDialog(abandoned: () -> Boolean) {
         if (abandoned()) return
-        if (AccessibilityHealth.read(app).ready()) return
-        if (!accessibilityPrepared.compareAndSet(false, true)) return
+        // The rule every feature reads: a service bound, or listed and still within its bind
+        // deadline, is left alone; one switched off, or listed and never bound, is repaired - each
+        // time it is found so, not once a process. A repair restarts the bind clock, so callback
+        // bursts after it find the service on its way and start nothing.
+        if (AccessibilityHealth.read(app).available) return
         // Prepare even when no casting app is selected. Join the existing single-flight repair,
         // respecting the split service's ownership and preserving other accessibility entries.
-        // A ready service - switched on and bound - is never churned. Transient boot failures get two bounded retries;
-        // callback bursts cannot create another preparation wave in this process.
-        try {
-            repeat(3) { index ->
-                if (abandoned() || AccessibilityHealth.read(app).ready()) return
-                try {
-                    suspendCancellableCoroutine<Unit> { continuation ->
-                        AccessibilityRepair.repair(app, onComplete = { failure ->
-                            if (continuation.isActive) {
-                                if (failure == null) continuation.resume(Unit)
-                                else continuation.resumeWithException(failure)
-                            }
-                        }, stillWanted = { !abandoned() })
-                    }
-                    return
-                } catch (cancelled: CancellationException) { throw cancelled }
-                catch (failure: Exception) {
-                    if (index == 2) throw failure
-                    delay(AdbRestoreManager.WRITE_RETRY_INTERVAL_MS)
+        // Transient boot failures get two bounded retries.
+        repeat(3) { index ->
+            if (abandoned() || AccessibilityHealth.read(app).available) return
+            try {
+                suspendCancellableCoroutine<Unit> { continuation ->
+                    AccessibilityRepair.repair(app, onComplete = { failure ->
+                        if (continuation.isActive) {
+                            if (failure == null) continuation.resume(Unit)
+                            else continuation.resumeWithException(failure)
+                        }
+                    }, stillWanted = { !abandoned() })
                 }
+                return
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                if (index == 2) throw failure
+                delay(AdbRestoreManager.WRITE_RETRY_INTERVAL_MS)
             }
-        } catch (cancelled: CancellationException) {
-            accessibilityPrepared.set(false)
-            throw cancelled
         }
     }
     override suspend fun recoverRuntime() {
