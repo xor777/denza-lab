@@ -248,44 +248,59 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
 }
 
 /**
- * One worker thread that runs [HudNativeSpeedLimitEngine] against the shell. Targets arrive from
- * the guidance monitor on the main thread; every shell call happens here.
+ * [HudNativeSpeedLimitEngine] against the shell, with the target's generation. A target change is
+ * requested on the caller's thread ([request]) and takes effect on the worker ([apply]); a read can
+ * block the worker for seconds meanwhile, so the request voids the worker's current pass at once,
+ * and [step] checks after the read and immediately before the write that nothing was requested in
+ * between. Without that, the driver switching «Ограничение скорости» off during a read let the
+ * write of the old limit go out before the queued clear ran (2026-11-19). The same goes for a
+ * target guidance withdraws or changes.
+ *
+ * The three writes go in one shell trip; once dispatched they cannot be called back.
  */
-internal class HudNativeSpeedLimitRunner(context: Context) {
-    private val appContext = context.applicationContext
-    private val thread = HandlerThread("denza-hud-speed-limit").apply { start() }
-    private val handler = Handler(thread.looper)
-    private val engine = HudNativeSpeedLimitEngine { Log.i(TAG, it) }
-    private val pump = Runnable { step() }
+internal class HudNativeSpeedLimitPump(
+    private val shell: (String) -> String,
+    private val clock: () -> Long,
+    log: (String) -> Unit = {},
+) {
+    private val engine = HudNativeSpeedLimitEngine(log)
+    private val lock = Any()
+    private var requested: Int? = null
+    private var generation = 0L
+    private var applied = 0L
     private var alternateRead = false
 
-    fun setTarget(limitKmh: Int?) {
-        handler.post {
-            engine.setTarget(limitKmh, SystemClock.uptimeMillis())
-            schedule()
-        }
+    /** Any thread: [limitKmh] is now the target; false when it already was. */
+    fun request(limitKmh: Int?): Boolean = synchronized(lock) {
+        if (limitKmh == requested) return false
+        requested = limitKmh
+        generation++
+        true
     }
 
-    fun shutdown() {
-        handler.removeCallbacksAndMessages(null)
-        thread.quitSafely()
+    /** Worker: the latest request becomes the engine's target. */
+    fun apply() {
+        val (latest, target) = synchronized(lock) { generation to requested }
+        engine.setTarget(target, clock())
+        applied = latest
     }
 
-    private fun schedule() {
-        handler.removeCallbacks(pump)
-        val delay = engine.nextReadDelayMs(SystemClock.uptimeMillis()) ?: return
-        handler.postDelayed(pump, delay)
-    }
+    /** Worker: milliseconds until the next [step], or null while there is no target. */
+    fun nextStepDelayMs(): Long? = engine.nextReadDelayMs(clock())
 
-    private fun step() {
+    /** Worker: one read and, when the engine asks for it, one write. */
+    fun step() {
+        if (voided()) return
         engine.currentTarget ?: return
         val raw = read()
-        val write = engine.onRead(raw, SystemClock.uptimeMillis())
-        if (write != null) {
-            engine.onWritten(write(write), SystemClock.uptimeMillis())
-        }
-        schedule()
+        if (voided()) return
+        val write = engine.onRead(raw, clock()) ?: return
+        if (voided()) return
+        engine.onWritten(write(write), clock())
     }
+
+    /** A request arrived after the target the worker holds: its pass ends, [apply] follows. */
+    private fun voided(): Boolean = synchronized(lock) { generation != applied }
 
     private fun read(): Int? {
         repeat(2) {
@@ -304,6 +319,42 @@ internal class HudNativeSpeedLimitRunner(context: Context) {
         HudNativeSpeedLimitProtocol.writeAnswered(
             shell(HudNativeSpeedLimitProtocol.writeCommand(limitKmh)),
         )
+}
+
+/**
+ * One worker thread that runs [HudNativeSpeedLimitPump]. Targets arrive from the host output on the
+ * main thread; every shell call happens here.
+ */
+internal class HudNativeSpeedLimitRunner(context: Context) {
+    private val appContext = context.applicationContext
+    private val thread = HandlerThread("denza-hud-speed-limit").apply { start() }
+    private val handler = Handler(thread.looper)
+    private val pump = HudNativeSpeedLimitPump(::shell, SystemClock::uptimeMillis) { Log.i(TAG, it) }
+    private val stepper = Runnable { step() }
+
+    fun setTarget(limitKmh: Int?) {
+        if (!pump.request(limitKmh)) return
+        handler.post {
+            pump.apply()
+            schedule()
+        }
+    }
+
+    fun shutdown() {
+        handler.removeCallbacksAndMessages(null)
+        thread.quitSafely()
+    }
+
+    private fun schedule() {
+        handler.removeCallbacks(stepper)
+        val delay = pump.nextStepDelayMs() ?: return
+        handler.postDelayed(stepper, delay)
+    }
+
+    private fun step() {
+        pump.step()
+        schedule()
+    }
 
     private fun shell(command: String): String = try {
         DenzaLocalAdb.client(appContext).shell(command, SHELL_TIMEOUT_MS)

@@ -249,4 +249,71 @@ class HudNativeSpeedLimitTest {
 
         assertEquals(READ_MS, engine.nextReadDelayMs(0))
     }
+
+    // --- the worker: a request voids the pass under way ---
+
+    /** A shell that answers reads with [raw] and lets a test act while a read is "blocked". */
+    private class FakeCar(var raw: Int) {
+        val writes = mutableListOf<String>()
+        var duringRead: (() -> Unit)? = null
+        var now = 0L
+        fun shell(command: String): String {
+            if (command.contains("autoservice 6 ")) {
+                writes += command
+                return "@@0\nResult: Parcel(00000001)\n@@1\nResult: Parcel(00000001)\n@@2\nResult: Parcel(00000001)\n"
+            }
+            duringRead?.invoke()
+            duringRead = null
+            return "Result: Parcel(00000000 ${"%08x".format(raw)}   '........')"
+        }
+    }
+
+    private fun pumpAt(car: FakeCar, target: Int): HudNativeSpeedLimitPump {
+        val pump = HudNativeSpeedLimitPump(car::shell, { car.now })
+        assertTrue(pump.request(target))
+        pump.apply()
+        pump.step() // the first read sees another sign: the second's wait starts
+        car.now = BASE_DELAY_MS
+        return pump
+    }
+
+    @Test
+    fun theSignSwitchedOffDuringAReadIsNeverWritten() {
+        val car = FakeCar(raw = 9)
+        val pump = pumpAt(car, 60)
+        car.duringRead = { pump.request(null) } // «Ограничение скорости» off while the worker reads
+
+        pump.step()
+        pump.apply()
+
+        assertTrue(car.writes.isEmpty())
+        assertNull(pump.nextStepDelayMs())
+    }
+
+    @Test
+    fun aTargetGuidanceChangesDuringAReadIsNotWrittenWithTheOldLimit() {
+        val car = FakeCar(raw = 9)
+        val pump = pumpAt(car, 60)
+        car.duringRead = { pump.request(50) }
+
+        pump.step()
+        assertTrue(car.writes.isEmpty())
+
+        pump.apply()
+        pump.step()
+        car.now += BASE_DELAY_MS
+        pump.step()
+        assertEquals(listOf(HudNativeSpeedLimitProtocol.writeCommand(50)), car.writes)
+    }
+
+    @Test
+    fun aStandingTargetIsWrittenAndTheSameRequestAgainVoidsNothing() {
+        val car = FakeCar(raw = 9)
+        val pump = pumpAt(car, 60)
+        car.duringRead = { assertFalse(pump.request(60)) }
+
+        pump.step()
+
+        assertEquals(listOf(HudNativeSpeedLimitProtocol.writeCommand(60)), car.writes)
+    }
 }
