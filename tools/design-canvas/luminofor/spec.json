@@ -31,10 +31,11 @@
   },
 
   "digits": {
-    "about": "Wide square numerals after the car's charging screen. A glyph is a stroked path on a 100-unit cap; the advance is the glyph's width plus the tracking. Figures are flat: no halo.",
+    "about": "Wide square numerals after the car's charging screen. A glyph is a stroked path on a 100-unit cap; the advance is the glyph's width plus the tracking. Figures are flat: no halo. lead is how far a glyph's ink stands in from the left of its advance where every other figure's starts at it: a left-aligned figure that begins with one hangs it out by that much, so its ink starts on the caption's edge like any other figure's.",
     "capRatio": 0.71,
     "cap": 100,
     "track": 18,
+    "lead": { "1": 20 },
     "strokePerSize": 0.075,
     "strokeMin": 2.2,
     "heroStroke": 4.2,
@@ -74,13 +75,13 @@
       "petalCy": 353.3333
     },
     "grid": {
-      "about": "One caption line, one baseline. The side groups are the same width and stand the same distance from the hero; a cell's caption and its figure share a left edge; the temperature glyphs are the temperatures' captions.",
+      "about": "One caption line, one baseline. The side groups are the same width and stand the same distance from the hero; a cell's caption and its figure share a left edge, except the trip's, whose three lines share the right margin; the temperature glyphs are the temperatures' captions, centred on the caption line's capitals (glyphBase: the 24-unit glyphs' middle on the 10.86-unit cap's), and their pitch holds the widest reading, −40° to 150°, about three tracking steps clear of the next - more air than a one leaves inside a reading. Two-figure readings end on the group's edge as they always did: anchored at the widest, the pack's glyph would stand seven units from «БАТАРЕЯ · В», so a reading past a hundred in the last cell reaches 16 units past the edge, into the air before the hero's field.",
       "caption": 197,
-      "glyphBase": 207,
+      "glyphBase": 203.5,
       "baseline": 246.6578,
       "axis": 296,
       "side": 200,
-      "tempPitch": 72,
+      "tempPitch": 80,
       "heroSize": 88,
       "heroUnitGap": 32,
       "heroUnitSize": 34,
@@ -177,7 +178,7 @@
       "tiles": { "top": 20, "gap": 12, "height": 164, "radius": 22, "icon": 30, "iconInset": [20, 22], "nameBaseline": 116, "statusBaseline": 142, "textInset": 20, "nameSize": 19, "statusSize": 15 },
       "stripBox": [48, 372, 1232, 668],
       "strip": { "caption": 404, "value": 454, "valueSize": 46, "labelSize": 17, "titleSize": 34, "readingGap": 56, "spectrumTop": 488, "floor": 646, "bars": 36, "dotsY": 664 },
-      "car": { "heroSize": 56, "side": 155, "tempPitch": 64, "tempSize": 30, "chartCaption": 502, "chartCaptionSize": 15, "chartTop": 514, "chartHeight": 126 }
+      "car": { "heroSize": 56, "heroCaption": 397, "tempPitch": 72, "tempSize": 30, "chartCaption": 502, "chartCaptionSize": 15, "chartTop": 514, "chartHeight": 126 }
     },
     "two": {
       "size": [828, 680],
@@ -186,7 +187,7 @@
       "captionBar": 24,
       "chips": { "top": 40, "size": 60.7, "radius": 16, "icon": 26, "perRow": 11 },
       "sound": { "trackCaption": 160, "trackValue": 200, "titleSize": 32, "labelSize": 16, "caption": 246, "value": 294, "valueSize": 46, "gap": 48, "spectrumTop": 324, "floor": 634, "bars": 24 },
-      "car": { "caption": 160, "value": 212, "heroSize": 56, "valueSize": 46, "gap": 56, "row2Caption": 262, "row2Value": 304, "voltSize": 34, "tempPitch": 68, "tempSize": 30, "chartCaption": 350, "chartTop": 364, "chartHeight": 200 },
+      "car": { "caption": 160, "heroCaption": 153, "value": 212, "heroSize": 56, "valueSize": 46, "row2Caption": 262, "row2Value": 304, "voltSize": 34, "tempPitch": 72, "tempSize": 30, "chartCaption": 350, "chartTop": 364, "chartHeight": 200 },
       "dotsY": 656
     },
     "one": {
@@ -201,6 +202,10 @@
     },
     "handle": { "width": 44, "height": 4, "top": 9, "about": "The freeform caption bar's own drag handle - the system draws it; the boards draw it so a pane reads as a pane." },
     "anchoring": "Positions are window dp. Inside a strip box everything hangs from the box top, except the spectrum floor and the page dots, which keep their distance from the box bottom.",
+    "slots": {
+      "about": "The car page's cells, dp: each as wide as the widest it prints at the full screen's sizes - the volts' three figures, the power's longest sentence behind its mark, the engine's four figures of revolutions, the trip's «188,8 кВт·ч» - and the five temperatures their pitch four times and «150°». The full screen sets all five in a row with one gutter between them, the volts on the left margin and the trip ending on the right; the two-thirds pane sets the power, the engine and the trip so, with the temperatures under the engine. A cell stands at its slot's left edge, the trip at its right, so nothing moves when a reading or its sentence changes. The hero's caption stands above the line by the difference of the two figures' caps (heroCaption), so its figure keeps the others' baseline and its caption their distance.",
+      "volts": 102, "power": 192, "engine": 184, "trip": 170
+    },
     "reading": { "unitRatio": 0.42, "unitGapRatio": 0.2, "rateRatio": 0.45, "rateGapRatio": 0.3, "unitAlpha": 0.9 },
     "icon": { "stroke": 1.5, "onGlow": 0.35, "offAlpha": 0.42, "ring": { "size": 18, "chipSize": 10, "chipInset": 8, "sweep": 90 } },
     "spectrum": {

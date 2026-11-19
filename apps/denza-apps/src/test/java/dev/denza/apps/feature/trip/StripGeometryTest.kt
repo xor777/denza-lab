@@ -6,6 +6,7 @@ import dev.denza.apps.core.EnglishWords
 import dev.denza.apps.core.figure
 import dev.denza.apps.core.say
 import dev.denza.apps.design.luminofor.FontMeasure
+import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
@@ -69,7 +70,9 @@ open class StripGeometryTest {
             longer(EnergyReadouts.ENGINE_RPM_UNIT, EnergyReadouts.ENGINE_MINUTES_UNIT),
         )
         tripCell.set("888" + EnergyReadouts.TRIP_KM_SENTENCE, figure("188,8"), ContourReadout.UNIT_KWH)
-        temps.forEach { it.set("888°", StripHeat.DANGER) }
+        // The widest the row prints, −40° to 150°: a pack in a Siberian winter beside a motor at its
+        // limit. Once a one hangs the two reach equally far.
+        temps.forEachIndexed { i, it -> it.set(if (i % 2 == 0) "150°" else "-40°", StripHeat.DANGER) }
         spendWord = VehiclePageWords.SPEND
         spendFigure = figure("-188,8")
         spendWindow = ContourReadout.UNIT_PER_100KM_FILLING
@@ -207,8 +210,38 @@ open class StripGeometryTest {
     private fun temperatures(model: StripModel, x0: Float, pitch: Float, size: Float): List<Span> =
         (0 until StripModel.TEMPERATURES).map {
             val x = x0 + it * pitch
-            Span("temperature $it", x, x + max(GLYPH_WIDTH, WideDigits.width(model.temps[it].figure!!, size)))
+            Span("temperature $it", x, x + max(GLYPH_WIDTH, WideDigits.extent(model.temps[it].figure!!, size)))
         }
+
+    /** The trip, whose caption and run each end on [right]. */
+    private fun trip(r: StripReading, caption: Float, run: Float, right: Float) =
+        Span("the trip", minOf(caption, run), right)
+
+    /**
+     * At every width the row is drawn, the widest two readings stand three tracking steps apart -
+     * more air than a one leaves inside a reading - so a row of five never reads as one number.
+     * (The cluster's row is held so in `ContourGeometryTest`.)
+     */
+    @Test
+    fun theTemperaturesStandClearAtEveryWidth() {
+        for ((name, pitch, size) in listOf(
+            Triple("full", Head.Full.Car.TEMP_PITCH, Head.Full.Car.TEMP_SIZE),
+            Triple("two-thirds", Head.Two.Car.TEMP_PITCH, Head.Two.Car.TEMP_SIZE),
+            Triple("one-third", Head.One.Car.TEMP_PITCH, Head.One.Car.TEMP_SIZE),
+        )) {
+            val widest = WideDigits.extent(StripGeometry.TEMPERATURE_WIDEST, size)
+            for (t in listOf("-40°", "-12°", "00°", "104°", "118°", "121°", "150°")) {
+                assertTrue("$name: «$t» stays in its cell", WideDigits.extent(t, size) <= widest + 1e-4f)
+            }
+            val clear = pitch - widest
+            assertTrue("$name: $clear between the widest two", clear >= 2.9f * Digits.TRACK * WideDigits.k(size))
+            // Ink to ink: from a «°» to a hung one's flag, against a one's stem to the next figure.
+            val k = WideDigits.k(size)
+            val between = clear / k - 6f
+            val inside = 70f - 44f + Digits.TRACK - WideDigits.stroke(size) / k
+            assertTrue("$name: $between units between two readings, $inside inside one", between > 1.3f * inside)
+        }
+    }
 
     @Test
     fun theFullScreensCarRowStandsApart() {
@@ -222,13 +255,30 @@ open class StripGeometryTest {
             reading("the volts", model.volts, at.volts, s.VALUE_SIZE, s.LABEL_SIZE),
             reading("the power", model.power, at.power, c.HERO_SIZE, s.LABEL_SIZE),
             reading("the engine", model.engine, at.engine, s.VALUE_SIZE, s.LABEL_SIZE),
-            reading("the trip", model.tripCell, at.tripCell, s.VALUE_SIZE, s.LABEL_SIZE),
+            trip(model.tripCell, at.tripCell, at.tripRun, right(layout)),
         ) + temperatures(model, at.temps, c.TEMP_PITCH, c.TEMP_SIZE)
         assertApart("full car", spans, left(layout), right(layout))
-        assertEquals("the trip is flush right", right(layout), at.tripCell + StripGeometry.readingWidth(model.tripCell, s.VALUE_SIZE, s.LABEL_SIZE, m), 1e-3f)
-        // The board's own scene centres the power on the page, and the row's two halves are the
-        // same width from it.
-        assertEquals((left(layout) + right(layout)) / 2f, at.engine - c.SIDE, 1e-3f)
+        assertEquals("the trip's caption ends on the margin", right(layout), at.tripCell + m.sans(model.tripCell.caption, s.LABEL_SIZE, false), 1e-3f)
+        assertEquals("and so does its run", right(layout), at.tripRun + StripGeometry.runWidth(model.tripCell, s.VALUE_SIZE, m), 1e-3f)
+
+        // Five slots, one gutter: the gutter is the same between every two.
+        val slot = Head.Slots
+        val gutter = StripGeometry.fullGutter(left(layout), right(layout))
+        val temps = StripGeometry.temperaturesWidth(c.TEMP_PITCH, c.TEMP_SIZE)
+        assertEquals(gutter, at.temps - (at.volts + slot.VOLTS), 1e-3f)
+        assertEquals(gutter, at.power - (at.temps + temps), 1e-3f)
+        assertEquals(gutter, at.engine - (at.power + slot.POWER), 1e-3f)
+        assertEquals(gutter, right(layout) - slot.TRIP - (at.engine + slot.ENGINE), 1e-3f)
+        assertTrue("a gutter of $gutter", gutter >= 40f)
+
+        // Nothing moves with what a cell says: the coasting pack's «Батарея 1 кВт» stands where the
+        // charger's sentence did.
+        val calm = widestCar().apply { power.set(EnergyReadouts.Direction.NEUTRAL.sentence, "1", ContourReadout.UNIT_KW) }
+        val there = StripGeometry.CarPlacement()
+        StripGeometry.fullCar(calm, left(layout), right(layout), m, there)
+        assertEquals(at.power, there.power, 0f)
+        assertEquals(at.engine, there.engine, 0f)
+        assertEquals(at.temps, there.temps, 0f)
     }
 
     @Test
@@ -238,15 +288,27 @@ open class StripGeometryTest {
         val label = Head.Two.Sound.LABEL_SIZE
         val model = widestCar()
         val at = StripGeometry.CarPlacement()
-        StripGeometry.twoCar(model, left(layout), m, at)
+        StripGeometry.twoCar(model, left(layout), right(layout), m, at)
         assertApart(
             "two-thirds car, first row",
             listOf(
                 reading("the power", model.power, at.power, c.HERO_SIZE, label),
                 reading("the engine", model.engine, at.engine, c.VALUE_SIZE, label),
-                reading("the trip", model.tripCell, at.tripCell, c.VALUE_SIZE, label),
+                trip(model.tripCell, at.tripCell, at.tripRun, right(layout)),
             ),
             left(layout), right(layout),
+        )
+        // The row spans the pane: the power on the left margin, the trip ending on the right, and
+        // the temperatures under the engine.
+        assertEquals(left(layout), at.power, 0f)
+        assertEquals(right(layout), at.tripRun + StripGeometry.runWidth(model.tripCell, c.VALUE_SIZE, m), 1e-3f)
+        assertEquals(at.engine, at.temps, 0f)
+        val slot = Head.Slots
+        assertEquals(
+            "the engine a gutter from each",
+            at.engine - (at.power + slot.POWER),
+            right(layout) - slot.TRIP - (at.engine + slot.ENGINE),
+            1e-3f,
         )
         assertApart(
             "two-thirds car, second row",
@@ -327,6 +389,16 @@ open class StripGeometryTest {
         assertTrue(Head.Two.Sound.TRACK_CAPTION - Head.Two.Sound.LABEL_SIZE >= two)
         assertTrue(Head.Two.Car.CAPTION - Head.Two.Sound.LABEL_SIZE >= two)
         assertTrue(Head.Two.Car.VALUE - 0.71f * Head.Two.Car.HERO_SIZE > Head.Two.Car.CAPTION)
+        // The hero's caption stands above the line by the two figures' difference in cap, so its
+        // figure keeps the others' distance from its caption - and the caption stays in the box.
+        for ((caption, heroCaption, value, hero, cell) in listOf(
+            listOf(Head.Full.Strip.CAPTION, Head.Full.Car.HERO_CAPTION, Head.Full.Strip.VALUE, Head.Full.Car.HERO_SIZE, Head.Full.Strip.VALUE_SIZE),
+            listOf(Head.Two.Car.CAPTION, Head.Two.Car.HERO_CAPTION, Head.Two.Car.VALUE, Head.Two.Car.HERO_SIZE, Head.Two.Car.VALUE_SIZE),
+        )) {
+            assertEquals(value - 0.71f * cell - caption, value - 0.71f * hero - heroCaption, 0.5f)
+        }
+        assertTrue(Head.Full.Car.HERO_CAPTION - Head.Full.Strip.LABEL_SIZE >= full)
+        assertTrue(Head.Two.Car.HERO_CAPTION - Head.Two.Sound.LABEL_SIZE >= two)
         val one = Head.One.STRIP_BOX.top
         assertTrue(Head.One.Sound.TRACK_CAPTION - Head.One.Sound.LABEL_SIZE >= one)
         assertTrue(Head.One.Car.CAPTION - Head.One.Sound.LABEL_SIZE >= one)

@@ -151,15 +151,29 @@ open class ContourGeometryTest {
         assertTrue("the caption ends at ${left + caption}, the glyphs start at $firstCell", left + caption < firstCell)
         val volts = figures("888", Grid.FIGURE_SIZE)
         assertTrue("three-digit volts end at ${left + volts}", left + volts < firstCell)
-        // Five two-digit temperatures end on the group's edge, never past it. Every digit is one
-        // advance, so «00°» is every two-digit reading; a winter minus is narrower still.
-        val cell = figures("00°", Grid.TEMP_SIZE)
-        assertEquals("flush with the edge", end, g.tempX(ContourFrame.CELLS - 1) + cell, 1e-3f)
-        assertTrue(figures("-9°", Grid.TEMP_SIZE) <= cell)
+        // Five two-digit temperatures end on the group's edge, as they always did. The widest the
+        // row prints, −40° to 150° - a one hangs, so «150°» reaches no further than «−40°» - stands
+        // three tracking steps clear of the next, more than a one leaves inside a reading, and in
+        // the last cell reaches past the edge by less than a quarter of the air before the hero.
+        val widest = WideDigits.extent(g.TEMPERATURE_WIDEST, Grid.TEMP_SIZE)
+        assertEquals("flush with the edge", end, g.tempX(ContourFrame.CELLS - 1) + figures("00°", Grid.TEMP_SIZE), 1e-3f)
+        for (t in listOf("-40°", "-12°", "00°", "104°", "118°", "150°")) {
+            assertTrue("«$t» stays in its cell", WideDigits.extent(t, Grid.TEMP_SIZE) <= widest + 1e-4f)
+        }
+        val clear = Grid.TEMP_PITCH - widest
+        assertTrue("$clear between the widest two", clear >= 2.9f * Digits.TRACK * WideDigits.k(Grid.TEMP_SIZE))
+        // Ink to ink: from a «°» to a hung one's flag, against a one's stem to the figure after it.
+        val k = WideDigits.k(Grid.TEMP_SIZE)
+        val between = clear / k - 6f
+        val inside = 70f - 44f + Digits.TRACK - WideDigits.stroke(Grid.TEMP_SIZE) / k
+        assertTrue("$between units between two readings, $inside inside one", between > 1.3f * inside)
+        val heroField = g.heroFieldRight(JuraMeasure.width(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE)) - g.HERO_FIELD
+        val over = g.tempX(ContourFrame.CELLS - 1) + widest - end
+        assertTrue("past the edge by $over of ${heroField - end}", over < (heroField - end) / 4f)
         assertEquals(
             "and the «°» drawn apart lands where the run would put it",
-            g.tempX(4) + cell - figures("°", Grid.TEMP_SIZE),
-            g.degreeX(g.tempX(4), "00"),
+            g.tempX(4) + WideDigits.extent("118°", Grid.TEMP_SIZE) - figures("°", Grid.TEMP_SIZE),
+            g.degreeX(g.tempX(4), "118"),
             1e-3f,
         )
         // The spread's line, at its widest: a three-digit spread is a pack that is failing.
@@ -197,11 +211,14 @@ open class ContourGeometryTest {
         for (km in listOf("42", "999")) {
             val caption = "$km ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
             val payload = g.tripPayload(figures("99,9", Grid.FIGURE_SIZE), unit)
-            val tripLeft = g.tripLeft(JuraMeasure.width(caption, Grid.CAPTION_SIZE, track), payload)
+            val captionWidth = JuraMeasure.width(caption, Grid.CAPTION_SIZE, track)
+            val tripLeft = g.tripCaptionLeft(captionWidth)
+            val figureLeft = g.tripFigureLeft(payload)
             assertTrue("«$caption» starts at $tripLeft, inside the group", tripLeft > start)
             assertTrue("and clear of the engine's heading at $iceCaption", tripLeft > iceCaption)
-            assertTrue("and of its revolutions at $iceFigure", tripLeft > iceFigure)
-            assertTrue("and the payload ends on the margin", tripLeft + payload <= end + 1e-3f)
+            assertTrue("and the figure of its revolutions at $iceFigure", figureLeft > iceFigure)
+            assertEquals("the caption ends on the margin", end, tripLeft + captionWidth, 1e-3f)
+            assertEquals("and so does the payload", end, figureLeft + payload, 1e-3f)
         }
 
         // The engine's box in the trip's place: its sentence and its window inside the box.

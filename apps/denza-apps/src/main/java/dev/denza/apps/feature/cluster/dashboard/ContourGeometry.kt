@@ -109,7 +109,19 @@ internal object ContourGeometry {
 
     // ---- the left group
 
-    /** The first temperature cell: the five end flush with the group's edge at two digits and «°». */
+    /**
+     * The widest temperature the row prints: a motor at 150°, which reaches as far as a pack at
+     * −40° once its one hangs ([WideDigits.lead]). [Grid.TEMP_PITCH] holds it three tracking steps
+     * clear of the next reading - more air than a one leaves inside a reading.
+     */
+    const val TEMPERATURE_WIDEST: String = "150°"
+
+    /**
+     * The first temperature cell: the five end flush with the group's edge at two digits and «°»,
+     * as they always did. Anchored at [TEMPERATURE_WIDEST] instead, the pack's glyph would stand
+     * seven units from «БАТАРЕЯ · В» on the line the two share; so a reading past a hundred in the
+     * last cell reaches 16 units past the edge, into the air before the hero's field.
+     */
     val TEMPS_LEFT: Float =
         GROUP_LEFT_END - WideDigits.width("00°", Grid.TEMP_SIZE) - (ContourFrame.CELLS - 1) * Grid.TEMP_PITCH
 
@@ -117,7 +129,7 @@ internal object ContourGeometry {
 
     /** Where a figure's «°» starts when the two are drawn apart: one tracking step after it. */
     fun degreeX(x: Float, value: String): Float =
-        x + WideDigits.width(value, Grid.TEMP_SIZE) + Digits.TRACK * WideDigits.k(Grid.TEMP_SIZE)
+        x + WideDigits.extent(value, Grid.TEMP_SIZE) + Digits.TRACK * WideDigits.k(Grid.TEMP_SIZE)
 
     /** `luminofor.js` drawCluster(): the hot cell's pool, centred 24 right and 22 up of the figure. */
     const val HOT_DX: Float = 24f
@@ -134,13 +146,13 @@ internal object ContourGeometry {
     // ---- the right group
 
     /**
-     * The trip is flush right: its caption and its figure share a left edge, and the wider of the
-     * two - «42 км · ЗА ПОЕЗДКУ», or «9,3» with its gap and «кВт·ч» - ends on the margin.
-     *
-     * @param payload the figure's width plus the gap and the unit, or zero while there is no figure
+     * The trip is flush right, all three of its lines: the caption, «9,3» with its gap and «кВт·ч»,
+     * and the detail line under them each end on the margin.
      */
-    fun tripLeft(captionWidth: Float, payload: Float): Float =
-        GROUP_RIGHT_END - max(captionWidth, payload)
+    fun tripCaptionLeft(captionWidth: Float): Float = GROUP_RIGHT_END - captionWidth
+
+    /** @param payload the figure's extent plus the gap and the unit */
+    fun tripFigureLeft(payload: Float): Float = GROUP_RIGHT_END - payload
 
     fun tripPayload(figureWidth: Float, unitWidth: Float): Float =
         figureWidth + Grid.UNIT_GAP + unitWidth

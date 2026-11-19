@@ -18,8 +18,9 @@ import kotlin.math.min
  * `tools/design-canvas/luminofor/spec.json` its numbers. One row of readings over one chart:
  *
  *  - **the pack's flow is the page's hero** - its direction in words over its magnitude, blue when
- *    energy is coming back and behind the blue mark when a source is named. Centred on the full
- *    screen, first in the row on the two-thirds pane, alone on its line on the one-third;
+ *    energy is coming back and behind the blue mark when a source is named. In the second of
+ *    the full screen's four fixed slots, first in the row on the two-thirds pane, alone on its
+ *    line on the one-third;
  *  - **the voltage and the five temperatures** - the temperatures captioned by the Contour's own
  *    glyphs ([ThermalGlyphs]), the part of a glyph that means something lit in the reading's colour,
  *    which is white until a cell leaves its band;
@@ -69,11 +70,11 @@ internal class VehiclePageRenderer {
         val s = Head.Full.Strip
         val c = Head.Full.Car
         StripGeometry.fullCar(model, left, right, ink.measure, placement)
-        ink.reading(model.power, placement.power, s.CAPTION, s.VALUE, c.HERO_SIZE, s.LABEL_SIZE)
+        ink.reading(model.power, placement.power, c.HERO_CAPTION, s.VALUE, c.HERO_SIZE, s.LABEL_SIZE)
         ink.reading(model.volts, placement.volts, s.CAPTION, s.VALUE, s.VALUE_SIZE, s.LABEL_SIZE)
         temperatures(ink.pen, model, placement.temps, s.CAPTION, s.VALUE, c.TEMP_PITCH, c.TEMP_SIZE)
         ink.reading(model.engine, placement.engine, s.CAPTION, s.VALUE, s.VALUE_SIZE, s.LABEL_SIZE)
-        ink.reading(model.tripCell, placement.tripCell, s.CAPTION, s.VALUE, s.VALUE_SIZE, s.LABEL_SIZE)
+        ink.reading(model.tripCell, placement.tripCell, s.CAPTION, s.VALUE, s.VALUE_SIZE, s.LABEL_SIZE, placement.tripRun)
         spend(ink, model, left, c.CHART_CAPTION, c.CHART_CAPTION_SIZE)
         chart(ink.pen, model, left, c.CHART_TOP, right - left, c.CHART_HEIGHT)
     }
@@ -81,10 +82,10 @@ internal class VehiclePageRenderer {
     private fun two(ink: StripInk, model: StripModel, left: Float, right: Float) {
         val c = Head.Two.Car
         val label = Head.Two.Sound.LABEL_SIZE
-        StripGeometry.twoCar(model, left, ink.measure, placement)
-        ink.reading(model.power, placement.power, c.CAPTION, c.VALUE, c.HERO_SIZE, label)
+        StripGeometry.twoCar(model, left, right, ink.measure, placement)
+        ink.reading(model.power, placement.power, c.HERO_CAPTION, c.VALUE, c.HERO_SIZE, label)
         ink.reading(model.engine, placement.engine, c.CAPTION, c.VALUE, c.VALUE_SIZE, label)
-        ink.reading(model.tripCell, placement.tripCell, c.CAPTION, c.VALUE, c.VALUE_SIZE, label)
+        ink.reading(model.tripCell, placement.tripCell, c.CAPTION, c.VALUE, c.VALUE_SIZE, label, placement.tripRun)
         ink.reading(model.volts, placement.volts, c.ROW2_CAPTION, c.ROW2_VALUE, c.VOLT_SIZE, label)
         temperatures(ink.pen, model, placement.temps, c.ROW2_CAPTION, c.ROW2_VALUE, c.TEMP_PITCH, c.TEMP_SIZE)
         // The pane's caption is the full screen's size: the board writes the literal 15 here.

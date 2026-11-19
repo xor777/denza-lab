@@ -36,10 +36,12 @@ internal class StripInk(val pen: LightPen) {
      *
      * The unit takes the figure's colour at 0.9 and a size of 0.42 of it, 0.2 of it away; the
      * arrow and the rate are white whichever way the road goes. A [StripReading.hint] is drawn
-     * fainter. A pack with no direction to name is white like any calm figure (`main-car-neutral`):
+     * fainter. The run stands under the caption unless [runX] puts it elsewhere - the trip, whose
+     * caption and run each end on the strip's right edge. A pack with no direction to name is white
+     * like any calm figure (`main-car-neutral`):
      * «Батарея» over it already says there is no direction, and the cluster's hero is ink there too.
      */
-    fun reading(r: StripReading, x: Float, capY: Float, valY: Float, size: Float, lpx: Float) {
+    fun reading(r: StripReading, x: Float, capY: Float, valY: Float, size: Float, lpx: Float, runX: Float = x) {
         if (!r.present) return
         if (r.dot) {
             mark.reset()
@@ -51,7 +53,7 @@ internal class StripInk(val pen: LightPen) {
         }
         val figure = r.figure ?: return
         val light: Light = if (r.blue) HeadInk.BLUE else HeadInk.WHITE
-        var ux = x + pen.figures(figure, x, valY, size, light, 1f)
+        var ux = runX + pen.figures(figure, runX, valY, size, light, 1f)
         val unit = r.unit
         if (unit != null) {
             val gap = size * Head.Reading.UNIT_GAP_RATIO

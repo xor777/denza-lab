@@ -216,7 +216,11 @@ class LightPen(
         type.letterSpacing = track
     }
 
-    /** The wide figures; returns their width in units. */
+    /**
+     * The wide figures. Left-aligned, a figure that begins with a one hangs it out by its lead
+     * ([WideDigits.lead]) and the call returns its extent from [x] ([WideDigits.extent]), so what
+     * follows it follows its ink; otherwise it returns their width in units.
+     */
     fun figures(
         str: String,
         x: Float,
@@ -229,8 +233,9 @@ class LightPen(
     ): Float {
         val k = WideDigits.k(size)
         val w = WideDigits.width(str, size)
+        val lead = if (align == Align.LEFT) WideDigits.lead(str, size) else 0f
         var cx = when (align) {
-            Align.LEFT -> x
+            Align.LEFT -> x - lead
             Align.CENTER -> x - w / 2f
             Align.RIGHT -> x - w
         }
@@ -248,7 +253,7 @@ class LightPen(
             }
             cx += (WideDigits.advance(glyph) + LuminoforSpec.Digits.TRACK) * k
         }
-        return w
+        return w - lead
     }
 
     companion object {

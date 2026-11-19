@@ -51,6 +51,13 @@ object LuminoforSpec {
         const val STROKE_MIN: Float = 2.2f
         const val HERO_STROKE: Float = 4.2f
 
+        /**
+         * How far a glyph's ink stands in from the left of its advance where every other figure's
+         * starts at it, on the 100-unit cap: a left-aligned figure that begins with the glyph hangs
+         * it out by this much ([WideDigits.lead]).
+         */
+        val LEAD: Map<Char, Float> = mapOf('1' to 20f)
+
         /** Advance (without tracking) and the stroked path, on a 100-unit cap. */
         val GLYPHS: Map<Char, Pair<Float, String>> = linkedMapOf(
             '0' to (70f to "M22 0H48A22 22 0 0 1 70 22V78A22 22 0 0 1 48 100H22A22 22 0 0 1 0 78V22A22 22 0 0 1 22 0Z"),
@@ -91,11 +98,11 @@ object LuminoforSpec {
 
         object Grid {
             const val CAPTION: Float = 197f
-            const val GLYPH_BASE: Float = 207f
+            const val GLYPH_BASE: Float = 203.5f
             const val BASELINE: Float = 246.6578f
             const val AXIS: Float = 296f
             const val SIDE: Float = 200f
-            const val TEMP_PITCH: Float = 72f
+            const val TEMP_PITCH: Float = 80f
             const val HERO_SIZE: Float = 88f
             const val HERO_UNIT_GAP: Float = 32f
             const val HERO_UNIT_SIZE: Float = 34f
@@ -485,8 +492,8 @@ object LuminoforSpec {
 
             object Car {
                 const val HERO_SIZE: Float = 56f
-                const val SIDE: Float = 155f
-                const val TEMP_PITCH: Float = 64f
+                const val HERO_CAPTION: Float = 397f
+                const val TEMP_PITCH: Float = 72f
                 const val TEMP_SIZE: Float = 30f
                 const val CHART_CAPTION: Float = 502f
                 const val CHART_CAPTION_SIZE: Float = 15f
@@ -526,14 +533,14 @@ object LuminoforSpec {
 
             object Car {
                 const val CAPTION: Float = 160f
+                const val HERO_CAPTION: Float = 153f
                 const val VALUE: Float = 212f
                 const val HERO_SIZE: Float = 56f
                 const val VALUE_SIZE: Float = 46f
-                const val GAP: Float = 56f
                 const val ROW2_CAPTION: Float = 262f
                 const val ROW2_VALUE: Float = 304f
                 const val VOLT_SIZE: Float = 34f
-                const val TEMP_PITCH: Float = 68f
+                const val TEMP_PITCH: Float = 72f
                 const val TEMP_SIZE: Float = 30f
                 const val CHART_CAPTION: Float = 350f
                 const val CHART_TOP: Float = 364f
@@ -592,6 +599,19 @@ object LuminoforSpec {
             }
 
             const val DOTS_Y: Float = 660f
+        }
+
+        /**
+         * The car page's cells' slots: each as wide as the widest it prints at the full screen's
+         * sizes. The full screen sets the five in a row with one gutter between them, the two-thirds
+         * pane the power, the engine and the trip; [dev.denza.apps.feature.trip.StripGeometry] does
+         * the arithmetic.
+         */
+        object Slots {
+            const val VOLTS: Float = 102f
+            const val POWER: Float = 192f
+            const val ENGINE: Float = 184f
+            const val TRIP: Float = 170f
         }
 
         object Reading {

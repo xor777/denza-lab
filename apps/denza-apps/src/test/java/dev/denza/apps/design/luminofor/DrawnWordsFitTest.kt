@@ -215,7 +215,7 @@ open class DrawnWordsFitTest {
                 Reading("the volts", model.volts, at.volts, full.VALUE_SIZE, full.LABEL_SIZE),
                 Reading("the power", model.power, at.power, fullCar.HERO_SIZE, full.LABEL_SIZE),
                 Reading("the engine", model.engine, at.engine, full.VALUE_SIZE, full.LABEL_SIZE),
-                Reading("the trip", model.tripCell, at.tripCell, full.VALUE_SIZE, full.LABEL_SIZE),
+                Reading("the trip", model.tripCell, minOf(at.tripCell, at.tripRun), full.VALUE_SIZE, full.LABEL_SIZE),
             ),
             right(wide),
             at.temps,
@@ -224,13 +224,13 @@ open class DrawnWordsFitTest {
         val medium = TripPanelLayout.MEDIUM
         val two = Head.Two.Car
         val twoLabel = Head.Two.Sound.LABEL_SIZE
-        StripGeometry.twoCar(model, left(medium), FontMeasure.Strip, at)
+        StripGeometry.twoCar(model, left(medium), right(medium), FontMeasure.Strip, at)
         cells += line(
             "car page, two thirds",
             listOf(
                 Reading("the power", model.power, at.power, two.HERO_SIZE, twoLabel),
                 Reading("the engine", model.engine, at.engine, two.VALUE_SIZE, twoLabel),
-                Reading("the trip", model.tripCell, at.tripCell, two.VALUE_SIZE, twoLabel),
+                Reading("the trip", model.tripCell, minOf(at.tripCell, at.tripRun), two.VALUE_SIZE, twoLabel),
             ),
             right(medium),
         )

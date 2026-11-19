@@ -329,11 +329,11 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         val kwh = f.tripKwh
         val base = Grid.BASELINE
         val cw = pen.textWidth(caption, Grid.CAPTION_SIZE, track = Grid.CELL_CAPTION_TRACK)
-        val fw = if (kwh == null) 0f else WideDigits.width(kwh, Grid.FIGURE_SIZE)
+        val fw = if (kwh == null) 0f else WideDigits.extent(kwh, Grid.FIGURE_SIZE)
         val payload = if (kwh == null) 0f else ContourGeometry.tripPayload(fw, pen.textWidth(f.tripUnit, Grid.UNIT_SIZE))
-        val x = ContourGeometry.tripLeft(cw, payload)
-        pen.text(caption, x, Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CELL_CAPTION_TRACK)
+        pen.text(caption, ContourGeometry.tripCaptionLeft(cw), Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CELL_CAPTION_TRACK)
         if (kwh != null) {
+            val x = ContourGeometry.tripFigureLeft(payload)
             pen.figures(kwh, x, base, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
             pen.text(f.tripUnit, x + fw + Grid.UNIT_GAP, base, Grid.UNIT_SIZE, ClusterInk.GREY, 1f)
         }
@@ -480,7 +480,7 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         val held = f.consumptionHeld
         val width = when {
             figure != null -> pen.figures(figure, x, Trace.ZERO, Trace.FIGURE_SIZE, toneLight(f.consumptionTone), 1f)
-            held != null -> WideDigits.width(held, Trace.FIGURE_SIZE)
+            held != null -> WideDigits.extent(held, Trace.FIGURE_SIZE)
             else -> 0f
         }
         val unit = f.consumptionUnit ?: return

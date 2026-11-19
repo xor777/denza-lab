@@ -88,6 +88,13 @@ class LuminoforSpecContractTest {
             assertEquals("glyph $k advance", (adv as Double), mine.first.toDouble(), 1e-6)
             assertEquals("glyph $k path", path, mine.second)
         }
+        val lead = SpecJson.at("digits", "lead") as Map<*, *>
+        assertEquals(lead.keys.map { (it as String).single() }.toSet(), Digits.LEAD.keys)
+        lead.forEach { (k, v) -> assertEquals("lead of $k", v as Double, Digits.LEAD.getValue((k as String).single()).toDouble(), 1e-6) }
+        // A left-aligned «19:44» hangs its one out by twenty units and reaches that much less far.
+        assertEquals(20 * 0.71 * 46 / 100, WideDigits.lead("19:44", 46f).toDouble(), 1e-4)
+        assertEquals(0.0, WideDigits.lead("549", 46f).toDouble(), 0.0)
+        assertEquals(WideDigits.width("118°", 34f) - WideDigits.lead("118°", 34f), WideDigits.extent("118°", 34f), 1e-4f)
     }
 
     @Test
@@ -179,7 +186,7 @@ class LuminoforSpecContractTest {
         n(s.SPECTRUM_TOP, "head", "full", "strip", "spectrumTop"); n(s.FLOOR, "head", "full", "strip", "floor")
         i(s.BARS, "head", "full", "strip", "bars"); n(s.DOTS_Y, "head", "full", "strip", "dotsY")
         val c = Head.Full.Car
-        n(c.HERO_SIZE, "head", "full", "car", "heroSize"); n(c.SIDE, "head", "full", "car", "side")
+        n(c.HERO_SIZE, "head", "full", "car", "heroSize"); n(c.HERO_CAPTION, "head", "full", "car", "heroCaption")
         n(c.TEMP_PITCH, "head", "full", "car", "tempPitch"); n(c.TEMP_SIZE, "head", "full", "car", "tempSize")
         n(c.CHART_CAPTION, "head", "full", "car", "chartCaption"); n(c.CHART_CAPTION_SIZE, "head", "full", "car", "chartCaptionSize")
         n(c.CHART_TOP, "head", "full", "car", "chartTop"); n(c.CHART_HEIGHT, "head", "full", "car", "chartHeight")
@@ -203,11 +210,17 @@ class LuminoforSpecContractTest {
         val c = Head.Two.Car
         n(c.CAPTION, "head", "two", "car", "caption"); n(c.VALUE, "head", "two", "car", "value")
         n(c.HERO_SIZE, "head", "two", "car", "heroSize"); n(c.VALUE_SIZE, "head", "two", "car", "valueSize")
-        n(c.GAP, "head", "two", "car", "gap"); n(c.ROW2_CAPTION, "head", "two", "car", "row2Caption")
+        n(c.HERO_CAPTION, "head", "two", "car", "heroCaption"); n(c.ROW2_CAPTION, "head", "two", "car", "row2Caption")
         n(c.ROW2_VALUE, "head", "two", "car", "row2Value"); n(c.VOLT_SIZE, "head", "two", "car", "voltSize")
         n(c.TEMP_PITCH, "head", "two", "car", "tempPitch"); n(c.TEMP_SIZE, "head", "two", "car", "tempSize")
         n(c.CHART_CAPTION, "head", "two", "car", "chartCaption"); n(c.CHART_TOP, "head", "two", "car", "chartTop")
         n(c.CHART_HEIGHT, "head", "two", "car", "chartHeight")
+    }
+
+    @Test
+    fun carPageSlots() {
+        n(Head.Slots.VOLTS, "head", "slots", "volts"); n(Head.Slots.POWER, "head", "slots", "power")
+        n(Head.Slots.ENGINE, "head", "slots", "engine"); n(Head.Slots.TRIP, "head", "slots", "trip")
     }
 
     @Test

@@ -10,8 +10,8 @@ import kotlin.math.max
  *
  * `luminofor.js` lays the strip out with two measurements - the wide figures' advance, which is
  * pure arithmetic ([WideDigits]), and Roboto's, which is not - and every horizontal position on
- * both pages follows from them: a row packed from the right edge, a row packed from the left, a
- * cell centred on the page, a cell flush right. This is that arithmetic, lifted out of the drawing
+ * both pages follows from them: a row packed from the right edge, a row packed from the left, fixed
+ * slots at equal gutters, a cell flush right. This is that arithmetic, lifted out of the drawing
  * code so the renderer and a JVM test run the same lines: the renderer hands it the pen's own
  * measurement, a test hands it a table ([Measure]), and a collision the test finds is a collision
  * the car would have drawn.
@@ -51,13 +51,11 @@ internal object StripGeometry {
     const val MARK_INDENT = 14f
 
     /**
-     * The widest temperature the row is laid out for: two figures and a degree.
-     *
-     * The board hangs the full screen's five cells so the last one's «00°» ends a side's width short
-     * of the centre. A three-figure reading (a motor past a hundred) is 19 dp wider and still stands
-     * clear of its neighbour at every pitch; `StripGeometryTest` holds it to that.
+     * The widest temperature the row prints: a motor at 150°, which reaches as far as a pack at
+     * −40° once its one hangs ([WideDigits.lead]). Every pitch holds it two tracking steps clear of
+     * the next reading; `StripGeometryTest` holds every width to that.
      */
-    const val TEMPERATURE_TEMPLATE = "00°"
+    const val TEMPERATURE_WIDEST = "150°"
 
     const val TEMPERATURES = 5
 
@@ -75,9 +73,9 @@ internal object StripGeometry {
     /** The figure, its unit and the variometer's arrow and rate, without the caption. */
     fun runWidth(r: StripReading, size: Float, m: Measure): Float {
         val figure = r.figure ?: return 0f
-        var w = WideDigits.width(figure, size)
+        var w = WideDigits.extent(figure, size)
         r.unit?.let { w += size * Head.Reading.UNIT_GAP_RATIO + m.sans(it, unitSize(size), false) }
-        r.rate?.let { w += size * Head.Reading.RATE_GAP_RATIO + ARROW_ROOM + WideDigits.width(it, rateSize(size)) }
+        r.rate?.let { w += size * Head.Reading.RATE_GAP_RATIO + ARROW_ROOM + WideDigits.extent(it, rateSize(size)) }
         return w
     }
 
@@ -172,54 +170,75 @@ internal object StripGeometry {
 
     // -------------------------------------------------------------------------------- car page
 
-    /** Where the car page's cells stand; `NaN` for a cell that is not on the page. */
+    /**
+     * Where the car page's cells stand; `NaN` for a cell that is not on the page. The trip ends on
+     * the strip's right edge, so its caption and its run each have their own left edge:
+     * [tripCell] is the caption's, [tripRun] the figure's.
+     */
     class CarPlacement {
         var power = Float.NaN
         var volts = Float.NaN
         var temps = Float.NaN
         var engine = Float.NaN
         var tripCell = Float.NaN
+        var tripRun = Float.NaN
     }
 
+    /** The five temperatures' width on a row of [pitch]: four pitches and the widest reading. */
+    fun temperaturesWidth(pitch: Float, size: Float): Float =
+        (TEMPERATURES - 1) * pitch + WideDigits.extent(TEMPERATURE_WIDEST, size)
+
     /**
-     * The full screen, as the board's `drawHead` lays it out: the power centred on the page, the
-     * volts at the margin, the five temperatures ending a side's width short of the centre, the
-     * engine a side's width past it, the trip flush right.
+     * The full screen, as the board's `drawHead` lays it out: five slots ([Head.Slots]) with one
+     * gutter between them - the volts on the left margin, the temperatures, the power, the engine,
+     * and the trip ending on the right margin. Each cell stands at its slot's left edge, so nothing
+     * moves when a reading or its sentence changes; the power's two-figure reading lands on the
+     * page's centre.
      */
     fun fullCar(model: StripModel, left: Float, right: Float, m: Measure, out: CarPlacement) {
-        val s = Head.Full.Strip
         val c = Head.Full.Car
-        val mid = (left + right) / 2f
-        out.power = mid - readingWidth(model.power, c.HERO_SIZE, s.LABEL_SIZE, m) / 2f
+        val slot = Head.Slots
+        val temps = temperaturesWidth(c.TEMP_PITCH, c.TEMP_SIZE)
+        val gutter = fullGutter(left, right)
         out.volts = left
-        out.temps = mid - c.SIDE - WideDigits.width(TEMPERATURE_TEMPLATE, c.TEMP_SIZE) -
-            (TEMPERATURES - 1) * c.TEMP_PITCH
-        out.engine = if (model.engine.present) mid + c.SIDE else Float.NaN
-        out.tripCell = if (model.tripCell.present) {
-            right - readingWidth(model.tripCell, s.VALUE_SIZE, s.LABEL_SIZE, m)
-        } else {
-            Float.NaN
-        }
+        out.temps = left + slot.VOLTS + gutter
+        out.power = out.temps + temps + gutter
+        out.engine = if (model.engine.present) out.power + slot.POWER + gutter else Float.NaN
+        trip(model, right, Head.Full.Strip.VALUE_SIZE, Head.Full.Strip.LABEL_SIZE, m, out)
+    }
+
+    /** The full screen's one gutter between two slots: what the five leave of the width, in four. */
+    fun fullGutter(left: Float, right: Float): Float {
+        val slot = Head.Slots
+        val temps = temperaturesWidth(Head.Full.Car.TEMP_PITCH, Head.Full.Car.TEMP_SIZE)
+        return (right - left - slot.VOLTS - temps - slot.POWER - slot.ENGINE - slot.TRIP) / 4f
     }
 
     /**
-     * The two-thirds pane: the power, the engine and the trip in a row from the left; the volts
-     * under the power and the temperatures after them. A cell that is not there takes no room.
+     * The two-thirds pane: the full screen's power, engine and trip slots across the pane - the
+     * power on the left margin, the trip ending on the right, the engine a gutter from each - and
+     * under them the volts on the margin and the temperatures in the engine's column.
      */
-    fun twoCar(model: StripModel, left: Float, m: Measure, out: CarPlacement) {
+    fun twoCar(model: StripModel, left: Float, right: Float, m: Measure, out: CarPlacement) {
         val c = Head.Two.Car
-        val label = Head.Two.Sound.LABEL_SIZE
-        var x = left
-        out.power = x
-        x += readingWidth(model.power, c.HERO_SIZE, label, m) + c.GAP
-        out.engine = Float.NaN
-        if (model.engine.present) {
-            out.engine = x
-            x += readingWidth(model.engine, c.VALUE_SIZE, label, m) + c.GAP
-        }
-        out.tripCell = if (model.tripCell.present) x else Float.NaN
+        val slot = Head.Slots
+        val column = left + slot.POWER + (right - left - slot.POWER - slot.ENGINE - slot.TRIP) / 2f
+        out.power = left
+        out.engine = if (model.engine.present) column else Float.NaN
+        trip(model, right, c.VALUE_SIZE, Head.Two.Sound.LABEL_SIZE, m, out)
         out.volts = left
-        out.temps = left + readingWidth(model.volts, c.VOLT_SIZE, label, m) + c.GAP
+        out.temps = column
+    }
+
+    /** The trip's caption and its run, each ending on [right]. */
+    private fun trip(model: StripModel, right: Float, size: Float, label: Float, m: Measure, out: CarPlacement) {
+        if (!model.tripCell.present) {
+            out.tripCell = Float.NaN
+            out.tripRun = Float.NaN
+            return
+        }
+        out.tripCell = right - m.sans(model.tripCell.caption, label, false)
+        out.tripRun = right - runWidth(model.tripCell, size, m)
     }
 
     /**

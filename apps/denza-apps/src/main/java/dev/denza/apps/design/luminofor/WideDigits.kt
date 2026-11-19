@@ -31,6 +31,9 @@ object WideDigits {
     /** And its path data, empty for a glyph that is only an advance (the space). */
     private val data = arrayOfNulls<String>(Digits.GLYPHS.size)
 
+    /** Each glyph's lead ([Digits.LEAD]), zero for every glyph but the one. */
+    private val leads = FloatArray(Digits.GLYPHS.size)
+
     /** Glyph number by character code, [NONE] where there is no glyph; as long as the last code. */
     private val numbers: IntArray
 
@@ -44,6 +47,7 @@ object WideDigits {
         for ((ch, glyph) in Digits.GLYPHS) {
             advances[index] = glyph.first
             data[index] = glyph.second
+            leads[index] = Digits.LEAD[ch] ?: 0f
             numbers[ch.code] = index
             index++
         }
@@ -73,6 +77,19 @@ object WideDigits {
         }
         return w * k(size)
     }
+
+    /**
+     * How far a left-aligned figure hangs out of its place: the lead of its first glyph
+     * ([Digits.LEAD]) - only the one has any - so its ink starts where a caption's does.
+     */
+    fun lead(str: String, size: Float): Float {
+        if (str.isEmpty()) return 0f
+        val g = glyph(str[0])
+        return if (g == NONE) 0f else leads[g] * k(size)
+    }
+
+    /** How far a left-aligned figure reaches from where it is placed: its [width] less its [lead]. */
+    fun extent(str: String, size: Float): Float = width(str, size) - lead(str, size)
 
     /** A glyph's path on its 100-unit cap, or null for the space; [glyph] is never [NONE]. */
     fun path(glyph: Int): Path? {

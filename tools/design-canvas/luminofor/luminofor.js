@@ -90,11 +90,21 @@
     for (let i = 0; i < str.length; i++) { const g = D.glyphs[str[i]]; if (!g) continue; w += g[0] + (i < str.length - 1 ? D.track : 0); }
     return w * k;
   }
-  // Figures are flat - a core stroke, no halo - as on the car's charging screen.
+  // A left-aligned figure that begins with a glyph whose ink stands in from its advance - the one -
+  // hangs that glyph out by its lead, so the ink starts where a caption's does (spec: digits.lead).
+  function numLead(str, size) {
+    const l = str && D.lead[str[0]];
+    return l ? l * size * D.capRatio / D.cap : 0;
+  }
+  // How far a left-aligned figure reaches from where it is placed: its advance less its lead.
+  function numExtent(str, size) { return numWidth(str, size) - numLead(str, size); }
+  // Figures are flat - a core stroke, no halo - as on the car's charging screen. Left-aligned, it
+  // returns its extent from x (numExtent), so what follows it follows its ink.
   function num(ctx, str, x, base, size, col, I, align, sw) {
     const k = size * D.capRatio / D.cap;
     const w = numWidth(str, size);
-    let cx = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
+    const lead = align === 'right' || align === 'center' ? 0 : numLead(str, size);
+    let cx = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x - lead;
     const s = (sw || Math.max(D.strokeMin, size * D.strokePerSize)) / k;
     for (let i = 0; i < str.length; i++) {
       const gl = D.glyphs[str[i]]; if (!gl) continue;
@@ -105,12 +115,14 @@
       }
       cx += (gl[0] + D.track) * k;
     }
-    return w;
+    return w - lead;
   }
 
   /* --------------------------------------------------------- temperatures */
   // The five cells: pack, front motor, rear-left motor, rear-right motor, inverter.
   const KINDS = ['pack', 'front', 'rearL', 'rearR', 'inv'];
+  // The widest temperature either screen prints: a motor at 150°, as far as a pack at −40°.
+  const TEMP_WIDEST = '150°';
   function glyph(c, kind, x, base, col, lit, hot) {
     const G = S.cluster.glyph;
     const out = new Path2D(), on = new Path2D();
@@ -321,7 +333,7 @@
     const fx = AX + CT.gapFromAxis;
     // a figure that stopped arriving leaves, and its unit stays where the last one put it
     const fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, INK, 1, 'left')
-      : f.consumptionHeld ? numWidth(f.consumptionHeld, CT.figureSize) : 0;
+      : f.consumptionHeld ? numExtent(f.consumptionHeld, CT.figureSize) : 0;
     if (f.consumptionUnit) text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
   }
 
@@ -352,6 +364,9 @@
     // left group: the battery; the five glyphs are the temperatures' captions
     text(c, f.batteryCaption, GL, CG.caption, CG.captionSize, GREY, 1, { track: CG.captionTrack });
     if (f.volts) num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
+    // the pitch holds the widest reading (−40° to 150°) three tracking steps clear of the next; the
+    // row ends on the group's edge at two figures, so the pack's glyph keeps its distance from the
+    // caption on the line it now shares
     const tx0 = GR - numWidth('00°', CG.tempSize) - 4 * CG.tempPitch;
     f.temps.forEach((cell, i) => {
       const x = tx0 + i * CG.tempPitch;
@@ -397,10 +412,11 @@
       text(c, f.engineWindow, bx0, base + CG.detailDrop, CG.detailSize, GREY, 1, { track: CG.cellCaptionTrack });
     } else if (f.tripCaption) {
       const uw = textWidth(c, f.tripUnit, CG.unitSize), cw = textWidth(c, f.tripCaption, CG.captionSize, { track: CG.cellCaptionTrack });
-      const fw = f.tripKwh ? numWidth(f.tripKwh, CG.figureSize) : 0;
-      const x = RE - Math.max(cw, f.tripKwh ? fw + CG.unitGap + uw : 0);
-      text(c, f.tripCaption, x, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
+      const fw = f.tripKwh ? numExtent(f.tripKwh, CG.figureSize) : 0;
+      // caption, figure with its unit, and the detail line under them: all three end on the margin
+      text(c, f.tripCaption, RE - cw, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
       if (f.tripKwh) {
+        const x = RE - (fw + CG.unitGap + uw);
         num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
         text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
       }
@@ -425,17 +441,26 @@
 
   function readingW(c, it, size, lpx) {
     if (it.hint) return labW(c, it.cap, lpx);
-    let w = numWidth(it.fig, size);
-    if (it.unit) w += size * RD.unitGapRatio + labW(c, it.unit, Math.round(size * RD.unitRatio));
-    if (it.rate) w += size * RD.rateGapRatio + 14 + numWidth(it.rate, Math.round(size * RD.rateRatio));
-    return Math.max(w, labW(c, it.cap, lpx));
+    return Math.max(runW(c, it, size), labW(c, it.cap, lpx));
   }
-  function reading(c, it, x, capY, valY, size, lpx, col) {
+  // The figure, its unit and the variometer's arrow and rate, without the caption.
+  function runW(c, it, size) {
+    let w = numExtent(it.fig, size);
+    if (it.unit) w += size * RD.unitGapRatio + labW(c, it.unit, Math.round(size * RD.unitRatio));
+    if (it.rate) w += size * RD.rateGapRatio + 14 + numExtent(it.rate, Math.round(size * RD.rateRatio));
+    return w;
+  }
+  // A reading whose caption and run both end on `right` - the trip at the strip's right edge.
+  function readingRight(c, it, right, capY, valY, size, lpx, col) {
+    reading(c, it, right - labW(c, it.cap, lpx), capY, valY, size, lpx, col, right - runW(c, it, size));
+  }
+  function reading(c, it, x, capY, valY, size, lpx, col, runX) {
     // a caption with no reading under it and none coming - the location hint - at 0.6, alone
     if (it.hint) { lab(c, it.cap, x, capY, lpx, 0.6); return; }
     if (it.dot) { const d = new Path2D(); d.arc(x + 4, capY - lpx * 0.35, 3.4, 0, Math.PI * 2); glowFill(c, d, HUB, 1, 6); lab(c, it.cap, x + 14, capY, lpx); }
     else lab(c, it.cap, x, capY, lpx);
     const colour = col === 'blue' ? HUB : WHT;
+    if (runX != null) x = runX;
     let ux = x + num(c, it.fig, x, valY, size, colour, 1, 'left');
     if (it.unit) ux += size * RD.unitGapRatio + text(c, it.unit, ux + size * RD.unitGapRatio, valY, Math.round(size * RD.unitRatio), colour, RD.unitAlpha, { font: ROBOTO, w: 400 });
     if (it.rate) {
@@ -627,14 +652,16 @@
       } else if (f.unavailable) {
         closedPage(c, f, L, R, ST.caption, ST.value, ST.labelSize, ST.titleSize);
       } else {
-        const Cc = F.car, mid = F.size[0] / 2;
-        const pw = readingW(c, f.power, Cc.heroSize, ST.labelSize);
-        reading(c, f.power, mid - pw / 2, ST.caption, ST.value, Cc.heroSize, ST.labelSize, f.power.col);
-        const GR = mid - Cc.side, HR = mid + Cc.side;
+        // five slots, one gutter (spec: head.slots): the volts, the temperatures, the power, the
+        // engine and the trip, each at its slot's left edge and the trip at its right
+        const Cc = F.car, SL = S.head.slots, tw5 = 4 * Cc.tempPitch + numExtent(TEMP_WIDEST, Cc.tempSize);
+        const gut = (R - L - SL.volts - tw5 - SL.power - SL.engine - SL.trip) / 4;
+        const xT = L + SL.volts + gut, xP = xT + tw5 + gut, xE = xP + SL.power + gut;
+        reading(c, f.power, xP, Cc.heroCaption, ST.value, Cc.heroSize, ST.labelSize, f.power.col);
         reading(c, f.volts, L, ST.caption, ST.value, ST.valueSize, ST.labelSize);
-        tempsRow(c, f, GR - numWidth('00°', Cc.tempSize) - 4 * Cc.tempPitch, ST.caption, ST.value, Cc.tempPitch, Cc.tempSize);
-        reading(c, f.engine, HR, ST.caption, ST.value, ST.valueSize, ST.labelSize);
-        reading(c, f.tripCell, R - readingW(c, f.tripCell, ST.valueSize, ST.labelSize), ST.caption, ST.value, ST.valueSize, ST.labelSize);
+        tempsRow(c, f, xT, ST.caption, ST.value, Cc.tempPitch, Cc.tempSize);
+        reading(c, f.engine, xE, ST.caption, ST.value, ST.valueSize, ST.labelSize);
+        readingRight(c, f.tripCell, R, ST.caption, ST.value, ST.valueSize, ST.labelSize);
         lab(c, cons, L, Cc.chartCaption, Cc.chartCaptionSize, S.head.chart.captionAlpha);
         carChart(c, f, L, Cc.chartTop, R - L, Cc.chartHeight);
       }
@@ -661,10 +688,16 @@
       } else if (f.unavailable) {
         closedPage(c, f, L, L + Wd, P.car.caption + dy, P.car.value + dy, P.sound.labelSize, P.sound.titleSize);
       } else {
-        const s = P.car; let x = L;
-        [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption + dy, s.value + dy, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
-        reading(c, f.volts, L, s.row2Caption + dy, s.row2Value + dy, s.voltSize, P.sound.labelSize);
-        tempsRow(c, f, L + readingW(c, f.volts, s.voltSize, P.sound.labelSize) + s.gap, s.row2Caption + dy, s.row2Value + dy, s.tempPitch, s.tempSize);
+        // the full screen's slots across the pane: the power at the left, the trip ending on the
+        // right, the engine between them a gutter from each; the volts under the power and the
+        // temperatures under the engine
+        const s = P.car, SL = S.head.slots, lpx = P.sound.labelSize;
+        const xB = L + SL.power + (Wd - SL.power - SL.engine - SL.trip) / 2;
+        reading(c, f.power, L, s.heroCaption + dy, s.value + dy, s.heroSize, lpx, f.power.col);
+        reading(c, f.engine, xB, s.caption + dy, s.value + dy, s.valueSize, lpx);
+        readingRight(c, f.tripCell, L + Wd, s.caption + dy, s.value + dy, s.valueSize, lpx);
+        reading(c, f.volts, L, s.row2Caption + dy, s.row2Value + dy, s.voltSize, lpx);
+        tempsRow(c, f, xB, s.row2Caption + dy, s.row2Value + dy, s.tempPitch, s.tempSize);
         lab(c, cons, L, s.chartCaption + dy, 15, S.head.chart.captionAlpha);
         carChart(c, f, L, s.chartTop + dy, Wd, s.chartHeight);
       }
