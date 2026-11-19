@@ -260,6 +260,35 @@ class ConsumptionJournalTest {
         assertTrue(read.last().odometerKm > 1070.0)
     }
 
+    /**
+     * The append past the cap succeeds and the rewrite that trims it does not - a nearly full disk
+     * takes a line and refuses a file. Here the temporary file's path is taken by a directory that
+     * cannot be removed. [JournalFile.replace] leaves the journal whole, and the trim used to delete
+     * it anyway.
+     */
+    @Test
+    fun aTrimThatCannotWriteKeepsTheJournal() {
+        val journal = journal()
+        val blocker = File(folder.root, "consumption.log.tmp")
+        assertTrue(blocker.mkdirs())
+        File(blocker, "occupied").writeText("x")
+        val past = ConsumptionJournal.MAX_LINES + ConsumptionJournal.TRIM_SLACK
+        repeat(past / 10 + 2) { batch -> journal.append(bars(10, from = 1000.0 + batch * 1.0)) }
+
+        assertTrue("the journal is still there", file().exists())
+        assertTrue("nothing was wiped: $wipes", wipes.isEmpty())
+        assertEquals("said once", 1, failures.size)
+        assertEquals("every line is kept", (past / 10 + 2) * 10, journal().load().size)
+
+        // The disk frees up: the next append trims.
+        File(blocker, "occupied").delete()
+        assertTrue(blocker.delete())
+        journal.append(bars(1, from = 2000.0))
+        val read = journal().load()
+        assertEquals(ConsumptionJournal.MAX_LINES, read.size)
+        assertEquals(2000.0, read.last().odometerKm, 1e-6)
+    }
+
     @Test
     fun clearingLeavesNothingBehind() {
         val journal = journal()

@@ -148,9 +148,9 @@ internal class ConsumptionJournal(
             failed("запись не удалась")
             return
         }
-        failing = false
         lines += samples.size
-        if (lines > MAX_LINES + TRIM_SLACK) trim()
+        if (lines > MAX_LINES + TRIM_SLACK && !trim()) return
+        failing = false
     }
 
     /**
@@ -216,20 +216,28 @@ internal class ConsumptionJournal(
      * old journal intact rather than a half-copied one. This runs about once
      * every fifty kilometres, which is why it is allowed to be the expensive
      * path.
+     *
+     * A trim that cannot write keeps the journal it was trimming, the rule the
+     * append and the trip record follow: [JournalFile.replace] has left the old
+     * file whole, and until 2026-11-19 this then deleted it - a nearly full disk
+     * that still took the append took thirty kilometres with the refused
+     * rewrite. The failure is reported once, and the next append tries the trim
+     * again; [MAX_BYTES] bounds what a disk that keeps refusing it can grow to.
      */
-    private fun trim() {
+    private fun trim(): Boolean {
         val kept = load().takeLast(MAX_LINES)
         if (kept.isEmpty()) {
             wipe("после подрезки ничего не осталось")
-            return
+            return true
         }
         val text = StringBuilder(kept.size * LINE_BYTES)
         kept.forEach { text.append(line(it)) }
-        if (JournalFile.replace(file, text.toString())) {
-            lines = kept.size
-        } else {
-            wipe("подрезка не удалась")
+        if (!JournalFile.replace(file, text.toString())) {
+            failed("подрезка не удалась")
+            return false
         }
+        lines = kept.size
+        return true
     }
 
     private fun line(sample: ConsumptionSample): String = String.format(
