@@ -18,6 +18,12 @@ PIN = '29229369e3d7fe6b643112e3f8d80ef1dcae6fc1379bd479a60f126b48435188'
 BASE_VERSION_NAME = '31.1.4'
 BASE_VERSION_CODE = 739735800
 
+# The release signer: every YandexHUD since the first was signed with this certificate, so an
+# install over an earlier build needs it, and Denza Apps hosts only it (HudHostGate). The key lives
+# in the main checkout's captures/yandex-hud-signing/experiment.p12, never in git; build.py refuses
+# a release signed by anything else (review 2026-11-19, round 2, finding 10).
+SIGNER_SHA256 = 'df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6'
+
 LABEL = 'YandexHUD'
 BUILD_NUMBER = 33
 # The map the car drives with since 29.8.1-YandexHUD.4: the stock HUD camera, the close zoom

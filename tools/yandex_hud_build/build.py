@@ -11,7 +11,7 @@ import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
 from identity import (APK, PIN, BASE_VERSION_CODE, BASE_VERSION_NAME, BUILD_NUMBER, LABEL, RENDERER_PROFILE,
-                      VERSION_CODE, VERSION_NAME)
+                      SIGNER_SHA256, VERSION_CODE, VERSION_NAME)
 from manifest import LAUNCH_TARGET, QUERIED_PACKAGES, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
@@ -22,6 +22,39 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def run(args, **kwargs):
     subprocess.run([str(x) for x in args], check=True, **kwargs)
+
+
+KEY_ALIAS = 'hud-experiment'
+KEY_PASS = 'denza-local-experiment'
+
+
+def signer_digest(java, key):
+    """The SHA-256 of the certificate in keystore `key`, lower-case hex."""
+    listing = subprocess.check_output([str(java/'bin/keytool'), '-list', '-v', '-keystore', str(key),
+                                       '-storepass', KEY_PASS, '-alias', KEY_ALIAS], text=True)
+    found = re.search(r'SHA256:\s*([0-9A-F:]{95})', listing)
+    if not found: raise RuntimeError('No SHA-256 certificate fingerprint in ' + str(key))
+    return found.group(1).replace(':', '').lower()
+
+
+def signing_key(args, java):
+    """The release signer, checked against identity.SIGNER_SHA256 before any build work; a
+    disposable key only with --throwaway-signer, for a test build that must never be distributed."""
+    if args.throwaway_signer:
+        key = args.out/'throwaway-signer.p12'
+        run([java/'bin/keytool', '-genkeypair', '-keystore', key, '-storepass', KEY_PASS,
+             '-keypass', KEY_PASS, '-alias', KEY_ALIAS, '-keyalg', 'RSA', '-keysize', '3072',
+             '-validity', '30', '-dname', 'CN=Denza HUD throwaway test signer'])
+        return key, signer_digest(java, key)
+    if not args.keystore.is_file():
+        raise SystemExit(f'No release signer at {args.keystore}: a build under another key cannot update '
+                         'earlier YandexHUD installs and Denza Apps does not host it. Pass --keystore with the '
+                         'existing key, or --throwaway-signer for a test build.')
+    digest = signer_digest(java, args.keystore)
+    if digest != SIGNER_SHA256:
+        raise SystemExit(f'{args.keystore} is not the release signer: certificate {digest}, '
+                         f'expected {SIGNER_SHA256} (identity.py)')
+    return args.keystore, digest
 
 
 def is_dex(name):
@@ -96,6 +129,10 @@ def main():
                         help='Map presentation; the default is the release profile in identity.py, '
                              'current is the earlier top-down map')
     parser.add_argument('--jadx-jar', type=Path, default=Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar'))
+    parser.add_argument('--keystore', type=Path, default=ROOT / 'captures/yandex-hud-signing/experiment.p12',
+                        help='The release signer (identity.SIGNER_SHA256); a worktree passes the main checkout\'s')
+    parser.add_argument('--throwaway-signer', action='store_true',
+                        help='Sign with a new disposable key: a test build only, named -throwaway, never distributed')
     args = parser.parse_args()
     args.out = args.out.resolve()
     if hashlib.sha256(args.apk.read_bytes()).hexdigest() != PIN:
@@ -104,6 +141,7 @@ def main():
     args.out.mkdir(parents=True, exist_ok=False)
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
     java = Path(os.environ.get('JAVA_HOME', '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home'))
+    key, signer = signing_key(args, java)
     env = dict(os.environ, JAVA_HOME=str(java))
     build_tools = sdk / 'build-tools/36.0.0'
     android = sdk / 'platforms/android-35/android.jar'
@@ -200,18 +238,19 @@ def main():
             for name, content in changes.items():
                 output.writestr(name, content, compress_type=zipfile.ZIP_STORED if is_dex(name) else zipfile.ZIP_DEFLATED)
     run([build_tools/'zipalign', '-P', '16', '-f', '4', args.out/'unsigned.apk', args.out/'aligned.apk'])
-    # Dedicated local experimental identity, never committed. No original certificate spoofing.
-    identity = ROOT/'captures/yandex-hud-signing'; identity.mkdir(exist_ok=True)
-    key = identity/'experiment.p12'
-    if not key.exists():
-        run([java/'bin/keytool', '-genkeypair', '-keystore', key, '-storepass', 'denza-local-experiment',
-             '-keypass', 'denza-local-experiment', '-alias', 'hud-experiment', '-keyalg', 'RSA', '-keysize', '3072',
-             '-validity', '3650', '-dname', 'CN=Denza HUD local experiment, O=Owner local research'])
+    # The owner's local signing identity (identity.SIGNER_SHA256), never committed, checked before
+    # the build started (signing_key). No original certificate spoofing.
     architecture = 'arm64' if args.abi == 'arm64-v8a' else 'universal'
     profile_suffix = '-stock-prototype' if args.renderer_profile == 'stock-prototype' else ''
-    result = args.out/f'{LABEL}-{BUILD_NUMBER}{profile_suffix}-{architecture}-debug.apk'
-    run([build_tools/'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hud-experiment', '--ks-pass', 'pass:denza-local-experiment', '--out', result, args.out/'aligned.apk'], env=env)
-    run([build_tools/'apksigner', 'verify', '--verbose', '--print-certs', result], env=env)
+    throwaway = '-throwaway' if args.throwaway_signer else ''
+    result = args.out/f'{LABEL}-{BUILD_NUMBER}{profile_suffix}-{architecture}{throwaway}-debug.apk'
+    run([build_tools/'apksigner', 'sign', '--ks', key, '--ks-key-alias', KEY_ALIAS, '--ks-pass', 'pass:' + KEY_PASS, '--out', result, args.out/'aligned.apk'], env=env)
+    certs = subprocess.check_output([str(build_tools/'apksigner'), 'verify', '--verbose', '--print-certs', str(result)], env=env, text=True)
+    print(certs, end='')
+    signed = re.findall(r'certificate SHA-256 digest: ([0-9a-f]{64})', certs)
+    if set(signed) != {signer} or (not args.throwaway_signer and signer != SIGNER_SHA256):
+        result.unlink()
+        raise RuntimeError(f'Candidate signed by {signed}, expected {signer}; removed')
     run([build_tools/'zipalign', '-c', '-P', '16', '4', result])
     verify_manifest(args.apk, result, env)
     # Independent Android SDK decoder: exactly one resource value may differ.
@@ -227,6 +266,8 @@ def main():
               'package': 'ru.yandex.yandexnavi', 'label': LABEL, 'build_number': BUILD_NUMBER,
               'version': VERSION_NAME, 'version_code': VERSION_CODE, 'debuggable': True,
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
+    report['signer_sha256'] = signer
+    report['release_signer'] = not args.throwaway_signer
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
     report['hook_dex'] = hook_dex
