@@ -124,17 +124,36 @@ class ConsumptionJournalTest {
         assertTrue("and the file ends with a whole line", file().readText().endsWith("\n"))
     }
 
-    /** A cut that fell between a whole bucket and its newline: the bucket was read, and stays. */
+    /**
+     * A cut inside the last number: `1000.2,0.02000,0.1000,0.0650` ended at `0.06`, which parses -
+     * as a bucket of 33.3 kWh/100 km where 30.8 was written. It used to be read and completed with a
+     * newline, and both screens used the altered value after the restart. A tail is never a reading.
+     */
     @Test
-    fun aWholeLineThatOnlyLostItsNewlineIsKept() {
+    fun aTailCutInsideItsLastNumberIsNotReadAsTheBucketItLooksLike() {
+        journal().append(bars(2))
+        file().appendText("1000.2,0.02000,0.1000,0.06")
+
+        val restarted = journal()
+        assertEquals(listOf(1000.0, 1000.1), restarted.load().map { it.odometerKm })
+        restarted.append(bars(1, from = 1000.3))
+
+        assertEquals(listOf(1000.0, 1000.1, 1000.3), journal().load().map { it.odometerKm })
+        assertFalse("the tail was cut, not completed", file().readText().contains("0.06\n"))
+        assertTrue(wipes.isEmpty())
+    }
+
+    /** Even a whole bucket short only of its newline: one bucket is the accepted cost. */
+    @Test
+    fun aTailWithoutItsNewlineIsCutEvenWhenItIsWhole() {
         journal().append(bars(2))
         file().appendText("1000.2,0.02000,0.1000,0.1000")
 
         val restarted = journal()
-        assertEquals(3, restarted.load().size)
+        assertEquals(2, restarted.load().size)
         restarted.append(bars(2, from = 1000.3))
 
-        assertEquals(5, journal().load().size)
+        assertEquals(listOf(1000.0, 1000.1, 1000.3, 1000.4), journal().load().map { it.odometerKm })
         assertTrue(wipes.isEmpty())
     }
 

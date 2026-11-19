@@ -71,17 +71,22 @@ internal class ConsumptionJournal(
     /**
      * Everything the file holds, oldest first.
      *
-     * A single unparseable last line is a write the ignition interrupted and is
-     * dropped in silence; the next [append] cuts it off the file before it writes
-     * ([endTornTail]). Anything else means the file is not what this class
-     * wrote, and the file goes.
+     * A tail after the last newline is a write the ignition interrupted and is
+     * dropped in silence, **whether or not it parses**: a line cut inside its
+     * last number can read as a different valid bucket - `0.0650` cut to
+     * `0.06` - so a tail is never trusted as a reading. The next [append] cuts
+     * it off the file before it writes ([endTornTail]); losing one bucket is the
+     * cost. A single unparseable last whole line is forgiven the same way.
+     * Anything else means the file is not what this class wrote, and the file
+     * goes.
      */
     fun load(): List<ConsumptionSample> {
         if (!file.exists()) return emptyList()
-        val text = runCatching { file.readText() }.getOrElse {
+        val read = runCatching { file.readText() }.getOrElse {
             return wipe("не читается", it)
         }
-        if (text.length > MAX_BYTES) return wipe("слишком большой (${text.length} Б)")
+        if (read.length > MAX_BYTES) return wipe("слишком большой (${read.length} Б)")
+        val text = read.substring(0, read.lastIndexOf('\n') + 1)
 
         val rows = text.split('\n').filter { it.isNotEmpty() }
         val samples = ArrayList<ConsumptionSample>(rows.size)
@@ -93,7 +98,7 @@ internal class ConsumptionJournal(
                 return wipe("строка ${index + 1} из ${rows.size} не разобралась")
             }
         }
-        // A torn tail is one bad line after good ones. A file where nothing
+        // A bad last line is one bad line after good ones. A file where nothing
         // parsed is not this class's file at all, whatever its length.
         if (samples.isEmpty() && rows.isNotEmpty()) return wipe("ни одна из ${rows.size} строк не разобралась")
         lines = samples.size
@@ -158,10 +163,10 @@ internal class ConsumptionJournal(
      * kilometres, for a cut that had cost one line. The head unit loses power that way every time
      * the car is switched off, so this is the ordinary path, not the rare one.
      *
-     * So the tail after the last newline is settled first. A tail that is a whole bucket short only
-     * of its newline - the cut came between the two - gets the newline, because [load] has already
-     * handed it to the log as a reading; anything else is cut off, and the valid lines before it
-     * stay as they are. Read from the end, a few bytes at a time: a line is under forty bytes and
+     * So the tail after the last newline is cut off first, and the valid lines before it stay as
+     * they are. Until 2026-11-19 a tail that parsed was completed with a newline instead, and a line
+     * cut inside its last number parses as a different bucket than the one written; [load] does not
+     * read a tail either. Read from the end, a few bytes at a time: a line is under forty bytes and
      * this runs before every append.
      *
      * @return whether the file now ends with a whole line (or is empty or absent)
@@ -198,18 +203,7 @@ internal class ConsumptionJournal(
                 }
                 start = from
             }
-            val whole = length - start <= LINE_BYTES * 2 && run {
-                val tail = ByteArray((length - start).toInt())
-                raf.seek(start)
-                raf.readFully(tail)
-                parse(String(tail)) != null
-            }
-            if (whole) {
-                raf.seek(length)
-                raf.write(NEWLINE)
-            } else {
-                raf.setLength(start)
-            }
+            raf.setLength(start)
             raf.fd.sync()
         }
         true
