@@ -1156,6 +1156,13 @@
     y += Hh.height + K.gap;
     if (!scrolled) { c.save(); c.beginPath(); c.rect(px0, y, pw, bottom - y); c.clip(); }
     (sh.blocks || []).forEach(b => { y += block(c, b, x, y, w) + K.gap; });
+    // more below the viewport's foot: the settings fade into the ground over its last P.fade, so a
+    // line cut there goes under the fade whole instead of ending mid-glyph
+    if (y - K.gap > bottom + 0.5) over(c, () => {
+      const g = c.createLinearGradient(0, bottom - P.fade, 0, bottom);
+      g.addColorStop(0, hexA(P.ground, 0)); g.addColorStop(1, hexA(P.ground, 1));
+      c.fillStyle = g; c.fillRect(px0, bottom - P.fade, pw, P.fade);
+    });
     c.restore();
     let fy = footTop;
     foot.forEach((b, i) => { block(c, b, x, fy, w); fy += hs[i] + SH.footnote.gap; });

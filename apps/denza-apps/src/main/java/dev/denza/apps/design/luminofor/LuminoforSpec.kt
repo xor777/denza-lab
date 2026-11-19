@@ -198,6 +198,13 @@ object LuminoforSpec {
             const val PAD_TOP: Float = 20f
             const val PAD_BOTTOM: Float = 24f
             const val GAP: Float = 20f
+
+            /**
+             * The settings fade into the ground over their last [FADE] dp while there is more of them
+             * below: a summary line (`row.summaryStep` 20) cut at the viewport's foot goes under
+             * the fade whole instead of ending mid-glyph.
+             */
+            const val FADE: Float = 24f
         }
 
         /** The same panel filling a pane's window. */

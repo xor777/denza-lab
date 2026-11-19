@@ -134,7 +134,7 @@
   "sheet": {
     "_note": "A feature's settings: the panel a long press opens, the pages it turns into, the modal card. Built from the car's own BYD widget kit (CarSettingPlatform, byd_pvt_* dark) in Luminofor's grounds: the stock switch, list row, segmented tab, primary button and selection badge.",
     "scrim": 0.6,
-    "panel": { "width": 480, "ground": "#17161B", "edge": "#FFFFFF", "edgeAlpha": 0.08, "padX": 24, "padTop": 20, "padBottom": 24, "gap": 20 },
+    "panel": { "width": 480, "ground": "#17161B", "edge": "#FFFFFF", "edgeAlpha": 0.08, "padX": 24, "padTop": 20, "padBottom": 24, "gap": 20, "fade": 24 },
     "compact": { "padX": 16, "padTop": 16, "padBottom": 16, "gap": 16 },
     "header": { "height": 40, "glyph": 26, "glyphAlpha": 0.9, "glyphGap": 14, "titleSize": 24, "close": 24, "closeAlpha": 0.54, "subtitleSize": 14, "subtitleAlpha": 0.54 },
     "pair": { "minHeight": 40, "padY": 10, "size": 16, "keyAlpha": 0.9, "valueAlpha": 0.54, "gap": 16, "step": 20 },

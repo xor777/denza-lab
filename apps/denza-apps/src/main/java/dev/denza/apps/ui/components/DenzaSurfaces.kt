@@ -30,6 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -140,13 +144,35 @@ private fun SheetPanel(
         ) {
             Column(
                 modifier = Modifier.weight(1f)
-                    .then(if (scrolls) Modifier.verticalScroll(scroll) else Modifier),
+                    .then(if (scrolls) Modifier.fadeAtFoot(scroll).verticalScroll(scroll) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(gap.dp),
                 content = content,
             )
             footer()
         }
     }
+}
+
+/**
+ * While there is more below, the settings fade into the panel's ground over their last
+ * [Sheet.Panel.FADE] dp - the board's `drawSheet` - so a line the viewport's foot cuts goes under
+ * the fade whole instead of ending mid-glyph. Drawn in the viewport's own frame: it goes before
+ * `verticalScroll` in the chain.
+ */
+private fun Modifier.fadeAtFoot(scroll: ScrollState): Modifier = drawWithContent {
+    drawContent()
+    if (!scroll.canScrollForward) return@drawWithContent
+    val fade = Sheet.Panel.FADE.dp.toPx()
+    val ground = Color(Sheet.Panel.GROUND)
+    drawRect(
+        brush = Brush.verticalGradient(
+            listOf(ground.copy(alpha = 0f), ground),
+            startY = size.height - fade,
+            endY = size.height,
+        ),
+        topLeft = Offset(0f, size.height - fade),
+        size = Size(size.width, fade),
+    )
 }
 
 /**

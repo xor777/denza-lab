@@ -286,6 +286,7 @@ class LuminoforSpecContractTest {
         n(p.WIDTH, "sheet", "panel", "width"); assertEquals(hex(SpecJson.str("sheet", "panel", "ground")), p.GROUND)
         n(p.EDGE_ALPHA, "sheet", "panel", "edgeAlpha"); n(p.PAD_X, "sheet", "panel", "padX")
         n(p.PAD_TOP, "sheet", "panel", "padTop"); n(p.PAD_BOTTOM, "sheet", "panel", "padBottom"); n(p.GAP, "sheet", "panel", "gap")
+        n(p.FADE, "sheet", "panel", "fade")
         val k = LuminoforSpec.Sheet.Compact
         n(k.PAD_X, "sheet", "compact", "padX"); n(k.PAD_TOP, "sheet", "compact", "padTop")
         n(k.PAD_BOTTOM, "sheet", "compact", "padBottom"); n(k.GAP, "sheet", "compact", "gap")
