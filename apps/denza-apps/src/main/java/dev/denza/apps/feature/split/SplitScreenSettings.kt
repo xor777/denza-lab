@@ -12,6 +12,7 @@ object SplitScreenSettings {
     private const val PICKER_ACCESS_CONFIGURATION_VERSION =
         "picker_access_configuration_version_v1"
     private const val SMART_MULTI_ORIGINAL = "smart_multi_original_v1"
+    private const val PILL_ENABLED = "pill_enabled"
 
     /**
      * The toggle, read from the one durable snapshot that owns it (contract section 6).
@@ -21,6 +22,43 @@ object SplitScreenSettings {
      * travels with can never disagree - which is exactly how the two old stores diverged (8.1).
      */
     fun isEnabled(context: Context): Boolean = stateStore(context).load().enabled
+
+    /**
+     * «Пилюля»: whether the disc on the divider and the row of pairs it opens into are
+     * shown (contract 1.15.14). On unless the driver turned it off.
+     *
+     * A key of its own beside the toggle's snapshot and never part of it: the automaton, its
+     * operations and the pair memory do not read it, and pairs are remembered either way. The
+     * panel and the pill's host ([observePillEnabled]) read it, so it takes no ADB and no car
+     * write.
+     */
+    fun isPillEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PILL_ENABLED, true)
+
+    @SuppressLint("UseKtx")
+    fun setPillEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PILL_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Calls [onChange] with the new value whenever «Пилюля» is written in this process,
+     * on the main thread; the returned function stops it. The listener is held by that function,
+     * since the preferences hold their listeners weakly.
+     */
+    fun observePillEnabled(context: Context, onChange: (Boolean) -> Unit): () -> Unit {
+        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { changed, key ->
+            // A null key is the whole file cleared.
+            if (key == null || key == PILL_ENABLED) {
+                onChange(changed.getBoolean(PILL_ENABLED, true))
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     internal fun resizeabilityLeaseStore(context: Context): SplitResizeabilityLeaseStore =
         object : SplitResizeabilityLeaseStore {

@@ -266,6 +266,8 @@
     <string name="sheet_mirrors_enhance">Улучшение изображения</string>
     <string name="sheet_split_help">При включении на рабочем столе появляется значок разделения экрана. Он открывает выбор двух приложений, которые встанут рядом.</string>
     <string name="sheet_split_icon">Значок на рабочем столе</string>
+    <string name="sheet_split_pill">Пилюля</string>
+    <string name="sheet_split_pill_summary">Сохранённые пары приложений — кружок между панелями</string>
     <string name="sheet_weather_help">Приложение забирает прогноз и отдаёт его штатному виджету погоды. Своей погоды оно не рисует — виджет остаётся штатным.</string>
     <string name="sheet_weather_widget_data">Данные для виджета</string>
     <string name="sheet_weather_given">Отдано виджету %1$s</string>

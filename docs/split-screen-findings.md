@@ -3256,6 +3256,15 @@ Written against the board (`tools/design-canvas/split-pill/`) and contract 1.15 
   navigator projected out of a pane, or with no divider in the list. Which pane is on the left
   follows the divider: left of 640 dp the narrow primary pane. The apps come from the launch
   catalogue (`SplitPickerCatalog.load`, read off the main thread).
+- **The «Пилюля» switch (code, 2026-11-20).** The gate is one argument of
+  `SplitPillModel.describe` (`pillEnabled`): off, it describes nothing for every input, so the
+  host takes the same withdraw path as the toggle's off (touch region emptied at once, fade,
+  window removed), and an open request from the dock button that arrives or waits while off is
+  spent. The value is its own key, `pill_enabled` in `denza_split_screen`, outside `split_state_v3`;
+  the automaton, its operations and the pair memory never read it. The panel writes it
+  (`SplitScreenSettings.setPillEnabled`), and the host, in the same main process as the panel,
+  hears it through `SplitScreenSettings.observePillEnabled` (a preferences listener) and redraws
+  on the spot. Not run on the car.
 - **Taps.** A pair: `OpenOperation` with a choice, priority `SELECT` (Home preempts it), refused
   without a visible two-pane scene; the build evicts the panes' shown apps with a `TaskMoved`
   journal entry each. *Overturned by the review round below:* the read-back refused a choice that

@@ -72,6 +72,9 @@ interface DenzaActions {
     val onToggleSplitScreen: (Boolean) -> Unit
     val onLaunchSplitScreen: () -> Unit
 
+    /** «Пилюля»: the disc on the divider and the pairs it opens into, shown or not. */
+    val onSetSplitPillEnabled: (Boolean) -> Unit
+
     // «Погода»
     val onSetWeatherEnabled: (Boolean) -> Unit
 
@@ -169,6 +172,7 @@ open class IdleActions : DenzaActions {
     override val onSearchClusterDisplays: () -> Unit = {}
     override val onToggleSplitScreen: (Boolean) -> Unit = {}
     override val onLaunchSplitScreen: () -> Unit = {}
+    override val onSetSplitPillEnabled: (Boolean) -> Unit = {}
     override val onSetWeatherEnabled: (Boolean) -> Unit = {}
     override val onToggleHudGuidance: (Boolean) -> Unit = {}
     override val onSetHudMapEnabled: (Boolean) -> Unit = {}

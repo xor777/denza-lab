@@ -151,6 +151,11 @@ data class DenzaUiState(
         status = FeatureStatus.READY,
     ),
     val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
+    /**
+     * «Пилюля», the split panel's second switch ([SplitScreenSettings]): the stored
+     * wish, kept whatever the split's own switch does; the panel greys it with that one off.
+     */
+    val splitPillEnabled: Boolean = true,
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
     /**
      * «Карта на проекции», the HUD panel's second switch: the stored wish, kept whatever the hints
@@ -514,6 +519,7 @@ object DenzaAppRepository {
                 launcherVisible = SplitLauncherIconController.isVisible(context),
                 session = SplitScreenCoordinator.snapshot(),
             ),
+            pillEnabled = SplitScreenSettings.isPillEnabled(context),
         )
         StateSlice.HUD_GUIDANCE -> HudGuidanceReading(
             snapshot = evaluateHudGuidance(context),
@@ -779,6 +785,17 @@ object DenzaAppRepository {
     fun setSplitScreenEnabled(enabled: Boolean) {
         val context = appContext ?: return
         applySplitScreenToggle(context, enabled)
+    }
+
+    /**
+     * «Пилюля»: stored here, read by the pill's host as it changes (it runs in this
+     * process, in the split's accessibility service). Nothing is written to the car, so it works
+     * with the control channel down too.
+     */
+    fun setSplitPillEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        SplitScreenSettings.setPillEnabled(context, enabled)
+        invalidate(StateSlice.SPLIT_SCREEN, "split pill switch")
     }
 
     /** The toggle's one path: launcher icon, runtime and firmware signals together. */

@@ -35,6 +35,31 @@ class SplitPillModelTest {
         assertNull("no divider", SplitPillModel.describe(full, live, null, CATALOGUE))
     }
 
+    /**
+     * «Пилюля» off (1.15.14): every scene that has a pill with the switch on has none - the handle
+     * over a full pair (which the dock button's open request would open), the repair row of an
+     * emptied pane, both panes empty, the survivor of a collapse - at either detent.
+     */
+    @Test
+    fun theSwitchOffDescribesNothingWhereOnWouldShowSomething() {
+        val memory = SplitMemory(last = SplitPair(NAV, MUSIC), pinned = listOf(SplitPair(WAZE, RADIO)))
+        val empty = mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.Picker)
+        val scenes = mapOf(
+            "handle over a full pair" to (state(NAV, MUSIC, memory) to live(NAV, MUSIC)),
+            "an emptied pane" to (state(NAV, MUSIC, memory) to live(null, MUSIC)),
+            "a choice owed" to (state(WAZE, RADIO, memory).copy(owed = setOf(SplitPane.PRIMARY)) to live(null, RADIO)),
+            "both panes empty" to (state(null, null, memory).copy(slots = empty) to live(null, null)),
+            "after a collapse" to (state(null, MUSIC, memory) to live(null, MUSIC)),
+        )
+        scenes.forEach { (name, scene) ->
+            val (s, l) = scene
+            listOf(NARROW_LEFT, WIDE_LEFT).forEach { divider ->
+                assertNotNull("$name has a pill with the switch on", SplitPillModel.describe(s, l, divider, CATALOGUE, pillEnabled = true))
+                assertNull("$name has none with it off", SplitPillModel.describe(s, l, divider, CATALOGUE, pillEnabled = false))
+            }
+        }
+    }
+
     @Test
     fun thePairOnScreenIsTheOnlyChipOfAnEmptyMemory() {
         val d = describe(state(NAV, MUSIC), live(NAV, MUSIC))

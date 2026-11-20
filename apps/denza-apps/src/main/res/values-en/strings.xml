@@ -249,6 +249,8 @@
     <string name="sheet_mirrors_enhance">Image enhancement</string>
     <string name="sheet_split_help">When on, a split screen icon appears on the home screen. It opens a choice of two apps to place side by side.</string>
     <string name="sheet_split_icon">Icon on the home screen</string>
+    <string name="sheet_split_pill">Pill</string>
+    <string name="sheet_split_pill_summary">Your saved app pairs — a disc between the panes</string>
     <string name="sheet_weather_help">The app fetches the forecast and hands it to the stock weather widget. It draws no weather of its own, and the widget stays stock.</string>
     <string name="sheet_weather_widget_data">Data for the widget</string>
     <string name="sheet_weather_given">Sent to the widget %1$s</string>

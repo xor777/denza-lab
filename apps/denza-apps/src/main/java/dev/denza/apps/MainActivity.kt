@@ -118,6 +118,8 @@ internal object AppActions : DenzaActions {
     override val onToggleSplitScreen: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setSplitScreenEnabled(enabled) }
     override val onLaunchSplitScreen: () -> Unit = { DenzaAppRepository.launchSplitScreen() }
+    override val onSetSplitPillEnabled: (Boolean) -> Unit =
+        { enabled -> DenzaAppRepository.setSplitPillEnabled(enabled) }
 
     override val onSetWeatherEnabled: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.weather.setEnabled(enabled) }

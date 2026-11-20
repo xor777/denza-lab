@@ -470,16 +470,32 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
     )
 }
 
-/** One launcher icon, present or absent. There is nothing else to set. */
+/**
+ * The launcher icon, present or absent, and the pill on the divider standing on it ([SplitPanel]):
+ * one plate, as the HUD panel's switches are.
+ */
 @Composable
 private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    DenzaSwitchRow(
-        title = AppText.s(R.string.sheet_split_icon),
-        checked = state.splitScreen.desiredEnabled,
-        onCheckedChange = actions.onToggleSplitScreen,
-        enabled = !busy,
-    )
+    DenzaChoiceGroup(splitPanelOf(state, busy)) { row ->
+        DenzaSwitchLine(
+            title = row.title,
+            checked = row.checked,
+            onCheckedChange = when (row.id) {
+                SplitPanelRow.Id.ICON -> actions.onToggleSplitScreen
+                SplitPanelRow.Id.PILL -> actions.onSetSplitPillEnabled
+            },
+            summary = row.summary,
+            enabled = row.enabled,
+        )
+    }
 }
+
+/** The split panel for [state]: the feature's switch and the pill's. */
+internal fun splitPanelOf(state: DenzaUiState, busy: Boolean): List<SplitPanelRow> = SplitPanel.of(
+    icon = state.splitScreen.desiredEnabled,
+    pill = state.splitPillEnabled,
+    busy = busy,
+)
 
 /**
  * The glass as it looks during a route, then one switch for each part of it ([HudPanel]).

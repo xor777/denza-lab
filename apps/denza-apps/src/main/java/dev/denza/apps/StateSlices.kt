@@ -150,10 +150,16 @@ internal data class NavigationReading(
     )
 }
 
-internal data class SplitScreenReading(val snapshot: FeatureSnapshot) : SliceReading {
+internal data class SplitScreenReading(
+    val snapshot: FeatureSnapshot,
+    val pillEnabled: Boolean = true,
+) : SliceReading {
     override val slice get() = StateSlice.SPLIT_SCREEN
 
-    override fun applyTo(state: DenzaUiState) = state.copy(splitScreen = snapshot)
+    override fun applyTo(state: DenzaUiState) = state.copy(
+        splitScreen = snapshot,
+        splitPillEnabled = pillEnabled,
+    )
 }
 
 internal data class HudGuidanceReading(

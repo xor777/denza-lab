@@ -17,6 +17,7 @@ import dev.denza.apps.feature.split.SplitPane
 import dev.denza.apps.feature.split.SplitPickerCatalog
 import dev.denza.apps.feature.split.SplitPillOpenRequest
 import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.split.SplitScreenSettings
 import dev.denza.apps.feature.split.SplitSettled
 import dev.denza.apps.feature.split.SplitState
 import java.util.concurrent.Executors
@@ -69,6 +70,10 @@ internal class SplitPillHost(private val service: AccessibilityService) : SplitP
     private var dividerX: Double? = null
     private var catalogue: List<String> = emptyList()
 
+    /** «Пилюля» (1.15.14): off, the model describes nothing, as with [withdrawn]. */
+    private var pillEnabled = true
+    private var unobservePill: (() -> Unit)? = null
+
     @Volatile
     private var ownWindowId = -1
     private var stopped = false
@@ -79,12 +84,16 @@ internal class SplitPillHost(private val service: AccessibilityService) : SplitP
     private var readApplied = 0L
 
     fun start() {
+        pillEnabled = SplitScreenSettings.isPillEnabled(service)
+        unobservePill = SplitScreenSettings.observePillEnabled(service) { on -> main.post { setPillEnabled(on) } }
         SplitScreenCoordinator.observeSettled(service) { settled -> main.post { accept(settled) } }
     }
 
     fun stop() {
         stopped = true
         SplitScreenCoordinator.observeSettled(service, null)
+        unobservePill?.invoke()
+        unobservePill = null
         main.removeCallbacksAndMessages(null)
         io.shutdownNow()
         windowReader.shutdownNow()
@@ -103,10 +112,19 @@ internal class SplitPillHost(private val service: AccessibilityService) : SplitP
         live = settled.live
         withdrawn = settled.withdrawn
         settled.open?.let { request -> if (request.id > openSeen) openPending = request }
-        if (withdrawn) openPending = null
+        if (withdrawn || !pillEnabled) openPending = null
         refresh()
         requestDivider()
         loadCatalogue()
+    }
+
+    /** The switch flipped: off withdraws the pill as the toggle's off does; on brings the handle back. */
+    private fun setPillEnabled(on: Boolean) {
+        if (stopped || on == pillEnabled) return
+        pillEnabled = on
+        if (!on) openPending = null
+        refresh()
+        if (on && state != null) requestDivider()
     }
 
     /** A window change: the divider may have moved. Coalesced: one read for a frame's events. */
@@ -125,7 +143,7 @@ internal class SplitPillHost(private val service: AccessibilityService) : SplitP
         if (withdrawn) return null
         val s = state ?: return null
         val l = live ?: return null
-        return SplitPillModel.describe(s, l, dividerX, catalogue)
+        return SplitPillModel.describe(s, l, dividerX, catalogue, pillEnabled)
     }
 
     private fun refresh() {

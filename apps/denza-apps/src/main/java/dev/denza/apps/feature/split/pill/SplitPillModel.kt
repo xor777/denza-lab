@@ -93,14 +93,18 @@ internal object SplitPillModel {
      * places are counted - except the pair on screen, whose chip is always there. An empty
      * catalogue is one not read yet, and filters nothing. The model reads memory and never
      * changes it: forgetting an uninstalled app is the actor's (`PackageRemoved`).
+     *
+     * [pillEnabled] off («Пилюля», 1.15.14) is `null` for every input too: no
+     * handle, no self-opening repair row, nothing for an open request to open.
      */
     fun describe(
         state: SplitState,
         live: SplitLiveScene,
         dividerX: Double?,
         catalogue: List<String>,
+        pillEnabled: Boolean = true,
     ): SplitPillDescription? {
-        if (!state.enabled) return null
+        if (!state.enabled || !pillEnabled) return null
         if (state.scene != SplitScene.Split || state.visibility != SceneVisibility.VISIBLE) return null
         if (state.projectedPane != null) return null
         val divider = dividerX ?: return null
