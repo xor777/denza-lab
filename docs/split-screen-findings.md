@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-11-19. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-11-20. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Updated 2026-11-19. Where this journal and the normative [split-screen-product-c
 | Gate tx126 `setStartToSplit(bool)` is one global static (`mIsEnterSplit`, default `true`): while open, every split-capable start lands in split and an empty pane is filled with the remembered partner (`com.byd.sr`, the "ADAS" window); while closed, even a `START_IVI_*` start goes fullscreen | firmware | 2026-09-23 | [Placement, read end to end](#placement-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16) |
 | Placement: `startIviWindow` splits when the gate is open and either `isSupportSplit(task)` (tx125 list, blacklist, `mSecondAppList`, manifest `BYD_SUPPORT_SPLIT_ACTIVITY=1`) or the category is type 16/32. Side: `START_IVI_PRIMARY` (16) narrow, `START_IVI_SECOND` (32) wide; with no category, narrow only if the package equals `mPrimaryActivity`. Only activity starts and recents picks place a task; `am task focus` and `am stack move-task` never do | firmware | 2026-09-23 | [Placement, read end to end](#placement-read-end-to-end) |
 | tx125 `setSplitScreenPersistentApp(pkg)` appends to an in-memory list that has no remove and is cleared only by a reboot; the wide pane's app being on it gives the full divider detent map. The product lists itself once per build and every pane app always (`ensureSupported`, `SplitTaskCommands.kt`) | code | 2026-09-23 | [The divider's detent map, read](#the-dividers-detent-map-read), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16) |
-| tx118 roots: area 1 → root 2 (narrow, `[24,112][856,1472]`), 2 → root 3 (wide, `[880,112][2536,1472]`), 4 → root 4 (full IVI, holds no background tasks). The pane roots are permanent containers and never come back ≤0 | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Live-proven substrate](#live-proven-substrate-2026-08-14) |
+| tx118 roots: area 1 → root 2 (narrow, `[24,112][856,1472]`), 2 → root 3 (wide, `[880,112][2536,1472]`), 4 → root 4 (full IVI, holds no background tasks — *sharpened 2026-11-20:* a task moved into it stays there, drawn while fewer than two opaque pane containers are above it, until the next placement in a pane or Home sends it below Home, see [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)). The pane roots are permanent containers and never come back ≤0 | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Live-proven substrate](#live-proven-substrate-2026-08-14) |
 | tx30 area: 0 Home, 3 split on screen, 1 narrow survivor, 2 wide survivor, 4 an app in the full container on top. It is computed from the order of four roots, not their contents, so area 3 does not prove two populated panes | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Home, read end to end](#home-read-end-to-end) |
 | Home and the area are heard in process with no permission: `CLOSE_SYSTEM_DIALOGS` `reason=homekey` arrives 9 ms after key-up, the tx120 area push (`UnionActivityManager.registerScreenAreaInfoForMultiListener`) 0.1 s after it; `SplitFirmwareSignals.kt` registers both and `SplitCoordinatorCore.homeKeyPressed` closes our gate (`SplitGateAhead`). Live: gate closed at +16 ms, a dock launch at +393 ms went fullscreen | live | 2026-09-23 | [The three calls, live from an app UID](#the-three-calls-live-from-an-app-uid-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
@@ -42,6 +42,8 @@ Updated 2026-11-19. Where this journal and the normative [split-screen-product-c
 | A pane's choice is lost only to a departure, a collapse, another choice or a package the package manager proves absent (invariant 14, ред. 2026-11-11). A departure is two reads of the pane on the screen with no cover heard between them (`SplitCoreOperation.departureProven`, the one rule for every producer); a failed or late restore, a package that cannot be launched, a death under cover, a sleep, a process restart and «Clear all» keep the choice. A cold package is waited for inside the open's own deadline, the reserves derived from the measured trip cost (`SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS`, `COLD_DEGRADE_RESERVE_MS`); late cold panes go back to their pickers together, and a task the restore started is evicted, never removed. The automaton alone writes the pair memory, in the same commit as the slots; pins are reduced but nothing sends them yet (`SplitAutomaton.kt`, `SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11), [The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) |
 | The divider is the `multi-divider` window (`DOCK_DIVIDER`, uid 1000, `mBaseLayer` 31000, full-screen frame, `NOT_FOCUSABLE`, above the input method, below the BYD card bar); its drag is a separate spy window, `multi-divider-shadow`, that pilfers the pointer on down. Cross-window blur is on (`supports_background_blur=1`, `mBlurEnabled=true`); the display runs at 60 Hz. An accessibility overlay stands above it (`mBaseLayer` 311000) and the accessibility window list gives the divider's x (the run of a disposable on-device probe, `dev.denza.splitpill.probe`, since removed). The same run measured the rest: a touch that goes down on the handle is the overlay's to the end, touch to frame is 4–6 ms, a fixed window holds every vsync while a window resized per frame drops a tenth of them, and window blur blurs the window's rectangle rather than the capsule | live | 2026-11-19 | [The divider is a DOCK_DIVIDER window; blur is on](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) |
 | The split pill's first slice is in code, not on the car: one fixed `TYPE_ACCESSIBILITY_OVERLAY` window of the split's own accessibility service, as wide as the screen over the panes' bottom, never moved or resized; touches only inside the shape's region (the 96 × 48 target round the disc at rest); the divider read from the `SYSTEM` `multi-divider` window, else the two pane windows; a pair chosen is one operation over both panes that commits pane by pane (one placed: the other pane owed and the repair row opens; none placed: unwound), an app goes into the pane it names or nowhere, the star is a committed fact of the pair on screen; between a tap and its commit a pane being filled shows its bare picker. No edit mode, no flights, no launch placeholder | code | 2026-11-19 | [The split pill in code, first slice](#the-split-pill-in-code-first-slice-code-2026-11-19) |
+| A root below the pane containers is hidden only when both containers above it show an opaque visible app (or an opaque full-width container is above, or an opaque task above it in its own root); otherwise it is drawn and paused. `am task focus` raises one container, so the raise after an eviction (`raiseSceneOverTheEvicted`, narrow pane first) can leave `ivi_full` between the panes while the area reads 3; every placement in a pane (`startSplitWindow`) and every Home flush `ivi_full` below Home, alive. Seen on the car 2026-11-20: a displaced player drawn behind the panes, then gone | firmware | 2026-11-20 | [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) |
+| Nothing in the firmware removes or kills a displaced pane app that is not excluded from recents and was active within 6 h, and nothing firmware-side pauses a player because its window was hidden. Natively the app an occupied pane was showing stays in the pane root under the new one (wide pane) or goes below Home (the stock list in the narrow pane, a close, Home); tx117 on the pane's top app sends it below Home alive | firmware | 2026-11-20 | [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
 | "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
 | "The wide picker dies (`recent-task-trimmed`) at every fullscreen launch from Home." Not so: only the first task new to recents after a Home or a collapse arms the trim; fullscreen dock launches of running apps armed none | refuted | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it) |
@@ -49,7 +51,7 @@ Updated 2026-11-19. Where this journal and the normative [split-screen-product-c
 | "The Home→dock race cannot be won with hints; catch the dock's Home click through accessibility." Not so: the dock's Home makes no click event, while `homekey` (broadcast +3 ms, our receiver +9 ms) and the area push (+0.1 s) win the race; the accessibility Home hint was removed | refuted | 2026-09-23 | [Home, read end to end](#home-read-end-to-end), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 
 **Open questions**
-- Cold starts, none of it measured: whether a task that survives in `am stack list` with its process dead counts as cold (the open calls a package cold only when it has no task at all); in which phase a cold start stalls - the task appearing, the promote landing, or the first frame on top; whether finishing the last activity of a pane pushes area 0 or 4 for a beat, which would end the witness of a plain Back; whether a cold application evicted to the full root shows over the scene; what a trampoline task (a launcher activity that hands off to the real one) does in a pane root ([The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11)).
+- Cold starts, none of it measured: whether a task that survives in `am stack list` with its process dead counts as cold (the open calls a package cold only when it has no task at all); in which phase a cold start stalls - the task appearing, the promote landing, or the first frame on top; whether finishing the last activity of a pane pushes area 0 or 4 for a beat, which would end the witness of a plain Back; whether a cold application evicted to the full root shows over the scene (*answered in part 2026-11-20, firmware:* any task in root 4 is drawn while fewer than two opaque pane containers are above it, and the raise after an eviction lifts only one, see [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)); what a trampoline task (a launcher activity that hands off to the real one) does in a pane root ([The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11)).
 - Which branch erases the pair on the road: the two-read restore wait, a death under cover or the end of the scene. The car's `split-journal.log` after a lost pair would settle it ([Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11)).
 - Other BYD firmwares: owners report that split stopped working in 0.7.0-alpha on cars nobody here can reach. A photo of the service's «Технические сведения» split rows («Сплит прошивки», «Сигналы прошивки») would settle which lever is refused ([The split on the service page](#the-split-on-the-service-page-for-a-photo-2026-09-24)).
 - Simulcast has never had its own cross-feature acceptance pass over a live scene; a run with no split task mutations would settle it ([Product direction](#product-direction-explicit-two-picker-session)).
@@ -59,6 +61,7 @@ Updated 2026-11-19. Where this journal and the normative [split-screen-product-c
 - A long park that ends in a full power-off: whether the self-start switch and the wake recovery survive it ([The self-start switch](#the-self-start-switch-and-a-registrar-that-never-registered-live-2026-09-23)).
 - The launch mode of both Yandex apps under the 2026-08-23 `MULTIPLE_TASK` rule is still owed live ([Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22)).
 - Whether a product resize normalizes a task that became a leaf inside `ivi_full` with pane bounds (the 2026-08-27 defect) has not been measured ([Internal Activity transitions](#internal-activity-transitions)).
+- The player displaced on 2026-11-20: which moment ended its picture (the placement's flush of root 4 or both panes above it), and what stopped its playback (a death, a focus request, its own reaction). `am stack list` after the eviction's focus, `dumpsys activity exit-info <player package>`, `dumpsys audio` and the events log would settle it ([A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20), "Open, to settle on the car").
 
 ## Contents
 - [Product direction: explicit two-picker session](#product-direction-explicit-two-picker-session) — the product flow, 2026-08-16 to 08-23, and its live acceptance: progress window, edge collapse, SmartMulti persistence and package routing, the retired host, acceptance reset, leases, navigation projection.
@@ -88,7 +91,8 @@ Updated 2026-11-19. Where this journal and the normative [split-screen-product-c
 - [Where the remembered pair is lost (code, 2026-11-11)](#where-the-remembered-pair-is-lost-code-2026-11-11) — the five places a slot lost its package before the 2026-11-11 code, and what each does now.
   - [The one rule for a departure, and the cold wait's time (code, 2026-11-11)](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) — the witness and its four producers; the reserves of the open, counted from the measured trip cost.
 - [The divider is a DOCK_DIVIDER window; blur is on (car, read-only, 2026-11-19)](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) — the divider's window and its drag window, layers, touch occlusion and blur, read for the split pill's window; the probe that tests it.
-- [The split pill in code, first slice (code, 2026-11-19)](#the-split-pill-in-code-first-slice-code-2026-11-19) — the window, the divider, the three operations the pill sends, and what is not built; nothing of it run on the car yet.
+- [The split pill in code, first slice (code, 2026-11-19)](#the-split-pill-in-code-first-slice-code-2026-11-19) — the window, the divider, the three operations the pill sends, and what is not built; the «Пилюля» switch (11-20); a displaced app drawn behind the panes on the car (11-20).
+- [A displaced pane app: what the firmware does with it (firmware read, 2026-11-20)](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) — the visibility rule below the pane containers, the one-container raise and the flush of root 4, why nothing in the firmware ends the task or pauses its player, what the firmware does with an occupied pane's app, four ways to take an app out of a pane, ranked, and the checks owed on the car.
 
 ## Product direction: explicit two-picker session
 
@@ -1234,6 +1238,8 @@ Measured live on TP1A.220624.014 (`eng.build20260705.011226`), gestures only:
   move-task <id> 4 false` moves a task out of a pane, but its geometry
   stays the firmware's business - asking for a resize there is asking
   nothing of anybody (wave 9 tried; the code was removed in wave 10).
+
+  > **Superseded 2026-11-20 (in part):** root 4 is empty because the firmware flushes it below Home at every placement in a pane and at every Home; a task moved into it stays there, drawn while fewer than two opaque pane containers are above it, until that flush — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20).
 - **`am start` picks the copy when a package has two live tasks**, and not
   necessarily the newest one. A launched task can only be resolved by where
   the firmware put it, never by "the highest id of that package".
@@ -2018,6 +2024,8 @@ saw the evicted app fullscreen after a tap (the owner's incident of 2026-08-27
 is this shape). Every eviction now ends with one area read and, when the
 eviction covered the scene, raises it with the reveal's own `am task focus` on
 the top task of a pane.
+
+> **Superseded 2026-11-20 (in part):** that focus raises one pane container, not the scene: after an eviction from the wide pane `ivi_full` stays between the narrow and the wide container, the evicted app is drawn (paused) over the wide pane, and the area reads 3 all the same; "root 4 holds no background tasks" is true only until the next placement in a pane or Home flushes it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20).
 
 **"Release to close" over the hub's pane (2699d68).** The 2026-08-24 diagnosis
 stands: the detent map follows the runtime split list, and the product never
@@ -3031,7 +3039,7 @@ with the evidence the comments cited.
 | Launch: no `MULTIPLE_TASK` except for a second copy of a package the other pane holds | Acceptance v17: a restore started a fresh copy behind a splash screen and orphaned the playing one (music #44 → #66 → #81) |
 | tx125 for every pane app, tx112 after it | 2026-09-11 and 09-23: listing only when tx112 said no left manifest-capable apps outside the runtime list, with "Release to close window" in the wide pane |
 | tx125 for our own package, once per build | Until 2026-09-11 the build only asked tx112 about us, which always says yes (live 2026-08-28), so tx125 was never called; the isolating experiment dock-split-v19 showed the hub getting the reduced detent map. The corpus reading of 2026-08-28 that placement does not read the list was wrong (OTA 2026-09-23) |
-| Eviction keeps the task visible; its bounds become its root's, and the scene is raised over it | Wave 8 introduced the eviction, first named "in background". Live 2026-08-28: `move-task <id> 4 false` leaves the task `visible=true`, and a leaf inside `ivi_full` accepts a resize either way (task 151: to the pane's 832 px and back to fullscreen). 2026-08-27: `dev.denza.apps` 832 px wide in root 4 over both panes, the area at 4 and a rollback "Нативный split не активировался". The raising focus is the one acceptance v24 A1 proved with VLC and Brave over the pair for 25-60 s |
+| Eviction keeps the task visible; its bounds become its root's, and the scene is raised over it | Wave 8 introduced the eviction, first named "in background". Live 2026-08-28: `move-task <id> 4 false` leaves the task `visible=true`, and a leaf inside `ivi_full` accepts a resize either way (task 151: to the pane's 832 px and back to fullscreen). 2026-08-27: `dev.denza.apps` 832 px wide in root 4 over both panes, the area at 4 and a rollback "Нативный split не активировался". The raising focus is the one acceptance v24 A1 proved with VLC and Brave over the pair for 25-60 s. *Superseded 2026-11-20 (in part):* the focus raises one pane container, so `ivi_full` can stay between the panes with the evicted app drawn and paused while the area reads 3, until the next placement flushes root 4 below Home ([A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)) |
 | A second living task of a pane app's package is a resident, not surplus | Wave 13, acceptance v28: a tap on Yandex Music brought both t316 and t532 into the pane; wave 14, acceptance v29: evicting the second task put it over the scene; 2026-09-04: the same rule for both panes of a build, whose restore path had not passed it |
 | A package alone is no identity; our components are never "the app found" | Live v20 P1.2: a self-restore matched by package would have taken a fresh picker for the hub's task |
 | A scene read names the pane and the predicate that refused | Acceptance v17 logged "nothing of ours" on every open, and a live scene was rebuilt with nothing saying why |
@@ -3313,6 +3321,8 @@ spec); what they found and what changed, in code and unit tests only, nothing on
   gap is one launch and a promote; for a cold one it lasts until the task appears, at most the
   window above, after which the picker stays as the owed pane's. The launch placeholder of 1.15.4
   is what is meant to cover it.
+
+  > **Superseded 2026-11-20:** the pane does not show its picker in that gap when the evicted app came from the wide pane: the raise after the eviction lifts only the narrow container, so `ivi_full` stays between the panes and the evicted app is drawn, paused, over the wide pane until the launch's placement sends it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20).
 - **One app into one pane** lands in the pane it names or nowhere: a launch the firmware routes
   into the other pane is undone before the sweep could touch the neighbour (a native picker tap
   keeps the firmware's side, 1.5.3). It is resolved inside the operation, on the worker. A task of
@@ -3361,4 +3371,169 @@ spec); what they found and what changed, in code and unit tests only, nothing on
   hides the status bar only. Measured afterwards on all ten boards at the divider's gap: glass,
   sheen, rim, bead, «+», separator, badge and the divider's mark within 3 levels of the boards. The
   check, with its sample points, is in `SplitPillFixtureActivity`'s KDoc; no unit test can see it.
+- **Seen on the car (2026-11-20, build 82 plus the pill, the build 84 line).** A pair chosen on
+  the pill displaced a playing music player from the wide pane: its window stayed drawn behind
+  the panes for a while, then went, and playback stopped. The cause of the picture is read from
+  the firmware in [A displaced pane app: what the firmware does with
+  it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20); the stop of
+  playback is not established. Not fixed.
 - **Known limitations** left as they are: contract 1.17.
+
+## A displaced pane app: what the firmware does with it (firmware read, 2026-11-20)
+
+**The incident (car, 2026-11-20, the pill build).** With the navigator in the narrow pane and a
+music player playing in the wide one, the pair "navigator + Denza Apps" chosen on the pill put the
+hub into the wide pane. The player's window stayed drawn full-screen behind the panes (round their
+corners and under the status bar) and looked frozen, then went; playback stopped, and the wheel's
+Play resumed it from the same position.
+
+What follows is read from the OTA corpus of this build; nothing was run. Paths: `S/` =
+`captures/split-firmware-20260923/jadx/services/sources/com/android/server/wm/`, `Dl/` =
+`captures/split-firmware-20260923/jadx/dilink-services/sources/com/android/server/`. `bc` is the
+bytecode of `TaskFragment.getVisibility`, whose jadx is marked "decompiled incorrectly"; it is saved
+with the command that made it as
+`captures/split-firmware-20260923/bytecode/TaskFragment.getVisibility.dexdump.txt`, and the offsets
+below are its code units. The product's side: `SplitSceneBuilder.buildScene` evicts a pane's shown
+app with `evictToFullRoot` (`am stack move-task <id> <root 4> false`, a resize to the root's
+bounds, then `raiseSceneOverTheEvicted`) before it launches the chosen app
+(`SplitSceneBuilder.kt`, the eviction precedes `launchApps`).
+
+### Is a task below the pane containers drawn?
+
+- The BYD branch of `getVisibility` (bc 0x0146-0x0254), for another root in mode 105 above:
+  - a dual container with pane bounds and an opaque visible app only records "opaque primary" or
+    "opaque secondary", and the walk goes on as if it were translucent (0x01f8-0x0219, 0x024f);
+  - the root below becomes invisible when both were recorded (0x021b-0x0220), when an opaque dual
+    root with full-width bounds is above (0x01de-0x01f2), or when an opaque task stands above it in
+    its own root (0x01a7-0x01c5);
+  - a plain mode-105 root that is not a container hides nothing (0x0185-0x0198).
+- "Opaque" needs a visible activity, `(visibleIgnoringKeyguard || r == starting) &&
+  occludesParent` (`S/TaskFragment.java:597-601`), so a pane whose app is not visible yet counts as
+  translucent. `ivi_full` is full width (`S/BydSmartMultiIviController.java:331`,
+  `S/BydSmartWmConfig.java:448-450`).
+- Visible behind a translucent root means drawn but not resumable (`S/TaskFragment.java:1420-1422`,
+  `S/ActivityRecord.java:5226-5228`), and `pauseBackTasks` pauses its resumed activity
+  (`S/TaskDisplayArea.java:1149-1160`). That is the frozen picture: the app's last frame, the app
+  paused. Below Home (opaque, full screen) a task is invisible and is stopped (bc 0x00ff → 0x02a5 →
+  0x034b → 0x036c).
+
+### What our raise does, and when root 4 empties
+
+- `am task focus` raises one root: `setFocusedTask` → `moveFocusableActivityToTop` →
+  `Task.moveToFront` → `moveToFrontInner`, which puts the task at the top of its parent and the
+  parent at the top of the display area (`S/ActivityTaskManagerService.java:1662-1676`,
+  `S/ActivityRecord.java:2968-2996`, `S/Task.java:4631-4656`). The BYD `moveToFrontHook()` is empty
+  (`S/Task.java:6399-6401`) and the containers are not linked as adjacent, so the other pane
+  container stays where it was.
+- `raiseSceneOverTheEvicted` focuses the top task of the first pane it finds, PRIMARY first
+  (`SplitTaskCommands.kt`, `SplitPickerModel.kt`). After an eviction from the wide pane the order is
+  narrow container, `ivi_full`, wide container: the evicted app is drawn over the wide pane and
+  round the narrow one, paused. The area reads 3 all the same, because only the highest pane index
+  is compared with the full root's (`S/BydSmartMultiIviController.java:981-986`), so the raise's
+  wait for an area other than 4 cannot see it.
+- `ivi_full` is emptied by every placement of an app in a pane: `startSplitWindow` ends with
+  `mFullIviContainer.removeAllChild(false, true, false)` (`S/BydSmartMultiIviController.java:585`;
+  the Huawei variant at 640), and also when Home draws (778-782) and at every Home
+  (`removeIviStack`, 2055-2058). `removeAllChild(false, …)` reparents each child to the bottom of
+  the display area, below Home, alive (`S/BydSmartMultiContainer.java:393-420`). So "root 4 holds
+  no background tasks" holds only until a task is moved into it: it stays there, drawn while fewer
+  than two opaque pane containers are above it, until the next placement or Home sends it below
+  Home.
+- Read together (inferred, not run): the evicted player was drawn and paused from the raise until
+  the chosen app's placement, or until both panes were opaque above it, and went when the placement
+  flushed root 4 below Home. Which of the two ended the picture is not known.
+
+### Nothing in the firmware ends such a task
+
+| Candidate | Fits? | Trace in the log |
+|---|---|---|
+| BYD container exits (Home, a placement, a close, the end of an animation) | No: all of them reparent the task below Home alive — `removeAllChild(false, …)`, `removeChild(t, false)`, `isMovingToBack` → `DisplayContent.onWindowAnimationFinishedHook` (`S/DisplayContent.java:3702-3712`). The killing `removeIfPossible` (`S/BydSmartMultiContainer.java:355,405,445,483`) needs `forceRemove=true` and no caller passes it; no `BydSmart*` class calls a force-stop, a kill or `removeTask` | `D BydSmartMultiController removeRootTaskChildForMulti`; no `wm_task_removed` |
+| Recents trim (`recent-task-trimmed`, no kill, the app's `onTaskRemoved`) | No: below Home the task can be trimmed and any task new to recents arms a pass (our `DenzaLauncherActivity` too), but a task not excluded from recents stays in range while among the five newest or active within 6 h ([Why the wide picker dies](#why-the-wide-picker-dies-and-who-kills-it)). It would fit only if the player's base intent carried `FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS`; our launch flags `0x10200000` do not | `wm_destroy_activity … recent-task-trimmed` |
+| BydRecents swipe or «Clear all» (remove, then force-stop of a non-system package) | No: needs a tap | `am_kill … stop <player package> due to from pid <recents pid>` |
+| CheckAndKill; «Disable background Apps» | No: the kill list is 49 Chinese packages; the switch only gates third-party service and provider starts | `CheckAndKillService` lines |
+| Quickboot (sleep) | Not this case | `am_kill … due to quickboot` |
+| A crash, an ANR or a low-memory kill of the player | Possible; not the firmware's doing | `dumpsys activity exit-info` (below) |
+
+### Nothing firmware-side pauses a player for a hidden window
+
+- The BYD audio and media extensions (`Dl/audio/`, `Dl/media/`) have no hook on window visibility,
+  task order or foreground. `MediaFocusControlExtImpl` converts attributes and reports focus
+  (`Dl/audio/MediaFocusControlExtImpl.java:68-100`); `MediaSessionServiceExtImpl` passes a player's
+  own PAUSED on to BYD callbacks and does not cause one
+  (`Dl/media/MediaSessionServiceExtImpl.java:160-185`); `StreamFocusControl.isFrontPackage` has no
+  caller (`Dl/audio/StreamFocusControl.java:417`); `MediaKeyHandler` reads tasks only to route keys
+  (`Dl/media/MediaKeyHandler.java:349-376`). `com.byd.mediacenter` (`IntegrationMediaCenter.apk`)
+  is not decompiled; a scan of its dex finds no task listener of its own.
+- Denza Apps requests no audio focus and pauses a player only on a wheel key, logging
+  `direct media command package=… command=pause` (`MediaResumeSessions.kt`).
+- The wheel's Play commands only a live or dormant session; with none, the press goes to the
+  firmware, whose Play falls back to the focus owner or the stock media center
+  ([No resurrection after sleep](shortcuts-automation-findings.md#no-resurrection-after-sleep-2026-10-08)).
+  The player resumed at its position, so its session existed at the press: not a force-stop,
+  unless its service restarted itself. Left open: the player's own reaction to being paused,
+  stopped, resized or moved out of a pane; a death followed by such a restart; another app's focus
+  request.
+
+### What the firmware does with the app of an occupied pane
+
+- An app started into an occupied pane goes to the top of that container, and the app it covers
+  stays in the root under it. Only a stock-list (`launcher3`) task is flagged to leave (wide pane:
+  `S/BydSmartMultiIviController.java:561-572`, `removeSplitList` 4798-4813). In the narrow pane,
+  opening the stock list itself flags the covered app (513-528), which goes below Home when the
+  animation ends. The covered app is invisible by the own-root rule (bc 0x01a7-0x01c5), stopped,
+  alive, and immune to the trim (a dual root's child is skipped). So in the wide pane, leaving the
+  displaced app in the pane root under the new one is what the firmware itself does.
+- Home moves every child of the wide container and of `ivi_full` (the narrow one keeps its tasks)
+  to the bottom of the display area, below Home: bounds and area id kept, alive, stopped
+  ([Home, read end to end](#home-read-end-to-end); `S/BydSmartMultiContainer.java:393-420`).
+
+### Ways to take an app out of a pane, ranked by the corpus
+
+1. **Start the chosen app over the shown one, with no eviction.** The firmware's own placement,
+   read end to end. Cost: a pane holds its base and two apps; Back, a caption drag down or tx117 on
+   the new app reveal the old app, not our picker (`removeChildTask` with more than one child brings
+   up `getNextTask()`, `S/BydSmartMultiIviController.java:2250-2258`,
+   `S/BydSmartMultiContainer.java:547-565`; `moveToBackIvi`, 2165-2194); the build's sweep must stop
+   calling it surplus; its Recents card stays (wide pane, area 2), as today.
+2. **tx117 `closeApplication(pkg)` while the shown app is still the pane's top.** No permission:
+   the shell's `service call activity_task 117 s16 <pkg>`, or a raw transact from the app. Our
+   picker comes to the front and the app goes below Home when the firmware's close animation ends
+   (2250-2258, `S/DisplayContent.java:3702-3712`); a task already in `ivi_full` goes below Home at
+   once (2264-2266). It is Home for one app. Cost: it takes the top-most task of the package,
+   narrow container first (`S/BydSmartMultiIviController.java:2400-2413`,
+   `S/BydSmartMultiContainer.java:721-735`), wrong for a second copy of a package; safe only while
+   that app is the top (otherwise `getNextTask()` raises the app itself); the close animation shows
+   our picker for a moment; outside the containers, though safe from the trim for 6 h of
+   inactivity.
+3. **`am task focus <the pane's picker base>`, then start the chosen app.** `moveToFrontInner`
+   lifts the base inside its root (`S/Task.java:4655`), the shown app stays under the opaque base
+   (the own-root rule), alive and immune to the trim; the new app goes over the base, and Back
+   reveals the base. Assembled from read pieces, never run. Cost: the invariant becomes "the base,
+   one visible app, and residents buried under the base"; one more round trip; the base is the
+   pane's picture until the new app draws.
+4. **Keep the eviction to root 4 and raise both panes** (one focus per pane's top). `ivi_full`
+   below two opaque panes is invisible (bc 0x01f8-0x0220) until the next placement sends it below
+   Home. Inferred from bytecode. Cost: one more round trip; the last focus decides which pane's app
+   is top-resumed; a pane whose app is not visible yet still counts as translucent.
+
+Not usable: `moveTaskToBack` needs the app's own token (`S/ActivityClientController.java:324-340`;
+its BYD hook `moveToBackIvi` would do the right thing); `move-task` into the Home root is refused
+(`S/ActivityTaskManagerService.java:2253-2254`); `am stack remove` / `removeTask` kills the process
+once it is in the background (`S/ActivityTaskManagerService.java:1685-1712`).
+
+### Open, to settle on the car
+
+Parked, with a player playing in the wide pane and a pair chosen on the pill:
+
+- The order of roots 2, 3 and 4 right after the eviction's focus: `am stack list`.
+- The player's lifecycle around the choice: `logcat -b events | grep -E
+  'wm_on_(paused|stop|resume)_called|wm_task_removed|am_kill|am_proc_died' | grep <player package>`,
+  and `logcat -s BydSmartMultiIviController BydSmartMultiController | grep -E 'startSplitWindow
+  targetTask|removeRootTaskChildForMulti|topWindowMode ='`.
+- Whether the player died: `dumpsys activity exit-info <player package>` (its records outlive the
+  log: reason 4 a crash, 6 an ANR, 3 low memory, 10 with subreason 21 a force-stop or 22 a removed
+  task), and `logcat -b crash`.
+- Who paused it: `dumpsys audio` (the focus stack, the focus event log, the player states),
+  `dumpsys media_session` (its state and position), the support report's «Последние нажатия».
+- Whether its task is excluded from recents: `dumpsys activity recents | grep -A8 <player
+  package>` (flag `0x00800000`).
