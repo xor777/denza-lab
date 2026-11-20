@@ -4,8 +4,9 @@ import dev.denza.hudlink.HudRadarWarning;
 
 /**
  * Whether the speed means a fine at HUD Speed's camera ahead, and how red its warning is for it
- * (docs/hud-output-architecture.md, 7.5). The owner's rule, 2026-11-02: more than the camera's
- * limit plus {@link #OVER} is a certain fine. The car's own speed from its wheels, which reads a
+ * (docs/hud-output-architecture.md, 7.5). The rule since 2026-11-20: more than the camera's
+ * limit plus {@link #OVER} is a fine (КоАП 12.9: only an excess above 20 km/h is fined); it
+ * replaced the limit plus 10 of 2026-11-02. The car's own speed from its wheels, which reads a
  * little above the true one; the owner took that over a speed the camera would agree with.
  *
  * <p>The red comes and goes over a moment, not at once, and goes only at {@link #RELEASE} over
@@ -13,12 +14,12 @@ import dev.denza.hudlink.HudRadarWarning;
  */
 final class HudSpeeding {
     /** Over the limit by more than this: a fine. */
-    static final int OVER = 10;
+    static final int OVER = 20;
     /** And at this or less over it the red goes again. */
-    static final int RELEASE = 8;
+    static final int RELEASE = 19;
     /** How fast the red comes and goes: the time to two thirds of the way. */
-    static final long RISE_MS = 350L;
-    static final long FALL_MS = 800L;
+    static final long RISE_MS = 150L;
+    static final long FALL_MS = 250L;
     /** The card's background at full red: this much of HUD Speed's red over black. */
     static final float BACKGROUND = 0.5f;
     /** Red mixed into the card's picture at full red ({@link HudTint}); the map stays as it is. */
@@ -38,8 +39,9 @@ final class HudSpeeding {
     /**
      * The red now for {@code camera} - the warning shown, null for none - and the wheels'
      * {@code kmh}, null when the car has not said or its reading went stale: no speed is no red.
-     * Another camera starts plain: the latch and the red were the previous one's, and at 69 km/h
-     * a 50 camera's red stayed on for a 60 camera the driver never went over by ten (2026-11-19).
+     * Another camera starts plain: the latch and the red were the previous one's. Under the limit
+     * plus 10 rule of the time (2026-11-19), at 69 km/h a 50 camera's red stayed on for a 60
+     * camera the driver was never more than ten over.
      */
     float update(HudRadarWarning camera, Double kmh, long now) {
         if (camera == null) {
