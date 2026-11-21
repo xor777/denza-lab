@@ -32,6 +32,22 @@ object HudHostRuntime {
      */
     fun settingsChanged(context: Context) {
         val app = context.applicationContext
+        // The installed navigator is read here and on its package's changes, never per packet.
+        HudInstalls.refresh(app)
+        apply(app)
+    }
+
+    /**
+     * A YandexHUD that knows the host came or went ([HudInstalls.refresh]): with it the module's
+     * output passes whatever «Повороты» holds and «Карта» has another default, so the host applies
+     * the panel again.
+     */
+    internal fun navigatorChanged(context: Context) {
+        Log.i(TAG, "navigator now ${HudInstalls.installed(context)}")
+        apply(context.applicationContext)
+    }
+
+    private fun apply(app: Context) {
         HudHostOutput.switchMoved()
         Handler(Looper.getMainLooper()).post { HudHostOutput.get(app).onSettingsChanged() }
     }

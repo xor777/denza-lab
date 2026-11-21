@@ -1,8 +1,16 @@
 package dev.denza.apps.feature.hud
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.PatternMatcher
 import android.util.Log
+import androidx.core.content.ContextCompat
+import dev.denza.apps.StateMarks
+import dev.denza.apps.StateSlice
+import java.util.concurrent.Executors
 import java.util.zip.ZipFile
 
 /** Which Yandex Navigator the car has, as the HUD panel tells it apart. */
@@ -18,6 +26,29 @@ enum class HudNavigatorInstall {
 
     /** YandexHUD built before the host: it writes the HUD itself and leaves no room beside it. */
     YANDEX_HUD_ALONE,
+}
+
+/**
+ * The installed navigator kept between reads ([HudInstalls.installed]): read once, then only when
+ * asked to [refresh]. [read] is the package manager's answer; plain Kotlin so a test holds the
+ * host's per-packet question to no read at all.
+ */
+internal class HudNavigatorCache<C>(private val read: (C) -> HudNavigatorInstall) {
+    @Volatile
+    private var known: HudNavigatorInstall? = null
+
+    /** What was last read, or a first read. */
+    fun current(context: C): HudNavigatorInstall = known ?: refresh(context) {}
+
+    /** Reads again; [changed] runs when the answer differs from one read before. */
+    @Synchronized
+    fun refresh(context: C, changed: () -> Unit): HudNavigatorInstall {
+        val was = known
+        val now = read(context)
+        known = now
+        if (was != null && was != now) changed()
+        return now
+    }
 }
 
 /** Which HUD Speed the car has. */
@@ -47,6 +78,69 @@ object HudInstalls {
 
     private var knownBuild: String? = null
     private var knownHost = false
+
+    private val cache = HudNavigatorCache<Context> { app -> navigator(app) }
+    private val watchLock = Any()
+    private var watching = false
+    private val reader = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "denza-hud-installs").apply { isDaemon = true }
+    }
+
+    /**
+     * Which navigator is installed, as last read: what the host's filter asks on every packet
+     * ([HudHostOutput]) and the map's default ([HudGuidanceSettings.isMapEnabled]). No package
+     * manager call but the first; it is read again on a change of Yandex's package, a switch of the
+     * panel ([HudHostRuntime.settingsChanged]) and every reading of the panel's slice ([refresh]).
+     */
+    fun installed(context: Context): HudNavigatorInstall {
+        val app = context.applicationContext
+        watch(app)
+        return cache.current(app)
+    }
+
+    /**
+     * Reads the navigator again and keeps it for [installed]. When it changed, the host applies the
+     * panel again at once: a YandexHUD installed or removed changes what it lets through.
+     */
+    fun refresh(context: Context): HudNavigatorInstall {
+        val app = context.applicationContext
+        watch(app)
+        return cache.refresh(app) { HudHostRuntime.navigatorChanged(app) }
+    }
+
+    /**
+     * Yandex's package installed, replaced or removed, for as long as the process lives: the host
+     * learns it here, not from the dashboard, which may not be open. Read off the main thread - a
+     * new build's manifest is read once - and the panel's slice is marked to be read again.
+     */
+    private fun watch(app: Context) {
+        synchronized(watchLock) {
+            if (watching) return
+            watching = true
+        }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.data?.schemeSpecificPart != HudGuidanceSettings.NAVIGATOR_PACKAGE) return
+                reader.execute {
+                    refresh(app)
+                    StateMarks.mark(StateSlice.HUD_GUIDANCE, "navigator package changed")
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            app,
+            receiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addAction(Intent.ACTION_PACKAGE_CHANGED)
+                addDataScheme("package")
+                addDataSchemeSpecificPart(HudGuidanceSettings.NAVIGATOR_PACKAGE, PatternMatcher.PATTERN_LITERAL)
+            },
+            ContextCompat.RECEIVER_EXPORTED,
+        )
+    }
 
     fun navigator(context: Context): HudNavigatorInstall {
         val info = try {
