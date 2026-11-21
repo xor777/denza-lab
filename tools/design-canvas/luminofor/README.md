@@ -80,7 +80,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | boards | |
 | --- | --- |
 | `cluster-city`, `-launch`, `-regen`, `-hot` | the panel on the move: out, hard out with a run cut at 60, back with a run cut at −20, a hot inverter |
-| `cluster-engine`, `-engine-kickdown`, `-engine-stopped`, `-engine-gone`, `-engine-parked` | the engine's block at five moments of two recorded drives (energy contract §2.5, numbers held by `VehicleLogReplayTest`): charging on the move, a kickdown fifteen seconds into the run, four seconds after the stop with the corner empty, past the hold with «ЗАРЯД ОТ ДВС» on the trip's detail line, forced charge in P on the 25 kW ceiling |
+| `cluster-engine`, `-engine-kickdown`, `-engine-stopped`, `-engine-gone`, `-engine-parked`, `-engine-resumed` | the engine's block at six moments of two recorded drives (energy contract §2.5 and §6, numbers held by `VehicleLogReplayTest`): charging on the move, a kickdown fifteen seconds into the run, four seconds after the stop with the corner empty, past the hold with «ЗАРЯД ОТ ДВС» on the trip's detail line, forced charge in P on the 25 kW ceiling, and (constructed, since 2026-11-21) the 2026-09-24 drive replayed as one trip: three runs, two seams, the trip's figure and time |
 | `cluster-park`, `-charging` | on P: the trip's detail line; the countdown in the figure's place |
 | `cluster-spread`, `-filling`, `-unavailable` | the cells drifting apart; 37 points under «за 3,7 км»; no access |
 | `cluster-stale`, `-waking` | the link lost - figures gone, captions and the ten kilometres kept; the first seconds, the axis alone |
@@ -271,6 +271,16 @@ one did:
   > cap, 0…50 kW or 0…25 while the window stays under 20, a point a second over two minutes.
   > «ЗАРЯД ОТ ДВС» over the chart from its left end; the run's figure in the column after it
   > (`column` 128 since 2026-11-19, 136 before), the run's time under it. A younger run grows from the right at the full pitch.
+  >
+  > **Superseded 2026-11-21:** «the run's figure», «the run's time». Inside a trip the block is the
+  > trip's engine: the figure and time are the trip's «ЗАРЯД ОТ ДВС» and engine time, and the chart
+  > is the engine's last two minutes of running across its pauses. A pause is a seam, not a word:
+  > the curve and its field cut `pauseGap` (5) wide, centred between the two points, and the zero's
+  > hairline (`baseStroke`) at `pauseIntensity` (0.5) from the zero up to the cap - grey, inside the
+  > box, full height, where the ceiling's tick is blue, outside the box and three units tall. The
+  > stretch after a seam rises from zero (its smoothing starts over). Only `cluster-engine-resumed`
+  > draws one, and it is constructed (energy contract §6). With no trip open the block is still
+  > the standing run's.
 - every chart, on both screens, is one monotone cubic through its points (Fritsch-Carlson, since
   2026-11-19, `monotoneCurve()` here and `MonotoneCurve` in the app): it passes through every point
   and never leaves the band of two neighbours, so a flat run stays flat and a curve does not cross

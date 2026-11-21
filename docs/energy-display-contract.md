@@ -282,10 +282,23 @@ it (`ContourValue.ledger`). Seat order on P: the road «42 км» at the edge, t
 «ЗАРЯД ОТ ДВС», then «● РЕКУПЕРАЦИЯ» at the far end, packed from the edge.
 
 **The engine's charge is what the pack took while the engine ran** (since
-2026-11-19), the same integral as the engine block's figure (§2.5). It counts
+2026-11-19). It counts
 regeneration during an engine run too: braking with the engine turning puts
 energy into the pack, and the pack cannot tell the two apart. Recuperation is
-counted with the engine off only, so nothing is counted twice.
+counted with the engine off only, so nothing is counted twice. **While a trip is
+open it is the engine block's figure** (since 2026-11-21): the block reads this
+number off the ledger, and the trip's engine seconds for its time (§2.5), so the
+two places print one figure. On the detail line it is printed as the block prints
+it - a tenth, whole from ten kilowatt-hours (`ContourFigures.engineSeat`); until
+2026-11-21 the line kept its tenth past ten and the block did not.
+
+> **Superseded 2026-11-21:** this paragraph called it «the same integral as the
+> engine block's figure». The block counted one run with its own integral; since
+> 2026-11-21 it has no integral of its own while a trip is open.
+
+**A trip is open** from the first movement after P until the next P
+(`TripEnergy.open`, the ledger's own `armed` turned round; never journalled). In P
+after a trip the trip is `opened` - finished, on the shelf - and not open.
 
 > **Superseded 2026-11-19:** the engine's share was `∫G dt` while it ran, under
 > «ДАЛ ДВС». `G` reads zero on the move while the engine charges the pack, so the
@@ -358,54 +371,109 @@ pack's charge, `max(0, −P)`, while the flag is up - moving or standing - and n
 `G`. Regeneration during an engine run is inside it, as in the trip's figure
 (§2.4); the screens say nothing about that.
 
-- **A run** starts when the flag goes up and ends when it reads down; a flag
-  that did not answer neither ends nor counts toward one - not in its figure,
-  its time or its chart (until 2026-11-19 such a sweep still went into the
-  chart's second). A run that starts again within ten seconds of its stop is the
-  same run. It carries the energy it put into the pack and the seconds the engine
-  ran, integrated sweep by sweep on the ledger's own intervals (`EngineCharge`),
-  with the trip's formula: the block's figure and the trip's «ЗАРЯД ОТ ДВС» are
-  the same integral **wherever their intervals overlap**, which is an open trip
-  with the engine running. They are not one figure: the block counts every
-  interval of its run, in P too - forced generation standing after a finished
-  trip goes into the block - while the trip integrates nothing in P, so the
-  finished trip stays the finished trip. A run longer than the trip, or one that
-  started before it, differs from it the same way.
+- **Whose engine** (since 2026-11-21). **While a trip is open** (§2.4) the block
+  is the trip's engine: its figure is the trip's «ЗАРЯД ОТ ДВС» and its time the
+  engine's seconds in this trip, both read off the ledger's `TripEnergy` that the
+  sweep step hands the block after the same sweep (`EngineCharge`,
+  `VehicleAnsweredSweep`) - one number in both places, the ledger's, with no
+  integral of the block's own beside it - and its chart is every second the
+  engine ran in this trip. **With no trip open** - standing in P after a trip, or
+  before the first one - it is the run standing there, as before: its own figure
+  and time, integrated sweep by sweep on the ledger's intervals with the trip's
+  formula, from the later of the flag going up and the trip's end.
+- **A run, a pause.** The engine runs from the flag going up to its reading down;
+  a flag that did not answer neither ends a run nor counts toward one - not in
+  its figure, its time or its chart (until 2026-11-19 such a sweep still went
+  into the chart's second). A start within ten seconds of the stop (the block's
+  own hold) is the same uninterrupted run: its off seconds are seconds of zero on
+  the chart. A start later than that is, inside a trip, **a pause**: the block
+  left with the stop after its hold, and comes back with the start showing the
+  same chart, carried on from where it stopped; the pause is cut out of the chart
+  and not drawn, and a seam stands where it was. In P with no trip it is a new
+  run, from zero.
+- **Where the block starts from zero: a new trip, and nothing else inside one.**
+  A new trip starts the figure, the time and the chart together, as it starts the
+  trip. Driving off from P with the engine running, the block's figure drops to
+  the trip's first second, «ЗА 1 с» under it, and its chart starts again at the
+  right edge; what the pack took standing in P before was not the trip's. A trip
+  that ends in P with the engine still running is finished - its «ЗАРЯД ОТ ДВС»
+  stays on its detail line, where the trip shows it once the block has left - and
+  the block becomes the run standing in P, from zero at the P, since the ledger
+  integrates nothing there. A trip that ends with the engine at rest keeps the
+  block's chart as it stopped, for the hold and the engine's cell; a start in P
+  after it is a run of its own. (`EngineChargeTripTest` holds each case.)
+- **A restart of the process** in the middle of a trip keeps the block's figure
+  and time - they are the ledger's, and `TripJournal` restores them to within its
+  ten-second checkpoint - while the chart, which lives in memory, refills from
+  the right edge with the next second the engine runs. Journalling a sample a
+  second for a two-minute picture was not worth a second file.
 
-  > **Superseded 2026-11-19:** this item said the two «are one integral». They
-  > share the formula and the intervals of an open trip; in P after a finished
-  > trip the block counts forced generation and the trip does not
-  > (`TripEnergyLedgerTest.anEngineRunningInParkIsNotThisTripsEngineEither`).
+  > **Superseded 2026-11-21:** the item this replaces said the block counts **one
+  > run**, its own integral from the flag going up, and that a run starting again
+  > more than ten seconds after its stop is a new run - figure, time and chart from
+  > zero. A hybrid cycles its engine on the move, so on the owner's drive of
+  > 2026-11-20 the block started over without a stop of the car. It also said the
+  > block and the trip's «ЗАРЯД ОТ ДВС» «are not one figure»; while a trip is open
+  > they are one now, and in P after a trip the standing run is still its own.
+  > Before that: **Superseded 2026-11-19:** the item said the two «are one
+  > integral» (`TripEnergyLedgerTest.anEngineRunningInParkIsNotThisTripsEngineEither`).
 - **The chart**: a sample a second (the mean of that second's sweeps; a second no
   sweep landed in keeps the newest reading for up to `MAX_GAP_SECONDS`), each
   drawn point the trailing mean of the last ten samples - the ten kilometres'
-  rule and constant (`ConsumptionChart.SMOOTH_STEPS`) - over the run's last two
-  minutes, a point a second. A younger run fills from the right edge at the full
-  window's pitch. Drawn by `Silhouette` in the return blue, one monotone curve
-  and its field, zero on the figures' baseline and upward only.
+  rule and constant (`ConsumptionChart.SMOOTH_STEPS`) - over the last two minutes
+  the engine ran (in this trip, or in the standing run), pauses cut out, a point a
+  second. **Each stretch between two pauses is smoothed as a run of its own: the
+  seconds before it count as zeros, so after a seam the curve rises from zero** -
+  the engine gave nothing while it rested, as it gave nothing before the first
+  run. A younger chart fills from the right edge at the full window's pitch.
+  Drawn by `Silhouette` in the return blue, one monotone curve and its field,
+  zero on the figures' baseline and upward only.
+- **The seam** (since 2026-11-21): where the engine rested, the curve and its
+  field are cut `pauseGap` (5 units, about four points) wide over the whole height,
+  and in the cut stands the zero's own hairline - `baseStroke`, ink at
+  `pauseIntensity` 0.5 - from the zero up to the cap, halfway between the last
+  point before the pause and the first after it (`ContourGeometry.chargeMarkX`,
+  `spec.json` → `cluster.engineCharge`). No words. The cut is there because the
+  two points either side can be 20 kW and 1 kW: drawn through, the curve would
+  fall off a cliff that reads as the engine dropping, not resting. It is not the
+  ceiling's tick: that is the curve's blue, three units long and outside the box;
+  the seam is grey ink, the box's height, in a dark gap. It slides with the window
+  and leaves when the seconds before it do - a seam with no point left of it is
+  not drawn. A start inside the hold has none.
 - **The scale** is 0…50 kW, or 0…25 kW while the window's highest point is under
   20 (`EngineCharge.ceilingKw`, the board computes the same); a point past it lies
   along the ceiling with the chart's tick. The engine's ordinary standing charge
   is 8 kW, a third of the lower box.
-- **The figure** is the run's kilowatt-hours, a tenth («0,4»; whole from ten,
-  where the column runs out), at the chart's right end on the figures' baseline,
-  with the run's time under it: «ЗА 2:52». The caption «ЗАРЯД ОТ ДВС» stands over
-  the chart from its left edge. **Superseded 2026-11-19:** the run's time is
-  `AppDuration`'s, «ЗА 41 с», «ЗА 2 мин», «ЗА 1 ч 05 мин», and keeps counting; the
-  clock it was stopped at «9:59» while the kilowatt-hours over it went on growing.
+- **The figure** is the trip's «ЗАРЯД ОТ ДВС» (with no trip, the standing run's
+  kilowatt-hours), a tenth («0,4»; whole from ten, where the column runs out - and
+  on the trip's detail line the same way since 2026-11-21), at the chart's right
+  end on the figures' baseline, with the engine's time in this trip (or the
+  standing run's) under it: «ЗА 2 мин». A trip carried over from 0.7.1, whose
+  engine charge is unknown (§2.4), prints no figure here either. The caption
+  «ЗАРЯД ОТ ДВС» stands over the chart from its left edge. **Superseded
+  2026-11-19:** the time is `AppDuration`'s, «ЗА 41 с», «ЗА 2 мин», «ЗА 1 ч 05
+  мин», and keeps counting; the clock it was stopped at «9:59» while the
+  kilowatt-hours over it went on growing. **Superseded 2026-11-21:** the figure
+  and the time were the run's own.
 - **Lifetime**: on the cluster while the engine runs, moving and parked, with or
   without a charge (a hard pull draws a line on zero and «0,0»); it holds ten
   seconds after the flag drops - hysteresis against a dropped read - and then
-  leaves, the trip comes back with «ЗАРЯД ОТ ДВС 0,4 кВт·ч» on its detail line.
+  leaves, the trip comes back with «ЗАРЯД ОТ ДВС 0,4 кВт·ч» on its detail line -
+  on the move the figure the block was printing (since 2026-11-21). The next start
+  inside the trip brings the block back with its chart and a seam.
   A link gone quiet takes it on the packet's age, like every reading. The ten
   seconds are the run's, not the view's (since 2026-11-19): a Contour opened
   inside them takes the stop from the model (`EngineChargeSnapshot.stoppedSeconds`)
   and keeps the block for what is left; until then a reopened panel dropped it.
 - **The engine's cell** beside it: «ДВС» over «1650 об/мин» while the engine
-  runs, empty through the ten-second hold - the block's figure and time are the
-  run's, and the trip's minutes beside them would be a second answer - and «ДВС ЗА
-  ПОЕЗДКУ» over «6 мин» after it, for two minutes after a stop
-  (`EngineChargeSnapshot.stoppedRecently`). The unit stands beside the figure and
+  runs, empty through the ten-second hold - on the move the block's time is the
+  trip's engine time already and the cell would say it twice, in P it is the
+  standing run's and the trip's minutes beside it would be a second answer - and
+  «ДВС ЗА ПОЕЗДКУ» over «6 мин» after it, for two minutes after a stop
+  (`EngineChargeSnapshot.stoppedRecently`). **The minutes are whole minutes run**,
+  as the block's «ЗА 2 мин» counts them (since 2026-11-21; until then the cell
+  rounded, and 172 seconds read «ЗА 2 мин» under the block and «3 мин» in the cell
+  the moment the block left). The unit stands beside the figure and
   leaves with it; the car page writes the same name in sentence case («ДВС», «ДВС
   за поездку»). One rule on both screens (`EnergyReadouts.readEngineCell`). Until
   2026-11-19 the cluster's caption carried the unit, «ДВС · об/мин» and «ДВС · мин
@@ -565,8 +633,8 @@ answer one reading of P. Like any new claim it ends a backoff it finds.
 | the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «Расход 16,9 кВт·ч/100 км · за 10 км» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
 | the pack's volts | «НАПРЯЖЕНИЕ» over «412 В»; car page «Напряжение» + «В» | «БАТАРЕЯ · В» (until 2026-11-19), a unit in a caption |
 | the trip | «ЗА ПОЕЗДКУ» over «9,3 кВт·ч», under it «42 км» · «ЗАРЯД ОТ ДВС 0,8 кВт·ч» · «● РЕКУПЕРАЦИЯ 3,1 кВт·ч»; car page «42 км · за поездку» | a zero, a caption over nothing, «ДАЛ ДВС» (until 2026-11-19), «42 км · ЗА ПОЕЗДКУ» and «0,8 кВт·ч ЗАРЯД ОТ ДВС» (until 2026-11-19) |
-| the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2 мин» (a clock, «ЗА 2:52», until 2026-11-19); car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes |
-| the engine, stopped | an empty corner for the block's ten seconds, then «ДВС ЗА ПОЕЗДКУ» over «6 мин»; car page «ДВС за поездку» + «мин» | a block of zeros after its hold, «ДВС · мин за поездку» (until 2026-11-19) |
+| the engine, live | «ДВС» over «1650 об/мин»; block «ЗАРЯД ОТ ДВС» over its chart, «0,4 кВт·ч» over «ЗА 2 мин» - the trip's, while a trip is open (since 2026-11-21; the run's until then; a clock, «ЗА 2:52», until 2026-11-19), a seam where the engine rested; car page «ДВС» + rpm | a dot on the block, «ГЕНЕРАЦИЯ», «ОБОРОТЫ», «ДВС ДАЁТ» (until 2026-11-19), «ДВС · об/мин» (until 2026-11-19), a note on what the charge includes, a word at a pause, a chart that starts over inside a trip (until 2026-11-21) |
+| the engine, stopped | an empty corner for the block's ten seconds, then «ДВС ЗА ПОЕЗДКУ» over «6 мин», whole minutes run (rounded until 2026-11-21); car page «ДВС за поездку» + «мин» | a block of zeros after its hold, «ДВС · мин за поездку» (until 2026-11-19), a cell one minute off the block's time |
 | charging, the countdown | «2 ч 15 мин до полной», «45 мин до полной», «12 ч 30 мин до полной»: `AppDuration`'s figure-unit pairs (since 2026-11-19) | a day count, a clock - «2:15» (until 2026-11-19) |
 | the car page, closed | «Данные машины» over the state - «Нет доступа», «Нет связи», «Нет ответа» (2026-11-19; until then «Питание от машины» over the instruction) | a row of empty captions, an instruction, a «·» |
 
@@ -638,7 +706,8 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   third seat; the chart does not leave - ten kilometres of road are still ten
   kilometres of road when the car stops;
 - **engine running**: the cluster's block replaces the trip's cells while the
-  flag is up and for ten seconds after, moving or parked (§2.5); the car page's
+  flag is up and for ten seconds after, moving or parked (§2.5) - inside a trip
+  the trip's engine, its chart carried across every pause; the car page's
   headline gains «ОТ ДВС» while the pack takes charge with the engine running.
   (Until 2026-11-19 the box wanted `G > 0`, which on this firmware happens only
   during forced generation in P);
@@ -701,13 +770,24 @@ debug build draws the same scenes (`LuminoforFixtureActivity`) and
 `compare.py` lays its screenshot over the board. The `cluster-launch` and
 `cluster-regen` scenes each carry a run past a ceiling, so the tick is on a
 board; `cluster-filling` is thirty-seven points under «за 3,7 км». The engine's
-block is on five boards drawn from two recorded drives, as `EngineCharge`
+block is on six boards drawn from two recorded drives, as `EngineCharge`
 replays them (`VehicleLogReplayTest` holds the numbers): `cluster-engine`
 charging on the move (2026-09-24 18:40:04, «0,2» «ЗА 41 с»), `-kickdown` at
 226 kW out fifteen seconds into the same run, `-stopped` four seconds after the
 19:25 stop with the corner empty, `-gone` past the hold with «ЗАРЯД ОТ ДВС 0,4
-кВт·ч» under the trip, and `-parked`, forced charge in P on 2026-09-18 on the lower
-ceiling.
+кВт·ч» under the trip and «2» minutes in the cell («3» until 2026-11-21), `-parked`,
+forced charge in P on 2026-09-18 on the lower ceiling, and (since 2026-11-21)
+`-resumed`, **constructed**: no recorded drive has the engine resting inside one
+trip, so the 2026-09-24 drive is replayed as one trip with its stops in P left
+out, at 19:23:09 - the first run's last minute, the 24-second run of 19:09 after a
+28-minute pause, the third run 35 seconds in after a 13-minute one: two seams,
+each stretch rising from zero after its own, «0,6» «ЗА 2 мин» the trip's.
+Before 2026-11-21 the same moment drew the third run alone, 36 points from the
+right edge, «0,2» «ЗА 35 с».
+
+> **Superseded 2026-11-21:** «on five boards». The five above are unchanged in
+> chart, figure and time: each of their runs was its trip's only one, or stood in
+> P with no trip, so the trip's figure and the run's agree on them.
 
 What follows describes the boards they replaced and stays as their record.
 `tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` were the
@@ -733,6 +813,10 @@ test.
   string and chart both screens draw: direction word, power figure and colour,
   consumption figure and colour, window caption, the hundred points, the engine
   block's figure and time. Both renderers call it and format nothing themselves.
+  The engine block's figure and time inside a trip are not a second count:
+  `EngineCharge` hands on the ledger's own `engineKwh` and `engineSeconds`, and
+  `VehicleAnsweredSweepTest` holds them equal to the trip's, exactly, after a
+  drive with two runs and a pause (since 2026-11-21).
 - **Cross-screen equality.** `EnergyReadoutsTest` runs one list of snapshots -
   electric drive, return, engine charging, engine charging lightly (inside the neutral zone), engine running and charging nothing,
   engine just stopped, engine stopped past the hold, engine ran yesterday, standing, charging, a charge the
@@ -777,7 +861,13 @@ test.
   invariant would hold over nothing (until 2026-11-19: «gave in», by `G`). A
   second test replays the two drives the engine block's boards are drawn from to
   those rows and holds each board's chart, figure, time and ceiling, and the
-  trip's detail past the hold, to what the replay prints. With no drive on the machine it is skipped,
+  trip's detail past the hold, to what the replay prints; the constructed
+  `-resumed` board replays the 2026-09-24 drive as one trip (its stops in P left
+  out) and holds the seams, and the block's figure and time to the ledger's,
+  exactly. `EngineChargeTripTest` holds each rule of §2.5 on made-up seconds: the
+  chart carried across a pause, no seam for a restart inside the hold, the seam
+  sliding out with its samples, a new trip, a trip starting or ending with the
+  engine running, no trip, a restart of the process, an unknown figure. With no drive on the machine it is skipped,
   not passed; the drives are inputs of the test task, so a new one reruns it.
 - **The boards.** `LuminoforSpecContractTest` holds every number in
   `spec.json` to `LuminoforSpec`; `StripBoardContractTest` holds the board's
@@ -804,6 +894,7 @@ test.
 | the stock zones' true edges | the grid photograph |
 | ~~what the engine box, «ДАЛ ДВС» and «ОТ ДВС» do on the move, where `GENERATION_KW` reads zero while the engine charges the pack~~ | closed 2026-11-19: the block, the trip's «ЗАРЯД ОТ ДВС» and «ОТ ДВС» read the pack's charge while the engine runs (§2.4, §2.5). Not yet seen on the car |
 | the engine block through a long run and through P/D transitions | a drive with an engine run past ten minutes, a stop in P with the engine still running, and a start-off after it |
+| the engine block across a pause inside one trip (since 2026-11-21; the boards' only picture of it, `cluster-engine-resumed`, is constructed) | a drive where the engine stops on the move and starts again in the same trip: the block leaves after ten seconds, comes back with its chart and a seam, and its figure and time equal the trip's «ЗАРЯД ОТ ДВС» and «ДВС ЗА ПОЕЗДКУ» seen while it was away |
 | the upgrade from 0.7.1 over an open trip | install over 0.7.1 within a kilometre of its last checkpoint: the trip carries on with no «ЗАРЯД ОТ ДВС» until the next trip, then the new trip's |
 | the quiet-bus backoff | the head unit left on with the car switched off: the sweeps fall to one per eight seconds after four of silence, and the first drive afterwards loses no more than that |
 | whether a firmware fails the helper's Java path while `service call` works | the resident helper on the other DiLink generations, with missing service data and with a Binder that refuses it; a full drive on the shell fallback, including an in-drive helper retry |
@@ -888,7 +979,7 @@ carries it too.
 | 7 | the odometer misses sweeps inside one 100 m bucket while speed or P answers | that bucket counts as fully measured on part of its time; both screens use it | a drive recording (`VehicleCapture`) with odometer gaps: compare `knownKm` with the time covered |
 | 8 | `POWER_KW` answers a sentinel for all or part of a trip while the odometer and P answer | the trip's kilometres are exact and its kWh is short - «0,0 кВт·ч» for a trip with no power at all | none known on this car; any drive where `POWER_KW` drops |
 | 10 | the cluster panel is switched on while the hub is blocked on a read with an 80 kW snapshot still published | the cluster shows that power for up to two more seconds after the car page has dropped it | a reader stall (helper start) with the Contour toggled on: the two screens side by side |
-| 11 | the engine flag is missing for several sweeps around a stop, then the Contour is reopened | the engine block's hold and the minutes cell can end a second apart in an open and a reopened panel; a restart inside that second may count as a new run | a stop with dropped `ENGINE_RUNNING` reads and the panel reopened inside ten seconds |
+| 11 | the engine flag is missing for several sweeps around a stop, then the Contour is reopened | the engine block's hold and the minutes cell can end a second apart in an open and a reopened panel; a restart inside that second may count as a new run in P with no trip, or as a pause with its seam inside a trip (until 2026-11-21: «a new run» in both) | a stop with dropped `ENGINE_RUNNING` reads and the panel reopened inside ten seconds |
 | 14 | `VehicleCapture` is on (host marker) and the data volume refuses the CSV header | a partial file per minute while the marker stays; nothing on screen | none; capture is a host-placed diagnostic |
 | 16 | the resident helper answers `Parcel(NULL)` or only optional ids while `service call` would answer | the hub keeps the helper and its quiet-bus backoff; the panels show no live figures | the helper on another firmware generation: does `Parcel(NULL)` occur with the primary ids |
 | 17 | `setDataCaptureListener` fails while `setEnabled(true)` succeeds | idle bars, and the effect rebuilt about every six seconds | listener registration result on the installed audio firmware |
