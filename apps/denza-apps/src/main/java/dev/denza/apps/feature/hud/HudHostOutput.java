@@ -25,10 +25,12 @@ import dev.denza.hudlink.HudSource;
  * and so do the YandexHUD module and HUD Speed from their processes, through
  * {@link HudHostService}: one writer whatever is installed.
  *
- * <p>What reaches the glass is what the HUD panel says ({@link HudGuidanceSettings}): with
- * «Повороты» off nothing of any source passes - YandexHUD stays attached and is not shown, so it
- * does not start drawing by itself either; «Карта» off holds back the module's map, «Ограничение
- * скорости» off every source's limit, «Камеры» off HUD Speed. The capture keeps its own switches.
+ * <p>What reaches the glass is what the HUD panel says ({@link HudPanelFilter}): «Повороты» off
+ * holds back the module and HUD Speed - but not with a YandexHUD that knows this host installed,
+ * whose turns nothing here switches off (2026-11-21); «Карта» off holds back the module's map,
+ * «Ограничение скорости» off every source's limit, «Камеры» off HUD Speed. The capture keeps its own
+ * switches. The installed navigator is the cached one ({@link HudInstalls#installed}): the
+ * filter is asked on every packet, the map many times a second.
  *
  * <p>The car's own sign, which only this app can write, is the composition's second output: it
  * follows the road limit's winner ({@link HudComposition#roadLimitKmh}) with or without
@@ -168,11 +170,13 @@ final class HudHostOutput {
         }
     }
 
-    /** The HUD panel's switches as they stand. */
+    /** The HUD panel's switches as they stand, over the navigator as last read. */
     private HudPanelFilter panel() {
         HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
-        return new HudPanelFilter(settings.isEnabled(context), settings.isMapEnabled(context),
-                settings.isSignEnabled(context), settings.areCamerasEnabled(context));
+        HudNavigatorInstall navigator = HudInstalls.INSTANCE.installed(context);
+        return new HudPanelFilter(settings.isEnabled(context), navigator == HudNavigatorInstall.YANDEX_HUD,
+                settings.isMapEnabled(context, navigator), settings.isSignEnabled(context),
+                settings.areCamerasEnabled(context));
     }
 
     /** What the panel lets through from {@code source} for {@code role}. */

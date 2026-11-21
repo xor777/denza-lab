@@ -32,6 +32,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.hud.HudGuidanceStatus
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -352,10 +353,17 @@ internal object SheetFixtures {
             )
         }
         if (s.has("hud")) {
+            val navigator = HudNavigatorInstall.valueOf(s.optString("navigator", "YANDEX"))
             state = state.copy(
-                hudGuidance = snapshot(FeatureId.HUD_GUIDANCE, s.getBoolean("hud"), s),
+                // `hud` is the stored switch; a YandexHUD through the host is on whatever it says,
+                // as the repository reads it (HudGuidanceStatus).
+                hudGuidance = if (navigator == HudNavigatorInstall.YANDEX_HUD) {
+                    HudGuidanceStatus.snapshot(s.getBoolean("hud"), navigator, true, true, active = false) { null }
+                } else {
+                    snapshot(FeatureId.HUD_GUIDANCE, s.getBoolean("hud"), s)
+                },
                 hudMapEnabled = s.optBoolean("map", false),
-                hudNavigator = HudNavigatorInstall.valueOf(s.optString("navigator", "YANDEX")),
+                hudNavigator = navigator,
                 hudRadar = HudRadarInstall.valueOf(s.optString("radar", "NONE")),
                 hudSignEnabled = s.optBoolean("sign", true),
                 hudCamerasEnabled = s.optBoolean("cameras", true),

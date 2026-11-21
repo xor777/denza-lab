@@ -34,6 +34,7 @@ import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudHostRuntime
+import dev.denza.apps.feature.hud.HudInstalls
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.media.MediaSessionAccess
 import dev.denza.apps.feature.hud.HudMapRuntime
@@ -309,7 +310,13 @@ object SupportDiagnostics {
         )
 
     private fun hudRows(context: Context): List<TechnicalRow> = buildList {
-        add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
+        // What the host lets through: with a YandexHUD through it, whatever the stored switch says.
+        add(
+            row(
+                "Подсказки",
+                yesNo(HudGuidanceSettings.hintsShown(HudGuidanceSettings.isEnabled(context), HudInstalls.installed(context))),
+            ),
+        )
         // Who writes the HUD: this app for ordinary Yandex, for «YandexHUD» while it is attached to
         // this app's host, and «YandexHUD» itself otherwise.
         add(

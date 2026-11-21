@@ -634,16 +634,18 @@
     { t: 'group', rows: [hudRow('Манёвры', YANDEX, true), hudRow('Карта', YANDEX, true),
       hudRow('Ограничение скорости', 'На штатном месте, из Яндекс Навигатора', true), hudRow('Камеры и опасности', 'Из HUD Speed', true)] }
   ], {});
-  // YandexHUD through this app's host: the same glass, the lines saying YandexHUD
+  // YandexHUD through this app's host, on a fresh install - «Манёвры» never switched on, «Карта»
+  // never written: the same glass, the lines saying YandexHUD. Nothing here switches its turns off
+  // (2026-11-21), so «Манёвры» is on and does not move; the rest are switches of their own.
   sheets.hudYandexHud = hudSheet([
     { t: 'glass', turn: true, sign: true, map: true, cameras: true },
-    { t: 'group', rows: [hudRow('Манёвры', YHUD, true), hudRow('Карта', YHUD, true),
+    { t: 'group', rows: [hudRow('Манёвры', YHUD, true, false), hudRow('Карта', YHUD, true),
       hudRow('Ограничение скорости', 'На штатном месте, из YandexHUD', true), hudRow('Камеры и опасности', 'Из HUD Speed', true)] }
-  ], { navigator: 'YANDEX_HUD' });
+  ], { navigator: 'YANDEX_HUD', hud: false });
   // the ordinary HUD Speed from the store: said as it is, in the car's orange, no error
   sheets.hudSpeedOfficial = hudSheet([
     { t: 'glass', turn: true, sign: true, map: true, cameras: false },
-    { t: 'group', rows: [hudRow('Манёвры', YHUD, true), hudRow('Карта', YHUD, true),
+    { t: 'group', rows: [hudRow('Манёвры', YHUD, true, false), hudRow('Карта', YHUD, true),
       hudRow('Ограничение скорости', 'На штатном месте, из YandexHUD', true),
       hudRow('Камеры и опасности', 'Этот HUD Speed показывает их только у себя на экране. Нужна сборка с адаптером', false, false, 'attention')] }
   ], { navigator: 'YANDEX_HUD', radar: 'OFFICIAL' });

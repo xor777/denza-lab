@@ -9,7 +9,9 @@ import dev.denza.apps.ui.components.DenzaTileTone
 /**
  * The HUD panel as words and a picture (docs/hud-output-architecture.md, 12): what the glass shows
  * during a route, and one row for each part of it, named the way the picture names it and saying
- * where it comes from. What is installed is said in those lines and nowhere else - an earlier draft
+ * where it comes from. With the ordinary Yandex «Манёвры» is the feature's switch and the rest stand
+ * on it; with a YandexHUD through the host it is on and does not move, as with a YandexHUD that
+ * draws by itself, and the rest are switches of their own. What is installed is said in those lines and nowhere else - an earlier draft
  * with rows called «Навигатор» and «Радар» described the plumbing, and a driver could not tell from
  * it what was on the glass.
  *
@@ -43,15 +45,20 @@ internal data class HudPanel(
                 else -> AppText.s(R.string.hud_panel_sign_from_yandexhud)
             }
             val ours = !none && !alone
+            // A YandexHUD through the host: nothing here switches its turns off (2026-11-21), so
+            // «Манёвры» is on and does not move, and the rest stand on their own.
+            val hosted = navigator == HudNavigatorInstall.YANDEX_HUD
+            val on = hosted || hints
             val turns = when {
                 none -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, AppText.s(R.string.hud_panel_turns_soon), hints, false)
                 alone -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, SELF, true, false)
+                hosted -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, from, true, false)
                 else -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, from, hints, !busy)
             }
             val mapRow = when {
                 none -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), AppText.s(R.string.hud_panel_map_soon), map, false)
                 alone -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), SELF, true, false)
-                else -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), from, map, hints && !busy)
+                else -> HudPanelRow(HudPanelRow.Id.MAP, AppText.s(R.string.hud_panel_map), from, map, on && !busy)
             }
             // A YandexHUD that draws the HUD itself leaves this app the sign alone, so there it is
             // the one switch, and turning it on turns the feature on with it.
@@ -60,7 +67,7 @@ internal data class HudPanel(
                 alone -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, signFrom, hints && sign, !busy)
                 else -> HudPanelRow(
                     HudPanelRow.Id.SIGN, SIGN_TITLE,
-                    signFrom, sign, hints && !busy,
+                    signFrom, sign, on && !busy,
                 )
             }
             val camerasRow = when {
@@ -81,14 +88,14 @@ internal data class HudPanel(
                 none -> HudPanelRow(
                     HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, AppText.s(R.string.hud_panel_cameras_during_route), cameras, false,
                 )
-                else -> HudPanelRow(HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, AppText.s(R.string.hud_panel_cameras_from), cameras, hints && !busy)
+                else -> HudPanelRow(HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, AppText.s(R.string.hud_panel_cameras_from), cameras, on && !busy)
             }
             return HudPanel(
                 glass = HudGlass(
-                    turn = alone || (ours && hints),
-                    sign = alone || (ours && hints && sign),
-                    map = alone || (ours && hints && map),
-                    cameras = ours && hints && radar == HudRadarInstall.ADAPTED && cameras,
+                    turn = alone || (ours && on),
+                    sign = alone || (ours && on && sign),
+                    map = alone || (ours && on && map),
+                    cameras = ours && on && radar == HudRadarInstall.ADAPTED && cameras,
                 ),
                 rows = listOf(turns, mapRow, signRow, camerasRow),
             )

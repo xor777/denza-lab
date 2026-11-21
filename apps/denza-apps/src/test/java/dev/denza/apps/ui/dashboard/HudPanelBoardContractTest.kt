@@ -30,13 +30,16 @@ open class HudPanelBoardContractTest {
             seen += if (panel.glass.cameras) "cameras" else "no cameras"
             seen += HudNavigatorInstall.valueOf(state["navigator"] as String)
             seen += HudRadarInstall.valueOf(state["radar"] as String)
+            if (state["navigator"] == "YANDEX_HUD" && state["hud"] == false) seen += FRESH_YANDEX_HUD
             val sheet = fixture["sheet"] as Map<*, *>
             assertEquals("$id title", say("HUD Подсказки", "HUD hints"), sheet["title"])
             assertEquals("$id subtitle", HudPanel.SUBTITLE, sheet["subtitle"])
             assertEquals("$id blocks", expected(panel), (sheet["blocks"] as List<*>).map { normal(it as Map<*, *>) })
         }
-        // Every install stands on some board, and the glass with the cameras and without.
-        val needed = HudNavigatorInstall.entries + HudRadarInstall.entries + "cameras" + "no cameras"
+        // Every install stands on some board, and the glass with the cameras and without; and
+        // YandexHUD through the host over a «Манёвры» never switched on, the fresh install whose
+        // picture the host used to take away (2026-11-21).
+        val needed = HudNavigatorInstall.entries + HudRadarInstall.entries + "cameras" + "no cameras" + FRESH_YANDEX_HUD
         assertEquals(needed.toSet(), seen.filter { it in needed }.toSet())
     }
 
@@ -58,6 +61,10 @@ open class HudPanelBoardContractTest {
                 "enabled" to (row["enabled"] ?: true), "tone" to row["tone"])
         })
         else -> block.entries.associate { (k, v) -> k as String to v }
+    }
+
+    private companion object {
+        const val FRESH_YANDEX_HUD = "YandexHUD with «Манёвры» stored off"
     }
 
     /** The panel a HUD board's `state` stands for: what [SheetFixtures] lays on the app's state. */

@@ -59,7 +59,7 @@ class HudGuidanceStatusTest {
         val watch = AccessibilityBindWatch {}
         fun at(nowMs: Long, connected: Boolean = false) = HudGuidanceStatus.snapshot(
             enabled = true,
-            navigatorInstalled = true,
+            navigator = HudNavigatorInstall.YANDEX,
             accessibility = watch.read(enabled = true, connected = connected, nowMs = nowMs),
             active = false,
         ) { "детали" }
@@ -73,5 +73,46 @@ class HudGuidanceStatusTest {
         assertEquals(FeatureResolution.RETRY, stalled.resolution)
 
         assertEquals(FeatureStatus.READY, at(40_000L, connected = true).status)
+    }
+
+    /**
+     * A fresh install with YandexHUD through the host: the switch never written, the service off.
+     * The module's path uses neither, so the tile is on - not «Выключены», «Нет доступа» or
+     * «Подключаю подсказки».
+     */
+    @Test
+    fun withYandexHudThroughTheHostTheHintsAreOnWithoutTheService() {
+        listOf(false to false, true to false, false to true).forEach { (available, connected) ->
+            val snapshot = HudGuidanceStatus.snapshot(
+                enabled = false,
+                navigator = HudNavigatorInstall.YANDEX_HUD,
+                accessibilityAvailable = available,
+                accessibilityConnected = connected,
+                active = false,
+            ) { "детали" }
+            assertEquals(FeatureStatus.READY, snapshot.status)
+            assertEquals(true, snapshot.desiredEnabled)
+            assertEquals("", snapshot.message)
+            assertNull(snapshot.resolution)
+        }
+    }
+
+    /** The ordinary Yandex is as it was: the stored switch is the feature's, the service its access. */
+    @Test
+    fun withTheOrdinaryYandexTheSwitchAndTheServiceStillDecide() {
+        fun status(enabled: Boolean, available: Boolean) = HudGuidanceStatus.snapshot(
+            enabled = enabled,
+            navigator = HudNavigatorInstall.YANDEX,
+            accessibilityAvailable = available,
+            accessibilityConnected = available,
+            active = false,
+        ) { null }
+
+        assertEquals(FeatureStatus.OFF, status(enabled = false, available = true).status)
+        assertEquals(FeatureStatus.NEEDS_ACTION, status(enabled = true, available = false).status)
+        assertEquals(
+            FeatureStatus.UNAVAILABLE,
+            HudGuidanceStatus.snapshot(true, HudNavigatorInstall.NONE, true, true, active = false) { null }.status,
+        )
     }
 }

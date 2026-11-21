@@ -521,14 +521,18 @@ object DenzaAppRepository {
             ),
             pillEnabled = SplitScreenSettings.isPillEnabled(context),
         )
-        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(
-            snapshot = evaluateHudGuidance(context),
-            mapEnabled = HudGuidanceSettings.isMapEnabled(context),
-            navigator = HudInstalls.navigator(context),
-            radar = HudInstalls.radar(context),
-            signEnabled = HudGuidanceSettings.isSignEnabled(context),
-            camerasEnabled = HudGuidanceSettings.areCamerasEnabled(context),
-        )
+        StateSlice.HUD_GUIDANCE -> {
+            // Read afresh, and kept for the host, which asks on every packet.
+            val navigator = HudInstalls.refresh(context)
+            HudGuidanceReading(
+                snapshot = evaluateHudGuidance(context, navigator),
+                mapEnabled = HudGuidanceSettings.isMapEnabled(context, navigator),
+                navigator = navigator,
+                radar = HudInstalls.radar(context),
+                signEnabled = HudGuidanceSettings.isSignEnabled(context),
+                camerasEnabled = HudGuidanceSettings.areCamerasEnabled(context),
+            )
+        }
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(
                 enabled = SpeakerCoverSettings.isEnabled(context),
@@ -891,12 +895,17 @@ object DenzaAppRepository {
     /**
      * «Ограничение скорости»: the host lets every source's limit through or none, and the car's
      * sign follows. With a YandexHUD that draws the HUD itself it is the panel's one switch, so
-     * turning it on turns the feature on too; everywhere else it is greyed while the feature is off.
+     * turning it on turns the feature on too - the sign then comes from the capture. With a
+     * YandexHUD through the host it moves alone: the module's limit leads the sign and «Повороты»
+     * stays as stored, asking for no access. Elsewhere it is greyed while the feature is off.
      */
     fun setHudSignEnabled(enabled: Boolean) {
         val context = appContext ?: return
         HudGuidanceSettings.setSignEnabled(context, enabled)
-        if (enabled && !HudGuidanceSettings.isEnabled(context)) {
+        if (
+            enabled && !HudGuidanceSettings.isEnabled(context) &&
+            HudInstalls.installed(context) != HudNavigatorInstall.YANDEX_HUD
+        ) {
             setHudGuidanceEnabled(true)
             return
         }
@@ -1366,12 +1375,10 @@ object DenzaAppRepository {
         )
     }
 
-    private fun evaluateHudGuidance(context: Context): FeatureSnapshot {
-        val enabled = HudGuidanceSettings.isEnabled(context)
+    private fun evaluateHudGuidance(context: Context, navigator: HudNavigatorInstall): FeatureSnapshot {
         return HudGuidanceStatus.snapshot(
-            enabled = enabled,
-            navigatorInstalled = enabled &&
-                isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE),
+            enabled = HudGuidanceSettings.isEnabled(context),
+            navigator = navigator,
             accessibility = AccessibilityHealth.read(context),
             active = HudGuidanceRuntime.isActive(),
             details = HudGuidanceRuntime::details,

@@ -8,9 +8,12 @@ import java.util.*;
 
 /**
  * Seeds a route only on the emulator, observes the production host's compositor and saves cards.
- * The host passes only what the HUD panel lets through (HudHostOutput.admits), and a fresh install
- * has «Повороты» off: the run turns «Повороты» and «Камеры» on and puts the driver's values back
- * after. The warning is a card in the lane window (HudRole.LANES), the only place it has.
+ * The host passes only what the HUD panel lets through (HudPanelFilter). With a YandexHUD that
+ * knows the host installed the module and HUD Speed pass whatever «Повороты» holds (2026-11-21), but
+ * this run installs no YandexHUD and seeds the module's route itself, so the stored «Повороты»
+ * decides, and a fresh install has it off: the run turns «Повороты» and «Камеры» on and puts the
+ * driver's values back after. The warning is a card in the lane window (HudRole.LANES), the only
+ * place it has.
  */
 public final class HostCheck extends Instrumentation {
     private interface Step { void run() throws Exception; }

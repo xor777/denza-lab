@@ -30,18 +30,47 @@ object HudGuidanceStatus {
      */
     fun snapshot(
         enabled: Boolean,
-        navigatorInstalled: Boolean,
+        navigator: HudNavigatorInstall,
         accessibility: AccessibilityHealth,
         active: Boolean,
         details: () -> String?,
     ): FeatureSnapshot = snapshot(
         enabled = enabled,
-        navigatorInstalled = navigatorInstalled,
+        navigator = navigator,
         accessibilityAvailable = accessibility.available,
         accessibilityConnected = accessibility.connected,
         active = active,
         details = details,
     )
+
+    /**
+     * With a YandexHUD that publishes through the host the hints are on whatever the stored switch
+     * says, and their path is the module's: its process, the host's Binder, this app's SOME/IP
+     * session and, for the car's sign, the shell. None of it is the accessibility service or the
+     * notification listener, which the capture of the ordinary Yandex reads with - with YandexHUD the
+     * capture adds only Yandex's limit read off the screen, and the module's own limit wins over it.
+     * So the tile is on and reads neither «Нет доступа» nor «Подключаю подсказки» for an access this
+     * path does not use (2026-11-21).
+     */
+    fun snapshot(
+        enabled: Boolean,
+        navigator: HudNavigatorInstall,
+        accessibilityAvailable: Boolean,
+        accessibilityConnected: Boolean,
+        active: Boolean,
+        details: () -> String?,
+    ): FeatureSnapshot = if (navigator == HudNavigatorInstall.YANDEX_HUD) {
+        FeatureReducer.ready(FeatureId.HUD_GUIDANCE, active = active).copy(details = details())
+    } else {
+        snapshot(
+            enabled = enabled,
+            navigatorInstalled = navigator != HudNavigatorInstall.NONE,
+            accessibilityAvailable = accessibilityAvailable,
+            accessibilityConnected = accessibilityConnected,
+            active = active,
+            details = details,
+        )
+    }
 
     fun snapshot(
         enabled: Boolean,

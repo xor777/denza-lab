@@ -6,6 +6,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.hud.HudGuidanceStatus
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.ui.components.DenzaTileTone
@@ -17,12 +18,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The HUD panel's rules: «Манёвры» is the feature's switch and the rest stand on it; what is
- * installed is said in the lines and lit in the picture; the tile's press moves the hints alone.
+ * The HUD panel's rules: with the ordinary Yandex «Манёвры» is the feature's switch and the rest
+ * stand on it; with YandexHUD through the host it is on and fixed; what is installed is said in the
+ * lines and lit in the picture; the tile's press moves the hints alone, or opens the panel.
  */
 class HudPanelTest {
     private val hints = mutableListOf<Boolean>()
     private val map = mutableListOf<Boolean>()
+    private val opened = mutableListOf<TileId>()
 
     private fun panel(
         navigator: HudNavigatorInstall = HudNavigatorInstall.YANDEX,
@@ -115,6 +118,57 @@ class HudPanelTest {
         assertEquals(DenzaTileTone.ATTENTION, alone.row(HudPanelRow.Id.CAMERAS).tone)
     }
 
+    /**
+     * A fresh install with YandexHUD through the host: «Манёвры» never switched on. It reads on and
+     * cannot be moved, and the rest are switches that stand on nothing.
+     */
+    @Test
+    fun withYandexHudThroughTheHostTheTurnsAreOnAndTheRestStandAlone() {
+        val fresh = panel(navigator = HudNavigatorInstall.YANDEX_HUD, hints = false)
+        val turns = fresh.row(HudPanelRow.Id.TURNS)
+
+        assertTrue(turns.checked)
+        assertFalse(turns.enabled)
+        assertEquals("Из YandexHUD", turns.summary)
+        listOf(HudPanelRow.Id.MAP, HudPanelRow.Id.SIGN, HudPanelRow.Id.CAMERAS).forEach { id ->
+            assertTrue("$id moves on its own", fresh.row(id).enabled)
+        }
+        assertEquals(HudGlass(turn = true, sign = true, map = true, cameras = true), fresh.glass)
+        assertEquals(fresh, panel(navigator = HudNavigatorInstall.YANDEX_HUD, hints = true))
+
+        val mapOff = panel(navigator = HudNavigatorInstall.YANDEX_HUD, hints = false, map = false)
+        assertFalse(mapOff.row(HudPanelRow.Id.MAP).checked)
+        assertFalse(mapOff.glass.map)
+        assertTrue(mapOff.glass.turn)
+    }
+
+    /**
+     * The tile on a fresh install with YandexHUD: on, and its press opens the panel - as every tile
+     * with nothing to switch - rather than switching the hints on or off.
+     */
+    @Test
+    fun withYandexHudTheTileIsOnAndItsPressOpensThePanel() {
+        val state = DenzaUiState(
+            hudGuidance = HudGuidanceStatus.snapshot(
+                enabled = false,
+                navigator = HudNavigatorInstall.YANDEX_HUD,
+                accessibilityAvailable = false,
+                accessibilityConnected = false,
+                active = false,
+            ) { null },
+            hudNavigator = HudNavigatorInstall.YANDEX_HUD,
+        )
+        val tile = DashboardTiles.of(state).first { it.id == TileId.HUD }
+
+        assertEquals("Включены", tile.state)
+        assertEquals(DenzaTileTone.LIVE, tile.tone)
+        assertEquals(TileAction.SETTINGS, tile.action)
+        press(state)
+        assertEquals(listOf(TileId.HUD), opened)
+        assertEquals(emptyList<Boolean>(), hints)
+        assertEquals(emptyList<Boolean>(), map)
+    }
+
     @Test
     fun theHudSliceLaysWhatIsInstalledAndTheSwitches() {
         val read = DenzaUiState().withReadings(
@@ -166,6 +220,6 @@ class HudPanelTest {
         onChooseFseApp = {},
         onOpenClusterPicker = {},
         onOpenService = {},
-        onOpenSettings = {},
+        onOpenSettings = { opened += it },
     )
 }

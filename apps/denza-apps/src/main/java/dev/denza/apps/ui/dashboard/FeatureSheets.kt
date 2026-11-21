@@ -500,10 +500,12 @@ internal fun splitPanelOf(state: DenzaUiState, busy: Boolean): List<SplitPanelRo
 /**
  * The glass as it looks during a route, then one switch for each part of it ([HudPanel]).
  *
- * «Повороты» is the feature's own switch, the one the tile's press moves: the rest stand on it and
- * grey while it is off or settling, each keeping its own value. With YandexHUD the host lets
- * through what these say and nothing else ([HudGuidanceSettings]); a YandexHUD that draws the HUD
- * itself leaves this app the car's sign alone, and its switch is the panel's one.
+ * With the ordinary Yandex «Манёвры» is the feature's own switch, the one the tile's press moves:
+ * the rest stand on it and grey while it is off or settling, each keeping its own value. With a
+ * YandexHUD through the host «Манёвры» is on and cannot be moved - nothing here switches its turns
+ * off - and the tile's press opens this panel; the host lets through what the other three say
+ * ([HudPanelFilter]). A YandexHUD that draws the HUD itself leaves this app the car's sign alone,
+ * and its switch is the panel's one.
  */
 @Composable
 private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {

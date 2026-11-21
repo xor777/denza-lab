@@ -50,10 +50,10 @@ class HudPanelFilterTest {
 
     @Test
     fun theMapOffDarkensTheWholeMapWindowTheRadarsBarsIncluded() {
-        publish(HudPanelFilter(true, true, true, true))
+        publish(HudPanelFilter(true, false, true, true, true))
         assertEquals(2, scene.compose(0).layers(HudWindow.MAP).size)
 
-        val mapOff = HudPanelFilter(true, false, true, true)
+        val mapOff = HudPanelFilter(true, false, false, true, true)
         mapOff.withdrawHeldBack(sink)
         assertTrue(scene.compose(0).layers(HudWindow.MAP).isEmpty())
 
@@ -67,17 +67,64 @@ class HudPanelFilterTest {
         assertTrue(mapOff.admits(HudSource.RADAR, HudRole.LANES))
     }
 
+    /**
+     * A fresh install with YandexHUD: «Повороты» never written reads off, and until 2026-11-21 the
+     * host then took away the picture the module had drawn by itself before the host came up.
+     */
+    @Test
+    fun yandexHudThroughTheHostPassesWhateverTheStoredTurnsSay() {
+        val fresh = HudPanelFilter(false, true, true, true, true)
+
+        assertTrue(fresh.admits(HudSource.MODULE, HudRole.MANEUVER))
+        assertTrue(fresh.admits(HudSource.MODULE, HudRole.MAP))
+        assertTrue(fresh.admits(HudSource.MODULE, HudRole.ROAD_LIMIT))
+        // HUD Speed no longer stands on the stored switch either.
+        assertTrue(fresh.camerasShown())
+        assertTrue(fresh.admits(HudSource.RADAR, HudRole.LANES))
+
+        publish(fresh)
+        fresh.withdrawHeldBack(sink)
+        val composed = scene.compose(0)
+        assertEquals(HudMode.NAVIGATION, composed.mode)
+        assertEquals(HudSource.MODULE, composed.winner(HudRole.MANEUVER))
+        assertEquals(1, composed.layers(HudWindow.MAP).filter { it.source == HudSource.MODULE }.size)
+    }
+
+    @Test
+    fun withYandexHudTheOtherSwitchesStillHoldBackTheirOwn() {
+        assertFalse(HudPanelFilter(false, true, false, true, true).admits(HudSource.MODULE, HudRole.MAP))
+        assertFalse(HudPanelFilter(false, true, false, true, true).admits(HudSource.MODULE, HudRole.MAP_MARKS))
+        assertTrue(HudPanelFilter(false, true, false, true, true).admits(HudSource.MODULE, HudRole.MANEUVER))
+        assertFalse(HudPanelFilter(false, true, true, false, true).admits(HudSource.MODULE, HudRole.ROAD_LIMIT))
+        assertFalse(HudPanelFilter(false, true, true, true, false).camerasShown())
+        assertFalse(HudPanelFilter(false, true, true, true, false).admits(HudSource.RADAR, HudRole.LANES))
+    }
+
+    /** The ordinary Yandex: «Повороты» off holds back the module's role and HUD Speed as before. */
+    @Test
+    fun withoutYandexHudTheStoredTurnsStillDecide() {
+        val off = HudPanelFilter(false, false, true, true, true)
+
+        assertFalse(off.admits(HudSource.MODULE, HudRole.MANEUVER))
+        assertFalse(off.camerasShown())
+        publish(HudPanelFilter(true, false, true, true, true))
+        off.withdrawHeldBack(sink)
+        val composed = scene.compose(0)
+        assertEquals(null, composed.winner(HudRole.MANEUVER))
+        assertTrue(composed.layers(HudWindow.MAP).isEmpty())
+    }
+
     @Test
     fun eachOtherSwitchHoldsBackWhatItAlwaysDid() {
-        val all = HudPanelFilter(true, true, true, true)
+        val all = HudPanelFilter(true, false, true, true, true)
         assertTrue(all.admits(HudSource.RADAR, HudRole.MAP_BADGE))
         assertTrue(all.admits(HudSource.MODULE, HudRole.ROAD_LIMIT))
-        assertFalse(HudPanelFilter(false, true, true, true).admits(HudSource.MODULE, HudRole.MANEUVER))
-        assertFalse(HudPanelFilter(false, true, true, true).admits(HudSource.RADAR, HudRole.LANES))
-        assertFalse(HudPanelFilter(true, true, false, true).admits(HudSource.CAPTURE, HudRole.ROAD_LIMIT))
-        assertTrue(HudPanelFilter(true, true, true, false).admits(HudSource.MODULE, HudRole.MAP))
-        assertFalse(HudPanelFilter(true, true, true, false).admits(HudSource.RADAR, HudRole.LANES))
+        assertFalse(HudPanelFilter(false, false, true, true, true).admits(HudSource.MODULE, HudRole.MANEUVER))
+        assertFalse(HudPanelFilter(false, false, true, true, true).admits(HudSource.RADAR, HudRole.LANES))
+        assertFalse(HudPanelFilter(true, false, true, false, true).admits(HudSource.CAPTURE, HudRole.ROAD_LIMIT))
+        assertTrue(HudPanelFilter(true, false, true, true, false).admits(HudSource.MODULE, HudRole.MAP))
+        assertFalse(HudPanelFilter(true, false, true, true, false).admits(HudSource.RADAR, HudRole.LANES))
         // The capture keeps its own switches.
-        assertTrue(HudPanelFilter(true, false, true, true).admits(HudSource.CAPTURE, HudRole.MAP))
+        assertTrue(HudPanelFilter(true, false, false, true, true).admits(HudSource.CAPTURE, HudRole.MAP))
     }
 }

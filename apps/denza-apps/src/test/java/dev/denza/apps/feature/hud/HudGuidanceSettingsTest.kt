@@ -8,19 +8,44 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The map switch's stored wish: off on a fresh install, in the hints' own file under its own key,
- * and never the hints' value. The file and key names are spelled out: a renamed key would forget
- * every driver's choice on update.
+ * The map switch's stored wish: in the hints' own file under its own key, and never the hints'
+ * value; never written, it is off with the ordinary Yandex and on with a YandexHUD through the host.
+ * The file and key names are spelled out: a renamed key would forget every driver's choice on
+ * update.
  */
 class HudGuidanceSettingsTest {
 
     @Test
-    fun theMapIsOffUntilTheDriverTurnsItOn() {
+    fun withTheOrdinaryYandexTheMapIsOffUntilTheDriverTurnsItOn() {
         val context = FakeContext()
 
-        assertFalse(HudGuidanceSettings.isMapEnabled(context))
+        assertFalse(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX))
         HudGuidanceSettings.setEnabled(context, true)
-        assertFalse(HudGuidanceSettings.isMapEnabled(context))
+        assertFalse(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX))
+        assertFalse(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.NONE))
+        assertFalse(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX_HUD_ALONE))
+    }
+
+    /** YandexHUD's map comes with its hints and asks for no grant: on until the driver says no. */
+    @Test
+    fun withYandexHudTheMapIsOnUntilTheDriverTurnsItOff() {
+        val context = FakeContext()
+
+        assertTrue(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX_HUD))
+        assertEquals(emptyMap<String, Any>(), context.files.getValue("denza_hud_guidance").values)
+
+        HudGuidanceSettings.setMapEnabled(context, false)
+        assertFalse(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX_HUD))
+    }
+
+    /** A value the driver wrote is kept whichever navigator comes next. */
+    @Test
+    fun aWrittenMapIsKeptAcrossNavigators() {
+        val context = FakeContext()
+
+        HudGuidanceSettings.setMapEnabled(context, true)
+        assertTrue(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX))
+        assertTrue(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX_HUD))
     }
 
     @Test
@@ -30,8 +55,16 @@ class HudGuidanceSettingsTest {
         HudGuidanceSettings.setMapEnabled(context, true)
 
         assertEquals(mapOf("map" to true), context.files.getValue("denza_hud_guidance").values)
-        assertTrue(HudGuidanceSettings.isMapEnabled(context))
+        assertTrue(HudGuidanceSettings.isMapEnabled(context, HudNavigatorInstall.YANDEX))
         assertFalse(HudGuidanceSettings.isEnabled(context))
+    }
+
+    @Test
+    fun theHintsPassWithYandexHudWhateverIsStored() {
+        assertTrue(HudGuidanceSettings.hintsShown(stored = false, navigator = HudNavigatorInstall.YANDEX_HUD))
+        assertFalse(HudGuidanceSettings.hintsShown(stored = false, navigator = HudNavigatorInstall.YANDEX))
+        assertFalse(HudGuidanceSettings.hintsShown(stored = false, navigator = HudNavigatorInstall.YANDEX_HUD_ALONE))
+        assertTrue(HudGuidanceSettings.hintsShown(stored = true, navigator = HudNavigatorInstall.YANDEX))
     }
 
     private class FakeContext : ContextWrapper(null) {

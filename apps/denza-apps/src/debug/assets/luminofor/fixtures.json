@@ -41603,7 +41603,8 @@
         "kind": "switch",
         "title": "Манёвры",
         "summary": "Из YandexHUD",
-        "on": true
+        "on": true,
+        "enabled": false
        },
        {
         "kind": "switch",
@@ -41629,7 +41630,7 @@
    },
    "state": {
     "tile": "HUD",
-    "hud": true,
+    "hud": false,
     "map": true,
     "sign": true,
     "cameras": true,
@@ -42209,7 +42210,8 @@
         "kind": "switch",
         "title": "Манёвры",
         "summary": "Из YandexHUD",
-        "on": true
+        "on": true,
+        "enabled": false
        },
        {
         "kind": "switch",

@@ -19,8 +19,23 @@ object HudGuidanceSettings {
      */
     const val NAVIGATOR_PACKAGE = "ru.yandex.yandexnavi"
 
+    /**
+     * «Повороты» as the driver stored it: the feature's switch with the ordinary Yandex, whose hints
+     * this app reads off the screen, and the capture's switch everywhere. With a YandexHUD that
+     * publishes through the host it no longer decides what reaches the glass ([hintsShown]).
+     */
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, false)
+
+    /**
+     * Whether the host lets the hints through: always with a YandexHUD that knows the host - nothing
+     * in this app switches its turns off (2026-11-21) - and otherwise as [stored].
+     *
+     * Until then the stored switch held the module back too, and it is off on a fresh install: the
+     * module drew by itself while the host was not up yet, handed over to it and went dark.
+     */
+    fun hintsShown(stored: Boolean, navigator: HudNavigatorInstall): Boolean =
+        stored || navigator == HudNavigatorInstall.YANDEX_HUD
 
     // Keep the persistent write boundary explicit for feature recovery.
     @SuppressLint("UseKtx")
@@ -32,20 +47,34 @@ object HudGuidanceSettings {
     }
 
     /**
-     * «Карта на проекции»: a crop of Yandex's map in the HUD's map window while a route is held.
-     * Its own value beside the hints' switch, off until the driver turns it on; the tile's press
-     * moves the hints and never this.
+     * «Карта»: the HUD's map window while a route is held - a crop of Yandex's map with the
+     * ordinary Yandex, YandexHUD's own map and marks with the module. Its own value beside the
+     * hints' switch; the tile's press never moves it. The installed navigator is the cached one
+     * ([HudInstalls.installed]), since the host asks on every packet.
      */
-    fun isMapEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MAP, false)
+    fun isMapEnabled(context: Context): Boolean = isMapEnabled(context, HudInstalls.installed(context))
+
+    /**
+     * A value the driver wrote is kept. One never written is [mapByDefault] for [navigator].
+     */
+    fun isMapEnabled(context: Context, navigator: HudNavigatorInstall): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MAP, mapByDefault(navigator))
+
+    /**
+     * On with a YandexHUD that knows the host: its map comes with its hints and asks for nothing.
+     * Off with the ordinary Yandex, where the map is a screen capture and on would ask for its grant
+     * unasked.
+     */
+    fun mapByDefault(navigator: HudNavigatorInstall): Boolean = navigator == HudNavigatorInstall.YANDEX_HUD
 
     /**
      * The map window is this app's to fill: its switch is on and the installed Navigator does not
      * fill it itself ([HudNavigatorBuild]). The switch keeps its value either way, so the map comes
-     * back with the ordinary Yandex.
+     * back with the ordinary Yandex. Without YandexHUD the navigator is the ordinary Yandex or none,
+     * and both read the ordinary default, so the cached install is not asked.
      */
     fun isMapOurs(context: Context): Boolean =
-        isMapEnabled(context) && !HudNavigatorBuild.drawsHud(context)
+        !HudNavigatorBuild.drawsHud(context) && isMapEnabled(context, HudNavigatorInstall.YANDEX)
 
     @SuppressLint("UseKtx")
     fun setMapEnabled(context: Context, enabled: Boolean) {

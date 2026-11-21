@@ -203,7 +203,9 @@ public final class HudGuidanceAccessibilityMonitor {
     }
 
     private boolean isMapOurs() {
-        return !navigatorDrawsHud && HudGuidanceSettings.INSTANCE.isMapEnabled(service);
+        // Not YandexHUD: the ordinary Yandex's default, off until the driver turns it on.
+        return !navigatorDrawsHud
+                && HudGuidanceSettings.INSTANCE.isMapEnabled(service, HudNavigatorInstall.YANDEX);
     }
 
     /**

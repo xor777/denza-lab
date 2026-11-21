@@ -8,6 +8,7 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cloud.CloudLinkStatus
+import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 
@@ -321,10 +322,17 @@ object DashboardTiles {
         )
     }
 
-    /** Navigation hints repeated onto the head-up display. */
+    /**
+     * Navigation hints repeated onto the head-up display.
+     *
+     * With a YandexHUD through the host the hints cannot be switched off here (2026-11-21): the
+     * snapshot is on ([dev.denza.apps.feature.hud.HudGuidanceStatus]) and the press opens the panel,
+     * as for every tile with nothing to switch, rather than turning them off.
+     */
     private fun hud(state: DenzaUiState): DashboardTile {
         val snapshot = state.hudGuidance
         val showing = snapshot.desiredEnabled
+        val fixed = state.hudNavigator == HudNavigatorInstall.YANDEX_HUD
         return DashboardTile(
             id = TileId.HUD,
             icon = TileIcon.HUD,
@@ -336,7 +344,7 @@ object DashboardTiles {
             } else {
                 DenzaTileCaption.SETTING
             },
-            action = actionOf(snapshot, TileAction.TOGGLE),
+            action = actionOf(snapshot, if (fixed) TileAction.SETTINGS else TileAction.TOGGLE),
         )
     }
 
