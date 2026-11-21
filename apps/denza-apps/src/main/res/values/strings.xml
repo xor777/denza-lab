@@ -351,6 +351,13 @@
     <string name="service_access">Доступ к машине</string>
     <string name="service_diagnostics">Диагностика</string>
     <string name="service_diagnostics_value">Коды неисправностей и данные блоков</string>
+    <!-- The window in front of «Диагностика» until the driver agrees once (DiagnosticsAgreement). -->
+    <string name="diagnostics_agreement_title">О разделе</string>
+    <string name="diagnostics_agreement_author">Автор приложения не диагност. Что значит код или цифра и что с этим делать, он не подскажет — пожалуйста, не задавайте ему таких вопросов.</string>
+    <string name="diagnostics_agreement_purpose">Раздел показывает, что отвечают блоки машины: коды, параметры, результаты тестов. Он создан в познавательных целях.</string>
+    <string name="diagnostics_agreement_service">За диагностикой и ремонтом обращайтесь в профильный сервис.</string>
+    <string name="diagnostics_agreement_tick">Я прочитал и согласен</string>
+    <string name="diagnostics_agreement_ok">ОК</string>
     <!-- «Сервис → Диагностика»: the section's chrome - the rail, the tabs, the titles, the scan button and the link. The rest of the section is Russian still (CyrillicLiteralGuardTest, SCANNER). -->
     <string name="diag_summary">Сводка</string>
     <string name="diag_blocks">Блоки</string>

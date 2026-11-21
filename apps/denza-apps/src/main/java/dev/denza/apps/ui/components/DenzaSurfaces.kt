@@ -362,7 +362,11 @@ fun DenzaModalCard(
  *
  * The recovery window is opened from the gate, and the gate is drawn in the activity's own window
  * with a shield across it that swallows every touch. A dialog is the only thing a finger can reach
- * from there.
+ * from there. The diagnostics' agreement is the other: it stands where the service panel, itself a
+ * dialog, stood.
+ *
+ * Under [LocalStillFrame] the card is drawn in place, as [DenzaSheet] draws its panel, so a
+ * screenshot of a fixture is the dashboard with the card over it.
  */
 @Composable
 fun DenzaModalDialog(
@@ -371,6 +375,10 @@ fun DenzaModalDialog(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    if (LocalStillFrame.current) {
+        DenzaModalCard(compact = compact, modifier = modifier, onScrimTouch = onDismiss, content = content)
+        return
+    }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),

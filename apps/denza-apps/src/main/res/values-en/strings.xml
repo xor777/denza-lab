@@ -332,6 +332,12 @@
     <string name="service_access">Car access</string>
     <string name="service_diagnostics">Diagnostics</string>
     <string name="service_diagnostics_value">Fault codes and module data</string>
+    <string name="diagnostics_agreement_title">About this section</string>
+    <string name="diagnostics_agreement_author">The author of the app is not a diagnostician and cannot tell you what a code or a number means or what to do about it — please do not ask.</string>
+    <string name="diagnostics_agreement_purpose">This section shows what the car\'s control units answer: codes, parameters, test results. It is here for curiosity only.</string>
+    <string name="diagnostics_agreement_service">For diagnosis and repair, go to a qualified workshop.</string>
+    <string name="diagnostics_agreement_tick">I have read this and agree</string>
+    <string name="diagnostics_agreement_ok">OK</string>
     <string name="diag_summary">Summary</string>
     <string name="diag_blocks">Modules</string>
     <string name="diag_journal">Log</string>

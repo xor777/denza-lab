@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.R
 import dev.denza.apps.core.AppLanguage
@@ -29,7 +30,11 @@ import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.adb.AdbAccessView
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
+import dev.denza.apps.feature.diagnostics.DiagnosticsAgreement
 import dev.denza.apps.feature.diagnostics.DiagnosticsCar
+import dev.denza.apps.feature.diagnostics.DiagnosticsDoor
+import dev.denza.apps.feature.diagnostics.ui.AgreementWindow
+import dev.denza.apps.feature.diagnostics.ui.DiagnosticsSection
 import dev.denza.apps.feature.network.TrafficMonitorSnapshot
 import dev.denza.apps.feature.network.TrafficMonitorText
 import dev.denza.apps.feature.warning.WarningText
@@ -73,6 +78,9 @@ internal enum class ServicePage {
 
     /** The page the header's way back returns to. */
     val parent: ServicePage get() = if (this == JOURNAL) TECHNICAL else MAIN
+
+    /** What this page opens over the panel: on [DIAGNOSTICS] the section or the window before it, else nothing. */
+    fun door(agreed: Boolean): DiagnosticsDoor? = if (this == DIAGNOSTICS) DiagnosticsDoor.of(agreed) else null
 }
 
 /**
@@ -200,9 +208,28 @@ internal fun ServicePanel(
     val scrolls = ServicePage.entries.associateWith { each ->
         rememberScrollState(if (each == firstPage && firstPageAtEnd) Int.MAX_VALUE else 0)
     }
-    if (page == ServicePage.DIAGNOSTICS) {
-        dev.denza.apps.feature.diagnostics.ui.DiagnosticsSection { page = ServicePage.MAIN }
-        return
+    // Every way onto the diagnostics page - its row, or this panel saved on it and brought back with a
+    // recreated activity or process - asks the one door: the section, which starts the session, only
+    // once the driver has agreed; until then the window, and leaving it is the panel again.
+    val context = LocalContext.current
+    var agreed by remember { mutableStateOf(DiagnosticsAgreement.isAgreed(context)) }
+    when (page.door(agreed)) {
+        DiagnosticsDoor.AGREEMENT -> {
+            AgreementWindow(
+                compact = compactLayout,
+                onAgree = {
+                    DiagnosticsAgreement.agree(context)
+                    agreed = true
+                },
+                onLeave = { page = ServicePage.MAIN },
+            )
+            return
+        }
+        DiagnosticsDoor.SECTION -> {
+            DiagnosticsSection { page = ServicePage.MAIN }
+            return
+        }
+        null -> Unit
     }
     // Read here rather than in the page: its button stands at the panel's foot, outside the page.
     val traffic = if (page == ServicePage.MOBILE_INTERNET) rememberTrafficMonitor(trafficMonitorFixture) else null
