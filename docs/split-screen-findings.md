@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-11-20. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-11-21. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -26,7 +26,7 @@ Updated 2026-11-20. Where this journal and the normative [split-screen-product-c
 | tx118 roots: area 1 → root 2 (narrow, `[24,112][856,1472]`), 2 → root 3 (wide, `[880,112][2536,1472]`), 4 → root 4 (full IVI, holds no background tasks — *sharpened 2026-11-20:* a task moved into it stays there, drawn while fewer than two opaque pane containers are above it, until the next placement in a pane or Home sends it below Home, see [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)). The pane roots are permanent containers and never come back ≤0 | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Live-proven substrate](#live-proven-substrate-2026-08-14) |
 | tx30 area: 0 Home, 3 split on screen, 1 narrow survivor, 2 wide survivor, 4 an app in the full container on top. It is computed from the order of four roots, not their contents, so area 3 does not prove two populated panes | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Home, read end to end](#home-read-end-to-end) |
 | Home and the area are heard in process with no permission: `CLOSE_SYSTEM_DIALOGS` `reason=homekey` arrives 9 ms after key-up, the tx120 area push (`UnionActivityManager.registerScreenAreaInfoForMultiListener`) 0.1 s after it; `SplitFirmwareSignals.kt` registers both and `SplitCoordinatorCore.homeKeyPressed` closes our gate (`SplitGateAhead`). Live: gate closed at +16 ms, a dock launch at +393 ms went fullscreen | live | 2026-09-23 | [The three calls, live from an app UID](#the-three-calls-live-from-an-app-uid-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
-| tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`; tx117 too since 2026-11-21, code only, not yet answered from an app UID on the car); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | The shell-UID task proxy runs from its own jar, staged as `/data/local/tmp/denza-split-proxy-<sha256>.jar` and verified by its SHA-256 by the shared `ShellProxyStager.kt`, which deletes every other copy of it on each call; a car that refuses the file loads the class from the APK, as before the jar existed, and so does a command whose jar has gone since | code | 2026-10-09 | [The task proxy's jar, staged by its hash](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) |
 | The firmware recipes of an operation are ten units behind the facade `SplitPickerShellSession` (`SplitWorld`, `SplitTaskCommands`, `SplitGate`, `SplitOwnedScene`, `SplitSceneBuilder`, `SplitSelect`, `SplitCollapse`, `SplitNavReturn`, `SplitEdge`, `SplitTeardown`), moved without a changed command; every transition of the gate is in `SplitGate.kt`, and the history the recipes' comments carried is in this doc | code | 2026-10-09 | [The session cut into recipe units](#the-session-cut-into-recipe-units-code-2026-10-09) |
 | Other transactions: tx115 `enterSplitMode` restores the remembered pair (the product never calls it); tx114 `changeSplitScreenMode` 101/102 expand one pane and 100 does nothing; tx116 swaps; tx117 `closeApplication(pkg)` closes a pane's top app natively; tx124 needs the caller's Activity token | firmware | 2026-09-23 | [The divider and the stock picker](#the-divider-and-the-stock-picker-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Product direction](#product-direction-explicit-two-picker-session) |
@@ -42,7 +42,8 @@ Updated 2026-11-20. Where this journal and the normative [split-screen-product-c
 | A pane's choice is lost only to a departure, a collapse, another choice or a package the package manager proves absent (invariant 14, ред. 2026-11-11). A departure is two reads of the pane on the screen with no cover heard between them (`SplitCoreOperation.departureProven`, the one rule for every producer); a failed or late restore, a package that cannot be launched, a death under cover, a sleep, a process restart and «Clear all» keep the choice. A cold package is waited for inside the open's own deadline, the reserves derived from the measured trip cost (`SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS`, `COLD_DEGRADE_RESERVE_MS`); late cold panes go back to their pickers together, and a task the restore started is evicted, never removed. The automaton alone writes the pair memory, in the same commit as the slots; pins are reduced but nothing sends them yet (`SplitAutomaton.kt`, `SplitOperations.kt`, `SplitSceneBuilder.kt`) | code | 2026-11-11 | [Where the remembered pair is lost](#where-the-remembered-pair-is-lost-code-2026-11-11), [The one rule for a departure, and the cold wait's time](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) |
 | The divider is the `multi-divider` window (`DOCK_DIVIDER`, uid 1000, `mBaseLayer` 31000, full-screen frame, `NOT_FOCUSABLE`, above the input method, below the BYD card bar); its drag is a separate spy window, `multi-divider-shadow`, that pilfers the pointer on down. Cross-window blur is on (`supports_background_blur=1`, `mBlurEnabled=true`); the display runs at 60 Hz. An accessibility overlay stands above it (`mBaseLayer` 311000) and the accessibility window list gives the divider's x (the run of a disposable on-device probe, `dev.denza.splitpill.probe`, since removed). The same run measured the rest: a touch that goes down on the handle is the overlay's to the end, touch to frame is 4–6 ms, a fixed window holds every vsync while a window resized per frame drops a tenth of them, and window blur blurs the window's rectangle rather than the capsule | live | 2026-11-19 | [The divider is a DOCK_DIVIDER window; blur is on](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) |
 | The split pill's first slice is in code, not on the car: one fixed `TYPE_ACCESSIBILITY_OVERLAY` window of the split's own accessibility service, as wide as the screen over the panes' bottom, never moved or resized; touches only inside the shape's region (the 96 × 48 target round the disc at rest); the divider read from the `SYSTEM` `multi-divider` window, else the two pane windows; a pair chosen is one operation over both panes that commits pane by pane (one placed: the other pane owed and the repair row opens; none placed: unwound), an app goes into the pane it names or nowhere, the star is a committed fact of the pair on screen; between a tap and its commit a pane being filled shows its bare picker. No edit mode, no flights, no launch placeholder | code | 2026-11-19 | [The split pill in code, first slice](#the-split-pill-in-code-first-slice-code-2026-11-19) |
-| A root below the pane containers is hidden only when both containers above it show an opaque visible app (or an opaque full-width container is above, or an opaque task above it in its own root); otherwise it is drawn and paused. `am task focus` raises one container, so the raise after an eviction (`raiseSceneOverTheEvicted`, narrow pane first) can leave `ivi_full` between the panes while the area reads 3; every placement in a pane (`startSplitWindow`) and every Home flush `ivi_full` below Home, alive. Seen on the car 2026-11-20: a displaced player drawn behind the panes, then gone | firmware | 2026-11-20 | [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) |
+| A root below the pane containers is hidden only when both containers above it show an opaque visible app (or an opaque full-width container is above, or an opaque task above it in its own root); otherwise it is drawn and paused. `am task focus` raises one container, so the raise after an eviction (`raiseSceneOverTheEvicted`, narrow pane first) can leave `ivi_full` between the panes while the area reads 3; every placement in a pane (`startSplitWindow`) and every Home flush `ivi_full` below Home, alive. Seen on the car 2026-11-20: a displaced player drawn behind the panes, then gone. *Code since 2026-11-21:* that one-pane raise is gone, see the row below | firmware | 2026-11-20 | [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) |
+| A displaced pane app leaves by tx117 `closeApplication(pkg)`, below Home, alive, its pane geometry kept, when it is the pane's shown top at area 3, its package has no other task in either pane, and both panes keep our picker base; the close is waited out by condition (7 looks, at most 1300 ms). Everything else - a buried task, a second task of the package, an unbalanced scene, a close refused or not seen through - is moved into `ivi_full` and both panes are raised over it, the upper one last, at area 4 or when `ivi_full` is listed above a pane. One entry point for the build, the selection, the sweep and the unwind (`SplitTaskCommands.evictFromPanes`); the cold window of a choice shrinks by 200 ms to about 2660 ms. Not seen on the car | code | 2026-11-21 | [What the code does now](#what-the-code-does-now-code-2026-11-21) |
 | Nothing in the firmware removes or kills a displaced pane app that is not excluded from recents and was active within 6 h, and nothing firmware-side pauses a player because its window was hidden. Natively the app an occupied pane was showing stays in the pane root under the new one (wide pane) or goes below Home (the stock list in the narrow pane, a close, Home); tx117 on the pane's top app sends it below Home alive | firmware | 2026-11-20 | [A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
 | "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
@@ -92,7 +93,7 @@ Updated 2026-11-20. Where this journal and the normative [split-screen-product-c
   - [The one rule for a departure, and the cold wait's time (code, 2026-11-11)](#the-one-rule-for-a-departure-and-the-cold-waits-time-code-2026-11-11) — the witness and its four producers; the reserves of the open, counted from the measured trip cost.
 - [The divider is a DOCK_DIVIDER window; blur is on (car, read-only, 2026-11-19)](#the-divider-is-a-dock_divider-window-blur-is-on-car-read-only-2026-11-19) — the divider's window and its drag window, layers, touch occlusion and blur, read for the split pill's window; the probe that tests it.
 - [The split pill in code, first slice (code, 2026-11-19)](#the-split-pill-in-code-first-slice-code-2026-11-19) — the window, the divider, the three operations the pill sends, and what is not built; the «Пилюля» switch (11-20); a displaced app drawn behind the panes on the car (11-20).
-- [A displaced pane app: what the firmware does with it (firmware read, 2026-11-20)](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) — the visibility rule below the pane containers, the one-container raise and the flush of root 4, why nothing in the firmware ends the task or pauses its player, what the firmware does with an occupied pane's app, four ways to take an app out of a pane, ranked, and the checks owed on the car.
+- [A displaced pane app: what the firmware does with it (firmware read, 2026-11-20)](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20) — the visibility rule below the pane containers, the one-container raise and the flush of root 4, why nothing in the firmware ends the task or pauses its player, what the firmware does with an occupied pane's app, four ways to take an app out of a pane, ranked, what the code does now (2026-11-21: the firmware's close, the eviction with both panes raised as its fallback), and the checks owed on the car.
 
 ## Product direction: explicit two-picker session
 
@@ -2025,7 +2026,7 @@ is this shape). Every eviction now ends with one area read and, when the
 eviction covered the scene, raises it with the reveal's own `am task focus` on
 the top task of a pane.
 
-> **Superseded 2026-11-20 (in part):** that focus raises one pane container, not the scene: after an eviction from the wide pane `ivi_full` stays between the narrow and the wide container, the evicted app is drawn (paused) over the wide pane, and the area reads 3 all the same; "root 4 holds no background tasks" is true only until the next placement in a pane or Home flushes it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20).
+> **Superseded 2026-11-20 (in part):** that focus raises one pane container, not the scene: after an eviction from the wide pane `ivi_full` stays between the narrow and the wide container, the evicted app is drawn (paused) over the wide pane, and the area reads 3 all the same; "root 4 holds no background tasks" is true only until the next placement in a pane or Home flushes it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20). *Code since 2026-11-21:* a pane's shown app leaves by tx117 instead, and the eviction that remains raises both panes — see [What the code does now](#what-the-code-does-now-code-2026-11-21).
 
 **"Release to close" over the hub's pane (2699d68).** The 2026-08-24 diagnosis
 stands: the detent map follows the runtime split list, and the product never
@@ -3039,7 +3040,7 @@ with the evidence the comments cited.
 | Launch: no `MULTIPLE_TASK` except for a second copy of a package the other pane holds | Acceptance v17: a restore started a fresh copy behind a splash screen and orphaned the playing one (music #44 → #66 → #81) |
 | tx125 for every pane app, tx112 after it | 2026-09-11 and 09-23: listing only when tx112 said no left manifest-capable apps outside the runtime list, with "Release to close window" in the wide pane |
 | tx125 for our own package, once per build | Until 2026-09-11 the build only asked tx112 about us, which always says yes (live 2026-08-28), so tx125 was never called; the isolating experiment dock-split-v19 showed the hub getting the reduced detent map. The corpus reading of 2026-08-28 that placement does not read the list was wrong (OTA 2026-09-23) |
-| Eviction keeps the task visible; its bounds become its root's, and the scene is raised over it | Wave 8 introduced the eviction, first named "in background". Live 2026-08-28: `move-task <id> 4 false` leaves the task `visible=true`, and a leaf inside `ivi_full` accepts a resize either way (task 151: to the pane's 832 px and back to fullscreen). 2026-08-27: `dev.denza.apps` 832 px wide in root 4 over both panes, the area at 4 and a rollback "Нативный split не активировался". The raising focus is the one acceptance v24 A1 proved with VLC and Brave over the pair for 25-60 s. *Superseded 2026-11-20 (in part):* the focus raises one pane container, so `ivi_full` can stay between the panes with the evicted app drawn and paused while the area reads 3, until the next placement flushes root 4 below Home ([A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)) |
+| Eviction keeps the task visible; its bounds become its root's, and the scene is raised over it | Wave 8 introduced the eviction, first named "in background". Live 2026-08-28: `move-task <id> 4 false` leaves the task `visible=true`, and a leaf inside `ivi_full` accepts a resize either way (task 151: to the pane's 832 px and back to fullscreen). 2026-08-27: `dev.denza.apps` 832 px wide in root 4 over both panes, the area at 4 and a rollback "Нативный split не активировался". The raising focus is the one acceptance v24 A1 proved with VLC and Brave over the pair for 25-60 s. *Superseded 2026-11-20 (in part):* the focus raises one pane container, so `ivi_full` can stay between the panes with the evicted app drawn and paused while the area reads 3, until the next placement flushes root 4 below Home ([A displaced pane app](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20)). *Code since 2026-11-21:* a pane's shown app of a unique package leaves by tx117 below Home; the eviction is the fallback and raises both panes ([What the code does now](#what-the-code-does-now-code-2026-11-21)) |
 | A second living task of a pane app's package is a resident, not surplus | Wave 13, acceptance v28: a tap on Yandex Music brought both t316 and t532 into the pane; wave 14, acceptance v29: evicting the second task put it over the scene; 2026-09-04: the same rule for both panes of a build, whose restore path had not passed it |
 | A package alone is no identity; our components are never "the app found" | Live v20 P1.2: a self-restore matched by package would have taken a fresh picker for the hub's task |
 | A scene read names the pane and the predicate that refused | Acceptance v17 logged "nothing of ours" on every open, and a live scene was rebuilt with nothing saying why |
@@ -3139,13 +3140,15 @@ priced a read at 250–300 ms were wrong.
 | Reserve | What it covers | Value |
 |---|---|---|
 | `OPEN_READ_BACK_RESERVE_MS` | The open's read-back after the build: four trips | 400 ms |
-| `EVICTION_BOUND_MS` | One eviction of the late panes: moves, settle, the read of where they landed, a resize per task, raising the scene with its 650 ms area wait | 2110 ms |
-| `COLD_DEGRADE_RESERVE_MS` | After the placement's cold wait: its last look, the eviction, the first look of the confirmation | 2660 ms |
-| `COLD_DISCOVERY_RESERVE_MS` | After the launch's cold wait: the promotes, the sweep, the batched resize, an eviction of a pane that failed on the way, and the placement's reserve | 6740 ms |
+| `EVICTION_BOUND_MS` | One eviction of the late panes: moves, settle, the read of where they landed, a resize per task, raising both panes (a focus each) with the 650 ms area wait | 2210 ms (2110 until 2026-11-21) |
+| `COLD_DEGRADE_RESERVE_MS` | After the placement's cold wait: its last look, the eviction, the first look of the confirmation | 2760 ms (2660 until 2026-11-21) |
+| `COLD_DISCOVERY_RESERVE_MS` | After the launch's cold wait: the promotes, the sweep, the batched resize, an eviction of a pane that failed on the way, and the placement's reserve | 6940 ms (6740 until 2026-11-21) |
+| `CLOSE_WAIT_BOUND_MS` (2026-11-21) | The firmware's close of a pane's shown app waited out: 7 reads, 100 ms apart. Not reserved: it is spent before the launch, out of that open's own cold wait, and the evictions the reserves cover never close | 1300 ms |
 
 In the fixture that charges 100 ms per trip, two late cold panes degrade at about 7.1 s and the
-open commits at about 7.7 s. The bounds hold only while the area is read in-process; if the
-binder calls fall back to the shell, every area read costs a trip, and they do not.
+open commits at about 7.7 s (measured with the 2026-11-11 values; since 2026-11-21 each cold wait
+ends 200 ms earlier, not re-measured). The bounds hold only while the area is read in-process; if
+the binder calls fall back to the shell, every area read costs a trip, and they do not.
 
 While a cold pane is still unconfirmed, no sample of the placement fails the build. When the
 time runs out, every unconfirmed cold pane goes back to its picker in one eviction and the rest
@@ -3275,7 +3278,8 @@ Written against the board (`tools/design-canvas/split-pill/`) and contract 1.15 
   on the spot. Not run on the car.
 - **Taps.** A pair: `OpenOperation` with a choice, priority `SELECT` (Home preempts it), refused
   without a visible two-pane scene; the build evicts the panes' shown apps with a `TaskMoved`
-  journal entry each. *Overturned by the review round below:* the read-back refused a choice that
+  journal entry each (*since 2026-11-21* by tx117 where it applies, the same entry journalled
+  before the close). *Overturned by the review round below:* the read-back refused a choice that
   did not land in both panes, so the unwind put the replaced apps back on top of their panes; a
   choice now commits pane by pane and only one that placed nothing is unwound. An app: `SelectOperation`
   addressed by pane (its host task from the live scene), the replaced app journalled the same way.
@@ -3312,6 +3316,10 @@ spec); what they found and what changed, in code and unit tests only, nothing on
   app's task must appear within about 2 860 ms of the tap (less any time the tap waited in the
   queue); after that its pane is committed owed. The reserves are unchanged; the window is not
   measured on a real cold start.
+
+  > **Superseded 2026-11-21 (code):** the reserve is 6940 ms and the window about 2660 ms; a
+  > close of the pane's shown app before the launch (up to 1300 ms of waiting) comes out of it
+  > too — see [What the code does now](#what-the-code-does-now-code-2026-11-21).
 - **What the driver sees between a tap on a pair and its commit.** Per pane: an app already in
   place is untouched; a swapped one moves across; otherwise the shown app is evicted to the full
   root just before the launch, and the pane shows its picker until the new app's task lands on
@@ -3322,7 +3330,7 @@ spec); what they found and what changed, in code and unit tests only, nothing on
   window above, after which the picker stays as the owed pane's. The launch placeholder of 1.15.4
   is what is meant to cover it.
 
-  > **Superseded 2026-11-20:** the pane does not show its picker in that gap when the evicted app came from the wide pane: the raise after the eviction lifts only the narrow container, so `ivi_full` stays between the panes and the evicted app is drawn, paused, over the wide pane until the launch's placement sends it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20).
+  > **Superseded 2026-11-20:** the pane does not show its picker in that gap when the evicted app came from the wide pane: the raise after the eviction lifts only the narrow container, so `ivi_full` stays between the panes and the evicted app is drawn, paused, over the wide pane until the launch's placement sends it below Home — see [A displaced pane app: what the firmware does with it](#a-displaced-pane-app-what-the-firmware-does-with-it-firmware-read-2026-11-20). *Code since 2026-11-21:* the shown app leaves by the firmware's close and the pane shows its picker in the gap; a fallback eviction raises both panes — see [What the code does now](#what-the-code-does-now-code-2026-11-21).
 - **One app into one pane** lands in the pane it names or nowhere: a launch the firmware routes
   into the other pane is undone before the sweep could touch the neighbour (a native picker tap
   keeps the firmware's side, 1.5.3). It is resolved inside the operation, on the worker. A task of
@@ -3332,7 +3340,8 @@ spec); what they found and what changed, in code and unit tests only, nothing on
   The join key carries the package, so another app for the same pane is its own ticket.
 - **Rollback geometry.** The inverse of an eviction moves the task back on top of its pane and
   resizes it to the pane (`normalizeTaskToRoot`): the eviction had given it the full root's
-  bounds.
+  bounds. *Since 2026-11-21* the same inverse also brings back a task the firmware's close sent
+  below Home; it kept its pane bounds, and the resize changes nothing.
 - **Covers and the star.** Each of the three inputs takes the cover count at the tap and refuses
   in `prepare`, before any lease or gate, when a cover was heard since or the scene is no longer
   the visible two-pane scene. The star also needs its pair standing in both panes, and its join
@@ -3396,7 +3405,9 @@ with the command that made it as
 below are its code units. The product's side: `SplitSceneBuilder.buildScene` evicts a pane's shown
 app with `evictToFullRoot` (`am stack move-task <id> <root 4> false`, a resize to the root's
 bounds, then `raiseSceneOverTheEvicted`) before it launches the chosen app
-(`SplitSceneBuilder.kt`, the eviction precedes `launchApps`).
+(`SplitSceneBuilder.kt`, the eviction precedes `launchApps`). *Changed in code 2026-11-21:* the
+shown app now leaves by tx117 and the eviction is its fallback, with both panes raised — see
+[What the code does now](#what-the-code-does-now-code-2026-11-21).
 
 ### Is a task below the pane containers drawn?
 
@@ -3430,7 +3441,8 @@ bounds, then `raiseSceneOverTheEvicted`) before it launches the chosen app
   narrow container, `ivi_full`, wide container: the evicted app is drawn over the wide pane and
   round the narrow one, paused. The area reads 3 all the same, because only the highest pane index
   is compared with the full root's (`S/BydSmartMultiIviController.java:981-986`), so the raise's
-  wait for an area other than 4 cannot see it.
+  wait for an area other than 4 cannot see it. *Replaced in code 2026-11-21* by a raise of both
+  panes that reads the root order, not only the area ([What the code does now](#what-the-code-does-now-code-2026-11-21)).
 - `ivi_full` is emptied by every placement of an app in a pane: `startSplitWindow` ends with
   `mFullIviContainer.removeAllChild(false, true, false)` (`S/BydSmartMultiIviController.java:585`;
   the Huawei variant at 640), and also when Home draws (778-782) and at every Home
@@ -3521,7 +3533,75 @@ its BYD hook `moveToBackIvi` would do the right thing); `move-task` into the Hom
 (`S/ActivityTaskManagerService.java:2253-2254`); `am stack remove` / `removeTask` kills the process
 once it is in the background (`S/ActivityTaskManagerService.java:1685-1712`).
 
+### What the code does now (code, 2026-11-21)
+
+Written from the corpus and the unit tests; nothing here has run on the car. Ways 2 and 4 above,
+in that order of preference, behind one entry point, `SplitTaskCommands.evictFromPanes`, which
+the build (the panes' shown apps before the launch), the selection, the sweep of a pane's surplus
+and the unwind's `evictTask` (inverse of `AppStarted`) all call.
+
+- **The firmware's close.** tx117 is `BydSmartMultiController.closeApplication(pkg)`
+  (`S/BydSmartMultiController.java:1235-1242`): it does nothing when SmartMulti is not enabled,
+  otherwise takes `getTaskByPkgName` (narrow container, then wide, then `ivi_full`, the top-most
+  child whose `realActivity` is the package) and calls `removeChildTask(task, root, false)`
+  (`S/BydSmartMultiIviController.java:2229-2268`). In the narrow pane the task is reparented below
+  Home at once; the split ends if the wide root has no child. In the wide pane, with more than one
+  child, the next task (`getNextTask`) is moved to the front and the closing task is marked
+  `isMovingToBack`, reparented below Home when the close animation ends. `forceRemove` is false,
+  so the task is never removed or killed.
+- **Which path a task takes.** One `am stack list` read before anything moves. A task leaves by
+  the close only when all of these hold; every other task takes the eviction:
+  - tx30 reads 3 (a balanced split on the screen) and both pane roots are listed;
+  - each pane root keeps a picker base of ours that is not leaving, so the narrow close cannot
+    end the split and the wide close brings up our picker;
+  - the task is the pane's shown top (`resolvedTopTask`), not one of our components;
+  - its package has exactly one task across both pane roots, so tx117's lookup cannot take
+    another window (the hub never qualifies: the picker bases share its package);
+  - nothing else is left in its root but our base and tasks also leaving (buried ones are moved
+    out first).
+- **The wait.** tx117 per task (in process, `SplitInProcessCalls`, code 117, one UTF-16 string,
+  void reply; the shell's `service call` if the app UID is refused), then a wait by condition,
+  `CLOSE_LOOKS` = 7 reads 100 ms apart, until no closed task is in a pane root or `ivi_full`. A
+  refused call or a task still there at the last look falls back to the eviction. Nothing is moved,
+  resized or raised for a task the close took.
+- **The eviction (fallback).** As before - `move-task <id> <root 4> false`, the settle, the resize
+  to the full root - and then *both* panes are raised, each by `am task focus` on its top task, the
+  pane that was listed higher before the eviction raised last (the narrow one when the order cannot
+  be read). It runs at area 4, and at area 3 when `ivi_full` holds a task and is listed above a pane
+  container (or the order cannot be read); never at 0, 1 or 2.
+- **The journal.** `beforeMove` hears every task on both paths, so the selection's and the build's
+  `TaskMoved` is journalled before the close is sent; its inverse, `move-task <id> <pane root>
+  true` and a resize to the pane, takes a root of its own below Home as readily as a child of
+  `ivi_full` (the restore's stray, live-proven), so an unwound choice brings the app back from
+  below Home. `expectedApps` and the build's records are unchanged: the closed app is not the
+  pane's app after the choice in either case.
+- **Hints.** The picker the close reveals is the operation's own work: the hint is queued behind
+  the operation, whose commit witnesses the new scene, so it is not read as the user's departure
+  (`SplitPillOperationsTest.thePickerTheCloseRevealsIsNotTakenForTheUsersDeparture`).
+- **Time.** `EVICTION_BOUND_MS` 2110 → 2210 ms (one focus more); `COLD_DEGRADE_RESERVE_MS` 2660 →
+  2760; `COLD_DISCOVERY_RESERVE_MS` 6740 → 6940. The cold window of a choice shrinks by 200 ms, to
+  about 2660 ms after the tap. The evictions inside those reserves (the cold degrade and a pane that
+  failed on the way, `discardFailedRestorations`) never close: a close waited out on top of a
+  fallback (1300 + 2210 ms) would leave the cold wait no time at all. A close before a launch is
+  spent out of that open's own cold wait: at most 3810 ms (the read, two closes, the 1300 ms wait,
+  then the fallback), against 2110 ms for the eviction before; the usual close is a read, a call and
+  one animation, with no resize and no raise.
+
+Not known until the car: the close animation's length (the wait covers about 0.95 s at the
+measured trip cost); whether tx117 is answered from the app UID (the shell is the fallback);
+whether `isMovingToBack` is cleared by the animation hook on this build every time.
+
 ### Open, to settle on the car
+
+After 2026-11-21, with a music player playing in the wide pane, parked: a pair chosen on the pill
+that displaces it, and the same with the «+» of the pane. Nothing is drawn behind the panes; the
+player keeps playing; `am stack list` shows it as a root of its own below Home, bounds kept; it is
+in Recents and comes back from it. In the log: `service call activity_task 117` (or the in-process
+call), `D BydSmartMultiController removeRootTaskChildForMulti`, `wm_task_to_front` for our picker,
+`wm_on_stop_called` for the player, and no `am stack move-task` of its task. A fallback shows as
+`move-task … 4 false` followed by two `am task focus`.
+
+The items below were written on 2026-11-20 for the old eviction:
 
 Parked, with a player playing in the wide pane and a pair chosen on the pill:
 
