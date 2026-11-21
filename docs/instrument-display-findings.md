@@ -3476,7 +3476,10 @@ about this app and works without it.
   «Из YandexHUD»; with a hosted YandexHUD the switches decide what the host
   lets through ([hud-output-architecture.md](hud-output-architecture.md#hud-out-panel),
   boards `sheet-hud-yandexhud`, `sheet-hud-yandexhud-alone`). «Сервис» shows
-  the row «Навигатор».
+  the row «Навигатор». *Changed 2026-11-21:* with a hosted YandexHUD the turns
+  row is on and does not move, and the host lets the module through whatever the
+  stored switch says; the other three switches still decide
+  ([hud-output-architecture.md](hud-output-architecture.md#hud-out-panel-yandexhud)).
 
 **Live check, still to do.** With the HUD build and this app's hints on, start
 a route and confirm: only one map and one manoeuvre on the glass, the log line
