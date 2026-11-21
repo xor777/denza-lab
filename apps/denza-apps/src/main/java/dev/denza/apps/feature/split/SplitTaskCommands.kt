@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_BALANCED_SPLIT
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_FULL_IVI
 import dev.denza.apps.feature.split.SplitWorld.Companion.EXIT_SETTLE_MS
 import dev.denza.apps.feature.split.SplitWorld.Companion.MAIN_DISPLAY_ID
@@ -243,13 +244,15 @@ internal class SplitTaskCommands(
      * Moves a user's task out of a panel root, alive, into the full IVI root (contract, note under
      * 1.5; invariant 3), with the same `am stack move-task ... false` that returns a borrowed task.
      *
-     * The move does not send the task to the background: root 4 holds no background tasks, and
-     * an evicted task stays there `visible=true`. So its bounds are made its new root's bounds
-     * ([normalizeTaskToRoot]; a leaf inside `ivi_full` accepts a resize either way), or it would
-     * cover the whole scene with a pane's geometry, and the scene is raised back over it. Both are
-     * quiet: a package whose geometry the firmware will not give up (`resizeableActivity="false"`)
-     * must not cost the user the whole scene. The first defence against an app landing in the
-     * wrong pane is the build's own record of where it landed, not this eviction.
+     * The move does not send the task to the background: the full root holds no background tasks,
+     * and a task moved there stays drawn while fewer than two opaque pane containers are above it,
+     * until the next placement in a pane or Home sends it below Home. So its bounds are made its
+     * new root's bounds ([normalizeTaskToRoot]; a leaf inside `ivi_full` accepts a resize either
+     * way), or it would cover the whole scene with a pane's geometry, and both panes are raised
+     * over it ([raiseBothPanesOverTheEvicted]). Both are quiet: a package whose geometry the
+     * firmware will not give up (`resizeableActivity="false"`) must not cost the user the whole
+     * scene. The first defence against an app landing in the wrong pane is the build's own record
+     * of where it landed, not this eviction.
      *
      * [beforeMove] hears each task and the root it is about to be moved into before the move is
      * sent, so an operation can journal the inverse ahead of the mutation (a choice on the pill puts
@@ -269,34 +272,70 @@ internal class SplitTaskCommands(
         }
         world.pause(ROOT_SETTLE_MS)
         normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
-        raiseSceneOverTheEvicted()
+        raiseBothPanesOverTheEvicted(fullRootId)
         return true
     }
 
     /**
-     * An evicted task stays visible, so it lands over the scene and the area answers 4; without
-     * this step the recipe's own postcondition (area 3) could not hold, and the user would be
-     * looking at the evicted window.
-     *
-     * The scene is raised with the same `am task focus` that brings a covered pair back over a
-     * fullscreen window (1.9.4), aimed at the top task of a pane: it does not reorder the root, it
-     * brings the panel containers back to the front. One area read decides: a scene the eviction
-     * did not cover costs no command. The recipe's postcondition is the judge, so the wait here
-     * does not throw.
+     * The order the two panes are raised in, lower first. `am stack list` lists the roots top to
+     * bottom (`forAllRootTasks`), and the last focus decides which pane's app is top-resumed, so the
+     * pane that was on top stays there; a move into the full root does not reorder the two pane
+     * containers. Unreadable, the narrow pane is raised last, as the one raise of before did.
      */
-    private fun raiseSceneOverTheEvicted() {
-        if (world.callInt("service call activity_task 30") != AREA_FULL_IVI) return
+    private fun raiseOrder(state: SplitTaskSnapshot, roots: Map<SplitPane, Int>): List<SplitPane> {
+        val listed = state.roots.filter { root -> root.displayId == MAIN_DISPLAY_ID }.map(SplitRootTask::id)
+        val primaryAt = listed.indexOf(roots.getValue(SplitPane.PRIMARY))
+        val secondaryAt = listed.indexOf(roots.getValue(SplitPane.SECONDARY))
+        return if (primaryAt >= 0 && secondaryAt >= 0 && secondaryAt < primaryAt) {
+            listOf(SplitPane.PRIMARY, SplitPane.SECONDARY)
+        } else {
+            listOf(SplitPane.SECONDARY, SplitPane.PRIMARY)
+        }
+    }
+
+    /**
+     * An evicted task stays visible in the full root, and `am task focus` raises one pane
+     * container, not the scene (`Task.moveToFrontInner`; the containers are not adjacent). A root
+     * below the pane containers is hidden only when both are above it with an opaque app, so both
+     * panes are raised, each by a focus on its top task - the reveal's own command (1.9.4).
+     *
+     * It is needed when the full root covers the scene (area 4), and at area 3 when the full root
+     * is listed above a pane container with something in it: the area compares only the higher pane
+     * with the full root, so a full root between the two panes still reads 3. An order that cannot
+     * be read counts as covering. Under Home (area 0) Home covers both and nothing is raised; at 1
+     * or 2 the one pane is full width and opaque over the full root. The recipe's postcondition is
+     * the judge, so the area wait does not throw.
+     */
+    private fun raiseBothPanesOverTheEvicted(fullRootId: Int) {
+        val area = world.callInt("service call activity_task 30")
+        if (area != AREA_FULL_IVI && area != AREA_BALANCED_SPLIT) return
         val roots = world.nativeRootIds()
         val state = world.snapshot()
-        val top = SplitPane.entries.firstNotNullOfOrNull { pane ->
-            val root = state.root(roots.getValue(pane)) ?: return@firstNotNullOfOrNull null
+        if (area == AREA_BALANCED_SPLIT && !fullRootAboveAPane(state, roots, fullRootId)) return
+        val tops = raiseOrder(state, roots).mapNotNull { pane ->
+            val root = state.root(roots.getValue(pane)) ?: return@mapNotNull null
             // Under a cover `am stack list` hides every child of a pane; then the root's component
             // names the top, and failing that the order the firmware lists children in (bottom up).
             (root.resolvedTopTask() ?: root.resolvedCoveredTopTask() ?: root.tasks.lastOrNull())
                 ?.takeUnless { task -> task.isEmptyRootMarker() }
-        } ?: return
-        world.run("am task focus ${top.id}")
+        }
+        if (tops.isEmpty()) return
+        tops.forEach { top -> world.run("am task focus ${top.id}") }
         world.awaitArea(EXIT_SETTLE_MS) { area -> area != AREA_FULL_IVI }
+    }
+
+    private fun fullRootAboveAPane(
+        state: SplitTaskSnapshot,
+        roots: Map<SplitPane, Int>,
+        fullRootId: Int,
+    ): Boolean {
+        val listed = state.roots.filter { root -> root.displayId == MAIN_DISPLAY_ID }
+        val fullAt = listed.indexOfFirst { root -> root.id == fullRootId }
+        val full = listed.getOrNull(fullAt) ?: return true
+        if (full.tasks.all(SplitTask::isEmptyRootMarker)) return false
+        val panesAt = roots.values.map { rootId -> listed.indexOfFirst { root -> root.id == rootId } }
+        if (panesAt.any { at -> at < 0 }) return true
+        return panesAt.any { at -> at > fullAt }
     }
 
     /**

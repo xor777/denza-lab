@@ -322,6 +322,28 @@ internal class FakeShell(
     var evictionCoversTheScene = false
 
     /**
+     * How many `am stack list` reads a task closed by tx117 in the wide pane stays in that root
+     * under the pane's next task before its close animation ends; `-1`, never.
+     */
+    var closeAnimationReads = 1
+
+    /**
+     * The order of 2026-11-20 after an eviction from the wide pane and the one raise: narrow
+     * container, `ivi_full`, wide container. The area still reads 3. A focus on a task of the wide
+     * pane puts that container back above the full root.
+     */
+    var fullRootBetweenPanes = false
+
+    /** Every package tx117 was sent for, in order. */
+    val closedPackages: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    /** A tx117 in the narrow pane found the wide root empty: the firmware ends the split. */
+    var closeEndedTheSplit = false
+        private set
+
+    private val closing = mutableMapOf<Int, Int>()
+
+    /**
      * Какую задачу система считает сфокусированной - независимо от порядка корней.
      *
      * Именно независимость здесь и есть предмет: до правки выключение выводило «переднее»
@@ -548,6 +570,74 @@ internal class FakeShell(
         disappearOnNextRemove = true
     }
 
+    /**
+     * tx117 `closeApplication(pkg)`, as the corpus reads it (`BydSmartMultiController`:1235-1242,
+     * `BydSmartMultiIviController.removeChildTask` and `getTaskByPkgName`): the top-most task of
+     * the package, narrow root first, then wide, then the full root. The narrow root's task goes
+     * below Home at once ([detachTask]); so does the wide root's when it is that root's only child.
+     * Otherwise the wide root's next task under its top comes to the top and the closed task stays
+     * under it until its close animation ends, [closeAnimationReads] `am stack list` reads later.
+     */
+    private fun closeApplication(packageName: String) {
+        closedPackages += packageName
+        val target = listOf(PRIMARY_ROOT, SECONDARY_ROOT, FULL_ROOT).firstNotNullOfOrNull { rootId ->
+            tasks.lastOrNull { task -> task.rootId == rootId && task.packageName == packageName }
+        } ?: return
+        when (target.rootId) {
+            PRIMARY_ROOT -> {
+                if (tasks.none { task -> task.rootId == SECONDARY_ROOT }) closeEndedTheSplit = true
+                detachTask(target.id)
+            }
+            SECONDARY_ROOT -> {
+                val inRoot = tasks.filter { task -> task.rootId == SECONDARY_ROOT }
+                if (inRoot.size == 1) {
+                    detachTask(target.id)
+                    return
+                }
+                // `getNextTask()`: the top-most child that is not the focus (the top child).
+                val next = inRoot.dropLast(1).last()
+                tasks.remove(next)
+                tasks += next
+                if (closeAnimationReads == 0) detachTask(target.id) else closing[target.id] = closeAnimationReads
+                changed()
+            }
+            else -> detachTask(target.id)
+        }
+    }
+
+    /**
+     * The end of a close animation (`DisplayContent.onWindowAnimationFinishedHook`): a task still
+     * flagged `isMovingToBack` and still a child goes below Home. Brought back to the top of a pane
+     * root meanwhile, it lost the flag (`Task.onChildPositionChanged`) and stays.
+     */
+    /**
+     * The roots in the order `am stack list` prints them, top to bottom (`forAllRootTasks`). The
+     * area is what the firmware computes from that order (`notifyIviOnChildPositionChanged`): 4 is
+     * the full root above both pane containers, anything else lists the panes above it - or, with
+     * [fullRootBetweenPanes], between them, which still reads 3.
+     */
+    private fun rootsTopDown(): List<Int> = when {
+        area == 4 -> listOf(FULL_ROOT, PRIMARY_ROOT, SECONDARY_ROOT, DETACHED_ROOT, EXTERNAL_ROOT)
+        fullRootBetweenPanes -> listOf(PRIMARY_ROOT, FULL_ROOT, SECONDARY_ROOT, DETACHED_ROOT, EXTERNAL_ROOT)
+        else -> listOf(PRIMARY_ROOT, SECONDARY_ROOT, FULL_ROOT, DETACHED_ROOT, EXTERNAL_ROOT)
+    }
+
+    private fun advanceCloseAnimations() {
+        closing.entries.toList().forEach { (taskId, left) ->
+            if (left < 0) return@forEach
+            if (left > 1) {
+                closing[taskId] = left - 1
+                return@forEach
+            }
+            closing.remove(taskId)
+            val task = tasks.firstOrNull { it.id == taskId } ?: return@forEach
+            val topOfItsRoot = tasks.lastOrNull { it.rootId == task.rootId }?.id == taskId
+            if (task.rootId == FULL_ROOT || (task.rootId == SECONDARY_ROOT && !topOfItsRoot)) {
+                detachTask(taskId)
+            }
+        }
+    }
+
     fun destabilizeAreaOnNextShellMove() {
         destabilizeAreaOnNextShellMove = true
     }
@@ -633,6 +723,10 @@ internal class FakeShell(
                 intParcel(if (quotedArgument(command) in supported) 1 else 0)
             command.startsWith("service call activity_task 125 s16 ") -> {
                 supported += quotedArgument(command)
+                voidParcel()
+            }
+            command.startsWith("service call activity_task 117 s16 ") -> {
+                closeApplication(quotedArgument(command))
                 voidParcel()
             }
             command.startsWith("am start ") -> {
@@ -877,6 +971,7 @@ internal class FakeShell(
                 if (task.rootId == PRIMARY_ROOT || task.rootId == SECONDARY_ROOT) {
                     if (area != fullArea(task.rootId)) area = 3
                 }
+                if (task.rootId == SECONDARY_ROOT) fullRootBetweenPanes = false
                 keepPickerOnTopIfConfigured(task)
                 ""
             }
@@ -904,7 +999,7 @@ internal class FakeShell(
                 }
                 ""
             }
-            command == "am stack list" -> renderStack()
+            command == "am stack list" -> renderStack().also { advanceCloseAnimations() }
             command == "dumpsys activity activities | grep mFocusedApp" ->
                 focusedTaskId?.let { id ->
                     val task = tasks.firstOrNull { it.id == id }
@@ -984,7 +1079,7 @@ internal class FakeShell(
     }
 
     private fun renderStack(): String = buildString {
-        listOf(FULL_ROOT, PRIMARY_ROOT, SECONDARY_ROOT, DETACHED_ROOT, EXTERNAL_ROOT).forEach { rootId ->
+        rootsTopDown().forEach { rootId ->
             val rootTasks = tasks.filter { it.rootId == rootId }
             if (rootId == DETACHED_ROOT && rootTasks.isEmpty()) return@forEach
             val rootBounds = bounds(rootId)

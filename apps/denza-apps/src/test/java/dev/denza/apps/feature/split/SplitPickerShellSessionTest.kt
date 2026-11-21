@@ -425,11 +425,14 @@ class SplitPickerShellSessionTest {
      * смотрит на выселенное окно во весь экран.
      */
     @Test
-    fun anEvictionThatCoversTheSceneRaisesItAgainBeforeTheLaunch() {
+    fun anEvictionThatCoversTheSceneRaisesBothPanesBeforeTheLaunch() {
+        // Ред. 2026-11-21: a focus raises one pane container, so both are raised, the narrow last
+        // (findings, "A displaced pane app"). The task lies under the picker: the eviction's case.
         val fake = FakeShell().apply { evictionCoversTheScene = true }
         val split = session(fake)
         val pickers = split.buildPickers()
         fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.promoteActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
         fake.commands.clear()
 
         val placement = split.selectApp(
@@ -441,16 +444,20 @@ class SplitPickerShellSessionTest {
         assertEquals(MUSIC, placement.packageName)
         assertTrue("чужой житель корня жив", fake.hasTask(344))
         assertEquals(FULL_ROOT, fake.taskRoot(344))
+        assertEquals("a buried task is not closed", emptyList<String>(), fake.closedPackages.toList())
         val evicted = fake.commands.indexOf("am stack move-task 344 $FULL_ROOT false")
-        val raised = fake.commands.indexOfFirst { it.startsWith("am task focus ") }
         val launched = fake.commands.indexOfFirst { it.startsWith("am start ") }
+        val raised = fake.commands.withIndex()
+            .filter { (index, command) -> index in evicted until launched && command.startsWith("am task focus ") }
+            .map { (_, command) -> command }
         assertTrue("выселение состоялось", evicted >= 0)
-        assertTrue("сцена поднята фокусом сразу после выселения", raised > evicted)
-        assertTrue("и до запуска приложения", launched > raised)
         assertEquals(
-            "фокус - на верхней задаче панели, порядок в корне не меняется",
-            "am task focus ${pickers.getValue(SplitPane.PRIMARY)}",
-            fake.commands[raised],
+            "обе панели подняты фокусом на их верхние задачи, узкая последней, до запуска",
+            listOf(
+                "am task focus ${pickers.getValue(SplitPane.SECONDARY)}",
+                "am task focus ${pickers.getValue(SplitPane.PRIMARY)}",
+            ),
+            raised,
         )
         assertEquals("сцена снова на экране", 3, fake.area)
     }
@@ -462,6 +469,7 @@ class SplitPickerShellSessionTest {
         val split = session(fake)
         val pickers = split.buildPickers()
         fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.promoteActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
         fake.commands.clear()
 
         split.selectApp(
@@ -475,6 +483,56 @@ class SplitPickerShellSessionTest {
         assertTrue(evicted in 0 until launched)
         assertFalse(
             fake.commands.subList(evicted, launched).any { it.startsWith("am task focus ") },
+        )
+    }
+
+    /**
+     * The order of 2026-11-20: the full root between the narrow and the wide container, the area
+     * still 3. `am stack list` gives the order, and an eviction that leaves the full root above a
+     * pane raises both, though the area never said 4.
+     */
+    @Test
+    fun aFullRootBetweenThePanesIsReadFromTheOrderAndBothPanesAreRaised() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.promoteActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        fake.fullRootBetweenPanes = true
+        fake.commands.clear()
+
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        val evicted = fake.commands.indexOf("am stack move-task 344 $FULL_ROOT false")
+        val launched = fake.commands.indexOfFirst { it.startsWith("am start ") }
+        val raised = fake.commands.subList(evicted, launched).filter { it.startsWith("am task focus ") }
+        assertEquals(
+            listOf(
+                "am task focus ${pickers.getValue(SplitPane.SECONDARY)}",
+                "am task focus ${pickers.getValue(SplitPane.PRIMARY)}",
+            ),
+            raised,
+        )
+        assertFalse("the wide pane is above the full root again", fake.fullRootBetweenPanes)
+    }
+
+    /**
+     * The bounds of findings "The cold wait's time", re-derived 2026-11-21: the eviction raises
+     * both panes, one focus more. What the open's cold wait can get at most shrinks by 200 ms, to
+     * 2660 ms.
+     */
+    @Test
+    fun theEvictionBoundsStillAddUpInsideTheOpensCeiling() {
+        assertEquals(2210L, SplitSceneBuilder.EVICTION_BOUND_MS)
+        assertEquals(2760L, SplitSceneBuilder.COLD_DEGRADE_RESERVE_MS)
+        assertEquals(6940L, SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS)
+        assertEquals(
+            2660L,
+            OPEN_BUDGET_MS - OPEN_READ_BACK_RESERVE_MS - SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS,
         )
     }
 

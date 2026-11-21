@@ -1192,13 +1192,14 @@ internal class SplitSceneBuilder(
         /**
          * [SplitTaskCommands.evictToFullRoot] of the two panes' applications, from above: two moves,
          * the settle, the read of where they landed, each task resized to its root (a read, the
-         * resize, the settle, a read), and the scene raised over them (a read, the focus, and
-         * the area awaited for at most [EXIT_SETTLE_MS]).
+         * resize, the settle, a read), and both panes raised over them (a read, a focus on each
+         * pane, and the area awaited for at most [EXIT_SETTLE_MS]). Ред. 2026-11-21: one focus
+         * more than the one raise of before (2110 → 2210 ms).
          */
         const val EVICTION_BOUND_MS =
             2 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS + SHELL_TRIP_BOUND_MS +
                 2 * (3 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS) +
-                2 * SHELL_TRIP_BOUND_MS + EXIT_SETTLE_MS
+                3 * SHELL_TRIP_BOUND_MS + EXIT_SETTLE_MS
 
         /**
          * What the placement's cold wait leaves of the build's time: the last look, which may
