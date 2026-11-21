@@ -20,7 +20,13 @@ class SplitInProcessCallsTest {
     }
 
     @Test
-    fun theFiveCallsTheRecipesSendAreRecognisedLetterForLetter() {
+    fun theSixCallsTheRecipesSendAreRecognisedLetterForLetter() {
+        assertEquals(
+            SplitBinderCall(117, listOf(SplitBinderArgument.Utf16(MUSIC)), repliesInt = false),
+            SplitBinderCall.of("service call activity_task 117 s16 '$MUSIC'"),
+        )
+        assertNull(SplitBinderCall.of("service call activity_task 117 i32 1"))
+        assertNull(SplitBinderCall.of("service call activity_task 117"))
         assertEquals(
             SplitBinderCall(30, emptyList(), repliesInt = true),
             SplitBinderCall.of("service call activity_task 30"),

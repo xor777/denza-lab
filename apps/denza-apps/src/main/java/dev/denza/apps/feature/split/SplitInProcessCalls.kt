@@ -14,6 +14,9 @@ package dev.denza.apps.feature.split
  * the car 2026-09-23): the area (tx30), the root of an area (tx118), whether a package is
  * split-capable (tx112), the runtime split list (tx125) and the gate (tx126). The reads come back
  * in under a millisecond instead of a round trip, and none of the five needs ADB to be alive.
+ * The sixth, `closeApplication` (tx117), is the firmware's own close of a pane's app; the corpus
+ * shows no permission check on it (`ActivityTaskManagerService.closeApplication`), the car has not
+ * yet answered it from an app UID, and a refusal goes down the funnel like any other.
  * The world read (`am stack list`) and every task move stay where they are: the firmware guards
  * those with permissions an app does not hold.
  */
@@ -37,7 +40,7 @@ internal sealed interface SplitBinderArgument {
 /**
  * One `service call activity_task` command this process may send itself, parsed exactly.
  *
- * Deny by default, the same discipline as [SplitResidentRequest]: only the five codes above, only
+ * Deny by default, the same discipline as [SplitResidentRequest]: only the six codes above, only
  * with the argument shapes the recipes send, and the argument words split by the one quoting rule
  * the recipes use ([SplitTaskProxyMain.splitArguments]).
  */
@@ -57,7 +60,8 @@ internal data class SplitBinderCall(
                 AREA -> if (tail.isEmpty()) SplitBinderCall(code, emptyList(), repliesInt = true) else null
                 ROOT_BY_AREA -> int32(tail)?.let { SplitBinderCall(code, listOf(it), repliesInt = true) }
                 SUPPORTS_SPLIT -> utf16(tail)?.let { SplitBinderCall(code, listOf(it), repliesInt = true) }
-                PERSISTENT_APP -> utf16(tail)?.let { SplitBinderCall(code, listOf(it), repliesInt = false) }
+                PERSISTENT_APP, CLOSE_APPLICATION ->
+                    utf16(tail)?.let { SplitBinderCall(code, listOf(it), repliesInt = false) }
                 GATE -> int32(tail)
                     ?.takeIf { it.value == 0 || it.value == 1 }
                     ?.let { SplitBinderCall(code, listOf(it), repliesInt = false) }
@@ -78,6 +82,7 @@ internal data class SplitBinderCall(
         private const val PREFIX = "service call activity_task "
         const val AREA = 30
         const val SUPPORTS_SPLIT = 112
+        const val CLOSE_APPLICATION = 117
         const val ROOT_BY_AREA = 118
         const val PERSISTENT_APP = 125
         const val GATE = 126
