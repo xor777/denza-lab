@@ -31,7 +31,8 @@ import org.junit.Test
  *
  * And one thing that does depend on meaning, because the board pictures it: the engine block's five
  * moments on the Luminofor boards (`cluster-engine`, `-kickdown`, `-stopped`, `-gone`, `-parked`)
- * are these drives at those rows, chart, figure and time, replayed through the same step.
+ * are these drives at those rows, chart, figure and time, replayed through the same step; and the
+ * sixth, `-resumed`, is one of them replayed as one trip, its stops in P left out (since 2026-11-21).
  *
  * `tools/vehicle_log.py` writes the files, into `captures/vehicle-log/` (git-ignored, so this test
  * runs against whatever the machine has). **It is skipped with nothing there**, which is the state
@@ -148,6 +149,9 @@ class VehicleLogReplayTest {
         moment(drive, "2026-09-24T18:39:39.500", "cluster-engine-kickdown", running = true)
         moment(drive, "2026-09-24T19:25:30", "cluster-engine-stopped", running = false)
         moment(parked!!, "2026-09-18T18:33:40", "cluster-engine-parked", running = true)
+        // Constructed: no drive has the engine resting inside one trip, so the same drive is replayed
+        // as one, its stops in P left out - three runs and two pauses in one trip's chart.
+        moment(drive, "2026-09-24T19:23:09", "cluster-engine-resumed", running = true, oneTrip = true)
 
         // Past the hold the block is gone and the trip says what the engine charged this trip.
         val (gone, scene) = replayTo(drive, "2026-09-24T19:25:40")
@@ -161,14 +165,22 @@ class VehicleLogReplayTest {
         assertEquals("its road", AppText.s(R.string.energy_trip_km, board["tripKm"] as String), readouts.tripCaption)
     }
 
-    private fun moment(file: File, until: String, board: String, running: Boolean) {
-        val (t, scene) = replayTo(file, until)
+    private fun moment(file: File, until: String, board: String, running: Boolean, oneTrip: Boolean = false) {
+        val (t, scene) = replayTo(file, until, oneTrip)
         val f = SpecJson.fixture(board)
         val run = t.engineCharge
         assertEquals("$board: running", running, run.running)
         assertTrue("$board: the block is up", scene.stage.engineBlock)
         assertEquals("$board: the figure", f["engineKwh"], ContourReadout.engineKwh(run.kwh))
         assertEquals("$board: the time", f["engineRun"], ContourReadout.engineRun(run.seconds.toInt()))
+        if (t.trip.open) {
+            // On the move the block is the trip's: its figure and time are the ledger's own.
+            assertTrue("$board: the trip's engine", run.ofTrip)
+            assertEquals("$board: the trip's «ЗАРЯД ОТ ДВС»", t.trip.engineKwh, run.kwh, 0.0)
+            assertEquals("$board: the trip's engine time", t.trip.engineSeconds, run.seconds, 0.0)
+        }
+        val marks = (f["chargeMarks"] as List<*>?).orEmpty().map { (it as Number).toInt() }
+        assertEquals("$board: the pauses' marks", marks, run.marks.toList())
         val line = (f["chargeLine"] as List<*>).map { (it as Number).toFloat() }
         assertEquals("$board: points", line.size, run.points.size)
         line.forEachIndexed { index, expected ->
@@ -182,8 +194,11 @@ class VehicleLogReplayTest {
         )
     }
 
-    /** The hub's step over [file]'s rows whose wall time is not past [until]: the last snapshot and the scene. */
-    private fun replayTo(file: File, until: String): Pair<VehicleTelemetry, ContourScene> {
+    /**
+     * The hub's step over [file]'s rows whose wall time is not past [until]: the last snapshot and the
+     * scene. [oneTrip] replays the drive as one trip: the selector's column is left out, so no P ends it.
+     */
+    private fun replayTo(file: File, until: String, oneTrip: Boolean = false): Pair<VehicleTelemetry, ContourScene> {
         val rows = file.readLines().filter { it.isNotBlank() }
         val header = rows[0].split(',')
         val wall = header.indexOf("time")
@@ -191,6 +206,7 @@ class VehicleLogReplayTest {
         val columns = VehicleSignal.entries
             .associateWith { signal -> header.indexOf(VehicleCaptureColumns.of(signal)) }
             .filterValues { it >= 0 }
+            .filterKeys { !oneTrip || it != VehicleSignal.GEARBOX_PARK }
         val log = ConsumptionLog()
         val ledger = TripEnergyLedger()
         val charge = EngineCharge()

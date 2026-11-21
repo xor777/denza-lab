@@ -108,7 +108,15 @@ open class ContourFixturesContractTest {
             val line = f["chargeLine"] as List<*>
             assertTrue("$id: a point a second, two minutes at most", line.size in 2..LuminoforSpec.Cluster.EngineCharge.POINTS)
             assertTrue("$id: upward only", line.all { (it as Number).toFloat() >= 0f })
+            // A pause's mark stands between two drawn points, never before the oldest; oldest first.
+            val marks = (f["chargeMarks"] as List<*>?).orEmpty().map { (it as Number).toInt() }
+            assertTrue("$id: marks $marks", marks.all { it in 1 until line.size })
+            assertEquals("$id: marks in order", marks.sorted().distinct(), marks)
         }
+        assertTrue(
+            "a board shows the engine resting inside a trip",
+            blocks.any { (_, f) -> (f["chargeMarks"] as List<*>?).orEmpty().isNotEmpty() },
+        )
     }
 
     @Test

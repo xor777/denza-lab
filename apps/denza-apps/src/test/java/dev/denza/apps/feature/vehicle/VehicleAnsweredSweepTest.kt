@@ -153,18 +153,21 @@ class VehicleAnsweredSweepTest {
     }
 
     /**
-     * The block's figure and the trip's are one integral: the same sweeps, the same intervals, the
-     * same rule. A trip whose ledger is open counts exactly what the run counts.
+     * While a trip is open the block's figure and time are the trip's own, not a second integral
+     * that agrees with it (since 2026-11-21): the sweep step hands the block the ledger's trip after
+     * the same sweep, so the two are one number to the last bit.
      */
     @Test
-    fun theRunsFigureIsTheTripsOwnIntegral() {
+    fun theBlocksFigureIsTheTripsOwn() {
         sweep(powerKw = 0.0, km = 0.0)
         sweep(powerKw = 10.0) // the trip opens on the first movement
         repeat(30) { sweep(powerKw = -12.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0)) }
         val t = sweep(powerKw = 40.0, extra = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0))
         val expected = 30 * 12.0 * SWEEP_SECONDS / 3600.0
-        assertEquals(expected, t.engineCharge.kwh, 1e-9)
+        assertTrue(t.engineCharge.ofTrip)
         assertEquals(expected, t.trip.engineKwh, 1e-9)
+        assertEquals(t.trip.engineKwh, t.engineCharge.kwh, 0.0)
+        assertEquals(t.trip.engineSeconds, t.engineCharge.seconds, 0.0)
         assertEquals(31 * SWEEP_SECONDS, t.engineCharge.seconds, 1e-9)
     }
 

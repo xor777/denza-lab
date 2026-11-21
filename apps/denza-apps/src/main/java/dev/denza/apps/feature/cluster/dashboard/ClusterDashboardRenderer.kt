@@ -421,8 +421,10 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
      * pack took while the engine ran, a point a second over the last two minutes, drawn by the same
      * [Silhouette] as the ten kilometres - one curve through the points, its field, ten runs
      * brightening to the present, the end dot and the tick of a cut - in the return blue, from a
-     * zero on the figures' baseline up to their cap. «ЗАРЯД ОТ ДВС» over the line, and at its right
-     * end the run's figure with its time under it.
+     * zero on the figures' baseline up to their cap. Where the engine rested inside the trip the
+     * curve and its field are cut [EngineCharge.PAUSE_GAP] wide and a seam stands in the cut: the
+     * zero's own hairline in ink, from the zero to the cap. «ЗАРЯД ОТ ДВС» over the line, and at its
+     * right end the figure with the engine's time under it.
      */
     private fun engineBlock(f: ContourFrame) {
         val zero = ContourGeometry.CHARGE_ZERO
@@ -431,6 +433,18 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         path.lineTo(ContourGeometry.CHARGE_RIGHT, zero)
         pen.beam(path, EngineCharge.BASE_STROKE, ClusterInk.INK, ContourGeometry.CHARGE_BASE_INTENSITY)
         val n = f.chargeCount
+        // Where the engine rested the curve and its field are cut, the full height of the glass, so
+        // the steep fall between the last second before the pause and the first after it is never
+        // drawn; the seam goes in the cut once the chart is down.
+        val canvas = pen.canvas
+        val save = canvas.save()
+        for (index in 0 until f.chargeMarkCount) {
+            val x = ContourGeometry.chargeMarkX(f.chargeMarks[index], n)
+            canvas.clipOutRect(
+                pen.x(x - EngineCharge.PAUSE_GAP / 2f), 0f,
+                pen.x(x + EngineCharge.PAUSE_GAP / 2f), canvas.height.toFloat(),
+            )
+        }
         val drawn = charge.draw(
             pen, f.charge, 0, n,
             right = ContourGeometry.CHARGE_RIGHT,
@@ -441,6 +455,14 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
             upTo = EngineRun.ceilingKw(f.charge, n),
             downTo = NOTHING_BELOW,
         )
+        canvas.restoreToCount(save)
+        for (index in 0 until f.chargeMarkCount) {
+            val x = ContourGeometry.chargeMarkX(f.chargeMarks[index], n)
+            path.rewind()
+            path.moveTo(x, zero)
+            path.lineTo(x, ContourGeometry.CHARGE_TOP)
+            pen.beam(path, EngineCharge.BASE_STROKE, ClusterInk.INK, EngineCharge.PAUSE_INTENSITY)
+        }
         if (drawn && n > 1) {
             path.rewind()
             path.addCircle(charge.endX, charge.endY, ContourGeometry.TRACE_DOT, Path.Direction.CW)

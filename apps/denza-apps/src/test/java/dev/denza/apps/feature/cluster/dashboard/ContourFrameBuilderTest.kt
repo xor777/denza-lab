@@ -268,6 +268,51 @@ open class ContourFrameBuilderTest {
         assertEquals(board["tripKm"], gone.tripKm)
     }
 
+    /**
+     * The trip's engine with a pause in it (since 2026-11-21): the frame carries the marks where the
+     * snapshot has them, and the figure the block prints is the one the trip's line prints after it.
+     */
+    @Test
+    fun theTripsEngineCarriesItsPausesAndOneFigureOnBothSeats() {
+        val trip = TripEnergy(opened = true, open = true, netKwh = 4.0, kilometres = 30.0, engineSeconds = 2_700.0, engineKwh = 12.4)
+        val points = FloatArray(90) { if (it < 60) 12f else 1.2f * minOf(10, it - 59) }
+        val block = EngineChargeSnapshot(
+            points = points,
+            kwh = trip.engineKwh,
+            seconds = trip.engineSeconds,
+            running = true,
+            stoppedSeconds = 0L,
+            marks = intArrayOf(60),
+            ofTrip = true,
+        )
+        val panel = ContourPanel()
+        val running = panel.run(
+            city(
+                values = mapOf(VehicleSignal.POWER_KW to -12.0, VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1500.0),
+                trip = trip,
+                trace = block,
+            ),
+            1f,
+        )
+        assertTrue(running.engineBlock)
+        assertEquals(90, running.chargeCount)
+        assertEquals(1, running.chargeMarkCount)
+        assertEquals(60, running.chargeMarks[0])
+        assertEquals("past ten kilowatt-hours the block is whole", "12", running.engineKwh)
+        val blockFigure = running.engineKwh
+        assertEquals(ContourReadout.engineRun(2_700), running.engineRun)
+
+        // The engine stops for good and the block leaves: the trip's line says the same «12».
+        val stopped = EngineChargeSnapshot(points, trip.engineKwh, trip.engineSeconds, false, 30L, intArrayOf(60), ofTrip = true)
+        val gone = panel.run(
+            city(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0), trip = trip, trace = stopped),
+            12f,
+        )
+        assertFalse(gone.engineBlock)
+        assertEquals(blockFigure, gone.gaveKwh)
+        assertEquals("and the cell the block's minutes", "45", gone.iceFigure)
+    }
+
     @Test
     fun aHotCellCarriesItsOwnLevel() {
         val frame = ContourPanel().run(

@@ -164,6 +164,7 @@ class LuminoforSpecContractTest {
         n(e.UP_TO, "cluster", "engineCharge", "upTo"); n(e.UP_TO_LOW, "cluster", "engineCharge", "upToLow")
         n(e.LOW_BELOW, "cluster", "engineCharge", "lowBelow"); n(e.BASE_STROKE, "cluster", "engineCharge", "baseStroke")
         n(e.POINTS.toFloat(), "cluster", "engineCharge", "points")
+        n(e.PAUSE_GAP, "cluster", "engineCharge", "pauseGap"); n(e.PAUSE_INTENSITY, "cluster", "engineCharge", "pauseIntensity")
         n(Cluster.Glyph.OUTLINE, "cluster", "glyph", "outline"); n(Cluster.Glyph.WHEEL, "cluster", "glyph", "wheel")
         n(Cluster.Glyph.HEIGHT, "cluster", "glyph", "height")
         assertEquals(list("cluster", "glyph", "row"), Cluster.Glyph.ROW)

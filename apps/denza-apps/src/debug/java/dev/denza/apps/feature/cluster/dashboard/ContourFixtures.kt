@@ -77,6 +77,11 @@ internal object ContourFixtures {
         if (f.optBoolean("engineBlock", false)) {
             frame.engineBlock = true
             frame.chargeCount = floats(f.optJSONArray("chargeLine"), frame.charge)
+            f.optJSONArray("chargeMarks")?.let { marks ->
+                for (index in 0 until minOf(marks.length(), frame.chargeMarks.size)) {
+                    frame.chargeMarks[frame.chargeMarkCount++] = marks.getInt(index)
+                }
+            }
             frame.engineCaption = f.text("engineCaption")
             frame.engineKwh = f.text("engineKwh")
             frame.engineRun = f.text("engineRun")

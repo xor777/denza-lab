@@ -185,6 +185,10 @@ object LuminoforSpec {
             const val LOW_BELOW: Float = 20f
             const val POINTS: Int = 120
             const val BASE_STROKE: Float = 0.8f
+
+            /** Where the engine rested: the cut in the curve and its field, and the seam's ink in it. */
+            const val PAUSE_GAP: Float = 5f
+            const val PAUSE_INTENSITY: Float = 0.5f
         }
 
         object Glyph {

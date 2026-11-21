@@ -191,7 +191,7 @@ internal class ContourFrameBuilder {
         // came back. A seat's index is its memo slot as well as its place.
         if (scene.known(ContourValue.TRIP_ENGINE)) {
             frame.gaveCaption = ContourReadout.CAPTION_ENGINE_CHARGE
-            if (scene.fresh(ContourValue.TRIP_ENGINE)) frame.gaveKwh = figures.seat(1, trip.engineKwh)
+            if (scene.fresh(ContourValue.TRIP_ENGINE)) frame.gaveKwh = figures.engineSeat(trip.engineKwh)
         }
         if (stage.parked && scene.known(ContourValue.TRIP_REGEN)) {
             frame.regenCaption = ContourReadout.CAPTION_REGEN
@@ -201,9 +201,10 @@ internal class ContourFrameBuilder {
 
     /**
      * The block, in the trip's place, while the engine runs and ten seconds after
-     * (`docs/energy-display-contract.md` §2.5): the run's points, its figure and its time. They
-     * are the hub's, as the trip is, so they are as fresh as the packet that carried them; after
-     * the stop they are the run's last answer and stay as they were.
+     * (`docs/energy-display-contract.md` §2.5): the points, the pauses' marks, the figure and the
+     * time - this trip's engine while a trip is open, the run standing in P otherwise. They are the
+     * hub's, as the trip is, so they are as fresh as the packet that carried them; after the stop
+     * they are the last answer and stay as they were.
      */
     private fun engineBlock(frame: ContourFrame, t: VehicleTelemetry) {
         val points = t.engineCharge.points
@@ -211,6 +212,12 @@ internal class ContourFrameBuilder {
         val first = points.size - count
         for (index in 0 until count) frame.charge[index] = points[first + index]
         frame.chargeCount = count
+        var marks = 0
+        for (mark in t.engineCharge.marks) {
+            val at = mark - first
+            if (at in 1 until count) frame.chargeMarks[marks++] = at
+        }
+        frame.chargeMarkCount = marks
         frame.engineBlock = true
         frame.engineCaption = ContourReadout.CAPTION_ENGINE_CHARGE
         frame.engineKwh = readouts.engineKwh

@@ -96,6 +96,17 @@ internal class ContourFigures {
         return hit(slot, kwh, false) ?: keep(slot, kwh, false, ContourReadout.tenth(kwh))
     }
 
+    /**
+     * The detail line's «ЗАРЯД ОТ ДВС», seat one: printed as the engine block prints the same
+     * quantity ([ContourReadout.engineKwh]), so the two say one number to the same digit - «12» on
+     * both past ten kilowatt-hours, where a tenth on the line and a whole on the block were two
+     * strings for one figure (since 2026-11-21).
+     */
+    fun engineSeat(kwh: Double): String {
+        val slot = Slot.entries[Slot.SEAT_0.ordinal + 1]
+        return hit(slot, kwh, false) ?: keep(slot, kwh, false, ContourReadout.engineKwh(kwh))
+    }
+
     /** The petal's figure, which is a whole number on the move and a tenth standing still. */
     fun consumption(perHundredKm: Double, parked: Boolean): String =
         hit(Slot.PETAL, perHundredKm, parked)

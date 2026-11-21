@@ -422,16 +422,30 @@
   // second over the run's last two minutes, drawn by silhouette() as the ten kilometres are - one
   // curve, its field, ten runs dimmer toward the past, the end dot and the cut tick - in the return
   // blue, from a zero on the figures' baseline up to their cap. «ЗАРЯД ОТ ДВС» over the line, the
-  // run's figure at its right end with the run's time under it. A younger run grows from the right
-  // edge at the full window's pitch. The ceiling is the app's EngineCharge.ceilingKw.
+  // figure at its right end with the engine's time under it. A younger chart grows from the right
+  // edge at the full window's pitch. The ceiling is the app's EngineCharge.ceilingKw. Since
+  // 2026-11-21 the chart is the open trip's engine seconds: where the engine rested (`chargeMarks`,
+  // the index of the first point after each pause) the curve and its field are cut pauseGap wide,
+  // the whole height, and a seam stands in the cut - the zero's own hairline, ink, zero to cap.
   function engineBlock(c, f, base, RE) {
     const K = S.cluster.engineCharge;
     const top = base - D.capRatio * CG.figureSize;
     const lineL = RE - K.width, lineR = RE - K.column - 2 * CT.gapFromAxis, figX = RE - K.column;
     const vals = f.chargeLine || [];
+    const pitch = (lineR - lineL) / (K.points - 1);
+    const seams = (f.chargeMarks || []).map(i => lineR - (vals.length - i - 0.5) * pitch);
     const upTo = Math.max(0, ...vals) < K.lowBelow ? K.upToLow : K.upTo;
     const b0 = new Path2D(); b0.moveTo(lineL, base); b0.lineTo(lineR, base); beam(c, b0, K.baseStroke, INK, 0.35, 0);
     if (vals.length > 1) {
+      // the cuts: everything but a pauseGap round each seam, the glass's whole height
+      c.save();
+      if (seams.length) {
+        const kept = new Path2D();
+        let from = 0;
+        seams.forEach(x => { kept.rect(from, 0, x - K.pauseGap / 2 - from, H); from = x + K.pauseGap / 2; });
+        kept.rect(from, 0, W - from, H);
+        c.clip(kept);
+      }
       const end = silhouette(c, vals, {
         right: lineR, pitch: (lineR - lineL) / (K.points - 1), zero: base, top, bottom: base + 1,
         upTo, downTo: 1e9, upLight: BLUE, downLight: BLUE, stroke: CT.stroke, tick: CT.tick, runs: CT.runs,
@@ -441,6 +455,10 @@
           cc.fillStyle = g; cc.fill(field);
         },
         fillDown: () => {}
+      });
+      c.restore();
+      seams.forEach(x => {
+        const s = new Path2D(); s.moveTo(x, base); s.lineTo(x, top); beam(c, s, K.baseStroke, INK, K.pauseIntensity, 0);
       });
       const dot = new Path2D(); dot.arc(end.x, end.y, 2.6, 0, Math.PI * 2);
       glowFill(c, dot, BLUE, 1, 12);

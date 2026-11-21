@@ -41,7 +41,10 @@ internal data class VehicleTelemetry(
      * (`docs/energy-display-contract.md` §2.3).
      */
     val chart: ConsumptionChartSnapshot = ConsumptionChartSnapshot.EMPTY,
-    /** The engine's newest run: what the pack took while it ran, a point a second ([EngineCharge]). */
+    /**
+     * The engine's block: what the pack took while it ran, a point a second - this trip's engine
+     * while a trip is open, the run standing in P otherwise ([EngineCharge]).
+     */
     val engineCharge: EngineChargeSnapshot = EngineChargeSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
     val trip: TripEnergy = TripEnergy(),

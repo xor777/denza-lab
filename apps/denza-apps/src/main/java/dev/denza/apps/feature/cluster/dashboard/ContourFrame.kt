@@ -122,10 +122,17 @@ internal class ContourFrame {
     val charge: FloatArray = FloatArray(LuminoforSpec.Cluster.EngineCharge.POINTS)
     var chargeCount: Int = 0
 
+    /**
+     * Where the engine rested inside the trip: each the index in [charge] of the first point after a
+     * pause, oldest first, never 0. The chart is cut there and a seam stands in the cut.
+     */
+    val chargeMarks: IntArray = IntArray(LuminoforSpec.Cluster.EngineCharge.POINTS)
+    var chargeMarkCount: Int = 0
+
     /** «ЗАРЯД ОТ ДВС», over the line. */
     var engineCaption: String? = null
 
-    /** «0,4» kWh since the engine started, at the line's right end; null while there is none. */
+    /** «0,4» kWh the engine gave this trip, at the line's right end; null while there is none. */
     var engineKwh: String? = null
 
     /** «ЗА 2:51», under it. */
@@ -200,6 +207,7 @@ internal class ContourFrame {
         iceUnit = null
         engineBlock = false
         chargeCount = 0
+        chargeMarkCount = 0
         engineCaption = null
         engineKwh = null
         engineRun = null

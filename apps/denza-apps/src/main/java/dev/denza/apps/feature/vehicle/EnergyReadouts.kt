@@ -9,6 +9,7 @@ import dev.denza.apps.feature.cluster.dashboard.ContourMotion
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.cluster.dashboard.ContourScene
 import kotlin.math.abs
+import kotlin.math.floor
 
 /**
  * Every energy string and every energy shape both screens draw, decided once.
@@ -89,13 +90,14 @@ internal class EnergyReadouts {
         private set
 
     /**
-     * What the pack took since the engine started - the engine block's figure, a tenth of a
-     * kilowatt-hour - or null when there is no run to speak of.
+     * The engine block's figure, a tenth of a kilowatt-hour: what the pack took while the engine ran
+     * this trip - the trip's «ЗАРЯД ОТ ДВС» itself - or, with no trip open, since the run standing in
+     * P started; null when there is nothing to speak of.
      */
     var engineKwh: String? = null
         private set
 
-    /** And how long that run is: «ЗА 0:40», under the figure. Empty with no run. */
+    /** And how long the engine ran on the same terms: «ЗА 2 мин», under the figure. Empty with no run. */
     var engineRun: String = ""
         private set
 
@@ -203,7 +205,10 @@ internal class EnergyReadouts {
             engineKwh = null
             engineRun = ""
         } else {
-            engineKwh = figures.engineKwh(run.kwh)
+            // While a trip is open these are the ledger's own «ЗАРЯД ОТ ДВС» and engine seconds,
+            // carried in the snapshot as they are (`EngineCharge`): one number, wherever it stands.
+            // A trip carried over from 0.7.1 has no engine charge, here as on the trip's line.
+            engineKwh = if (run.kwhKnown) figures.engineKwh(run.kwh) else null
             engineRun = figures.engineRun(run.seconds.toInt())
         }
 
@@ -265,9 +270,15 @@ internal class EnergyReadouts {
      * [EngineChargeSnapshot.RECENT_SECONDS] after the engine stops.
      *
      * **And not in the first [ENGINE_HOLD_SECONDS] after it stops**, while the cluster's engine
-     * block still stands on the shelf with the run's own figure: the minutes are the trip's, and the
-     * block and the trip's minutes side by side are two answers to «how long did it run». The car
-     * page has no block and says nothing there too, so both screens answer the same.
+     * block still stands on the shelf with its own time under its figure: on the move that is the
+     * trip's engine time already (since 2026-11-21), and the cell beside it would say it twice; in P
+     * it is the standing run's, and the trip's minutes beside it would be a second answer to «how
+     * long did it run». The car page has no block and says nothing there too, so both screens answer
+     * the same.
+     *
+     * **The minutes are whole minutes run**, as the block's «ЗА 2 мин» counts them (`AppDuration`):
+     * until 2026-11-21 the cell rounded, and 172 seconds read «ЗА 2 мин» under the block and «3 мин»
+     * in the cell the moment the block left - one quantity, two answers.
      */
     private fun readEngineCell(t: VehicleTelemetry) {
         val rpm = t.engineRpm
@@ -279,7 +290,7 @@ internal class EnergyReadouts {
             engineCellFigure = figures.whole(ContourFigures.Slot.RPM, rpm)
             return
         }
-        val minutes = t.trip.engineMinutes
+        val minutes = floor(t.trip.engineMinutes)
         val run = t.engineCharge
         if (run.stoppedRecently && run.stoppedSeconds >= ENGINE_HOLD_SECONDS &&
             t.trip.engineRan && minutes >= 1.0

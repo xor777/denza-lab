@@ -93,8 +93,10 @@ internal class VehicleTelemetryHub(context: Context) {
     private val tripCheckpoint = TripCheckpoint()
 
     /**
-     * Kept in memory only. The consumption journal survives a restart because it is about the road;
-     * the engine's run is about right now, and a restart is long enough to make it a lie.
+     * The chart kept in memory only. While a trip is open the block's figure and time are the
+     * ledger's, which [tripJournal] carries across a restart; the chart's samples are about the last
+     * two minutes, and a restart in the middle of a trip refills them rather than journalling a
+     * sample a second (contract §2.5).
      */
     private val charge = EngineCharge()
 
@@ -735,10 +737,6 @@ internal object VehicleAnsweredSweep {
         if (resumed) log.interrupted()
         val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
         val load = VehicleConvention.load(parsed[VehicleSignal.POWER_KW])
-        // Sampled on every sweep: a run is the engine's own flag, and what it charts is what the
-        // pack took while the flag was up (contract §2.5), not `GENERATION_KW`, which reads zero on
-        // the move.
-        charge.sample(atMillis = atMillis, engineRunning = engineRunning, loadKw = load, dtSeconds = dtSeconds)
         log.sample(
             odometerKm = parsed[VehicleSignal.ODOMETER_KM],
             powerKw = load,
@@ -754,6 +752,17 @@ internal object VehicleAnsweredSweep {
             engineRunning = engineRunning,
             parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
             dtSeconds = dtSeconds,
+        )
+        // Sampled on every sweep, after the ledger and handed its trip: a run is the engine's own
+        // flag, what it charts is what the pack took while the flag was up (contract §2.5) - not
+        // `GENERATION_KW`, which reads zero on the move - and while a trip is open its figure and
+        // time are this very trip's, so the block and «ЗАРЯД ОТ ДВС» are one number (since 2026-11-21).
+        charge.sample(
+            atMillis = atMillis,
+            engineRunning = engineRunning,
+            loadKw = load,
+            dtSeconds = dtSeconds,
+            trip = ledger.trip,
         )
 
         // Cold values carry across a *hot* sweep — temperatures do not change in a second. Hot

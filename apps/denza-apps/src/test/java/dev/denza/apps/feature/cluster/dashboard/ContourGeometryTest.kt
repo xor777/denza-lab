@@ -80,6 +80,28 @@ open class ContourGeometryTest {
         assertEquals(Digits.CAP_RATIO * Grid.FIGURE_SIZE, g.CHARGE_ZERO - g.CHARGE_TOP, 1e-3f)
     }
 
+    /**
+     * A pause's seam (contract §2.5, since 2026-11-21): halfway between the last point before it and
+     * the first after it, in a cut wide enough to hide the fall between them, inside the box where the
+     * ceiling's tick stands outside it, and in the zero's own ink rather than the chart's blue.
+     */
+    @Test
+    fun aPausesSeamStandsInACutBetweenTwoPoints() {
+        val n = 90
+        val before = g.CHARGE_RIGHT - (n - 1 - 59) * g.CHARGE_PITCH
+        val after = g.CHARGE_RIGHT - (n - 1 - 60) * g.CHARGE_PITCH
+        assertEquals((before + after) / 2f, g.chargeMarkX(60, n), 1e-3f)
+        assertEquals("a full window's last seam", g.CHARGE_RIGHT - g.CHARGE_PITCH / 2f, g.chargeMarkX(119, 120), 1e-3f)
+        assertTrue("the cut hides the step between the two points", Block.PAUSE_GAP > g.CHARGE_PITCH)
+        assertTrue("and leaves the seam a dark gap on each side", Block.PAUSE_GAP / 2f > Block.BASE_STROKE * 2f)
+        assertTrue("and is a cut, not a hole: under a tenth of the line", Block.PAUSE_GAP < (g.CHARGE_RIGHT - g.CHARGE_LEFT) / 10f)
+        assertTrue("the seam is quieter than the curve's newest run", Block.PAUSE_INTENSITY < g.runIntensity(Trace.RUNS - 1))
+        assertTrue(
+            "luminofor.js stands it in the same place",
+            SpecJson.read("luminofor/luminofor.js").contains("lineR - (vals.length - i - 0.5) * pitch"),
+        )
+    }
+
     @Test
     fun theEngineChartsCeilingIsFiftyOrTwentyFiveByItsOwnWindow() {
         assertEquals(50f, EngineCharge.CEILING_KW, 0f)

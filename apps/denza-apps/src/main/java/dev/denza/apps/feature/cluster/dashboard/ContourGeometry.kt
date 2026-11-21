@@ -200,6 +200,12 @@ internal object ContourGeometry {
     /** A point a second: a full window runs edge to edge, a younger run grows from the right. */
     const val CHARGE_PITCH: Float = (CHARGE_RIGHT - CHARGE_LEFT) / (EngineCharge.POINTS - 1)
 
+    /**
+     * Where a pause's seam stands: halfway between the last point before it and the first after it,
+     * [index] being the latter's among [count] points drawn from the right edge.
+     */
+    fun chargeMarkX(index: Int, count: Int): Float = CHARGE_RIGHT - (count - index - 0.5f) * CHARGE_PITCH
+
     /** The line's height is the figures': zero on their baseline, the ceiling at their cap. */
     const val CHARGE_ZERO: Float = Grid.BASELINE
     const val CHARGE_TOP: Float = Grid.BASELINE - Digits.CAP_RATIO * Grid.FIGURE_SIZE
