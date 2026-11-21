@@ -332,6 +332,33 @@ class TripEnergyLedgerTest {
         assertTrue("the finished trip is still a trip", ledger.trip.opened)
     }
 
+    /**
+     * A trip is open from the first movement after P until the next P, and only then: the engine's
+     * block is the trip's while it is, and the run standing in P while it is not (contract §2.5).
+     */
+    @Test
+    fun aTripIsOpenFromTheFirstMovementToTheNextP() {
+        val ledger = ledger()
+        moving(ledger, 100.0, powerKw = 10.0)
+        assertFalse("nothing has moved", ledger.trip.open)
+        moving(ledger, 100.1, powerKw = 10.0)
+        assertTrue(ledger.trip.open)
+        moving(ledger, 100.1, powerKw = 10.0)
+        assertTrue("standing still without P keeps it open", ledger.trip.open)
+        ledger.sample(null, 0.0, false, true, 1.0)
+        assertFalse("P closes it, odometer or not", ledger.trip.open)
+        assertTrue("and it is still the finished trip", ledger.trip.opened)
+        moving(ledger, 100.2, powerKw = 10.0)
+        assertTrue("the next movement opens the next one", ledger.trip.open)
+
+        val restored = ledger()
+        assertTrue(restored.restore(TripRecord(TripEnergy(9.3, 3.1, 1.1, 360.0, 42.0, opened = true), 1000.0, armed = false), 1000.0))
+        assertTrue("a trip restored mid-drive is open", restored.trip.open)
+        val finished = ledger()
+        assertTrue(finished.restore(TripRecord(TripEnergy(9.3, 3.1, 1.1, 360.0, 42.0, opened = true), 1000.0, armed = true), 1000.0))
+        assertFalse("one restored in P is not", finished.trip.open)
+    }
+
     @Test
     fun aRestoredTripThatWasArmedStillEndsAtTheNextMovement() {
         val ledger = ledger()

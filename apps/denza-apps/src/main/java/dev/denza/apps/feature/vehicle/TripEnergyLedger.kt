@@ -51,6 +51,14 @@ internal data class TripEnergy(
      * dashboard is paused, and a P it missed is a count that moved (`TripParkFeed`).
      */
     val parks: Int = 0,
+    /**
+     * Whether a trip is open now: from the first movement after P until the next P, the stretch the
+     * ledger integrates. False in P after a trip, which is [opened] and finished. Never journalled -
+     * a restored record carries the ledger's own `armed` - and it is what the engine's block asks:
+     * while a trip is open the block is the trip's engine, with none it is the run standing in P
+     * (`EngineCharge`, contract §2.5).
+     */
+    val open: Boolean = false,
 ) {
     val engineMinutes: Double get() = engineSeconds / 60.0
 
@@ -131,7 +139,7 @@ internal class TripEnergyLedger(
     private var lastParked: Boolean? = null
 
     val trip: TripEnergy
-        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres, engineKnown, opened, parks)
+        get() = TripEnergy(net, recovered, engine, engineSeconds, kilometres, engineKnown, opened, parks, opened && !armed)
 
     /** Everything the journal needs, and nothing it does not. */
     fun record(): TripRecord? {
