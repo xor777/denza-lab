@@ -21,8 +21,9 @@ import dev.denza.apps.feature.split.SplitWorld.Companion.TASK_DISCOVERY_INTERVAL
  *
  * A pane whose application does not come back keeps its working picker (1.3.2). The build removes
  * only the product's own components, by exact identity; every other task it finds in a pane root -
- * the user's, and since 2026-11-11 also an application this very build started - leaves it alive,
- * evicted into the full root (invariant 3; contract, note after 1.5; 1.3.11).
+ * the user's, and since 2026-11-11 also an application this very build started - leaves it alive:
+ * the shown app by the firmware's close, below Home, the rest into the full root (invariant 3;
+ * contract, note after 1.5; 1.3.11; [SplitTaskCommands.evictFromPanes]).
  */
 internal class SplitSceneBuilder(
     private val world: SplitWorld,
@@ -434,19 +435,21 @@ internal class SplitSceneBuilder(
         // Membership of a panel root is no verdict (invariant 3; contract, note under 1.5). Only
         // our own components are removed, by exact identity. Any other task of a root is the
         // user's, however it got there (pulled in natively, an earlier selection, an application
-        // an earlier restore started), and is evicted alive into the full root, with that root's
+        // an earlier restore started), and leaves alive: the application a pane shows by the
+        // firmware's own close, below Home; anything else into the full root, with that root's
         // geometry because it does not go to the background there.
         val (executable, foreign) = stale.partition(SplitTask::isOwnSplitComponent)
         commands.removeTasksSafely(executable.distinctBy(SplitTask::id))
-        // The eviction of an application a pane was showing is reported before it is sent: the
+        // The displacement of an application a pane was showing is reported before it is sent: the
         // task was the user's before this build and its inverse is the top of the pane it stood in
         // (a choice on the pill that is unwound puts the application it replaced back, invariant
-        // 9). What lay under a picker is not reported: its way back is not the top.
+        // 9). What lay under a picker is not reported: its way back is not the top. `toRootId` is
+        // the full root on both paths; the inverse reads only `fromRootId`.
         val shownIds = SplitPane.entries.mapNotNullTo(mutableSetOf()) { pane ->
             settled.root(rootIds.getValue(pane))?.resolvedTopTask()?.id
         }
-        commands.evictToFullRoot(foreign) { task, fullRootId ->
-            if (task.id !in shownIds) return@evictToFullRoot
+        commands.evictFromPanes(foreign) { task, fullRootId ->
+            if (task.id !in shownIds) return@evictFromPanes
             onTask(
                 SplitBuiltTask(
                     taskId = task.id,
@@ -969,8 +972,10 @@ internal class SplitSceneBuilder(
      * so is one this build started: the application the user left in the pane was asked for, its
      * process may be seconds from ready, and killing it would make the next tap start it cold
      * again (1.3.11). Every one of them goes into the full root in the background, by the reparent
-     * that evicts every task a pane does not hold, and the scene is raised over them once. The
-     * panes keep their pickers, and the slots their choice - that is the operation's to keep.
+     * that evicts every task a pane does not hold, and both panes are raised over them once. Not by
+     * the firmware's close: this eviction runs inside the time the cold wait leaves
+     * ([EVICTION_BOUND_MS]), and a close waited out in front of it does not fit there. The panes
+     * keep their pickers, and the slots their choice - that is the operation's to keep.
      *
      * Nothing about it is worth failing the build for: a pane that could not be cleared is judged
      * by the placement postcondition like any other.
@@ -992,7 +997,7 @@ internal class SplitSceneBuilder(
                         !task.isOwnSplitComponent()
                 }
             }
-            commands.evictToFullRoot(candidates.distinctBy(SplitTask::id))
+            commands.evictFromPanes(candidates, closeShown = false)
         }
     }
 
@@ -1190,16 +1195,30 @@ internal class SplitSceneBuilder(
         const val SCENE_SAMPLE_BOUND_MS = SHELL_TRIP_BOUND_MS
 
         /**
-         * [SplitTaskCommands.evictToFullRoot] of the two panes' applications, from above: two moves,
-         * the settle, the read of where they landed, each task resized to its root (a read, the
-         * resize, the settle, a read), and both panes raised over them (a read, a focus on each
-         * pane, and the area awaited for at most [EXIT_SETTLE_MS]). Ред. 2026-11-21: one focus
-         * more than the one raise of before (2110 → 2210 ms).
+         * The eviction of the two panes' applications into the full root
+         * ([SplitTaskCommands.evictFromPanes] with `closeShown = false`, the one the cold degrade
+         * and a failed restoration use), from above: two moves, the settle, the read of where they
+         * landed, each task resized to its root (a read, the resize, the settle, a read), and both
+         * panes raised over them (a read, a focus per pane, and the area awaited for at most
+         * [EXIT_SETTLE_MS]). Ред. 2026-11-21: the second focus is new, 2210 ms against 2110.
          */
         const val EVICTION_BOUND_MS =
             2 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS + SHELL_TRIP_BOUND_MS +
                 2 * (3 * SHELL_TRIP_BOUND_MS + ROOT_SETTLE_MS) +
                 3 * SHELL_TRIP_BOUND_MS + EXIT_SETTLE_MS
+
+        /**
+         * The firmware's close of the panes' shown applications waited out, from above:
+         * [SplitTaskCommands.CLOSE_LOOKS] reads with a [TASK_DISCOVERY_INTERVAL_MS] pause between
+         * two of them, 1300 ms. A displacement that closes ([SplitTaskCommands.evictFromPanes] as
+         * the build and the selection call it, before their launch) costs at most the read that
+         * picks each task's path, a close per pane, this wait and [EVICTION_BOUND_MS] when the close
+         * did not come through: 3810 ms. It is spent before the launch, so it comes out of that one
+         * open's cold wait and is reserved nowhere; the evictions inside the reserves never close.
+         */
+        const val CLOSE_WAIT_BOUND_MS =
+            SplitTaskCommands.CLOSE_LOOKS * SHELL_TRIP_BOUND_MS +
+                (SplitTaskCommands.CLOSE_LOOKS - 1) * TASK_DISCOVERY_INTERVAL_MS
 
         /**
          * What the placement's cold wait leaves of the build's time: the last look, which may

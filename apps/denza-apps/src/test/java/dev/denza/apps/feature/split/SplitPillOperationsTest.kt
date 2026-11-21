@@ -46,8 +46,18 @@ class SplitPillOperationsTest {
         assertEquals(SplitPair(WAZE, RADIO), car.store.load().memory.last)
         assertEquals("one operation, one commit", committed + 1, car.store.commits)
         assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
-        assertEquals("the replaced apps are alive in the background", FULL_ROOT, car.fake.taskRoot(PRIMARY_APP_TASK))
-        assertEquals(FULL_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
+        // Ред. 2026-11-21: the replaced apps leave by the firmware's own close, alive below Home
+        assertEquals("the replaced apps are alive below Home", DETACHED_ROOT, car.fake.taskRoot(PRIMARY_APP_TASK))
+        assertEquals(DETACHED_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
+        assertEquals(setOf(NAVIGATOR, MUSIC), car.fake.closedPackages.toSet())
+        assertFalse(
+            "nothing of theirs went into the full root",
+            car.commands().any { command ->
+                command.startsWith("am stack move-task $PRIMARY_APP_TASK ") ||
+                    command.startsWith("am stack move-task $SECONDARY_APP_TASK ")
+            },
+        )
+        assertFalse(car.fake.closeEndedTheSplit)
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
@@ -70,7 +80,7 @@ class SplitPillOperationsTest {
             "nothing moved its task",
             car.commands().any { it.startsWith("am stack move-task $PRIMARY_APP_TASK ") },
         )
-        assertEquals("music went to the background alive", FULL_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
+        assertEquals("music went below Home alive", DETACHED_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
         assertEquals(SplitPair(NAVIGATOR, WAZE), car.store.load().memory.last)
     }
 
@@ -187,12 +197,13 @@ class SplitPillOperationsTest {
         car.barrier()
 
         val commands = car.commands()
-        val evictLeft = commands.indexOfFirst { it.startsWith("am stack move-task $PRIMARY_APP_TASK $FULL_ROOT ") }
-        val evictRight = commands.indexOfFirst { it.startsWith("am stack move-task $SECONDARY_APP_TASK $FULL_ROOT ") }
+        // Ред. 2026-11-21: both leave by the firmware's close, and come back from below Home
+        val evictLeft = commands.indexOf("service call activity_task 117 s16 '$NAVIGATOR'")
+        val evictRight = commands.indexOf("service call activity_task 117 s16 '$MUSIC'")
         val launch = commands.indexOfFirst { it.startsWith("am start") && it.contains(WAZE) }
         val backLeft = commands.indexOfFirst { it == "am stack move-task $PRIMARY_APP_TASK $PRIMARY_ROOT true" }
         val backRight = commands.indexOfFirst { it == "am stack move-task $SECONDARY_APP_TASK $SECONDARY_ROOT true" }
-        assertTrue("both evicted, then the launch, then both inverses: $commands", evictLeft in 0 until launch && evictRight in 0 until launch)
+        assertTrue("both closed, then the launch, then both inverses: $commands", evictLeft in 0 until launch && evictRight in 0 until launch)
         assertTrue(backLeft > launch && backRight > launch)
         assertEquals(PRIMARY_APP_TASK, car.fake.topTaskId(PRIMARY_ROOT))
         assertEquals(SECONDARY_APP_TASK, car.fake.topTaskId(SECONDARY_ROOT))
@@ -342,10 +353,12 @@ class SplitPillOperationsTest {
         car.barrier()
 
         val commands = car.commands()
-        val evict = commands.indexOfFirst { it.startsWith("am stack move-task $SECONDARY_APP_TASK $FULL_ROOT ") }
+        // Ред. 2026-11-21: closed by the firmware, below Home, and moved back from there
+        val evict = commands.indexOf("service call activity_task 117 s16 '$MUSIC'")
         val launch = commands.indexOfFirst { it.startsWith("am start") && it.contains(WAZE) }
         val back = commands.indexOfFirst { it == "am stack move-task $SECONDARY_APP_TASK $SECONDARY_ROOT true" }
-        assertTrue("evicted, launched, put back: $commands", evict in 0 until launch && back > launch)
+        assertTrue("closed, launched, put back: $commands", evict in 0 until launch && back > launch)
+        assertFalse(commands.any { it.startsWith("am stack move-task $SECONDARY_APP_TASK $FULL_ROOT ") })
         assertEquals(SECONDARY_APP_TASK, car.fake.topTaskId(SECONDARY_ROOT))
         assertEquals(car.fake.rootBounds(SECONDARY_ROOT), car.fake.taskBounds(SECONDARY_APP_TASK))
         assertEquals(PRIMARY_APP_TASK, car.fake.topTaskId(PRIMARY_ROOT))
@@ -357,6 +370,62 @@ class SplitPillOperationsTest {
         core.selectIntoPane(SplitPane.SECONDARY, RADIO)
         car.barrier()
         assertEquals(RADIO, topPackage(car, SECONDARY_ROOT))
+    }
+
+    @Test
+    fun aFailedChoiceWhoseCloseFellBackPutsItsAppBackAtItsPaneSize() {
+        // the close never seen through: the eviction into the full root, full-screen bounds, and
+        // the inverse brings the pane's size back (C1)
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = living(car, APP_PAIR)
+        car.fake.preserveBoundsOnShellMove = true
+        car.fake.closeAnimationReads = -1
+        car.fake.swallowLaunchOf += WAZE
+        val stored = car.store.load()
+        car.clearCommands()
+
+        core.selectIntoPane(SplitPane.SECONDARY, WAZE)
+        car.barrier()
+
+        val commands = car.commands()
+        val closed = commands.indexOf("service call activity_task 117 s16 '$MUSIC'")
+        val evict = commands.indexOfFirst { it.startsWith("am stack move-task $SECONDARY_APP_TASK $FULL_ROOT ") }
+        val launch = commands.indexOfFirst { it.startsWith("am start") && it.contains(WAZE) }
+        assertTrue("closed, evicted, launched: $commands", closed in 0 until evict && evict < launch)
+        assertEquals(SECONDARY_APP_TASK, car.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals("C1", car.fake.rootBounds(SECONDARY_ROOT), car.fake.taskBounds(SECONDARY_APP_TASK))
+        assertEquals(stored, car.store.load())
+    }
+
+    @Test
+    fun thePickerTheCloseRevealsIsNotTakenForTheUsersDeparture() {
+        // 1.6.2 и инвариант 14: закрытие прошивкой открывает пикер панели, и его хинт встаёт в
+        // очередь за операцией; выбор, который она записала, остаётся, вытесненное приложение живо
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = living(car, APP_PAIR)
+        car.chargeTrips(perTripMs = 0) { command ->
+            if (command.startsWith("service call activity_task 117 ")) {
+                core.pickerVisible(hostTaskId = SECONDARY_PICKER_TASK)
+                core.pickerVisible(hostTaskId = null)
+            }
+        }
+
+        core.selectIntoPane(SplitPane.SECONDARY, WAZE)
+        car.barrier()
+
+        assertEquals(listOf(MUSIC), car.fake.closedPackages.toList())
+        assertEquals(WAZE, topPackage(car, SECONDARY_ROOT))
+        assertEquals(PRIMARY_APP_TASK, car.fake.topTaskId(PRIMARY_ROOT))
+        assertEquals(
+            mapOf(SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR), SplitPane.SECONDARY to SplitSlot.App(WAZE)),
+            car.store.load().slots,
+        )
+        assertEquals(emptySet<SplitPane>(), core.currentState().owed)
+        assertTrue("the displaced app is alive", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertFalse(
+            "nothing removed it: ${car.commands()}",
+            car.commands().any { it.contains("remove-task $SECONDARY_APP_TASK ") },
+        )
     }
 
     @Test

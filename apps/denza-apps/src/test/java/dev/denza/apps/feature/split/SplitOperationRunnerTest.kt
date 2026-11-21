@@ -391,7 +391,8 @@ class SplitOperationRunnerTest {
     }
 
     @Test
-    fun theRollbackExecutorEvictsAnAppTaskAliveIntoTheFullRoot() {
+    fun theRollbackExecutorClosesTheStartedAppLikeTheFirmwareBelowHome() {
+        // Ред. 2026-11-21: the pane's shown app leaves by tx117, below Home, its pane bounds kept
         val fake = FakeShell().apply {
             area = 3
             addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
@@ -402,7 +403,28 @@ class SplitOperationRunnerTest {
         executor(fake, FakeGateLease()).evictTask(70, MUSIC)
 
         assertTrue("задача жива", fake.hasTask(70))
+        assertEquals("и ушла из панели под Home", DETACHED_ROOT, fake.taskRoot(70))
+        assertEquals(fake.rootBounds(PRIMARY_ROOT), fake.taskBounds(70))
+        assertEquals(listOf(MUSIC), fake.closedPackages.toList())
+        assertFalse(fake.commands.any { it.contains(" remove-task ") || it.contains("move-task") })
+    }
+
+    @Test
+    fun theRollbackExecutorEvictsAnAppTaskAliveIntoTheFullRoot() {
+        // a second copy of the package in the other pane: tx117 could take the wrong one
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, 71, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        executor(fake, FakeGateLease()).evictTask(70, MUSIC)
+
+        assertTrue("задача жива", fake.hasTask(70))
         assertEquals("и выселена из панели", FULL_ROOT, fake.taskRoot(70))
+        assertEquals(emptyList<String>(), fake.closedPackages.toList())
         assertFalse(fake.commands.any { it.contains(" remove-task ") })
     }
 

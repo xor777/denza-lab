@@ -241,46 +241,156 @@ internal class SplitTaskCommands(
         .toMap()
 
     /**
-     * Moves a user's task out of a panel root, alive, into the full IVI root (contract, note under
-     * 1.5; invariant 3), with the same `am stack move-task ... false` that returns a borrowed task.
+     * Takes a user's tasks out of the panel roots, alive (contract, note under 1.5; invariant 3),
+     * so that each ends where Home or a caption swipe would leave it: below Home, stopped, never
+     * drawn over or behind the scene.
      *
-     * The move does not send the task to the background: the full root holds no background tasks,
-     * and a task moved there stays drawn while fewer than two opaque pane containers are above it,
-     * until the next placement in a pane or Home sends it below Home. So its bounds are made its
-     * new root's bounds ([normalizeTaskToRoot]; a leaf inside `ivi_full` accepts a resize either
-     * way), or it would cover the whole scene with a pane's geometry, and both panes are raised
-     * over it ([raiseBothPanesOverTheEvicted]). Both are quiet: a package whose geometry the
-     * firmware will not give up (`resizeableActivity="false"`) must not cost the user the whole
-     * scene. The first defence against an app landing in the wrong pane is the build's own record
-     * of where it landed, not this eviction.
+     * One read made before anything moves picks the path of each task ([closableByTheFirmware]):
+     * - **the firmware's close.** The application a pane shows, when tx117 `closeApplication(pkg)`
+     *   would take exactly that task, leaves by that close (findings, "A displaced pane app", "What
+     *   the code does now"). The pane's picker comes up and the task becomes a root of its own below
+     *   Home with its pane geometry kept: at once in the narrow pane, at the end of the close
+     *   animation in the wide one. Nothing is moved into the full root, resized or raised for it.
+     *   A close that is refused, or not seen through within [CLOSE_LOOKS] looks, takes the second
+     *   path;
+     * - **the eviction.** Every other task - buried under the shown one, of a package with a second
+     *   task in a pane, in a scene that is not balanced on the screen - is moved into the full IVI
+     *   root with the same `am stack move-task … false` that returns a borrowed task. The full root
+     *   holds no background tasks: a task moved there stays drawn while fewer than two opaque pane
+     *   containers are above it, until the next placement in a pane or Home sends it below Home. So
+     *   it gets that root's bounds ([normalizeTaskToRoot]; a leaf inside `ivi_full` accepts a
+     *   resize either way), quietly - a package that will not give up its geometry must not cost
+     *   the user the scene - and both panes are raised over it ([raiseBothPanesOverTheEvicted]).
      *
-     * [beforeMove] hears each task and the root it is about to be moved into before the move is
-     * sent, so an operation can journal the inverse ahead of the mutation (a choice on the pill puts
-     * an evicted application back into its pane if it is unwound, invariant 9).
+     * The buried tasks go first, so that a pane the firmware closes holds its picker and the
+     * closing app alone: the close brings up the next task under the app, and that must be ours.
+     *
+     * [beforeMove] hears each task and the full root's id before the task is touched, on either
+     * path, so an operation can journal the inverse ahead of the mutation (a choice on the pill puts
+     * the application it replaced back into its pane if it is unwound, invariant 9). The inverse is
+     * the same for both: `move-task` back on top of the pane, which takes a root of its own below
+     * Home as readily as a child of the full root (the restore's `stray`, live-proven).
+     *
+     * [closeShown] false keeps every task on the eviction: the cold degrade has the time of one
+     * eviction reserved inside the operation's 10 s, not a close waited out in front of it
+     * ([SplitSceneBuilder.EVICTION_BOUND_MS]).
      *
      * @return whether anything actually had to leave.
      */
-    fun evictToFullRoot(
+    fun evictFromPanes(
         tasks: List<SplitTask>,
+        closeShown: Boolean = true,
         beforeMove: (SplitTask, Int) -> Unit = { _, _ -> },
     ): Boolean {
-        if (tasks.isEmpty()) return false
+        val leaving = tasks.distinctBy(SplitTask::id)
+        if (leaving.isEmpty()) return false
         val fullRootId = world.fullIviRootTaskId()
-        tasks.forEach { task ->
+        val roots = world.nativeRootIds()
+        val before = if (closeShown) world.snapshot() else null
+        val closing = before?.let { state -> closableByTheFirmware(leaving, state, roots) }.orEmpty()
+        val closingIds = closing.mapTo(mutableSetOf(), SplitTask::id)
+        val moving = leaving.filterNot { task -> task.id in closingIds }
+        moving.forEach { task ->
             beforeMove(task, fullRootId)
             moveTask(task.id, fullRootId, toTop = false)
         }
+        val stayed = closeLikeTheFirmware(closing, roots.values + fullRootId, fullRootId, beforeMove)
+        stayed.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
+        val evicted = moving + stayed
+        if (evicted.isEmpty()) return true
         world.pause(ROOT_SETTLE_MS)
-        normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
-        raiseBothPanesOverTheEvicted(fullRootId)
+        normalizeEvictedTasksToTheirRoots(evicted.mapTo(mutableSetOf(), SplitTask::id))
+        raiseBothPanesOverTheEvicted(fullRootId, before?.let { state -> raiseOrder(state, roots) })
         return true
+    }
+
+    /**
+     * The tasks of [tasks] that tx117 takes out exactly as Home or a caption swipe would, read on
+     * [state] before anything moves. `closeApplication(pkg)` closes the top-most task of the
+     * package, narrow container first, then wide, then the full root
+     * (`BydSmartMultiIviController.getTaskByPkgName`, `BydSmartMultiContainer.getTaskByPkgName`),
+     * and `removeChildTask` then brings up the next task of the wide pane or simply reparents in the
+     * narrow one. So a task qualifies only when:
+     * - the area is balanced: the close is the firmware's own gesture of a split on the screen;
+     * - it is the shown (visible top) application of a pane, and not one of our components;
+     * - its package has no other task in either pane root, so the lookup cannot take another
+     *   window - the hub never qualifies, since the picker bases share its package;
+     * - its pane holds nothing else but our picker base once the buried tasks are gone, so the task
+     *   the wide pane brings up is our picker (`getNextTask`);
+     * - each pane keeps a picker base: the narrow close ends the split when the wide root is left
+     *   with no child (`removeChildTask`, `setSplitWindowMode(-1)`).
+     */
+    private fun closableByTheFirmware(
+        tasks: List<SplitTask>,
+        state: SplitTaskSnapshot,
+        roots: Map<SplitPane, Int>,
+    ): List<SplitTask> {
+        if (world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return emptyList()
+        val panes = roots.values.mapNotNull(state::root)
+        if (panes.size != roots.size) return emptyList()
+        val leavingIds = tasks.mapTo(mutableSetOf(), SplitTask::id)
+        val everyPaneKeepsItsPicker = panes.all { root ->
+            root.tasks.any { task -> task.isDenzaPickerBase() && task.id !in leavingIds }
+        }
+        if (!everyPaneKeepsItsPicker) return emptyList()
+        return tasks.filter { task ->
+            val root = panes.firstOrNull { pane -> pane.id == task.rootId } ?: return@filter false
+            root.resolvedTopTask()?.id == task.id &&
+                !task.isOwnSplitComponent() &&
+                panes.sumOf { pane -> pane.tasks.count { it.packageName == task.packageName } } == 1 &&
+                root.tasks.all { other ->
+                    other.id == task.id ||
+                        other.id in leavingIds ||
+                        other.isDenzaPickerBase() ||
+                        other.isEmptyRootMarker()
+                }
+        }
+    }
+
+    /**
+     * tx117 for each of [tasks], then one wait by condition until none of them is in any of
+     * [heldBy] - the pane roots and the full root - any more.
+     *
+     * @return the tasks the firmware did not take out: the close refused, or still in a pane or
+     * the full root at the last look. They take the eviction.
+     */
+    private fun closeLikeTheFirmware(
+        tasks: List<SplitTask>,
+        heldBy: Collection<Int>,
+        fullRootId: Int,
+        beforeMove: (SplitTask, Int) -> Unit,
+    ): List<SplitTask> {
+        if (tasks.isEmpty()) return emptyList()
+        val sent = mutableListOf<SplitTask>()
+        val refused = mutableListOf<SplitTask>()
+        tasks.forEach { task ->
+            beforeMove(task, fullRootId)
+            val closed = runCatching {
+                world.callVoid(
+                    "service call activity_task $CLOSE_APPLICATION_TX s16 ${shellQuote(task.packageName)}",
+                )
+            }
+            if (closed.isSuccess) sent += task else refused += task
+        }
+        if (sent.isEmpty()) return refused
+        val roots = heldBy.toSet()
+        var held: List<SplitTask> = sent
+        world.awaitSnapshotMatching(CLOSE_LOOKS) { state ->
+            val inThoseRoots = state.roots.asSequence()
+                .filter { root -> root.displayId == MAIN_DISPLAY_ID && root.id in roots }
+                .flatMap { root -> root.tasks.asSequence() }
+                .mapTo(mutableSetOf(), SplitTask::id)
+            held = sent.filter { task -> task.id in inThoseRoots }
+            held.isEmpty()
+        }
+        return refused + held
     }
 
     /**
      * The order the two panes are raised in, lower first. `am stack list` lists the roots top to
      * bottom (`forAllRootTasks`), and the last focus decides which pane's app is top-resumed, so the
-     * pane that was on top stays there; a move into the full root does not reorder the two pane
-     * containers. Unreadable, the narrow pane is raised last, as the one raise of before did.
+     * pane that was on top before stays there. Unreadable, the narrow pane is raised last, as the
+     * one raise of before did.
      */
     private fun raiseOrder(state: SplitTaskSnapshot, roots: Map<SplitPane, Int>): List<SplitPane> {
         val listed = state.roots.filter { root -> root.displayId == MAIN_DISPLAY_ID }.map(SplitRootTask::id)
@@ -306,13 +416,13 @@ internal class SplitTaskCommands(
      * or 2 the one pane is full width and opaque over the full root. The recipe's postcondition is
      * the judge, so the area wait does not throw.
      */
-    private fun raiseBothPanesOverTheEvicted(fullRootId: Int) {
+    private fun raiseBothPanesOverTheEvicted(fullRootId: Int, order: List<SplitPane>?) {
         val area = world.callInt("service call activity_task 30")
         if (area != AREA_FULL_IVI && area != AREA_BALANCED_SPLIT) return
         val roots = world.nativeRootIds()
         val state = world.snapshot()
         if (area == AREA_BALANCED_SPLIT && !fullRootAboveAPane(state, roots, fullRootId)) return
-        val tops = raiseOrder(state, roots).mapNotNull { pane ->
+        val tops = (order ?: raiseOrder(state, roots)).mapNotNull { pane ->
             val root = state.root(roots.getValue(pane)) ?: return@mapNotNull null
             // Under a cover `am stack list` hides every child of a pane; then the root's component
             // names the top, and failing that the order the firmware lists children in (bottom up).
@@ -362,7 +472,7 @@ internal class SplitTaskCommands(
      * A pane is its picker base and at most one application: whatever else the given roots hold
      * leaves them, by the rule of invariant 3 - our own components and tasks this operation
      * provably created ([preexistingTaskIds] does not hold them) are removed, a user's task is
-     * evicted alive ([evictToFullRoot]). The firmware brings into a pane more than was asked for:
+     * evicted alive ([evictFromPanes]). The firmware brings into a pane more than was asked for:
      * a tap on a package with two living tasks can bring both. The usual case sends no command.
      *
      * [residentByRoot] names the application each of these panes shows. A second living task of
@@ -393,20 +503,34 @@ internal class SplitTaskCommands(
                 (preexistingTaskIds != null && task.id !in preexistingTaskIds)
         }
         removeTasksSafely(own.distinctBy(SplitTask::id))
-        evictToFullRoot(foreign)
+        evictFromPanes(foreign)
     }
 
-    private companion object {
+    internal companion object {
+        /**
+         * How many looks the firmware's close of a pane's app is waited for, one
+         * [SplitWorld.TASK_DISCOVERY_INTERVAL_MS] apart. The narrow pane's close reparents at once;
+         * the wide pane's when its close animation ends (`isMovingToBack`, then
+         * `DisplayContent.onWindowAnimationFinishedHook`). Seven looks are 600 ms of pauses and
+         * seven reads: about 0.95 s on the car at 46-50 ms a read, and
+         * [SplitSceneBuilder.CLOSE_WAIT_BOUND_MS] from above. The animation's length is not
+         * measured on the car.
+         */
+        const val CLOSE_LOOKS = 7
+
+        /** `closeApplication(String)`, the firmware's own close of a pane's app. */
+        private const val CLOSE_APPLICATION_TX = SplitBinderCall.CLOSE_APPLICATION
+
         /** `NEW_TASK | RESET_TASK_IF_NEEDED`: the package's own task, whichever one that is. */
-        const val APP_LAUNCH_FLAGS = "0x10200000"
+        private const val APP_LAUNCH_FLAGS = "0x10200000"
 
         /** The same plus `MULTIPLE_TASK`: a second, independent copy and nothing else (1.5.2). */
-        const val SECOND_INSTANCE_FLAGS = "0x18200000"
-        const val PICKER_LAUNCH_FLAGS = "0x18010000"
-        const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
-        const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"
-        const val PICKER_SETTLE_MS = 150L
-        const val SPLIT_PROXY_CLASS = "dev.denza.apps.feature.split.SplitTaskProxyMain"
-        const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
+        private const val SECOND_INSTANCE_FLAGS = "0x18200000"
+        private const val PICKER_LAUNCH_FLAGS = "0x18010000"
+        private const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
+        private const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"
+        private const val PICKER_SETTLE_MS = 150L
+        private const val SPLIT_PROXY_CLASS = "dev.denza.apps.feature.split.SplitTaskProxyMain"
+        private const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
     }
 }

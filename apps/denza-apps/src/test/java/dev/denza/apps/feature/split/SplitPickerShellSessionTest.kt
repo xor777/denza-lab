@@ -521,12 +521,104 @@ class SplitPickerShellSessionTest {
     }
 
     /**
+     * Ред. 2026-11-21 (findings, "A displaced pane app"): the app a pane shows, its package in no
+     * other pane task, leaves the way the firmware's own close takes it - tx117, below Home, its pane
+     * geometry kept - with no move into the full root, no resize and no raise. The wide pane's close
+     * is waited out by condition: here one look still finds it under the picker.
+     */
+    @Test
+    fun aShownAppOfAUniquePackageLeavesByTheFirmwaresCloseBelowHome() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(MUSIC, placement.packageName)
+        assertEquals(listOf(WAZE), fake.closedPackages.toList())
+        assertTrue("alive", fake.hasTask(344))
+        assertEquals("below Home", DETACHED_ROOT, fake.taskRoot(344))
+        assertEquals("with its pane's bounds", SECONDARY_BOUNDS, fake.taskBounds(344))
+        val closed = fake.commands.indexOf("service call activity_task 117 s16 '$WAZE'")
+        val launched = fake.commands.indexOfFirst { it.startsWith("am start ") }
+        assertTrue("closed before the launch: ${fake.commands}", closed in 0 until launched)
+        assertFalse(
+            "no move, no resize, no focus for it: ${fake.commands}",
+            fake.commands.any { command ->
+                command.startsWith("am stack move-task 344 ") ||
+                    command.startsWith("am task resize 344 ") ||
+                    command.startsWith("am task focus ")
+            },
+        )
+        assertFalse(fake.closeEndedTheSplit)
+    }
+
+    /** The narrow pane's close reparents at once; the split is not ended (the wide root holds its base). */
+    @Test
+    fun theNarrowPanesShownAppLeavesByTheCloseAndTheSplitStays() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(PRIMARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(listOf(WAZE), fake.closedPackages.toList())
+        assertEquals(DETACHED_ROOT, fake.taskRoot(344))
+        assertEquals(PRIMARY_BOUNDS, fake.taskBounds(344))
+        assertFalse(fake.closeEndedTheSplit)
+        assertEquals(3, fake.area)
+    }
+
+    /** A close the firmware never sees through within the looks falls back to the eviction. */
+    @Test
+    fun aCloseNotSeenThroughFallsBackToTheMoveIntoTheFullRoot() {
+        val fake = FakeShell().apply { closeAnimationReads = -1 }
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(MUSIC, placement.packageName)
+        val closed = fake.commands.indexOf("service call activity_task 117 s16 '$WAZE'")
+        val moved = fake.commands.indexOf("am stack move-task 344 $FULL_ROOT false")
+        assertTrue("closed, then moved: ${fake.commands}", closed in 0 until moved)
+        assertEquals(
+            "the close waited out its looks",
+            SplitTaskCommands.CLOSE_LOOKS,
+            fake.commands.subList(closed, moved).count { it == "am stack list" },
+        )
+        assertTrue("alive", fake.hasTask(344))
+        assertEquals(FULL_ROOT, fake.taskRoot(344))
+        assertEquals(FULL, fake.taskBounds(344))
+    }
+
+    /**
      * The bounds of findings "The cold wait's time", re-derived 2026-11-21: the eviction raises
-     * both panes, one focus more. What the open's cold wait can get at most shrinks by 200 ms, to
-     * 2660 ms.
+     * both panes (one focus more), the evictions inside the reserves never close, and the close's
+     * own wait is spent before a launch, out of that open's cold wait. What the open's cold wait
+     * can get at most shrinks by 200 ms, to 2660 ms.
      */
     @Test
     fun theEvictionBoundsStillAddUpInsideTheOpensCeiling() {
+        assertEquals(1300L, SplitSceneBuilder.CLOSE_WAIT_BOUND_MS)
         assertEquals(2210L, SplitSceneBuilder.EVICTION_BOUND_MS)
         assertEquals(2760L, SplitSceneBuilder.COLD_DEGRADE_RESERVE_MS)
         assertEquals(6940L, SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS)
@@ -534,6 +626,29 @@ class SplitPickerShellSessionTest {
             2660L,
             OPEN_BUDGET_MS - OPEN_READ_BACK_RESERVE_MS - SplitSceneBuilder.COLD_DISCOVERY_RESERVE_MS,
         )
+    }
+
+    /** A package with a second task in a pane: tx117 could take the other one, so it is not sent. */
+    @Test
+    fun aShownAppWhosePackageHasASecondTaskInAPaneTakesTheEviction() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(PRIMARY_ROOT, 343, WAZE, "$WAZE.MainActivity")
+        fake.promoteActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(emptyList<String>(), fake.closedPackages.toList())
+        assertTrue(fake.commands.contains("am stack move-task 344 $FULL_ROOT false"))
+        assertEquals(FULL_ROOT, fake.taskRoot(344))
+        assertEquals("the other copy stays where it was", PRIMARY_ROOT, fake.taskRoot(343))
     }
 
     /**

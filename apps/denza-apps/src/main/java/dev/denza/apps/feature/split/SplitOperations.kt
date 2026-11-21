@@ -405,10 +405,12 @@ internal class SplitShellRollbackExecutor(
 
     /**
      * Undo of a [SplitJournalEntry.TaskMoved]: the task back on top of the root it came from, and
-     * with that root's bounds (ревью пилюли, C1). The eviction it undoes gave the task the full
-     * root's geometry ([SplitTaskCommands.evictToFullRoot]); moved back without a resize it would
-     * stand in its pane at full-screen size, a scene the next owned read refuses. The resize is the
-     * recipes' own normalisation, and a task that will not take it is a rollback failure.
+     * with that root's bounds (ревью пилюли, C1). Wherever the displacement left it - a root of its
+     * own below Home after the firmware's close, its pane geometry kept, or a child of the full root
+     * with that root's geometry ([SplitTaskCommands.evictFromPanes]) - `move-task` takes it back by
+     * its id; moved back without a resize it could stand in its pane at full-screen size, a scene
+     * the next owned read refuses. The resize is the recipes' own normalisation, a no-op for a task
+     * that kept its pane's bounds, and a task that will not take it is a rollback failure.
      */
     override fun moveTask(taskId: Int, toRootId: Int) {
         budgeted("am stack move-task $taskId $toRootId true")
@@ -419,11 +421,12 @@ internal class SplitShellRollbackExecutor(
 
     /**
      * Undo of a [SplitJournalEntry.AppStarted]: the exact task, if it is still that package's and
-     * still in a pane root, goes into the full root in the background by the same eviction the
-     * recipes use for a user's task ([SplitTaskCommands.evictToFullRoot]). A task that is gone or
-     * already outside the panes is left where it is - the inverse never removes anything.
+     * still in a pane root, leaves the panes alive by the same displacement the recipes use for a
+     * user's task ([SplitTaskCommands.evictFromPanes]): the firmware's close when it is the pane's
+     * shown app, otherwise the full root in the background. A task that is gone or already outside
+     * the panes is left where it is - the inverse never removes anything.
      *
-     * Nor does it take the screen: that eviction ends by raising the scene over the evicted window,
+     * Nor does it take the screen: the eviction ends by raising the panes over the evicted window,
      * and over Home or the user's own fullscreen application (area 0 or 4) that would put the split
      * back in front of them (1.3.8, 1.3.9). Under a cover the application stays in its pane, under
      * the cover with the rest of the scene, where its slot already names it.
@@ -438,7 +441,7 @@ internal class SplitShellRollbackExecutor(
         }
         if (task.rootId !in paneRootIds) return
         if (world.sceneCovered()) return
-        SplitTaskCommands(world, apkPath, proxyClasspath).evictToFullRoot(listOf(task))
+        SplitTaskCommands(world, apkPath, proxyClasspath).evictFromPanes(listOf(task))
     }
 
     private fun budgeted(command: String): String {

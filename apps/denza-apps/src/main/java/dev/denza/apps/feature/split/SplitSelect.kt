@@ -98,8 +98,9 @@ internal class SplitSelect(
         // permanent base before requiring the picker to be the root top (invariant 3; contract,
         // note under 1.5): only what is ours by exact component goes - a second base or the stock
         // bootstrap stuck in this root. Any other task of the root is the user's (a hub pulled in
-        // natively is our package but not our component, U3) and is evicted alive into the full
-        // root; this operation has created nothing yet, so nothing here is "created by it".
+        // natively is our package but not our component, U3) and leaves alive: the app the pane
+        // shows by the firmware's close, the rest into the full root (`evictFromPanes`);
+        // this operation has created nothing yet, so nothing here is "created by it".
         val (ownArtifacts, foreignOccupants) = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
             .partition { task -> task.isOwnSplitComponent() }
@@ -108,7 +109,7 @@ internal class SplitSelect(
         // one task whose way back is the top of this root. A picker tap never has one (its picker
         // is the top); a choice on the pill's apps row has exactly one.
         val shownId = before.root(targetRootId)?.resolvedTopTask()?.id
-        commands.evictToFullRoot(foreignOccupants) { task, fullRootId ->
+        commands.evictFromPanes(foreignOccupants) { task, fullRootId ->
             if (task.id == shownId) {
                 onEvicted(SplitBuiltTask(task.id, task.packageName, task.rootId, fullRootId, evicted = true))
             }
