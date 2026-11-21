@@ -9,19 +9,10 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.ui.components.glyphStroke
 import dev.denza.apps.ui.components.WorkingRing
 import dev.denza.apps.ui.components.NamedGlyph
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,7 +22,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,6 +52,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.ui.components.DenzaModalCard
 import dev.denza.apps.ui.components.DenzaNote
+import dev.denza.apps.ui.components.DenzaTickPlate
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSheet
@@ -387,7 +378,9 @@ internal fun AdbStartupOverlay(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        model.checkbox?.let { label -> AlwaysAllowBox(label) }
+        // The box on the car's own prompt, ticked, worded as the car words it: a picture of what to tick,
+        // not a control - the prompt is the car's, and it is drawn over this card.
+        model.checkbox?.let { label -> DenzaTickPlate(label, ticked = true) }
         // The cause, under the instruction that is the same for every car in this state. Without it
         // two different "ADB недоступен" gates are the same screen, and the one fact the app
         // actually read about this car - that the switch is off - reaches nobody.
@@ -406,47 +399,6 @@ internal fun AdbStartupOverlay(
         if (model.explainerAvailable) {
             DenzaSecondaryButton(AdbExplainer.OPEN_LABEL, onOpenExplainer, Modifier.fillMaxWidth())
         }
-    }
-}
-
-/**
- * The box on the car's own prompt, ticked, worded as the car words it: a picture of what to tick,
- * not a control - the prompt is the car's, and it is drawn over this card.
- */
-@Composable
-private fun AlwaysAllowBox(label: String) {
-    val m = Sheet.Modal
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = m.BOX_ROW.dp)
-            .clip(RoundedCornerShape(Sheet.Button.RADIUS.dp))
-            .background(SheetInk.white(Sheet.Button.SECONDARY_ALPHA))
-            .padding(horizontal = Sheet.Row.PAD_X.dp, vertical = m.BOX_PAD.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(m.BOX_GAP.dp),
-    ) {
-        Canvas(Modifier.size(m.BOX.dp)) {
-            val unit = size.width / m.BOX
-            drawRoundRect(Color(Sheet.Switch.ON), cornerRadius = CornerRadius(m.BOX_RADIUS * unit))
-            val t = m.BOX_TICK
-            val tick = Path().apply {
-                moveTo(t[0] * unit, t[1] * unit)
-                lineTo(t[2] * unit, t[3] * unit)
-                lineTo(t[4] * unit, t[5] * unit)
-            }
-            drawPath(
-                tick,
-                Color.White,
-                style = Stroke(width = m.BOX_STROKE * unit, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
-        }
-        ParagraphText(
-            label,
-            style = SheetInk.style(m.TEXT_SIZE, 400, SheetInk.white(Sheet.Row.TITLE_ALPHA), Sheet.Note.LEADING),
-            size = m.TEXT_SIZE,
-            modifier = Modifier.weight(1f),
-        )
     }
 }
 
