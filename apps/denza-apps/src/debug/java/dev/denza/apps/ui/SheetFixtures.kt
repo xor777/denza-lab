@@ -32,6 +32,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.diagnostics.ui.AgreementWindow
 import dev.denza.apps.feature.hud.HudGuidanceStatus
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
@@ -135,6 +136,11 @@ internal object SheetFixtures {
     @Composable
     fun Modal(fixture: JSONObject, compact: Boolean) {
         val s = fixture.getJSONObject("state")
+        // `modal-diagnostics*`: the window in front of «Диагностика», its box as the board has it.
+        if (s.optString("window") == "diagnostics") {
+            AgreementWindow(compact = compact, onAgree = {}, onLeave = {}, ticked = s.optBoolean("ticked"))
+            return
+        }
         val snapshot = AdbRescueSnapshot(
             phase = AdbRescuePhase.valueOf(s.getString("gate")),
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),

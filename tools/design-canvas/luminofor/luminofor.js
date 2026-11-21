@@ -1331,6 +1331,10 @@
   // ADB gate - the stock dialog, a lit plate's colour with a hairline round it. Its actions are
   // the stock dialog's: the one it exists for across the card, the quiet ones under it at equal
   // widths side by side, or each on its own line in a pane.
+  // The diagnostics' agreement is the same card with no glyph - the title alone in the glyph's row -
+  // several paragraphs (`message` a list, each a part of the card), its box the driver's to tick
+  // (`checked: false` draws the switch's off track and no tick) and «ОК» inactive until it is
+  // (`primaryEnabled: false`).
   function drawModal(c, mode, f) {
     const m = f.modal, full = mode === 'full', size = full ? S.head.full.size : S.head[mode].size;
     drawHead(c, mode, f);
@@ -1342,7 +1346,7 @@
       const n = wrap(c, str, px, 400, iw).length;
       return { str, px, a, h: n ? px * RB.ascent + (n - 1) * px * SH.note.leading + px * RB.descent : 0 };
     };
-    const msg = m.message ? para(m.message, M.textSize, M.textAlpha) : null, det = m.details ? para(m.details, SH.note.size, SH.note.alpha) : null;
+    const msgs = [].concat(m.message || []).map(s => para(s, M.textSize, M.textAlpha)), det = m.details ? para(m.details, SH.note.size, SH.note.alpha) : null;
     // the box on the car's own prompt: the label wraps beside the box and the plate grows with it.
     // Its words are the firmware's, not ours, so the board carries them in both languages and an
     // English render has already picked `en` (english.js).
@@ -1356,7 +1360,7 @@
     const quiet = m.quiet || [];
     // in a pane the quiet ones are the card's own lines, at the card's own gap
     const quietH = quiet.length ? (full ? SH.button.secondaryHeight : quiet.length * SH.button.secondaryHeight + (quiet.length - 1) * M.gap) : 0;
-    const parts = [M.icon].concat(msg ? [msg.h] : []).concat(box ? [box.h] : []).concat(det ? [det.h] : [])
+    const parts = [M.icon].concat(msgs.map(p => p.h)).concat(box ? [box.h] : []).concat(det ? [det.h] : [])
       .concat(m.primary ? [SH.button.height] : []).concat(quiet.length ? [quietH] : []);
     const ch = 2 * pad + parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * M.gap;
     const cx = (size[0] - cw) / 2, cy = bar + (size[1] - bar - ch) / 2;
@@ -1366,16 +1370,17 @@
     const col = m.tone === 'attention' ? hex('#FF9F19') : [255, 255, 255];
     // working, the tiles' ring in the glyph's place, at the glyph's size and weight
     if (m.busy) ring(c, x + M.icon / 2, y + M.icon / 2, M.icon, S.head.icon.stroke * M.icon / 24);
-    else glyphAt(c, m.icon, x, y, M.icon, m.tone === 'attention' ? 1 : SH.header.closeAlpha, col, SH.plate.color);
-    const ts = full ? M.titleSize : M.compactTitleSize;
-    words(c, m.title, x + M.icon + M.iconGap, centred(y + M.icon / 2, ts), ts, 1, { w: 500 });
+    else if (m.icon) glyphAt(c, m.icon, x, y, M.icon, m.tone === 'attention' ? 1 : SH.header.closeAlpha, col, SH.plate.color);
+    const ts = full ? M.titleSize : M.compactTitleSize, lead = m.icon || m.busy ? M.icon + M.iconGap : 0;
+    words(c, m.title, x + lead, centred(y + M.icon / 2, ts), ts, 1, { w: 500 });
     y += M.icon + M.gap;
-    if (msg) y += paragraph(c, msg.str, x, y, iw, msg.px, SH.note.leading, msg.a) + M.gap;
+    msgs.forEach(p => { y += paragraph(c, p.str, x, y, iw, p.px, SH.note.leading, p.a) + M.gap; });
     if (box) {
       fillRound(c, x, y, iw, box.h, SH.button.radius, rgba([255, 255, 255], SH.button.secondaryAlpha));
       const bx = x + SH.row.padX, by = y + (box.h - M.box) / 2, u = M.box / 24, TICK = M.boxTick;
-      fillRound(c, bx, by, M.box, M.box, M.boxRadius, SH.switch.on);
-      over(c, () => {
+      if (m.checked === false) fillRound(c, bx, by, M.box, M.box, M.boxRadius, hexA(SH.switch.off, SH.switch.offAlpha));
+      else fillRound(c, bx, by, M.box, M.box, M.boxRadius, SH.switch.on);
+      if (m.checked !== false) over(c, () => {
         c.strokeStyle = '#FFFFFF'; c.lineWidth = M.boxStroke; c.lineCap = 'round'; c.lineJoin = 'round';
         c.beginPath(); c.moveTo(bx + TICK[0] * u, by + TICK[1] * u); c.lineTo(bx + TICK[2] * u, by + TICK[3] * u);
         c.lineTo(bx + TICK[4] * u, by + TICK[5] * u); c.stroke();
@@ -1384,7 +1389,7 @@
       y += box.h + M.gap;
     }
     if (det) y += paragraph(c, det.str, x, y, iw, det.px, SH.note.leading, det.a) + M.gap;
-    if (m.primary) y += button(c, { text: m.primary }, x, y, iw) + M.gap;
+    if (m.primary) y += button(c, { text: m.primary, enabled: m.primaryEnabled !== false }, x, y, iw) + M.gap;
     if (quiet.length) {
       if (full) {
         const qw = (iw - (quiet.length - 1) * SH.footnote.gap) / quiet.length;

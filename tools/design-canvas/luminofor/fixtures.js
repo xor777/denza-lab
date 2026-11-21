@@ -608,6 +608,24 @@
     state: { gate: 'UNAVAILABLE', restore: 'Connecting' }
   });
 
+  // «Сервис → Диагностика» the first time: the window in front of the section until the driver
+  // agrees once (architecture, 1) - the title alone in the glyph's row, three paragraphs, the box
+  // unticked and «ОК» inactive; ticked, «ОК» lit. Over the dashboard: it stands where the service
+  // panel stood, as the section does
+  const agreementOf = ticked => Object.assign({}, head, {
+    modal: {
+      title: 'О разделе',
+      message: [
+        'Автор приложения не диагност. Что значит код или цифра и что с этим делать, он не подскажет — пожалуйста, не задавайте ему таких вопросов.',
+        'Раздел показывает, что отвечают блоки машины: коды, параметры, результаты тестов. Он создан в познавательных целях.',
+        'За диагностикой и ремонтом обращайтесь в профильный сервис.'
+      ],
+      checkbox: 'Я прочитал и согласен', checked: ticked,
+      primary: 'ОК', primaryEnabled: ticked
+    },
+    state: { window: 'diagnostics', ticked }
+  });
+
   // the cloud link: a switch whose reason is a warning, on two lines rather than cut short
   sheets.cloud = sheetOf(10, {
     title: 'Облако',
@@ -1972,6 +1990,8 @@
     'modal-adb-closed': [{ kind: 'modal', mode: 'full' }, closedGate],
     'modal-adb-wifi':  [{ kind: 'modal', mode: 'full' }, wifiGate],
     'modal-adb-restoring': [{ kind: 'modal', mode: 'full' }, restoringGate],
+    'modal-diagnostics': [{ kind: 'modal', mode: 'full' }, agreementOf(false)],
+    'modal-diagnostics-agreed': [{ kind: 'modal', mode: 'full' }, agreementOf(true)],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'sheet-hud':       [{ kind: 'sheet', mode: 'full' }, sheets.hud],
