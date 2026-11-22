@@ -439,11 +439,20 @@ internal object SplitAutomaton {
         val memory = state.memory
         if (pair == memory.last) return state
         val previous = listOfNotNull(memory.last)
-        val recent = (previous + memory.recent)
-            // Newest orientation wins: the mirror of the new last pair leaves the recent list.
-            .filter { candidate -> !candidate.sameApps(pair) && candidate !in memory.pinned }
-            .distinct()
-            .take(SplitMemory.RECENT_LIMIT)
+        // Newest orientation wins: the mirror of the new last pair leaves the recent list, and so
+        // does a mirror of a pin or of a newer recent pair - a list written before 2026-11-21 holds
+        // both orientations, and two entries the pill shows as one chip would push a third pair out.
+        val recent = mutableListOf<SplitPair>()
+        (previous + memory.recent).forEach { candidate ->
+            if (
+                !candidate.sameApps(pair) &&
+                memory.pinned.none(candidate::sameApps) &&
+                recent.none(candidate::sameApps) &&
+                recent.size < SplitMemory.RECENT_LIMIT
+            ) {
+                recent += candidate
+            }
+        }
         return state.copy(memory = memory.copy(last = pair, recent = recent))
     }
 }

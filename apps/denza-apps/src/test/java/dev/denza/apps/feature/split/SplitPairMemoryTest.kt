@@ -102,6 +102,30 @@ class SplitPairMemoryTest {
     }
 
     @Test
+    fun aListWithBothOrientationsFromAnOlderBuildPushesNoOtherPairOut() {
+        // A list written before 2026-11-21: two pairs, each both ways round, and a fifth pair.
+        val a = remembered(MUSIC to NAVIGATOR)
+        val legacy = a.copy(
+            memory = a.memory.copy(
+                recent = listOf(
+                    SplitPair(NAVIGATOR, MUSIC),
+                    SplitPair(RADIO, MAPS),
+                    SplitPair(MAPS, RADIO),
+                    SplitPair(TEMP, MAPS),
+                    SplitPair(TEMP, RADIO),
+                ),
+            ),
+        )
+        val next = choose(legacy, SplitPane.SECONDARY, TEMP)
+        assertEquals(SplitPair(MUSIC, TEMP), next.memory.last)
+        assertEquals(
+            listOf(SplitPair(MUSIC, NAVIGATOR), SplitPair(RADIO, MAPS), SplitPair(TEMP, MAPS), SplitPair(TEMP, RADIO)),
+            next.memory.recent,
+        )
+        assertTrue(next.memory.isWellFormed)
+    }
+
+    @Test
     fun aStarOnTheMirrorOfAPinIsNoSecondPin() {
         // Pinned MUSIC + NAVIGATOR, then the two the other way round on screen.
         val pinned = reduce(remembered(MUSIC to NAVIGATOR), SplitFact.PairPinned(SplitPair(MUSIC, NAVIGATOR)))

@@ -1201,8 +1201,11 @@ internal class SplitPillView(
             val anim = items[i]
             if (!toItem(anim, x, y)) continue
             if (PillGeometry.hitsItem(anim.item, local[0], local[1])) return anim
-            // A pinned chip's star mark is the chip's: a tap on its overhang opens the chip too.
-            if (anim.item is PillItem.Chip && anim.badge != null && PillGeometry.hitsBadge(local[0], local[1])) return anim
+            // A pinned chip's star mark is the chip's: a tap on its overhang opens the chip too -
+            // while the mark is the chip's own and drawn, not one fading off a repair chip.
+            val chip = anim.item as? PillItem.Chip ?: continue
+            val marked = !chip.live && chip.badge == PillBadge.SOLID && anim.badgeA.v >= 0.5
+            if (marked && PillGeometry.hitsBadge(local[0], local[1])) return anim
         }
         return null
     }
