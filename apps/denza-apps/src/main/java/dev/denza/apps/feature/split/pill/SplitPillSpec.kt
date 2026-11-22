@@ -65,7 +65,7 @@ internal object SplitPillSpec {
         const val H_SINGLE = 72.0
         const val H_SEP = 40.0
         const val H_BTN = 56.0
-        const val MAX_CHIPS = 3.0
+        const val MAX_CHIPS = 5.0
         const val MAX_SINGLES = 3.0
         const val RECENTS = 5.0
     }

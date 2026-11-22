@@ -312,11 +312,17 @@ internal object SplitAutomaton {
      */
     private fun pairPinned(state: SplitState, pair: SplitPair): SplitReduction {
         val memory = state.memory
-        if (!pair.isWellFormed || pair in memory.pinned) return unchanged(state)
+        // The mirror pinned is this pair pinned: the pill shows the two as one chip (2026-11-21).
+        if (!pair.isWellFormed || memory.pinned.any(pair::sameApps)) return unchanged(state)
         if (pair != memory.last && pair !in memory.recent) return unchanged(state)
         return settled(
             state,
-            state.copy(memory = memory.copy(recent = memory.recent - pair, pinned = memory.pinned + pair)),
+            state.copy(
+                memory = memory.copy(
+                    recent = memory.recent.filterNot(pair::sameApps),
+                    pinned = memory.pinned + pair,
+                ),
+            ),
         )
     }
 
@@ -326,14 +332,17 @@ internal object SplitAutomaton {
      */
     private fun pairUnpinned(state: SplitState, pair: SplitPair): SplitReduction {
         val memory = state.memory
-        if (pair !in memory.pinned) return unchanged(state)
-        val recent = if (pair == memory.last) memory.recent else listOf(pair) + memory.recent
+        // Unpinning takes off whichever orientation is pinned, both if both are (2026-11-21); the
+        // pair as asked comes back as the first recent one, its mirror leaves the recent list.
+        if (memory.pinned.none(pair::sameApps)) return unchanged(state)
+        val rest = memory.recent.filterNot(pair::sameApps)
+        val recent = if (pair == memory.last) rest else listOf(pair) + rest
         return settled(
             state,
             state.copy(
                 memory = memory.copy(
                     recent = recent.take(SplitMemory.RECENT_LIMIT),
-                    pinned = memory.pinned - pair,
+                    pinned = memory.pinned.filterNot(pair::sameApps),
                 ),
             ),
         )
@@ -431,7 +440,8 @@ internal object SplitAutomaton {
         if (pair == memory.last) return state
         val previous = listOfNotNull(memory.last)
         val recent = (previous + memory.recent)
-            .filter { candidate -> candidate != pair && candidate !in memory.pinned }
+            // Newest orientation wins: the mirror of the new last pair leaves the recent list.
+            .filter { candidate -> !candidate.sameApps(pair) && candidate !in memory.pinned }
             .distinct()
             .take(SplitMemory.RECENT_LIMIT)
         return state.copy(memory = memory.copy(last = pair, recent = recent))

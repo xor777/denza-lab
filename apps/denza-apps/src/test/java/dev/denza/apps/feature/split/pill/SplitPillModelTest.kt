@@ -72,18 +72,87 @@ class SplitPillModelTest {
     }
 
     @Test
-    fun pinsComeFirstAndTheLivePairTakesTheThirdPlace() {
+    fun pinsComeFirstAndTheLivePairTakesTheFifthPlace() {
         val memory = SplitMemory(
             last = SplitPair(RADIO, MAPS),
-            recent = listOf(SplitPair(WAZE, MUSIC), SplitPair(MAPS, RADIO)),
+            recent = listOf(SplitPair(WAZE, MUSIC), SplitPair(CHROME, RADIO), SplitPair(MAPS, NAV), SplitPair(WAZE, RADIO)),
             pinned = listOf(SplitPair(MAPS, MUSIC)),
         )
         val d = describe(state(NAV, MUSIC, memory), live(NAV, MUSIC))
         assertEquals(
             listOf(
-                chip(MAPS, MUSIC),
+                chip(MAPS, MUSIC, badge = PillBadge.SOLID),
                 chip(RADIO, MAPS),
+                chip(WAZE, MUSIC),
+                chip(CHROME, RADIO),
                 chip(NAV, MUSIC, live = true, badge = PillBadge.OUTLINE),
+                PillItem.Separator,
+                PillItem.Plus,
+            ),
+            d.home,
+        )
+    }
+
+    @Test
+    fun fiveChipsWhenTheLivePairIsAmongThem() {
+        val memory = SplitMemory(
+            last = SplitPair(NAV, MUSIC),
+            recent = listOf(SplitPair(WAZE, MUSIC), SplitPair(CHROME, RADIO), SplitPair(MAPS, NAV), SplitPair(WAZE, RADIO), SplitPair(MAPS, CHROME)),
+        )
+        val chips = describe(state(NAV, MUSIC, memory), live(NAV, MUSIC)).home.filterIsInstance<PillItem.Chip>()
+        assertEquals(
+            listOf(SplitPair(NAV, MUSIC), SplitPair(WAZE, MUSIC), SplitPair(CHROME, RADIO), SplitPair(MAPS, NAV), SplitPair(WAZE, RADIO)),
+            chips.map { it.pair },
+        )
+    }
+
+    @Test
+    fun aRecentMirrorIsNoSecondChip() {
+        // Both orientations remembered: the first in the row's order stays, drawn as remembered.
+        val memory = SplitMemory(last = SplitPair(RADIO, MAPS), recent = listOf(SplitPair(MAPS, RADIO), SplitPair(WAZE, MUSIC)))
+        val d = describe(state(NAV, MUSIC, memory), live(NAV, MUSIC))
+        assertEquals(
+            listOf(
+                chip(RADIO, MAPS),
+                chip(WAZE, MUSIC),
+                chip(NAV, MUSIC, live = true, badge = PillBadge.OUTLINE),
+                PillItem.Separator,
+                PillItem.Plus,
+            ),
+            d.home,
+        )
+    }
+
+    @Test
+    fun theLivePairIsTheOneChipOfItsPinnedMirror() {
+        // MUSIC + NAV pinned, NAV + MUSIC on screen: one chip, live, in the on-screen orientation,
+        // in the pin's place, the star solid; the recent mirror adds nothing either.
+        val memory = SplitMemory(
+            last = SplitPair(NAV, MUSIC),
+            recent = listOf(SplitPair(WAZE, RADIO)),
+            pinned = listOf(SplitPair(RADIO, MAPS), SplitPair(MUSIC, NAV)),
+        )
+        val d = describe(state(NAV, MUSIC, memory), live(NAV, MUSIC))
+        assertEquals(
+            listOf(
+                chip(RADIO, MAPS, badge = PillBadge.SOLID),
+                chip(NAV, MUSIC, live = true, badge = PillBadge.SOLID),
+                chip(WAZE, RADIO),
+                PillItem.Separator,
+                PillItem.Plus,
+            ),
+            d.home,
+        )
+    }
+
+    @Test
+    fun bothOrientationsPinnedAreOneChip() {
+        val memory = SplitMemory(pinned = listOf(SplitPair(MUSIC, NAV), SplitPair(NAV, MUSIC)))
+        val d = describe(state(WAZE, RADIO, memory), live(WAZE, RADIO))
+        assertEquals(
+            listOf(
+                chip(MUSIC, NAV, badge = PillBadge.SOLID),
+                chip(WAZE, RADIO, live = true, badge = PillBadge.OUTLINE),
                 PillItem.Separator,
                 PillItem.Plus,
             ),
@@ -278,7 +347,7 @@ class SplitPillModelTest {
         assertEquals(none.apps, none.home)
         // A catalogue not read yet filters nothing.
         val unread = SplitPillModel.describe(state(NAV, MUSIC, memory), live(NAV, MUSIC), NARROW_LEFT, emptyList())!!
-        assertTrue(unread.home.contains(chip(WAZE, RADIO)))
+        assertTrue(unread.home.contains(chip(WAZE, RADIO, badge = PillBadge.SOLID)))
     }
 
     @Test

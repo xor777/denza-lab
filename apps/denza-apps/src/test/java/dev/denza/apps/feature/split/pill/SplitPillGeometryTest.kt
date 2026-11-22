@@ -196,6 +196,31 @@ class SplitPillGeometryTest {
         assertEquals(3, PillGeometry.itemAt(l, l.x[3] + l.widthOf(3) / 2, 0.0))
     }
 
+    /**
+     * Five chips, each with a star (2026-11-21), the separator and «+»: 647 dp wide, so the open
+     * pill stands centred on the divider at either detent - at 434 (a third, the narrow pane on
+     * the left) from 110.5 to 757.5 - well inside the 24 dp margins of the 1280 dp stage, and every
+     * chip's badge still never takes the next chip's touch.
+     */
+    @Test
+    fun fiveChipsWithStarsFitAtEitherDetent() {
+        val n = SplitPillSpec.Row.MAX_CHIPS.toInt()
+        assertEquals(5, n)
+        val l = PillGeometry.layout(List(n) { i -> chip("a$i", "b$i") } + PillItem.Separator + PillItem.Plus)
+        assertEquals(647.0, l.w, 1e-9)
+        detents.forEach { div ->
+            val open = PillGeometry.open(div, l)
+            assertEquals("not shifted off the divider", div, open.cx, 1e-9)
+            assertTrue(open.l >= SplitPillSpec.Pill.MARGIN && open.r <= SplitPillSpec.Stage.W - SplitPillSpec.Pill.MARGIN)
+        }
+        for (i in 0 until n - 1) {
+            val disc = PillGeometry.badgeDisc(l, i)
+            assertTrue(PillGeometry.inBadge(l, i, disc.cx, disc.cy))
+            assertFalse(PillGeometry.inBadge(l, i, l.x[i + 1] + 1, disc.cy))
+            assertEquals(i + 1, PillGeometry.itemAt(l, l.x[i + 1] + 2, 0.0))
+        }
+    }
+
     @Test
     fun theDividerIsReadFromTheWindowList() {
         val h = 1600

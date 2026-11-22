@@ -1181,11 +1181,15 @@ internal class SplitPillView(
         return true
     }
 
-    /** The badge drawn under (x, y): a badge goes before every chip, its own included. */
+    /**
+     * The badge drawn under (x, y): a badge goes before every chip, its own included. Only the live
+     * chip's badge is a control; another chip's star is a mark, and a tap on it opens that chip.
+     */
     private fun badgeUnder(x: Double, y: Double): ItemAnim? {
         for (i in items.indices.reversed()) {
             val anim = items[i]
-            if (anim.item !is PillItem.Chip || anim.badge == null || anim.badgeA.v < 0.5) continue
+            val chip = anim.item as? PillItem.Chip ?: continue
+            if (!chip.live || anim.badge == null || anim.badgeA.v < 0.5) continue
             if (toItem(anim, x, y) && PillGeometry.hitsBadge(local[0], local[1])) return anim
         }
         return null
@@ -1195,7 +1199,10 @@ internal class SplitPillView(
     private fun itemUnder(x: Double, y: Double): ItemAnim? {
         for (i in items.indices.reversed()) {
             val anim = items[i]
-            if (toItem(anim, x, y) && PillGeometry.hitsItem(anim.item, local[0], local[1])) return anim
+            if (!toItem(anim, x, y)) continue
+            if (PillGeometry.hitsItem(anim.item, local[0], local[1])) return anim
+            // A pinned chip's star mark is the chip's: a tap on its overhang opens the chip too.
+            if (anim.item is PillItem.Chip && anim.badge != null && PillGeometry.hitsBadge(local[0], local[1])) return anim
         }
         return null
     }

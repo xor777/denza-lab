@@ -53,6 +53,15 @@ internal data class SplitPair(val primary: String, val secondary: String) {
 
     val isWellFormed: Boolean get() = primary.isNotBlank() && secondary.isNotBlank()
 
+    /**
+     * The same two apps the other way round. Memory keeps the two as two pairs; the pill's row and
+     * its star treat them as one (decision 2026-11-21).
+     */
+    val mirrored: SplitPair get() = SplitPair(secondary, primary)
+
+    /** Whether [other] is this pair or its [mirrored] one. */
+    fun sameApps(other: SplitPair): Boolean = other == this || other == mirrored
+
     companion object {
         /** The pair two slots make, when both of them hold an application. */
         fun of(slots: Map<SplitPane, SplitSlot>): SplitPair? {

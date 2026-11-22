@@ -3,6 +3,7 @@ package dev.denza.apps.feature.split
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -84,11 +85,46 @@ class SplitPairMemoryTest {
 
         assertEquals(SplitPair(MUSIC, NAVIGATOR), taken.memory.last)
         assertEquals(SplitPair(NAVIGATOR, MUSIC), swapped.memory.last)
-        assertEquals(
-            "прямая пара осталась среди недавних - отдельной парой, и только она",
-            listOf(SplitPair(MUSIC, NAVIGATOR)),
-            swapped.memory.recent,
-        )
+        // 2026-11-21: the recent list keeps one orientation of two apps, the newest - the mirror
+        // of the new last pair leaves it.
+        assertEquals(emptyList<SplitPair>(), swapped.memory.recent)
+    }
+
+    @Test
+    fun theRecentListKeepsOnlyTheNewestOrientationOfTwoApps() {
+        val a = remembered(MUSIC to NAVIGATOR)
+        val b = choose(a, SplitPane.SECONDARY, RADIO)
+        // NAVIGATOR + MUSIC: the mirror of the recent MUSIC + NAVIGATOR.
+        val c = reduce(b, SplitFact.BuildSceneSucceeded(slots(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC))))
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), c.memory.last)
+        assertEquals(listOf(SplitPair(MUSIC, RADIO)), c.memory.recent)
+        assertTrue(c.memory.isWellFormed)
+    }
+
+    @Test
+    fun aStarOnTheMirrorOfAPinIsNoSecondPin() {
+        // Pinned MUSIC + NAVIGATOR, then the two the other way round on screen.
+        val pinned = reduce(remembered(MUSIC to NAVIGATOR), SplitFact.PairPinned(SplitPair(MUSIC, NAVIGATOR)))
+        val swapped = reduce(pinned, SplitFact.BuildSceneSucceeded(slots(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC))))
+        assertEquals(listOf(SplitPair(MUSIC, NAVIGATOR)), swapped.memory.pinned)
+        val again = SplitAutomaton.reduce(swapped, SplitFact.PairPinned(SplitPair(NAVIGATOR, MUSIC)))
+        assertSame("the mirror is pinned already", swapped, again.state)
+    }
+
+    @Test
+    fun unpinningTheMirrorTakesOffWhicheverOrientationIsPinned() {
+        val pinned = reduce(remembered(MUSIC to NAVIGATOR), SplitFact.PairPinned(SplitPair(MUSIC, NAVIGATOR)))
+        val swapped = reduce(pinned, SplitFact.BuildSceneSucceeded(slots(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC))))
+        val unpinned = reduce(swapped, SplitFact.PairUnpinned(SplitPair(NAVIGATOR, MUSIC)))
+        assertEquals(emptyList<SplitPair>(), unpinned.memory.pinned)
+        assertEquals(SplitPair(NAVIGATOR, MUSIC), unpinned.memory.last)
+        assertEquals("the last pair stays out of the recent list", emptyList<SplitPair>(), unpinned.memory.recent)
+
+        // Both orientations pinned (a memory written before 2026-11-21): one unpin takes both.
+        val both = swapped.copy(memory = swapped.memory.copy(pinned = listOf(SplitPair(MUSIC, NAVIGATOR), SplitPair(NAVIGATOR, MUSIC), SplitPair(MUSIC, RADIO))))
+        val cleared = reduce(both, SplitFact.PairUnpinned(SplitPair(NAVIGATOR, MUSIC)))
+        assertEquals(listOf(SplitPair(MUSIC, RADIO)), cleared.memory.pinned)
+        assertTrue(cleared.memory.isWellFormed)
     }
 
     @Test

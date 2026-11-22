@@ -22,8 +22,9 @@ internal sealed interface PillItem {
     /**
      * A pair chip. [left] and [right] are the apps on the screen's left and right ([leftPane]
      * decides which pane that is); [missing] names the side whose app is a contour (an incomplete
-     * pair, the repair row), and such a chip is opened; [live] marks the pair on screen, and only
-     * its chip carries [badge].
+     * pair, the repair row), and such a chip is opened; [live] marks the pair on screen. [badge]:
+     * the live chip's star (outline or solid, a tap toggles it), or the solid mark of a pinned pair
+     * on any other chip, which takes no tap of its own.
      */
     data class Chip(
         val pair: SplitPair,
@@ -166,18 +167,26 @@ internal object SplitPillModel {
         fun pair(pair: SplitPair): Boolean = app(pair.primary) && app(pair.secondary)
     }
 
-    /** The pairs memory holds, pins first, then the last and the recent ones (1.14.1). */
+    /**
+     * The pairs memory holds, pins first, then the last and the recent ones (1.14.1). A pair and
+     * its mirror are one entry here (decision 2026-11-21): the first of the two in that order
+     * stays, a later mirror is dropped.
+     */
     private fun remembered(state: SplitState): List<SplitPair> {
         val memory = state.memory
-        val pins = memory.pinned
-        val others = (listOfNotNull(memory.last) + memory.recent).filter { pair -> pair !in pins }
-        return (pins + others).distinct()
+        val out = mutableListOf<SplitPair>()
+        (memory.pinned + listOfNotNull(memory.last) + memory.recent).forEach { pair ->
+            if (out.none(pair::sameApps)) out += pair
+        }
+        return out
     }
 
     /**
-     * Pinned pairs first, then recent ones, three chips at most; the pair on screen always among
-     * them, taking the third place when it would not be; a separator, and «+». Only the live chip
-     * carries a badge: outline while the pair is not pinned, solid once it is.
+     * Pinned pairs first, then recent ones, `row.maxChips` chips at most; the pair on screen always
+     * among them, taking the last place when it would not be; a separator, and «+». The pair on
+     * screen stands in for its mirror: the one chip of the two is the live chip, drawn as it stands
+     * now. The live chip's badge is outline while neither orientation is pinned, solid once one is;
+     * every other chip of a pinned pair carries the solid star as a mark only (2026-11-21).
      */
     private fun pairsRow(
         state: SplitState,
@@ -185,7 +194,9 @@ internal object SplitPillModel {
         live: SplitPair?,
         launchable: Launchable,
     ): List<PillItem> {
-        val all = remembered(state).filter { pair -> pair == live || launchable.pair(pair) }
+        val all = remembered(state)
+            .map { pair -> if (live != null && pair.sameApps(live)) live else pair }
+            .filter { pair -> pair == live || launchable.pair(pair) }
         val n = SplitPillSpec.Row.MAX_CHIPS.toInt()
         val chips = all.take(n).toMutableList()
         if (live != null && live !in chips) {
@@ -195,12 +206,17 @@ internal object SplitPillModel {
         val out = mutableListOf<PillItem>()
         chips.forEach { pair ->
             val isLive = pair == live
+            val isPinned = pinned.any(pair::sameApps)
             out += chip(
                 pair = pair,
                 leftPane = leftPane,
                 missingPane = null,
                 live = isLive,
-                badge = if (!isLive) null else if (pair in pinned) PillBadge.SOLID else PillBadge.OUTLINE,
+                badge = when {
+                    isPinned -> PillBadge.SOLID
+                    isLive -> PillBadge.OUTLINE
+                    else -> null
+                },
             )
         }
         if (chips.isNotEmpty()) out += PillItem.Separator
