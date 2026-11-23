@@ -71,11 +71,6 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
 
 ## Parked work
 
-- Branch `archive/cloudmanager-runtime` — the custom-SIM runtime for
-  `cloudmanager` (`tools/telematics/runtime/`,
-  `research/telematics-firmware/persistent_runtime.c`,
-  `docs/cloud-custom-runtime-contract.md`, the CUSTOM mode of `feature/cloud`),
-  moved off main in `eed3a411`.
 - Branches `stock-sender-parity` and `adas-odd-parity` — the map → ADAS (NOA) bridge:
   `libraries/adas-link`, `tools/adas_bridge`, `research/adas-bridge`, the ADAS probes and
   the ADAS overlay in the YandexHUD module, moved off main on 2026-11-01. Two separate

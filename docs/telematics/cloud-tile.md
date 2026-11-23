@@ -136,7 +136,7 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   connected or transitioning stock APNs defer public-profile activation.
   **Only Wi-Fi is proven on a car.** Mobile data from a local SIM was added on
   2026-09-23 for owners with such a SIM to test (see below).
-  > **Checked 2026-10-03:** still true on main. `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`) counts a validated Wi-Fi or cellular default network as usable. A Wi-Fi-only factory rule existed only in WIP commit 9cc0247e, which eed3a411 reverted (kept on branch `archive/cloudmanager-runtime`).
+  > **Checked 2026-10-03:** still true on main. `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`) counts a validated Wi-Fi or cellular default network as usable. A Wi-Fi-only factory rule existed only in WIP commit 9cc0247e, which eed3a411 reverted (the branch that kept it, `archive/cloudmanager-runtime`, was deleted on 2026-11-23).
   > **Superseded 2026-11-19:** the adapter acts only on validated Wi-Fi as the default network (`CloudNetwork.usableOf`); mobile data is read for the report and never acted on. The cloud takes the registration only from a Chinese ICCID, on any transport, so acting on mobile data never helped a car and could disturb one whose own path works — see [Three ways to break a working car, 2026-11-19](#three-ways-to-break-a-working-car-2026-11-19).
 - **On**: when the car is not on `double_apn` with APN1 disabled, send the
   profile broadcast, wait 3 s and read the profile back. Then, with usable
@@ -1134,7 +1134,8 @@ What this means for main:
   still have a Chinese ICCID, so that row is a hint, not a verdict.
 
 The custom-SIM runtime that would present a different identity to the cloud
-stays on branch `archive/cloudmanager-runtime` and is not part of main.
+is not part of main: its branch `archive/cloudmanager-runtime` was deleted on 2026-11-23,
+the experiment dropped by the owner.
 
 ### Three ways to break a working car, 2026-11-19
 

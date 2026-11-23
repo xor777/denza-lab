@@ -55,7 +55,7 @@ Updated 2026-11-19. What it takes for the official Denza phone app to see this c
 - Whether the head unit still refuses owner-only settings («This setting can only be modified by the owner's account») now that the stock client registers over Wi-Fi; not rechecked since 2026-09-22. Settle with one tap on Remote Location while TCP=1 — [Remote Location](investigation-2026-09-22.md#remote-location-refuses-to-turn-on-owner-account-gate-2026-09-22).
 
 Product code: `apps/denza-apps/src/main/java/dev/denza/apps/feature/cloud/`. Host probes: `tools/telematics/`. Offline firmware tools: `research/telematics-firmware/`.
-The custom-SIM runtime experiment (`tools/telematics/runtime`, `research/telematics-firmware/persistent_runtime.c`, `docs/cloud-custom-runtime-contract.md` and the CUSTOM mode in `feature/cloud`) was moved off main in eed3a411 to branch `archive/cloudmanager-runtime`.
+The custom-SIM runtime experiment (`tools/telematics/runtime`, `research/telematics-firmware/persistent_runtime.c`, `docs/cloud-custom-runtime-contract.md` and the CUSTOM mode in `feature/cloud`) was moved off main in eed3a411 to branch `archive/cloudmanager-runtime`; the owner dropped the experiment and the branch was deleted on 2026-11-23. What main held of it is in the history before eed3a411.
 
 ## Codes and commands
 
