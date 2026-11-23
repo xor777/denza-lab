@@ -82,6 +82,15 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
   experimental lines: YandexHUD builds 15 and 18–29 come from the first, 16–17 (ODD
   parity) from the second. Neither is merged anywhere: not main into them, not them
   into main or into each other.
+- Branch `experiment/vehicle-voice-control` — a standalone vehicle remote (windows,
+  doors, seats, shades, climate over ADB) with an offline Russian voice prototype,
+  2026-10-16: `experiments/vehicle-control-probe` and its host tools. An experiment
+  of its own, never merged into main.
+- Branch `yangwang-u9` — Android 12 support for Denza Apps and a cloud-diagnostics
+  export for a Yangwang U9 (DiLink 6.0), 2026-09-28. What that car answered is in
+  [docs/telematics/other-vehicles.md](docs/telematics/other-vehicles.md).
+- Branch `gh-pages` — the download page, written only by
+  `platform/downloads/deploy_pages.sh`.
 
 ## The car
 
